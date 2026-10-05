@@ -27,10 +27,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/NewGuideMa
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "NewGuideMaker";                /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.3.7";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.4.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-07-13";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-06";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/NewGuideMaker.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/NewGuideMaker.md"; /* README (English) */
@@ -149,8 +149,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1085336d7265"; /* 紹�
 
     // UIレイアウト（再利用パーツ）ここまで / End of the reusable UI layout
 
-    var FIELD_ROW_SPACING  = 6;                /* ラベル・入力欄・単位表記の間隔 / gap inside a labeled field row */
-    var UNIT_TEXT_WIDTH    = 34;               /* 数値欄に添える単位表記の幅 / width of the unit label next to a field */
+    var FIELD_ROW_SPACING      = 6;            /* ラベルと入力欄の間隔 / gap inside a labeled field row */
+    var UNIT_FIELD_EXTRA_CHARS = 3;            /* 単位を入れる欄に足す幅（文字数） / extra width for fields holding a unit */
 
     // ボタン行（再利用パーツ） / Button row (reusable)
 
@@ -262,9 +262,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1085336d7265"; /* 紹�
        「p」は「1p6」（1パイカ6ポイント）の形にも使う
        Units UnitValue lacks, mapped onto UnitValue units (how many of `unit` make one) */
     var STEPPER_UNIT_ALIASES = {
-        "q": { unit: "mm", amount: 0.25 }, /* 級 / Q */
-        "h": { unit: "mm", amount: 0.25 }, /* 歯 / H */
-        "p": { unit: "pc", amount: 1 }     /* パイカ / pica */
+        "q": { unit: "mm", amount: 0.25 },    /* 級 / Q */
+        "h": { unit: "mm", amount: 0.25 },    /* 歯 / H */
+        "p": { unit: "pc", amount: 1 },       /* パイカ / pica */
+        "ft/in": { unit: "ft", amount: 1 },   /* Illustrator の単位コード7の表示 / Illustrator unit code 7 */
+        "c": { unit: "ci", amount: 1 },       /* シセロ（InDesign の表示） / ciceros as InDesign shows them */
+        "ag": { unit: "in", amount: 1 / 14 }, /* アゲート / agates */
+        "ap": { unit: "tpt", amount: 1 }      /* アメリカンポイント / American points */
     };
 
     // -----------------------------------------
@@ -358,6 +362,28 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1085336d7265"; /* 紹�
     }
 
     /**
+     * 数値欄の単位を差し替える（単位の設定やドロップダウンを切り替えたとき用）。
+     * shouldConvert が true なら値を新しい単位へ換算し（10 mm → 28.35 pt）、false なら数値はそのままで単位だけ付け替える
+     * @param {EditText} numberInput - addSteppedField() で作った入力欄、または bindSteppedArrowKeys() を呼んだ入力欄
+     * @param {string} unit - 新しい単位（例 " pt"。単位なしは ""）
+     * @param {boolean} [shouldConvert] - 値も換算するなら true
+     * @returns {void}
+     */
+    function setSteppedFieldUnit(numberInput, unit, shouldConvert) {
+        var stepOptions = numberInput.stepperGroup.stepOptions;
+        var oldUnit = stepOptions.unit || "";
+        var value = parseFloat(numberInput.text);
+        stepOptions.unit = unit;
+        if (isNaN(value)) return;
+        if (shouldConvert) {
+            var converted = evaluateArithmetic(String(value) + oldUnit, unit);
+            if (!isNaN(converted)) value = converted;
+        }
+        numberInput.text = formatStepperNumber(value) + unit;
+        numberInput.lastValidText = numberInput.text;
+    }
+
+    /**
      * 入力欄の値を増減する∧∨ボタンを、隙間なく縦に積んで追加する
      * @param {Group|Panel} parent - 追加先
      * @param {Function} getNumberInput - 対象の入力欄を返す関数（入力欄を∧∨より後に作れるよう、クリック時に引く）
@@ -428,9 +454,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1085336d7265"; /* 紹�
             if (isNaN(value)) return; /* 計算できなければ各スクリプトの処理に任せる / leave it to the script's own handler */
             /* 式か、換算で値が変わったときだけ書き戻す（ただの数値は書式を崩さない） / rewrite only expressions and converted values */
             var hasOperator = /[*\/()\u00D7\u00F7\uFF0A\uFF0F\uFF08\uFF09]|[\d.\uFF10-\uFF19][^\d.\uFF10-\uFF19]*[+\-\u2212\uFF0B\uFF0D]/.test(numberInput.text);
-            if (!hasOperator && value === parseFloat(numberInput.text)) return;
+            if (!hasOperator && value === parseFloat(numberInput.text)) {
+                /* 単位を省いて入れた数値には、欄の単位だけ付け足す（桁は丸めない） / append the field unit to a bare number */
+                var trimmedText = numberInput.text.replace(/^\s+|\s+$/g, "");
+                if (fieldUnit && /[\d.]$/.test(trimmedText)) numberInput.text = trimmedText + fieldUnit;
+                return;
+            }
             numberInput.text = formatStepperNumber(value) + (fieldUnit || "");
         });
+        numberInput.stepperGroup = stepperGroup; /* setSteppedFieldUnit() から∧∨の設定を引けるようにする / lets setSteppedFieldUnit() find the options */
     }
 
     // -----------------------------------------
@@ -558,7 +590,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1085336d7265"; /* 紹�
          * @returns {number} 欄の単位での値（換算できない単位なら NaN）
          */
         function readUnitSuffix(value) {
-            var unitMatch = /^([A-Za-z]+|%|°)/.exec(source.substring(position));
+            var unitMatch = /^(ft\/in|[A-Za-z]+|%|°)/i.exec(source.substring(position));
             if (!unitMatch) return value; /* 単位なしは欄の単位 / no unit means the field's unit */
             position += unitMatch[0].length;
             var unitKey = unitMatch[0].toLowerCase();
@@ -1344,12 +1376,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1085336d7265"; /* 紹�
 
     /**
      * 値と単位ラベルから pt へ変換する
-     * @param {string|number} inputValue - 変換する値（数値以外は0扱い）
+     * @param {string|number} inputValue - 変換する値（「10 mm」のような単位付きの文字列も可。数値以外は0扱い）
      * @param {string} unitLabel - 単位ラベル（"mm" など）
      * @returns {number} pt に変換した値
      */
     function convertToPt(inputValue, unitLabel) {
-        var numericValue = Number(inputValue);
+        var numericValue = parseFloat(inputValue);
         if (isNaN(numericValue)) {
             return 0;
         }
@@ -1521,7 +1553,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1085336d7265"; /* 紹�
         /* 単位オプションと現在単位のインデックス / Unit options and current unit index */
         var unitOptions = getUnitLabels();
         var currentUnitIndex = getRulerUnitIndex();
-        var unitSuffixTexts = []; /* 各数値欄の単位表記（共有ドロップダウンに追従）/ Per-field unit labels (follow the shared dropdown) */
+        var unitFields = []; /* 単位を入れた数値欄（共有ドロップダウンに追従）/ Fields holding the shared unit (follow the dropdown) */
         var numberFields = []; /* 数値欄（入力中もショートカットを効かせる）/ Numeric fields (shortcuts stay active while they have focus) */
 
         /* ガイド用レイヤーは使用時のみ遅延生成 / The guide layer is created lazily, only when used */
@@ -1761,23 +1793,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1085336d7265"; /* 紹�
         }
 
         /**
-         * 数値欄の右に単位表記を追加する（共有ドロップダウンに追従）
-         * @param {Group} parentRow - 追加先の行グループ
-         * @returns {StaticText} 生成した単位表記
-         */
-        function addUnitSuffixText(parentRow) {
-            var unitText = parentRow.add("statictext", undefined, unitOptions[currentUnitIndex]);
-            unitText.preferredSize.width = UNIT_TEXT_WIDTH;
-            unitSuffixTexts.push(unitText);
-            return unitText;
-        }
-
-        /**
          * ラベル付きの数値欄を生成する
          * @param {Group|Panel} parentContainer - 追加先
          * @param {string} labelText - ラベル文字列（コロンは自動付与）
          * @param {string} defaultValue - 初期値
-         * @param {boolean} showUnitSuffix - 単位表記を添えるかどうか
+         * @param {boolean} showUnitSuffix - 入力欄に単位を入れるかどうか（別の単位で入れた値は換算される）
          * @param {string} [helpTipText] - ツールチップ
          * @param {number} [widthInChars] - 入力欄の幅（文字数）
          * @param {Object} [stepOptions] - ∧∨の増減の設定（省略時は1ずつ・下限なし）
@@ -1787,9 +1807,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1085336d7265"; /* 紹�
             var fieldRow = parentContainer.add("group");
             setupRow(fieldRow, "left", FIELD_ROW_SPACING);
             var fieldLabel = fieldRow.add("statictext", undefined, labelText + getUiColon());
-            var numberField = addNumberField(fieldRow, defaultValue, widthInChars, stepOptions);
+            var numberField;
             if (showUnitSuffix) {
-                addUnitSuffixText(fieldRow);
+                var fieldUnit = " " + unitOptions[currentUnitIndex];
+                var unitStepOptions = stepOptions || { step: 1 };
+                unitStepOptions.unit = fieldUnit;
+                var unitWidthInChars = ((typeof widthInChars === "number") ? widthInChars : 2) + UNIT_FIELD_EXTRA_CHARS;
+                numberField = addNumberField(fieldRow, defaultValue + fieldUnit, unitWidthInChars, unitStepOptions);
+                unitFields.push(numberField);
+            } else {
+                numberField = addNumberField(fieldRow, defaultValue, widthInChars, stepOptions);
             }
             if (helpTipText) {
                 fieldLabel.helpTip = helpTipText;
@@ -1879,10 +1906,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1085336d7265"; /* 紹�
         unitDropdown = buttonRow.leftGroup.add("dropdownlist", undefined, unitOptions);
         unitDropdown.selection = currentUnitIndex;
         unitDropdown.onChange = function() {
-            /* 各数値欄の単位表記を更新 / Update the per-field unit labels */
-            var selectedUnitLabel = unitDropdown.selection.text;
-            for (var i = 0; i < unitSuffixTexts.length; i++) {
-                unitSuffixTexts[i].text = selectedUnitLabel;
+            /* 各数値欄の単位を付け替える（数値はそのまま） / swap the unit in each field, keeping the numbers */
+            var selectedUnit = " " + unitDropdown.selection.text;
+            for (var i = 0; i < unitFields.length; i++) {
+                setSteppedFieldUnit(unitFields[i], selectedUnit, false);
             }
             drawPreview();
         };

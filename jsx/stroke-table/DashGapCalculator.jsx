@@ -29,10 +29,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/DashGapCal
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "DashGapCalculator";            /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v2.1.7";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v2.2.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-02-25";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-06";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/DashGapCalculator.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/DashGapCalculator.md"; /* README (English) */
@@ -152,6 +152,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n868bedb96542"; /* 紹�
     var OFFSET_PANEL_SPACING     = 6;            /* 開始位置パネルの要素間隔（密） */
     var FIELD_LABEL_WIDTH        = 40;           /* 分割数・間隔・線分のラベル幅 */
     var NUMBER_FIELD_CHARS       = 4;            /* 数値入力欄の幅（文字数） */
+    var LENGTH_FIELD_CHARS       = 6;            /* 単位付きの入力欄の幅（文字数） */
     var LABELLESS_CHECKBOX_WIDTH = 18;           /* ラベルなしチェックボックスの幅 */
 
     // ダイアログの位置と不透明度（再利用パーツ） / Dialog position and opacity (reusable)
@@ -895,9 +896,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n868bedb96542"; /* 紹�
        「p」は「1p6」（1パイカ6ポイント）の形にも使う
        Units UnitValue lacks, mapped onto UnitValue units (how many of `unit` make one) */
     var STEPPER_UNIT_ALIASES = {
-        "q": { unit: "mm", amount: 0.25 }, /* 級 / Q */
-        "h": { unit: "mm", amount: 0.25 }, /* 歯 / H */
-        "p": { unit: "pc", amount: 1 }     /* パイカ / pica */
+        "q": { unit: "mm", amount: 0.25 },    /* 級 / Q */
+        "h": { unit: "mm", amount: 0.25 },    /* 歯 / H */
+        "p": { unit: "pc", amount: 1 },       /* パイカ / pica */
+        "ft/in": { unit: "ft", amount: 1 },   /* Illustrator の単位コード7の表示 / Illustrator unit code 7 */
+        "c": { unit: "ci", amount: 1 },       /* シセロ（InDesign の表示） / ciceros as InDesign shows them */
+        "ag": { unit: "in", amount: 1 / 14 }, /* アゲート / agates */
+        "ap": { unit: "tpt", amount: 1 }      /* アメリカンポイント / American points */
     };
 
     // -----------------------------------------
@@ -991,6 +996,28 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n868bedb96542"; /* 紹�
     }
 
     /**
+     * 数値欄の単位を差し替える（単位の設定やドロップダウンを切り替えたとき用）。
+     * shouldConvert が true なら値を新しい単位へ換算し（10 mm → 28.35 pt）、false なら数値はそのままで単位だけ付け替える
+     * @param {EditText} numberInput - addSteppedField() で作った入力欄、または bindSteppedArrowKeys() を呼んだ入力欄
+     * @param {string} unit - 新しい単位（例 " pt"。単位なしは ""）
+     * @param {boolean} [shouldConvert] - 値も換算するなら true
+     * @returns {void}
+     */
+    function setSteppedFieldUnit(numberInput, unit, shouldConvert) {
+        var stepOptions = numberInput.stepperGroup.stepOptions;
+        var oldUnit = stepOptions.unit || "";
+        var value = parseFloat(numberInput.text);
+        stepOptions.unit = unit;
+        if (isNaN(value)) return;
+        if (shouldConvert) {
+            var converted = evaluateArithmetic(String(value) + oldUnit, unit);
+            if (!isNaN(converted)) value = converted;
+        }
+        numberInput.text = formatStepperNumber(value) + unit;
+        numberInput.lastValidText = numberInput.text;
+    }
+
+    /**
      * 入力欄の値を増減する∧∨ボタンを、隙間なく縦に積んで追加する
      * @param {Group|Panel} parent - 追加先
      * @param {Function} getNumberInput - 対象の入力欄を返す関数（入力欄を∧∨より後に作れるよう、クリック時に引く）
@@ -1061,9 +1088,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n868bedb96542"; /* 紹�
             if (isNaN(value)) return; /* 計算できなければ各スクリプトの処理に任せる / leave it to the script's own handler */
             /* 式か、換算で値が変わったときだけ書き戻す（ただの数値は書式を崩さない） / rewrite only expressions and converted values */
             var hasOperator = /[*\/()\u00D7\u00F7\uFF0A\uFF0F\uFF08\uFF09]|[\d.\uFF10-\uFF19][^\d.\uFF10-\uFF19]*[+\-\u2212\uFF0B\uFF0D]/.test(numberInput.text);
-            if (!hasOperator && value === parseFloat(numberInput.text)) return;
+            if (!hasOperator && value === parseFloat(numberInput.text)) {
+                /* 単位を省いて入れた数値には、欄の単位だけ付け足す（桁は丸めない） / append the field unit to a bare number */
+                var trimmedText = numberInput.text.replace(/^\s+|\s+$/g, "");
+                if (fieldUnit && /[\d.]$/.test(trimmedText)) numberInput.text = trimmedText + fieldUnit;
+                return;
+            }
             numberInput.text = formatStepperNumber(value) + (fieldUnit || "");
         });
+        numberInput.stepperGroup = stepperGroup; /* setSteppedFieldUnit() から∧∨の設定を引けるようにする / lets setSteppedFieldUnit() find the options */
     }
 
     // -----------------------------------------
@@ -1191,7 +1224,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n868bedb96542"; /* 紹�
          * @returns {number} 欄の単位での値（換算できない単位なら NaN）
          */
         function readUnitSuffix(value) {
-            var unitMatch = /^([A-Za-z]+|%|°)/.exec(source.substring(position));
+            var unitMatch = /^(ft\/in|[A-Za-z]+|%|°)/i.exec(source.substring(position));
             if (!unitMatch) return value; /* 単位なしは欄の単位 / no unit means the field's unit */
             position += unitMatch[0].length;
             var unitKey = unitMatch[0].toLowerCase();
@@ -1453,22 +1486,22 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n868bedb96542"; /* 紹�
      * @param {Window|Panel|Group} parentContainer - 追加先のコンテナ
      * @param {Object} labelNode - 項目名の LABELS ノード
      * @param {number} initialValue - 入力欄の初期値（単位値）
-     * @param {string} unitLabel - 単位の表示
+     * @param {string} fieldUnit - 入力欄の単位（例 " mm"）
      * @param {Object} tooltipNode - tooltip の LABELS ノード
      * @returns {{row: Group, field: EditText, resultLabel: StaticText}} 行・入力欄・結果表示
      */
-    function addDashGapRow(parentContainer, labelNode, initialValue, unitLabel, tooltipNode) {
+    function addDashGapRow(parentContainer, labelNode, initialValue, fieldUnit, tooltipNode) {
         var fieldRow = addFieldRow(parentContainer, labelNode);
 
         var numberField;
-        var stepperInputGroup = addStepperInputGroup(fieldRow, function () { return numberField; }, { step: 1, min: 0 });
+        var stepperInputGroup = addStepperInputGroup(fieldRow, function () { return numberField; }, { step: 1, min: 0, unit: fieldUnit });
 
         /* 入力欄と計算結果を重ね、計算方法に応じて切り替える / the field and the computed result share one slot */
         var fieldStack = stepperInputGroup.add("group");
         fieldStack.orientation = "stack";
 
-        numberField = fieldStack.add("edittext", undefined, formatFieldNumber(initialValue));
-        numberField.characters = NUMBER_FIELD_CHARS;
+        numberField = fieldStack.add("edittext", undefined, formatFieldNumber(initialValue) + fieldUnit);
+        numberField.characters = LENGTH_FIELD_CHARS;
         numberField.stepperGroup = stepperInputGroup.stepperGroup;
         bindSteppedArrowKeys(numberField, numberField.stepperGroup);
 
@@ -1476,7 +1509,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n868bedb96542"; /* 紹�
         resultLabel.justify = "right";
         resultLabel.preferredSize.width = numberField.preferredSize.width;
 
-        fieldRow.add("statictext", undefined, unitLabel);
         fieldRow.helpTip = numberField.helpTip = getLabel(tooltipNode);
         return { row: fieldRow, field: numberField, resultLabel: resultLabel };
     }
@@ -1485,7 +1517,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n868bedb96542"; /* 紹�
      * ∧∨を入れた行 group（spacing 0）を追加する。入力欄はこの group に続けて足し、∧∨と突き合わせる
      * @param {Group} parentRow - 追加先の行
      * @param {Function} getNumberInput - 対象の入力欄を返す関数
-     * @param {Object} stepOptions - step / min / integer（onStep は入力欄の _onArrowChange を呼ぶ形に固定）
+     * @param {Object} stepOptions - step / min / integer / unit（onStep は入力欄の _onArrowChange を呼ぶ形に固定）
      * @returns {Group} 追加した group（∧∨は .stepperGroup で参照できる）
      */
     function addStepperInputGroup(parentRow, getNumberInput, stepOptions) {
@@ -1568,8 +1600,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n868bedb96542"; /* 紹�
         segmentsRow.helpTip = txtSegments.helpTip = getLabel(LABELS.tooltip.segments);
 
         /* 間隔・線分 */
-        var gapRow = addDashGapRow(dashInputColumn, LABELS.fieldLabel.gap, initialValues.gapUnit, strokeUnit.label, LABELS.tooltip.gap);
-        var dashRow = addDashGapRow(dashInputColumn, LABELS.fieldLabel.dash, initialValues.dashUnit, strokeUnit.label, LABELS.tooltip.dash);
+        /* 単位は入力欄に入れる（別の単位で入れても線の単位へ換算される） / the unit lives in the field */
+        var strokeFieldUnit = " " + strokeUnit.label;
+        var gapRow = addDashGapRow(dashInputColumn, LABELS.fieldLabel.gap, initialValues.gapUnit, strokeFieldUnit, LABELS.tooltip.gap);
+        var dashRow = addDashGapRow(dashInputColumn, LABELS.fieldLabel.dash, initialValues.dashUnit, strokeFieldUnit, LABELS.tooltip.dash);
 
         /* 計算方法（左カラム）*/
         var calcMethodPanel = addPanel(leftColumn, getLabel(LABELS.panel.calcMethod));
@@ -1594,15 +1628,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n868bedb96542"; /* 紹�
         chkUseOffset.preferredSize.width = LABELLESS_CHECKBOX_WIDTH;
 
         var txtOffset;
-        var offsetInputGroup = addStepperInputGroup(offsetRow, function () { return txtOffset; }, { step: 1, min: 0 });
-        txtOffset = offsetInputGroup.add("edittext", undefined, formatFieldNumber(initialValues.offsetUnit));
-        txtOffset.characters = NUMBER_FIELD_CHARS;
+        var offsetInputGroup = addStepperInputGroup(offsetRow, function () { return txtOffset; }, { step: 1, min: 0, unit: strokeFieldUnit });
+        txtOffset = offsetInputGroup.add("edittext", undefined, formatFieldNumber(initialValues.offsetUnit) + strokeFieldUnit);
+        txtOffset.characters = LENGTH_FIELD_CHARS;
         txtOffset.stepperGroup = offsetInputGroup.stepperGroup;
         bindSteppedArrowKeys(txtOffset, txtOffset.stepperGroup);
         setStepperInputEnabled(txtOffset, chkUseOffset.value);
-
-        var lblOffsetUnit = offsetRow.add("statictext", undefined, strokeUnit.label);
-        lblOffsetUnit.enabled = chkUseOffset.value;
         offsetRow.helpTip = chkUseOffset.helpTip = txtOffset.helpTip = getLabel(LABELS.tooltip.useOffset);
 
         /* 1周期（線分＋間隔）を基準にしたプリセット */
@@ -1665,7 +1696,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n868bedb96542"; /* 紹�
             rbModeRandom: rbModeRandom,
             chkUseOffset: chkUseOffset,
             txtOffset: txtOffset,
-            lblOffsetUnit: lblOffsetUnit,
             offsetPresetRow: offsetPresetRow,
             rbOffsetQuarter: rbOffsetQuarter,
             rbOffsetHalf: rbOffsetHalf,
@@ -2128,6 +2158,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n868bedb96542"; /* 紹�
         var primaryPath = targetPaths[0];
         var primaryPathLength = primaryPath.length;
         var strokeUnit = getUnitInfo("strokeUnits");
+        var strokeFieldUnit = " " + strokeUnit.label; /* 入力欄・結果表示に付ける単位 / unit shown in the fields */
 
         /* ダイアログを開く前の状態（キャンセル時に復元）*/
         var originalStates = captureStrokeStates(targetPaths);
@@ -2157,7 +2188,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n868bedb96542"; /* 紹�
         var rbModeRandom = dialogControls.rbModeRandom;
         var chkUseOffset = dialogControls.chkUseOffset;
         var txtOffset = dialogControls.txtOffset;
-        var lblOffsetUnit = dialogControls.lblOffsetUnit;
         var offsetPresetRow = dialogControls.offsetPresetRow;
         var rbOffsetQuarter = dialogControls.rbOffsetQuarter;
         var rbOffsetHalf = dialogControls.rbOffsetHalf;
@@ -2186,12 +2216,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n868bedb96542"; /* 紹�
         }
 
         /**
-         * pt 値を入力欄用の文字列にする
+         * pt 値を入力欄用の文字列にする（単位付き）
          * @param {number} ptValue - pt 値
-         * @returns {string} 整形した文字列
+         * @returns {string} 整形した文字列（例 "2.5 mm"）
          */
         function ptToFieldText(ptValue) {
-            return formatFieldNumber(ptToUnit(ptValue, strokeUnit));
+            return formatFieldNumber(ptToUnit(ptValue, strokeUnit)) + strokeFieldUnit;
         }
 
         // -----------------------------------------
@@ -2348,7 +2378,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n868bedb96542"; /* 紹�
          */
         function updateOffsetUI() {
             setStepperInputEnabled(txtOffset, chkUseOffset.value);
-            lblOffsetUnit.enabled = chkUseOffset.value;
             offsetPresetRow.enabled = chkUseOffset.value;
         }
 
@@ -2492,7 +2521,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n868bedb96542"; /* 紹�
             var cycleUnit = getDashCycleUnit();
             if (cycleUnit == null) return;
             var offsetUnit = cycleUnit * fraction;
-            txtOffset.text = formatFieldNumber(offsetUnit < 0 ? 0 : offsetUnit);
+            txtOffset.text = formatFieldNumber(offsetUnit < 0 ? 0 : offsetUnit) + strokeFieldUnit;
             updatePreviewFromInput();
         }
 
@@ -2639,12 +2668,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n868bedb96542"; /* 紹�
                 return false;
             }
 
-            lblDashResult.text = ptToResultText(dashPattern.dashPt);
-            lblGapResult.text = ptToResultText(dashPattern.gapPt);
+            lblDashResult.text = ptToResultText(dashPattern.dashPt) + strokeFieldUnit;
+            lblGapResult.text = ptToResultText(dashPattern.gapPt) + strokeFieldUnit;
 
             /* 表示を切り替えたときにずれないよう、隠れている入力欄も同期する */
             if (chkPartialDisplay.value) {
-                txtGap.text = "0";
+                txtGap.text = "0" + strokeFieldUnit;
                 txtDash.text = ptToFieldText(dashPattern.dashPt);
             } else if (rbModeDashToGap.value) {
                 txtGap.text = ptToFieldText(dashPattern.gapPt);
@@ -2806,7 +2835,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n868bedb96542"; /* 紹�
 
         chkPartialDisplay.onClick = function () {
             /* ONにしたら間隔を0にする */
-            if (chkPartialDisplay.value) txtGap.text = "0";
+            if (chkPartialDisplay.value) txtGap.text = "0" + strokeFieldUnit;
             updatePreviewFromInput();
         };
 
