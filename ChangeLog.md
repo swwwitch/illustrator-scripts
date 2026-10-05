@@ -6,6 +6,11 @@
 
 - 数値欄（共通部品 StepperButtons）の単位換算を、独自の換算表から ExtendScript 標準の UnitValue に変更。「inches」「points」など単位の正式名でも入力できるようにした（154本）
 - 削除・上書き・未保存の破棄の確認ダイアログボックスで［いいえ］を既定のボタンにし、Enter キーでは中止されるようにした（15本）
+- [選択オブジェクトを複製 → 背面配置 → オフセットパス（Live Effect）→ アウトライン → 合体…](readme-ja/AddOutlineOffsetPath.md)（v1.3.0）：長さの入力欄に単位を入れ（「10 mm」の形）、別の単位で入れた値や計算式も欄の単位へ換算するようにした
+- [破線計算機（DashGapCalculator）](readme-ja/DashGapCalculator.md)（v2.2.0）：長さの入力欄に単位を入れ（「10 mm」の形）、別の単位で入れた値や計算式も欄の単位へ換算するようにした。計算結果の表示にも単位を付けた
+- [Photoshopの「新規ガイド」をIllustratorでも可能にする](readme-ja/NewGuideMaker.md)（v1.4.0）：長さの入力欄に単位を入れ（「10 mm」の形）、別の単位で入れた値や計算式も欄の単位へ換算するようにした。［単位］を切り替えると入力欄の単位も付け替わる
+- SetStrokeAlignment（v1.2.0）：長さの入力欄に単位を入れ（「10 mm」の形）、別の単位で入れた値や計算式も欄の単位へ換算するようにした
+- 共通部品 StepperButtons：単位を省いて入れた数値に欄の単位を付け足す。setSteppedFieldUnit() で欄の単位を切り替えられるようにした。「ft/in」「c」「ag」「ap」も換算する
 
 ## 20261005
 
