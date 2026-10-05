@@ -26,10 +26,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ArtboardEx
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ArtboardExporter";             /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-09-30";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-06";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ArtboardExporter.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ArtboardExporter.md"; /* README (English) */
@@ -1315,7 +1315,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
         var listedNames = existingNames.slice(0, OVERWRITE_LIST_MAX);
         if (existingNames.length > OVERWRITE_LIST_MAX) listedNames.push("...");
-        return confirm(getLabel("alert.overwrite", [existingNames.length, listedNames.join("\n")]));
+        return confirm(getLabel("alert.overwrite", [existingNames.length, listedNames.join("\n")]), true);
     }
 
     /**

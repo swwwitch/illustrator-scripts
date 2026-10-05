@@ -29,10 +29,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiFileName
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AiFileNameManager";            /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.3.17";                      /* バージョン / version */
+var SCRIPT_VERSION  = "v1.3.18";                      /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-05-27";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-06";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiFileNameManager.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiFileNameManager.md"; /* README (English) */
@@ -2200,7 +2200,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc88dd887eb1c"; /* 紹�
         if (!destFile.exists) return true;
         // 大文字小文字・濁点の合成違いだけのリネームは自分自身への上書きなので確認しない
         if (isSamePathSpelling(destFile.fsName, originalFsPath)) return true;
-        return confirm(getLabel('message.confirmOverwrite') + '\n\n' + destFile.fsName);
+        return confirm(getLabel('message.confirmOverwrite') + '\n\n' + destFile.fsName, true);
     }
 
     /**

@@ -35,6 +35,7 @@ https://note.com/dtp_tranist/n/n21bb9a835075
 
 ### Update History
 
+- v1.0.9 (2026-10-06) Confirmation dialogs for deleting or overwriting now default to No (Enter cancels)
 - v1.0
 - v1.0.2 (2026-09-28): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.0.3 (2026-09-28): The button row is now built with the shared part

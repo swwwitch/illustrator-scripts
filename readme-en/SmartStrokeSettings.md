@@ -95,6 +95,7 @@ https://note.com/dtp_tranist/n/n1726fc0f8dc9
 
 ### Update History
 
+- v1.2.3 (2026-10-06) Confirmation dialogs for deleting or overwriting now default to No (Enter cancels)
 - v1.0.0 (2026-10-03) Initial release
 - v1.0.1 (2026-10-04) The initial stroke weight now follows the general unit (0.25 pt for mm, 1 px for px, 5 pt otherwise)
 - v1.0.2 (2026-10-04) The cap and corner now start at Butt and Miter. Arrow 27 joins the favorite arrowheads

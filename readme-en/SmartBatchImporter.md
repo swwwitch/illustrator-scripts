@@ -46,6 +46,7 @@ Imports open documents or Illustrator files (.ai / .svg / .eps) from a folder in
 
 ### Update History
 
+- v1.5.2 (2026-10-06) Confirmation dialogs for deleting or overwriting now default to No (Enter cancels)
 - v1.0.0 (20250529): Initial version
 - v1.0.1 (20250529): Changed folder import behavior, moved labels to "_label" layer
 - v1.0.2 (20250529): Added file count display, progress bar, and cancel option

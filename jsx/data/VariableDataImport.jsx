@@ -29,10 +29,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/VariableDa
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "VariableDataImport";           /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.6.7";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.6.8";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-01-22";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-06";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/VariableDataImport.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/VariableDataImport.md"; /* README (English) */
@@ -2200,7 +2200,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n741c9f28d0fd"; /* 紹�
                 return false;
             }
             if (!outputFile.exists) return true;
-            return confirm(getLabel("alert.overwrite").replace("#filename#", decodeURI(outputFile.name)));
+            return confirm(getLabel("alert.overwrite").replace("#filename#", decodeURI(outputFile.name)), true);
         }
 
         // =========================================

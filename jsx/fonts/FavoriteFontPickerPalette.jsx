@@ -29,11 +29,11 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FavoriteFo
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "FavoriteFontPickerPalette";    /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.2.3";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.2.4";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "KOUJI & 相棒（Gem）";              /* 作者 / author */
 var SCRIPT_MODIFIED = "Masahiro Takano (@swwwitch)";  /* 改変 / modified by */
 var SCRIPT_RELEASED = "2026-10-01";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-06";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/FavoriteFontPickerPalette.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FavoriteFontPickerPalette.md"; /* README (English) */
@@ -3336,7 +3336,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncf9ff6feebf0"; /* 紹�
             }
             if (removedNames.length === 0) return;
             var isOnlyThisFamily = (removedNames.length === 1 && removedNames[0].toLowerCase() === familyLower);
-            if (!isOnlyThisFamily && !confirm(getLabel("alert.confirmRemoveCustom", { number: setIndex + 1, names: removedNames.join(uiLang === "ja" ? "」「" : "\", \"") }))) return;
+            if (!isOnlyThisFamily && !confirm(getLabel("alert.confirmRemoveCustom", { number: setIndex + 1, names: removedNames.join(uiLang === "ja" ? "」「" : "\", \"") }), true)) return;
             filterControls.customFontSets[setIndex] = keptNames;
             refreshFontList();
         }

@@ -29,10 +29,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiDocument
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AiDocumentCleaner";            /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.9";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.10";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-06-27";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-06";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiDocumentCleaner.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiDocumentCleaner.md"; /* README (English) */
@@ -1704,7 +1704,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0d70178f0f65"; /* 紹�
             }
 
             /* 元ファイルを上書きして元に戻せないため、実行前に必ず確認する / The originals are overwritten irreversibly, so always confirm first */
-            if (!confirm(getLabel('alert.folderConfirm', [aiFiles.length, targetFolder.fsName]))) {
+            if (!confirm(getLabel('alert.folderConfirm', [aiFiles.length, targetFolder.fsName]), true)) {
                 return;
             }
 

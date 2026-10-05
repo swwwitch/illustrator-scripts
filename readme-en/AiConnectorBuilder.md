@@ -122,6 +122,7 @@ Egor Chistyakov https://x.com/tchegr
 
 ### Update History
 
+- v1.1.10 (2026-10-06) Confirmation dialogs for deleting or overwriting now default to No (Enter cancels)
 - v1.0.0 (20260905): Initial release
 - v1.0.1 (20260906): Added the Center start point
 - v1.0.2 (20260906): Straight is now the default shape; added the start-object dialog for a missing key object, the trunk-plus-branches structure, arrowhead icons, stroke caps, the end gap and "Share one start point"

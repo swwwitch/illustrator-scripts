@@ -45,10 +45,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CompositeF
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "CompositeFontMaker";           /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.2.9";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.2.10";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-09-27";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-06";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/CompositeFontMaker.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CompositeFontMaker.md"; /* README (English) */
@@ -649,7 +649,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne0f78458ddd3"; /* 紹�
      */
     function writeCompositeFontFile(targetFolder, fontSpec) {
         var fontFile = new File(targetFolder.fsName + "/" + fontSpec.name);
-        if (fontFile.exists && !confirm(getLabel("alert.overwrite").replace("%1", fontSpec.name))) return false;
+        if (fontFile.exists && !confirm(getLabel("alert.overwrite").replace("%1", fontSpec.name), true)) return false;
         fontFile.encoding = "BINARY";
         if (!fontFile.open("w")) throw new Error(getLabel("alert.writeFailed") + fontFile.fsName);
         fontFile.write(buildCompositeFontBinary(fontSpec));
@@ -777,7 +777,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne0f78458ddd3"; /* 紹�
         };
         var resultText = sendToInDesign(specifier, idSpec);
         if (resultText === "EXISTS") {
-            if (!confirm(getLabel("alert.inDesignOverwrite").replace("%1", fontSpec.name))) return getLabel("alert.inDesignSkipped");
+            if (!confirm(getLabel("alert.inDesignOverwrite").replace("%1", fontSpec.name), true)) return getLabel("alert.inDesignSkipped");
             idSpec.overwrite = true;
             resultText = sendToInDesign(specifier, idSpec);
         }

@@ -26,10 +26,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AIBatchVer
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AIBatchVersionSave";           /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.5.8";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.5.9";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-06";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AIBatchVersionSave.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AIBatchVersionSave.md"; /* README (English) */
@@ -1367,12 +1367,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             batchSettings.suffix === "" &&
             batchSettings.customSuffix === "" &&
             !batchSettings.appendConverted) {
-            if (!confirm(getLabel("alert.confirmSameFolder"))) return false;
+            if (!confirm(getLabel("alert.confirmSameFolder"), true)) return false;
         }
 
         /* 上書きモードで実際に .svg を処理する場合のみ、同名 .ai の上書き可能性を確認 / Confirm only when SVG files actually exist in the batch */
         if (batchSettings.overwrite && batchSettings.targetSvg && containsFileType(targetFileList, isSvgFile)) {
-            if (!confirm(getLabel("alert.confirmOverwriteSvg"))) return false;
+            if (!confirm(getLabel("alert.confirmOverwriteSvg"), true)) return false;
         }
         return true;
     }

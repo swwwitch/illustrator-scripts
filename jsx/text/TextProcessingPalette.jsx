@@ -29,10 +29,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TextProces
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "TextProcessingPalette";        /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.10.1";                      /* バージョン / version */
+var SCRIPT_VERSION  = "v1.10.2";                      /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-03-18";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-06";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TextProcessingPalette.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TextProcessingPalette.md"; /* README (English) */
@@ -4373,7 +4373,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf6f34559ba46"; /* 紹�
             btnLineDelete.onClick = function () {
                 if (!lineListBox.selection) return;
                 var selectedIndex = lineListBox.selection.index;
-                if (!confirm(getLabel(LABELS.confirm.deleteLine))) return;
+                if (!confirm(getLabel(LABELS.confirm.deleteLine), true)) return;
                 lineArrangeLines.splice(selectedIndex, 1);
                 refreshLineList(selectedIndex);
             };

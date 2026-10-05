@@ -29,10 +29,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/LinkedImag
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "LinkedImageManagerPalette";    /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.6.3";                      /* バージョン / version */
+var SCRIPT_VERSION  = "v1.6.4";                      /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-04-24";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-06";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/LinkedImageManagerPalette.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/LinkedImageManagerPalette.md"; /* README (English) */
@@ -713,7 +713,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹�
     function prepareRenameOverwrite(oldFile, newFile) {
         if (!newFile.exists) return true;
         if (newFile.fsName.toLowerCase() === oldFile.fsName.toLowerCase()) return true;
-        if (!confirm(getLabel('message.confirmOverwrite') + newFile.fsName)) return false;
+        if (!confirm(getLabel('message.confirmOverwrite') + newFile.fsName, true)) return false;
         var removed = tryGet(function () { return newFile.remove(); }, false);
         if (!removed) {
             setStatus(getLabel('message.renameFailed'));
@@ -4090,7 +4090,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹�
                 if (clipMode === null) return;
             } else {
                 var confirmMessage = getLabel('message.confirmDeleteLinks') + "\n" + kvLine('label.target', indices.length, 'label.items');
-                if (!confirm(confirmMessage)) return;
+                if (!confirm(confirmMessage, true)) return;
             }
             var res = parseWorkerResult(delegate("$.global.__LIM.del(" + jsIntArray(indices) + "," + jsString(clipMode) + ")"));
             var counts = (res.marker === "OK") ? tryGet(function () { return eval("(" + res.body + ")"); }, { success: 0, failed: 0 }) : { success: 0, failed: 0 };

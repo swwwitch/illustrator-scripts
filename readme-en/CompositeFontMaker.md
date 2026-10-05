@@ -112,6 +112,7 @@ https://note.com/dtp_tranist/n/ne0f78458ddd3
 
 ### Update History
 
+- v1.2.10 (2026-10-06) Confirmation dialogs for deleting or overwriting now default to No (Enter cancels)
 - v1.0.0 (20260927): Initial release
 - v1.0.1 (20260927):
 - v1.2.6 (2026-10-01): Button rows with only right-side buttons are now centered in dialogs up to 200 px wide (inside the margins) and right-aligned in wider ones

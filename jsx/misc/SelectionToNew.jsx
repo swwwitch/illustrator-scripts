@@ -29,10 +29,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SelectionT
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SelectionToNew";               /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.7";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.8";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-07-29";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-06";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SelectionToNew.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SelectionToNew.md"; /* README (English) */
@@ -3113,7 +3113,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0f02f73a748d"; /* 紹�
                 alert(getLabel(LABELS.alert.sameAsSource));
                 return;
             }
-            if (duplicateFile.exists && !confirm(getLabel(LABELS.alert.overwrite) + "\n" + duplicateFile.name)) {
+            if (duplicateFile.exists && !confirm(getLabel(LABELS.alert.overwrite) + "\n" + duplicateFile.name, true)) {
                 return;
             }
 

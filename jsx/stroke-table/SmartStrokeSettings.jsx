@@ -29,10 +29,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartStrok
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SmartStrokeSettings";          /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.2.2";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.2.3";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-03";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-06";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartStrokeSettings.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartStrokeSettings.md"; /* README (English) */
@@ -4345,7 +4345,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1726fc0f8dc9"; /* 紹�
         var presetName = showPresetNameDialog(getSelectedPresetName(dialogControls.preset) || "");
         if (!presetName) return null;
         var presetMap = loadPresetMap();
-        if (presetMap.hasOwnProperty(presetName) && !confirm(getLabel("confirm.presetOverwrite", { name: presetName }))) return null;
+        if (presetMap.hasOwnProperty(presetName) && !confirm(getLabel("confirm.presetOverwrite", { name: presetName }), true)) return null;
         presetMap[presetName] = collectPresetData(dialogControls);
         if (!presetSettingsStore.save(presetMap)) {
             alert(getLabel("alert.presetSaveFailed"));
@@ -4361,7 +4361,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1726fc0f8dc9"; /* 紹�
      */
     function deleteSelectedPreset(presetControls) {
         var presetName = getSelectedPresetName(presetControls);
-        if (!presetName || !confirm(getLabel("confirm.presetDelete", { name: presetName }))) return false;
+        if (!presetName || !confirm(getLabel("confirm.presetDelete", { name: presetName }), true)) return false;
         var presetMap = loadPresetMap();
         delete presetMap[presetName];
         if (!presetSettingsStore.save(presetMap)) {

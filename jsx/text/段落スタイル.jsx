@@ -24,10 +24,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/段落ス�
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "段落スタイル";                       /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.7";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.8";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-06";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/段落スタイル.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/段落スタイル.md"; /* README (English) */
@@ -599,7 +599,7 @@ function updateOrCreateParagraphStyle() {
         // 同名のスタイルが既に存在するか確認
         try {
             targetStyle = doc.paragraphStyles.getByName(choice.styleName);
-            var overwrite = confirm(getLabel("confirmOverwrite", { name: choice.styleName }));
+            var overwrite = confirm(getLabel("confirmOverwrite", { name: choice.styleName }), true);
             if (!overwrite) {
                 return;
             }

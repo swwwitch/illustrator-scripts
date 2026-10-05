@@ -217,6 +217,7 @@ The active Illustrator document. The output is always .ai. When a non-.ai docume
 - v1.3.13 (2026-09-30) Button rows with only right-side buttons are now centered
 - v1.3.16 (2026-10-01) Added space below the button row to match Illustrator's own dialogs
 - v1.3.17 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
+- v1.3.18 (2026-10-06) Confirmation dialogs for deleting or overwriting now default to No (Enter cancels)
 
 ### Article
 

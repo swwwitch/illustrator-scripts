@@ -29,10 +29,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiConnecto
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AiConnectorBuilder";           /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.9";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.10";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-09-05";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-06";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiConnectorBuilder.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiConnectorBuilder.md"; /* README (English) */
@@ -4809,7 +4809,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd0d3486e5f68"; /* 紹�
 
     btnRemovePreset.onClick = function () {
         if (!presetDropdown.selection || presetDropdown.selection.index === 0) return;
-        if (!confirm(getLabel(LABELS.alert.presetRemove))) return;
+        if (!confirm(getLabel(LABELS.alert.presetRemove), true)) return;
 
         savedPresets.splice(presetDropdown.selection.index - 1, 1);
         if (!writePresets(savedPresets)) {
