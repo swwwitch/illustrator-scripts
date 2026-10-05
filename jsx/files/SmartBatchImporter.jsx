@@ -6,8 +6,8 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-複数の Illustrator ファイル（.ai / .svg / .eps）を一括で読み込み、ファイルまたはアートボードごとに1つのアートボードを作成します。
-作成したアートボードは、全体が正方形に近くなるグリッドへ整列配置します。
+開いているドキュメントやフォルダー内の Illustrator ファイル（.ai / .svg / .eps）をまとめて読み込み、1つのドキュメントに、全体が正方形に近いグリッドで並べます。
+［アートボード単位］で読み込むと、元のアートボードの大きさと内容の位置を保ったアートボードを作ります。
 
 詳細は README を参照してください。
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartBatchImporter.md
@@ -17,8 +17,8 @@ https://note.com/dtp_tranist/n/n8180588e5630
 
 ### Overview
 
-Batch-imports several Illustrator files (.ai / .svg / .eps) and creates one artboard per file, or per source artboard.
-The artboards are then arranged in a grid that comes out close to square.
+Imports open documents or Illustrator files (.ai / .svg / .eps) from a folder into one document, arranged in a grid that comes out close to square.
+With Import per artboard, each source artboard becomes an artboard of the same size with its content in the same position.
 
 See the README for details.
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartBatchImporter.md
@@ -29,10 +29,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartBatch
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SmartBatchImporter";           /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.4.9";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.5.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-05-29";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-05";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartBatchImporter.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartBatchImporter.md"; /* README (English) */
@@ -43,9 +43,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8180588e5630"; /* 紹�
 
 (function () {
 
-    var CONFIG = {
-        spacingX: 100,                 // グループ間の横間隔（pt）/ Horizontal gap between groups (pt)
-        spacingY: 100,                 // 行間の縦間隔（pt）/ Vertical gap between rows (pt)
+    // =========================================
+    // ユーザー設定 / User Settings
+    // =========================================
+    var IMPORT_SETTINGS = {
+        itemSpacing: 100,              // アイテムの間隔の初期値（pt）/ Default gap between items (pt)
+        splitFileCount: 20,            // 分割するときの1ドキュメントあたりのファイル数の初期値 / Default files per document when splitting
         artboardMargin: 8.5,           // アートボードと内容の余白（pt）/ Margin around content within an artboard (pt)
         labelFont: "HiraginoSans-W3",  // ラベルのフォント / Font used for labels
         labelSize: 9,                  // ラベルの文字サイズ（pt）/ Label font size (pt)
@@ -902,7 +905,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8180588e5630"; /* 紹�
 
     var LABELS = {
         dialog: {
-            title: { ja: "ファイル一括読み込み", en: "Batch Import Files" }
+            title: { ja: "ファイル一括読み込み", en: "Batch Import Files" },
+            newDocSettings: { ja: "新規ドキュメントの設定", en: "New Document Settings" }
         },
         panel: {
             source: { ja: "読み込み対象", en: "Source" },
@@ -911,50 +915,48 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8180588e5630"; /* 紹�
             colorMode: { ja: "カラーモード", en: "Color Mode" },
             resolution: { ja: "解像度", en: "Resolution" },
             docSize: { ja: "サイズ", en: "Size" },
-            options: { ja: "読み込みオプション", en: "Import Options" },
-            afterImport: { ja: "読み込み後", en: "After Import" }
+            importOptions: { ja: "読み込みオプション", en: "Import Options" },
+            targetArtboards: { ja: "対象アートボード", en: "Target Artboards" }
         },
         radio: {
-            openFiles: { ja: "現在、開いているファイル", en: "Currently open files" },
+            openDocs: { ja: "開いているドキュメント", en: "Open documents" },
             specifyFolder: { ja: "フォルダーを指定", en: "Specify folder" },
-            rgb: { ja: "RGB", en: "RGB" },
-            cmyk: { ja: "CMYK", en: "CMYK" },
             currentDoc: { ja: "現在のドキュメント", en: "Current document" },
             newDoc: { ja: "新規ドキュメント", en: "New document" },
-            artboardOne: { ja: "1のみ", en: "Artboard 1 only" },
+            artboardFirst: { ja: "1のみ", en: "Artboard 1 only" },
             artboardAll: { ja: "すべて", en: "All" },
             artboardSpecify: { ja: "指定", en: "Specify" },
             closeDoc: { ja: "閉じる", en: "Close" },
-            keepOpen: { ja: "開いたまま", en: "Keep Open" }
+            keepOpen: { ja: "開いたまま", en: "Keep open" }
         },
         checkbox: {
             byArtboard: { ja: "アートボード単位", en: "Import per artboard" },
-            includeGuides: { ja: "ガイド", en: "Guides" },
-            attachLabel: { ja: "ファイル名ラベルを追加", en: "Add file-name labels" },
-            scale: { ja: "拡大・縮小", en: "Scale" }
+            attachLabel: { ja: "ファイル名をラベルとして追加", en: "Add file names as labels" },
+            includeGuides: { ja: "ガイドを含める（ルーラーガイドを除く）", en: "Include guides (except ruler guides)" },
+            scale: { ja: "拡大・縮小", en: "Scale" },
+            includeSubfolders: { ja: "サブフォルダーを含める", en: "Include subfolders" },
+            splitDocs: { ja: "分割", en: "Split every" }
         },
-        preset: {
-            custom: { ja: "カスタム", en: "Custom" },
-            a4: { ja: "A4：210 × 297 mm", en: "A4: 210 × 297 mm" },
-            fullHD: { ja: "フルHD：1920 × 1080 px", en: "Full HD: 1920 × 1080 px" },
-            largeCanvas: { ja: "ラージカンバス", en: "Large Canvas" }
+        dropdown: {
+            presetCustom: { ja: "カスタム", en: "Custom" },
+            presetA4: { ja: "A4（210 × 297 mm）", en: "A4 (210 × 297 mm)" },
+            presetFullHD: { ja: "フルHD（1920 × 1080 px）", en: "Full HD (1920 × 1080 px)" },
+            presetLargeCanvas: { ja: "ラージカンバス", en: "Large Canvas" }
         },
-        field: {
-            width: { ja: "幅", en: "Width" },
-            height: { ja: "高さ", en: "Height" },
+        fieldLabel: {
             fileType: { ja: "ファイル形式", en: "File format" },
             fileName: { ja: "ファイル名", en: "File name" },
+            width: { ja: "幅", en: "Width" },
+            height: { ja: "高さ", en: "Height" },
             unit: { ja: "単位", en: "Unit" },
-            artboardTarget: { ja: "対象アートボード", en: "Target artboards" }
-        },
-        hint: {
-            filter: {
-                ja: "正規表現を使ってファイルを絞り込み",
-                en: "Filter files using a regular expression"
-            }
+            afterImport: { ja: "読み込み後", en: "After import" },
+            itemSpacing: { ja: "間隔", en: "Spacing" },
+            profile: { ja: "プロファイル", en: "Profile" },
+            splitUnit: { ja: "ファイルごと", en: "files" }
         },
         button: {
-            specify: { ja: "指定", en: "Choose" },
+            chooseFolder: { ja: "選択...", en: "Choose..." },
+            newDocSettings: { ja: "設定...", en: "Settings..." },
             cancel: { ja: "キャンセル", en: "Cancel" },
             ok: { ja: "OK", en: "OK" }
         },
@@ -969,10 +971,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8180588e5630"; /* 紹�
             }
         },
         alert: {
-            noValidFile: {
-                ja: "有効なファイルが見つかりませんでした。",
-                en: "No valid files found."
-            },
+            noValidFile: { ja: "読み込むファイルが見つかりませんでした。", en: "No files to import were found." },
             noCurrentDoc: {
                 ja: "「現在のドキュメント」に読み込むには、ドキュメントを開いておいてください。",
                 en: "Open a document first to import into the current document."
@@ -985,14 +984,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8180588e5630"; /* 紹�
                 ja: "取り込める内容が見つかりませんでした。対象アートボードの番号やファイルの内容を確認してください。",
                 en: "Nothing could be imported. Check the target artboard numbers and the file contents."
             },
-            invalidNumber: {
-                ja: "数値が正しくありません。",
-                en: "Invalid numeric input."
-            },
-            pasteFail: {
-                ja: "ペーストに失敗しました",
-                en: "Paste failed"
-            },
+            invalidNumber: { ja: "幅・高さの値が正しくありません。", en: "The width or height is invalid." },
+            invalidSpacing: { ja: "間隔の値が正しくありません。0以上の数値を入力してください。", en: "The spacing is invalid. Enter a number of 0 or more." },
+            pasteFail: { ja: "ペーストに失敗しました", en: "Paste failed" },
             cancelled: {
                 ja: "読み込みを中断しました。ここまでに読み込んだ内容はドキュメントに残っています。",
                 en: "Import was stopped. Items imported so far remain in the document."
@@ -1008,74 +1002,106 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8180588e5630"; /* 紹�
         },
         confirm: {
             discardUnsaved: {
-                ja: "開いているファイルに未保存の変更がある場合、「読み込み後に閉じる」を選ぶと保存せずに閉じます。続行しますか？",
-                en: "If any open files have unsaved changes, choosing \"Close After Import\" closes them without saving. Continue?"
+                ja: "未保存の変更があるドキュメントが含まれています。［読み込み後］が［閉じる］なので、保存せずに閉じます。続行しますか？",
+                en: "Some documents have unsaved changes. \"After import\" is set to \"Close\", so they will be closed without saving. Continue?"
             }
         },
         tooltip: {
-            openFiles: {
-                ja: "現在Illustratorで開いているドキュメントを読み込み対象にします。",
-                en: "Uses the documents currently open in Illustrator as the import source."
+            openDocs: {
+                ja: "Illustrator で開いているドキュメントを読み込みます。",
+                en: "Imports the documents currently open in Illustrator."
             },
             specifyFolder: {
-                ja: "指定したフォルダー内の .ai / .svg / .eps ファイルを読み込み対象にします。",
-                en: "Uses .ai / .svg / .eps files in the chosen folder as the import source."
+                ja: "指定したフォルダー内の .ai / .svg / .eps ファイルを読み込みます。",
+                en: "Imports .ai / .svg / .eps files in the chosen folder."
             },
-            fileType: {
-                ja: "フォルダー指定時に読み込むファイル形式を選びます。",
-                en: "Choose which file types to import in folder mode."
-            },
-            closeDoc: {
-                ja: "読み込み後に元ファイルを保存せずに閉じます。未保存の変更があるファイルでは変更が失われます。",
-                en: "Closes source files after import without saving. Unsaved changes in those files will be lost."
-            },
-            keepOpen: {
-                ja: "読み込み後も元ファイルを開いたままにします。アートボード単位読み込みで一時的に解除したロック・非表示状態は復元します。",
-                en: "Keeps source files open after import. Lock/hidden states temporarily changed for per-artboard import are restored."
-            },
-            specify: {
+            chooseFolder: {
                 ja: "読み込むファイル（.ai / .svg / .eps）が入ったフォルダーを選びます。",
                 en: "Choose a folder that contains the files to import (.ai / .svg / .eps)."
             },
+            fileType: {
+                ja: "フォルダー指定のときに読み込むファイル形式を選びます。",
+                en: "Choose which file formats to import from the folder."
+            },
+            fileNameFilter: {
+                ja: "正規表現でファイル名を絞り込みます（大文字・小文字は区別しません）。",
+                en: "Filters file names with a regular expression (case-insensitive)."
+            },
             currentDoc: {
-                ja: "現在開いているドキュメントに読み込みます。下のカラーモード・解像度・サイズ設定は使いません。",
-                en: "Imports into the currently active document. The color mode / resolution / size settings below are not used."
+                ja: "アクティブなドキュメントに読み込みます。新規ドキュメントの設定は使いません。",
+                en: "Imports into the active document. The new document settings are not used."
             },
             newDoc: {
-                ja: "下の設定で新規ドキュメントを作成し、そこに読み込みます。",
-                en: "Creates a new document with the settings below and imports into it."
+                ja: "［設定...］の内容で新規ドキュメントを作成し、そこに読み込みます。",
+                en: "Creates a new document with the Settings... values and imports into it."
+            },
+            newDocSettings: {
+                ja: "新規ドキュメントのプロファイル・カラーモード・解像度・サイズを設定します。",
+                en: "Sets the profile, color mode, resolution and size of the new document."
             },
             colorMode: {
-                ja: "新規ドキュメントのカラーモードを選びます。読み込み元の色を完全に変換する機能ではありません。",
-                en: "Choose the color mode for the new document. This does not fully convert all colors from source files."
+                ja: "新規ドキュメントのカラーモードです。読み込み元の色を変換するものではありません。",
+                en: "Color mode of the new document. It does not convert the colors of the source files."
+            },
+            profile: {
+                ja: "［新規ドキュメント］のプロファイルです。スウォッチやブラシなどの初期内容が決まります。",
+                en: "New document profile. It sets the starting swatches, brushes and so on."
+            },
+            resolution: {
+                ja: "新規ドキュメントのラスタライズ効果の解像度です。",
+                en: "Raster effects resolution of the new document."
+            },
+            sizePreset: {
+                ja: "プリセットを選ぶと幅・高さ・単位が入ります。A4 はカラーモードも CMYK にします。",
+                en: "Choosing a preset fills in the width, height and unit. A4 also switches the color mode to CMYK."
+            },
+            unit: {
+                ja: "幅・高さの単位です。切り替えると値を換算します。",
+                en: "Unit of the width and height. Switching converts the values."
             },
             byArtboard: {
-                ja: "各アートボードを別々に読み込み、元のアートボードサイズと相対位置を保ちます。ロック・非表示オブジェクトも対象です。",
-                en: "Imports each artboard separately and preserves the original artboard size and relative positions. Locked/hidden objects are included."
-            },
-            artboardTarget: {
-                ja: "取り込むアートボードを選びます。「1のみ」「すべて」「指定」から選択します。",
-                en: "Choose which artboards to import: only the first, all, or a specified set."
-            },
-            artboardSpecify: {
-                ja: "取り込むアートボードを番号で指定します。例: 1, 3-5（カンマ区切り・範囲指定可）。",
-                en: "Specify artboards to import by number, e.g. 1, 3-5 (comma-separated, ranges allowed)."
-            },
-            includeGuides: {
-                ja: "ルーラーガイド（カンバスの半分以上に伸びる長いガイド）を除いて、ガイドを読み込みます。",
-                en: "Imports guides, excluding ruler guides (long guides that span half the canvas or more)."
+                ja: "アートボードごとに読み込み、元のアートボードの大きさと内容の位置を保ちます。ロック・非表示のオブジェクトも含めます。",
+                en: "Imports each artboard separately and keeps the original artboard size and content position. Locked/hidden objects are included."
             },
             attachLabel: {
-                ja: "読み込んだアートボードの下に、元ファイル名のラベルを追加します。",
-                en: "Adds a source file-name label below each imported artboard."
+                ja: "読み込んだ内容の下に、元のファイル名のラベルを追加します。",
+                en: "Adds a source file-name label below each imported item."
+            },
+            includeGuides: {
+                ja: "ガイドも読み込みます（［ガイドをロック］がオンでも読み込みます）。横はアートボードの短辺以下、縦は長辺以下の長さのガイドを含め、それより長いルーラーガイドは除きます。",
+                en: "Imports guides too, even when Lock Guides is on. Horizontal guides up to the artboard's shorter side and vertical guides up to its longer side are included; longer ruler guides are excluded."
             },
             scale: {
-                ja: "読み込む内容とアートボード枠を指定％で拡大・縮小します。線幅も同率で変わります。",
-                en: "Scales imported content and artboard cells by the specified percentage. Stroke widths scale by the same ratio."
+                ja: "読み込む内容とアートボードを指定の％で拡大・縮小します。線幅も同じ比率で変わります。",
+                en: "Scales imported content and artboards by the specified percentage. Stroke widths scale by the same ratio."
             },
-            size: {
-                ja: "新規ドキュメントの初期サイズです。幅・高さの単位は選択したプリセットに連動します（カスタムは px）。",
-                en: "Initial size of the new document. Width/height units follow the selected preset (px for Custom)."
+            includeSubfolders: {
+                ja: "選んだフォルダーの中のサブフォルダーにあるファイルも読み込みます。",
+                en: "Also imports files in subfolders of the chosen folder."
+            },
+            splitDocs: {
+                ja: "指定したファイル数ごとに、別の新規ドキュメントに分けて読み込みます。",
+                en: "Imports into a separate new document for every specified number of files."
+            },
+            itemSpacing: {
+                ja: "並べるアイテム（アートボード）どうしの間隔です。",
+                en: "Gap between the arranged items (artboards)."
+            },
+            targetArtboards: {
+                ja: "アートボード単位で読み込むときに、取り込むアートボードを選びます。",
+                en: "Choose which artboards to import when importing per artboard."
+            },
+            artboardSpecify: {
+                ja: "取り込むアートボードを番号で指定します。例: 1, 3-5（カンマ区切り・範囲指定可）",
+                en: "Specify artboards to import by number, e.g. 1, 3-5 (comma-separated, ranges allowed)."
+            },
+            closeDoc: {
+                ja: "読み込み後に元のドキュメントを保存せずに閉じます。未保存の変更は失われます。",
+                en: "Closes the source documents after import without saving. Unsaved changes will be lost."
+            },
+            keepOpen: {
+                ja: "読み込み後も元のドキュメントを開いたままにします。一時的に解除したロック・非表示は元に戻します。",
+                en: "Keeps the source documents open after import. Lock/hidden states changed temporarily are restored."
             },
             stepUp: {
                 ja: "値を増やす（shift＋クリックで10の倍数へ、option＋クリックで0.1ずつ）",
@@ -1492,30 +1518,65 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8180588e5630"; /* 紹�
     // 選択の収集と境界（再利用パーツ）ここまで / End of the reusable selection items and bounds
 
     // =========================================
-    // 単位 / Units
+    // 単位とサイズ / Units and sizes
     // =========================================
 
-    // 1mm あたりのポイント数 / Points per millimeter
-    var MM_TO_PT = 2.8346;
+    /* 新規ドキュメントの幅・高さの単位と、1単位あたりのポイント数（Illustrator の px は 1pt）
+       Units for the new document's size and points per unit (a px is 1pt in Illustrator) */
+    var SIZE_UNITS = ["mm", "px"];
+    var SIZE_UNIT_POINTS = { mm: 72 / 25.4, px: 1, inch: 72 };
 
-    // 各単位 → ポイントの換算係数 / Conversion factor from each unit to points
-    var UNIT_TO_PT = {
-        px: 0.75,     // 96dpi: 1px = 0.75pt
-        mm: MM_TO_PT, // 1mm = 2.8346pt
-        inch: 72      // 1inch = 72pt（ラージカンバスのネイティブ単位、換算用）
-    };
+    /* 幅・高さの単位に合わせた、新規ドキュメントの定規の単位 / ruler units of the new document per size unit */
+    var SIZE_UNIT_RULER_UNITS = { mm: RulerUnits.Millimeters, px: RulerUnits.Pixels };
 
-    // 単位ドロップダウンの並び / Units shown in the unit dropdown
-    var UNIT_LIST = ["mm", "px"];
-
-    // ドキュメントサイズプリセット（値はそれぞれのネイティブ単位）/ Document size presets (values in their native unit)
-    // インデックスは presetDropdown の並びと一致。カスタムは unit のみ（値は自動入力しない）。
+    /* サイズのプリセット（並びはドロップダウンと同じ）。width / height は unit での値、displayUnit は幅・高さ欄の単位。
+       カスタムは値を入れず単位だけ切り替える。isPrint ならカラーモードを CMYK にする
+       Size presets in dropdown order; values are in unit, shown in displayUnit. Custom only switches the unit */
     var SIZE_PRESETS = [
-        { unit: "px" },                             // カスタム / Custom
-        { unit: "mm", width: 210, height: 297 },    // A4
-        { unit: "px", width: 1920, height: 1080 },  // フルHD / Full HD
-        { unit: "inch", width: 2270, height: 2270 } // ラージカンバス / Large Canvas
+        { labelKey: "dropdown.presetCustom", displayUnit: "px" },
+        { labelKey: "dropdown.presetA4", unit: "mm", width: 210, height: 297, displayUnit: "mm", isPrint: true },
+        { labelKey: "dropdown.presetFullHD", unit: "px", width: 1920, height: 1080, displayUnit: "px" },
+        { labelKey: "dropdown.presetLargeCanvas", unit: "inch", width: 2270, height: 2270, displayUnit: "px" }
     ];
+
+    /* 定規の単位コードに対応する表示ラベルと、1単位あたりのポイント数
+       Unit code -> display label and points per unit */
+    var UNITS = [
+        { label: "in",    pointsPerUnit: 72 },                /* 0 */
+        { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
+        { label: "pt",    pointsPerUnit: 1 },                 /* 2 */
+        { label: "pica",  pointsPerUnit: 12 },                /* 3 */
+        { label: "cm",    pointsPerUnit: 72 / 2.54 },         /* 4 */
+        { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25 },  /* 5 */
+        { label: "px",    pointsPerUnit: 1 },                 /* 6 */
+        { label: "ft/in", pointsPerUnit: 72 * 12 },           /* 7 */
+        { label: "m",     pointsPerUnit: 72 / 25.4 * 1000 },  /* 8 */
+        { label: "yd",    pointsPerUnit: 72 * 36 },           /* 9 */
+        { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
+    ];
+
+    /* 単位コード5を「歯（H）」と表示する環境設定キー。文字サイズ（text/units）だけ「級（Q）」
+       Preference keys that show unit code 5 as H; only the type size (text/units) shows Q */
+    var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
+
+    /**
+     * 環境設定キーの単位を返す
+     * @param {string} [prefKey] - "rulerType"（既定）/ "strokeUnits" / "text/units" / "text/asianunits"
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位の情報
+     */
+    function getUnitInfo(prefKey) {
+        var unitKey = prefKey || "rulerType";
+        var unitCode = app.preferences.getIntegerPreference(unitKey);
+        /* 未知のコードは pt に寄せる / unknown codes fall back to points */
+        var unit = UNITS[unitCode] || UNITS[2];
+        /* 級（Q）と歯（H）は同じ長さだが、文字サイズは「Q」、距離は「H」と呼び分ける */
+        var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
+        return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
+    }
+
+    // =========================================
+    // レイアウト / Layout
+    // =========================================
 
     // UIレイアウト（再利用パーツ） / UI layout (reusable)
 
@@ -1596,20 +1657,43 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8180588e5630"; /* 紹�
 
     // UIレイアウト（再利用パーツ）ここまで / End of the reusable UI layout
 
-    var GROUP_SPACING = 8; /* グループ内の要素間隔 / spacing inside groups */
+    var GROUP_SPACING = 8;      /* グループ内の要素間隔 / spacing inside groups */
+    var FIELD_LABEL_WIDTH = 40; /* 幅・高さ・単位の項目名の幅 / label width for width / height / unit */
+    var FILTER_LABEL_WIDTH = 100; /* ファイル形式・ファイル名の項目名の幅 / label width for file format / file name */
 
-    /* グループの共通設定（row/column で整列を切り替え）/ Apply shared group layout (alignChildren switches by orientation) */
-    function setupGroup(group, orientation, spacing) {
+    /**
+     * グループの共通設定（row は縦中央、column は左揃え）
+     * @param {Group} targetGroup - 対象のグループ
+     * @param {string} [orientation] - "row" または "column"（省略時は "column"）
+     * @param {number} [spacing] - 要素間隔（省略時は GROUP_SPACING）
+     * @returns {void}
+     */
+    function setupGroup(targetGroup, orientation, spacing) {
         var groupOrientation = orientation || "column";
-        group.orientation = groupOrientation;
+        targetGroup.orientation = groupOrientation;
         /* row は横並びなので縦中央、column は縦並びなので左揃え / row: vertically centered, column: left-aligned */
-        group.alignChildren = (groupOrientation === "row") ? ["left", "center"] : ["left", "top"];
-        group.alignment = "fill";
-        group.spacing = (typeof spacing === "number") ? spacing : GROUP_SPACING;
+        targetGroup.alignChildren = (groupOrientation === "row") ? ["left", "center"] : ["left", "top"];
+        targetGroup.alignment = "fill";
+        targetGroup.spacing = (typeof spacing === "number") ? spacing : GROUP_SPACING;
     }
 
     /**
-     * 行に「∧∨・入力欄」を隙間0で突き合わせて追加する。↑↓キーも∧∨と同じ処理で増減する
+     * 右揃えで固定幅の項目名（コロン付き）を行に追加する
+     * @param {Group} parentRow - 追加先の行
+     * @param {string} labelKey - LABELS のパス
+     * @param {number} labelWidth - 項目名の幅（px）
+     * @returns {StaticText} 項目名
+     */
+    function addRowLabel(parentRow, labelKey, labelWidth) {
+        var rowLabel = parentRow.add("statictext", undefined, labelText(labelKey));
+        rowLabel.preferredSize = [labelWidth, 20];
+        rowLabel.justify = "right";
+        return rowLabel;
+    }
+
+    /**
+     * 行に「∧∨・入力欄」を隙間0で突き合わせて追加する。↑↓キーも∧∨と同じ処理で増減する。
+     * 直接入力した値も確定時に計算・整数化・下限・上限・単位へそろえ、数値でなければ直前の値に戻す
      * @param {Group} parentRow - 追加先の行
      * @param {string} initialText - 入力欄の初期値
      * @param {Object} stepOptions - addStepper() に渡す step / min / max / integer / unit / onStep
@@ -1627,794 +1711,1029 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8180588e5630"; /* 紹�
         numberInput = stepperInputGroup.add("edittext", undefined, initialText);
         numberInput.stepperGroup = stepperGroup;
         bindSteppedArrowKeys(numberInput, stepperGroup);
+
+        numberInput.lastValidText = numberInput.text;
+        numberInput.onChange = function () {
+            var value = evaluateArithmetic(numberInput.text, stepOptions.unit);
+            if (isNaN(value)) {
+                numberInput.text = numberInput.lastValidText;
+                return;
+            }
+            writeSteppedValue(numberInput, value, stepOptions);
+        };
         return numberInput;
     }
 
-    /* ラベルを指定位置（アートボード下端の左下）に配置する / Place the label at the given bottom-left point (just below the artboard) */
-    function positionLabelBelow(label, left, bottomY) {
-        label.left = left;
-        label.top = bottomY - 4; // アートボード下端のすぐ下 / Just below the artboard's bottom edge
-    }
+    // =========================================
+    // 読み込みの下請け / Import helpers
+    // =========================================
 
-    /* "_label" レイヤーを取得し、無ければ作成する / Get the "_label" layer, creating it if missing */
-    function getOrCreateLabelLayer(doc) {
-        var layer;
+    /**
+     * ラベル用のレイヤーを取得し、無ければ作成する
+     * @param {Document} destDoc - 読み込み先のドキュメント
+     * @returns {Layer} ラベル用のレイヤー
+     */
+    function getOrCreateLabelLayer(destDoc) {
         try {
-            layer = doc.layers.getByName(CONFIG.labelLayerName);
+            return destDoc.layers.getByName(IMPORT_SETTINGS.labelLayerName);
         } catch (e) {
-            layer = doc.layers.add();
-            layer.name = CONFIG.labelLayerName;
-        }
-        return layer;
-    }
-
-    /* レイヤーとそのサブレイヤーのロック・非表示を再帰的に解除する / Recursively unlock and reveal a layer and its sublayers */
-    function unlockLayerTree(layer) {
-        layer.locked = false;
-        layer.visible = true;
-        for (var i = 0; i < layer.layers.length; i++) {
-            unlockLayerTree(layer.layers[i]);
+            /* getByName は見つからないと例外 / getByName throws when the layer is missing */
+            var labelLayer = destDoc.layers.add();
+            labelLayer.name = IMPORT_SETTINGS.labelLayerName;
+            return labelLayer;
         }
     }
 
-    /* ドキュメント内のすべてのレイヤー・オブジェクトのロックと非表示を解除する / Unlock and reveal every layer and object in the document */
-    function unlockAllLayersAndItems(doc) {
-        for (var li = 0; li < doc.layers.length; li++) {
-            unlockLayerTree(doc.layers[li]);
-        }
-        for (var pi = 0; pi < doc.pageItems.length; pi++) {
-            doc.pageItems[pi].locked = false;
-            doc.pageItems[pi].hidden = false;
-        }
-    }
-
-    /* レイヤー・オブジェクトのロック/非表示状態を記録する（後で元に戻すため）
-       / Capture the lock/hidden state of layers and items so it can be restored later */
-    function captureLockHiddenState(doc) {
-        var layers = [];
-        var items = [];
-        function walkLayers(layerList) {
-            for (var i = 0; i < layerList.length; i++) {
-                var layer = layerList[i];
-                layers.push({ ref: layer, locked: layer.locked, visible: layer.visible });
-                walkLayers(layer.layers);
-            }
-        }
-        walkLayers(doc.layers);
-        for (var pi = 0; pi < doc.pageItems.length; pi++) {
-            var pageItem = doc.pageItems[pi];
-            items.push({ ref: pageItem, locked: pageItem.locked, hidden: pageItem.hidden });
-        }
-        return { layers: layers, items: items };
-    }
-
-    /* 記録したロック/非表示状態を元に戻す。1件失敗しても残りは復元を続ける。
-       / Restore a previously captured lock/hidden state. A failure on one item won't stop the rest. */
-    function restoreLockHiddenState(state) {
-        for (var i = 0; i < state.layers.length; i++) {
-            try { state.layers[i].ref.locked = state.layers[i].locked; } catch (eLayerLock) { }
-            try { state.layers[i].ref.visible = state.layers[i].visible; } catch (eLayerVis) { }
-        }
-        for (var j = 0; j < state.items.length; j++) {
-            try { state.items[j].ref.locked = state.items[j].locked; } catch (eItemLock) { }
-            try { state.items[j].ref.hidden = state.items[j].hidden; } catch (eItemHidden) { }
-        }
-    }
-
-    /* 2つの矩形（[L, T, R, B]、T>B）が重なるか / Whether two [L, T, R, B] rects (T > B) overlap */
+    /**
+     * 2つの矩形（[左, 上, 右, 下]、上 > 下）が重なるか判定する
+     * @param {number[]} rectA - 矩形A
+     * @param {number[]} rectB - 矩形B
+     * @returns {boolean} 重なれば true
+     */
     function rectsIntersect(rectA, rectB) {
         return !(rectA[2] < rectB[0] || rectA[0] > rectB[2] || rectA[3] > rectB[1] || rectA[1] < rectB[3]);
     }
 
-    /* 指定アートボード（複数可）に重なるオブジェクトだけロック・非表示を解除する（他アートボードのオブジェクトには触れない）。
-       レイヤーは選択可能にするため一時的に全解除する。戻り値は restoreLockHiddenState で復元できる状態。
-       / Unlock only the objects overlapping the given artboard rects (leaving other artboards' objects untouched).
-       Layers are unlocked/shown temporarily so the items become selectable. The result restores via restoreLockHiddenState. */
-    function unlockItemsOnArtboards(doc, abRects) {
-        var layers = [];
-        function walkLayers(layerList) {
+    /**
+     * 例外を出さずにプロパティへ代入する（削除済み・読み取り専用で失敗しても続ける）
+     * @param {Object} target - 代入先
+     * @param {string} propertyName - プロパティ名
+     * @param {*} value - 値
+     * @returns {void}
+     */
+    function setPropertySafely(target, propertyName, value) {
+        try {
+            target[propertyName] = value;
+        } catch (e) { /* 1件の失敗で復元全体を止めない / one failure must not stop the whole restore */ }
+    }
+
+    /**
+     * 取り込めるように、レイヤーをすべて、オブジェクトは対象アートボードに重なるものだけロック・非表示を解除する。
+     * 変えた分を lockState に控える（restoreLockHiddenState で戻せる）
+     * @param {Document} sourceDoc - 読み込み元のドキュメント
+     * @param {number[][]|null} artboardRects - 対象アートボードの矩形の配列。null ならすべてのオブジェクトを解除
+     * @param {{layers: Array, items: Array}} lockState - 元の状態を控える先（途中で失敗しても控えた分は戻せる）
+     * @returns {void}
+     */
+    function unlockItemsForImport(sourceDoc, artboardRects, lockState) {
+        function unlockLayers(layerList) {
             for (var i = 0; i < layerList.length; i++) {
                 var layer = layerList[i];
-                layers.push({ ref: layer, locked: layer.locked, visible: layer.visible });
+                lockState.layers.push({ ref: layer, locked: layer.locked, visible: layer.visible });
                 layer.locked = false;
                 layer.visible = true;
-                walkLayers(layer.layers);
+                unlockLayers(layer.layers);
             }
         }
-        walkLayers(doc.layers);
+        unlockLayers(sourceDoc.layers);
 
-        var items = [];
-        for (var pi = 0; pi < doc.pageItems.length; pi++) {
-            var pageItem = doc.pageItems[pi];
-            if (!pageItem.locked && !pageItem.hidden) continue; // 既に選択可能なものは触らない / Leave already-selectable items alone
-            var bounds;
-            try { bounds = pageItem.geometricBounds; } catch (eBounds) { continue; }
-            var overlapsTarget = false;
-            for (var ri = 0; ri < abRects.length; ri++) {
-                if (rectsIntersect(bounds, abRects[ri])) { overlapsTarget = true; break; }
-            }
-            if (!overlapsTarget) continue; // 対象アートボードのどれにも重ならないものは対象外 / Skip items outside all target artboards
-            items.push({ ref: pageItem, locked: pageItem.locked, hidden: pageItem.hidden });
+        for (var i = 0; i < sourceDoc.pageItems.length; i++) {
+            var pageItem = sourceDoc.pageItems[i];
+            if (!pageItem.locked && !pageItem.hidden) continue; /* 既に選択できるものは触らない / leave already-selectable items alone */
+            if (artboardRects && !overlapsAnyRect(pageItem, artboardRects)) continue; /* 他のアートボードのものには触れない / leave other artboards alone */
+            lockState.items.push({ ref: pageItem, locked: pageItem.locked, hidden: pageItem.hidden });
             pageItem.locked = false;
             pageItem.hidden = false;
         }
-        return { layers: layers, items: items };
     }
 
-    /* "1, 3-5" のような指定文字列を 1 始まりのアートボード番号の配列にする（カンマ区切り・範囲対応）。
-       / Parse a spec like "1, 3-5" into an array of 1-based artboard numbers (comma-separated, ranges supported). */
-    function parseArtboardNumbers(spec) {
-        var numbers = [];
-        if (!spec) return numbers;
-        var parts = spec.split(/[,，\s]+/);
-        for (var i = 0; i < parts.length; i++) {
-            var part = parts[i];
-            if (part === "") continue;
-            var range = part.match(/^(\d+)\s*[-–~]\s*(\d+)$/);
-            if (range) {
-                var from = parseInt(range[1], 10);
-                var to = parseInt(range[2], 10);
-                if (from > to) { var swap = from; from = to; to = swap; }
-                for (var n = from; n <= to; n++) numbers.push(n);
-            } else if (/^\d+$/.test(part)) {
-                numbers.push(parseInt(part, 10));
+    /**
+     * オブジェクトが矩形のどれかに重なるか判定する
+     * @param {PageItem} pageItem - 対象のオブジェクト
+     * @param {number[][]} rects - 矩形の配列
+     * @returns {boolean} 重なれば true（境界を測れなければ false）
+     */
+    function overlapsAnyRect(pageItem, rects) {
+        var itemBounds;
+        try {
+            itemBounds = pageItem.geometricBounds;
+        } catch (e) {
+            return false; /* 境界を持たない種類 / kinds without bounds */
+        }
+        for (var i = 0; i < rects.length; i++) {
+            if (rectsIntersect(itemBounds, rects[i])) return true;
+        }
+        return false;
+    }
+
+    /**
+     * 控えたロック・非表示の状態を元に戻す。1件失敗しても残りは続ける
+     * @param {{layers: Array, items: Array}} lockState - unlockItemsForImport() で控えた状態
+     * @returns {void}
+     */
+    function restoreLockHiddenState(lockState) {
+        for (var i = 0; i < lockState.layers.length; i++) {
+            setPropertySafely(lockState.layers[i].ref, "locked", lockState.layers[i].locked);
+            setPropertySafely(lockState.layers[i].ref, "visible", lockState.layers[i].visible);
+        }
+        for (var j = 0; j < lockState.items.length; j++) {
+            setPropertySafely(lockState.items[j].ref, "locked", lockState.items[j].locked);
+            setPropertySafely(lockState.items[j].ref, "hidden", lockState.items[j].hidden);
+        }
+    }
+
+    /**
+     * "1, 3-5" のような指定を、1始まりのアートボード番号の配列にする（カンマ・空白区切り、範囲指定可）
+     * @param {string} specText - 指定の文字列
+     * @returns {number[]} アートボード番号（読めない部分は無視）
+     */
+    function parseArtboardNumbers(specText) {
+        var artboardNumbers = [];
+        if (!specText) return artboardNumbers;
+        var specParts = specText.split(/[,，\s]+/);
+        for (var i = 0; i < specParts.length; i++) {
+            var specPart = specParts[i];
+            var rangeMatch = specPart.match(/^(\d+)\s*[-–~]\s*(\d+)$/);
+            if (rangeMatch) {
+                var rangeStart = parseInt(rangeMatch[1], 10);
+                var rangeEnd = parseInt(rangeMatch[2], 10);
+                for (var number = Math.min(rangeStart, rangeEnd); number <= Math.max(rangeStart, rangeEnd); number++) {
+                    artboardNumbers.push(number);
+                }
+            } else if (/^\d+$/.test(specPart)) {
+                artboardNumbers.push(parseInt(specPart, 10));
             }
         }
-        return numbers;
+        return artboardNumbers;
     }
 
-    /* 対象モードと指定文字列から、取り込むアートボードの 0 始まりインデックス配列を返す。
-       / Resolve the 0-based artboard indices to import from the mode and spec text. */
-    function resolveTargetArtboardIndices(doc, mode, specText) {
-        var count = doc.artboards.length;
-        var indices = [];
-        if (mode === "all") {
-            for (var i = 0; i < count; i++) indices.push(i);
-        } else if (mode === "specify") {
-            var numbers = parseArtboardNumbers(specText);
-            var seen = {};
-            for (var k = 0; k < numbers.length; k++) {
-                var idx = numbers[k] - 1; // 1 始まり → 0 始まり / 1-based → 0-based
-                if (idx >= 0 && idx < count && !seen[idx]) { seen[idx] = true; indices.push(idx); }
-            }
-            indices.sort(function (a, b) { return a - b; });
-        } else { // "first"
-            if (count > 0) indices.push(0);
+    /**
+     * 対象の指定から、取り込むアートボードの0始まりの番号を若い順に返す
+     * @param {Document} sourceDoc - 読み込み元のドキュメント
+     * @param {string} targetMode - "first"（1のみ）/ "all"（すべて）/ "specify"（指定）
+     * @param {string} specText - 「指定」のときの番号の文字列
+     * @returns {number[]} アートボードの番号（0始まり、重複なし）
+     */
+    function resolveTargetArtboardIndices(sourceDoc, targetMode, specText) {
+        var artboardCount = sourceDoc.artboards.length;
+        var isTarget = [];
+        var i;
+        if (targetMode === "all") {
+            for (i = 0; i < artboardCount; i++) isTarget[i] = true;
+        } else if (targetMode === "specify") {
+            var artboardNumbers = parseArtboardNumbers(specText);
+            for (i = 0; i < artboardNumbers.length; i++) isTarget[artboardNumbers[i] - 1] = true; /* 1始まり → 0始まり / 1-based → 0-based */
+        } else {
+            isTarget[0] = true;
         }
-        return indices;
+        /* 番号順に拾うので並べ替えは要らない / picking in index order keeps them sorted */
+        var targetIndices = [];
+        for (i = 0; i < artboardCount; i++) {
+            if (isTarget[i]) targetIndices.push(i);
+        }
+        return targetIndices;
     }
 
-    /* 取り込み対象のガイドを集める。長さがカンバスの半分以上のものは無視する。
-       ロック・非表示のガイドは選択できないため除外。withinRect を渡すとその矩形に重なるものだけにする。
-       / Collect importable guides, ignoring ones as long as half the canvas or more.
-       Locked/hidden guides can't be selected, so they're excluded. With withinRect, keep only overlapping ones. */
-    function collectImportableGuides(doc, canvasWidth, canvasHeight, withinRect) {
-        var result = [];
-        var halfWidth = canvasWidth / 2;
-        var halfHeight = canvasHeight / 2;
-        for (var i = 0; i < doc.pageItems.length; i++) {
-            var item = doc.pageItems[i];
-            if (!item.guides || item.locked || item.hidden) continue;
-            var guideBounds = item.geometricBounds; // [L, T, R, B]
-            if ((guideBounds[2] - guideBounds[0]) >= halfWidth || (guideBounds[1] - guideBounds[3]) >= halfHeight) continue; // 長すぎるガイドは無視
+    /**
+     * 取り込むガイドを集める。横は基準のアートボードの短辺以下、縦は長辺以下の長さのものだけ含める（それより長いルーラーガイドは除く）。
+     * ロック・非表示のガイドは選択できないので除く。withinRect を渡すと、その矩形に重なるものだけにする
+     * @param {Document} sourceDoc - 読み込み元のドキュメント
+     * @param {number[]} baseArtboardRect - 長さの基準にするアートボードの矩形 [左, 上, 右, 下]
+     * @param {number[]|null} withinRect - 絞り込む矩形（null なら絞り込まない）
+     * @returns {PageItem[]} ガイド
+     */
+    function collectImportableGuides(sourceDoc, baseArtboardRect, withinRect) {
+        var artboardWidth = baseArtboardRect[2] - baseArtboardRect[0];
+        var artboardHeight = baseArtboardRect[1] - baseArtboardRect[3];
+        var shortSide = Math.min(artboardWidth, artboardHeight);
+        var longSide = Math.max(artboardWidth, artboardHeight);
+        var guideItems = [];
+        for (var i = 0; i < sourceDoc.pageItems.length; i++) {
+            var pageItem = sourceDoc.pageItems[i];
+            if (!pageItem.guides || pageItem.locked || pageItem.hidden) continue;
+            var guideBounds = pageItem.geometricBounds;
+            var guideWidth = guideBounds[2] - guideBounds[0];
+            var guideHeight = guideBounds[1] - guideBounds[3];
+            /* 横長なら横のガイドとして短辺以下、縦長なら縦のガイドとして長辺以下なら含める。辺にぴったりの長さは誤差を許容して含める
+               Include horizontal guides up to the short side and vertical ones up to the long side, with a tolerance for exact fits */
+            var guideLimit = (guideWidth >= guideHeight) ? shortSide : longSide;
+            if (Math.max(guideWidth, guideHeight) > guideLimit + SELECTION_ITEMS_TOLERANCE) continue;
             if (withinRect && !rectsIntersect(guideBounds, withinRect)) continue;
-            result.push(item);
+            guideItems.push(pageItem);
         }
-        return result;
+        return guideItems;
     }
 
-    /* ドキュメント内の全アートボードを囲う合成矩形 [L, T, R, B] を返す / Union rect [L, T, R, B] of all artboards in the doc */
-    function getArtboardsUnionRect(doc) {
-        var firstRect = doc.artboards[0].artboardRect; // [L, T, R, B]
-        var left = firstRect[0], top = firstRect[1], right = firstRect[2], bottom = firstRect[3];
-        for (var i = 1; i < doc.artboards.length; i++) {
-            var rect = doc.artboards[i].artboardRect;
-            if (rect[0] < left) left = rect[0];
-            if (rect[1] > top) top = rect[1];
-            if (rect[2] > right) right = rect[2];
-            if (rect[3] < bottom) bottom = rect[3];
+    /**
+     * ドキュメントのすべてのアートボードを囲む矩形を返す
+     * @param {Document} targetDoc - 対象のドキュメント
+     * @returns {number[]} [左, 上, 右, 下]
+     */
+    function getArtboardsUnionRect(targetDoc) {
+        var unionRect = targetDoc.artboards[0].artboardRect.slice(0);
+        for (var i = 1; i < targetDoc.artboards.length; i++) {
+            var artboardRect = targetDoc.artboards[i].artboardRect;
+            if (artboardRect[0] < unionRect[0]) unionRect[0] = artboardRect[0];
+            if (artboardRect[1] > unionRect[1]) unionRect[1] = artboardRect[1];
+            if (artboardRect[2] > unionRect[2]) unionRect[2] = artboardRect[2];
+            if (artboardRect[3] < unionRect[3]) unionRect[3] = artboardRect[3];
         }
-        return [left, top, right, bottom];
+        return unionRect;
     }
 
-    /* 貼り付け直後のオブジェクトを1グループにまとめてセルとして記録し、必要ならラベルを付ける。
-       ctx.createArtboards が true のときだけセルに合わせたアートボードを追加する（OFF時は枠を作らず内容だけ）。
-       / Group the just-pasted objects into one cell and optionally add a label.
-       Adds a matching artboard only when ctx.createArtboards is true (otherwise the content is placed without a frame).
-       artboardCell を渡すと元のアートボードサイズと内容の相対位置を保持する。
-       / When artboardCell is provided, the original artboard size and the content's relative position are preserved. */
-    function placePastedGroup(ctx, labelName, artboardCell) {
-        var newDoc = ctx.newDoc;
-        var pastedItems = newDoc.selection;
+    /**
+     * 読み込み元の選択をコピーし、読み込み先へペーストする。
+     * ペースト前に読み込み先の選択を解除する（選択中の文字などを置き換えないため）
+     * @param {Document} sourceDoc - 読み込み元（選択済み）
+     * @param {Document} destDoc - 読み込み先
+     * @returns {void}
+     */
+    function copySelectionToDocument(sourceDoc, destDoc) {
+        app.activeDocument = sourceDoc;
+        app.copy();
+        app.activeDocument = destDoc;
+        destDoc.selection = null;
+        app.paste();
+    }
+
+    /**
+     * ペーストした直後のオブジェクトをグループにまとめてセルとして記録し、必要ならラベルを付ける。
+     * ［コピー元のレイヤーにペースト］がオンで複数のレイヤーに入ったときは、レイヤーごとに1つずつグループにする。
+     * placementContext.createArtboards が true のときだけ、セルに合わせたアートボードを追加する。
+     * artboardCell を渡すと、元のアートボードの大きさと内容の相対位置を保つ
+     * @param {Object} placementContext - 配置の状態（destDoc / cells / scalePercent / showLabel など）
+     * @param {string} labelName - ラベル・アートボードの名前
+     * @param {{width: number, height: number, offsetX: number, offsetY: number}} [artboardCell] - 元のアートボードの大きさと内容の位置
+     * @returns {boolean} 配置できたら true
+     */
+    function placePastedGroup(placementContext, labelName, artboardCell) {
+        var destDoc = placementContext.destDoc;
+        var pastedItems = destDoc.selection;
         if (pastedItems.length === 0) {
             alert(labelValueText('alert.pasteFail', labelName));
             return false;
         }
 
-        var targetLayer = newDoc.activeLayer;
-        var pastedGroup = targetLayer.groupItems.add();
-        for (var m = pastedItems.length - 1; m >= 0; m--) {
-            pastedItems[m].moveToBeginning(pastedGroup);
+        var activeLayer = destDoc.activeLayer;
+        var pastedGroups = groupItemsByLayer(pastedItems);
+        destDoc.activeLayer = activeLayer; /* ペースト直後にアクティブレイヤーを戻す / restore the active layer right after pasting */
+
+        /* 内容とアートボード枠を同率で拡大・縮小する。線幅・パターン・グラデーションも同率。
+           グループが複数なら、互いの位置がずれないよう同じ基準点（ドキュメントの原点）で拡大・縮小する
+           Scale the content and the cell at the same rate, including strokes, patterns and gradients.
+           Several groups share one reference point (the document origin) so their relative positions hold */
+        var scalePercent = placementContext.scalePercent;
+        if (scalePercent !== 100) {
+            for (var i = 0; i < pastedGroups.length; i++) {
+                if (pastedGroups.length > 1) {
+                    pastedGroups[i].resize(scalePercent, scalePercent, true, true, true, true, scalePercent, Transformation.DOCUMENTORIGIN);
+                } else {
+                    pastedGroups[i].resize(scalePercent, scalePercent, true, true, true, true, scalePercent);
+                }
+            }
         }
-        newDoc.activeLayer = targetLayer; // 貼り付け直後にアクティブレイヤーを戻す / Restore the active layer right after pasting
+        var scaleFactor = scalePercent / 100;
 
-        // スケール適用（コンテンツとアートボード枠の両方を同率で）。線幅・パターン・グラデーションも同率で縮める。
-        // Apply scaling to both the content and the artboard cell at the same rate; also scale stroke widths / patterns / gradients.
-        if (ctx.scalePercent !== 100) {
-            pastedGroup.resize(
-                ctx.scalePercent, ctx.scalePercent,
-                true,             // changePositions
-                true,             // changeFillPatterns
-                true,             // changeFillGradients
-                true,             // changeStrokePattern
-                ctx.scalePercent  // changeLineWidths（線幅も同率で / scale stroke widths by the same percent）
-            );
-        }
-        var scaleFactor = ctx.scalePercent / 100;
+        /* クリップグループはマスクで測る（読み込み元と同じ測り方） / clip groups by their mask, the same way as the source side */
+        var contentBounds = getClipAwareUnionBounds(pastedGroups, true) || pastedGroups[0].visibleBounds;
 
-        /* 貼り付けた各オブジェクトの外接範囲。クリップグループはマスクで測る（元の側と同じ測り方）
-           The union of the pasted items; clip groups by their mask, the same way as the source side */
-        var bounds = getClipAwareUnionBounds(pastedGroup.pageItems, true) || pastedGroup.visibleBounds;
-        var contentWidth = bounds[2] - bounds[0];
-        var contentHeight = bounds[1] - bounds[3];
-
-        // セル（＝追加するアートボードの枠）の寸法と、その中での内容の位置
-        // Cell (= the artboard to add) size and the content's position within it
-        var cellPadding = ctx.artboardPadding;
+        /* セル（＝追加するアートボード）の大きさと、その中での内容の位置 / Cell size and the content's position within it */
+        var cellPadding = placementContext.artboardPadding;
         var cellWidth, cellHeight, offsetX, offsetY;
         if (artboardCell) {
-            // 元のアートボードサイズと相対位置を保持（スケールも反映）/ Preserve the original artboard size and relative position (scaled)
             cellWidth = artboardCell.width * scaleFactor;
             cellHeight = artboardCell.height * scaleFactor;
             offsetX = artboardCell.offsetX * scaleFactor;
             offsetY = artboardCell.offsetY * scaleFactor;
         } else {
-            // 内容に余白を足した枠 / A box fitted to the content plus padding
-            cellWidth = contentWidth + cellPadding * 2;
-            cellHeight = contentHeight + cellPadding * 2;
+            cellWidth = (contentBounds[2] - contentBounds[0]) + cellPadding * 2;
+            cellHeight = (contentBounds[1] - contentBounds[3]) + cellPadding * 2;
             offsetX = cellPadding;
             offsetY = cellPadding;
         }
 
-        // 内容の現在位置を基準にしたセルの左上（最終位置は後でグリッド配置）
-        // Cell's top-left based on the content's current spot (final position is set later by the grid layout)
-        var abLeft = bounds[0] - offsetX;
-        var abTop = bounds[1] + offsetY;
+        /* 内容の今の位置から求めたセルの左上（最終位置はあとでグリッドに並べる） / Cell top-left from the content's current spot */
+        var cellLeft = contentBounds[0] - offsetX;
+        var cellTop = contentBounds[1] + offsetY;
 
-        // アートボードを作るのは「アートボード単位」ONのときだけ。OFFのときは枠を作らず内容だけ配置する。
-        // Create an artboard only when "per artboard" is on; when off, place the content without adding a frame.
         var newArtboard = null;
-        if (ctx.createArtboards) {
-            newArtboard = newDoc.artboards.add([abLeft, abTop, abLeft + cellWidth, abTop - cellHeight]);
+        if (placementContext.createArtboards) {
+            newArtboard = destDoc.artboards.add([cellLeft, cellTop, cellLeft + cellWidth, cellTop - cellHeight]);
             newArtboard.name = labelName;
         }
 
-        var labelItem = null;
-        if (ctx.showLabel) {
-            var labelLayer = getOrCreateLabelLayer(newDoc);
-            labelItem = newDoc.textFrames.add();
-            labelItem.contents = labelName;
-            // フォントが見つからない環境では既定フォントのまま / Keep the default font when the configured one is missing
-            try {
-                labelItem.textRange.characterAttributes.textFont = app.textFonts.getByName(CONFIG.labelFont);
-            } catch (fontError) { }
-            labelItem.textRange.characterAttributes.size = CONFIG.labelSize;
-            // ラベルはアートボードの下端の左下に置く / Place the label below the artboard's bottom-left
-            positionLabelBelow(labelItem, abLeft, abTop - cellHeight);
-            if (labelItem.layer != labelLayer) labelItem.layer = labelLayer;
-            labelItem.move(labelLayer, ElementPlacement.PLACEATBEGINNING);
-        }
+        var labelFrame = placementContext.showLabel ? addFileNameLabel(destDoc, labelName, cellLeft, cellTop - cellHeight) : null;
 
-        // セルを記録（グループ・アートボード・ラベルを最終グリッド配置で一緒に動かす）。
-        // アートボードを作らない場合のために、現在のセル左上（currentLeft/currentTop）も保持する。
-        // Record the cell so the group, artboard, and label move together in the final grid layout.
-        // Also keep the current cell top-left (currentLeft/currentTop) for the no-artboard case.
-        ctx.cells.push({
-            group: pastedGroup,
-            artboard: newArtboard, // OFF時は null / null when no artboard is created
-            label: labelItem,
+        /* グループ・アートボード・ラベルをグリッド配置で一緒に動かすため記録する。アートボードが無いときのために今の左上も控える
+           Record the cell so its parts move together; keep the current top-left for the no-artboard case */
+        placementContext.cells.push({
+            groups: pastedGroups,
+            artboard: newArtboard,
+            label: labelFrame,
             width: cellWidth,
             height: cellHeight,
-            currentLeft: abLeft,
-            currentTop: abTop
+            currentLeft: cellLeft,
+            currentTop: cellTop
         });
-        ctx.placedCount++;
+        placementContext.placedCount++;
         return true;
     }
 
-    /* 記録したセルを「全体が正方形に近い」グリッドに並べ、キャンバス中央に配置する。
-       セルごとに group・artboard・label を同じ移動量でまとめて動かす。
-       / Lay out the recorded cells in a grid whose overall shape is as square as possible, centered on the canvas.
-       For each cell, the group, artboard, and label move together by the same delta. */
-    function layoutCellsAsCenteredGrid(ctx) {
-        var cells = ctx.cells;
-        var count = cells.length;
-        if (count === 0) return;
+    /**
+     * オブジェクトを、入っているレイヤーごとに1つのグループにまとめる（重なり順は保つ）。
+     * ［コピー元のレイヤーにペースト］がオンだと、ペーストしたものは元と同じ名前のレイヤー（サブレイヤーも）に分かれて入る
+     * @param {PageItem[]} items - ペーストしたオブジェクト（前面→背面の順）
+     * @returns {GroupItem[]} レイヤーごとのグループ
+     */
+    function groupItemsByLayer(items) {
+        var layerGroups = [];
+        for (var i = items.length - 1; i >= 0; i--) {
+            var itemLayer = items[i].layer;
+            var layerGroup = null;
+            for (var j = 0; j < layerGroups.length; j++) {
+                if (layerGroups[j].layer === itemLayer) layerGroup = layerGroups[j];
+            }
+            if (!layerGroup) {
+                layerGroup = itemLayer.groupItems.add();
+                layerGroups.push(layerGroup);
+            }
+            /* 背面から順に先頭へ入れるので、元の重なり順になる / moving back-to-front to the beginning keeps the stacking order */
+            items[i].moveToBeginning(layerGroup);
+        }
+        return layerGroups;
+    }
 
-        // スロットサイズ＝最大セル寸法（サイズ混在でも重ならないように）/ Slot size = the largest cell (so mixed sizes never overlap)
+    /**
+     * ファイル名のラベルを、ラベル用のレイヤーのセル左下に追加する
+     * @param {Document} destDoc - 読み込み先のドキュメント
+     * @param {string} labelName - ラベルの文字列
+     * @param {number} cellLeft - セルの左端
+     * @param {number} cellBottom - セルの下端
+     * @returns {TextFrame} ラベル
+     */
+    function addFileNameLabel(destDoc, labelName, cellLeft, cellBottom) {
+        var labelFrame = getOrCreateLabelLayer(destDoc).textFrames.add();
+        labelFrame.contents = labelName;
+        try {
+            labelFrame.textRange.characterAttributes.textFont = app.textFonts.getByName(IMPORT_SETTINGS.labelFont);
+        } catch (e) { /* フォントが無い環境では既定のフォントのまま / keep the default font when it is missing */ }
+        labelFrame.textRange.characterAttributes.size = IMPORT_SETTINGS.labelSize;
+        labelFrame.left = cellLeft;
+        labelFrame.top = cellBottom - 4; /* アートボードの下端のすぐ下 / just below the artboard */
+        return labelFrame;
+    }
+
+    /**
+     * 全体が正方形に近くなる列数を選ぶ
+     * @param {number} cellCount - セルの数
+     * @param {number} slotWidth - 1マスの幅
+     * @param {number} slotHeight - 1マスの高さ
+     * @param {number} gapX - 横の間隔
+     * @param {number} gapY - 縦の間隔
+     * @returns {number} 列数
+     */
+    function chooseSquarestColumnCount(cellCount, slotWidth, slotHeight, gapX, gapY) {
+        var bestColumns = 1;
+        var bestDiff = -1;
+        for (var columnCount = 1; columnCount <= cellCount; columnCount++) {
+            var rowCount = Math.ceil(cellCount / columnCount);
+            var gridWidth = columnCount * slotWidth + (columnCount - 1) * gapX;
+            var gridHeight = rowCount * slotHeight + (rowCount - 1) * gapY;
+            var diff = Math.abs(gridWidth - gridHeight);
+            if (bestDiff < 0 || diff < bestDiff) {
+                bestDiff = diff;
+                bestColumns = columnCount;
+            }
+        }
+        return bestColumns;
+    }
+
+    /**
+     * 記録したセルを、全体が正方形に近いグリッドに並べる。
+     * 新規ドキュメントはカンバス中央、現在のドキュメントは既存のアートボードの下に置く。
+     * セルごとにグループ・アートボード・ラベルを同じ量だけ動かす
+     * @param {Object} placementContext - 配置の状態
+     * @returns {void}
+     */
+    function layoutCellsAsCenteredGrid(placementContext) {
+        var cells = placementContext.cells;
+        var cellCount = cells.length;
+        if (cellCount === 0) return;
+
+        /* マスの大きさ＝最大のセル（大きさが混ざっても重ならない） / slot = the largest cell, so mixed sizes never overlap */
         var slotWidth = 0;
         var slotHeight = 0;
-        for (var i = 0; i < count; i++) {
+        for (var i = 0; i < cellCount; i++) {
             if (cells[i].width > slotWidth) slotWidth = cells[i].width;
             if (cells[i].height > slotHeight) slotHeight = cells[i].height;
         }
 
-        // セル間の間隔。アートボードモードは「スロット幅の1/8」（縦も同値）、それ以外は CONFIG の既定値。
-        // Gap between cells. In artboard mode use 1/8 of the slot width (same for vertical); otherwise the CONFIG default.
-        var gapX = ctx.byArtboard ? (slotWidth / 8) : CONFIG.spacingX;
-        var gapY = ctx.byArtboard ? (slotWidth / 8) : CONFIG.spacingY;
+        /* ［間隔］の値を縦横に使う / the Spacing value is used both ways */
+        var gapX = placementContext.itemSpacing;
+        var gapY = placementContext.itemSpacing;
 
-        // 全体のバウンディングボックスが最も正方形に近くなる列数を選ぶ
-        // Choose the column count that makes the overall bounding box closest to square
-        var columns = 1;
-        var bestDiff = -1;
-        for (var c = 1; c <= count; c++) {
-            var r = Math.ceil(count / c);
-            var totalWidthCandidate = c * slotWidth + (c - 1) * gapX;
-            var totalHeightCandidate = r * slotHeight + (r - 1) * gapY;
-            var diff = Math.abs(totalWidthCandidate - totalHeightCandidate);
-            if (bestDiff < 0 || diff < bestDiff) {
-                bestDiff = diff;
-                columns = c;
-            }
-        }
-        var rows = Math.ceil(count / columns);
-
-        var totalWidth = columns * slotWidth + (columns - 1) * gapX;
-        var totalHeight = rows * slotHeight + (rows - 1) * gapY;
+        var columnCount = chooseSquarestColumnCount(cellCount, slotWidth, slotHeight, gapX, gapY);
+        var rowCount = Math.ceil(cellCount / columnCount);
+        var gridWidth = columnCount * slotWidth + (columnCount - 1) * gapX;
+        var gridHeight = rowCount * slotHeight + (rowCount - 1) * gapY;
 
         var startLeft, startTop;
-        if (ctx.avoidRect) {
-            // 現在のドキュメント：既存アートボードの下に、重ならないよう配置（水平は既存の中央に揃える）
-            // Current document: place below the existing artboards (no overlap), centered horizontally on them
-            var existingRect = ctx.avoidRect; // [L, T, R, B]
-            var existingCenterX = (existingRect[0] + existingRect[2]) / 2;
-            startLeft = existingCenterX - totalWidth / 2;
-            startTop = existingRect[3] - gapY; // 既存アートボードの下端からひと間隔あけた位置をグリッド上端に / Grid top sits one gap below the existing bottom
+        var avoidRect = placementContext.avoidRect;
+        if (avoidRect) {
+            /* 既存のアートボードの下にひと間隔あけて置き、横は既存の中央にそろえる / below the existing artboards, centered on them */
+            startLeft = (avoidRect[0] + avoidRect[2]) / 2 - gridWidth / 2;
+            startTop = avoidRect[3] - gapY;
         } else {
-            // グリッド全体をキャンバス中央に揃える / Center the whole grid on the canvas
-            startLeft = ctx.canvasCenterX - totalWidth / 2;
-            startTop = ctx.canvasCenterY + totalHeight / 2;
+            startLeft = placementContext.canvasCenterX - gridWidth / 2;
+            startTop = placementContext.canvasCenterY + gridHeight / 2;
         }
 
-        for (var k = 0; k < count; k++) {
-            var col = k % columns;
-            var row = Math.floor(k / columns);
-            var slotLeft = startLeft + col * (slotWidth + gapX);
-            var slotTop = startTop - row * (slotHeight + gapY);
-
+        for (var k = 0; k < cellCount; k++) {
             var cell = cells[k];
-            // セルをスロット内で中央に / Center the cell within its slot
+            var slotLeft = startLeft + (k % columnCount) * (slotWidth + gapX);
+            var slotTop = startTop - Math.floor(k / columnCount) * (slotHeight + gapY);
+            /* セルをマスの中央に / center the cell in its slot */
             var targetLeft = slotLeft + (slotWidth - cell.width) / 2;
             var targetTop = slotTop - (slotHeight - cell.height) / 2;
 
-            // アートボードがある場合はその枠、無い場合は記録した現在のセル左上を基準に移動量を求める
-            // Use the artboard frame if present; otherwise the recorded current cell top-left
-            var rect = cell.artboard
-                ? cell.artboard.artboardRect // [L, T, R, B]
-                : [cell.currentLeft, cell.currentTop, cell.currentLeft + cell.width, cell.currentTop - cell.height];
-            var dx = targetLeft - rect[0];
-            var dy = targetTop - rect[1];
+            /* アートボードがあればその枠、無ければ控えたセルの左上を基準に動かす / measure from the artboard, or the recorded top-left */
+            var cellRect = cell.artboard ?
+                cell.artboard.artboardRect :
+                [cell.currentLeft, cell.currentTop, cell.currentLeft + cell.width, cell.currentTop - cell.height];
+            var dx = targetLeft - cellRect[0];
+            var dy = targetTop - cellRect[1];
 
-            cell.group.translate(dx, dy);
-            if (cell.artboard) cell.artboard.artboardRect = [rect[0] + dx, rect[1] + dy, rect[2] + dx, rect[3] + dy];
+            for (var j = 0; j < cell.groups.length; j++) cell.groups[j].translate(dx, dy);
+            if (cell.artboard) cell.artboard.artboardRect = [cellRect[0] + dx, cellRect[1] + dy, cellRect[2] + dx, cellRect[3] + dy];
             if (cell.label) cell.label.translate(dx, dy);
         }
     }
 
-    /* メイン処理：ダイアログを表示し、選択されたソースを新規ドキュメントへ取り込み配置する
-       / Main entry point: show the dialog, then import and arrange the chosen source into a new document */
-    (function main() {
-        // 現在開いているドキュメントを収集 / Collect currently open documents
-        var openDocs = [];
-        for (var i = 0; i < app.documents.length; i++) {
-            openDocs.push(app.documents[i]);
-        }
-        // ［指定］ボタンで選んだフォルダと、その中の対象ファイル一覧
-        // The folder chosen via the [Choose] button and the matching files inside it
+    // =========================================
+    // ダイアログ / Dialog
+    // =========================================
+
+    /**
+     * 読み込み対象パネル（開いているドキュメント／フォルダー、フィルター）を作る
+     * @param {Window} dialog - ダイアログ
+     * @param {Document[]} openDocs - 開いているドキュメント
+     * @returns {Object} sourceUi（isFolderMode() / getSources() / getNameFilterRegExp() / filterInput と、モード切替時に呼ぶ onModeChange）
+     */
+    function buildSourcePanel(dialog, openDocs) {
+        var sourceUi = { onModeChange: null };
         var selectedFolder = null;
-        var folderFiles = [];        // 種別＋名前フィルタ後のファイル / Files after the type + name filter
-        var folderFilesTotal = 0;    // 種別フィルタに一致する総数（名前フィルタ前）/ Total matching the type filter (before the name filter)
+        var folderFiles = [];      /* 種類と名前で絞り込んだファイル / files after the type and name filters */
+        var folderFilesTotal = 0;  /* 種類に合うファイルの総数（名前で絞る前） / total matching the types, before the name filter */
 
-        var dialog = new Window("dialog", getLabel('dialog.title') + ' ' + SCRIPT_VERSION);
-        setupWindow(dialog);
-
-        // --- 読み込み対象パネル / Source panel ---
         var sourcePanel = dialog.add("panel", undefined, getLabel('panel.source'));
         setupPanel(sourcePanel, 6);
-        var openDocsRadio = sourcePanel.add("radiobutton", undefined, getLabel('radio.openFiles'));
-        openDocsRadio.helpTip = getLabel('tooltip.openFiles');
+        var openDocsRadio = sourcePanel.add("radiobutton", undefined, getLabel('radio.openDocs'));
+        openDocsRadio.helpTip = getLabel('tooltip.openDocs');
+        reserveCountWidth(openDocsRadio);
 
         var folderRow = sourcePanel.add("group");
         setupGroup(folderRow, "row");
         var folderRadio = folderRow.add("radiobutton", undefined, getLabel('radio.specifyFolder'));
         folderRadio.helpTip = getLabel('tooltip.specifyFolder');
-        var selectFolderBtn = folderRow.add("button", undefined, getLabel('button.specify'));
-        selectFolderBtn.helpTip = getLabel('tooltip.specify');
+        reserveCountWidth(folderRadio);
+        var btnChooseFolder = folderRow.add("button", undefined, getLabel('button.chooseFolder'));
+        btnChooseFolder.helpTip = getLabel('tooltip.chooseFolder');
 
-        // 選択したフォルダ名は別行に表示 / Show the chosen folder name on its own row
-        var folderNameRow = sourcePanel.add("group");
-        setupGroup(folderNameRow, "row");
-        var folderNameText = folderNameRow.add("statictext", undefined, "", { truncate: "middle" });
-        folderNameText.preferredSize = [360, 20];
-        folderNameText.minimumSize = [360, 20];
+        /* 選んだフォルダーのパスは別の行に出す / the chosen folder path goes on its own row */
+        var folderPathRow = sourcePanel.add("group");
+        setupGroup(folderPathRow, "row");
+        var folderPathText = folderPathRow.add("statictext", undefined, "", { truncate: "middle" });
+        folderPathText.preferredSize = [360, 20];
+        folderPathText.minimumSize = [360, 20];
 
-        // --- フィルターパネル（読み込み対象パネル内。種別＋ファイル名の正規表現で絞り込み）/ Filter panel (nested in the source panel) ---
+        var subfoldersCheckbox = sourcePanel.add("checkbox", undefined, getLabel('checkbox.includeSubfolders'));
+        subfoldersCheckbox.helpTip = getLabel('tooltip.includeSubfolders');
+        subfoldersCheckbox.onClick = refreshFolderFiles;
+
+        /* フィルター（種類＋ファイル名の正規表現）。読み込み対象パネルの中に入れる / Filter panel nested in the source panel */
         var filterPanel = sourcePanel.add("panel", undefined, getLabel('panel.filter'));
         setupPanel(filterPanel, 6);
 
-        // 種別（読み込むファイル形式、チェックボックスは横並び）/ File types (checkboxes laid out horizontally)
-        var typeRow = filterPanel.add("group");
-        setupGroup(typeRow, "row");
-        var typeLabel = typeRow.add("statictext", undefined, labelText('field.fileType'));
-        typeLabel.preferredSize = [100, 20];
-        var aiCheckbox = typeRow.add("checkbox", undefined, "AI");
-        aiCheckbox.helpTip = getLabel('tooltip.fileType');
-        var svgCheckbox = typeRow.add("checkbox", undefined, "SVG");
-        svgCheckbox.helpTip = getLabel('tooltip.fileType');
-        var epsCheckbox = typeRow.add("checkbox", undefined, "EPS");
-        epsCheckbox.helpTip = getLabel('tooltip.fileType');
-        aiCheckbox.value = true;   // 既定は AI のみ ON / Default: AI only
-        svgCheckbox.value = false;
-        epsCheckbox.value = false;
+        var fileTypeRow = filterPanel.add("group");
+        setupGroup(fileTypeRow, "row");
+        var fileTypeLabel = addRowLabel(fileTypeRow, 'fieldLabel.fileType', FILTER_LABEL_WIDTH);
+        var fileTypeCheckboxes = [];
+        var fileTypeExtensions = ["ai", "svg", "eps"];
+        for (var i = 0; i < fileTypeExtensions.length; i++) {
+            var fileTypeCheckbox = fileTypeRow.add("checkbox", undefined, fileTypeExtensions[i].toUpperCase());
+            fileTypeCheckbox.helpTip = getLabel('tooltip.fileType');
+            fileTypeCheckbox.value = (i === 0); /* 既定は AI だけ / AI only by default */
+            fileTypeCheckbox.onClick = refreshFolderFiles;
+            fileTypeCheckboxes.push(fileTypeCheckbox);
+        }
 
-        var filterRow = filterPanel.add("group");
-        setupGroup(filterRow, "row");
-        var filterLabel = filterRow.add("statictext", undefined, labelText('field.fileName'));
-        filterLabel.preferredSize = [100, 20];
-        var filterInput = filterRow.add("edittext", undefined, "");
+        var fileNameRow = filterPanel.add("group");
+        setupGroup(fileNameRow, "row");
+        var fileNameLabel = addRowLabel(fileNameRow, 'fieldLabel.fileName', FILTER_LABEL_WIDTH);
+        fileNameLabel.helpTip = getLabel('tooltip.fileNameFilter');
+        var filterInput = fileNameRow.add("edittext", undefined, "");
         filterInput.characters = 20;
-        filterInput.helpTip = getLabel('hint.filter');
-        filterLabel.helpTip = getLabel('hint.filter');
+        filterInput.helpTip = getLabel('tooltip.fileNameFilter');
+        filterInput.onChanging = refreshFolderFiles; /* 件数も更新する / also refreshes the count */
 
-        // ファイル数はパネルのタイトルに表示する。フィルター使用時は「読み込み対象（3/5）」（絞り込み後/総数）、
-        // 未使用時は「読み込み対象（5）」のように表示する。
-        // Show the file count in the panel title. With an active filter, "Source (3/5)" (filtered/total); otherwise "Source (5)".
-        function updateFileCount() {
-            var filterActive = (filterInput.text !== "" && getNameFilterRegExp() !== null);
-            var total, filtered;
-            if (folderRadio.value) {
-                total = folderFilesTotal;        // 種別フィルタに一致する総数 / total matching the type filter
-                filtered = folderFiles.length;   // 種別＋名前フィルタ後 / after the type + name filter
-            } else {
-                total = openDocs.length;
-                filtered = getFilteredOpenDocs().length;
-            }
-            var countText = filterActive ? (filtered + '/' + total) : String(total);
-            sourcePanel.text = getLabel('panel.source') + (uiLang === 'ja' ? '（' + countText + '）' : ' (' + countText + ')');
-        }
-
-        // 「読み込み後の動作」は開いているファイルを選んだときのみ有効（フォルダ指定ではディム）
-        // The "After Import" action is available only for open files (dimmed for folder import)
-        function updateAfterImportState() {
-            var enabled = openDocsRadio.value;
-            afterImportLabel.enabled = enabled;
-            closeRadio.enabled = enabled;
-            keepOpenRadio.enabled = enabled;
-        }
-
-        // 種別は「フォルダー指定」のときのみ有効 / File types are available only in folder mode
-        function updateTypeRowState() {
-            typeLabel.enabled = folderRadio.value;
-            aiCheckbox.enabled = folderRadio.value;
-            svgCheckbox.enabled = folderRadio.value;
-            epsCheckbox.enabled = folderRadio.value;
-        }
-
-        // ファイル名ラベルはフォルダー指定では既定OFF、開いているファイルではON
-        // Default the file-name label off in folder mode and on for open files
-        function updateLabelOptionForMode() {
-            showLabelCheckbox.value = openDocsRadio.value;
-        }
-
-        // 選択された種別の拡張子リスト / Extensions for the currently selected file types
-        function getSelectedExtensions() {
-            var exts = [];
-            if (aiCheckbox.value) exts.push("ai");
-            if (svgCheckbox.value) exts.push("svg");
-            if (epsCheckbox.value) exts.push("eps");
-            return exts;
-        }
-
-        // ファイル名フィルタの正規表現を返す。空欄や不正な式なら null（＝全件対象）。
-        // Return the file-name filter as a RegExp; null when empty or invalid (= match all).
+        /**
+         * ファイル名フィルターの正規表現を返す
+         * @returns {RegExp|null} 空欄や正しくない式（入力途中など）なら null
+         */
         function getNameFilterRegExp() {
-            var pattern = filterInput.text;
-            if (pattern === null || pattern === "") return null;
+            if (filterInput.text === "") return null;
             try {
-                return new RegExp(pattern, "i");
+                return new RegExp(filterInput.text, "i");
             } catch (e) {
-                return null; // 入力途中の不正な式では絞り込まない / Don't filter on an incomplete/invalid pattern
+                return null; /* 入力途中の正しくない式では絞り込まない / do not filter on an incomplete pattern */
             }
         }
 
-        // ファイル名がフィルタに一致するか / Whether a file name matches the current filter
-        function matchesNameFilter(name) {
-            var nameRe = getNameFilterRegExp();
-            return nameRe === null || nameRe.test(name);
-        }
-
-        // 開いているファイルをフィルタで絞り込んだ配列 / Open documents narrowed by the name filter
-        function getFilteredOpenDocs() {
+        /**
+         * 名前がフィルターに合うものだけを残す
+         * @param {Array} candidates - name を持つ Document か File
+         * @returns {Array} 残したもの
+         */
+        function filterByName(candidates) {
+            var nameRegExp = getNameFilterRegExp();
+            if (!nameRegExp) return candidates.slice(0);
             var matched = [];
-            for (var i = 0; i < openDocs.length; i++) {
-                if (matchesNameFilter(openDocs[i].name)) matched.push(openDocs[i]);
+            for (var i = 0; i < candidates.length; i++) {
+                if (nameRegExp.test(candidates[i].name)) matched.push(candidates[i]);
             }
             return matched;
         }
 
-        // 選択中フォルダを現在の種別とファイル名フィルタで再フィルタ / Re-filter the chosen folder by file types and the name filter
-        // 種別に一致する総数（folderFilesTotal）と、名前フィルタ後の一覧（folderFiles）の両方を更新する。
-        // Updates both the type-matched total (folderFilesTotal) and the name-filtered list (folderFiles).
+        /**
+         * ファイル数を各ラジオボタンの後ろに出す。フィルターが効いていれば「開いているドキュメント（3/5）」、無ければ「（5）」。
+         * フォルダーは選んだあとだけ出す
+         * @returns {void}
+         */
+        function updateFileCount() {
+            var isFiltering = (getNameFilterRegExp() !== null);
+            openDocsRadio.text = getLabel('radio.openDocs') + formatFileCount(isFiltering ? filterByName(openDocs).length : null, openDocs.length);
+            folderRadio.text = getLabel('radio.specifyFolder') +
+                (selectedFolder ? formatFileCount(isFiltering ? folderFiles.length : null, folderFilesTotal) : "");
+        }
+
+        /**
+         * 選んだフォルダーのファイルを、今の種類とファイル名で絞り直し、件数を更新する
+         * @returns {void}
+         */
         function refreshFolderFiles() {
             folderFiles = [];
             folderFilesTotal = 0;
-            var exts = getSelectedExtensions();
-            if (selectedFolder && exts.length > 0) {
-                var typeRe = new RegExp("\\.(" + exts.join("|") + ")$", "i");
-                var typeMatched = selectedFolder.getFiles(function (f) {
-                    return f instanceof File && typeRe.test(f.name);
-                });
-                folderFilesTotal = typeMatched.length;
-                var matched = [];
-                for (var i = 0; i < typeMatched.length; i++) {
-                    if (matchesNameFilter(typeMatched[i].name)) matched.push(typeMatched[i]);
-                }
-                matched.sort(function (a, b) {
-                    return a.name.toLowerCase() < b.name.toLowerCase() ? -1 : 1;
-                });
-                folderFiles = matched;
+            var extensions = [];
+            for (var i = 0; i < fileTypeCheckboxes.length; i++) {
+                if (fileTypeCheckboxes[i].value) extensions.push(fileTypeExtensions[i]);
+            }
+            if (selectedFolder && extensions.length > 0) {
+                var extensionRegExp = new RegExp("\\.(" + extensions.join("|") + ")$", "i");
+                var typeMatchedFiles = collectFolderFiles(selectedFolder, extensionRegExp, subfoldersCheckbox.value);
+                folderFilesTotal = typeMatchedFiles.length;
+                folderFiles = sortFilesByPath(filterByName(typeMatchedFiles));
             }
             updateFileCount();
         }
 
-        // フィルタ入力に応じて件数・一覧を更新 / Refresh counts and lists as the filter changes
-        filterInput.onChanging = function () {
-            refreshFolderFiles(); // updateFileCount を内包（開いているファイル件数も更新）/ also refreshes the open-files count
-        };
-
-        aiCheckbox.onClick = function () {
-            refreshFolderFiles();
-        };
-        svgCheckbox.onClick = aiCheckbox.onClick;
-        epsCheckbox.onClick = aiCheckbox.onClick;
-
-        // 開いているファイルが無ければフォルダ指定をデフォルトに
-        // Default to folder mode when no document is open
-        openDocsRadio.enabled = openDocs.length > 0;
-        if (openDocs.length > 0) {
-            openDocsRadio.value = true;
-        } else {
-            folderRadio.value = true;
+        /**
+         * 読み込み対象のモードを切り替える（2つのラジオは別の親にあるので排他を手で保つ）
+         * @param {boolean} useFolder - フォルダーを指定するなら true
+         * @returns {void}
+         */
+        function setFolderMode(useFolder) {
+            folderRadio.value = useFolder;
+            openDocsRadio.value = !useFolder;
+            fileTypeLabel.enabled = useFolder; /* 種類とサブフォルダーはフォルダー指定のときだけ / file types and subfolders only apply to folders */
+            subfoldersCheckbox.enabled = useFolder;
+            for (var i = 0; i < fileTypeCheckboxes.length; i++) fileTypeCheckboxes[i].enabled = useFolder;
+            updateFileCount();
+            if (sourceUi.onModeChange) sourceUi.onModeChange(useFolder);
         }
 
-        // 2つのラジオは別コンテナにあるため、排他選択を手動で制御する
-        // The two radios live in different containers, so enforce mutual exclusivity manually
-        openDocsRadio.onClick = function () {
-            folderRadio.value = false;
-            updateFileCount();
-            updateAfterImportState();
-            updateTypeRowState();
-            updateLabelOptionForMode();
-        };
-        folderRadio.onClick = function () {
-            openDocsRadio.value = false;
-            updateFileCount();
-            updateAfterImportState();
-            updateTypeRowState();
-            updateLabelOptionForMode();
-        };
-
-        selectFolderBtn.onClick = function () {
-            var folder = Folder.selectDialog(getLabel('prompt.selectFolder'));
-            if (!folder) return;
-            selectedFolder = folder;
-            folderRadio.value = true;
-            openDocsRadio.value = false;
-            var folderPath = decodeURI(folder.fsName);
-            folderNameText.text = folderPath;
-            folderNameText.helpTip = folderPath;
+        openDocsRadio.onClick = function () { setFolderMode(false); };
+        folderRadio.onClick = function () { setFolderMode(true); };
+        btnChooseFolder.onClick = function () {
+            var chosenFolder = Folder.selectDialog(getLabel('prompt.selectFolder'));
+            if (!chosenFolder) return;
+            selectedFolder = chosenFolder;
+            var folderPath = decodeURI(chosenFolder.fsName);
+            folderPathText.text = folderPath;
+            folderPathText.helpTip = folderPath;
             refreshFolderFiles();
-            updateAfterImportState();
-            updateTypeRowState();
-            updateLabelOptionForMode();
+            setFolderMode(true);
         };
 
-        updateFileCount();
-        updateTypeRowState();
+        /* 開いているドキュメントが無ければフォルダー指定にする / fall back to folder mode when nothing is open */
+        openDocsRadio.enabled = openDocs.length > 0;
 
-        // --- 読み込み先パネル（読み込み先の選択＋新規ドキュメント設定）/ Destination panel (target choice + new-document settings) ---
+        sourceUi.filterInput = filterInput;
+        sourceUi.getNameFilterRegExp = getNameFilterRegExp;
+        sourceUi.setFolderMode = setFolderMode;
+        sourceUi.isFolderMode = function () { return folderRadio.value; };
+        sourceUi.getSources = function () { return folderRadio.value ? folderFiles : filterByName(openDocs); };
+        return sourceUi;
+    }
+
+    var SUBFOLDER_MAX_DEPTH = 20; /* サブフォルダーをたどる深さの上限（エイリアスの循環よけ） / depth limit, guards against alias loops */
+
+    /**
+     * フォルダー内の、拡張子が合うファイルを集める（includeSubfolders ならサブフォルダーもたどる。名前が「.」で始まるものは除く）
+     * @param {Folder} rootFolder - フォルダー
+     * @param {RegExp} extensionRegExp - 拡張子の条件
+     * @param {boolean} includeSubfolders - サブフォルダーも含めるなら true
+     * @returns {File[]} ファイル
+     */
+    function collectFolderFiles(rootFolder, extensionRegExp, includeSubfolders) {
+        var matchedFiles = [];
+        function visitFolder(currentFolder, depth) {
+            var entries = currentFolder.getFiles();
+            for (var i = 0; i < entries.length; i++) {
+                var entry = entries[i];
+                if (entry.name.charAt(0) === ".") continue;
+                if (entry instanceof File) {
+                    if (extensionRegExp.test(entry.name)) matchedFiles.push(entry);
+                } else if (includeSubfolders && depth < SUBFOLDER_MAX_DEPTH) {
+                    visitFolder(entry, depth + 1);
+                }
+            }
+        }
+        visitFolder(rootFolder, 0);
+        return matchedFiles;
+    }
+
+    /**
+     * 件数の表示を返す（「（3/5）」または「（5）」。英語は半角括弧）
+     * @param {number|null} filteredCount - 絞り込んだ件数（絞り込んでいなければ null）
+     * @param {number} totalCount - 総数
+     * @returns {string} 件数の表示
+     */
+    function formatFileCount(filteredCount, totalCount) {
+        var countText = (filteredCount === null) ? String(totalCount) : filteredCount + "/" + totalCount;
+        return (uiLang === "ja") ? "（" + countText + "）" : " (" + countText + ")";
+    }
+
+    /**
+     * 件数を後ろに付けても切れないよう、ラジオボタンの幅を先に取っておく（表示後は広がらない）
+     * @param {RadioButton} radioButton - 対象のラジオボタン
+     * @returns {void}
+     */
+    function reserveCountWidth(radioButton) {
+        var RADIO_INDICATOR_WIDTH = 24; /* ラジオの丸と間の幅 / width of the radio circle and gap */
+        var widestText = radioButton.text + formatFileCount(9999, 9999);
+        radioButton.preferredSize.width = Math.ceil(radioButton.graphics.measureString(widestText)[0]) + RADIO_INDICATOR_WIDTH;
+    }
+
+    /**
+     * ファイルをパス（大文字・小文字を区別しない）の順に並べる。同じフォルダーの中では名前順になる。
+     * 比較関数つきの sort() は遅く並びも狂うので、文字列のキーを引数なしの sort() で並べる
+     * @param {File[]} files - ファイル
+     * @returns {File[]} 並べた新しい配列
+     */
+    function sortFilesByPath(files) {
+        var sortKeys = [];
+        for (var i = 0; i < files.length; i++) sortKeys.push(files[i].fsName.toLowerCase() + "\u0000" + i);
+        sortKeys.sort();
+        var sortedFiles = [];
+        for (var j = 0; j < sortKeys.length; j++) {
+            sortedFiles.push(files[parseInt(sortKeys[j].substring(sortKeys[j].lastIndexOf("\u0000") + 1), 10)]);
+        }
+        return sortedFiles;
+    }
+
+    /* ラスタライズ効果の解像度の選択肢と、DocumentPreset に渡す値 / raster effects resolution choices and their DocumentPreset values */
+    var RESOLUTION_PPI_LIST = [72, 150, 300];
+    var RESOLUTION_PRESET_VALUES = [
+        DocumentRasterResolution.ScreenResolution,
+        DocumentRasterResolution.MediumResolution,
+        DocumentRasterResolution.HighResolution
+    ];
+
+    /**
+     * 新規ドキュメントのプロファイル名の一覧を返す（［新規ドキュメント］のプリント・Web など。ユーザー定義も含む）
+     * @returns {string[]} プロファイル名
+     */
+    function getDocumentProfileNames() {
+        var profileNames = [];
+        for (var i = 0; i < app.startupPresetsList.length; i++) profileNames.push(app.startupPresetsList[i]);
+        return profileNames;
+    }
+
+    /**
+     * 既定のプロファイル名を返す（プリントがあればそれ、無ければ先頭）
+     * @returns {string} プロファイル名
+     */
+    function getDefaultProfileName() {
+        var profileNames = getDocumentProfileNames();
+        for (var i = 0; i < profileNames.length; i++) {
+            if (profileNames[i] === "プリント" || profileNames[i] === "Print") return profileNames[i];
+        }
+        return profileNames[0];
+    }
+
+    /**
+     * 新規ドキュメントの設定の初期値を返す
+     * @returns {{profileName: string, presetIndex: number, isRgb: boolean, ppiIndex: number, widthText: string, heightText: string, unit: string}} 設定
+     */
+    function createDefaultNewDocSettings() {
+        return { profileName: getDefaultProfileName(), presetIndex: 0, isRgb: true, ppiIndex: 2, widthText: "1000", heightText: "1000", unit: "px" };
+    }
+
+    /**
+     * 新規ドキュメントの設定を1行の要約にする（例「プリント / RGB / 300 ppi / 1000 × 1000 px」）
+     * @param {Object} newDocSettings - 新規ドキュメントの設定
+     * @returns {string} 要約
+     */
+    function formatNewDocSummary(newDocSettings) {
+        return newDocSettings.profileName + " / " + (newDocSettings.isRgb ? "RGB" : "CMYK") + " / " +
+            RESOLUTION_PPI_LIST[newDocSettings.ppiIndex] + " ppi / " +
+            newDocSettings.widthText + " × " + newDocSettings.heightText + " " + newDocSettings.unit;
+    }
+
+    /**
+     * 読み込み先パネル（現在／新規と、新規ドキュメントの設定を開くボタン）を作る
+     * @param {Window} dialog - ダイアログ
+     * @returns {Object} destinationUi（currentDocRadio と、新規ドキュメントの設定を返す getNewDocSettings()）
+     */
+    function buildDestinationPanel(dialog) {
+        var newDocSettings = createDefaultNewDocSettings();
+
         var destinationPanel = dialog.add("panel", undefined, getLabel('panel.destination'));
         setupPanel(destinationPanel, 6);
 
-        // 読み込み先：現在のドキュメント／新規ドキュメント / Destination: current document or a new one
-        var destRow = destinationPanel.add("group");
-        setupGroup(destRow, "row");
-        destRow.alignment = ["center", "top"]; // 左右中央 / Center horizontally
-        destRow.margins = [0, 0, 0, 10];        // 下に10pxの余白 / 10px margin below
-        var currentDocRadio = destRow.add("radiobutton", undefined, getLabel('radio.currentDoc'));
+        /* 縦に並べ、［新規ドキュメント］の右に［設定...］を置く / stacked, with Settings... next to New document */
+        var currentDocRadio = destinationPanel.add("radiobutton", undefined, getLabel('radio.currentDoc'));
         currentDocRadio.helpTip = getLabel('tooltip.currentDoc');
-        var newDocRadio = destRow.add("radiobutton", undefined, getLabel('radio.newDoc'));
+        var newDocRow = destinationPanel.add("group");
+        setupGroup(newDocRow, "row");
+        var newDocRadio = newDocRow.add("radiobutton", undefined, getLabel('radio.newDoc'));
         newDocRadio.helpTip = getLabel('tooltip.newDoc');
-        newDocRadio.value = true; // 既定は新規ドキュメント / Default: new document
+        newDocRadio.value = true;
+        var btnNewDocSettings = newDocRow.add("button", undefined, getLabel('button.newDocSettings'));
+        btnNewDocSettings.helpTip = getLabel('tooltip.newDocSettings');
 
-        // カラーモード＋解像度とサイズを横2カラムで並べる / Lay out color mode + resolution and size in two columns
-        var newDocSettingsRow = destinationPanel.add("group");
-        setupGroup(newDocSettingsRow, "row");
-        newDocSettingsRow.alignChildren = ["left", "fill"]; // 2つのパネルの高さを揃える / Match the two panels' heights
-        newDocSettingsRow.spacing = 15;                     // カラーモード／解像度とサイズの2カラム間隔 / Gap between the color-mode/resolution and size columns
+        /* 新規ドキュメントの設定の要約。幅は表示後に広がらないので先に取っておく / summary; reserve the width up front */
+        var newDocSummaryText = destinationPanel.add("statictext", undefined, formatNewDocSummary(newDocSettings));
+        newDocSummaryText.preferredSize.width = 300;
 
-        // 読み込み先が「現在のドキュメント」のときは新規ドキュメント設定をディムにする
-        // Dim the new-document settings when the destination is the current document
-        function updateDestinationState() {
-            newDocSettingsRow.enabled = newDocRadio.value;
-            redrawSteppersIn(newDocSettingsRow); /* 幅・高さの∧∨のディム表示を切り替える / update the steppers' dimming */
+        /* 「□分割［20］ファイルごと」：新規ドキュメントを指定のファイル数ごとに分ける / split new documents every N files */
+        var splitRow = destinationPanel.add("group");
+        setupGroup(splitRow, "row");
+        var splitCheckbox = splitRow.add("checkbox", undefined, getLabel('checkbox.splitDocs'));
+        splitCheckbox.helpTip = getLabel('tooltip.splitDocs');
+        var splitCountInput = addSteppedInput(splitRow, String(IMPORT_SETTINGS.splitFileCount), { min: 1, integer: true });
+        splitCountInput.characters = 4;
+        splitCountInput.helpTip = getLabel('tooltip.splitDocs');
+        splitRow.add("statictext", undefined, getLabel('fieldLabel.splitUnit'));
+        function updateSplitState() {
+            /* ∧∨は入力欄の兄弟なので、包む group ごと切り替える / toggle the wrapper so the stepper dims too */
+            splitCountInput.parent.enabled = splitCheckbox.value;
+            splitCountInput.enabled = splitCheckbox.value;
+            redrawSteppersIn(splitRow);
         }
-        currentDocRadio.onClick = updateDestinationState;
-        newDocRadio.onClick = updateDestinationState;
+        splitCheckbox.onClick = updateSplitState;
+        updateSplitState();
 
-        // 左カラム：カラーモードと解像度を縦に積む / Left column: color mode + resolution stacked
-        var colorAndResolutionColumn = newDocSettingsRow.add("group");
+        /* 現在のドキュメントに読み込むときは新規ドキュメントの設定をディムにする / dim the new-document settings for the current document */
+        function updateDestinationState() {
+            btnNewDocSettings.enabled = newDocRadio.value;
+            newDocSummaryText.enabled = newDocRadio.value;
+            splitRow.enabled = newDocRadio.value;
+            redrawSteppersIn(splitRow);
+        }
+        /* 2つのラジオは別の親にあるので、排他を手で保つ / the radios have different parents, so keep them exclusive by hand */
+        currentDocRadio.onClick = function () {
+            newDocRadio.value = false;
+            updateDestinationState();
+        };
+        newDocRadio.onClick = function () {
+            currentDocRadio.value = false;
+            updateDestinationState();
+        };
+
+        btnNewDocSettings.onClick = function () {
+            var editedSettings = showNewDocSettingsDialog(newDocSettings);
+            if (!editedSettings) return;
+            newDocSettings = editedSettings;
+            newDocSummaryText.text = formatNewDocSummary(newDocSettings);
+        };
+
+        return {
+            currentDocRadio: currentDocRadio,
+            getNewDocSettings: function () { return newDocSettings; },
+            /* 分割するファイル数（分けないなら 0） / files per document, 0 when not splitting */
+            getSplitFileCount: function () {
+                return splitCheckbox.value ? parseInt(splitCountInput.text, 10) : 0;
+            }
+        };
+    }
+
+    /**
+     * 新規ドキュメントの設定（カラーモード・解像度・サイズ）のダイアログボックスを表示する
+     * @param {Object} initialSettings - 今の設定（書き換えない）
+     * @returns {Object|null} OK なら新しい設定、キャンセルなら null
+     */
+    function showNewDocSettingsDialog(initialSettings) {
+        var settingsDialog = new Window("dialog", getLabel('dialog.newDocSettings'));
+        setupWindow(settingsDialog);
+
+        /* プロファイル（スウォッチ・ブラシなどの初期内容が決まる） / profile, which sets the starting swatches, brushes, etc. */
+        var profileRow = settingsDialog.add("group");
+        setupGroup(profileRow, "row");
+        profileRow.alignment = ["center", "top"]; /* 左右中央に置く / center horizontally */
+        profileRow.add("statictext", undefined, labelText('fieldLabel.profile'));
+        var profileNames = getDocumentProfileNames();
+        var profileDropdown = profileRow.add("dropdownlist", undefined, profileNames);
+        profileDropdown.helpTip = getLabel('tooltip.profile');
+        for (var k = 0; k < profileNames.length; k++) {
+            if (profileNames[k] === initialSettings.profileName) profileDropdown.selection = k;
+        }
+        if (!profileDropdown.selection) profileDropdown.selection = 0;
+
+        /* カラーモード＋解像度とサイズを2カラムで並べる / color mode + resolution and size in two columns */
+        var settingsColumns = settingsDialog.add("group");
+        setupGroup(settingsColumns, "row", 15);
+        settingsColumns.alignChildren = ["left", "fill"]; /* 2カラムの高さをそろえる / match the columns' heights */
+
+        var colorAndResolutionColumn = settingsColumns.add("group");
         setupGroup(colorAndResolutionColumn, "column");
         colorAndResolutionColumn.alignChildren = ["fill", "top"];
 
-        // カラーモード（ラジオは縦並び）/ Color mode (radios stacked vertically)
         var colorModePanel = colorAndResolutionColumn.add("panel", undefined, getLabel('panel.colorMode'));
         setupPanel(colorModePanel, 6);
-        var rgbRadio = colorModePanel.add("radiobutton", undefined, getLabel('radio.rgb'));
+        var rgbRadio = colorModePanel.add("radiobutton", undefined, "RGB");
         rgbRadio.helpTip = getLabel('tooltip.colorMode');
-        var cmykRadio = colorModePanel.add("radiobutton", undefined, getLabel('radio.cmyk'));
+        var cmykRadio = colorModePanel.add("radiobutton", undefined, "CMYK");
         cmykRadio.helpTip = getLabel('tooltip.colorMode');
-        rgbRadio.value = true;
+        rgbRadio.value = initialSettings.isRgb;
+        cmykRadio.value = !initialSettings.isRgb;
 
-        // 解像度（ラスタライズ効果設定の ppi）/ Resolution (raster effects ppi)
+        /* ラスタライズ効果の解像度 / raster effects resolution */
         var resolutionPanel = colorAndResolutionColumn.add("panel", undefined, getLabel('panel.resolution'));
         setupPanel(resolutionPanel, 6);
-        var resolutionDropdown = resolutionPanel.add("dropdownlist", undefined, ["72", "150", "300"]);
-        resolutionDropdown.selection = 2; // デフォルトは300 / Default 300
+        var resolutionNames = [];
+        for (var i = 0; i < RESOLUTION_PPI_LIST.length; i++) resolutionNames.push(RESOLUTION_PPI_LIST[i] + " ppi");
+        var resolutionDropdown = resolutionPanel.add("dropdownlist", undefined, resolutionNames);
+        resolutionDropdown.selection = initialSettings.ppiIndex;
+        resolutionDropdown.helpTip = getLabel('tooltip.resolution');
 
-        var sizePanel = newDocSettingsRow.add("panel", undefined, getLabel('panel.docSize'));
+        var sizePanel = settingsColumns.add("panel", undefined, getLabel('panel.docSize'));
         setupPanel(sizePanel, 6);
+        var presetNames = [];
+        for (var j = 0; j < SIZE_PRESETS.length; j++) presetNames.push(getLabel(SIZE_PRESETS[j].labelKey));
+        var presetDropdown = sizePanel.add("dropdownlist", undefined, presetNames);
+        presetDropdown.selection = initialSettings.presetIndex; /* onChange を付ける前に選ぶ / select before onChange is attached */
+        presetDropdown.helpTip = getLabel('tooltip.sizePreset');
 
-        var presetDropdown = sizePanel.add("dropdownlist", undefined, [
-            getLabel('preset.custom'),
-            getLabel('preset.a4'),
-            getLabel('preset.fullHD'),
-            getLabel('preset.largeCanvas')
-        ]);
-        presetDropdown.selection = 0;
+        var currentUnit = initialSettings.unit;
 
-        // 選択中の単位（プリセット連動、カスタムは px）/ Current unit (follows the preset; px for Custom)
-        var currentUnit = "px";
-
-        // 幅と高さはそれぞれ別の行に / Width and height each on their own row
         var widthRow = sizePanel.add("group");
         setupGroup(widthRow, "row");
-        var widthLabel = widthRow.add("statictext", undefined, labelText('field.width'));
-        widthLabel.preferredSize = [40, 20];
-        var widthInput = addSteppedInput(widthRow, "1000", {});
+        addRowLabel(widthRow, 'fieldLabel.width', FIELD_LABEL_WIDTH);
+        var widthInput = addSteppedInput(widthRow, initialSettings.widthText, { min: 1 });
         widthInput.characters = 5;
-        widthInput.helpTip = getLabel('tooltip.size');
 
         var heightRow = sizePanel.add("group");
         setupGroup(heightRow, "row");
-        var heightLabel = heightRow.add("statictext", undefined, labelText('field.height'));
-        heightLabel.preferredSize = [40, 20];
-        var heightInput = addSteppedInput(heightRow, "1000", {});
+        addRowLabel(heightRow, 'fieldLabel.height', FIELD_LABEL_WIDTH);
+        var heightInput = addSteppedInput(heightRow, initialSettings.heightText, { min: 1 });
         heightInput.characters = 5;
-        heightInput.helpTip = getLabel('tooltip.size');
 
-        // 単位（mm / px）。A4 は mm、それ以外は px を既定にし、手動切替で値を換算する。
-        // Unit (mm / px). Default mm for A4, px otherwise; switching converts the values.
         var unitRow = sizePanel.add("group");
         setupGroup(unitRow, "row");
-        var unitLabel = unitRow.add("statictext", undefined, labelText('field.unit'));
-        unitLabel.preferredSize = [40, 20];
-        var unitDropdown = unitRow.add("dropdownlist", undefined, UNIT_LIST);
+        addRowLabel(unitRow, 'fieldLabel.unit', FIELD_LABEL_WIDTH);
+        var unitDropdown = unitRow.add("dropdownlist", undefined, SIZE_UNITS);
+        unitDropdown.helpTip = getLabel('tooltip.unit');
 
-        // 入力値を旧単位から新単位へ換算する（物理サイズを保つ）/ Convert an input value from the old unit to the new one (keeps physical size)
-        function convertUnitText(textValue, fromUnit, toUnit) {
-            var value = parseFloat(textValue);
-            if (isNaN(value)) return textValue;
-            return String(Math.round(value * UNIT_TO_PT[fromUnit] / UNIT_TO_PT[toUnit]));
+        /**
+         * 幅・高さを別の単位へ換算して書き換える（物理的な大きさを保つ）
+         * @param {number|string} widthValue - 幅
+         * @param {number|string} heightValue - 高さ
+         * @param {string} fromUnit - 元の単位
+         * @param {string} toUnit - 換算先の単位
+         * @returns {void}
+         */
+        function writeConvertedSize(widthValue, heightValue, fromUnit, toUnit) {
+            widthInput.text = convertSizeText(widthValue, fromUnit, toUnit);
+            heightInput.text = convertSizeText(heightValue, fromUnit, toUnit);
+            currentUnit = toUnit;
         }
 
-        // ドロップダウンの選択をプログラムから変更（onChange を誤発火させない）/ Set the dropdown selection without firing onChange
-        var suppressUnitChange = false;
+        /* プログラムからの選択で onChange を動かさないための目印 / suppresses onChange for programmatic selection */
+        var isSelectingUnit = false;
         function selectUnit(unitName) {
-            suppressUnitChange = true;
-            for (var i = 0; i < UNIT_LIST.length; i++) {
-                if (UNIT_LIST[i] === unitName) { unitDropdown.selection = i; break; }
+            isSelectingUnit = true;
+            for (var i = 0; i < SIZE_UNITS.length; i++) {
+                if (SIZE_UNITS[i] === unitName) unitDropdown.selection = i;
             }
-            suppressUnitChange = false;
+            isSelectingUnit = false;
         }
-        selectUnit(currentUnit); // 初期は px（カスタム）/ Initial: px (Custom)
+        selectUnit(currentUnit);
 
-        // 手動で単位を切り替えたら現在の値を換算 / Convert current values when the unit is switched manually
         unitDropdown.onChange = function () {
-            if (suppressUnitChange || !unitDropdown.selection) return;
+            if (isSelectingUnit || !unitDropdown.selection) return;
             var newUnit = unitDropdown.selection.text;
             if (newUnit === currentUnit) return;
-            widthInput.text = convertUnitText(widthInput.text, currentUnit, newUnit);
-            heightInput.text = convertUnitText(heightInput.text, currentUnit, newUnit);
-            currentUnit = newUnit;
+            writeConvertedSize(widthInput.text, heightInput.text, currentUnit, newUnit);
         };
 
         presetDropdown.onChange = function () {
-            var idx = presetDropdown.selection.index;
-            var preset = SIZE_PRESETS[idx];
-            var isA4 = idx === 1;
-            var newUnit = isA4 ? "mm" : "px"; // A4 は mm、それ以外は px / mm for A4, px otherwise
-            if (preset.width !== undefined) {
-                // プリセット：ネイティブ単位の値を表示単位へ換算 / Preset: convert its native-unit values to the display unit
-                widthInput.text = convertUnitText(String(preset.width), preset.unit, newUnit);
-                heightInput.text = convertUnitText(String(preset.height), preset.unit, newUnit);
+            var sizePreset = SIZE_PRESETS[presetDropdown.selection.index];
+            if (sizePreset.width !== undefined) {
+                /* プリセットの値を表示の単位へ換算 / convert the preset's native values */
+                writeConvertedSize(sizePreset.width, sizePreset.height, sizePreset.unit, sizePreset.displayUnit);
             } else {
-                // カスタム：現在の値を新しい単位へ換算して物理サイズを保つ / Custom: convert current values to keep the physical size
-                widthInput.text = convertUnitText(widthInput.text, currentUnit, newUnit);
-                heightInput.text = convertUnitText(heightInput.text, currentUnit, newUnit);
+                /* カスタム：今の値を換算して大きさを保つ / Custom: keep the physical size */
+                writeConvertedSize(widthInput.text, heightInput.text, currentUnit, sizePreset.displayUnit);
             }
-            currentUnit = newUnit;
             selectUnit(currentUnit);
-
-            // A4（印刷向け）は CMYK、それ以外（画面向け）は RGB を既定にする
-            // Default to CMYK for A4 (print), RGB for the others (screen)
-            cmykRadio.value = isA4;
-            rgbRadio.value = !isA4;
+            /* 印刷向けは CMYK、画面向けは RGB / CMYK for print presets, RGB for screen */
+            cmykRadio.value = !!sizePreset.isPrint;
+            rgbRadio.value = !sizePreset.isPrint;
         };
 
-        // --- 読み込みオプションパネル / Import options panel ---
-        var optionsPanel = dialog.add("panel", undefined, getLabel('panel.options'));
-        setupPanel(optionsPanel, 6);
-        // オプションを2カラムで並べる（左：アートボード単位／ファイル名ラベル／ガイド／拡大・縮小、右：対象アートボード）
-        // Lay out options in two columns (left: per-artboard / file-name label / guides / scale, right: target artboards)
-        var optionsColumns = optionsPanel.add("group");
-        setupGroup(optionsColumns, "row");
-        optionsColumns.alignChildren = ["left", "top"]; // 2カラムを上端で揃える / Top-align the two columns
-        optionsColumns.spacing = 20;                     // 左右カラムの間隔 / Gap between the two columns
+        var buttonRow = addButtonRow(settingsDialog);
+        buttonRow.rightGroup.add("button", undefined, getLabel('button.cancel'), { name: "cancel" });
+        buttonRow.rightGroup.add("button", undefined, getLabel('button.ok'), { name: "ok" });
+        alignRightOnlyButtonRow(buttonRow);
+        prepareDialogWindow(settingsDialog, SCRIPT_NAME + "_NewDocSettings");
+        if (settingsDialog.show() !== 1) return null;
 
-        // 左カラム：アートボード単位／ファイル名ラベル／ガイド／拡大・縮小 / Left column
+        return {
+            profileName: profileDropdown.selection.text,
+            presetIndex: presetDropdown.selection.index,
+            isRgb: rgbRadio.value,
+            ppiIndex: resolutionDropdown.selection.index,
+            widthText: widthInput.text,
+            heightText: heightInput.text,
+            unit: currentUnit
+        };
+    }
+
+    /**
+     * 大きさの値を別の単位へ換算した文字列にする（整数に丸める）
+     * @param {string|number} sizeValue - 値
+     * @param {string} fromUnit - 元の単位（SIZE_UNIT_POINTS のキー）
+     * @param {string} toUnit - 換算先の単位
+     * @returns {string} 換算した値（数値でなければそのまま）
+     */
+    function convertSizeText(sizeValue, fromUnit, toUnit) {
+        var numericValue = parseFloat(sizeValue);
+        if (isNaN(numericValue)) return String(sizeValue);
+        return String(Math.round(numericValue * SIZE_UNIT_POINTS[fromUnit] / SIZE_UNIT_POINTS[toUnit]));
+    }
+
+    /**
+     * 読み込みオプションパネルを作る
+     * @param {Window} dialog - ダイアログ
+     * @returns {Object} optionsUi（各コントロールと、読み込み後の動作を有効にする setAfterImportEnabled()）
+     */
+    function buildOptionsPanel(dialog) {
+        var optionsPanel = dialog.add("panel", undefined, getLabel('panel.importOptions'));
+        setupPanel(optionsPanel, 6);
+        /* 左：アートボード単位・ラベル・ガイド・拡大・縮小、右：対象アートボード / left: options, right: target artboards */
+        var optionsColumns = optionsPanel.add("group");
+        setupGroup(optionsColumns, "row", 20);
+        optionsColumns.alignChildren = ["left", "top"];
+
         var optionsLeftColumn = optionsColumns.add("group");
         setupGroup(optionsLeftColumn, "column");
         var byArtboardCheckbox = optionsLeftColumn.add("checkbox", undefined, getLabel('checkbox.byArtboard'));
-        byArtboardCheckbox.value = true;
+        byArtboardCheckbox.value = false;
         byArtboardCheckbox.helpTip = getLabel('tooltip.byArtboard');
 
-        var showLabelCheckbox = optionsLeftColumn.add("checkbox", undefined, getLabel('checkbox.attachLabel'));
-        showLabelCheckbox.value = openDocsRadio.value; // フォルダー指定では既定OFF / Default off in folder mode
-        showLabelCheckbox.helpTip = getLabel('tooltip.attachLabel');
+        var fileNameLabelCheckbox = optionsLeftColumn.add("checkbox", undefined, getLabel('checkbox.attachLabel'));
+        fileNameLabelCheckbox.helpTip = getLabel('tooltip.attachLabel');
 
         var includeGuidesCheckbox = optionsLeftColumn.add("checkbox", undefined, getLabel('checkbox.includeGuides'));
-        includeGuidesCheckbox.value = false;
+        includeGuidesCheckbox.value = true;
         includeGuidesCheckbox.helpTip = getLabel('tooltip.includeGuides');
 
-        // スケール（チェックON時に％で拡大縮小）/ Scale (resize by percent when checked)
         var scaleRow = optionsLeftColumn.add("group");
         setupGroup(scaleRow, "row");
         var scaleCheckbox = scaleRow.add("checkbox", undefined, getLabel('checkbox.scale'));
         scaleCheckbox.value = false;
         scaleCheckbox.helpTip = getLabel('tooltip.scale');
-        var scaleInput = addSteppedInput(scaleRow, "100", {});
+        var scaleInput = addSteppedInput(scaleRow, "100", { min: 1 });
         scaleInput.helpTip = getLabel('tooltip.scale');
         scaleInput.characters = 4;
-        /* ∧∨は入力欄の兄弟なので、∧∨と入力欄を包む group ごと切り替えてディム表示にする
-           the stepper is a sibling of the field, so toggle their wrapper group to dim it */
-        scaleInput.parent.enabled = scaleCheckbox.value;
-        scaleInput.enabled = scaleCheckbox.value;
         scaleRow.add("statictext", undefined, "%");
-        scaleCheckbox.onClick = function () {
-            scaleInput.parent.enabled = this.value;
-            scaleInput.enabled = this.value;
+        /* ∧∨は入力欄の兄弟なので、包む group ごと切り替えてディム表示にする / toggle the wrapper so the stepper dims too */
+        function updateScaleState() {
+            scaleInput.parent.enabled = scaleCheckbox.value;
+            scaleInput.enabled = scaleCheckbox.value;
             redrawSteppersIn(scaleInput.parent);
-        };
+        }
+        scaleCheckbox.onClick = updateScaleState;
+        updateScaleState();
 
-        // 右カラム：対象アートボード（1のみ／すべて／指定）をパネルに / Right column: target artboards in a panel
-        var targetArtboardPanel = optionsColumns.add("panel", undefined, getLabel('field.artboardTarget'));
+        /* アイテムの間隔（定規の単位） / gap between items, in ruler units */
+        var rulerUnit = getUnitInfo();
+        var spacingRow = optionsLeftColumn.add("group");
+        setupGroup(spacingRow, "row");
+        var spacingLabel = spacingRow.add("statictext", undefined, labelText('fieldLabel.itemSpacing'));
+        spacingLabel.helpTip = getLabel('tooltip.itemSpacing');
+        var spacingStepOptions = { min: 0, unit: " " + rulerUnit.label };
+        var spacingInput = addSteppedInput(spacingRow, formatSteppedValue(IMPORT_SETTINGS.itemSpacing / rulerUnit.pointsPerUnit, spacingStepOptions), spacingStepOptions);
+        spacingInput.characters = 7;
+        spacingInput.helpTip = getLabel('tooltip.itemSpacing');
+
+        var targetArtboardPanel = optionsColumns.add("panel", undefined, getLabel('panel.targetArtboards'));
         setupPanel(targetArtboardPanel, 6);
-        var artboardOneRadio = targetArtboardPanel.add("radiobutton", undefined, getLabel('radio.artboardOne'));
-        artboardOneRadio.helpTip = getLabel('tooltip.artboardTarget');
+        var artboardFirstRadio = targetArtboardPanel.add("radiobutton", undefined, getLabel('radio.artboardFirst'));
+        artboardFirstRadio.helpTip = getLabel('tooltip.targetArtboards');
         var artboardAllRadio = targetArtboardPanel.add("radiobutton", undefined, getLabel('radio.artboardAll'));
-        artboardAllRadio.helpTip = getLabel('tooltip.artboardTarget');
+        artboardAllRadio.helpTip = getLabel('tooltip.targetArtboards');
         var artboardSpecRow = targetArtboardPanel.add("group");
         setupGroup(artboardSpecRow, "row");
         var artboardSpecRadio = artboardSpecRow.add("radiobutton", undefined, getLabel('radio.artboardSpecify'));
@@ -2423,408 +2742,526 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8180588e5630"; /* 紹�
         artboardSpecInput.characters = 7;
         artboardSpecInput.helpTip = getLabel('tooltip.artboardSpecify');
 
-        // 3つのラジオは別コンテナにまたがるため、排他選択を手動で制御する
-        // The three radios span different containers, so enforce mutual exclusivity manually
-        function selectArtboardTarget(which) {
-            artboardOneRadio.value = (which === "one");
-            artboardAllRadio.value = (which === "all");
-            artboardSpecRadio.value = (which === "spec");
+        /* 3つのラジオは別の親にまたがるので、排他を手で保つ / the radios span containers, so keep them exclusive by hand */
+        function selectArtboardTarget(targetMode) {
+            artboardFirstRadio.value = (targetMode === "first");
+            artboardAllRadio.value = (targetMode === "all");
+            artboardSpecRadio.value = (targetMode === "specify");
             artboardSpecInput.enabled = artboardSpecRadio.value;
         }
-        artboardOneRadio.onClick = function () { selectArtboardTarget("one"); };
+        artboardFirstRadio.onClick = function () { selectArtboardTarget("first"); };
         artboardAllRadio.onClick = function () { selectArtboardTarget("all"); };
-        artboardSpecRadio.onClick = function () { selectArtboardTarget("spec"); };
-        selectArtboardTarget("one"); // 既定：アートボード1のみ / Default: Artboard 1 only
+        artboardSpecRadio.onClick = function () { selectArtboardTarget("specify"); };
+        selectArtboardTarget("first");
 
-        // 対象アートボードは「アートボード単位」ONのときのみ有効（OFFでディム）
-        // Target artboards apply only when "per artboard" is on (dimmed when off)
-        function updateArtboardTargetState() {
-            targetArtboardPanel.enabled = byArtboardCheckbox.value;
-        }
-        byArtboardCheckbox.onClick = updateArtboardTargetState;
-        updateArtboardTargetState(); // 初期状態を反映 / Apply the initial state
+        /* 対象アートボードはアートボード単位のときだけ / target artboards apply only per artboard */
+        byArtboardCheckbox.onClick = function () { targetArtboardPanel.enabled = byArtboardCheckbox.value; };
+        byArtboardCheckbox.onClick();
 
-        // 読み込み後の動作（ラベル＋ラジオの横並び。開いているファイル選択時のみ有効）
-        // After-import action (label + radios in a row; enabled only when importing open files)
+        /* 読み込み後の元ドキュメント（開いているドキュメントのときだけ有効） / after-import action, open documents only */
         var afterImportRow = optionsPanel.add("group");
         setupGroup(afterImportRow, "row");
-        var afterImportLabel = afterImportRow.add("statictext", undefined, labelText('panel.afterImport'));
-        var closeRadio = afterImportRow.add("radiobutton", undefined, getLabel('radio.closeDoc'));
-        closeRadio.helpTip = getLabel('tooltip.closeDoc');
+        afterImportRow.add("statictext", undefined, labelText('fieldLabel.afterImport'));
+        var closeDocRadio = afterImportRow.add("radiobutton", undefined, getLabel('radio.closeDoc'));
+        closeDocRadio.helpTip = getLabel('tooltip.closeDoc');
         var keepOpenRadio = afterImportRow.add("radiobutton", undefined, getLabel('radio.keepOpen'));
         keepOpenRadio.helpTip = getLabel('tooltip.keepOpen');
-        closeRadio.value = true;
+        keepOpenRadio.value = true; /* 既定は開いたまま（未保存の変更を失わない） / keep open by default so unsaved changes are never lost */
 
-        updateAfterImportState(); // 初期状態を反映 / Apply the initial enabled/dimmed state
+        return {
+            byArtboardCheckbox: byArtboardCheckbox,
+            fileNameLabelCheckbox: fileNameLabelCheckbox,
+            includeGuidesCheckbox: includeGuidesCheckbox,
+            scaleCheckbox: scaleCheckbox,
+            scaleInput: scaleInput,
+            /* 間隔を pt で返す（読めなければ NaN） / spacing in points, NaN when unreadable */
+            getItemSpacingPt: function () {
+                return evaluateArithmetic(spacingInput.text, spacingStepOptions.unit) * rulerUnit.pointsPerUnit;
+            },
+            closeDocRadio: closeDocRadio,
+            getArtboardTargetMode: function () {
+                return artboardFirstRadio.value ? "first" : (artboardAllRadio.value ? "all" : "specify");
+            },
+            artboardSpecInput: artboardSpecInput,
+            setAfterImportEnabled: function (isEnabled) { afterImportRow.enabled = isEnabled; }
+        };
+    }
+
+    /**
+     * ダイアログを作る
+     * @param {Document[]} openDocs - 開いているドキュメント
+     * @returns {{dialog: Window, sourceUi: Object, destinationUi: Object, optionsUi: Object}} ダイアログと各パネル
+     */
+    function buildImportDialog(openDocs) {
+        var dialog = new Window("dialog", getLabel('dialog.title') + " " + SCRIPT_VERSION);
+        setupWindow(dialog);
+
+        var sourceUi = buildSourcePanel(dialog, openDocs);
+        var destinationUi = buildDestinationPanel(dialog);
+        var optionsUi = buildOptionsPanel(dialog);
+
+        /* 読み込み対象を切り替えたら、読み込み後の動作とラベルの既定を合わせる
+           Follow the source mode: after-import action for open documents only; file-name labels on by default for open documents */
+        sourceUi.onModeChange = function (useFolder) {
+            optionsUi.setAfterImportEnabled(!useFolder);
+            optionsUi.fileNameLabelCheckbox.value = !useFolder;
+        };
+        sourceUi.setFolderMode(openDocs.length === 0);
 
         var buttonRow = addButtonRow(dialog);
-        // name を "cancel"/"ok" にすると、クリックでダイアログが閉じる（Esc/Enter にも対応）
-        // Naming them "cancel"/"ok" makes clicks dismiss the dialog (and binds Esc/Enter)
-        var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel('button.cancel'), { name: "cancel" });
-        var btnOK = buttonRow.rightGroup.add("button", undefined, getLabel('button.ok'), { name: "ok" });
-
+        /* name を "cancel" / "ok" にすると Esc / Enter でも閉じる / the names bind Esc / Enter */
+        buttonRow.rightGroup.add("button", undefined, getLabel('button.cancel'), { name: "cancel" });
+        buttonRow.rightGroup.add("button", undefined, getLabel('button.ok'), { name: "ok" });
         alignRightOnlyButtonRow(buttonRow);
         prepareDialogWindow(dialog, SCRIPT_NAME);
-        if (dialog.show() !== 1) return;
 
-        // ファイル名フィルターの正規表現を検証する。入力途中は無視してよいが、OK後は不正な式を黙って
-        // 「全件対象」にせず中断する（誤って意図しないファイルまで取り込む事故を防ぐ）。
-        // Validate the file-name filter regex. It's fine to ignore while typing, but after OK don't silently
-        // fall back to "match all" on an invalid pattern — stop instead (avoids importing unintended files).
-        if (filterInput.text !== "") {
+        return { dialog: dialog, sourceUi: sourceUi, destinationUi: destinationUi, optionsUi: optionsUi };
+    }
+
+    // =========================================
+    // 設定の確定 / Settings
+    // =========================================
+
+    /**
+     * 読み込み元から、読み込み先のドキュメント自身を外す（開いて閉じてしまう事故を防ぐ）
+     * @param {Array} sources - Document か File の配列
+     * @param {Document} targetDoc - 読み込み先のドキュメント
+     * @param {boolean} fromFolder - sources が File なら true
+     * @returns {Array} 外した残り
+     */
+    function excludeTargetDocument(sources, targetDoc, fromFolder) {
+        var targetPath = null;
+        if (fromFolder) {
+            /* 保存済みのドキュメントだけパスで比べられる。未保存は fullName を読むと例外のことがある
+               Only saved documents can be compared by path; fullName may throw for unsaved ones */
             try {
-                new RegExp(filterInput.text);
-            } catch (eFilterPattern) {
-                alert(getLabel('alert.invalidFilter'));
-                return;
+                if (targetDoc.fullName.exists) targetPath = targetDoc.fullName.fsName;
+            } catch (e) {
+                return sources;
             }
+            if (targetPath === null) return sources;
+        }
+        var remainingSources = [];
+        for (var i = 0; i < sources.length; i++) {
+            var isTarget = fromFolder ? (sources[i].fsName === targetPath) : (sources[i] === targetDoc);
+            if (!isTarget) remainingSources.push(sources[i]);
+        }
+        return remainingSources;
+    }
+
+    /**
+     * ダイアログの値を確かめ、読み込みの設定にまとめる。正しくなければ知らせて null を返す
+     * @param {{sourceUi: Object, destinationUi: Object, optionsUi: Object}} dialogUi - buildImportDialog() の戻り値
+     * @returns {Object|null} 読み込みの設定（中止なら null）
+     */
+    function readImportSettings(dialogUi) {
+        var sourceUi = dialogUi.sourceUi;
+        var destinationUi = dialogUi.destinationUi;
+        var optionsUi = dialogUi.optionsUi;
+
+        /* 入力途中は無視してよいが、OK のあとに正しくない式を「すべて対象」にはしない（意図しないファイルを読み込まない）
+           After OK, an invalid pattern must not fall back to "match all" */
+        if (sourceUi.filterInput.text !== "" && !sourceUi.getNameFilterRegExp()) {
+            alert(getLabel('alert.invalidFilter'));
+            return null;
         }
 
-        // 選択されたソースとオプションを確定 / Resolve the chosen source and options
-        var importFromFolder = folderRadio.value;
-        var useCurrentDoc = currentDocRadio.value; // 読み込み先：現在のドキュメント / Destination: current document
-        var importByArtboard = byArtboardCheckbox.value;
-        // アートボード対象：first（1のみ）/ all（すべて）/ specify（指定） / Target artboards
-        var artboardTargetMode = artboardOneRadio.value ? "first" : (artboardAllRadio.value ? "all" : "specify");
-        var artboardSpecText = artboardSpecInput.text;
-        var includeGuides = includeGuidesCheckbox.value;
-        var originalDocs = importFromFolder ? folderFiles : getFilteredOpenDocs();
-
-        // 「現在のドキュメント」に読み込む場合は対象ドキュメントを確定する / Resolve the target document when importing into the current one
+        var importFromFolder = sourceUi.isFolderMode();
+        var useCurrentDoc = destinationUi.currentDocRadio.value;
+        var sources = sourceUi.getSources();
         var targetDoc = null;
         if (useCurrentDoc) {
             if (app.documents.length === 0) {
                 alert(getLabel('alert.noCurrentDoc'));
-                return;
+                return null;
             }
             targetDoc = app.activeDocument;
-            // 対象ドキュメント自身は取り込み対象から外す（誤って自分を開いて閉じるのを防ぐ）
-            // Exclude the target document itself from the sources (avoid opening and then closing it)
-            if (importFromFolder) {
-                // フォルダー指定：同じファイルパスのファイルを除外（対象が保存済みファイルの場合のみ判定可能）
-                // Folder mode: drop any file with the same path as the target (only when the target is a saved file)
-                var targetPath = null;
-                try {
-                    var targetFile = targetDoc.fullName;
-                    if (targetFile && targetFile.exists) targetPath = targetFile.fsName;
-                } catch (ePath) { targetPath = null; }
-                if (targetPath !== null) {
-                    var folderSourcesWithoutTarget = [];
-                    for (var fi = 0; fi < originalDocs.length; fi++) {
-                        if (originalDocs[fi].fsName !== targetPath) folderSourcesWithoutTarget.push(originalDocs[fi]);
-                    }
-                    originalDocs = folderSourcesWithoutTarget;
-                }
-            } else {
-                // 開いているファイル指定：対象ドキュメントの参照を除外 / Open-files mode: drop the target document reference
-                var sourcesWithoutTarget = [];
-                for (var od = 0; od < originalDocs.length; od++) {
-                    if (originalDocs[od] !== targetDoc) sourcesWithoutTarget.push(originalDocs[od]);
-                }
-                originalDocs = sourcesWithoutTarget;
-            }
+            sources = excludeTargetDocument(sources, targetDoc, importFromFolder);
         }
-
-        if (originalDocs.length < 1) {
+        if (sources.length < 1) {
             alert(getLabel('alert.noValidFile'));
-            return;
+            return null;
         }
-        var originalDocsLength = originalDocs.length;
 
-        // 「指定」モードでアートボード番号が一つも解釈できない場合は中断（無言終了を防ぐ）
-        // Abort if "Specify" mode yields no parseable artboard numbers (avoids silently finishing)
+        var importByArtboard = optionsUi.byArtboardCheckbox.value;
+        var artboardTargetMode = optionsUi.getArtboardTargetMode();
+        var artboardSpecText = optionsUi.artboardSpecInput.text;
+        /* 番号を1つも読めない指定は、黙って何もせずに終わらないよう止める / stop instead of silently importing nothing */
         if (importByArtboard && artboardTargetMode === "specify" && parseArtboardNumbers(artboardSpecText).length === 0) {
             alert(getLabel('alert.invalidArtboardSpec'));
-            return;
+            return null;
         }
 
-        // スケール（％）。チェックOFFなら100%（等倍）。ONで不正値（数値でない・0以下）は黙って等倍にせず中断する。
-        // Scale percent; 100% when unchecked. When checked, abort on an invalid value (non-numeric or <= 0) instead of silently using 100%.
+        /* 拡大・縮小がオンで正しくない値（数値でない・0以下）は、等倍にせず止める / stop on an invalid scale instead of using 100% */
         var scalePercent = 100;
-        if (scaleCheckbox.value) {
-            var scaleValue = parseFloat(scaleInput.text);
-            if (isNaN(scaleValue) || scaleValue <= 0) {
+        if (optionsUi.scaleCheckbox.value) {
+            scalePercent = parseFloat(optionsUi.scaleInput.text);
+            if (isNaN(scalePercent) || scalePercent <= 0) {
                 alert(getLabel('alert.invalidScale'));
-                return;
+                return null;
             }
-            scalePercent = scaleValue;
         }
 
-        // 新規ドキュメント作成時のみ、寸法をプログレス表示の前に検証する（無効ならパレットを残さず終了）
-        // For a new document only, validate the size before showing the progress palette (so it isn't left open on error)
-        var docWidthValue, docHeightValue;
+        var itemSpacingPt = optionsUi.getItemSpacingPt();
+        if (isNaN(itemSpacingPt) || itemSpacingPt < 0) {
+            alert(getLabel('alert.invalidSpacing'));
+            return null;
+        }
+
+        /* 新規ドキュメントの大きさは、進捗パレットを出す前に確かめる / validate the size before the progress palette appears */
+        var docWidthPt = 0;
+        var docHeightPt = 0;
+        var newDocSettings = destinationUi.getNewDocSettings();
         if (!useCurrentDoc) {
-            docWidthValue = parseFloat(widthInput.text);
-            docHeightValue = parseFloat(heightInput.text);
-            if (isNaN(docWidthValue) || isNaN(docHeightValue)) {
+            var pointsPerUnit = SIZE_UNIT_POINTS[newDocSettings.unit];
+            docWidthPt = parseFloat(newDocSettings.widthText) * pointsPerUnit;
+            docHeightPt = parseFloat(newDocSettings.heightText) * pointsPerUnit;
+            if (isNaN(docWidthPt) || isNaN(docHeightPt)) {
                 alert(getLabel('alert.invalidNumber'));
-                return;
+                return null;
             }
         }
 
-        // フォルダ読み込みで開いた一時ファイルは常に閉じる。開いているファイルのみ「読み込み後の動作」に従う。
-        // Temp files opened from a folder are always closed; only open files honor the "After Import" choice.
-        var shouldCloseSource = importFromFolder || closeRadio.value;
-
-        // 開いているファイルを閉じる場合、未保存変更があれば確認（変更が失われるため）
-        // When closing open files, confirm if any have unsaved changes (they would be lost)
-        if (!importFromFolder && closeRadio.value) {
-            var hasUnsavedChanges = false;
-            for (var d = 0; d < originalDocs.length; d++) {
-                if (!originalDocs[d].saved) {
-                    hasUnsavedChanges = true;
-                    break;
-                }
-            }
-            if (hasUnsavedChanges && !confirm(getLabel('confirm.discardUnsaved'))) {
-                return;
-            }
+        /* 開いているドキュメントを閉じるとき、未保存の変更があれば失われるので確かめる / confirm before discarding unsaved changes */
+        var closeOpenDocs = !importFromFolder && optionsUi.closeDocRadio.value;
+        if (closeOpenDocs && hasUnsavedDocument(sources) && !confirm(getLabel('confirm.discardUnsaved'))) {
+            return null;
         }
 
-        // プログレスバーのダイアログを表示
-        var progressWin = new Window("palette", getLabel('progress.title'));
-        setupWindow(progressWin);
-        var progressTextGroup = progressWin.add("group");
+        return {
+            importFromFolder: importFromFolder,
+            sources: sources,
+            targetDoc: targetDoc,
+            byArtboard: importByArtboard,
+            artboardTargetMode: artboardTargetMode,
+            artboardSpecText: artboardSpecText,
+            includeGuides: optionsUi.includeGuidesCheckbox.value,
+            showLabel: optionsUi.fileNameLabelCheckbox.value,
+            scalePercent: scalePercent,
+            itemSpacingPt: itemSpacingPt,
+            /* 分割は新規ドキュメントのときだけ / splitting only applies to new documents */
+            splitFileCount: useCurrentDoc ? 0 : (destinationUi.getSplitFileCount() || 0),
+            docWidthPt: docWidthPt,
+            docHeightPt: docHeightPt,
+            profileName: newDocSettings.profileName,
+            colorSpace: newDocSettings.isRgb ? DocumentColorSpace.RGB : DocumentColorSpace.CMYK,
+            rasterResolution: RESOLUTION_PRESET_VALUES[newDocSettings.ppiIndex],
+            rulerUnits: SIZE_UNIT_RULER_UNITS[newDocSettings.unit],
+            /* フォルダーから開いたファイルは常に閉じる。開いているドキュメントは［読み込み後］に従う
+               Files opened from a folder are always closed; open documents follow the After Import choice */
+            shouldCloseSource: importFromFolder || closeOpenDocs
+        };
+    }
+
+    /**
+     * 未保存の変更があるドキュメントが含まれるか判定する
+     * @param {Document[]} documents - ドキュメント
+     * @returns {boolean} 1つでもあれば true
+     */
+    function hasUnsavedDocument(documents) {
+        for (var i = 0; i < documents.length; i++) {
+            if (!documents[i].saved) return true;
+        }
+        return false;
+    }
+
+    // =========================================
+    // 読み込みの実行 / Import
+    // =========================================
+
+    /**
+     * 進捗パレットを表示する
+     * @param {number} totalCount - 読み込む件数
+     * @returns {{update: Function, isCancelled: Function, close: Function}} 進捗の更新・中止の確認・閉じる
+     */
+    function showProgressPalette(totalCount) {
+        var progressPalette = new Window("palette", getLabel('progress.title'));
+        setupWindow(progressPalette);
+        var progressTextGroup = progressPalette.add("group");
         progressTextGroup.alignment = ["center", "top"];
-        var processedCountStatic = progressTextGroup.add("statictext", undefined, labelText('progress.count') + "0/" + originalDocsLength);
-        processedCountStatic.preferredSize = [100, 30];
+        var progressCountText = progressTextGroup.add("statictext", undefined, labelValueText('progress.count', "0/" + totalCount));
+        progressCountText.preferredSize = [100, 30];
 
-        var progressBar = progressWin.add("progressbar", undefined, 0, originalDocsLength);
+        var progressBar = progressPalette.add("progressbar", undefined, 0, totalCount);
         progressBar.preferredSize = [300, 6];
 
-        var cancelGroup = progressWin.add("group");
-        cancelGroup.alignment = "right";
-        var progressCancelBtn = cancelGroup.add("button", undefined, getLabel('button.cancel'));
+        var progressCancelGroup = progressPalette.add("group");
+        progressCancelGroup.alignment = "right";
+        var btnStop = progressCancelGroup.add("button", undefined, getLabel('button.cancel'));
 
-        var userCancelled = false;
-
-        progressCancelBtn.onClick = function () {
-            userCancelled = true;
-        };
-        progressWin.addEventListener("keydown", function (e) {
-            if (e.keyName === "Escape") {
-                userCancelled = true;
-            }
+        var isCancelled = false;
+        btnStop.onClick = function () { isCancelled = true; };
+        progressPalette.addEventListener("keydown", function (event) {
+            if (event.keyName === "Escape") isCancelled = true;
         });
-        progressWin.show();
+        progressPalette.show();
 
-        var newDoc;
-        if (useCurrentDoc) {
-            // 現在のドキュメントに読み込む（新規作成しない。カラーモード・解像度・サイズ設定は使わない）
-            // Import into the current document (no new doc; color mode / resolution / size settings are not used)
-            newDoc = targetDoc;
-            app.activeDocument = newDoc;
-        } else {
-            // 入力値を現在の単位からポイントへ換算 / Convert the input values from the current unit to points
-            var ptPerUnit = UNIT_TO_PT[currentUnit];
-            var docWidthPt = docWidthValue * ptPerUnit;
-            var docHeightPt = docHeightValue * ptPerUnit;
-            var colorSpace = rgbRadio.value ? DocumentColorSpace.RGB : DocumentColorSpace.CMYK;
-
-            // 通常ドキュメントの最大寸法（pt）。これを超える場合はラージカンバスとして作成。
-            // Max dimension (pt) of a standard document; beyond this, create as a large canvas.
-            var STANDARD_MAX_PT = 16383;
-
-            if (docWidthPt > STANDARD_MAX_PT || docHeightPt > STANDARD_MAX_PT) {
-                var largeCanvasPreset = new DocumentPreset();
-                largeCanvasPreset.units = RulerUnits.Points;
-                largeCanvasPreset.width = docWidthPt;
-                largeCanvasPreset.height = docHeightPt;
-                largeCanvasPreset.colorMode = colorSpace;
-                largeCanvasPreset.numArtboards = 1;
-                newDoc = app.documents.addDocument("Print", largeCanvasPreset);
-            } else {
-                newDoc = app.documents.add(colorSpace, docWidthPt, docHeightPt);
+        return {
+            update: function (doneCount) {
+                progressBar.value = doneCount;
+                progressCountText.text = labelValueText('progress.count', doneCount + "/" + totalCount);
+                progressPalette.update();
+            },
+            isCancelled: function () { return isCancelled; },
+            close: function () {
+                /* パレットの close() はまれに MRAP エラーを出す（処理は完了済み）。本体の例外を上書きしないよう握りつぶす
+                   close() occasionally throws a spurious MRAP error; swallow it so it never masks a real error */
+                try { progressPalette.hide(); } catch (e) { }
+                try { progressPalette.close(); } catch (err) { }
             }
-            app.activeDocument = newDoc;
-
-            // ラスタライズ効果設定の解像度を反映 / Apply the selected raster effects resolution
-            var rasterPpi = parseInt(resolutionDropdown.selection.text, 10);
-            if (!isNaN(rasterPpi)) {
-                var rasterOptions = newDoc.rasterEffectSettings;
-                rasterOptions.resolution = rasterPpi;
-                newDoc.rasterEffectSettings = rasterOptions;
-            }
-        }
-
-        // 配置の基準アートボード。新規は初期（仮）アートボード、現在のドキュメントはアクティブなアートボード。
-        // Base artboard for placement: the placeholder for a new doc, the active artboard for the current doc.
-        var baseArtboardIndex = useCurrentDoc ? newDoc.artboards.getActiveArtboardIndex() : 0;
-        var artboardRect = newDoc.artboards[baseArtboardIndex].artboardRect; // [L, T, R, B]
-        var canvasCenterX = (artboardRect[0] + artboardRect[2]) / 2;
-        var canvasCenterY = (artboardRect[1] + artboardRect[3]) / 2;
-
-        // 現在のドキュメントに読み込む場合は、取り込み前の既存アートボード全体を記録し、その下に重ならないよう配置する。
-        // When importing into the current document, capture the existing artboards (before import) so the grid lands below them without overlapping.
-        var avoidRect = useCurrentDoc ? getArtboardsUnionRect(newDoc) : null;
-
-        // 配置の状態をまとめて保持。各セルを記録し、ループ後に正方形グリッドへ中央配置する。
-        // Shared placement state. Each cell is recorded, then laid out into a centered square grid after the loop.
-        var placementContext = {
-            newDoc: newDoc,
-            cells: [],
-            canvasCenterX: canvasCenterX,
-            canvasCenterY: canvasCenterY,
-            avoidRect: avoidRect,
-            byArtboard: importByArtboard,
-            createArtboards: importByArtboard, // アートボードを作るのはアートボード単位ONのときだけ / Create artboards only in per-artboard mode
-            placedCount: 0,
-            showLabel: showLabelCheckbox.value,
-            artboardPadding: CONFIG.artboardMargin,
-            scalePercent: scalePercent
         };
+    }
 
-        // ループ全体を try/finally で囲み、エラーが出てもプログレスは必ず閉じる
-        // Wrap the whole loop so the progress palette is always closed, even on error
+    /**
+     * 新規ドキュメントを、選んだプロファイルで作る（通常の上限を超える大きさは自動でラージカンバスになる）。
+     * DocumentPreset の width / height は units にかかわらず pt で、units はドキュメントの定規の単位になる
+     * @param {Object} importSettings - readImportSettings() の戻り値
+     * @returns {Document} 作ったドキュメント
+     */
+    function createDestinationDocument(importSettings) {
+        var docPreset = new DocumentPreset();
+        docPreset.units = importSettings.rulerUnits;
+        docPreset.width = importSettings.docWidthPt;
+        docPreset.height = importSettings.docHeightPt;
+        docPreset.colorMode = importSettings.colorSpace;
+        docPreset.rasterResolution = importSettings.rasterResolution;
+        docPreset.numArtboards = 1;
+        var destDoc = app.documents.addDocument(importSettings.profileName, docPreset);
+        app.activeDocument = destDoc;
+        return destDoc;
+    }
+
+    /**
+     * 配置の状態を作る。基準は新規なら最初の（仮の）アートボード、現在のドキュメントならアクティブなアートボード
+     * @param {Document} destDoc - 読み込み先
+     * @param {Object} importSettings - 読み込みの設定
+     * @returns {Object} placementContext
+     */
+    function createPlacementContext(destDoc, importSettings) {
+        var useCurrentDoc = (importSettings.targetDoc !== null);
+        var baseArtboardIndex = useCurrentDoc ? destDoc.artboards.getActiveArtboardIndex() : 0;
+        var baseRect = destDoc.artboards[baseArtboardIndex].artboardRect;
+        return {
+            destDoc: destDoc,
+            cells: [],
+            canvasCenterX: (baseRect[0] + baseRect[2]) / 2,
+            canvasCenterY: (baseRect[1] + baseRect[3]) / 2,
+            /* 現在のドキュメントでは、読み込み前のアートボードの下に重ならないよう並べる / place below the existing artboards */
+            avoidRect: useCurrentDoc ? getArtboardsUnionRect(destDoc) : null,
+            byArtboard: importSettings.byArtboard,
+            createArtboards: importSettings.byArtboard, /* アートボードを作るのはアートボード単位のときだけ / artboards only per artboard */
+            placedCount: 0,
+            showLabel: importSettings.showLabel,
+            artboardPadding: IMPORT_SETTINGS.artboardMargin,
+            itemSpacing: importSettings.itemSpacingPt,
+            scalePercent: importSettings.scalePercent
+        };
+    }
+
+    /**
+     * 1つの読み込み元を取り込む。失敗しても一時ファイルは必ず閉じ、ロック・非表示も戻す
+     * @param {Document|File} source - 開いているドキュメントか、フォルダーのファイル
+     * @param {Object} importSettings - 読み込みの設定
+     * @param {Object} placementContext - 配置の状態
+     * @returns {void}
+     */
+    function importSource(source, importSettings, placementContext) {
+        var sourceDoc = importSettings.importFromFolder ? app.open(source) : source;
+        var lockState = { layers: [], items: [] };
+        var guidesWereLocked = false;
         try {
-            for (var j = 0; j < originalDocs.length; j++) {
-                $.sleep(0);
-                app.redraw();
-                // キャンセルされたらループを抜けて、ここまでの結果で後始末する / On cancel, break and finish with what was placed so far
-                if (userCancelled) break;
-
-                var srcDoc = importFromFolder ? app.open(originalDocs[j]) : originalDocs[j];
-
-                // 1ファイル分の処理。エラーが出ても finally で一時ファイルを必ず閉じ、状態も復元する。
-                // Process one file; finally always closes the temp file and restores state, even on error.
-                var lockState = null;
-                try {
-                    app.activeDocument = srcDoc;
-                    var labelName = srcDoc.name.replace(/\.[^\.]+$/, "");
-
-                    if (importByArtboard) {
-                        // アートボード単位：対象アートボードごとに、ロック・非表示も含めて取り込む
-                        // Per artboard: import every object (incl. locked/hidden) on each target artboard
-                        var targetIndices = resolveTargetArtboardIndices(srcDoc, artboardTargetMode, artboardSpecText);
-                        // すべて：ドキュメント全体を解除。1のみ／指定：対象アートボードに重なるオブジェクトだけ解除し、他は触れない。
-                        // 閉じない場合のみ後で復元する。
-                        // All: unlock the whole doc. First/Specify: unlock only the objects overlapping the target
-                        // artboards, leaving the rest untouched. Restore afterward only when keeping the file open.
-                        if (artboardTargetMode === "all") {
-                            if (!shouldCloseSource) lockState = captureLockHiddenState(srcDoc);
-                            unlockAllLayersAndItems(srcDoc);
-                        } else {
-                            var targetRects = [];
-                            for (var ti = 0; ti < targetIndices.length; ti++) {
-                                targetRects.push(srcDoc.artboards[targetIndices[ti]].artboardRect);
-                            }
-                            var scopedState = unlockItemsOnArtboards(srcDoc, targetRects);
-                            if (!shouldCloseSource) lockState = scopedState;
-                        }
-                        for (var ai = 0; ai < targetIndices.length; ai++) {
-                            var ab = targetIndices[ai];
-                            srcDoc.artboards.setActiveArtboardIndex(ab);
-                            srcDoc.selection = null;
-                            srcDoc.selectObjectsOnActiveArtboard();
-                            if (srcDoc.selection.length === 0) continue;
-
-                            var abRect = srcDoc.artboards[ab].artboardRect; // [L, T, R, B]
-
-                            // ガイドを含める場合は、このアートボードに重なる短いガイドを選択へ追加（相対位置の算出前に）
-                            // When including guides, add the short guides overlapping this artboard before measuring bounds
-                            if (includeGuides) {
-                                var abGuides = collectImportableGuides(srcDoc, abRect[2] - abRect[0], abRect[1] - abRect[3], abRect);
-                                if (abGuides.length > 0) {
-                                    var combined = [];
-                                    for (var g = 0; g < srcDoc.selection.length; g++) combined.push(srcDoc.selection[g]);
-                                    srcDoc.selection = combined.concat(abGuides);
-                                }
-                            }
-
-                            // 元のアートボードサイズと、その中での内容（＋ガイド）の相対位置を記録
-                            // Record the original artboard size and the relative position of the content (and guides)
-                            /* クリップグループはマスクで測る（貼り付け側の placePastedGroup と同じ測り方）
-                               Clip groups are measured by their mask, the same way placePastedGroup measures the pasted side */
-                            var selBounds = getClipAwareUnionBounds(srcDoc.selection, true);
-                            var artboardCell = {
-                                width: abRect[2] - abRect[0],
-                                height: abRect[1] - abRect[3],
-                                offsetX: selBounds[0] - abRect[0],
-                                offsetY: abRect[1] - selBounds[1]
-                            };
-
-                            app.copy();
-                            app.activeDocument = newDoc;
-                            app.paste();
-                            var placedArtboard = placePastedGroup(placementContext, labelName, artboardCell);
-                            app.activeDocument = srcDoc;
-                            // 配置に失敗したアートボードはスキップ（既にアラート済み）/ Skip artboards that failed to place (already alerted)
-                            if (!placedArtboard) continue;
-                        }
-                    } else {
-                        // 通常（アートボード単位OFF）：ファイル全体の表示中・選択可能オブジェクトを1つにまとめて取り込む。
-                        // 「対象アートボード」はアートボード単位ONのときのみ有効なので、ここでは全選択する。
-                        // Default (per-artboard off): import the whole file's visible/selectable objects as one.
-                        // "Target artboards" applies only when per-artboard is on, so select everything here.
-                        app.executeMenuCommand("selectall");
-
-                        var filteredSelection = [];
-                        for (var s = 0; s < srcDoc.selection.length; s++) {
-                            var obj = srcDoc.selection[s];
-                            if (!obj.locked && !obj.hidden) {
-                                filteredSelection.push(obj);
-                            }
-                        }
-                        // ガイドを含める場合は、短いガイド（カンバス＝先頭アートボード基準）を追加
-                        // When including guides, add the short guides (canvas = the first artboard)
-                        if (includeGuides) {
-                            var firstArtboard = srcDoc.artboards[0].artboardRect;
-                            filteredSelection = filteredSelection.concat(
-                                collectImportableGuides(srcDoc, firstArtboard[2] - firstArtboard[0], firstArtboard[1] - firstArtboard[3], null)
-                            );
-                        }
-                        if (filteredSelection.length > 0) {
-                            srcDoc.selection = filteredSelection;
-                            app.copy();
-                            app.activeDocument = newDoc;
-                            app.paste();
-                            placePastedGroup(placementContext, labelName);
-                        }
-                    }
-                } finally {
-                    if (lockState) restoreLockHiddenState(lockState);                 // 元の状態へ戻す / Restore the original state
-                    if (shouldCloseSource) srcDoc.close(SaveOptions.DONOTSAVECHANGES); // 一時ファイルを閉じる / Close the temp file
+            app.activeDocument = sourceDoc;
+            var labelName = sourceDoc.name.replace(/\.[^\.]+$/, "");
+            if (importSettings.byArtboard) {
+                var targetIndices = resolveTargetArtboardIndices(sourceDoc, importSettings.artboardTargetMode, importSettings.artboardSpecText);
+                /* すべて：ドキュメント全体を解除。1のみ・指定：対象アートボードに重なるものだけ解除し、ほかは触れない
+                   All: unlock everything. First / Specify: unlock only what overlaps the target artboards */
+                var targetRects = null;
+                if (importSettings.artboardTargetMode !== "all") {
+                    targetRects = [];
+                    for (var i = 0; i < targetIndices.length; i++) targetRects.push(sourceDoc.artboards[targetIndices[i]].artboardRect);
                 }
-
-                progressBar.value = j + 1;
-                processedCountStatic.text = labelText('progress.count') + (j + 1) + "/" + originalDocsLength;
-                progressWin.update();
+                unlockItemsForImport(sourceDoc, targetRects, lockState);
+                if (importSettings.includeGuides) guidesWereLocked = unlockGuidesInView(sourceDoc);
+                importArtboards(sourceDoc, targetIndices, labelName, importSettings, placementContext);
+            } else {
+                if (importSettings.includeGuides) guidesWereLocked = unlockGuidesInView(sourceDoc);
+                importWholeDocument(sourceDoc, labelName, importSettings, placementContext);
             }
-
-            // 全セルを正方形に近いグリッドへ並べ、キャンバス中央に配置
-            // Lay out all cells into a near-square grid centered on the canvas
-            layoutCellsAsCenteredGrid(placementContext);
-
-            // グループごとにアートボードを追加したので、初期の仮アートボードを削除（新規ドキュメント時のみ）。
-            // 現在のドキュメントに読み込む場合は既存アートボードなので削除しない。
-            // Each group added its own artboard, so remove the initial placeholder (new document only).
-            // When importing into the current document, artboards[0] is the user's existing one — keep it.
-            if (!useCurrentDoc && placementContext.placedCount > 0 && newDoc.artboards.length > placementContext.placedCount) {
-                newDoc.artboards.remove(0);
-            }
-            app.activeDocument = newDoc;
         } finally {
-            // ScriptUI パレットの close() は Illustrator で稀に "an Illustrator error occurred (MRAP)" を
-            // 投げることがある（処理自体は完了済み）。spurious なエラーで全体を落とさないよう保護する。
-            // また本体側で起きた本物の例外を close() のエラーで上書きしないためにも try/catch で囲む。
-            // The palette's close() occasionally throws a spurious MRAP error in Illustrator even though the
-            // work is done; guard it so it neither aborts the run nor masks a real error from the loop body.
-            try { progressWin.hide(); } catch (hideErr) { }
-            try { progressWin.close(); } catch (closeErr) { }
+            if (importSettings.shouldCloseSource) {
+                sourceDoc.close(SaveOptions.DONOTSAVECHANGES); /* 閉じるので元に戻さなくてよい / closing makes the restore unnecessary */
+            } else {
+                restoreLockHiddenState(lockState);
+                if (guidesWereLocked) {
+                    app.activeDocument = sourceDoc;
+                    app.executeMenuCommand("lockguide"); /* ［ガイドをロック］を戻す / turn Lock Guides back on */
+                }
+            }
+        }
+    }
+
+    /**
+     * ［表示］→［ガイド］→［ガイドをロック］がオンなら、オフに切り替える。
+     * オンのあいだはガイドを選択できず（例外も出ず選択数が0のまま）、ガイドの locked にも現れないので、1本選んでみて判定する
+     * @param {Document} sourceDoc - 読み込み元（アクティブにしておく）
+     * @returns {boolean} オフに切り替えたら true（あとで戻す）
+     */
+    function unlockGuidesInView(sourceDoc) {
+        var probeGuide = null;
+        for (var i = 0; i < sourceDoc.pageItems.length && !probeGuide; i++) {
+            var pageItem = sourceDoc.pageItems[i];
+            /* 個別のロック・非表示や、ロックされたレイヤーのガイドでは判定できない / skip guides that are unselectable for other reasons */
+            if (pageItem.guides && !pageItem.locked && !pageItem.hidden && !pageItem.layer.locked && pageItem.layer.visible) probeGuide = pageItem;
+        }
+        if (!probeGuide) return false;
+        sourceDoc.selection = [probeGuide];
+        var guidesLocked = (sourceDoc.selection.length === 0);
+        sourceDoc.selection = null;
+        if (guidesLocked) app.executeMenuCommand("lockguide");
+        return guidesLocked;
+    }
+
+    /**
+     * アートボードごとに、ロック・非表示も含めて取り込む（元のアートボードの大きさと内容の位置を保つ）
+     * @param {Document} sourceDoc - 読み込み元
+     * @param {number[]} targetIndices - 取り込むアートボードの番号（0始まり）
+     * @param {string} labelName - ラベル名
+     * @param {Object} importSettings - 読み込みの設定
+     * @param {Object} placementContext - 配置の状態
+     * @returns {void}
+     */
+    function importArtboards(sourceDoc, targetIndices, labelName, importSettings, placementContext) {
+        for (var i = 0; i < targetIndices.length; i++) {
+            var artboardIndex = targetIndices[i];
+            sourceDoc.artboards.setActiveArtboardIndex(artboardIndex);
+            sourceDoc.selection = null;
+            sourceDoc.selectObjectsOnActiveArtboard();
+            if (sourceDoc.selection.length === 0) continue;
+
+            var artboardRect = sourceDoc.artboards[artboardIndex].artboardRect;
+            /* ガイドは位置を測る前に選択へ足す / add the guides before measuring */
+            if (importSettings.includeGuides) {
+                var artboardGuides = collectImportableGuides(sourceDoc, artboardRect, artboardRect);
+                if (artboardGuides.length > 0) sourceDoc.selection = normalizeSelectionItems(sourceDoc.selection).concat(artboardGuides);
+            }
+
+            /* 元のアートボードの大きさと、その中の内容の位置。クリップグループはマスクで測る（ペースト側と同じ）
+               Original artboard size and the content's position; clip groups by their mask, as on the pasted side */
+            var selectionBounds = getClipAwareUnionBounds(sourceDoc.selection, true);
+            var artboardCell = {
+                width: artboardRect[2] - artboardRect[0],
+                height: artboardRect[1] - artboardRect[3],
+                offsetX: selectionBounds[0] - artboardRect[0],
+                offsetY: artboardRect[1] - selectionBounds[1]
+            };
+            copySelectionToDocument(sourceDoc, placementContext.destDoc);
+            placePastedGroup(placementContext, labelName, artboardCell); /* 失敗は placePastedGroup が知らせる / failures are alerted there */
+            app.activeDocument = sourceDoc;
+        }
+    }
+
+    /**
+     * ファイル全体の表示中・選択できるオブジェクトを1つにまとめて取り込む（対象アートボードは使わない）
+     * @param {Document} sourceDoc - 読み込み元
+     * @param {string} labelName - ラベル名
+     * @param {Object} importSettings - 読み込みの設定
+     * @param {Object} placementContext - 配置の状態
+     * @returns {void}
+     */
+    function importWholeDocument(sourceDoc, labelName, importSettings, placementContext) {
+        app.executeMenuCommand("selectall");
+        var importItems = [];
+        for (var i = 0; i < sourceDoc.selection.length; i++) {
+            var selectedItem = sourceDoc.selection[i];
+            if (!selectedItem.locked && !selectedItem.hidden) importItems.push(selectedItem);
+        }
+        /* ガイドの長さは最初のアートボードを基準にする / guide length is judged against the first artboard */
+        if (importSettings.includeGuides) {
+            importItems = importItems.concat(collectImportableGuides(sourceDoc, sourceDoc.artboards[0].artboardRect, null));
+        }
+        if (importItems.length === 0) return;
+        sourceDoc.selection = importItems;
+        copySelectionToDocument(sourceDoc, placementContext.destDoc);
+        placePastedGroup(placementContext, labelName);
+    }
+
+    /**
+     * 読み込み元を順に取り込み、グリッドに並べる。分割するときは指定のファイル数ごとに新規ドキュメントを作る
+     * @param {Object} importSettings - readImportSettings() の戻り値
+     * @returns {void}
+     */
+    function runImport(importSettings) {
+        var sources = importSettings.sources;
+        var filesPerDoc = importSettings.splitFileCount > 0 ? importSettings.splitFileCount : sources.length;
+        var progress = showProgressPalette(sources.length);
+        var placedTotal = 0;
+        var lastDestDoc = null;
+
+        /* エラーが出ても進捗パレットは必ず閉じる / always close the progress palette, even on error */
+        try {
+            for (var chunkStart = 0; chunkStart < sources.length && !progress.isCancelled(); chunkStart += filesPerDoc) {
+                lastDestDoc = importSettings.targetDoc || createDestinationDocument(importSettings);
+                app.activeDocument = lastDestDoc;
+                var placementContext = createPlacementContext(lastDestDoc, importSettings);
+                var chunkEnd = Math.min(chunkStart + filesPerDoc, sources.length);
+                for (var i = chunkStart; i < chunkEnd; i++) {
+                    $.sleep(0);
+                    app.redraw();
+                    if (progress.isCancelled()) break; /* ここまでの分で後始末する / finish with what was placed so far */
+                    importSource(sources[i], importSettings, placementContext);
+                    progress.update(i + 1);
+                }
+                finishDestinationDocument(placementContext, importSettings);
+                placedTotal += placementContext.placedCount;
+            }
+        } finally {
+            progress.close();
         }
 
-        // すべてのアートボードがウィンドウに収まるように表示 / Fit all artboards in the window
-        app.executeMenuCommand('fitall');
-
-        // キャンセルされた場合はエラーではなく通常のメッセージで知らせる
-        // If cancelled, inform the user with a normal message (not an error)
-        if (userCancelled) {
+        if (progress.isCancelled()) {
             alert(getLabel('alert.cancelled'));
-        } else if (placementContext.placedCount === 0) {
-            // 1件も配置できなかった場合（対象アートボード番号が存在しない・内容が空など）も無言で終わらせない
-            // Don't finish silently when nothing was placed (e.g. target artboard numbers don't exist, or empty content)
+        } else if (placedTotal === 0) {
+            /* 1件も置けなかったときも黙って終わらない / do not finish silently when nothing was placed */
             alert(getLabel('alert.noArtboardImported'));
         }
-    })();
+    }
+
+    /**
+     * 読み込み先の仕上げ：グリッドに並べ、新規ドキュメントの仮のアートボードを消し、全体を表示する
+     * @param {Object} placementContext - 配置の状態
+     * @param {Object} importSettings - 読み込みの設定
+     * @returns {void}
+     */
+    function finishDestinationDocument(placementContext, importSettings) {
+        var destDoc = placementContext.destDoc;
+        layoutCellsAsCenteredGrid(placementContext);
+        /* 新規ドキュメントは最初の仮のアートボードを消す（現在のドキュメントの既存のものは残す）
+           Remove the placeholder artboard of a new document; keep the user's own in the current document */
+        if (!importSettings.targetDoc && placementContext.placedCount > 0 && destDoc.artboards.length > placementContext.placedCount) {
+            destDoc.artboards.remove(0);
+        }
+        app.activeDocument = destDoc;
+        app.executeMenuCommand("fitall");
+    }
+
+    // =========================================
+    // メイン処理 / Main
+    // =========================================
+
+    /**
+     * ダイアログを表示し、選んだ読み込み元を取り込んで並べる
+     * @returns {void}
+     */
+    function main() {
+        var openDocs = [];
+        for (var i = 0; i < app.documents.length; i++) openDocs.push(app.documents[i]);
+        var dialogUi = buildImportDialog(openDocs);
+        if (dialogUi.dialog.show() !== 1) return;
+        var importSettings = readImportSettings(dialogUi);
+        if (importSettings) runImport(importSettings);
+    }
+
+    main();
 
 })();

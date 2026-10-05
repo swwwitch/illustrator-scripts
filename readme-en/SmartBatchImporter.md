@@ -10,25 +10,39 @@
 
 ### Overview
 
-- A script to batch import multiple Illustrator files (.ai/.svg), paste only unlocked objects into a new document, and arrange them neatly.
-- Supports adding filename labels, showing extensions, folder-based processing, progress bar, and various options.
+Imports open documents or Illustrator files (.ai / .svg / .eps) from a folder into one document, arranged in a grid that comes out close to square.
 
 ### Main Features
 
-- Batch import by folder selection
-- Extract only unlocked objects
-- Add filename labels (optionally show extensions)
-- Choose to close or keep source files after import
-- Color space, document size presets, and custom size
-- Progress bar with cancel support
-- Japanese and English UI support
+- **Source**
+  - Open documents, or a folder (optionally including subfolders)
+  - Filter by file format (AI / SVG / EPS) and a file-name regular expression. Counts appear after the radio buttons
+- **Destination**
+  - The current document (placed below its existing artboards) or a new document
+  - For a new document, Settings... sets the profile (Print, Web, etc.), color mode, resolution and size (presets, mm / px)
+  - Split every N files into separate new documents
+- **Import options**
+  - Import per artboard: imports each artboard, keeping its size and the content's position. Locked and hidden objects are included. Choose Artboard 1 only, All, or Specify (e.g. 1, 3-5)
+  - Add file names as labels: adds the source file name below the imported content, on the "_label" layer
+  - Include guides (except ruler guides): imports horizontal guides up to the artboard's shorter side and vertical guides up to its longer side, even when Lock Guides is on
+  - Scale: scales the content and artboards by a percentage (stroke widths too)
+  - Spacing: gap between the arranged items, in ruler units
+  - After import: close the open source documents or keep them open
+- Keeps the source layer structure when Paste Remembers Layers is on
+- Progress bar with Cancel (items imported so far remain)
+- Japanese and English UI
 
 ### Process Flow
 
-1. Select folder or open files
-2. Configure color, size, label, and behavior options in dialog
-3. Show progress bar and execute import and placement
-4. Review result in a new document after completion
+1. Open the documents to import, or prepare a folder.
+2. Run the script, choose the source, destination and options, and click OK.
+3. When the import finishes, the view zooms to fit everything.
+
+### Notes
+
+- With After import set to Close, the source documents are closed without saving. You are asked first when any have unsaved changes
+- Files opened from a folder are always closed after import
+- With Import per artboard off, only visible, unlocked objects are imported
 
 ### Update History
 
@@ -48,3 +62,12 @@
 - v1.4.7 (2026-10-01): Unified the window and panel margins and spacing with the shared layout part
 - v1.4.8 (2026-10-01): Added space below the button row to match Illustrator's own dialogs
 - v1.4.9 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
+- v1.5.0 (2026-10-05):
+  - Added a new document profile choice (Print, Web, etc.), Spacing, Include subfolders, and Split every N files (into separate new documents)
+  - The new document's color mode, resolution and size moved to a separate dialog box opened with Settings...
+  - The source layer structure is kept when Paste Remembers Layers is on
+  - Guides are now imported even when Lock Guides is on. Guides are included when horizontal ones are no longer than the artboard's shorter side and vertical ones no longer than its longer side (was under half the canvas)
+  - Sizes in px are now treated as 1 px = 1 pt (Full HD used to come out as 1440 × 810)
+  - The destination selection is cleared before pasting
+  - "After import" now defaults to "Keep open", "Import per artboard" to off, and "Include guides" to on
+  - File counts moved from the panel title to after the radio buttons. Width / height / unit labels are right-aligned, and UI wording was revised
