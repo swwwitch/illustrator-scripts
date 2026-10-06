@@ -69,6 +69,7 @@
 
 ### Changelog
 
+- v1.3.4 (2026-10-07) Updated the stepper part to the latest version. Tooltips now describe the arrow keys as they actually behave, and errors read "Error: details"
 - v1.3.3 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.3.2 (2026-10-03) Moved to the shared persistent engine `SwwwitchPalettes` so CloseAllPalettes can close it
 - v1.3.1 (2026-10-01) Unified the window and panel margins and spacing with the shared layout part
@@ -87,6 +88,6 @@
 
 ### Script info
 
-- Version: v1.3.3
+- Version: v1.3.4
 - First release: 2026-04-14
-- Last updated: 2026-10-04
+- Last updated: 2026-10-07
