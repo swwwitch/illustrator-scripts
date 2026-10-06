@@ -29,10 +29,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartSlice
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SmartSliceWithPuzzlify";       /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.6.7";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.7.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-06-07";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-07";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartSliceWithPuzzlify.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartSliceWithPuzzlify.md"; /* README (English) */
@@ -48,14 +48,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n89f63325c0bc"; /* 紹�
     // =========================================
 
     /* ダイアログの初期値 / Initial dialog values */
-    var DEFAULT_PIECES_PUZZLE = "25";  /* パズル時のピース数 / piece count in puzzle mode */
-    var DEFAULT_PIECES_GRID   = "2";   /* グリッド時のピース数 / piece count in grid mode */
-    var DEFAULT_COLUMNS       = "6";   /* 選択の寸法が取れないときの列数 / columns when the selection size is unknown */
-    var DEFAULT_ROWS          = "4";   /* 選択の寸法が取れないときの行数 / rows when the selection size is unknown */
-    var DEFAULT_OFFSET        = "-2";  /* オフセット / offset */
-    var DEFAULT_OVERLAP       = "10";  /* オーバーラップ / overlap */
-    var DEFAULT_SCATTER       = "30";  /* バラけの最大移動量 / maximum scatter distance */
-    var DEFAULT_ROUND_RADIUS  = "3";   /* 角丸の半径 / round corner radius */
+    var DEFAULT_PIECES_PUZZLE = 25;  /* パズル時のピース数 / piece count in puzzle mode */
+    var DEFAULT_PIECES_GRID   = 2;   /* グリッド時のピース数 / piece count in grid mode */
+    var DEFAULT_COLUMNS       = 6;   /* 選択の寸法が取れないときの列数 / columns when the selection size is unknown */
+    var DEFAULT_ROWS          = 4;   /* 選択の寸法が取れないときの行数 / rows when the selection size is unknown */
+    /* 長さは定規の単位 / lengths are in ruler units */
+    var DEFAULT_OFFSET        = -2;  /* オフセット / offset */
+    var DEFAULT_OVERLAP       = 10;  /* オーバーラップ / overlap */
+    var DEFAULT_SCATTER       = 30;  /* バラけの最大移動量 / maximum scatter distance */
+    var DEFAULT_ROUND_RADIUS  = 3;   /* 角丸の半径 / round corner radius */
 
     // =========================================
     // レイアウト / Layout
@@ -141,10 +142,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n89f63325c0bc"; /* 紹�
     // UIレイアウト（再利用パーツ）ここまで / End of the reusable UI layout
 
     /* ダイアログ固有の寸法 / Dialog-specific sizes */
-    var MODE_ROW_MARGINS     = [10, 5, 10, 5];   /* 分割方法の行の余白 / margins of the mode row */
-    var SHAPE_ROW_MARGINS    = [0, 10, 0, 10];   /* 形状の行の余白 / margins of the shape row */
-    var PROGRESS_ROW_MARGINS = [10, 0, 10, 0];   /* プログレスバーの行の余白 / margins of the progress row */
-    var PROGRESS_BAR_SIZE    = [200, 7];         /* プログレスバーの寸法 / progress bar size */
+    var MODE_ROW_MARGINS        = [10, 5, 10, 5];   /* 分割方法の行の余白 / margins of the mode row */
+    var SHAPE_ROW_MARGINS       = [0, 10, 0, 10];   /* 形状の行の余白 / margins of the shape row */
+    var PROGRESS_ROW_MARGINS    = [10, 0, 10, 0];   /* プログレスバーの行の余白 / margins of the progress row */
+    var PROGRESS_BAR_SIZE       = [200, 7];         /* プログレスバーの寸法 / progress bar size */
+    var LENGTH_FIELD_CHARACTERS = 6;                /* 長さの欄の文字数（単位込み） / characters of a length field, unit included */
 
     // =========================================
     // 単位 / Units
@@ -222,9 +224,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n89f63325c0bc"; /* 紹�
        「p」は「1p6」（1パイカ6ポイント）の形にも使う
        Units UnitValue lacks, mapped onto UnitValue units (how many of `unit` make one) */
     var STEPPER_UNIT_ALIASES = {
-        "q": { unit: "mm", amount: 0.25 }, /* 級 / Q */
-        "h": { unit: "mm", amount: 0.25 }, /* 歯 / H */
-        "p": { unit: "pc", amount: 1 }     /* パイカ / pica */
+        "q": { unit: "mm", amount: 0.25 },    /* 級 / Q */
+        "h": { unit: "mm", amount: 0.25 },    /* 歯 / H */
+        "p": { unit: "pc", amount: 1 },       /* パイカ / pica */
+        "ft/in": { unit: "ft", amount: 1 },   /* Illustrator の単位コード7の表示 / Illustrator unit code 7 */
+        "c": { unit: "ci", amount: 1 },       /* シセロ（InDesign の表示） / ciceros as InDesign shows them */
+        "ag": { unit: "in", amount: 1 / 14 }, /* アゲート / agates */
+        "ap": { unit: "tpt", amount: 1 }      /* アメリカンポイント / American points */
     };
 
     // -----------------------------------------
@@ -318,6 +324,28 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n89f63325c0bc"; /* 紹�
     }
 
     /**
+     * 数値欄の単位を差し替える（単位の設定やドロップダウンを切り替えたとき用）。
+     * shouldConvert が true なら値を新しい単位へ換算し（10 mm → 28.35 pt）、false なら数値はそのままで単位だけ付け替える
+     * @param {EditText} numberInput - addSteppedField() で作った入力欄、または bindSteppedArrowKeys() を呼んだ入力欄
+     * @param {string} unit - 新しい単位（例 " pt"。単位なしは ""）
+     * @param {boolean} [shouldConvert] - 値も換算するなら true
+     * @returns {void}
+     */
+    function setSteppedFieldUnit(numberInput, unit, shouldConvert) {
+        var stepOptions = numberInput.stepperGroup.stepOptions;
+        var oldUnit = stepOptions.unit || "";
+        var value = parseFloat(numberInput.text);
+        stepOptions.unit = unit;
+        if (isNaN(value)) return;
+        if (shouldConvert) {
+            var converted = evaluateArithmetic(String(value) + oldUnit, unit);
+            if (!isNaN(converted)) value = converted;
+        }
+        numberInput.text = formatStepperNumber(value) + unit;
+        numberInput.lastValidText = numberInput.text;
+    }
+
+    /**
      * 入力欄の値を増減する∧∨ボタンを、隙間なく縦に積んで追加する
      * @param {Group|Panel} parent - 追加先
      * @param {Function} getNumberInput - 対象の入力欄を返す関数（入力欄を∧∨より後に作れるよう、クリック時に引く）
@@ -388,9 +416,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n89f63325c0bc"; /* 紹�
             if (isNaN(value)) return; /* 計算できなければ各スクリプトの処理に任せる / leave it to the script's own handler */
             /* 式か、換算で値が変わったときだけ書き戻す（ただの数値は書式を崩さない） / rewrite only expressions and converted values */
             var hasOperator = /[*\/()\u00D7\u00F7\uFF0A\uFF0F\uFF08\uFF09]|[\d.\uFF10-\uFF19][^\d.\uFF10-\uFF19]*[+\-\u2212\uFF0B\uFF0D]/.test(numberInput.text);
-            if (!hasOperator && value === parseFloat(numberInput.text)) return;
+            if (!hasOperator && value === parseFloat(numberInput.text)) {
+                /* 単位を省いて入れた数値には、欄の単位だけ付け足す（桁は丸めない） / append the field unit to a bare number */
+                var trimmedText = numberInput.text.replace(/^\s+|\s+$/g, "");
+                if (fieldUnit && /[\d.]$/.test(trimmedText)) numberInput.text = trimmedText + fieldUnit;
+                return;
+            }
             numberInput.text = formatStepperNumber(value) + (fieldUnit || "");
         });
+        numberInput.stepperGroup = stepperGroup; /* setSteppedFieldUnit() から∧∨の設定を引けるようにする / lets setSteppedFieldUnit() find the options */
     }
 
     // -----------------------------------------
@@ -518,7 +552,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n89f63325c0bc"; /* 紹�
          * @returns {number} 欄の単位での値（換算できない単位なら NaN）
          */
         function readUnitSuffix(value) {
-            var unitMatch = /^([A-Za-z]+|%|°)/.exec(source.substring(position));
+            var unitMatch = /^(ft\/in|[A-Za-z]+|%|°)/i.exec(source.substring(position));
             if (!unitMatch) return value; /* 単位なしは欄の単位 / no unit means the field's unit */
             position += unitMatch[0].length;
             var unitKey = unitMatch[0].toLowerCase();
@@ -925,50 +959,25 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n89f63325c0bc"; /* 紹�
     // =========================================
 
     /**
-     * 入力欄の直前にある項目名のクリックで、入力欄にフォーカスを移す（addSteppedField() の項目名と同じ挙動。無効の間は移さない）。
-     * 単位や「→」に付けないよう、行の先頭にあるか末尾がコロンの statictext だけを項目名とみなす
-     * @param {Group} stepperFieldGroup - ∧∨と入力欄をまとめた group（追加した直後で、親の末尾にある）
-     * @param {EditText} numberInput - 入力欄
-     * @returns {void}
-     */
-    function focusInputOnPrecedingLabel(stepperFieldGroup, numberInput) {
-        var siblings = stepperFieldGroup.parent.children;
-        if (siblings.length < 2) return;
-        var labelIndex = siblings.length - 2;
-        var fieldLabel = siblings[labelIndex];
-        if (fieldLabel.type !== "statictext") return;
-        if (labelIndex > 0 && !/[:：]\s*$/.test(fieldLabel.text)) return;
-        fieldLabel.addEventListener("click", function () {
-            if (isStepperEnabledInTree(numberInput)) focusNumberInput(numberInput);
-        });
-    }
-
-    /**
-     * ∧∨と数値欄を隙間なく並べて追加する。↑↓キーも∧∨と同じ処理で増減し、増減後は欄の onChanging を呼ぶ
+     * 項目名なしの∧∨と数値欄を隙間なく並べて追加する（チェックボックスの横に置く欄用）。↑↓キーも∧∨と同じ処理で増減する
      * @param {Group|Panel} parentContainer - 追加先
-     * @param {string} defaultText - 初期値
+     * @param {number} defaultValue - 初期値
      * @param {number} characters - 欄の文字数
-     * @param {Object} stepOptions - min / max / integer（addStepper() に渡す）
+     * @param {Object} stepOptions - min / max / integer / unit（addStepper() に渡す）
      * @returns {EditText} 追加した数値欄（∧∨は .stepperGroup で参照できる）
      */
-    function addStepperInput(parentContainer, defaultText, characters, stepOptions) {
+    function addStepperInput(parentContainer, defaultValue, characters, stepOptions) {
         var stepperInputGroup = parentContainer.add("group");
         stepperInputGroup.orientation = "row";
         stepperInputGroup.alignChildren = ["left", "center"];
         stepperInputGroup.spacing = 0;
         stepperInputGroup.margins = 0;
 
-        /* text の代入では onChanging が発火しないので、増減後に呼んで連動を保つ / assigning text does not fire onChanging */
-        stepOptions.onStep = function (numberInput) {
-            if (typeof numberInput.onChanging === "function") numberInput.onChanging();
-        };
         var numberInput;
         var stepperGroup = addStepper(stepperInputGroup, function () { return numberInput; }, stepOptions);
-        numberInput = stepperInputGroup.add("edittext", undefined, defaultText);
+        numberInput = stepperInputGroup.add("edittext", undefined, formatSteppedValue(defaultValue, stepOptions));
         numberInput.characters = characters;
-        numberInput.stepperGroup = stepperGroup;
         bindSteppedArrowKeys(numberInput, stepperGroup);
-        focusInputOnPrecedingLabel(stepperInputGroup, numberInput);
         return numberInput;
     }
 
@@ -986,7 +995,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n89f63325c0bc"; /* 紹�
 
     /**
      * 入力欄の数値を pt に換算する（数値でなければ 0）
-     * @param {EditText} editText - 定規の単位で入力された欄
+     * @param {EditText} editText - 定規の単位で入力された欄（「10 mm」の形）
      * @returns {number} pt 値
      */
     function readLengthInPoints(editText) {
@@ -1020,8 +1029,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n89f63325c0bc"; /* 紹�
         var selectedItem = doc.selection[0];
         var sizableTypes = { RasterItem: 1, PlacedItem: 1, SymbolItem: 1, PathItem: 1, GroupItem: 1, CompoundPathItem: 1 };
         if (!sizableTypes[selectedItem.typename]) return null;
-        var bounds = selectedItem.geometricBounds;
-        return { width: bounds[2] - bounds[0], height: Math.abs(bounds[1] - bounds[3]) };
+        var itemBounds = selectedItem.geometricBounds;
+        return { width: itemBounds[2] - itemBounds[0], height: Math.abs(itemBounds[1] - itemBounds[3]) };
     }
 
     // ダイアログの位置と不透明度（再利用パーツ） / Dialog position and opacity (reusable)
@@ -1238,87 +1247,90 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n89f63325c0bc"; /* 紹�
     // =========================================
 
     /**
-     * 項目名＋数値欄の組を追加する
+     * 項目名＋数値欄（整数）の組を追加する
      * @param {Group|Panel} parentContainer - 追加先
-     * @param {string} labelKey - LABELS.fieldLabel のキー
-     * @param {string} defaultText - 初期値
+     * @param {string} fieldKey - LABELS.fieldLabel と LABELS.tooltip のキー
+     * @param {number} defaultValue - 初期値
      * @param {number} characters - 欄の文字数
-     * @param {string} tooltipKey - LABELS.tooltip のキー
-     * @param {Object} stepOptions - ∧∨の min / max / integer
-     * @returns {{label: StaticText, input: EditText}} 追加したコントロール
+     * @param {number} minValue - 下限
+     * @returns {EditText} 追加した数値欄（項目名は .fieldLabel で参照できる）
      */
-    function addNumberField(parentContainer, labelKey, defaultText, characters, tooltipKey, stepOptions) {
-        var fieldGroup = parentContainer.add("group");
-        fieldGroup.orientation = "row";
-        var fieldLabel = fieldGroup.add("statictext", undefined, labelText("fieldLabel." + labelKey));
-        var fieldInput = addStepperInput(fieldGroup, defaultText, characters, stepOptions);
-        fieldInput.helpTip = getLabel("tooltip." + tooltipKey);
-        return { label: fieldLabel, input: fieldInput };
+    function addCountField(parentContainer, fieldKey, defaultValue, characters, minValue) {
+        var countInput = addSteppedField(parentContainer, {
+            label: labelText("fieldLabel." + fieldKey),
+            text: String(defaultValue),
+            characters: characters,
+            integer: true,
+            min: minValue,
+            /* text の代入では onChanging が発火しないので、増減後に呼んで連動を保つ / assigning text does not fire onChanging */
+            onStep: function (numberInput) {
+                if (typeof numberInput.onChanging === "function") numberInput.onChanging();
+            }
+        });
+        countInput.helpTip = getLabel("tooltip." + fieldKey);
+        return countInput;
     }
 
     /**
-     * チェックボックス＋数値欄＋単位の行を追加する
+     * チェックボックス＋長さの数値欄（定規の単位を欄に入れる）の行を追加する
      * @param {Panel} parentPanel - 追加先
      * @param {string} checkboxKey - LABELS.checkbox のキー
-     * @param {string} defaultText - 初期値
-     * @param {number} characters - 欄の文字数
+     * @param {number} defaultValue - 初期値（定規の単位）
      * @param {string} inputTooltipKey - 数値欄の LABELS.tooltip のキー
-     * @param {Object} stepOptions - ∧∨の min / max / integer
-     * @returns {{checkbox: Checkbox, input: EditText, unitLabel: StaticText}} 追加したコントロール
+     * @param {number} [minValue] - 下限（省略時は下限なし）
+     * @returns {{checkbox: Checkbox, input: EditText, defaultValue: number}} 追加したコントロールと初期値
      */
-    function addCheckboxValueRow(parentPanel, checkboxKey, defaultText, characters, inputTooltipKey, stepOptions) {
-        var valueRow = parentPanel.add("group");
-        valueRow.orientation = "row";
-        valueRow.alignChildren = "left";
-        var rowCheckbox = valueRow.add("checkbox", undefined, getLabel("checkbox." + checkboxKey));
+    function addCheckboxLengthRow(parentPanel, checkboxKey, defaultValue, inputTooltipKey, minValue) {
+        var lengthRow = parentPanel.add("group");
+        lengthRow.orientation = "row";
+        lengthRow.alignChildren = "left";
+        var rowCheckbox = lengthRow.add("checkbox", undefined, getLabel("checkbox." + checkboxKey));
         rowCheckbox.helpTip = getLabel("tooltip." + checkboxKey);
-        var rowInput = addStepperInput(valueRow, defaultText, characters, stepOptions);
+        /* 単位は入力欄に入れる（別の単位で入れても定規の単位へ換算される） / the unit lives in the field */
+        var rowInput = addStepperInput(lengthRow, defaultValue, LENGTH_FIELD_CHARACTERS, { min: minValue, unit: " " + getUnitInfo().label });
         rowInput.helpTip = getLabel("tooltip." + inputTooltipKey);
-        var rowUnitLabel = valueRow.add("statictext", undefined, getUnitInfo().label);
-        return { checkbox: rowCheckbox, input: rowInput, unitLabel: rowUnitLabel };
+        return { checkbox: rowCheckbox, input: rowInput, defaultValue: defaultValue };
     }
 
     /**
      * 分割方法（グリッド／パズル）の行を作る
-     * @param {Window} dlg - ダイアログ
-     * @param {Object} controls - コントロールの格納先
+     * @param {Window} sliceDialog - ダイアログ
+     * @param {Object} sliceControls - コントロールの格納先
      * @returns {void}
      */
-    function buildModeRow(dlg, controls) {
-        var modeRow = dlg.add("group");
+    function buildModeRow(sliceDialog, sliceControls) {
+        var modeRow = sliceDialog.add("group");
         modeRow.orientation = "row";
         modeRow.alignment = "center";
         modeRow.alignChildren = "left";
         modeRow.margins = MODE_ROW_MARGINS;
         modeRow.add("statictext", undefined, labelText("fieldLabel.mode"));
-        controls.modeGridRadio = modeRow.add("radiobutton", undefined, getLabel("radio.grid"));
-        controls.modeGridRadio.helpTip = getLabel("tooltip.modeGrid");
-        controls.modePuzzleRadio = modeRow.add("radiobutton", undefined, getLabel("radio.puzzle"));
-        controls.modePuzzleRadio.helpTip = getLabel("tooltip.modePuzzle");
-        controls.modeGridRadio.value = true;
-        controls.modeRow = modeRow;
+        sliceControls.modeGridRadio = modeRow.add("radiobutton", undefined, getLabel("radio.grid"));
+        sliceControls.modeGridRadio.helpTip = getLabel("tooltip.modeGrid");
+        sliceControls.modePuzzleRadio = modeRow.add("radiobutton", undefined, getLabel("radio.puzzle"));
+        sliceControls.modePuzzleRadio.helpTip = getLabel("tooltip.modePuzzle");
+        sliceControls.modeGridRadio.value = true;
+        sliceControls.modeRow = modeRow;
     }
 
     /**
      * 分割パネル（ピース数／列数・行数／形状／オフセット／オーバーラップ）を作る
      * @param {Group} parentGroup - 追加先
-     * @param {Object} controls - コントロールの格納先
+     * @param {Object} sliceControls - コントロールの格納先
      * @returns {void}
      */
-    function buildSlicePanel(parentGroup, controls) {
+    function buildSlicePanel(parentGroup, sliceControls) {
         var slicePanel = parentGroup.add("panel", undefined, getLabel("panel.slice"));
         setupPanel(slicePanel);
         slicePanel.alignChildren = "left";
 
-        var totalPiecesField = addNumberField(slicePanel, "totalPieces", DEFAULT_PIECES_PUZZLE, 4, "totalPieces", { integer: true, min: 1 });
-        controls.totalPiecesLabel = totalPiecesField.label;
-        controls.totalPiecesInput = totalPiecesField.input;
+        sliceControls.totalPiecesInput = addCountField(slicePanel, "totalPieces", DEFAULT_PIECES_PUZZLE, 4, 1);
 
         var gridSizeRow = slicePanel.add("group");
         gridSizeRow.orientation = "row";
         gridSizeRow.alignChildren = "left";
-        controls.columnsInput = addNumberField(gridSizeRow, "columns", DEFAULT_COLUMNS, 3, "columns", { integer: true, min: 0 }).input;
-        controls.rowsInput = addNumberField(gridSizeRow, "rows", DEFAULT_ROWS, 3, "rows", { integer: true, min: 0 }).input;
+        sliceControls.columnsInput = addCountField(gridSizeRow, "columns", DEFAULT_COLUMNS, 3, 0);
+        sliceControls.rowsInput = addCountField(gridSizeRow, "rows", DEFAULT_ROWS, 3, 0);
 
         var shapeRow = slicePanel.add("group");
         shapeRow.orientation = "row";
@@ -1328,51 +1340,51 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n89f63325c0bc"; /* 紹�
         var shapeRadioColumn = shapeRow.add("group");
         shapeRadioColumn.orientation = "column";
         shapeRadioColumn.alignChildren = "left";
-        controls.shapeTraditionalRadio = shapeRadioColumn.add("radiobutton", undefined, getLabel("radio.traditional"));
-        controls.shapeTraditionalRadio.helpTip = getLabel("tooltip.shapeTraditional");
-        controls.shapeRandomRadio = shapeRadioColumn.add("radiobutton", undefined, getLabel("radio.random"));
-        controls.shapeRandomRadio.helpTip = getLabel("tooltip.shapeRandom");
-        controls.shapeTraditionalRadio.value = true;
-        controls.shapeRow = shapeRow;
+        sliceControls.shapeTraditionalRadio = shapeRadioColumn.add("radiobutton", undefined, getLabel("radio.traditional"));
+        sliceControls.shapeTraditionalRadio.helpTip = getLabel("tooltip.shapeTraditional");
+        sliceControls.shapeRandomRadio = shapeRadioColumn.add("radiobutton", undefined, getLabel("radio.random"));
+        sliceControls.shapeRandomRadio.helpTip = getLabel("tooltip.shapeRandom");
+        sliceControls.shapeTraditionalRadio.value = true;
+        sliceControls.shapeRow = shapeRow;
 
-        controls.offsetRow = addCheckboxValueRow(slicePanel, "offset", DEFAULT_OFFSET, 4, "offset", {});
-        controls.overlapRow = addCheckboxValueRow(slicePanel, "overlap", DEFAULT_OVERLAP, 4, "overlap", { min: 0 });
-        controls.slicePanel = slicePanel;
+        sliceControls.offsetRow = addCheckboxLengthRow(slicePanel, "offset", DEFAULT_OFFSET, "offset");
+        sliceControls.overlapRow = addCheckboxLengthRow(slicePanel, "overlap", DEFAULT_OVERLAP, "overlap", 0);
+        sliceControls.slicePanel = slicePanel;
     }
 
     /**
      * オプションパネル（バラけ／ケイ線／角丸）を作る
      * @param {Group} parentGroup - 追加先
-     * @param {Object} controls - コントロールの格納先
+     * @param {Object} sliceControls - コントロールの格納先
      * @returns {void}
      */
-    function buildOptionsPanel(parentGroup, controls) {
+    function buildOptionsPanel(parentGroup, sliceControls) {
         var optionsPanel = parentGroup.add("panel", undefined, getLabel("panel.options"));
         setupPanel(optionsPanel, 6);
         optionsPanel.alignChildren = "left";
 
-        controls.scatterRow = addCheckboxValueRow(optionsPanel, "scatter", DEFAULT_SCATTER, 4, "scatterDistance", { min: 0 });
+        sliceControls.scatterRow = addCheckboxLengthRow(optionsPanel, "scatter", DEFAULT_SCATTER, "scatterDistance", 0);
 
         var strokeRow = optionsPanel.add("group");
         strokeRow.orientation = "row";
         strokeRow.alignChildren = "left";
-        controls.strokeCheckbox = strokeRow.add("checkbox", undefined, getLabel("checkbox.stroke"));
-        controls.strokeCheckbox.helpTip = getLabel("tooltip.stroke");
+        sliceControls.strokeCheckbox = strokeRow.add("checkbox", undefined, getLabel("checkbox.stroke"));
+        sliceControls.strokeCheckbox.helpTip = getLabel("tooltip.stroke");
 
-        controls.roundCornerRow = addCheckboxValueRow(optionsPanel, "roundCorners", DEFAULT_ROUND_RADIUS, 5, "roundRadius", { min: 0 });
-        controls.optionsPanel = optionsPanel;
+        sliceControls.roundCornerRow = addCheckboxLengthRow(optionsPanel, "roundCorners", DEFAULT_ROUND_RADIUS, "roundRadius", 0);
+        sliceControls.optionsPanel = optionsPanel;
     }
 
     /**
      * プログレスバー（処理中のみ表示）とボタンエリアを作る
-     * @param {Window} dlg - ダイアログ
-     * @param {Object} controls - コントロールの格納先
+     * @param {Window} sliceDialog - ダイアログ
+     * @param {Object} sliceControls - コントロールの格納先
      * @returns {void}
      */
-    function buildProgressAndButtons(dlg, controls) {
+    function buildProgressAndButtons(sliceDialog, sliceControls) {
         /* プログレスバーとボタンを同じ位置に重ね、非表示の行でボタンの上に余白ができないようにする
            Stack the progress bar and buttons so the hidden row adds no gap above the buttons */
-        var bottomStack = dlg.add("group");
+        var bottomStack = sliceDialog.add("group");
         bottomStack.orientation = "stack";
         bottomStack.alignment = ["fill", "bottom"];
 
@@ -1381,102 +1393,103 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n89f63325c0bc"; /* 紹�
         progressRow.alignment = ["fill", "center"];
         progressRow.alignChildren = "fill";
         progressRow.margins = PROGRESS_ROW_MARGINS;
-        controls.progressBar = progressRow.add("progressbar", undefined, 0, 100);
-        controls.progressBar.preferredSize = PROGRESS_BAR_SIZE;
+        sliceControls.progressBar = progressRow.add("progressbar", undefined, 0, 100);
+        sliceControls.progressBar.preferredSize = PROGRESS_BAR_SIZE;
         progressRow.visible = false;
-        controls.progressRow = progressRow;
+        sliceControls.progressRow = progressRow;
 
         var buttonRow = addButtonRow(bottomStack);
         var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
         var btnOK = buttonRow.rightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
         alignRightOnlyButtonRow(buttonRow);
         btnOK.active = true;
-        controls.btnCancel = btnCancel;
-        controls.btnOK = btnOK;
-        controls.btnRowGroup = buttonRow.rowGroup;
+        sliceControls.btnCancel = btnCancel;
+        sliceControls.btnOK = btnOK;
+        sliceControls.btnRowGroup = buttonRow.rowGroup;
     }
 
     /**
      * チェックボックス付きの行を有効／無効にする（数値欄はチェック時のみ有効）
-     * @param {Object} valueRow - addCheckboxValueRow() の戻り値
+     * @param {Object} lengthRow - addCheckboxLengthRow() の戻り値
      * @param {boolean} rowEnabled - 行を有効にするなら true
      * @returns {void}
      */
-    function setValueRowEnabled(valueRow, rowEnabled) {
-        valueRow.checkbox.enabled = rowEnabled;
-        setStepperInputEnabled(valueRow.input, rowEnabled && valueRow.checkbox.value);
-        valueRow.unitLabel.enabled = rowEnabled && valueRow.checkbox.value;
+    function setLengthRowEnabled(lengthRow, rowEnabled) {
+        lengthRow.checkbox.enabled = rowEnabled;
+        setStepperInputEnabled(lengthRow.input, rowEnabled && lengthRow.checkbox.value);
     }
 
     /**
      * 分割方法とチェック状態に合わせて各コントロールを有効／無効にする
-     * @param {Object} controls - ダイアログのコントロール
+     * @param {Object} sliceControls - ダイアログのコントロール
      * @returns {void}
      */
-    function syncEnabledStates(controls) {
-        var isPuzzle = controls.modePuzzleRadio.value;
+    function syncEnabledStates(sliceControls) {
+        var isPuzzle = sliceControls.modePuzzleRadio.value;
         /* パズル時のみ有効 / Puzzle only */
-        controls.totalPiecesLabel.enabled = isPuzzle;
-        setStepperInputEnabled(controls.totalPiecesInput, isPuzzle);
-        controls.shapeRow.enabled = isPuzzle;
-        setValueRowEnabled(controls.offsetRow, isPuzzle);
-        setValueRowEnabled(controls.scatterRow, isPuzzle);
+        setSteppedFieldEnabled(sliceControls.totalPiecesInput, isPuzzle);
+        sliceControls.shapeRow.enabled = isPuzzle;
+        setLengthRowEnabled(sliceControls.offsetRow, isPuzzle);
+        setLengthRowEnabled(sliceControls.scatterRow, isPuzzle);
         /* グリッド時のみ有効 / Grid only */
-        setValueRowEnabled(controls.overlapRow, !isPuzzle);
-        setValueRowEnabled(controls.roundCornerRow, !isPuzzle);
+        setLengthRowEnabled(sliceControls.overlapRow, !isPuzzle);
+        setLengthRowEnabled(sliceControls.roundCornerRow, !isPuzzle);
     }
 
     /**
      * 分割方法ごとの初期値に戻す
-     * @param {Object} controls - ダイアログのコントロール
+     * @param {Object} sliceControls - ダイアログのコントロール
      * @returns {void}
      */
-    function applyModeDefaults(controls) {
-        controls.totalPiecesInput.text = controls.modeGridRadio.value ? DEFAULT_PIECES_GRID : DEFAULT_PIECES_PUZZLE;
-        controls.offsetRow.checkbox.value = false;
-        controls.offsetRow.input.text = DEFAULT_OFFSET;
-        controls.overlapRow.checkbox.value = false;
-        controls.overlapRow.input.text = DEFAULT_OVERLAP;
-        controls.scatterRow.checkbox.value = false;
-        controls.scatterRow.input.text = DEFAULT_SCATTER;
-        controls.strokeCheckbox.value = false;
-        controls.roundCornerRow.checkbox.value = false;
-        controls.roundCornerRow.input.text = DEFAULT_ROUND_RADIUS;
+    function applyModeDefaults(sliceControls) {
+        var totalPiecesInput = sliceControls.totalPiecesInput;
+        writeSteppedValue(totalPiecesInput, sliceControls.modeGridRadio.value ? DEFAULT_PIECES_GRID : DEFAULT_PIECES_PUZZLE, totalPiecesInput.stepperGroup.stepOptions);
+        var lengthRows = [sliceControls.offsetRow, sliceControls.overlapRow, sliceControls.scatterRow, sliceControls.roundCornerRow];
+        for (var i = 0; i < lengthRows.length; i++) {
+            lengthRows[i].checkbox.value = false;
+            writeSteppedValue(lengthRows[i].input, lengthRows[i].defaultValue, lengthRows[i].input.stepperGroup.stepOptions);
+        }
+        sliceControls.strokeCheckbox.value = false;
     }
 
     /**
      * ダイアログのイベントを結び付け、初期状態を整える
-     * @param {Object} controls - ダイアログのコントロール
+     * @param {Object} sliceControls - ダイアログのコントロール
      * @param {{width: number, height: number}|null} artworkSize - 選択対象の寸法
      * @returns {void}
      */
-    function bindDialogEvents(controls, artworkSize) {
+    function bindDialogEvents(sliceControls, artworkSize) {
         /* ピース数から行数・列数を決める / Derive rows and columns from the piece count */
         function updateGridSizeFromPieces() {
-            var pieceCount = parseInt(controls.totalPiecesInput.text, 10);
+            var pieceCount = parseInt(sliceControls.totalPiecesInput.text, 10);
             if (isNaN(pieceCount) || pieceCount < 1 || !artworkSize) return;
             var gridSize = calcGridSizeFromPieceCount(artworkSize.width, artworkSize.height, pieceCount);
-            controls.rowsInput.text = String(gridSize.rows);
-            controls.columnsInput.text = String(gridSize.columns);
+            /* 直前の正しい値としても控え、数値でない入力を戻すときに古い値へ戻らないようにする / also record as the last valid value */
+            writeSteppedValue(sliceControls.rowsInput, gridSize.rows, sliceControls.rowsInput.stepperGroup.stepOptions);
+            writeSteppedValue(sliceControls.columnsInput, gridSize.columns, sliceControls.columnsInput.stepperGroup.stepOptions);
         }
 
         function onSyncEnabled() {
-            syncEnabledStates(controls);
+            syncEnabledStates(sliceControls);
         }
 
         function onModeChange() {
-            applyModeDefaults(controls);
+            applyModeDefaults(sliceControls);
             updateGridSizeFromPieces();
-            syncEnabledStates(controls);
+            syncEnabledStates(sliceControls);
         }
 
-        controls.totalPiecesInput.onChanging = updateGridSizeFromPieces;
-        controls.modeGridRadio.onClick = onModeChange;
-        controls.modePuzzleRadio.onClick = onModeChange;
-        controls.offsetRow.checkbox.onClick = onSyncEnabled;
-        controls.overlapRow.checkbox.onClick = onSyncEnabled;
-        controls.scatterRow.checkbox.onClick = onSyncEnabled;
-        controls.roundCornerRow.checkbox.onClick = onSyncEnabled;
+        sliceControls.totalPiecesInput.onChanging = updateGridSizeFromPieces;
+        /* 計算式は確定時に計算した値へ書き換わるが、text の代入では onChanging が来ないので、確定後にも計算し直す。
+           部品の change リスナー（式の計算）より後に足すので、計算後の値を読む
+           An expression is rewritten on commit without firing onChanging; this listener runs after the stepper's and reads the result */
+        sliceControls.totalPiecesInput.addEventListener("change", updateGridSizeFromPieces);
+        sliceControls.modeGridRadio.onClick = onModeChange;
+        sliceControls.modePuzzleRadio.onClick = onModeChange;
+        sliceControls.offsetRow.checkbox.onClick = onSyncEnabled;
+        sliceControls.overlapRow.checkbox.onClick = onSyncEnabled;
+        sliceControls.scatterRow.checkbox.onClick = onSyncEnabled;
+        sliceControls.roundCornerRow.checkbox.onClick = onSyncEnabled;
 
         onModeChange();
     }
@@ -1487,62 +1500,62 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n89f63325c0bc"; /* 紹�
      * @returns {Object} ダイアログ（dialog）と各コントロール
      */
     function buildDialog(artworkSize) {
-        var dlg = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
-        setupWindow(dlg);
-        var controls = { dialog: dlg };
+        var sliceDialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
+        setupWindow(sliceDialog);
+        var sliceControls = { dialog: sliceDialog };
 
-        buildModeRow(dlg, controls);
+        buildModeRow(sliceDialog, sliceControls);
 
-        var panelStack = dlg.add("group");
+        var panelStack = sliceDialog.add("group");
         panelStack.orientation = "column";
         panelStack.alignChildren = "fill";
-        buildSlicePanel(panelStack, controls);
-        buildOptionsPanel(panelStack, controls);
+        buildSlicePanel(panelStack, sliceControls);
+        buildOptionsPanel(panelStack, sliceControls);
 
-        buildProgressAndButtons(dlg, controls);
-        bindDialogEvents(controls, artworkSize);
-        return controls;
+        buildProgressAndButtons(sliceDialog, sliceControls);
+        bindDialogEvents(sliceControls, artworkSize);
+        return sliceControls;
     }
 
     /**
      * ダイアログの値を分割の設定として読み取る（分割方法で使わない項目は無効扱い）
-     * @param {Object} controls - ダイアログのコントロール
+     * @param {Object} sliceControls - ダイアログのコントロール
      * @returns {Object} 分割の設定
      */
-    function readSliceSettings(controls) {
-        var isGridMode = controls.modeGridRadio.value;
+    function readSliceSettings(sliceControls) {
+        var isGridMode = sliceControls.modeGridRadio.value;
         return {
             isGridMode: isGridMode,
-            isRandomShape: controls.shapeRandomRadio.value,
-            columnCount: Math.round(Number(controls.columnsInput.text)),
-            rowCount: Math.round(Number(controls.rowsInput.text)),
-            shouldApplyOffset: !isGridMode && controls.offsetRow.checkbox.value,
-            offsetInPoints: readLengthInPoints(controls.offsetRow.input),
-            overlapInPoints: (isGridMode && controls.overlapRow.checkbox.value) ? readLengthInPoints(controls.overlapRow.input) : 0,
-            shouldScatter: !isGridMode && controls.scatterRow.checkbox.value,
-            scatterDistance: readLengthInPoints(controls.scatterRow.input),
-            shouldAddStroke: controls.strokeCheckbox.value,
-            shouldApplyRoundCorners: isGridMode && controls.roundCornerRow.checkbox.value,
-            roundRadiusInPoints: readLengthInPoints(controls.roundCornerRow.input)
+            isRandomShape: sliceControls.shapeRandomRadio.value,
+            columnCount: Math.round(Number(sliceControls.columnsInput.text)),
+            rowCount: Math.round(Number(sliceControls.rowsInput.text)),
+            shouldApplyOffset: !isGridMode && sliceControls.offsetRow.checkbox.value,
+            offsetInPoints: readLengthInPoints(sliceControls.offsetRow.input),
+            overlapInPoints: (isGridMode && sliceControls.overlapRow.checkbox.value) ? readLengthInPoints(sliceControls.overlapRow.input) : 0,
+            shouldScatter: !isGridMode && sliceControls.scatterRow.checkbox.value,
+            scatterDistance: readLengthInPoints(sliceControls.scatterRow.input),
+            shouldAddStroke: sliceControls.strokeCheckbox.value,
+            shouldApplyRoundCorners: isGridMode && sliceControls.roundCornerRow.checkbox.value,
+            roundRadiusInPoints: readLengthInPoints(sliceControls.roundCornerRow.input)
         };
     }
 
     /**
      * 処理中の表示（入力を無効化してプログレスバーを出す）に切り替える
-     * @param {Object} controls - ダイアログのコントロール
+     * @param {Object} sliceControls - ダイアログのコントロール
      * @returns {void}
      */
-    function showProgressState(controls) {
-        controls.modeRow.enabled = false;
-        controls.slicePanel.enabled = false;
-        controls.optionsPanel.enabled = false;
-        redrawSteppersIn(controls.slicePanel);
-        redrawSteppersIn(controls.optionsPanel);
-        controls.btnRowGroup.visible = false;
-        controls.progressRow.visible = true;
-        controls.progressBar.value = 0;
-        controls.dialog.layout.layout(true);
-        controls.dialog.update();
+    function showProgressState(sliceControls) {
+        sliceControls.modeRow.enabled = false;
+        sliceControls.slicePanel.enabled = false;
+        sliceControls.optionsPanel.enabled = false;
+        redrawSteppersIn(sliceControls.slicePanel);
+        redrawSteppersIn(sliceControls.optionsPanel);
+        sliceControls.btnRowGroup.visible = false;
+        sliceControls.progressRow.visible = true;
+        sliceControls.progressBar.value = 0;
+        sliceControls.dialog.layout.layout(true);
+        sliceControls.dialog.update();
     }
 
     // =========================================
@@ -1641,12 +1654,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n89f63325c0bc"; /* 紹�
      * 0 の列数／行数を、もう一方と縦横比から補う
      * @param {number} columnCount - 列数（0 なら自動）
      * @param {number} rowCount - 行数（0 なら自動）
-     * @param {number[]} bounds - マスク元の geometricBounds
+     * @param {number[]} maskBounds - マスク元の geometricBounds
      * @returns {{columnCount: number, rowCount: number}} 補った列数と行数
      */
-    function resolveGridCounts(columnCount, rowCount, bounds) {
-        var boundsWidth = bounds[2] - bounds[0];
-        var boundsHeight = bounds[3] - bounds[1];
+    function resolveGridCounts(columnCount, rowCount, maskBounds) {
+        var boundsWidth = maskBounds[2] - maskBounds[0];
+        var boundsHeight = maskBounds[3] - maskBounds[1];
         if (columnCount == 0) {
             columnCount = Math.max(1, Math.round(Math.abs(boundsWidth / boundsHeight) * rowCount));
         }
@@ -1672,23 +1685,23 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n89f63325c0bc"; /* 紹�
 
     /**
      * 分割の基準となる格子を作る（パズル時は各ピースの突起の向きとずれも決める）
-     * @param {number[]} bounds - マスク元の geometricBounds
+     * @param {number[]} maskBounds - マスク元の geometricBounds
      * @param {number} columnCount - 列数
      * @param {number} rowCount - 行数
      * @param {boolean} isPuzzle - パズル形状なら true
      * @param {boolean} isRandomShape - 突起の向きをランダムにするなら true
      * @returns {Object} 格子の情報
      */
-    function buildSliceGrid(bounds, columnCount, rowCount, isPuzzle, isRandomShape) {
+    function buildSliceGrid(maskBounds, columnCount, rowCount, isPuzzle, isRandomShape) {
         var sliceGrid = {
-            originX: bounds[0],
-            originY: bounds[1],
-            right: bounds[2],
-            bottom: bounds[3],
+            originX: maskBounds[0],
+            originY: maskBounds[1],
+            right: maskBounds[2],
+            bottom: maskBounds[3],
             columnCount: columnCount,
             rowCount: rowCount,
-            pieceWidth: (bounds[2] - bounds[0]) / columnCount,
-            pieceHeight: (bounds[1] - bounds[3]) / rowCount,
+            pieceWidth: (maskBounds[2] - maskBounds[0]) / columnCount,
+            pieceHeight: (maskBounds[1] - maskBounds[3]) / rowCount,
             edgeData: null
         };
         if (!isPuzzle) return sliceGrid;
@@ -2188,9 +2201,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n89f63325c0bc"; /* 紹�
         var contentSourceItem = preparedItems.contentSourceItem;
         maskSourceItem.selected = false;
 
-        var bounds = maskSourceItem.geometricBounds;
-        var gridCounts = resolveGridCounts(sliceSettings.columnCount, sliceSettings.rowCount, bounds);
-        var sliceGrid = buildSliceGrid(bounds, gridCounts.columnCount, gridCounts.rowCount,
+        var maskBounds = maskSourceItem.geometricBounds;
+        var gridCounts = resolveGridCounts(sliceSettings.columnCount, sliceSettings.rowCount, maskBounds);
+        var sliceGrid = buildSliceGrid(maskBounds, gridCounts.columnCount, gridCounts.rowCount,
             !sliceSettings.isGridMode, sliceSettings.isRandomShape);
 
         var totalPieces = sliceGrid.rowCount * sliceGrid.columnCount;
@@ -2232,18 +2245,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n89f63325c0bc"; /* 紹�
             return;
         }
 
-        var controls = buildDialog(getSelectedArtworkSize(doc));
-        var sliceDialog = controls.dialog;
+        var sliceControls = buildDialog(getSelectedArtworkSize(doc));
+        var sliceDialog = sliceControls.dialog;
 
-        controls.btnOK.onClick = function () {
-            var sliceSettings = readSliceSettings(controls);
+        sliceControls.btnOK.onClick = function () {
+            var sliceSettings = readSliceSettings(sliceControls);
             /* 分割できない列数・行数なら閉じずに待つ / Stay open when the counts cannot be sliced */
             if (!isValidGridCount(sliceSettings.columnCount, sliceSettings.rowCount)) return;
 
-            showProgressState(controls);
+            showProgressState(sliceControls);
             try {
                 executeSlice(doc, sliceSettings, function (current, total) {
-                    controls.progressBar.value = total > 0 ? (current / total) * 100 : 0;
+                    sliceControls.progressBar.value = total > 0 ? (current / total) * 100 : 0;
                     sliceDialog.update();
                 });
             } catch (e) {

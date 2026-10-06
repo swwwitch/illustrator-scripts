@@ -43,7 +43,7 @@ Slices the selected image or artwork into grid cells or jigsaw pieces and masks 
 | Add stroke | Both | Adds a stroke to each piece |
 | Round corners | Grid | Applies the Round Corners effect to each piece. The value is the radius |
 
-- Distances are entered in the ruler units
+- Distances are entered in the ruler units (fields show the unit, as in "10 mm"; values typed in other units or as expressions are converted)
 - In number fields, the stepper buttons on the left and the Up/Down keys move the value to the next whole number (1.5 → 2), with Shift to the next multiple of 10, and with Option by 0.1 (pieces, columns and rows take whole numbers only)
 - Switching the method resets the options to their defaults
 
@@ -78,3 +78,4 @@ https://community.adobe.com/t5/illustrator-discussions/cut-multiple-jigsaw-shape
 - v1.6.5 (2026-10-01): The button row, previously always centered, is now centered in dialogs up to 200 px wide (inside the margins) and right-aligned in wider ones. Unified the window and panel margins and spacing with the shared layout part
 - v1.6.6 (2026-10-01): Added space below the button row to match Illustrator's own dialogs
 - v1.6.7 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
+- v1.7.0 (2026-10-07) Length fields now include the unit (as in "10 mm"); values typed in other units or as expressions are converted to the field's unit. Fixed the rows and columns not being recalculated after an expression in Pieces was committed. Updated the stepper part to the latest version. Code cleanup
