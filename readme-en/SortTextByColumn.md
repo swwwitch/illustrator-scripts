@@ -28,6 +28,10 @@
 3. Sort text lines by specified column
 4. Optionally split header and body and reconstruct
 
+### Article
+
+[DTP Transit 別館 (Japanese)](https://note.com/dtp_tranist/n/ncc89f822d2d2)
+
 ### Update History
 
 - v1.0.0 (20250615): Initial version
@@ -46,3 +50,4 @@
 - v1.0.14 (2026-10-01): Unified the window and panel margins and spacing with the shared layout part
 - v1.0.15 (2026-10-01): Added space below the button row to match Illustrator's own dialogs
 - v1.0.16 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
+- v1.0.17 (2026-10-07): Fixed broken ordering for cells with commas (e.g. "Tokyo, Japan"), errors on rows with missing columns or empty text, and the header disappearing when the text starts with a blank line. Rows with an empty cell now stay at the end in both orders, and sorting was reworked so descending order and equal values stay stable. Column previews are truncated to 10 characters; the English column label and messages were corrected. Reworded the panel, checkbox and tooltip labels, and cleaned up the code

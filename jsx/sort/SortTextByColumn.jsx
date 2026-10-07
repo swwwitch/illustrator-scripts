@@ -12,6 +12,9 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 詳細は README を参照してください。
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SortTextByColumn.md
 
+note記事も参照してください。
+https://note.com/dtp_tranist/n/ncc89f822d2d2
+
 ### Overview
 
 Sorts the tab-separated text inside a text frame by the values in a chosen column.
@@ -26,13 +29,14 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SortTextBy
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SortTextByColumn";             /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.16";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.17";                      /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-06-15";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-07";                   /* 更新日 / last updated */
 
-var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SortTextByColumn.md"; /* README（日本語） */
-var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SortTextByColumn.md"; /* README (English) */
+var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SortTextByColumn.md"; /* README（日本語） */
+var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SortTextByColumn.md"; /* README (English) */
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncc89f822d2d2"; /* 紹介記事 / article URL */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
@@ -45,6 +49,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     var LINE_SEPARATOR = "\r"; /* 行（段落）の区切り / line (paragraph) separator */
     var CELL_SEPARATOR = "\t"; /* 列の区切り / column separator */
+
+    // =========================================
+    // 列のプレビュー / Column preview
+    // =========================================
+
+    var COLUMN_PREVIEW_COUNT = 3;      /* 列のラジオボタンに並べる値の数 / number of values shown on each column radio */
+    var COLUMN_PREVIEW_MAX_CHARS = 10; /* 値ごとの最大文字数（超えたら「...」で切る）/ max characters per value, truncated with "..." */
 
     // ボタン行（再利用パーツ） / Button row (reusable)
 
@@ -202,34 +213,45 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     // ローカライズ（再利用パーツ）ここまで / End of the reusable localization
 
-    /* UIラベル（表示順：列 → 順序 → 見出し） */
+    /* UIラベル（表示順：列 → 順序 → 見出し）/ UI labels in display order: column, order, header */
     var LABELS = {
         dialog: {
             title: { ja: "列を基準に並べ替え", en: "Sort by Column" }
         },
         panel: {
-            sortColumn: { ja: "ソート対象の列", en: "Sort Target Column" },
-            sortOrder:  { ja: "ソート方法", en: "Sort Order" }
+            sortColumn: { ja: "基準にする列", en: "Sort By" },
+            sortOrder:  { ja: "並べ替えの順序", en: "Order" }
         },
         radio: {
-            column:     { ja: "【列%1】", en: "[Row %1] " },
+            column:     { ja: "【列%1】", en: "[Column %1] " },
             ascending:  { ja: "昇順", en: "Ascending" },
             descending: { ja: "降順", en: "Descending" },
             random:     { ja: "ランダム", en: "Random" }
         },
         checkbox: {
-            header:     { ja: "1行目を見出し行として扱う", en: "Treat first row as header" }
+            header:     { ja: "1行目を見出しとして残す", en: "Keep first row as header" }
         },
         button: {
             ok:         { ja: "OK", en: "OK" },
             cancel:     { ja: "キャンセル", en: "Cancel" }
         },
         tooltip: {
-            column:     { ja: "この列の値を基準に、行を並べ替えます。", en: "The rows are sorted by the values in this column." },
-            ascending:  { ja: "値の小さい順（あいうえお順）に並べます。", en: "Sorts in ascending order." },
-            descending: { ja: "値の大きい順に並べます。", en: "Sorts in descending order." },
-            random:     { ja: "値と関係なく、行の順序をシャッフルします。", en: "Shuffles the rows regardless of their values." },
+            column: {
+                ja: "この列の値を基準に行を並べ替えます。数字を含むセルは数値として比べ、空のセルの行は末尾に置きます。",
+                en: "Sorts the rows by the values in this column. Cells containing digits are compared as numbers; rows with an empty cell go last."
+            },
+            ascending: {
+                ja: "小さい順に並べます。数値が先、文字はそのあとに文字コード順（A→Z、あ→ん）で並びます。",
+                en: "Sorts from smallest to largest. Numbers come first, then text in character-code order (A to Z)."
+            },
+            descending: { ja: "昇順の逆順に並べます。", en: "Sorts in the reverse of ascending order." },
+            random:     { ja: "列の値と関係なく、行の順序をシャッフルします。", en: "Shuffles the rows regardless of the column values." },
             header:     { ja: "1行目は並べ替えず、見出しとして先頭に残します。", en: "Keeps the first row at the top instead of sorting it." }
+        },
+        alert: {
+            noDocument:      { ja: "ドキュメントを開いてください。", en: "Open a document." },
+            selectTextFrame: { ja: "1つのテキストオブジェクトを選択してください。", en: "Select one text object." },
+            tooFewLines:     { ja: "並べ替えるには2行以上のテキストが必要です。", en: "The text needs at least two lines to sort." }
         }
     };
 
@@ -238,12 +260,32 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // =========================================
 
     /**
+     * 行から指定した列のセルを取り出す（列が足りない行は空文字）
+     * @param {string} line - 行
+     * @param {number} columnIndex - 列（0 始まり）
+     * @returns {string} セルの文字列
+     */
+    function getCellText(line, columnIndex) {
+        return line.split(CELL_SEPARATOR)[columnIndex] || "";
+    }
+
+    /**
+     * 空、または空白だけの文字列かを返す
+     * @param {string} text - 調べる文字列
+     * @returns {boolean} 空白だけなら true
+     */
+    function isBlankText(text) {
+        return text.replace(/\s/g, "") === "";
+    }
+
+    /**
      * テキストから最初に現れる数値（整数・小数・カンマ区切り）を取り出す
      * @param {string} cellText - セルの文字列
      * @returns {number|null} 数値。見つからなければ null
      */
     function extractFirstNumber(cellText) {
-        var numberMatch = cellText.match(/[\d,]+(\.\d+)?/);
+        /* 数字で始める（「,」だけに一致させない）/ Must start with a digit so a lone "," does not match */
+        var numberMatch = cellText.match(/\d[\d,]*(\.\d+)?/);
         if (numberMatch) {
             return parseFloat(numberMatch[0].replace(/,/g, ""));
         }
@@ -251,80 +293,82 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /**
+     * 数値を指定の桁数になるまで先頭を 0 で埋める
+     * @param {number|string} value - 値
+     * @param {number} width - 桁数
+     * @returns {string} 0 で埋めた文字列
+     */
+    function padWithZeros(value, width) {
+        var paddedText = String(value);
+        while (paddedText.length < width) paddedText = "0" + paddedText;
+        return paddedText;
+    }
+
+    /**
+     * セルを、引数なしの sort() でそのまま比べられる文字列キーにする。
+     * 数値は桁をそろえて文字列より前、文字列は大文字小文字を区別しない
+     * @param {string} cellText - セルの文字列
+     * @returns {string} 並べ替え用のキー
+     */
+    function buildSortKey(cellText) {
+        var firstNumber = extractFirstNumber(cellText);
+        if (firstNumber === null) return "1" + cellText.toLowerCase();
+        var numberParts = firstNumber.toFixed(6).split(".");
+        return "0" + padWithZeros(numberParts[0], 20) + "." + numberParts[1];
+    }
+
+    /**
      * 配列の順序をシャッフルする（Fisher–Yates、直接書き換える）
-     * @param {Object[]} lineEntries - { line, key } の配列
+     * @param {string[]} lines - 行
      * @returns {void}
      */
-    function shuffleLineEntries(lineEntries) {
-        for (var i = lineEntries.length - 1; i > 0; i--) {
+    function shuffleLines(lines) {
+        for (var i = lines.length - 1; i > 0; i--) {
             var j = Math.floor(Math.random() * (i + 1));
-            var swapEntry = lineEntries[i];
-            lineEntries[i] = lineEntries[j];
-            lineEntries[j] = swapEntry;
+            var swapLine = lines[i];
+            lines[i] = lines[j];
+            lines[j] = swapLine;
         }
     }
 
     /**
-     * 数値キーを昇順・降順で比べる
-     * @param {Object} a - { line, key } の要素
-     * @param {Object} b - { line, key } の要素
-     * @param {string} sortOrder - "asc" / "desc"
-     * @returns {number} 並べ替え用の差
-     */
-    function compareNumericKeys(a, b, sortOrder) {
-        return sortOrder === "asc" ? (a.key - b.key) : (b.key - a.key);
-    }
-
-    /**
-     * 文字列キーを昇順・降順で比べる（大文字小文字は区別しない）
-     * @param {Object} a - { line, key } の要素
-     * @param {Object} b - { line, key } の要素
-     * @param {string} sortOrder - "asc" / "desc"
-     * @returns {number} -1 / 0 / 1
-     */
-    function compareStringKeys(a, b, sortOrder) {
-        var aText = String(a.key).toLowerCase();
-        var bText = String(b.key).toLowerCase();
-        if (sortOrder === "asc") {
-            return aText < bText ? -1 : aText > bText ? 1 : 0;
-        }
-        return aText > bText ? -1 : aText < bText ? 1 : 0;
-    }
-
-    /**
-     * 指定列と並び順で行を並べ替える。セルに数値があれば数値、無ければ文字列で比べる
+     * 指定列と並び順で行を並べ替える。セルに数値があれば数値、無ければ文字列で比べる。
+     * 比較関数つきの sort() は遅く並びも狂うので、文字列キー＋引数なしの sort() で並べる
      * @param {string[]} lines - 並べ替える行
      * @param {number} columnIndex - 基準にする列（0 始まり）
      * @param {string} sortOrder - "asc" / "desc" / "random"
      * @returns {string[]} 並べ替えた行
      */
     function generateSortedLines(lines, columnIndex, sortOrder) {
-        var lineEntries = [];
-        for (var i = 0; i < lines.length; i++) {
-            var cellText = lines[i].split(CELL_SEPARATOR)[columnIndex] || "";
-            var firstNumber = extractFirstNumber(cellText);
-            lineEntries.push({
-                line: lines[i],
-                key: firstNumber !== null ? firstNumber : cellText
-            });
+        if (sortOrder === "random") {
+            var shuffledLines = lines.slice();
+            shuffleLines(shuffledLines);
+            return shuffledLines;
         }
 
-        if (sortOrder === "random") {
-            shuffleLineEntries(lineEntries);
-        } else {
-            lineEntries.sort(function (a, b) {
-                if (typeof a.key === "number" && typeof b.key === "number") {
-                    return compareNumericKeys(a, b, sortOrder);
-                }
-                return compareStringKeys(a, b, sortOrder);
-            });
+        /* キーの後ろに行番号を付け、同じキーは元の順に保つ（降順は反転するので番号も逆に振る）
+           Append the line number so equal keys keep their order (numbered backwards for descending, which is reversed) */
+        var isDescending = (sortOrder === "desc");
+        var sortEntries = [];
+        var emptyCellLines = []; /* 列が空の行（「合計」など）は順序に関係なく末尾へ / lines with an empty cell (e.g. totals) go last in either order */
+        for (var i = 0; i < lines.length; i++) {
+            var cellText = getCellText(lines[i], columnIndex);
+            if (isBlankText(cellText)) {
+                emptyCellLines.push(lines[i]);
+                continue;
+            }
+            var lineNumber = isDescending ? (lines.length - 1 - i) : i;
+            sortEntries.push(buildSortKey(cellText) + "\u0001" + padWithZeros(lineNumber, 8));
         }
+        sortEntries.sort();
+        if (isDescending) sortEntries.reverse();
 
         var sortedLines = [];
-        for (var j = 0; j < lineEntries.length; j++) {
-            sortedLines.push(lineEntries[j].line);
+        for (var j = 0; j < sortEntries.length; j++) {
+            var entryLineNumber = parseInt(sortEntries[j].slice(sortEntries[j].lastIndexOf("\u0001") + 1), 10);
+            sortedLines.push(lines[isDescending ? (lines.length - 1 - entryLineNumber) : entryLineNumber]);
         }
-        return sortedLines;
+        return sortedLines.concat(emptyCellLines);
     }
 
     // =========================================
@@ -332,7 +376,17 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // =========================================
 
     /**
-     * 各列の値を先頭から3件ずつ集める（列のラジオボタンに表示する）
+     * プレビュー用に長い値を切り詰める（ダイアログが横に広がらないように）
+     * @param {string} cellText - セルの文字列
+     * @returns {string} COLUMN_PREVIEW_MAX_CHARS 文字までの文字列。切ったときは末尾に「...」
+     */
+    function truncatePreviewText(cellText) {
+        if (cellText.length <= COLUMN_PREVIEW_MAX_CHARS) return cellText;
+        return cellText.substring(0, COLUMN_PREVIEW_MAX_CHARS) + "...";
+    }
+
+    /**
+     * 各列の値を先頭から COLUMN_PREVIEW_COUNT 件ずつ集める（列のラジオボタンに表示する。長い値は切り詰める）
      * @param {number} columnCount - 列の数
      * @param {string[]} lines - 行
      * @returns {string[][]} 列ごとの値
@@ -342,15 +396,25 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         for (var i = 0; i < columnCount; i++) {
             columnPreviews[i] = [];
         }
-        for (var r = 0; r < lines.length; r++) {
-            var cells = lines[r].split(CELL_SEPARATOR);
-            for (var c = 0; c < columnCount; c++) {
-                if (columnPreviews[c].length < 3 && cells[c]) {
-                    columnPreviews[c].push(cells[c]);
+        for (var j = 0; j < lines.length; j++) {
+            var rowCells = lines[j].split(CELL_SEPARATOR);
+            for (var k = 0; k < columnCount; k++) {
+                if (columnPreviews[k].length < COLUMN_PREVIEW_COUNT && rowCells[k]) {
+                    columnPreviews[k].push(truncatePreviewText(rowCells[k]));
                 }
             }
         }
         return columnPreviews;
+    }
+
+    /**
+     * 行の指定した列に数値があるかを返す
+     * @param {string} line - 行
+     * @param {number} columnIndex - 列（0 始まり）
+     * @returns {boolean} 数値があれば true
+     */
+    function cellHasNumber(line, columnIndex) {
+        return extractFirstNumber(getCellText(line, columnIndex)) !== null;
     }
 
     /**
@@ -361,15 +425,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      */
     function looksLikeHeaderRow(columnCount, lines) {
         for (var i = 0; i < columnCount; i++) {
-            var hasNumericBelow = false;
-            for (var r = 1; r < lines.length; r++) {
-                if (extractFirstNumber(lines[r].split(CELL_SEPARATOR)[i]) !== null) {
-                    hasNumericBelow = true;
-                    break;
-                }
+            if (cellHasNumber(lines[0], i)) continue;
+            for (var j = 1; j < lines.length; j++) {
+                if (cellHasNumber(lines[j], i)) return true;
             }
-            var topIsNumber = extractFirstNumber(lines[0].split(CELL_SEPARATOR)[i]) !== null;
-            if (!topIsNumber && hasNumericBelow) return true;
         }
         return false;
     }
@@ -382,15 +441,16 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * @returns {number} 列の番号（0 始まり）
      */
     function findDefaultColumn(columnCount, lines, startRow) {
-        for (var c = 0; c < columnCount; c++) {
-            var numericOnly = true;
-            for (var r = startRow; r < Math.min(startRow + 3, lines.length); r++) {
-                if (extractFirstNumber(lines[r].split(CELL_SEPARATOR)[c]) === null) {
-                    numericOnly = false;
+        var endRow = Math.min(startRow + 3, lines.length);
+        for (var i = 0; i < columnCount; i++) {
+            var isNumericColumn = true;
+            for (var j = startRow; j < endRow; j++) {
+                if (!cellHasNumber(lines[j], i)) {
+                    isNumericColumn = false;
                     break;
                 }
             }
-            if (numericOnly) return c;
+            if (isNumericColumn) return i;
         }
         return 0;
     }
@@ -615,6 +675,62 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // =========================================
 
     /**
+     * ［基準にする列］パネルを作り、列ごとのラジオボタンに先頭の値を並べる
+     * @param {Window} sortDialog - 追加先のダイアログ
+     * @param {number} columnCount - 列の数
+     * @param {string[]} lines - 行
+     * @returns {RadioButton[]} 列ごとのラジオボタン
+     */
+    function addColumnPanel(sortDialog, columnCount, lines) {
+        var columnPanel = sortDialog.add("panel", undefined, getLabel("panel.sortColumn"));
+        setupPanel(columnPanel, 6);
+
+        var columnPreviews = collectColumnPreviews(columnCount, lines);
+        var columnRadios = [];
+        for (var i = 0; i < columnCount; i++) {
+            var columnLabel = getLabel("radio.column", [i + 1]) + columnPreviews[i].join(", ") + "...";
+            var columnRadio = columnPanel.add("radiobutton", undefined, columnLabel);
+            columnRadio.helpTip = getLabel("tooltip.column");
+            columnRadios.push(columnRadio);
+        }
+        return columnRadios;
+    }
+
+    /**
+     * ［並べ替えの順序］パネルを作る（昇順・降順・ランダム。初期値は昇順）
+     * @param {Window} sortDialog - 追加先のダイアログ
+     * @returns {{ascending: RadioButton, descending: RadioButton, random: RadioButton}} 順序のラジオボタン
+     */
+    function addOrderPanel(sortDialog) {
+        var orderPanel = sortDialog.add("panel", undefined, getLabel("panel.sortOrder"));
+        setupPanel(orderPanel, 6);
+
+        var orderRadioGroup = orderPanel.add("group");
+        setupRow(orderRadioGroup);
+        var orderRadios = {};
+        var orderKeys = ["ascending", "descending", "random"];
+        for (var i = 0; i < orderKeys.length; i++) {
+            var orderRadio = orderRadioGroup.add("radiobutton", undefined, getLabel("radio." + orderKeys[i]));
+            orderRadio.helpTip = getLabel("tooltip." + orderKeys[i]);
+            orderRadios[orderKeys[i]] = orderRadio;
+        }
+        orderRadios.ascending.value = true;
+        return orderRadios;
+    }
+
+    /**
+     * 選ばれているラジオボタンの番号を返す
+     * @param {RadioButton[]} radioButtons - ラジオボタン
+     * @returns {number} 番号（0 始まり）。どれも選ばれていなければ 0
+     */
+    function getSelectedRadioIndex(radioButtons) {
+        for (var i = 0; i < radioButtons.length; i++) {
+            if (radioButtons[i].value) return i;
+        }
+        return 0;
+    }
+
+    /**
      * 並び替えの列、順序、見出し行の有無を選ぶダイアログを出す
      * @param {number} columnCount - 列の数
      * @param {string[]} lines - 行
@@ -625,35 +741,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var sortDialog = new Window("dialog", getLabel("dialog.title"));
         setupWindow(sortDialog);
 
-        var columnPanel = sortDialog.add("panel", undefined, getLabel("panel.sortColumn"));
-        setupPanel(columnPanel, 6);
-
-        var columnRadioGroup = columnPanel.add("group");
-        columnRadioGroup.orientation = "column";
-        columnRadioGroup.alignChildren = "left";
-
-        /* 列ごとのラジオボタンに先頭3件の値を表示 / show the first three values on each column radio */
-        var columnPreviews = collectColumnPreviews(columnCount, lines);
-        var columnRadios = [];
-        for (var i = 0; i < columnCount; i++) {
-            var columnLabel = getLabel("radio.column").replace("%1", i + 1) + columnPreviews[i].join(", ") + "...";
-            var columnRadio = columnRadioGroup.add("radiobutton", undefined, columnLabel);
-            columnRadio.helpTip = getLabel("tooltip.column");
-            columnRadios.push(columnRadio);
-        }
-
-        var orderPanel = sortDialog.add("panel", undefined, getLabel("panel.sortOrder"));
-        setupPanel(orderPanel, 6);
-
-        var orderRadioGroup = orderPanel.add("group");
-        setupRow(orderRadioGroup);
-        var ascendingRadio = orderRadioGroup.add("radiobutton", undefined, getLabel("radio.ascending"));
-        ascendingRadio.helpTip = getLabel("tooltip.ascending");
-        var descendingRadio = orderRadioGroup.add("radiobutton", undefined, getLabel("radio.descending"));
-        descendingRadio.helpTip = getLabel("tooltip.descending");
-        var randomRadio = orderRadioGroup.add("radiobutton", undefined, getLabel("radio.random"));
-        randomRadio.helpTip = getLabel("tooltip.random");
-        ascendingRadio.value = true;
+        var columnRadios = addColumnPanel(sortDialog, columnCount, lines);
+        var orderRadios = addOrderPanel(sortDialog);
 
         var headerCheckbox = sortDialog.add("checkbox", undefined, getLabel("checkbox.header"));
         headerCheckbox.helpTip = getLabel("tooltip.header");
@@ -671,17 +760,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         prepareDialogWindow(sortDialog, SCRIPT_NAME);
         if (sortDialog.show() !== 1) return null;
 
-        var selectedColumn = 0;
-        for (var j = 0; j < columnRadios.length; j++) {
-            if (columnRadios[j].value) {
-                selectedColumn = j;
-                break;
-            }
-        }
-
         return {
-            column: selectedColumn,
-            order: randomRadio.value ? "random" : (descendingRadio.value ? "desc" : "asc"),
+            column: getSelectedRadioIndex(columnRadios),
+            order: orderRadios.random.value ? "random" : (orderRadios.descending.value ? "desc" : "asc"),
             useHeader: headerCheckbox.value
         };
     }
@@ -691,63 +772,49 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // =========================================
 
     /**
-     * テキストフレームを位置（Y座標の降順、同じなら X座標の昇順）で並べた配列を返す
-     * @param {TextFrame[]} frameList - テキストフレーム
-     * @returns {TextFrame[]} 並べ替えた新しい配列（失敗時は元の配列）
+     * テキストフレームの先頭から指定した文字数を削除する（見出しより前の空行を除く）
+     * @param {TextFrame} textFrame - 対象のテキストフレーム
+     * @param {number} characterCount - 削除する文字数（改行も1文字）
+     * @returns {void}
      */
-    function sortTextFramesByPosition(frameList) {
-        try {
-            /* position の読み取りに失敗したら元の順のまま / keep the original order if a position cannot be read */
-            var sortedList = frameList.slice();
-            sortedList.sort(function (a, b) {
-                var aPosition = a.position;
-                var bPosition = b.position;
-                if (aPosition[1] > bPosition[1]) return -1;
-                if (aPosition[1] < bPosition[1]) return 1;
-                if (aPosition[0] < bPosition[0]) return -1;
-                if (aPosition[0] > bPosition[0]) return 1;
-                return 0;
-            });
-            return sortedList;
-        } catch (e) {
-            alert("ソート中にエラーが発生しました: " + e.message);
-            return frameList;
+    function removeLeadingCharacters(textFrame, characterCount) {
+        /* 後ろから消して番号をずらさない / Remove from the end so the indices do not shift */
+        var frameCharacters = textFrame.textRange.characters;
+        for (var i = characterCount - 1; i >= 0; i--) {
+            frameCharacters[i].remove();
         }
     }
 
     /**
      * 上下に並んだテキストフレームを、上から順に1つのテキストフレームへまとめる
-     * @param {TextFrame[]} frames - まとめるテキストフレーム
+     * @param {TextFrame[]} frames - まとめるテキストフレーム（上から順）
      * @returns {void}
      */
     function mergeTextFramesVertically(frames) {
         if (frames.length < 2) return;
 
-        /* いったん1行ずつのフレームに分ける / split into one frame per line first */
-        var sortedFrames = sortTextFramesByPosition(frames);
+        /* いったん1行ずつのフレームに分ける（作った順がそのまま上からの順）/ split into one frame per line first, created in top-to-bottom order */
         var lineFrames = [];
-        for (var i = 0; i < sortedFrames.length; i++) {
-            var frameLines = sortedFrames[i].contents.split(LINE_SEPARATOR);
+        for (var i = 0; i < frames.length; i++) {
+            var frameLines = frames[i].contents.split(LINE_SEPARATOR);
             for (var j = 0; j < frameLines.length; j++) {
                 if (frameLines[j] !== "") {
-                    var lineFrame = sortedFrames[i].duplicate();
+                    var lineFrame = frames[i].duplicate();
                     lineFrame.contents = frameLines[j];
-                    lineFrame.top -= j * 20; /* 位置調整（ソート用） / offset so the lines sort in order */
                     lineFrames.push(lineFrame);
                 }
             }
-            sortedFrames[i].remove();
+            frames[i].remove();
         }
-        sortedFrames = sortTextFramesByPosition(lineFrames);
 
-        var baseFrame = sortedFrames[0];
-        for (var k = 1; k < sortedFrames.length; k++) {
+        var baseFrame = lineFrames[0];
+        for (var k = 1; k < lineFrames.length; k++) {
             baseFrame.paragraphs.add('\n');
-            var sourceParagraphs = sortedFrames[k].paragraphs;
+            var sourceParagraphs = lineFrames[k].paragraphs;
             for (var p = 0; p < sourceParagraphs.length; p++) {
                 sourceParagraphs[p].duplicate(baseFrame);
             }
-            sortedFrames[k].remove();
+            lineFrames[k].remove();
         }
     }
 
@@ -756,17 +823,16 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * 複製で見出しと本文のフレームに分け、書き換えたあと1つにまとめ直す
      * @param {TextFrame} textFrame - 対象のテキストフレーム
      * @param {string[]} sortedLines - 並べ替えた本文の行
+     * @param {number} headerOffset - 見出し行より前にある文字数（先頭の空行の分）
      * @returns {void}
      */
-    function replaceBodyKeepingHeader(textFrame, sortedLines) {
+    function replaceBodyKeepingHeader(textFrame, sortedLines, headerOffset) {
         var headerFrame = textFrame;
         var bodyFrame = textFrame.duplicate();
 
-        /* 本文フレームを1行分下に移動（フォントサイズに基づく） / move the body down one line by font size */
-        var textSize = bodyFrame.textRange.characterAttributes.size;
-        if (!isNaN(textSize)) {
-            bodyFrame.top -= textSize * 1.5;
-        }
+        /* 先頭の空行を除き、見出しを1段落目にする / drop leading blank lines so the header is the first paragraph */
+        removeLeadingCharacters(headerFrame, headerOffset);
+        removeLeadingCharacters(bodyFrame, headerOffset);
 
         /* 見出し：2行目以降を削除 / header: remove every line but the first */
         var headerParagraphs = headerFrame.textRange.paragraphs;
@@ -774,7 +840,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             headerParagraphs[i].remove();
         }
 
-        /* 本文：1行目を削除 / body: remove the first line */
+        /* 本文：1行目を削除し、本文の書式で書き換える / body: remove the first line so the new text takes the body formatting */
         var bodyParagraphs = bodyFrame.textRange.paragraphs;
         if (bodyParagraphs.length > 1) {
             bodyParagraphs[0].remove();
@@ -789,34 +855,51 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // =========================================
 
     /**
+     * テキストを行に分け、空行や空白だけの行を除く。最初の行より前にある文字数も数える
+     * @param {string} frameContents - テキストフレームの contents
+     * @returns {{lines: string[], headerOffset: number}} 残した行と、最初の行より前の文字数（改行も1文字）
+     */
+    function collectTextLines(frameContents) {
+        var allLines = frameContents.split(LINE_SEPARATOR);
+        var lines = [];
+        var headerOffset = 0;
+        for (var i = 0; i < allLines.length; i++) {
+            if (!isBlankText(allLines[i])) {
+                lines.push(allLines[i]);
+            } else if (lines.length === 0) {
+                headerOffset += allLines[i].length + 1; /* 改行の分を足す / plus the line break */
+            }
+        }
+        return { lines: lines, headerOffset: headerOffset };
+    }
+
+    /**
      * 選択したテキストフレームのタブ区切りテキストを、選んだ列で並べ替える
      * @returns {void}
      */
     function main() {
         if (app.documents.length === 0) {
-            alert("ドキュメントを開いてください。");
+            alert(getLabel("alert.noDocument"));
             return;
         }
 
         var docSelection = app.activeDocument.selection;
         if (docSelection.length !== 1 || docSelection[0].typename !== "TextFrame") {
-            alert("1つのテキストオブジェクトを選択してください。");
+            alert(getLabel("alert.selectTextFrame"));
             return;
         }
 
         var textFrame = docSelection[0];
 
-        /* 空行や空白のみの行を除く / drop empty and whitespace-only lines */
-        var allLines = textFrame.contents.split(LINE_SEPARATOR);
-        var lines = [];
-        for (var i = 0; i < allLines.length; i++) {
-            if (allLines[i].replace(/\s/g, "").length > 0) {
-                lines.push(allLines[i]);
-            }
+        var textLines = collectTextLines(textFrame.contents);
+        var lines = textLines.lines;
+        if (lines.length < 2) {
+            alert(getLabel("alert.tooFewLines"));
+            return;
         }
 
         /* 1行目だけタブが無く2行目がタブ区切りなら、1行目を見出しとみなす / a tab-less first line over tabbed lines is a header */
-        var hasHeaderCandidate = (lines.length >= 2 && lines[0].indexOf(CELL_SEPARATOR) === -1 && lines[1].indexOf(CELL_SEPARATOR) !== -1);
+        var hasHeaderCandidate = (lines[0].indexOf(CELL_SEPARATOR) === -1 && lines[1].indexOf(CELL_SEPARATOR) !== -1);
         var columnCount = lines[hasHeaderCandidate ? 1 : 0].split(CELL_SEPARATOR).length;
 
         var sortOptions = showSortOptionsDialog(columnCount, lines, hasHeaderCandidate);
@@ -826,7 +909,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var sortedLines = generateSortedLines(dataLines, sortOptions.column, sortOptions.order);
 
         if (sortOptions.useHeader) {
-            replaceBodyKeepingHeader(textFrame, sortedLines);
+            replaceBodyKeepingHeader(textFrame, sortedLines, textLines.headerOffset);
         } else {
             textFrame.contents = sortedLines.join(LINE_SEPARATOR);
         }
