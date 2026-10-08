@@ -1,5 +1,11 @@
 # Change Log
 
+## 20261009
+
+### 調整
+
+- [決めておいた環境設定一式をダイアログなしで適用](readme-ja/PresetManagerNoDialog.md)（v1.2.0）：アートボードの枠線を ArtboardDisplayPresetManagerPalette の［ライト］に合わせた（ライトグレー・幅1）
+
 ## 20261008
 
 ### 新しいスクリプトを追加

@@ -5,14 +5,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-PresetManager の［プリセット1］と同じ環境設定一式を、ダイアログを表示せずにまとめて適用します。
+PresetManager の［プリセット1］と同じ環境設定一式を、ダイアログを表示せずにまとめて適用します。アートボードの枠線は ArtboardDisplayPresetManagerPalette の［ライト］と同じです。
 
 詳細は README を参照してください。
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/PresetManagerNoDialog.md
 
 ### Overview
 
-Applies the same preferences as [Preset 1] in PresetManager at once, without showing a dialog.
+Applies the same preferences as [Preset 1] in PresetManager at once, without showing a dialog. The artboard border matches [Light] in ArtboardDisplayPresetManagerPalette.
 
 See the README for details.
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PresetManagerNoDialog.md
@@ -23,10 +23,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PresetMana
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "PresetManagerNoDialog";        /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.2.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-08-18";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-25";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-09";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/PresetManagerNoDialog.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PresetManagerNoDialog.md"; /* README (English) */
@@ -57,10 +57,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         /* アートボード / Artboard */
         { key: "moveLockedAndHiddenArt", type: "bool", value: true },              /* ロックまたは非表示オブジェクトを一緒に移動 / Move Locked and Hidden Artwork */
         { key: "showArtboardLabelOnCanvas", type: "bool", value: false },          /* アートボード名を表示 / Show Artboard Name */
-        { key: "ArtboardBBColorRed", type: "real", value: 0.0 },                   /* ハイライトのカラー：ブラック / Highlight Color: Black */
-        { key: "ArtboardBBColorGreen", type: "real", value: 0.0 },
-        { key: "ArtboardBBColorBlue", type: "real", value: 0.0 },
-        { key: "ArtboardBBWidth", type: "real", value: 2 },                        /* ストロークの幅 1〜4 / Stroke Width */
+        { key: "ArtboardBBColorRed", type: "real", value: 0.65 },                  /* ハイライトのカラー：ライトグレー / Highlight Color: Light Gray */
+        { key: "ArtboardBBColorGreen", type: "real", value: 0.65 },
+        { key: "ArtboardBBColorBlue", type: "real", value: 0.65 },
+        { key: "ArtboardBBWidth", type: "real", value: 1 },                        /* ストロークの幅 1〜4 / Stroke Width */
         /* テキスト / Text */
         { key: "text/autoSizing", type: "bool", value: true },                     /* 新規エリア内文字の自動サイズ調整 / Auto Size New Area Type */
         { key: "text/recentFontMenu/showNEntries", type: "int", value: 15 },       /* 最近使用したフォントの表示数 1〜30（0で非表示）/ Number of Recent Fonts (0 hides the list) */

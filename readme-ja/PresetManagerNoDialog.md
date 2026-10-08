@@ -10,7 +10,7 @@
 
 ### 概要
 
-PresetManager の［プリセット1］と同じ環境設定一式を、ダイアログを表示せずにまとめて適用します。
+PresetManager の［プリセット1］と同じ環境設定一式を、ダイアログを表示せずにまとめて適用します。アートボードの枠線は ArtboardDisplayPresetManagerPalette の［ライト］と同じです。
 
 ### 使い方
 
@@ -23,6 +23,7 @@ PresetManager の［プリセット1］と同じ環境設定一式を、ダイ�
 
 ### 更新履歴
 
+- v1.2.0 (2026-10-09) アートボードの枠線を ArtboardDisplayPresetManagerPalette の［ライト］に合わせた（ライトグレー・幅1）
 - v1.1.0 (2026-09-25) ［プリセット1］だけに絞り、`minimal` / `full` と `ACTIVE_PRESET` の切り替えを廃止。環境設定キーと値を1つの表にまとめて簡素化
 - v1.0.1 (2026-09-25) `preset1` を PresetManager の［プリセット1］と完全に一致させた。「カンバス上でロック解除」を追加し、スマートガイド／グリッドのスナップ設定を外した
 - v1.0 (2026-09-19) PresetManagerNoDialogFull / PresetManagerPreset1 を統合し、`ACTIVE_PRESET` での切り替え方式に変更

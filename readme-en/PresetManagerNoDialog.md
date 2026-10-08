@@ -10,7 +10,7 @@
 
 ### Overview
 
-Applies the same preferences as [Preset 1] in PresetManager at once, without showing a dialog.
+Applies the same preferences as [Preset 1] in PresetManager at once, without showing a dialog. The artboard border matches [Light] in ArtboardDisplayPresetManagerPalette.
 
 ### Usage
 
@@ -23,6 +23,7 @@ Run the script.
 
 ### Update History
 
+- v1.2.0 (2026-10-09) The artboard border now matches [Light] in ArtboardDisplayPresetManagerPalette (light gray, width 1)
 - v1.1.0 (2026-09-25) Narrowed to [Preset 1] only: dropped `minimal` / `full` and the `ACTIVE_PRESET` switch, and folded the keys and values into a single table
 - v1.0.1 (2026-09-25) `preset1` now matches [Preset 1] in PresetManager exactly: added Unlock on Canvas and dropped the Smart Guides / snap-to-grid settings
 - v1.0 (2026-09-19) Merged PresetManagerNoDialogFull and PresetManagerPreset1; presets are now selected with `ACTIVE_PRESET`
