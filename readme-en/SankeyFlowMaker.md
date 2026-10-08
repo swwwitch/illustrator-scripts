@@ -23,9 +23,11 @@ If you lay out the label texts first, they stay where they are, and the bands ar
 - A rounded box is drawn behind a text node
 - Circles or rectangles at junctions that enclose junction captions (separate settings for the first level and deeper levels)
 - Arrow tips at the ends
+- Bands can also be drawn as strokes (stroke weight = band width)
 - Bands in a single color or colored by first-level branch, with per-band opacity
 - Outline Stroke and Pathfinder (Merge) effects applied to the band group
 - Preview; remembers the last settings
+- Fit to Window zooms so the preview fits
 - Japanese and English UI
 
 ### How to Use
@@ -79,6 +81,7 @@ Where a branch has a text to fit, the text's position takes precedence over Curv
 | --- | --- |
 | Show Values in Labels | New labels read "9,280 inside sandbox"; off shows the name only. |
 | Arrow Tips | Points the ends of bands that have no children. |
+| Draw Bands as Strokes | Draws each band as a stroke along its center (stroke weight = band width, butt caps) instead of a filled shape, so the width can be changed later via the stroke weight. Arrow tips become filled triangles following the stroke. On steep curves the stroke looks thinner vertically. |
 | Move Labels | On: lays out the bands by the set lengths and gaps and moves the selected label texts to fit (junction captions go to the junction centers). Off (default): the texts stay put and the bands are fitted to them. Canceling puts the texts back. |
 
 ### Junction 1 / Junction 2 Panels
@@ -100,13 +103,14 @@ When a new label is created for a middle branch whose label does not fit in the 
 | --- | --- |
 | Single Color / By First-Level Branch | How bands are colored. By First-Level Branch assigns the palette colors (`BAND_PALETTE`) to the first-level branches in turn; deeper branches inherit them. |
 | Color | Band color in Single Color mode. Click the swatch to choose it in the standard Color Picker. Grays become K-only colors in CMYK documents. |
-| Opacity | Opacity of each band (%). Overlapping bands show through. |
+| Opacity | Opacity of each band (%). Overlapping bands show through. Defaults to 60%. |
 
 ### Buttons
 
 | Item | Description |
 | --- | --- |
 | Reset | Resets every setting except the flows. Node Height returns to its value when the dialog opened; a font size taken from the labels is kept. |
+| Fit to Window | When on, zooms so the previewed diagram fills the given share of the window (65% by default). Cancel restores the original view. |
 
 ### Settings Variables
 
@@ -125,6 +129,9 @@ Initial values can be changed under "User settings" at the top of the script.
 | `JUNCTION_PADDING` | `0.6` | Padding between a junction shape and its caption (multiple of the font size) |
 | `JUNCTION_POSITION_RATIO` | `0.6` | Where an unplaced junction sits between the start and its children's ends |
 | `GROUP_NAME` | `"Sankey Flow"` | Name of the created group |
+| `BAND_GROUP_NAME` | `"Bands"` | Name of the band subgroup (the effects are on this group) |
+| `JUNCTION_GROUP_NAME` | `"Junctions"` | Name of the junction shape subgroup |
+| `LABEL_GROUP_NAME` | `"Labels"` | Name of the subgroup for new labels |
 
 Colors given as K tints become grays of the same darkness in RGB documents.
 
@@ -138,4 +145,6 @@ Colors given as K tints become grays of the same darkness in RGB documents.
 
 ### Update History
 
+- v1.1.0 (2026-10-08) Added Draw Bands as Strokes and Fit to Window; Width is now a pair of radio buttons
+- v1.0.1 (2026-10-08) Band opacity now defaults to 60%
 - v1.0.0 (2026-10-08) Initial version

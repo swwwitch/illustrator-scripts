@@ -26,7 +26,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SankeyFlow
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SankeyFlowMaker";              /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-08";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-08";                   /* 更新日 / last updated */
@@ -62,6 +62,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         exitRatio: 70,           /* ノードの高さに対する帯の出口の高さ（%）/ band exit height as a percentage of the node height */
         showValues: true,        /* ラベルに数値を付ける / prefix labels with the value */
         arrowTips: true,         /* 末端を矢印にする / arrow tips at the ends */
+        strokeBands: false,      /* 帯を線（太さ＝線幅）で描く / draw bands as strokes (width = stroke weight) */
         moveLabels: false,       /* ラベルのテキストを動かす（オフはテキストに帯を合わせる）/ move label texts (off fits the bands to them) */
         /* 分岐点1（1段目の枝の分岐点）/ Junction 1 (on first-level branches) */
         junction1Shape: "circle",  /* 形："circle"（円）/ "rectangle"（長方形）/ "none"（なし）/ shape */
@@ -78,7 +79,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         /* カラー / Color */
         colorMode: "single",       /* 色の付け方："single"（単色）/ "branch"（1段目の枝ごと）/ coloring mode */
         bandColorHex: "#D9D9D9",   /* 単色のときの帯の色（グレーは CMYK ドキュメントで K だけ）/ band color in single mode (grays become K-only in CMYK) */
-        bandOpacity: 100           /* 帯1本ずつの不透明度（%）/ per-band opacity (%) */
+        bandOpacity: 60            /* 帯1本ずつの不透明度（%）/ per-band opacity (%) */
     };
 
     /* 1段目の枝ごとに順に振る帯の色 / Band colors assigned to the first-level branches in turn */
@@ -95,7 +96,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     var JUNCTION_PADDING          = 0.6;  /* 分岐点の形と分岐点名のテキストの間の余白（文字サイズの倍数）/ padding between the junction shape and its caption (multiple of the font size) */
     var JUNCTION_POSITION_RATIO   = 0.6;  /* 位置の決まらない分岐点を、出発点から子の右端までのどこに置くか / where an unplaced junction sits between the start and its children's ends */
 
-    var GROUP_NAME = "Sankey Flow"; /* 作ったグループの名前 / name of the created group */
+    var GROUP_NAME          = "Sankey Flow"; /* 作ったグループの名前 / name of the created group */
+    var BAND_GROUP_NAME     = "Bands";       /* 帯のサブグループ（効果を掛けるグループ）/ band subgroup (carries the effects) */
+    var JUNCTION_GROUP_NAME = "Junctions";   /* 分岐点の形のサブグループ / junction shape subgroup */
+    var LABEL_GROUP_NAME    = "Labels";      /* 新しく作るラベルのサブグループ / subgroup for new labels */
 
     // =========================================
     // 単位 / Units
@@ -1375,6 +1379,216 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     // ボタン行（再利用パーツ）ここまで / End of the reusable button row
 
+    // 画面にフィット（再利用パーツ、_templates/FitViewToItems.jsx） / Fit view to items (reusable)
+
+    var FitViewToItems = (function () {
+
+        // =========================================
+        // ユーザー設定 / User Settings
+        // =========================================
+
+        /* ウィンドウに対して対象が占める割合の既定値（%）と範囲。呼び出し側で上書きできる
+           Default share of the window the items fill, in percent, and its range; callers can override the default */
+        var DEFAULT_FIT_PERCENT = 65;
+        var FIT_PERCENT_RANGE = [10, 100];
+
+        /* Illustratorが受け付ける表示倍率の範囲（3.125%〜6400%） / Zoom range Illustrator accepts */
+        var VIEW_ZOOM_RANGE = [0.03125, 64];
+
+        // =========================================
+        // ローカライズ / Localization
+        // =========================================
+        var LABELS = {
+            checkbox: {
+                fitView: { ja: "画面にフィット", en: "Fit to Window" }
+            },
+            tooltip: {
+                fitView: {
+                    ja: "作成するオブジェクトが収まるよう表示倍率を合わせます。",
+                    en: "Refits the view to the objects being created."
+                },
+                fitViewPercent: {
+                    ja: "ウィンドウに対するオブジェクトの大きさ（100%でいっぱい）",
+                    en: "Size of the objects relative to the window; 100% fills it"
+                }
+            }
+        };
+
+        /**
+         * UI言語を返す
+         * @returns {string} "ja" または "en"
+         */
+        function getCurrentLang() {
+            return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+        }
+
+        /**
+         * LABELS の組から指定言語の文言を返す
+         * @param {object} labelSet - { ja: string, en: string } の組
+         * @param {string} uiLang - "ja" または "en"
+         * @returns {string} 文言（無ければ英語）
+         */
+        function getLabel(labelSet, uiLang) {
+            return (labelSet[uiLang] != null) ? labelSet[uiLang] : labelSet.en;
+        }
+
+        // =========================================
+        // メイン処理 / Main
+        // =========================================
+
+        /**
+         * 数値を範囲に収める。数値として読めないときは既定値を返す
+         * @param {string|number} value - 入力値
+         * @param {number[]} range - [下限, 上限]
+         * @param {number} fallbackValue - 読めないときの既定値
+         * @returns {number} 範囲内の数値
+         */
+        function clampNumber(value, range, fallbackValue) {
+            var numberValue = Number(value);
+            if (isNaN(numberValue) || (typeof value === "string" && !/\S/.test(value))) numberValue = fallbackValue;
+            return Math.min(range[1], Math.max(range[0], numberValue));
+        }
+
+        /**
+         * 「□画面にフィット［65］%」の行を追加する（ラベルとツールチップは内蔵）
+         * @param {Group|Panel|Window} parentContainer - 追加先のコンテナ
+         * @param {object} [rowOptions] - value: チェックの初期値（既定 false）／percent: 割合の初期値／lang: 表示言語
+         * @returns {{row: Group, checkbox: Checkbox, percentInput: EditText, getFillRatio: function, updateEnabled: function}} 作成したコントロール一式
+         */
+        function addControls(parentContainer, rowOptions) {
+            if (!rowOptions) rowOptions = {};
+            var uiLang = rowOptions.lang || getCurrentLang();
+
+            var fitViewRow = parentContainer.add("group");
+            fitViewRow.orientation = "row";
+            fitViewRow.alignChildren = ["left", "center"];
+            fitViewRow.spacing = 6;
+
+            var fitViewCheck = fitViewRow.add("checkbox", undefined, getLabel(LABELS.checkbox.fitView, uiLang));
+            fitViewCheck.helpTip = getLabel(LABELS.tooltip.fitView, uiLang);
+            /* 明示的に true を渡したときだけONで始める / only an explicit true starts it checked */
+            fitViewCheck.value = (rowOptions.value === true);
+
+            var fitPercent = (rowOptions.percent > 0) ? rowOptions.percent : DEFAULT_FIT_PERCENT;
+            var percentInput = fitViewRow.add("edittext", undefined, String(fitPercent));
+            percentInput.characters = 3;
+            percentInput.helpTip = getLabel(LABELS.tooltip.fitViewPercent, uiLang);
+            var percentUnitLabel = fitViewRow.add("statictext", undefined, "%");
+
+            var controls = {
+                row: fitViewRow,
+                checkbox: fitViewCheck,
+                percentInput: percentInput,
+
+                /**
+                 * 入力欄の割合を 0〜1 の比率で返す
+                 * @returns {number} ウィンドウに対して占める割合（1でいっぱい）
+                 */
+                getFillRatio: function () {
+                    return clampNumber(percentInput.text, FIT_PERCENT_RANGE, fitPercent) / 100;
+                },
+
+                /**
+                 * 割合の入力欄をチェックの状態に合わせて有効・無効にする
+                 * @returns {void}
+                 */
+                updateEnabled: function () {
+                    percentInput.enabled = fitViewCheck.value;
+                    percentUnitLabel.enabled = fitViewCheck.value;
+                }
+            };
+            controls.updateEnabled();
+            return controls;
+        }
+
+        /**
+         * 複数アイテムを囲む外接範囲を求める（効果を含まない geometricBounds）
+         * @param {PageItem[]} targetItems - 対象アイテム
+         * @returns {number[]|null} [left, top, right, bottom]（求められない場合は null）
+         */
+        function getItemsBounds(targetItems) {
+            var unionBounds = null;
+            for (var i = 0; i < targetItems.length; i++) {
+                var itemBounds = targetItems[i].geometricBounds;
+                if (unionBounds === null) {
+                    unionBounds = [itemBounds[0], itemBounds[1], itemBounds[2], itemBounds[3]];
+                    continue;
+                }
+                if (itemBounds[0] < unionBounds[0]) unionBounds[0] = itemBounds[0];
+                if (itemBounds[1] > unionBounds[1]) unionBounds[1] = itemBounds[1];
+                if (itemBounds[2] > unionBounds[2]) unionBounds[2] = itemBounds[2];
+                if (itemBounds[3] < unionBounds[3]) unionBounds[3] = itemBounds[3];
+            }
+            return unionBounds;
+        }
+
+        /**
+         * 対象が指定の割合でウィンドウに収まるよう、中心を合わせて表示倍率を変える
+         * 拡大・縮小のどちらも行う（KeepInView と違い、常に同じ大きさに見せる）
+         * @param {PageItem[]} targetItems - 対象アイテム
+         * @param {object} [fitOptions] - doc: 対象ドキュメント（省略時は最前面）／fillRatio: 占める割合（1でいっぱい）
+         * @returns {boolean} 表示を動かしたら true
+         */
+        function fit(targetItems, fitOptions) {
+            if (!targetItems || targetItems.length === 0) return false;
+            if (!fitOptions) fitOptions = {};
+
+            var targetDoc = fitOptions.doc || app.activeDocument;
+            var bounds = getItemsBounds(targetItems);
+            if (bounds === null) return false;
+
+            var itemWidth = bounds[2] - bounds[0];
+            var itemHeight = bounds[1] - bounds[3];
+            var activeView = targetDoc.activeView;
+            activeView.centerPoint = [(bounds[0] + bounds[2]) / 2, (bounds[1] + bounds[3]) / 2];
+            if (itemWidth <= 0 || itemHeight <= 0) return true;
+
+            /* 中心をそろえたあとの表示範囲を基準に倍率を求める / Scale from the view bounds after the center has moved */
+            var fillRatio = (fitOptions.fillRatio > 0) ? fitOptions.fillRatio : DEFAULT_FIT_PERCENT / 100;
+            var viewBounds = activeView.bounds;
+            var scale = Math.min(
+                (viewBounds[2] - viewBounds[0]) / itemWidth,
+                (viewBounds[1] - viewBounds[3]) / itemHeight
+            ) * fillRatio;
+            activeView.zoom = clampNumber(activeView.zoom * scale, VIEW_ZOOM_RANGE, 1);
+            return true;
+        }
+
+        /**
+         * 現在の表示位置と倍率を控える（キャンセル時に restoreView で戻す）
+         * @param {Document} [targetDoc] - 対象ドキュメント（省略時は最前面）
+         * @returns {{centerPoint: number[], zoom: number}} 控えた表示状態
+         */
+        function captureView(targetDoc) {
+            var activeView = (targetDoc || app.activeDocument).activeView;
+            return { centerPoint: activeView.centerPoint, zoom: activeView.zoom };
+        }
+
+        /**
+         * captureView で控えた表示位置と倍率に戻す
+         * @param {{centerPoint: number[], zoom: number}} viewState - 控えた表示状態
+         * @param {Document} [targetDoc] - 対象ドキュメント（省略時は最前面）
+         * @returns {void}
+         */
+        function restoreView(viewState, targetDoc) {
+            if (!viewState) return;
+            var activeView = (targetDoc || app.activeDocument).activeView;
+            activeView.centerPoint = viewState.centerPoint;
+            activeView.zoom = viewState.zoom;
+        }
+
+        return {
+            addControls: addControls,
+            fit: fit,
+            captureView: captureView,
+            restoreView: restoreView,
+            getItemsBounds: getItemsBounds
+        };
+
+    })();
+
+    // 画面にフィット（再利用パーツ）ここまで / End of the reusable fit view
+
     // ダイアログの位置と不透明度（再利用パーツ） / Dialog position and opacity (reusable)
 
     var DIALOG_OPACITY = 0.98;       /* ダイアログの不透明度 / dialog opacity */
@@ -2123,11 +2337,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         dialog: {
             title: { ja: "サンキー図を作成", en: "Make Sankey Flow" }
         },
-        dropdown: {
-            linear: { ja: "値に比例", en: "Proportional" },
-            sqrt:   { ja: "平方根に比例", en: "Square Root" }
-        },
         radio: {
+            linear:    { ja: "値に比例", en: "Proportional" },
+            sqrt:      { ja: "平方根に比例", en: "Square Root" },
             bySize:    { ja: "大きさで指定", en: "By Size" },
             byMargin:  { ja: "余白で指定", en: "By Margin" },
             single:    { ja: "単色", en: "Single Color" },
@@ -2164,6 +2376,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         checkbox: {
             showValues: { ja: "ラベルに数値を付ける", en: "Show Values in Labels" },
             arrowTips:  { ja: "末端を矢印に", en: "Arrow Tips" },
+            strokeBands: { ja: "帯を線で描く", en: "Draw Bands as Strokes" },
             moveLabels: { ja: "ラベルを動かす", en: "Move Labels" }
         },
         button: {
@@ -2173,6 +2386,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         },
         tooltip: {
             reset:          { ja: "フロー以外の設定を初期値に戻します", en: "Resets every setting except the flows" },
+            fitView:        { ja: "サンキー図が収まるよう表示倍率を合わせます。キャンセルすると元の表示に戻ります", en: "Zooms so the Sankey diagram fits in the window; Cancel restores the original view" },
             bandColor:      { ja: "クリックしてカラーピッカーで帯の色を選びます", en: "Click to choose the band color in the Color Picker" },
             branchColor:    { ja: "1段目の枝ごとにパレットの色を順に振り、その先の枝は同じ色を引き継ぎます（パレットはスクリプト冒頭の BAND_PALETTE）", en: "Assigns palette colors to the first-level branches in turn; deeper branches inherit them (palette: BAND_PALETTE at the top of the script)" },
             bandOpacity:    { ja: "帯1本ずつの不透明度。重なった帯が透けて見えます", en: "Opacity of each band; overlapping bands show through" },
@@ -2189,6 +2403,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             junctionWidth:  { ja: "大きさで指定：形の幅。余白で指定：テキストの左右の余白（どちらも 0 は自動）", en: "By Size: shape width. By Margin: margin left and right of the text (0 = auto for both)" },
             junctionHeight: { ja: "大きさで指定：形の高さ。余白で指定：テキストの上下の余白（どちらも 0 は自動）", en: "By Size: shape height. By Margin: margin above and below the text (0 = auto for both)" },
             sizeMode:       { ja: "幅・高さを、形の大きさで指定するか、分岐点名のテキストまわりの余白で指定するか", en: "Whether width and height set the shape size or the margin around the junction caption" },
+            strokeBands:    { ja: "帯を塗りの形ではなく、中心を通る線（線幅＝帯の太さ）で描きます。矢印は別の三角形になります", en: "Draws each band as a stroke along its center (stroke weight = band width) instead of a filled shape; arrow tips become separate triangles" },
             moveLabels:     { ja: "オン：帯を設定の長さと間隔で配置し、選択中のラベルのテキストをその位置へ移します。オフ：テキストは動かさず、帯をテキストに合わせます", en: "On: lays out the bands by the set lengths and gaps and moves the selected label texts to fit. Off: the texts stay put and the bands are fitted to them" },
             linkJunctionSize: { ja: "幅と高さを連動", en: "Link width and height" },
             junctionShape:  { ja: "分岐点名のテキストがあれば、テキストは動かさず、それが収まる大きさで囲みます", en: "With a junction caption, the text stays put and the shape is sized to hold it" },
@@ -2395,8 +2610,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
            The band group starts at layer level and moves into the diagram group after its effects are applied
            (a menu command run on a nested group applies to the outermost group). Circles and labels go in front */
         var bandGroup = nodeInfo.backItem.layer.groupItems.add();
+        bandGroup.name = BAND_GROUP_NAME;
         var overlayGroup = flowGroup.groupItems.add();
+        overlayGroup.name = JUNCTION_GROUP_NAME;
         var labelGroup = flowGroup.groupItems.add(); /* 分岐点の形より前面 / in front of the junction shapes */
+        labelGroup.name = LABEL_GROUP_NAME;
 
         var scaledTotal = 0;
         for (var i = 0; i < flowRoots.length; i++) scaledTotal += scaleFlowValue(flowRoots[i].value, settings.widthScale);
@@ -2932,6 +3150,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * @returns {number} 帯の右端の X（矢印なら先端）
      */
     function drawBand(flowNode, bandGeometry, drawContext) {
+        if (drawContext.settings.strokeBands) return drawStrokeBand(flowNode, bandGeometry, drawContext);
         var geometry = bandGeometry;
         var handleLength = (geometry.curveEndX - geometry.startX) / 2;
         var bandPoints = [];
@@ -2952,6 +3171,55 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         bandPoints.push({ anchor: [geometry.startX, geometry.sourceBottom], left: [geometry.startX + handleLength, geometry.sourceBottom], right: [geometry.startX, geometry.sourceBottom] });
         if (geometry.tailX < geometry.startX) bandPoints.push(cornerPoint(geometry.tailX, geometry.sourceBottom));
 
+        addFilledBandPath(bandPoints, flowNode, drawContext);
+        return geometry.endX + tipLength;
+    }
+
+    /**
+     * 帯を1本、中心を通る線で描く（線幅＝帯の太さ、線端なし）。矢印は線の右端に続く塗りの三角形で描く
+     * @param {Object} flowNode - 枝
+     * @param {Object} bandGeometry - 帯の座標（drawBranches() で作る）
+     * @param {Object} drawContext - 描画の共通情報
+     * @returns {number} 帯の右端の X（矢印なら先端）
+     */
+    function drawStrokeBand(flowNode, bandGeometry, drawContext) {
+        var geometry = bandGeometry;
+        var handleLength = (geometry.curveEndX - geometry.startX) / 2;
+        var sourceCenterY = geometry.sourceTop - flowNode.width / 2;
+        var targetCenterY = geometry.targetCenterY;
+        var linePoints = [];
+        if (geometry.tailX < geometry.startX) linePoints.push(cornerPoint(geometry.tailX, sourceCenterY));
+        linePoints.push({ anchor: [geometry.startX, sourceCenterY], left: [geometry.startX, sourceCenterY], right: [geometry.startX + handleLength, sourceCenterY] });
+        linePoints.push({ anchor: [geometry.curveEndX, targetCenterY], left: [geometry.curveEndX - handleLength, targetCenterY], right: [geometry.curveEndX, targetCenterY] });
+        if (geometry.endX > geometry.curveEndX) linePoints.push(cornerPoint(geometry.endX, targetCenterY));
+
+        var linePath = addBandPath(linePoints, drawContext);
+        linePath.closed = false;
+        linePath.filled = false;
+        linePath.stroked = true;
+        linePath.strokeColor = flowNode.bandColor;
+        linePath.strokeWidth = flowNode.width;
+        linePath.strokeCap = StrokeCap.BUTTENDCAP;
+        linePath.strokeJoin = StrokeJoin.MITERENDJOIN;
+
+        var tipLength = getTipLength(flowNode, drawContext);
+        if (tipLength > 0) {
+            addFilledBandPath([
+                cornerPoint(geometry.endX, geometry.targetTop),
+                cornerPoint(geometry.endX + tipLength, targetCenterY),
+                cornerPoint(geometry.endX, geometry.targetBottom)
+            ], flowNode, drawContext);
+        }
+        return geometry.endX + tipLength;
+    }
+
+    /**
+     * 帯のグループにパスを足し、ポイントを並べて不透明度を設定する（塗り・線は呼び出し側で決める）
+     * @param {Object[]} bandPoints - ポイントの座標（cornerPoint() と同じ形）
+     * @param {Object} drawContext - 描画の共通情報
+     * @returns {PathItem} 作ったパス
+     */
+    function addBandPath(bandPoints, drawContext) {
         var bandPath = drawContext.bandGroup.pathItems.add();
         for (var i = 0; i < bandPoints.length; i++) {
             var pathPoint = bandPath.pathPoints.add();
@@ -2960,12 +3228,24 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             pathPoint.rightDirection = bandPoints[i].right;
             pathPoint.pointType = PointType.CORNER;
         }
+        bandPath.opacity = Math.min(Math.max(drawContext.settings.bandOpacity, 0), 100);
+        return bandPath;
+    }
+
+    /**
+     * 帯の色で塗った閉じたパスを足す
+     * @param {Object[]} bandPoints - ポイントの座標
+     * @param {Object} flowNode - 枝
+     * @param {Object} drawContext - 描画の共通情報
+     * @returns {PathItem} 作ったパス
+     */
+    function addFilledBandPath(bandPoints, flowNode, drawContext) {
+        var bandPath = addBandPath(bandPoints, drawContext);
         bandPath.closed = true;
         bandPath.stroked = false;
         bandPath.filled = true;
         bandPath.fillColor = flowNode.bandColor;
-        bandPath.opacity = Math.min(Math.max(drawContext.settings.bandOpacity, 0), 100);
-        return geometry.endX + tipLength;
+        return bandPath;
     }
 
     /**
@@ -3229,12 +3509,46 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var widthScaleKeys = ["linear", "sqrt"];
         var widthScaleRow = sizePanel.add("group");
         setupRow(widthScaleRow, "left", 3);
+        widthScaleRow.alignChildren = ["left", "top"]; /* ラベルを1つ目のラジオボタンの高さに / label level with the first radio */
         var widthScaleLabel = widthScaleRow.add("statictext", undefined, labelText("fieldLabel.widthScale"));
         widthScaleLabel.preferredSize.width = LABEL_WIDTH;
         widthScaleLabel.justify = "right";
-        var widthScaleDropdown = widthScaleRow.add("dropdownlist", undefined, [getLabel("dropdown.linear"), getLabel("dropdown.sqrt")]);
-        widthScaleDropdown.selection = (initialSettings.widthScale === "sqrt") ? 1 : 0;
-        widthScaleLabel.helpTip = widthScaleDropdown.helpTip = getLabel("tooltip.widthScale");
+        widthScaleLabel.helpTip = getLabel("tooltip.widthScale");
+        /* ラジオボタンは同じグループに入れて排他にする（縦に並べてパネルの幅を広げない）
+           Keep the radios in one group so they are exclusive (stacked so the panel does not widen) */
+        var widthScaleColumn = widthScaleRow.add("group");
+        widthScaleColumn.orientation = "column";
+        widthScaleColumn.alignChildren = ["left", "top"];
+        widthScaleColumn.spacing = 4;
+        var widthScaleRadios = [];
+        for (var w = 0; w < widthScaleKeys.length; w++) {
+            var widthScaleRadio = widthScaleColumn.add("radiobutton", undefined, getLabel("radio." + widthScaleKeys[w]));
+            widthScaleRadio.helpTip = getLabel("tooltip.widthScale");
+            widthScaleRadio.onClick = function () { updatePreview(); };
+            widthScaleRadios.push(widthScaleRadio);
+        }
+        setWidthScale(initialSettings.widthScale);
+
+        /**
+         * 太さの決め方のラジオボタンを選ぶ
+         * @param {string} scaleKey - "linear" / "sqrt"
+         * @returns {void}
+         */
+        function setWidthScale(scaleKey) {
+            for (var i = 0; i < widthScaleKeys.length; i++) widthScaleRadios[i].value = (widthScaleKeys[i] === scaleKey);
+            if (indexOfKey(widthScaleKeys, scaleKey) < 0) widthScaleRadios[0].value = true;
+        }
+
+        /**
+         * 選んでいる太さの決め方を返す
+         * @returns {string} "linear" / "sqrt"
+         */
+        function getWidthScale() {
+            for (var i = 0; i < widthScaleKeys.length; i++) {
+                if (widthScaleRadios[i].value) return widthScaleKeys[i];
+            }
+            return widthScaleKeys[0];
+        }
         /* ノードの高さは毎回ノードから決める（保存しない）。図形のノードはその高さで固定
            The node height comes from the node every time (not saved); fixed for a shape node */
         var initialFontSize = (nodeInfo.labelTexts.length > 0) ? nodeInfo.labelSize : initialSettings.fontSizePt;
@@ -3270,6 +3584,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         setupPanel(optionsPanel, 6);
         var chkShowValues = optionsPanel.add("checkbox", undefined, getLabel("checkbox.showValues"));
         var chkArrowTips = optionsPanel.add("checkbox", undefined, getLabel("checkbox.arrowTips"));
+        var chkStrokeBands = optionsPanel.add("checkbox", undefined, getLabel("checkbox.strokeBands"));
+        chkStrokeBands.helpTip = getLabel("tooltip.strokeBands");
+        chkStrokeBands.value = initialSettings.strokeBands;
         var chkMoveLabels = optionsPanel.add("checkbox", undefined, getLabel("checkbox.moveLabels"));
         chkMoveLabels.helpTip = getLabel("tooltip.moveLabels");
         chkMoveLabels.value = initialSettings.moveLabels;
@@ -3556,6 +3873,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var buttonRow = addButtonRow(flowDialog);
         var btnReset = buttonRow.leftGroup.add("button", undefined, getLabel("button.reset"));
         btnReset.helpTip = getLabel("tooltip.reset");
+        var fitViewControls = FitViewToItems.addControls(buttonRow.leftGroup);
+        fitViewControls.checkbox.helpTip = getLabel("tooltip.fitView");
+        var initialViewState = FitViewToItems.captureView(doc); /* キャンセルで戻す表示 / view restored on Cancel */
         var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
         var btnOK = buttonRow.rightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
 
@@ -3597,7 +3917,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
          * @returns {void}
          */
         function resetSettings() {
-            widthScaleDropdown.selection = (DEFAULT_SETTINGS.widthScale === "sqrt") ? 1 : 0;
+            setWidthScale(DEFAULT_SETTINGS.widthScale);
             setFieldText(nodeHeightInput, formatLength(initialNodeHeight, lengthUnit));
             setFieldText(exitRatioInput, DEFAULT_SETTINGS.exitRatio + "%");
             setFieldText(curveLengthInput, formatLength(DEFAULT_SETTINGS.curveLengthPt, lengthUnit));
@@ -3608,6 +3928,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             if (nodeInfo.labelTexts.length === 0) setFieldText(fontSizeInput, formatLength(DEFAULT_SETTINGS.fontSizePt, textUnit));
             chkShowValues.value = DEFAULT_SETTINGS.showValues;
             chkArrowTips.value = DEFAULT_SETTINGS.arrowTips;
+            chkStrokeBands.value = DEFAULT_SETTINGS.strokeBands;
             chkMoveLabels.value = DEFAULT_SETTINGS.moveLabels;
             junction1Controls.setShape(DEFAULT_SETTINGS.junction1Shape);
             junction1Controls.setSizeMode(DEFAULT_SETTINGS.junction1SizeMode);
@@ -3634,7 +3955,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 flowText: flowTextField.text,
                 nodeHeightPt: readPt(nodeHeightInput, lengthUnit),
                 exitRatio: parseFloat(exitRatioInput.text),
-                widthScale: widthScaleKeys[widthScaleDropdown.selection.index],
+                widthScale: getWidthScale(),
                 curveLengthPt: readPt(curveLengthInput, lengthUnit),
                 straightLengthPt: readPt(straightLengthInput, lengthUnit),
                 branchGapPt: readPt(branchGapInput, lengthUnit),
@@ -3642,6 +3963,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 fontSizePt: readPt(fontSizeInput, textUnit),
                 showValues: chkShowValues.value,
                 arrowTips: chkArrowTips.value,
+                strokeBands: chkStrokeBands.value,
                 moveLabels: chkMoveLabels.value,
                 junction1Shape: junction1Controls.getShape(),
                 junction1SizeMode: junction1Controls.getSizeMode(),
@@ -3679,15 +4001,47 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             var flowSettings = collectSettings();
             var flowRead = readFlows(flowSettings.flowText);
             if (!flowRead.errorMessage) previewGroup = drawSankeyFlow(doc, nodeInfo, flowRead.flowRoots, flowSettings);
+            fitViewToPreview();
             app.redraw();
         }
 
+        /**
+         * ［画面にフィット］がオンなら、プレビューとノード・ラベルが指定の割合で収まるよう表示を合わせる
+         * @returns {void}
+         */
+        function fitViewToPreview() {
+            if (!fitViewControls.checkbox.value || !previewGroup) return;
+            FitViewToItems.fit([previewGroup, nodeInfo.nodeItem].concat(nodeInfo.labelTexts), { doc: doc, fillRatio: fitViewControls.getFillRatio() });
+        }
+
         flowTextField.onChange = updatePreview;
-        widthScaleDropdown.onChange = updatePreview;
         chkShowValues.onClick = updatePreview;
         chkArrowTips.onClick = updatePreview;
+        chkStrokeBands.onClick = updatePreview;
         chkMoveLabels.onClick = updatePreview;
         btnReset.onClick = resetSettings;
+        fitViewControls.checkbox.onClick = function () {
+            fitViewControls.updateEnabled();
+            fitViewToPreview();
+            app.redraw();
+        };
+        fitViewControls.percentInput.onChange = function () {
+            fitViewToPreview();
+            app.redraw();
+        };
+        /* 部品の％欄には∧∨が無いので、↑↓キーだけほかの数値欄と同じ増減をつなぐ（10〜100%、整数）/ Arrow keys for the fit percentage */
+        var fitPercentOptions = { step: 1, min: 10, max: 100, integer: true };
+        bindSteppedArrowKeys(fitViewControls.percentInput, {
+            stepBy: function (direction) {
+                var percentInput = fitViewControls.percentInput;
+                if (!percentInput.enabled) return;
+                var percentValue = parseFloat(percentInput.text);
+                if (isNaN(percentValue)) percentValue = 0;
+                writeSteppedValue(percentInput, computeSteppedValue(percentValue, direction, fitPercentOptions), fitPercentOptions);
+                fitViewToPreview();
+                app.redraw();
+            }
+        });
 
         /* 入力を確かめてから閉じる / Check the input before closing */
         btnOK.onClick = function () {
@@ -3712,6 +4066,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         removePreview();
         if (dialogResult !== 1) {
             restoreLabelPositions(nodeInfo);
+            FitViewToItems.restoreView(initialViewState, doc);
             app.redraw();
             return null;
         }
