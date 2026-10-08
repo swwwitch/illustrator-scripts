@@ -176,6 +176,7 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 - [アクティブドキュメントの全アートボードを、名前ごとのルールで PNG 書き出しします](readme-ja/export-Event.md)
 - [ダイアログで選んだアートボードを PNG・JPEG・PDF で書き出します](readme-ja/ArtboardExporter.md)
 - [アクティブなアートボードを PNG24 形式で書き出します](readme-ja/export200.md)
+- [指定したファイルを開いて PDF として保存し、閉じる](readme-ja/OpenSaveAsPDFAndClose.md)
 
 
 ## カラー

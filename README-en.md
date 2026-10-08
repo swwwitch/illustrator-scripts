@@ -168,6 +168,7 @@ After release, we continue to fix bugs and make adjustments through daily use.
 - [Exports every artboard of the active document to PNG,…](readme-en/export-Event.md)
 - [Exports the artboards chosen in a dialog as PNG, JPEG or PDF](readme-en/ArtboardExporter.md)
 - [Exports the active artboard as PNG24](readme-en/export200.md)
+- [Open files, save them as PDF, and close them](readme-en/OpenSaveAsPDFAndClose.md)
 
 
 ## Color
