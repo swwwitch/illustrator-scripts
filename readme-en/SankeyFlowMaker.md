@@ -145,6 +145,7 @@ Colors given as K tints become grays of the same darkness in RGB documents.
 
 ### Update History
 
+- v1.1.2 (2026-10-09) Draw Bands as Strokes is now on by default
 - v1.1.1 (2026-10-08) Revised UI wording (Width Scale, junction panel names, etc.); captions enclosed by a circle or rectangle are now center-justified
 - v1.1.0 (2026-10-08) Added Draw Bands as Strokes and Fit to Window; Width is now a pair of radio buttons
 - v1.0.1 (2026-10-08) Band opacity now defaults to 60%

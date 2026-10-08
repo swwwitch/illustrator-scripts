@@ -26,10 +26,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SankeyFlow
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SankeyFlowMaker";              /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-08";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-08";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-09";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SankeyFlowMaker.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SankeyFlowMaker.md"; /* README (English) */
@@ -62,7 +62,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         exitRatio: 70,           /* ノードの高さに対する帯の出口の高さ（%）/ band exit height as a percentage of the node height */
         showValues: true,        /* ラベルに数値を付ける / prefix labels with the value */
         arrowTips: true,         /* 末端を矢印にする / arrow tips at the ends */
-        strokeBands: false,      /* 帯を線（太さ＝線幅）で描く / draw bands as strokes (width = stroke weight) */
+        strokeBands: true,       /* 帯を線（太さ＝線幅）で描く / draw bands as strokes (width = stroke weight) */
         moveLabels: false,       /* ラベルのテキストを動かす（オフはテキストに帯を合わせる）/ move label texts (off fits the bands to them) */
         /* 分岐点1（1段目の枝の分岐点）/ Junction 1 (on first-level branches) */
         junction1Shape: "circle",  /* 形："circle"（円）/ "rectangle"（長方形）/ "none"（なし）/ shape */
