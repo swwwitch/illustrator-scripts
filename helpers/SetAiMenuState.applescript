@@ -10,6 +10,7 @@
 --     道筋はメニュー名を「>」でつなぐ（例: 表示>スマートガイド、表示>ガイド>ガイドをロック）
 --     名前が入れ替わる項目は「オフのときの名前|オンのときの名前」と書く（例: 表示>ガイド>ガイドを表示|ガイドを隠す）
 --     環境設定のチェックボックスは「環境設定>パネルのメニュー名>チェックボックスの名前」と書く（on / off のみ。日本語版のみ）
+--       チェックボックスが無ければ同じ名前のボタンを on で押す（例: 環境設定>ユーザーインターフェイス...>明）
 --       例: 環境設定>一般...>裁ち落とし部分に「裁ち落としを印刷」生成 AI ボタンを表示
 --       JavaScript で設定キーを書いても画面に反映されない項目に使う。名前は前方一致で探す
 --     操作は get（読むだけ）/ on / off / toggle
@@ -176,37 +177,57 @@ on itemState(mi)
 end itemState
 
 -- 環境設定のチェックボックスを揃え、「変更前<TAB>変更後」を返す
--- Sets a checkbox in the preferences dialog and returns "before<TAB>after"
+-- チェックボックスが無ければ、同じ名前のボタン（［明るさ］の「暗」〜「明」など）を探し、on なら押して選ぶ
+-- Sets a checkbox in the preferences dialog and returns "before<TAB>after".
+-- Without a checkbox, a button of that name (e.g. the Brightness swatches) is pressed for "on"
 on applyPrefCheckbox(menuPath, action)
 	set names to splitText(menuPath, ">")
 	set paneMenuName to item 2 of names
-	set checkboxName to item 3 of names
+	set controlName to item 3 of names
 	if action is "get" then return "notfound" & tab & "notfound"
 
 	set w to openPrefPane(paneMenuName)
 	tell application "System Events"
+		set stateBefore to "notfound"
 		try
-			set cb to first checkbox of w whose description starts with checkboxName
-		on error
-			click (first button of w whose description is "キャンセル")
-			my waitForPrefClosed()
-			return "notfound" & tab & "notfound"
-		end try
-		if (value of cb as boolean) then
-			set stateBefore to "on"
-		else
-			set stateBefore to "off"
-		end if
-		set stateAfter to stateBefore
-		if (action is "toggle") or (action is not stateBefore) then
-			click cb
-			if stateBefore is "on" then
-				set stateAfter to "off"
+			set cb to first checkbox of w whose description starts with controlName
+			if (value of cb as boolean) then
+				set stateBefore to "on"
 			else
-				set stateAfter to "on"
+				set stateBefore to "off"
 			end if
+			set stateAfter to stateBefore
+			if (action is "toggle") or (action is not stateBefore) then
+				click cb
+				if stateBefore is "on" then
+					set stateAfter to "off"
+				else
+					set stateAfter to "on"
+				end if
+			end if
+		end try
+		if stateBefore is "notfound" then
+			try
+				set btn to first button of w whose description is controlName
+				if (value of btn as text) is "Selected" then
+					set stateBefore to "on"
+				else
+					set stateBefore to "off"
+				end if
+				set stateAfter to stateBefore
+				-- 選ぶだけのボタンなので、外す（off）ことはできない / A selection button cannot be turned off
+				if action is not "off" and stateBefore is "off" then
+					click btn
+					set stateAfter to "on"
+				end if
+			end try
 		end if
-		click (first button of w whose description is "OK")
+		if stateBefore is "notfound" then
+			click (first button of w whose description is "キャンセル")
+			set stateAfter to "notfound"
+		else
+			click (first button of w whose description is "OK")
+		end if
 	end tell
 	waitForPrefClosed()
 	return stateBefore & tab & stateAfter

@@ -58,6 +58,10 @@ var SCRIPT_UPDATED  = "2026-10-09";                   /* 更新日 / last update
     var PRESET_ICON_SIZE      = [20, 18];    /* プリセットの保存・削除アイコンの大きさ / preset save and delete icon size */
     var SAVE_ICON_OPACITY     = 0.75;        /* 保存アイコンの濃さ（ほかのアイコンに対する比率）/ save icon opacity relative to the others */
     var PRESET_NAME_CHARS     = 20;          /* プリセット名の入力欄の文字数 / preset name field width */
+    var BRIGHTNESS_SWATCH_SIZE    = 30;      /* 明るさの見本1つの大きさ（選択枠を含む）/ size of one brightness swatch, selection ring included */
+    var BRIGHTNESS_SWATCH_SPACING = 4;       /* 明るさの見本どうしの間隔 / gap between brightness swatches */
+    var BRIGHTNESS_RING_COLOR     = [0.29, 0.56, 0.95, 1]; /* 選んでいる見本の枠の色 / ring color of the selected swatch */
+    var BRIGHTNESS_EDGE_COLOR     = [0.85, 0.85, 0.85, 1]; /* 見本の縁の色 / edge color of each swatch */
 
     // UIレイアウト（再利用パーツ） / UI layout (reusable)
 
@@ -1125,11 +1129,24 @@ var SCRIPT_UPDATED  = "2026-10-09";                   /* 更新日 / last update
     // 項目の定義 / Item definitions
     // =========================================
 
-    /* ツールバーの種類ごとのメニュー名とコマンド ID / Menu names and command IDs per toolbar */
+    /* ツールバーの種類ごとのメニュー名。切り替えは補助アプリがメニューをクリックする
+       （コマンド ID は反転ではなく別のツールバーに切り替わることがあった。2026-10-09 実測）
+       Menu names per toolbar. The helper clicks the menu (a command ID could switch to another toolbar instead of toggling) */
     var TOOLBAR_KINDS = [
-        { kind: "quick",    menuName: { ja: "はじめに", en: "Quick" },    command: "Adobe Quick Toolbar Menu" },
-        { kind: "basic",    menuName: { ja: "基本",     en: "Basic" },    command: "Adobe Basic Toolbar Menu" },
-        { kind: "advanced", menuName: { ja: "詳細",     en: "Advanced" }, command: "Adobe Advanced Toolbar Menu" }
+        { kind: "quick",    menuName: { ja: "はじめに", en: "Quick" } },
+        { kind: "basic",    menuName: { ja: "基本",     en: "Basic" } },
+        { kind: "advanced", menuName: { ja: "詳細",     en: "Advanced" } }
+    ];
+
+    /* ［ユーザーインターフェイス］の明るさの4段階。value は uiBrightness の値、prefButton は環境設定のボタンの名前、
+       fill は見本の色。0.5 と 0.51 は別の段階なので、いちばん近い値で判定する
+       The four Brightness levels: value is uiBrightness, prefButton the button name in Preferences, fill the swatch color.
+       0.5 and 0.51 are different levels, so the nearest value wins */
+    var BRIGHTNESS_LEVELS = [
+        { key: "dark",        value: 0.0,  prefButton: "暗",         fill: [0.20, 0.20, 0.20, 1] },
+        { key: "mediumDark",  value: 0.5,  prefButton: "やや暗め",   fill: [0.33, 0.33, 0.33, 1] },
+        { key: "mediumLight", value: 0.51, prefButton: "やや明るめ", fill: [0.72, 0.72, 0.72, 1] },
+        { key: "light",       value: 1.0,  prefButton: "明",         fill: [0.94, 0.94, 0.94, 1] }
     ];
 
     /*
@@ -1151,6 +1168,7 @@ var SCRIPT_UPDATED  = "2026-10-09";                   /* 更新日 / last update
     var VIEW_TOGGLE_GROUPS = [
         {
             labelKey: "basicUI",
+            hasBrightness: true, /* 先頭に明るさの見本を置く / brightness swatches come first */
             items: [
                 { key: "appFrame",    menu: { ja: "ウィンドウ>アプリケーションフレーム", en: "Window>Application Frame" }, command: "appframe" },
                 { key: "appBar",      menu: { ja: "ウィンドウ>アプリケーションバー", en: "Window>Application Bar" }, command: "applicationbar" },
@@ -1307,6 +1325,7 @@ var SCRIPT_UPDATED  = "2026-10-09";                   /* 更新日 / last update
             presetPlaceholder: { ja: "---", en: "---" }
         },
         fieldLabel: {
+            brightness: { ja: "明るさ", en: "Brightness" },
             preset: { ja: "プリセット", en: "Preset" },
             presetName: { ja: "プリセット名", en: "Preset name" }
         },
@@ -1347,6 +1366,12 @@ var SCRIPT_UPDATED  = "2026-10-09";                   /* 更新日 / last update
         },
         tooltip: {
             unavailable: { ja: "状態を読めないため切り替えられません", en: "Unavailable because its state cannot be read" },
+            brightness: {
+                dark:        { ja: "暗（スクリプトの終了後に環境設定で切り替えます）", en: "Dark (switched in Preferences after the script ends)" },
+                mediumDark:  { ja: "やや暗め（スクリプトの終了後に環境設定で切り替えます）", en: "Medium Dark (switched in Preferences after the script ends)" },
+                mediumLight: { ja: "やや明るめ（スクリプトの終了後に環境設定で切り替えます）", en: "Medium Light (switched in Preferences after the script ends)" },
+                light:       { ja: "明（スクリプトの終了後に環境設定で切り替えます）", en: "Light (switched in Preferences after the script ends)" }
+            },
             preset:       { ja: "保存したチェックの組み合わせを読み込みます", en: "Loads a saved set of checkboxes" },
             presetSave:   { ja: "今のチェックの組み合わせに名前を付けて保存します", en: "Saves the current checkboxes under a name" },
             presetDelete: { ja: "選んでいるプリセットを削除します", en: "Deletes the selected preset" },
@@ -1354,7 +1379,7 @@ var SCRIPT_UPDATED  = "2026-10-09";                   /* 更新日 / last update
             taskBar:     { ja: "スクリプトの終了後に切り替わります", en: "Switched after the script ends" },
             helpBar:     { ja: "スクリプトの終了後に切り替わります", en: "Switched after the script ends" },
             genMenu:     { ja: "スクリプトの終了後に切り替わります", en: "Switched after the script ends" },
-            toolbar:     { ja: "オンにすると［{toolbarName}］ツールバーを表示します", en: "Turning it on shows the {toolbarName} toolbar" },
+            toolbar:     { ja: "オンにすると［{toolbarName}］ツールバーを表示します。スクリプトの終了後に切り替わります", en: "Turning it on shows the {toolbarName} toolbar. Switched after the script ends" },
             snapPoint:   { ja: "［表示］→［ポイントにスナップ］です。ガイドとアンカーポイントに吸着します", en: "View > Snap to Point, which snaps to guides and anchor points" },
             snapGrid:    { ja: "［表示］→［グリッドにスナップ］です", en: "View > Snap to Grid" },
             edges:       { ja: "パスの境界線です（［表示］→［境界線を表示］）", en: "Path edges (View > Show Edges)" },
@@ -1380,6 +1405,102 @@ var SCRIPT_UPDATED  = "2026-10-09";                   /* 更新日 / last update
             }
         }
     };
+
+    // =========================================
+    // 明るさ / Brightness
+    // =========================================
+
+    /**
+     * 今の［明るさ］の段階を返す
+     * @returns {number} BRIGHTNESS_LEVELS の番号
+     */
+    function readBrightnessIndex() {
+        var brightnessValue = app.preferences.getRealPreference("uiBrightness");
+        var nearestIndex = 0;
+        for (var i = 1; i < BRIGHTNESS_LEVELS.length; i++) {
+            if (Math.abs(BRIGHTNESS_LEVELS[i].value - brightnessValue) < Math.abs(BRIGHTNESS_LEVELS[nearestIndex].value - brightnessValue)) nearestIndex = i;
+        }
+        return nearestIndex;
+    }
+
+    /**
+     * 明るさの見本を1つ描く。選んでいれば外側に枠を描く
+     * @param {Object} swatchGraphics - 見本の graphics
+     * @param {Array} fillColor - 見本の色 [r, g, b, a]
+     * @param {boolean} isSelected - 選んでいるなら true
+     * @param {boolean} isEnabled - 有効なら true（無効なら薄く描く）
+     * @returns {void}
+     */
+    function drawBrightnessSwatch(swatchGraphics, fillColor, isSelected, isEnabled) {
+        var alpha = isEnabled ? 1 : 0.4;
+        var swatchSize = BRIGHTNESS_SWATCH_SIZE;
+        if (isSelected) {
+            /* rectPath の前に newPath() を呼ばないとパスが累積する / Call newPath() before rectPath() or paths accumulate */
+            swatchGraphics.newPath();
+            swatchGraphics.rectPath(1, 1, swatchSize - 2, swatchSize - 2);
+            swatchGraphics.strokePath(swatchGraphics.newPen(swatchGraphics.PenType.SOLID_COLOR, BRIGHTNESS_RING_COLOR, 2));
+        }
+        swatchGraphics.newPath();
+        swatchGraphics.rectPath(5, 5, swatchSize - 10, swatchSize - 10);
+        swatchGraphics.fillPath(swatchGraphics.newBrush(swatchGraphics.BrushType.SOLID_COLOR, [fillColor[0], fillColor[1], fillColor[2], alpha]));
+        swatchGraphics.strokePath(swatchGraphics.newPen(swatchGraphics.PenType.SOLID_COLOR, [BRIGHTNESS_EDGE_COLOR[0], BRIGHTNESS_EDGE_COLOR[1], BRIGHTNESS_EDGE_COLOR[2], alpha], 2));
+    }
+
+    /**
+     * 「明るさ :」の行に4段階の見本を並べる。クリックで選び、［OK］で環境設定に反映する
+     * @param {Panel} parentPanel - 行を足すパネル
+     * @param {boolean} isEnabled - 切り替えられるなら true（補助アプリが無い・英語版では false）
+     * @returns {{initialIndex: number, selectedIndex: number, isEnabled: boolean, select: Function}} 見本の状態
+     */
+    function addBrightnessPicker(parentPanel, isEnabled) {
+        var brightnessRow = parentPanel.add("group");
+        setupRow(brightnessRow, "left", ROW_SPACING);
+        brightnessRow.add("statictext", undefined, labelText("fieldLabel.brightness"));
+        var swatchRow = brightnessRow.add("group");
+        setupRow(swatchRow, "left", BRIGHTNESS_SWATCH_SPACING);
+
+        var currentIndex = readBrightnessIndex();
+        var brightnessPicker = { initialIndex: currentIndex, selectedIndex: currentIndex, isEnabled: isEnabled, swatches: [] };
+
+        /* 選んだ見本を変えて、すべて描き直す（group には notify() が無いので hide/show）
+           Change the selection and repaint all swatches (groups have no notify(), so hide and show) */
+        brightnessPicker.select = function (levelIndex) {
+            brightnessPicker.selectedIndex = levelIndex;
+            for (var i = 0; i < brightnessPicker.swatches.length; i++) {
+                brightnessPicker.swatches[i].hide();
+                brightnessPicker.swatches[i].show();
+            }
+        };
+
+        for (var i = 0; i < BRIGHTNESS_LEVELS.length; i++) {
+            brightnessPicker.swatches.push(addBrightnessSwatch(swatchRow, brightnessPicker, i));
+        }
+        return brightnessPicker;
+    }
+
+    /**
+     * 明るさの見本を1つ作る
+     * @param {Group} swatchRow - 見本を並べる行
+     * @param {Object} brightnessPicker - addBrightnessPicker() の状態
+     * @param {number} levelIndex - BRIGHTNESS_LEVELS の番号
+     * @returns {Group} 見本
+     */
+    function addBrightnessSwatch(swatchRow, brightnessPicker, levelIndex) {
+        var brightnessLevel = BRIGHTNESS_LEVELS[levelIndex];
+        var swatchGroup = swatchRow.add("group");
+        var swatchSize = [BRIGHTNESS_SWATCH_SIZE, BRIGHTNESS_SWATCH_SIZE];
+        swatchGroup.preferredSize = swatchSize;
+        swatchGroup.minimumSize = swatchSize;
+        swatchGroup.maximumSize = swatchSize;
+        swatchGroup.helpTip = brightnessPicker.isEnabled ? getLabel("tooltip.brightness." + brightnessLevel.key) : getLabel("tooltip.unavailable");
+        swatchGroup.onDraw = function () {
+            drawBrightnessSwatch(swatchGroup.graphics, brightnessLevel.fill, brightnessPicker.selectedIndex === levelIndex, brightnessPicker.isEnabled);
+        };
+        swatchGroup.addEventListener("mousedown", function () {
+            if (brightnessPicker.isEnabled) brightnessPicker.select(levelIndex);
+        });
+        return swatchGroup;
+    }
 
     // =========================================
     // プリセット / Presets
@@ -1408,25 +1529,35 @@ var SCRIPT_UPDATED  = "2026-10-09";                   /* 更新日 / last update
     }
 
     /**
-     * 今のチェックを、項目のキーをキーにして集める（状態を読めない項目は入れない）
-     * @param {Array} toggleRows - 項目・状態・チェックボックスの組
-     * @returns {Object} 項目のキーをキーにした真偽
+     * 今のチェックと明るさを集める（状態を読めない項目・切り替えられない明るさは入れない）
+     * @param {Object} dialogState - buildDialog() の戻り値
+     * @returns {Object} 項目のキーをキーにした真偽と、uiBrightness に明るさの段階のキー
      */
-    function collectPresetData(toggleRows) {
+    function collectPresetData(dialogState) {
         var presetData = {};
+        var toggleRows = dialogState.toggleRows;
         for (var i = 0; i < toggleRows.length; i++) {
             if (toggleRows[i].state) presetData[toggleRows[i].item.key] = toggleRows[i].checkbox.value;
         }
+        var brightnessPicker = dialogState.brightnessPicker;
+        if (brightnessPicker && brightnessPicker.isEnabled) presetData.uiBrightness = BRIGHTNESS_LEVELS[brightnessPicker.selectedIndex].key;
         return presetData;
     }
 
     /**
-     * プリセットのチェックをチェックボックスに写す（プリセットに無い項目・状態を読めない項目はそのまま）
-     * @param {Array} toggleRows - 項目・状態・チェックボックスの組
+     * プリセットのチェックと明るさを写す（プリセットに無い項目・状態を読めない項目はそのまま）
+     * @param {Object} dialogState - buildDialog() の戻り値
      * @param {Object} presetData - collectPresetData() で集めたもの
      * @returns {void}
      */
-    function applyPresetData(toggleRows, presetData) {
+    function applyPresetData(dialogState, presetData) {
+        var brightnessPicker = dialogState.brightnessPicker;
+        if (brightnessPicker && brightnessPicker.isEnabled) {
+            for (var j = 0; j < BRIGHTNESS_LEVELS.length; j++) {
+                if (BRIGHTNESS_LEVELS[j].key === presetData.uiBrightness) brightnessPicker.select(j);
+            }
+        }
+        var toggleRows = dialogState.toggleRows;
         for (var i = 0; i < toggleRows.length; i++) {
             var toggleRow = toggleRows[i];
             if (toggleRow.state && typeof presetData[toggleRow.item.key] === "boolean") {
@@ -1529,15 +1660,15 @@ var SCRIPT_UPDATED  = "2026-10-09";                   /* 更新日 / last update
     /**
      * 今のチェックを名前を付けて保存する（同じ名前は確認してから上書き）
      * @param {Object} presetControls - buildPresetRow() の戻り値
-     * @param {Array} toggleRows - 項目・状態・チェックボックスの組
+     * @param {Object} dialogState - buildDialog() の戻り値
      * @returns {string|null} 保存したプリセット名。保存しなかったら null
      */
-    function saveCurrentPreset(presetControls, toggleRows) {
+    function saveCurrentPreset(presetControls, dialogState) {
         var presetName = showPresetNameDialog(getSelectedPresetName(presetControls) || "");
         if (!presetName) return null;
         var presetMap = loadPresetMap();
         if (presetMap.hasOwnProperty(presetName) && !confirm(getLabel("confirm.presetOverwrite", { name: presetName }), true)) return null;
-        presetMap[presetName] = collectPresetData(toggleRows);
+        presetMap[presetName] = collectPresetData(dialogState);
         return savePresetMap(presetMap) ? presetName : null;
     }
 
@@ -1558,10 +1689,10 @@ var SCRIPT_UPDATED  = "2026-10-09";                   /* 更新日 / last update
      * プリセットの行のイベントをつなぐ。選んだら読み込む。
      * ドロップダウンの作り直しでも onChange が来るので、作り直している間は読まない
      * @param {Object} presetControls - buildPresetRow() の戻り値
-     * @param {Array} toggleRows - 項目・状態・チェックボックスの組
+     * @param {Object} dialogState - buildDialog() の戻り値
      * @returns {void}
      */
-    function bindPresetEvents(presetControls, toggleRows) {
+    function bindPresetEvents(presetControls, dialogState) {
         var isRefilling = false;
 
         /* ドロップダウンを作り直して名前を選ぶ（onChange は無視させる）/ refill the dropdown, ignoring its onChange */
@@ -1576,10 +1707,10 @@ var SCRIPT_UPDATED  = "2026-10-09";                   /* 更新日 / last update
             var presetName = getSelectedPresetName(presetControls);
             setIconButtonEnabled(presetControls.presetDeleteIcon, presetName !== null);
             var presetData = presetName ? loadPresetMap()[presetName] : null;
-            if (presetData) applyPresetData(toggleRows, presetData);
+            if (presetData) applyPresetData(dialogState, presetData);
         };
         presetControls.presetSaveIcon.onClick = function () {
-            var savedName = saveCurrentPreset(presetControls, toggleRows);
+            var savedName = saveCurrentPreset(presetControls, dialogState);
             if (savedName) refreshPresetDropdown(savedName);
         };
         presetControls.presetDeleteIcon.onClick = function () {
@@ -1681,10 +1812,10 @@ var SCRIPT_UPDATED  = "2026-10-09";                   /* 更新日 / last update
      */
     function applyToggle(toggleItem, currentState, turnOn, helperRequests) {
         if (toggleItem.toolbar) {
-            /* 隠すときは表示中のツールバー、出すときは TOOLBAR_TO_SHOW のツールバーを切り替える
-               Hide the toolbar that is shown, or show the one in TOOLBAR_TO_SHOW */
+            /* 隠すときは表示中のツールバー、出すときは TOOLBAR_TO_SHOW のツールバーを、補助アプリが切り替える
+               The helper hides the toolbar that is shown, or shows the one in TOOLBAR_TO_SHOW */
             var targetKind = turnOn ? findToolbarKind(TOOLBAR_TO_SHOW) : currentState.toolbarKind;
-            if (targetKind) app.executeMenuCommand(targetKind.command);
+            if (targetKind) helperRequests.push([getToolbarMenuPath(targetKind), turnOn ? "on" : "off"]);
             return;
         }
         if (toggleItem.command) {
@@ -1725,12 +1856,15 @@ var SCRIPT_UPDATED  = "2026-10-09";                   /* 更新日 / last update
      * @param {Group} parentColumn - パネルを足す列
      * @param {Object} toggleGroup - VIEW_TOGGLE_GROUPS の要素
      * @param {Object|null} menuStates - getAiMenuState() の結果
-     * @param {Array} toggleRows - 項目・状態・チェックボックスの組を積む配列
+     * @param {Object} dialogState - 項目・状態・チェックボックスの組（toggleRows）と明るさの見本（brightnessPicker）を入れる
      * @returns {void}
      */
-    function addTogglePanel(parentColumn, toggleGroup, menuStates, toggleRows) {
+    function addTogglePanel(parentColumn, toggleGroup, menuStates, dialogState) {
         var togglePanel = parentColumn.add("panel", undefined, getLabel("panel." + toggleGroup.labelKey));
         setupPanel(togglePanel, 6);
+        /* 明るさは環境設定のボタンで切り替えるので、補助アプリが使えて日本語版のときだけ選べる
+           Brightness is switched with the buttons in Preferences, so it needs the helper and the Japanese UI */
+        if (toggleGroup.hasBrightness) dialogState.brightnessPicker = addBrightnessPicker(togglePanel, menuStates !== null && uiLang === "ja");
         for (var i = 0; i < toggleGroup.items.length; i++) {
             var toggleItem = toggleGroup.items[i];
             var currentState = readToggleState(toggleItem, menuStates);
@@ -1742,14 +1876,14 @@ var SCRIPT_UPDATED  = "2026-10-09";                   /* 更新日 / last update
                 toggleCheckbox.enabled = false;
                 toggleCheckbox.helpTip = getLabel("tooltip.unavailable");
             }
-            toggleRows.push({ item: toggleItem, state: currentState, checkbox: toggleCheckbox });
+            dialogState.toggleRows.push({ item: toggleItem, state: currentState, checkbox: toggleCheckbox });
         }
     }
 
     /**
      * ダイアログボックスを作る。左の列に基本UI・オブジェクト、右の列にガイド・グリッド・その他のスナップを置く
      * @param {Object|null} menuStates - getAiMenuState() の結果
-     * @returns {{dialog: Window, toggleRows: Array}} ダイアログボックスと、項目・状態・チェックボックスの組
+     * @returns {{dialog: Window, toggleRows: Array, brightnessPicker: Object|null}} ダイアログボックス、項目・状態・チェックボックスの組、明るさの見本
      */
     function buildDialog(menuStates) {
         var dialog = new Window("dialog");
@@ -1758,9 +1892,9 @@ var SCRIPT_UPDATED  = "2026-10-09";                   /* 更新日 / last update
 
         var presetControls = buildPresetRow(dialog);
         var columnGroups = addColumnGroups(dialog, 2);
-        var toggleRows = [];
+        var dialogState = { dialog: dialog, toggleRows: [], brightnessPicker: null };
         for (var i = 0; i < VIEW_TOGGLE_GROUPS.length; i++) {
-            addTogglePanel(columnGroups[i < LEFT_COLUMN_GROUP_COUNT ? 0 : 1], VIEW_TOGGLE_GROUPS[i], menuStates, toggleRows);
+            addTogglePanel(columnGroups[i < LEFT_COLUMN_GROUP_COUNT ? 0 : 1], VIEW_TOGGLE_GROUPS[i], menuStates, dialogState);
         }
 
         var buttonRow = addButtonRow(dialog);
@@ -1768,8 +1902,8 @@ var SCRIPT_UPDATED  = "2026-10-09";                   /* 更新日 / last update
         buttonRow.rightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
         alignRightOnlyButtonRow(buttonRow);
 
-        bindPresetEvents(presetControls, toggleRows);
-        return { dialog: dialog, toggleRows: toggleRows };
+        bindPresetEvents(presetControls, dialogState);
+        return dialogState;
     }
 
     /**
@@ -1780,13 +1914,13 @@ var SCRIPT_UPDATED  = "2026-10-09";                   /* 更新日 / last update
         var menuStates = getAiMenuState(collectMenuPathsToRead());
         if (!menuStates) alert(getLabel("alert.helperUnavailable"));
 
-        var dialogParts = buildDialog(menuStates);
-        prepareDialogWindow(dialogParts.dialog, SCRIPT_NAME);
-        if (dialogParts.dialog.show() !== 1) return;
+        var dialogState = buildDialog(menuStates);
+        prepareDialogWindow(dialogState.dialog, SCRIPT_NAME);
+        if (dialogState.dialog.show() !== 1) return;
 
         var helperRequests = [];
         var hasWrittenPref = false;
-        var toggleRows = dialogParts.toggleRows;
+        var toggleRows = dialogState.toggleRows;
         for (var i = 0; i < toggleRows.length; i++) {
             var toggleRow = toggleRows[i];
             if (!toggleRow.state || toggleRow.checkbox.value === toggleRow.state.isOn) continue;
@@ -1797,6 +1931,10 @@ var SCRIPT_UPDATED  = "2026-10-09";                   /* 更新日 / last update
         if (hasWrittenPref && app.documents.length) {
             app.executeMenuCommand("zoomout");
             app.executeMenuCommand("zoomin");
+        }
+        var brightnessPicker = dialogState.brightnessPicker;
+        if (brightnessPicker && brightnessPicker.selectedIndex !== brightnessPicker.initialIndex) {
+            helperRequests.push(["環境設定>ユーザーインターフェイス...>" + BRIGHTNESS_LEVELS[brightnessPicker.selectedIndex].prefButton, "on"]);
         }
         /* コマンド ID の無い項目は、スクリプトの終了後に補助アプリが切り替える / Items without a command ID are switched by the helper after the script ends */
         if (helperRequests.length) setAiMenuState(helperRequests);
