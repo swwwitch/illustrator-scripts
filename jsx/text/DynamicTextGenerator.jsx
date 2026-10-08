@@ -29,10 +29,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/DynamicTex
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "DynamicTextGenerator";         /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.2.7";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.2.8";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-05-18";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-08";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/DynamicTextGenerator.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/DynamicTextGenerator.md"; /* README (English) */
@@ -536,7 +536,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb9e9082df5e5"; /* 紹�
                 en: "0 is almost straight; 100 makes an exact semicircle. In Circle mode it sets the size of the circle relative to the text. Hold Shift to move in steps of 10."
             },
             coverage: {
-                ja: "パス全体のうち、文字が占める割合です。100でパスの端まで、30でパスの中央3割だけに文字が並びます。円では円周に対する割合になり、文字は上側中央に集まります。「合わせ方：トラッキング」のときは文字サイズを保つため、字間を詰めて短くします。shiftキーを押しながら操作すると10刻みになります。",
+                ja: "パス全体のうち、文字が占める割合です。100でパスの端まで、30でパスの中央3割だけに文字が並びます。円では円周に対する割合になり、文字は上側中央に集まります。「合わせ方」が「トラッキング」のときは文字サイズを保つため、字間を詰めて短くします。shiftキーを押しながら操作すると10刻みになります。",
                 en: "How much of the path the text covers. 100 reaches the path ends; 30 keeps the text within the middle third. In Circle mode it is measured against the circumference, so the text gathers at the top. With \"Fit: Tracking\" the font size is preserved, so the spacing is tightened instead. Hold Shift to move in steps of 10."
             },
             fit: {
@@ -580,7 +580,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb9e9082df5e5"; /* 紹�
                 en: "Uses metrics for Roman text only and leaves Japanese text monospaced."
             },
             tracking: {
-                ja: "既存のトラッキング値に加算します。「合わせ方：トラッキング」を選んでいるときは自動調整にまかせるため使えません。",
+                ja: "既存のトラッキング値に加算します。「合わせ方」で「トラッキング」を選んでいるときは自動調整にまかせるため使えません。",
                 en: "Adds this value to the existing tracking. Unavailable while \"Fit: Tracking\" is selected, since it is set automatically."
             },
             trackingToggle: {
@@ -737,9 +737,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb9e9082df5e5"; /* 紹�
        「p」は「1p6」（1パイカ6ポイント）の形にも使う
        Units UnitValue lacks, mapped onto UnitValue units (how many of `unit` make one) */
     var STEPPER_UNIT_ALIASES = {
-        "q": { unit: "mm", amount: 0.25 }, /* 級 / Q */
-        "h": { unit: "mm", amount: 0.25 }, /* 歯 / H */
-        "p": { unit: "pc", amount: 1 }     /* パイカ / pica */
+        "q": { unit: "mm", amount: 0.25 },    /* 級 / Q */
+        "h": { unit: "mm", amount: 0.25 },    /* 歯 / H */
+        "p": { unit: "pc", amount: 1 },       /* パイカ / pica */
+        "ft/in": { unit: "ft", amount: 1 },   /* Illustrator の単位コード7の表示 / Illustrator unit code 7 */
+        "c": { unit: "ci", amount: 1 },       /* シセロ（InDesign の表示） / ciceros as InDesign shows them */
+        "ag": { unit: "in", amount: 1 / 14 }, /* アゲート / agates */
+        "ap": { unit: "tpt", amount: 1 }      /* アメリカンポイント / American points */
     };
 
     // -----------------------------------------
@@ -833,6 +837,28 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb9e9082df5e5"; /* 紹�
     }
 
     /**
+     * 数値欄の単位を差し替える（単位の設定やドロップダウンを切り替えたとき用）。
+     * shouldConvert が true なら値を新しい単位へ換算し（10 mm → 28.35 pt）、false なら数値はそのままで単位だけ付け替える
+     * @param {EditText} numberInput - addSteppedField() で作った入力欄、または bindSteppedArrowKeys() を呼んだ入力欄
+     * @param {string} unit - 新しい単位（例 " pt"。単位なしは ""）
+     * @param {boolean} [shouldConvert] - 値も換算するなら true
+     * @returns {void}
+     */
+    function setSteppedFieldUnit(numberInput, unit, shouldConvert) {
+        var stepOptions = numberInput.stepperGroup.stepOptions;
+        var oldUnit = stepOptions.unit || "";
+        var value = parseFloat(numberInput.text);
+        stepOptions.unit = unit;
+        if (isNaN(value)) return;
+        if (shouldConvert) {
+            var converted = evaluateArithmetic(String(value) + oldUnit, unit);
+            if (!isNaN(converted)) value = converted;
+        }
+        numberInput.text = formatStepperNumber(value) + unit;
+        numberInput.lastValidText = numberInput.text;
+    }
+
+    /**
      * 入力欄の値を増減する∧∨ボタンを、隙間なく縦に積んで追加する
      * @param {Group|Panel} parent - 追加先
      * @param {Function} getNumberInput - 対象の入力欄を返す関数（入力欄を∧∨より後に作れるよう、クリック時に引く）
@@ -903,9 +929,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb9e9082df5e5"; /* 紹�
             if (isNaN(value)) return; /* 計算できなければ各スクリプトの処理に任せる / leave it to the script's own handler */
             /* 式か、換算で値が変わったときだけ書き戻す（ただの数値は書式を崩さない） / rewrite only expressions and converted values */
             var hasOperator = /[*\/()\u00D7\u00F7\uFF0A\uFF0F\uFF08\uFF09]|[\d.\uFF10-\uFF19][^\d.\uFF10-\uFF19]*[+\-\u2212\uFF0B\uFF0D]/.test(numberInput.text);
-            if (!hasOperator && value === parseFloat(numberInput.text)) return;
+            if (!hasOperator && value === parseFloat(numberInput.text)) {
+                /* 単位を省いて入れた数値には、欄の単位だけ付け足す（桁は丸めない） / append the field unit to a bare number */
+                var trimmedText = numberInput.text.replace(/^\s+|\s+$/g, "");
+                if (fieldUnit && /[\d.]$/.test(trimmedText)) numberInput.text = trimmedText + fieldUnit;
+                return;
+            }
             numberInput.text = formatStepperNumber(value) + (fieldUnit || "");
         });
+        numberInput.stepperGroup = stepperGroup; /* setSteppedFieldUnit() から∧∨の設定を引けるようにする / lets setSteppedFieldUnit() find the options */
     }
 
     // -----------------------------------------
@@ -1033,7 +1065,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb9e9082df5e5"; /* 紹�
          * @returns {number} 欄の単位での値（換算できない単位なら NaN）
          */
         function readUnitSuffix(value) {
-            var unitMatch = /^([A-Za-z]+|%|°)/.exec(source.substring(position));
+            var unitMatch = /^(ft\/in|[A-Za-z]+|%|°)/i.exec(source.substring(position));
             if (!unitMatch) return value; /* 単位なしは欄の単位 / no unit means the field's unit */
             position += unitMatch[0].length;
             var unitKey = unitMatch[0].toLowerCase();
@@ -1394,21 +1426,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb9e9082df5e5"; /* 紹�
     // =========================================
 
     /**
-     * UI が明るいテーマかどうかを判定する
-     * @returns {boolean} 明るいUIなら true
-     */
-    function isLightUI() {
-        /* 取得できないときは暗い側にフォールバック / fall back to dark when unavailable */
-        try { return app.preferences.getRealPreference("uiBrightness") > 0.5; } catch (e) { }
-        return false;
-    }
-
-    /**
      * UIの明暗に応じたアイコン色・背景色・選択色を返す
      * @returns {{icon: number[], bg: number[], selection: number[]}} 描画色（RGBA 0〜1）
      */
     function getIconColors() {
-        if (isLightUI()) {
+        if (!isDarkUI()) {
             return { icon: [0.20, 0.20, 0.20, 1], bg: [0.93, 0.93, 0.93, 1], selection: [0.78, 0.78, 0.78, 1] };
         }
         return { icon: [0.88, 0.88, 0.88, 1], bg: [0.27, 0.27, 0.27, 1], selection: [0.45, 0.45, 0.45, 1] };
@@ -1640,18 +1662,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb9e9082df5e5"; /* 紹�
     }
 
     /**
-     * モードキーからモード名を返す
-     * @param {string} modeKey - モードのキー
-     * @returns {string} モード名（見つからない場合は空文字）
-     */
-    function getModeLabel(modeKey) {
-        for (var i = 0; i < MODES.length; i++) {
-            if (MODES[i].key === modeKey) return getLabel('mode.' + MODES[i].labelKey);
-        }
-        return '';
-    }
-
-    /**
      * モードのセル幅を、いちばん長いモード名に合わせて統一する（アイコンの間隔を揃えるため）
      * @param {object[]} cells - cell（縦グループ）と caption（モード名）を持つ配列
      * @returns {void}
@@ -1748,12 +1758,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb9e9082df5e5"; /* 紹�
 
             var modeButton = modeCell.add('iconbutton', undefined, undefined, { style: 'toolbutton' });
             modeButton.preferredSize = MODE_ICON_SIZE;
-            /* ヘルプチップは「モード名：説明」の形にする / help tip reads "name: description" */
-            modeButton.helpTip = getModeLabel(MODES[modeIndex].key) + (uiLang === 'ja' ? '：' : ': ') + getLabel('tooltip.' + MODES[modeIndex].tipKey);
+            /* ヘルプチップは「モード名 : 説明」の形にする / help tip reads "name: description" */
+            modeButton.helpTip = labelValueText('mode.' + MODES[modeIndex].labelKey, getLabel('tooltip.' + MODES[modeIndex].tipKey));
             modeButton.onDraw = makeModeIconDrawer(MODES[modeIndex].key);
             modeButtons.push(modeButton);
 
-            var modeCaption = modeCell.add('statictext', undefined, getModeLabel(MODES[modeIndex].key));
+            var modeCaption = modeCell.add('statictext', undefined, getLabel('mode.' + MODES[modeIndex].labelKey));
             modeCaption.justify = 'center';
             modeCaption.helpTip = modeButton.helpTip;
             modeCells.push({ cell: modeCell, caption: modeCaption });
@@ -2123,12 +2133,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb9e9082df5e5"; /* 紹�
         var targetBounds = getItemsBounds(pageItems);
         if (targetBounds === null) return;
 
-        var activeView;
-        try {
-            activeView = doc.views[0];
-        } catch (e) {
-            return;
-        }
+        var activeView = doc.views[0];
         if (!activeView) return;
 
         var viewBounds = activeView.bounds; /* [left, top, right, bottom] */
@@ -2205,8 +2210,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb9e9082df5e5"; /* 紹�
            Restore base selection so preview stays stable even after selection changes */
         try { doc.selection = baseSelection; } catch (e) { }
 
-        var currentSelection = [];
-        try { currentSelection = doc.selection; } catch (e) { currentSelection = []; }
+        var currentSelection = doc.selection;
         if (!currentSelection || currentSelection.length === 0) {
             currentSelection = baseSelection;
         }
@@ -2218,7 +2222,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb9e9082df5e5"; /* 紹�
         /* モードが選ばれるまでは何も変換しない / nothing to convert until a mode is picked */
         if (!isModeSelected()) return;
 
-        generatePathText(false, true);
+        convertTargetTexts(false, true);
         app.redraw();
     }
 
@@ -2298,31 +2302,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb9e9082df5e5"; /* 紹�
     }
 
     /**
-     * パスを作らないブロックでは、パス幅に合わせる設定をディム表示する
-     * @returns {void}
-     */
-    function updateFitEnabled() {
-        var fitAvailable = isPathTextMode();
-        stFit.enabled = fitAvailable;
-        rbFitNone.enabled = fitAvailable;
-        rbFitFontSize.enabled = fitAvailable;
-        rbFitTracking.enabled = fitAvailable;
-    }
-
-    /**
-     * ブロックはパス上文字を作らないため、アーチ用の行をまとめてディム表示する
+     * ブロックはパス上文字を作らないため、パス上文字オプションの行をまとめてディム表示する
      * @returns {void}
      */
     function updatePathTextControlsEnabled() {
-        var arcActive = isPathTextMode();
-        stArcRoundness.enabled = arcActive;
-        slArcRoundness.enabled = arcActive;
-        stPathCoverage.enabled = arcActive;
-        slPathCoverage.enabled = arcActive;
-        stPathCoverageValue.enabled = arcActive;
-        stEffect.enabled = arcActive;
-        ddEffect.enabled = arcActive;
-        cbRemoveLineBreaks.enabled = arcActive;
+        var pathTextControls = [
+            stArcRoundness, slArcRoundness, stPathCoverage, slPathCoverage, stPathCoverageValue,
+            stFit, rbFitNone, rbFitFontSize, rbFitTracking, stEffect, ddEffect, cbRemoveLineBreaks
+        ];
+        var pathTextActive = isPathTextMode();
+        for (var i = 0; i < pathTextControls.length; i++) pathTextControls[i].enabled = pathTextActive;
     }
 
     /**
@@ -2433,7 +2422,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb9e9082df5e5"; /* 紹�
     function onModeChanged() {
         redrawModeIcons();
         syncRoundnessForMode();
-        updateFitEnabled();
         updatePathTextControlsEnabled();
         updateBlockOptionsEnabled();
         updateKerningEnabled();
@@ -2594,10 +2582,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb9e9082df5e5"; /* 紹�
         btnHiddenChar.onClick = function () {
             /* 制御文字の表示はドキュメント側の設定なので、プレビューには手を触れない
                Hidden characters are a document-level setting, so the preview is left alone */
-            try {
-                app.executeMenuCommand('showHiddenChar');
-                app.redraw();
-            } catch (e) { }
+            app.executeMenuCommand('showHiddenChar');
+            app.redraw();
         };
 
         btnCancel.onClick = function () {
@@ -2613,7 +2599,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb9e9082df5e5"; /* 紹�
             }
             /* 一時オブジェクトを重ねないよう、プレビューを取り消してから本適用する / undo the preview before applying for real */
             clearPreview();
-            if (!generatePathText(true, false)) {
+            if (!convertTargetTexts(true, false)) {
                 /* 何も適用できなかったので、設定を直せるよう開いたままにしてプレビューへ戻す
                    Nothing was applied: stay open so the settings can be fixed, and restore the preview */
                 refreshPreview();
@@ -2630,7 +2616,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb9e9082df5e5"; /* 紹�
     function initDialogState() {
         syncPathCoverageValue();
         syncTrackingFromEdit();
-        updateFitEnabled();
         updatePathTextControlsEnabled();
         updateBlockOptionsEnabled();
         updateKerningEnabled();
@@ -3055,23 +3040,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb9e9082df5e5"; /* 紹�
     // =========================================
 
     /**
-     * パス（複合パスなら中の各パス）に処理を行う（受け付けないものはスキップ）
-     * @param {PageItem} pathItem - パスまたは複合パス
-     * @param {Function} styleFn - PathItem を受け取る処理
-     * @returns {void}
-     */
-    function forEachPathItem(pathItem, styleFn) {
-        if (!pathItem || !styleFn) return;
-        if (pathItem.typename === 'CompoundPathItem') {
-            for (var subPathIndex = 0; subPathIndex < pathItem.pathItems.length; subPathIndex++) {
-                try { styleFn(pathItem.pathItems[subPathIndex]); } catch (e) { }
-            }
-            return;
-        }
-        try { styleFn(pathItem); } catch (e) { }
-    }
-
-    /**
      * パスを見えなくする（塗りなし・線なし・線幅0）
      * @param {PathItem} pathItem - 対象のパス
      * @returns {void}
@@ -3083,12 +3051,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb9e9082df5e5"; /* 紹�
     }
 
     /**
-     * 生成したパスを見えないガイドにする（複合パスにも対応）
+     * 生成したパスを見えないガイドにする（複合パスなら中の各パス）
      * @param {PageItem} pathItem - 対象のパス
      * @returns {void}
      */
     function applyInvisiblePathStyle(pathItem) {
-        forEachPathItem(pathItem, styleInvisiblePath);
+        if (pathItem.typename !== 'CompoundPathItem') {
+            styleInvisiblePath(pathItem);
+            return;
+        }
+        for (var i = 0; i < pathItem.pathItems.length; i++) styleInvisiblePath(pathItem.pathItems[i]);
     }
 
     // =========================================
@@ -3398,6 +3370,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb9e9082df5e5"; /* 紹�
             [centerX + radius, centerY]   /* 右 / right */
         ]);
         circlePath.closed = true;
+        /* 塗り・線は createPathTextFrom() で消す / fill and stroke are cleared in createPathTextFrom() */
 
         /* 各アンカーの方向線を接線方向へ倒して直線を円弧にする / tilt each handle along the tangent */
         var pathPoints = circlePath.pathPoints;
@@ -3409,11 +3382,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb9e9082df5e5"; /* 紹�
         pathPoints[2].rightDirection = [centerX + handleLength, centerY + radius];
         pathPoints[3].leftDirection = [centerX + radius, centerY + handleLength];
         pathPoints[3].rightDirection = [centerX + radius, centerY - handleLength];
-
-        try {
-            circlePath.stroked = false;
-            circlePath.filled = false;
-        } catch (e) { }
 
         return circlePath;
     }
@@ -3446,15 +3414,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb9e9082df5e5"; /* 紹�
     function createArcPathFromText(sourceText, layer) {
         var baselineYMultiplier = 1.02;
 
-        /* 空・不正なテキストは対象外 / Guard: empty / invalid text */
-        try {
-            if (!sourceText || sourceText.typename !== 'TextFrame') return null;
-            if (!sourceText.lines || sourceText.lines.length === 0) return null;
-            if (!sourceText.textRanges || sourceText.textRanges.length === 0) return null;
-        } catch (e) {
-            return null;
-        }
+        /* 空のテキストは対象外 / Guard: empty text */
+        if (sourceText.lines.length === 0 || sourceText.textRanges.length === 0) return null;
 
+        /* ロックされたレイヤーなどでパスを追加できないことがある / adding a path may fail on a locked layer */
         try {
             var textBounds = measureTextBounds(sourceText);
             if (!textBounds) return null;
@@ -3472,10 +3435,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb9e9082df5e5"; /* 紹�
                 [textBounds[0], baselineY],
                 [textBounds[2], baselineY]
             ]);
-            try {
-                arcPath.stroked = false;
-                arcPath.filled = false;
-            } catch (e) { }
 
             /* 直線を円弧に曲げる（上＝＋／下＝−）/ Bend the straight path into an arc */
             var directionSign = (currentMode === 'modeBow') ? -1 : 1;
@@ -3544,22 +3503,54 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb9e9082df5e5"; /* 紹�
      * @param {boolean} previewMode - プレビューなら true
      * @returns {boolean} 1つでも変換できたら true
      */
-    function generatePathText(showAlerts, previewMode) {
-        var createdPathTexts = [];
-        /* 変換元として一時的に作ったポイント文字。作り終えたら必ず取り除く
-           Point-text stand-ins created as the source; always removed once the conversion is done */
-        var temporarySources = [];
-
+    function convertTargetTexts(showAlerts, previewMode) {
         /* モード未選択のまま呼ばれても何もしない / do nothing while no mode is picked */
         if (!isModeSelected()) return false;
 
         /* ブロックはパスを作らず、選択したテキストの行の幅をそろえるだけ / Block mode only fits the line widths */
         if (isBlockMode()) {
-            return generateBlockText(showAlerts, previewMode);
+            return fitTargetTextsAsBlock(showAlerts, previewMode);
         }
 
         /* テキストと一緒に選ばれていたパスは残さない / A path selected together with the text should not remain */
         removeOrHideSelectedPaths(previewMode);
+
+        var createdPathTexts = createPathTextsForTargets(showAlerts, previewMode);
+
+        /* フィット：「しない」以外を選んだとき（ループ後にまとめて適用）。
+           以下の処理はどれもフレームごとに例外を受け止めている
+           Fit (unless None); each of these catches failures per frame */
+        if (isFitByTrackingActive()) {
+            /* 文字サイズを保ったまま、トラッキングでパス幅に合わせる */
+            fitTextToPathByTracking(createdPathTexts);
+        } else if (isFitByFontSizeActive()) {
+            /* 文字サイズを変更してパス幅に合わせる */
+            fitTextToPathByFontSize(createdPathTexts);
+        }
+
+        /* 占有率：パスの端まで並んだ文字を、指定した割合ぶんまで詰めて中央へ寄せる */
+        applyPathCoverage(createdPathTexts);
+
+        /* 保険：フィットの設定にかかわらず、パスに収まらないぶんは縮めて文字を欠けさせない */
+        preventOverset(createdPathTexts);
+
+        /* 変換で位置が大きく変わるので、結果が画面から外れていたら見える位置へ / Bring the result into view */
+        ensureItemsVisible(createdPathTexts);
+
+        return createdPathTexts.length > 0;
+    }
+
+    /**
+     * 対象のテキストごとにパスとパス上文字を作り、元のテキストを取り除く（プレビューでは隠す）
+     * @param {boolean} showAlerts - 失敗時に警告を出すなら true
+     * @param {boolean} previewMode - プレビューなら true
+     * @returns {TextFrame[]} 作成したパス上文字
+     */
+    function createPathTextsForTargets(showAlerts, previewMode) {
+        var createdPathTexts = [];
+        /* 変換元として一時的に作ったポイント文字。作り終えたら必ず取り除く
+           Point-text stand-ins created as the source; always removed once the conversion is done */
+        var temporarySources = [];
 
         for (var j = 0; j < targetTextFrames.length; j++) {
             var originalText = targetTextFrames[j];
@@ -3600,28 +3591,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb9e9082df5e5"; /* 紹�
         for (var sourceIndex = temporarySources.length - 1; sourceIndex >= 0; sourceIndex--) {
             try { temporarySources[sourceIndex].remove(); } catch (e) { }
         }
-
-        /* フィット：「しない」以外を選んだとき（ループ後にまとめて適用）。
-           以下の処理はどれもフレームごとに例外を受け止めている
-           Fit (unless None); each of these catches failures per frame */
-        if (isFitByTrackingActive()) {
-            /* 文字サイズを保ったまま、トラッキングでパス幅に合わせる */
-            fitTextToPathByTracking(createdPathTexts);
-        } else if (isFitByFontSizeActive()) {
-            /* 文字サイズを変更してパス幅に合わせる（従来）*/
-            fitTextToPathByFontSize(createdPathTexts);
-        }
-
-        /* 占有率：パスの端まで並んだ文字を、指定した割合ぶんまで詰めて中央へ寄せる */
-        applyPathCoverage(createdPathTexts);
-
-        /* 保険：フィットの設定にかかわらず、パスに収まらないぶんは縮めて文字を欠けさせない */
-        preventOverset(createdPathTexts);
-
-        /* 変換で位置が大きく変わるので、結果が画面から外れていたら見える位置へ / Bring the result into view */
-        ensureItemsVisible(createdPathTexts);
-
-        return createdPathTexts.length > 0;
+        return createdPathTexts;
     }
 
     // =========================================
@@ -3924,22 +3894,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb9e9082df5e5"; /* 紹�
     }
 
     /**
-     * 「行末の句読点を削除」の指定を読み取る
-     * @returns {boolean} 削除するなら true
-     */
-    function readRemovePunctuation() {
-        return cbRemovePunctuation.value === true;
-    }
-
-    /**
      * 行の終わりに残った句読点を削除する（閉じ括弧・引用符・空白は残す）
      * 改行を入れたあとに実行する。contents の書き換えでは文字ごとの書式が失われるため1文字ずつ消す。
      * @param {TextFrame} textFrame - 対象テキストフレーム
      * @returns {void}
      */
     function removeLineEndPunctuation(textFrame) {
-        var text = '';
-        try { text = textFrame.contents; } catch (e) { return; }
+        var text = textFrame.contents;
 
         /* うしろから見れば、まだ消していない前側のインデックスがずれない
            Scan from the end so the not-yet-used earlier indexes stay valid */
@@ -3972,8 +3933,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb9e9082df5e5"; /* 紹�
         unifyFontSize(textFrame);
         removeLineBreaks(textFrame);
 
-        var text = '';
-        try { text = textFrame.contents; } catch (e) { return; }
+        var text = textFrame.contents;
         if (text.length === 0) return;
 
         var positions = (splitMode === 'punctuation')
@@ -3982,7 +3942,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb9e9082df5e5"; /* 紹�
         insertLineBreaks(textFrame, positions);
 
         /* 改行位置が決まったあとに消す（先に消すと位置がずれる）*/
-        if (readRemovePunctuation()) removeLineEndPunctuation(textFrame);
+        if (cbRemovePunctuation.value) removeLineEndPunctuation(textFrame);
     }
 
     /**
@@ -3991,9 +3951,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb9e9082df5e5"; /* 紹�
      * @returns {boolean} ポイント文字なら true
      */
     function isPointTextFrame(textFrame) {
-        if (!textFrame) return false;
-        try { return textFrame.kind === TextType.POINTTEXT; } catch (e) { }
-        return false;
+        return textFrame.kind === TextType.POINTTEXT;
     }
 
     /**
@@ -4113,7 +4071,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb9e9082df5e5"; /* 紹�
      * @param {boolean} previewMode - プレビューなら true
      * @returns {boolean} 1つでも適用できたら true
      */
-    function generateBlockText(showAlerts, previewMode) {
+    function fitTargetTextsAsBlock(showAlerts, previewMode) {
         var appliedTexts = [];
 
         for (var i = 0; i < targetTextFrames.length; i++) {
@@ -4255,10 +4213,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb9e9082df5e5"; /* 紹�
      * @returns {number} 行数
      */
     function getLineAmount(textFrame) {
-        try {
-            if (textFrame.lines && textFrame.lines.length > 0) return textFrame.lines.length;
-        } catch (e) { }
-        return 1;
+        return Math.max(1, textFrame.lines.length);
     }
 
     /**
@@ -4270,8 +4225,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb9e9082df5e5"; /* 紹�
      * @returns {number} 加算するトラッキング量（求められない場合は0）
      */
     function calcTrackingForCoverage(textFrame, coverageRatio) {
-        var pathLength = 0;
-        try { pathLength = textFrame.textPath.length; } catch (e) { pathLength = 0; }
+        var pathLength = textFrame.textPath.length;
         if (!(pathLength > 0)) return 0;
 
         var characterAmount = textFrame.characters.length;
@@ -4402,79 +4356,73 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb9e9082df5e5"; /* 紹�
         return true;
     }
 
+    /* トラッキングで合わせるときの刻みと上限 / Tracking steps and limits for the fit */
+    var TRACKING_FIT = {
+        coarseStep: 50,     /* 大きな刻み / tracking units per coarse step */
+        fineStep: 1,        /* 細かい刻み / tracking units per fine step */
+        minTracking: -1000, /* 加算の下限 / tightest allowed cumulative delta */
+        maxTracking: 20000, /* 加算の上限 / loosest allowed cumulative delta */
+        maxIter: 4000
+    };
+
+    /**
+     * あふれの状態が目標と一致するまで、トラッキングを一定量ずつ加算する（加算の上下限で止める）
+     * @param {TextFrame} textFrame - 対象のパス上文字
+     * @param {number} lineAmount - 表示される行数
+     * @param {number} step - 1回に加算する量（負なら詰める）
+     * @param {boolean} untilOverset - あふれるまで続けるなら true、収まるまでなら false
+     * @param {{applied: number}} trackingState - これまでに加算した量（更新される）
+     * @returns {void}
+     */
+    function stepTrackingUntil(textFrame, lineAmount, step, untilOverset, trackingState) {
+        for (var iterations = 0; iterations < TRACKING_FIT.maxIter; iterations++) {
+            if (isOverset(textFrame, lineAmount) === untilOverset) return;
+            var nextTracking = trackingState.applied + step;
+            if (nextTracking < TRACKING_FIT.minTracking || nextTracking > TRACKING_FIT.maxTracking) return;
+            addTrackingToFrame(textFrame, step);
+            trackingState.applied = nextTracking;
+        }
+    }
+
+    /**
+     * 1つのパス上文字を、文字サイズを保ったままトラッキングだけでパスの端まで合わせる
+     * 大きな刻みであふれの境目を越え、細かい刻みで収まるいちばん広いトラッキングに落ち着かせる。
+     * @param {TextFrame} textFrame - 対象のパス上文字
+     * @returns {void}
+     */
+    function fitOnePathTextByTracking(textFrame) {
+        if (textFrame.characters.length <= 0) return;
+
+        var lineAmount = getLineAmount(textFrame);
+        var trackingState = { applied: 0 }; /* これまでに加算した量 / cumulative tracking delta applied so far */
+
+        if (isOverset(textFrame, lineAmount)) {
+            /* 長すぎる：収まるまで大きな刻みで詰め、あふれるまで細かく広げ直す
+               Too wide: tighten coarsely until it fits, then loosen finely until it overflows again */
+            stepTrackingUntil(textFrame, lineAmount, -TRACKING_FIT.coarseStep, false, trackingState);
+            stepTrackingUntil(textFrame, lineAmount, TRACKING_FIT.fineStep, true, trackingState);
+            /* 1刻み広げすぎたぶんを戻して収める / Stepped one fineStep too far: pull back once */
+            if (isOverset(textFrame, lineAmount)) addTrackingToFrame(textFrame, -TRACKING_FIT.fineStep);
+        } else {
+            /* 余裕がある：あふれるまで大きな刻みで広げ、収まるまで細かく詰め直す
+               Fits with room: loosen coarsely until it overflows, then tighten finely until it fits */
+            stepTrackingUntil(textFrame, lineAmount, TRACKING_FIT.coarseStep, true, trackingState);
+            stepTrackingUntil(textFrame, lineAmount, -TRACKING_FIT.fineStep, false, trackingState);
+        }
+    }
+
     /**
      * 文字サイズを保ったまま、トラッキングだけでパスの端まで合わせる（開いた／閉じたパスの両方）
-     * 大きな刻みであふれの境目を越え、細かい刻みで収まるいちばん広いトラッキングに落ち着かせる。
      * @param {TextFrame[]} pathTexts - 生成したパス上文字
      * @returns {boolean} 対象があれば true
      */
     function fitTextToPathByTracking(pathTexts) {
         if (!pathTexts || pathTexts.length === 0) return false;
 
-        var trackingOptions = {
-            coarseStep: 50,     /* 大きな刻み / tracking units per coarse step */
-            fineStep: 1,        /* 細かい刻み / tracking units per fine step */
-            minTracking: -1000, /* 加算の下限 / tightest allowed cumulative delta */
-            maxTracking: 20000, /* 加算の上限 / loosest allowed cumulative delta */
-            maxIter: 4000
-        };
-
-        /* 1つのパス上文字をトラッキングで合わせる / fit one path text by tracking */
-        function fitByTracking(textFrame) {
-            try {
-                if (!textFrame || textFrame.characters.length <= 0) return;
-
-                var lineAmount = getLineAmount(textFrame);
-                var appliedTracking = 0; /* これまでに加算した量 / cumulative tracking delta applied so far */
-                var iterations;
-
-                if (isOverset(textFrame, lineAmount)) {
-                    /* 長すぎる：収まるまで大きな刻みで詰める / Too wide: tighten (coarse) until it fits */
-                    iterations = 0;
-                    while (isOverset(textFrame, lineAmount) && iterations < trackingOptions.maxIter) {
-                        if (appliedTracking - trackingOptions.coarseStep < trackingOptions.minTracking) break;
-                        addTrackingToFrame(textFrame, -trackingOptions.coarseStep);
-                        appliedTracking -= trackingOptions.coarseStep;
-                        iterations++;
-                    }
-                    /* あふれるまで細かい刻みで広げ直す / Loosen back (fine) until it overflows again */
-                    iterations = 0;
-                    while (!isOverset(textFrame, lineAmount) && iterations < trackingOptions.maxIter) {
-                        if (appliedTracking + trackingOptions.fineStep > trackingOptions.maxTracking) break;
-                        addTrackingToFrame(textFrame, trackingOptions.fineStep);
-                        appliedTracking += trackingOptions.fineStep;
-                        iterations++;
-                    }
-                    /* 1刻み広げすぎたぶんを戻して収める / Stepped one fineStep too far: pull back once */
-                    if (isOverset(textFrame, lineAmount)) {
-                        addTrackingToFrame(textFrame, -trackingOptions.fineStep);
-                        appliedTracking -= trackingOptions.fineStep;
-                    }
-                } else {
-                    /* 余裕がある：あふれるまで大きな刻みで広げる / Fits with room: loosen (coarse) until it overflows */
-                    iterations = 0;
-                    while (!isOverset(textFrame, lineAmount) && iterations < trackingOptions.maxIter) {
-                        if (appliedTracking + trackingOptions.coarseStep > trackingOptions.maxTracking) break;
-                        addTrackingToFrame(textFrame, trackingOptions.coarseStep);
-                        appliedTracking += trackingOptions.coarseStep;
-                        iterations++;
-                    }
-                    /* 収まるまで細かい刻みで詰め直す / Tighten back (fine) until it fits */
-                    iterations = 0;
-                    while (isOverset(textFrame, lineAmount) && iterations < trackingOptions.maxIter) {
-                        if (appliedTracking - trackingOptions.fineStep < trackingOptions.minTracking) break;
-                        addTrackingToFrame(textFrame, -trackingOptions.fineStep);
-                        appliedTracking -= trackingOptions.fineStep;
-                        iterations++;
-                    }
-                }
-            } catch (e) { }
-        }
-
         for (var i = 0; i < pathTexts.length; i++) {
-            var textFrame = pathTexts[i];
-            if (!isEditablePathText(textFrame)) continue;
-            fitByTracking(textFrame);
+            if (!isEditablePathText(pathTexts[i])) continue;
+            /* 文字の追加・削除中などで書き換えを受け付けないことがある / the frame may reject edits */
+            try { fitOnePathTextByTracking(pathTexts[i]); } catch (e) { }
         }
 
         return true;
