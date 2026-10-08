@@ -64,7 +64,7 @@ Selected texts (other than the node) are used as follows. Matching ignores case,
 
 | Item | Description |
 | --- | --- |
-| Width | Proportional or Square Root. Square Root keeps small values visible. |
+| Width Scale | Proportional or Square Root. Square Root keeps small values visible. |
 | Node Height | Height of the rounded box behind a text node. Fixed to the shape's height for a shape node. |
 | Exit Height | Band exit height (total width of the first-level bands) as a percentage of the node height. The node keeps its size. |
 | Curve Length | Horizontal length of the curved part. |
@@ -84,13 +84,13 @@ Where a branch has a text to fit, the text's position takes precedence over Curv
 | Draw Bands as Strokes | Draws each band as a stroke along its center (stroke weight = band width, butt caps) instead of a filled shape, so the width can be changed later via the stroke weight. Arrow tips become filled triangles following the stroke. On steep curves the stroke looks thinner vertically. |
 | Move Labels | On: lays out the bands by the set lengths and gaps and moves the selected label texts to fit (junction captions go to the junction centers). Off (default): the texts stay put and the bands are fitted to them. Canceling puts the texts back. |
 
-### Junction 1 / Junction 2 Panels
+### Junctions (Level 1) / Junctions (Level 2+) Panels
 
-Junction 1 covers junctions at the end of first-level branches; Junction 2 covers second-level and deeper branches.
+Junctions (Level 1) covers junctions at the end of first-level branches; Junctions (Level 2+) covers second-level and deeper branches.
 
 | Item | Description |
 | --- | --- |
-| Circle / Rectangle / None | Shape placed at the junction. With a junction caption, it is sized to hold the text. |
+| Circle / Rectangle / None | Shape placed at the junction. With a junction caption, it is sized to hold the text, and the text is center-justified without moving (Cancel or None restores the original justification). |
 | By Size / By Margin | What width and height mean: the shape size, or the margins left/right and above/below the junction caption. |
 | Width, Height | The shape size or the margins. 0 = auto (sized to hold the text) for both. |
 | Link (chain icon) | Keeps the width and height equal. On by default. |
@@ -145,6 +145,7 @@ Colors given as K tints become grays of the same darkness in RGB documents.
 
 ### Update History
 
+- v1.1.1 (2026-10-08) Revised UI wording (Width Scale, junction panel names, etc.); captions enclosed by a circle or rectangle are now center-justified
 - v1.1.0 (2026-10-08) Added Draw Bands as Strokes and Fit to Window; Width is now a pair of radio buttons
 - v1.0.1 (2026-10-08) Band opacity now defaults to 60%
 - v1.0.0 (2026-10-08) Initial version

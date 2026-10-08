@@ -26,7 +26,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SankeyFlow
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SankeyFlowMaker";              /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-08";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-08";                   /* 更新日 / last updated */
@@ -2335,7 +2335,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     /* 日英ラベル定義 / Japanese-English label definitions */
     var LABELS = {
         dialog: {
-            title: { ja: "サンキー図を作成", en: "Make Sankey Flow" }
+            title: { ja: "サンキー図を作成", en: "Create Sankey Diagram" }
         },
         radio: {
             linear:    { ja: "値に比例", en: "Proportional" },
@@ -2352,12 +2352,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             flow:      { ja: "フロー", en: "Flow" },
             size:      { ja: "サイズ", en: "Size" },
             options:   { ja: "オプション", en: "Options" },
-            junction1: { ja: "分岐点1", en: "Junction 1" },
-            junction2: { ja: "分岐点2", en: "Junction 2" },
+            junction1: { ja: "分岐点（1段目）", en: "Junctions (Level 1)" },
+            junction2: { ja: "分岐点（2段目以降）", en: "Junctions (Level 2+)" },
             color:     { ja: "カラー", en: "Color" }
         },
         fieldLabel: {
-            widthScale:     { ja: "太さ", en: "Width" },
+            widthScale:     { ja: "太さの基準", en: "Width Scale" },
             nodeHeight:     { ja: "ノードの高さ", en: "Node Height" },
             exitRatio:      { ja: "出口の高さ", en: "Exit Height" },
             junctionWidth:  { ja: "幅", en: "Width" },
@@ -2400,11 +2400,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             branchGap:      { ja: "隣り合う枝の間隔", en: "Gap between neighboring branches" },
             fontSizeFromText: { ja: "選択中のラベルの文字サイズを使います", en: "Uses the size of the selected labels" },
             nodeHeight:     { ja: "テキストのノードの背面に作る角丸長方形の高さ（図形のノードはその高さで固定）", en: "Height of the rounded box behind a text node (fixed to the shape's height for a shape node)" },
-            junctionWidth:  { ja: "大きさで指定：形の幅。余白で指定：テキストの左右の余白（どちらも 0 は自動）", en: "By Size: shape width. By Margin: margin left and right of the text (0 = auto for both)" },
-            junctionHeight: { ja: "大きさで指定：形の高さ。余白で指定：テキストの上下の余白（どちらも 0 は自動）", en: "By Size: shape height. By Margin: margin above and below the text (0 = auto for both)" },
+            junctionWidth:  { ja: "大きさで指定 : 形の幅。余白で指定 : テキストの左右の余白（どちらも 0 は自動）", en: "By Size: shape width. By Margin: margin left and right of the text (0 = auto for both)" },
+            junctionHeight: { ja: "大きさで指定 : 形の高さ。余白で指定 : テキストの上下の余白（どちらも 0 は自動）", en: "By Size: shape height. By Margin: margin above and below the text (0 = auto for both)" },
             sizeMode:       { ja: "幅・高さを、形の大きさで指定するか、分岐点名のテキストまわりの余白で指定するか", en: "Whether width and height set the shape size or the margin around the junction caption" },
             strokeBands:    { ja: "帯を塗りの形ではなく、中心を通る線（線幅＝帯の太さ）で描きます。矢印は別の三角形になります", en: "Draws each band as a stroke along its center (stroke weight = band width) instead of a filled shape; arrow tips become separate triangles" },
-            moveLabels:     { ja: "オン：帯を設定の長さと間隔で配置し、選択中のラベルのテキストをその位置へ移します。オフ：テキストは動かさず、帯をテキストに合わせます", en: "On: lays out the bands by the set lengths and gaps and moves the selected label texts to fit. Off: the texts stay put and the bands are fitted to them" },
+            moveLabels:     { ja: "オン : 帯を設定の長さと間隔で配置し、選択中のラベルのテキストをその位置へ移します。オフ : テキストは動かさず、帯をテキストに合わせます", en: "On: lays out the bands by the set lengths and gaps and moves the selected label texts to fit. Off: the texts stay put and the bands are fitted to them" },
             linkJunctionSize: { ja: "幅と高さを連動", en: "Link width and height" },
             junctionShape:  { ja: "分岐点名のテキストがあれば、テキストは動かさず、それが収まる大きさで囲みます", en: "With a junction caption, the text stays put and the shape is sized to hold it" },
             junction1:      { ja: "1段目の枝の先の分岐点", en: "Junctions at the end of first-level branches" },
@@ -2468,7 +2468,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * ノードとラベルを選択から振り分ける。ノードはキーオブジェクト、無ければ一番左のオブジェクト。
      * ノード以外の選択中のテキストはラベルの候補にする
      * @param {Array} selectedItems - 選択中のオブジェクト（前面から順）
-     * @returns {{left: number, top: number, right: number, bottom: number, isTextNode: boolean, nodeItem: PageItem, labelTexts: TextFrame[], labelPositions: number[][], labelSize: number, backItem: PageItem}} ノードの外形・ノードがテキストか・ラベルの候補と元の位置・文字サイズ（pt）・最背面のオブジェクト
+     * @returns {{left: number, top: number, right: number, bottom: number, isTextNode: boolean, nodeItem: PageItem, labelTexts: TextFrame[], labelPositions: number[][], labelJustifications: Justification[][], labelSize: number, backItem: PageItem}} ノードの外形・ノードがテキストか・ラベルの候補と元の位置・行揃え・文字サイズ（pt）・最背面のオブジェクト
      */
     function getNodeInfo(selectedItems) {
         var nodeItem = null;
@@ -2484,11 +2484,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         var labelTexts = [];
         var labelPositions = [];
+        var labelJustifications = [];
         for (var j = 0; j < selectedItems.length; j++) {
             var selectedItem = selectedItems[j];
             if (selectedItem === nodeItem || selectedItem.typename !== "TextFrame" || selectedItem.contents === "") continue;
             labelTexts.push(selectedItem);
             labelPositions.push([selectedItem.position[0], selectedItem.position[1]]);
+            labelJustifications.push(readJustifications(selectedItem));
         }
 
         var nodeBounds = nodeItem.geometricBounds;
@@ -2498,6 +2500,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             nodeItem: nodeItem,
             labelTexts: labelTexts,
             labelPositions: labelPositions,
+            labelJustifications: labelJustifications,
             labelSize: (labelTexts.length > 0) ? labelTexts[0].textRange.characters[0].characterAttributes.size : 0,
             /* 選択は前面から順なので、最後が最背面 / The selection runs front to back, so the last one is rearmost */
             backItem: selectedItems[selectedItems.length - 1]
@@ -2601,7 +2604,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      */
     function drawSankeyFlow(doc, nodeInfo, flowRoots, settings) {
         /* ［ラベルを動かす］で動かしたテキストは、描くたびに元の位置から始める / Texts moved by "Move Labels" start from their original positions on every draw */
-        restoreLabelPositions(nodeInfo);
+        restoreLabelTexts(nodeInfo);
         var flowGroup = nodeInfo.backItem.layer.groupItems.add();
         flowGroup.name = GROUP_NAME;
         flowGroup.move(nodeInfo.backItem, ElementPlacement.PLACEAFTER);
@@ -2702,17 +2705,75 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /**
-     * ラベルの候補を元の位置へ戻す（［ラベルを動かす］のプレビューのたびと、キャンセルのときに呼ぶ）
+     * ラベルの候補を元の行揃えと位置へ戻す（描くたびと、キャンセルのときに呼ぶ）。
+     * 行揃えを戻すと位置がずれるので、位置はそのあとで戻す
      * @param {Object} nodeInfo - getNodeInfo() の結果
      * @returns {void}
      */
-    function restoreLabelPositions(nodeInfo) {
+    function restoreLabelTexts(nodeInfo) {
         for (var i = 0; i < nodeInfo.labelTexts.length; i++) {
+            var labelText = nodeInfo.labelTexts[i];
+            if (!isSameJustifications(readJustifications(labelText), nodeInfo.labelJustifications[i])) writeJustifications(labelText, nodeInfo.labelJustifications[i]);
             var originalPosition = nodeInfo.labelPositions[i];
-            var currentPosition = nodeInfo.labelTexts[i].position;
+            var currentPosition = labelText.position;
             if (currentPosition[0] === originalPosition[0] && currentPosition[1] === originalPosition[1]) continue;
-            nodeInfo.labelTexts[i].position = originalPosition;
+            labelText.position = originalPosition;
         }
+    }
+
+    /**
+     * テキストの段落ごとの行揃えを返す
+     * @param {TextFrame} textFrame - 対象のテキスト
+     * @returns {Justification[]} 段落ごとの行揃え
+     */
+    function readJustifications(textFrame) {
+        var justifications = [];
+        for (var i = 0; i < textFrame.paragraphs.length; i++) justifications.push(textFrame.paragraphs[i].paragraphAttributes.justification);
+        return justifications;
+    }
+
+    /**
+     * 2つの行揃えの並びが同じかを返す
+     * @param {Justification[]} justificationsA - 行揃えの並び
+     * @param {Justification[]} justificationsB - 行揃えの並び
+     * @returns {boolean} 同じなら true
+     */
+    function isSameJustifications(justificationsA, justificationsB) {
+        if (justificationsA.length !== justificationsB.length) return false;
+        for (var i = 0; i < justificationsA.length; i++) {
+            if (String(justificationsA[i]) !== String(justificationsB[i])) return false;
+        }
+        return true;
+    }
+
+    /**
+     * readJustifications() で控えた行揃えを段落ごとに書き戻す。
+     * 左揃えはスクリプトから代入しても効かないことがあるので、効かなければ一時的に拡大・縮小して段落を組み直させる
+     * @param {TextFrame} textFrame - 対象のテキスト
+     * @param {Justification[]} justifications - 段落ごとの行揃え
+     * @returns {void}
+     */
+    function writeJustifications(textFrame, justifications) {
+        var paragraphCount = Math.min(textFrame.paragraphs.length, justifications.length);
+        for (var i = 0; i < paragraphCount; i++) textFrame.paragraphs[i].paragraphAttributes.justification = justifications[i];
+        for (var j = 0; j < paragraphCount; j++) {
+            if (String(textFrame.paragraphs[j].paragraphAttributes.justification) === String(justifications[j])) continue;
+            textFrame.resize(200, 200);
+            for (var k = 0; k < paragraphCount; k++) textFrame.paragraphs[k].paragraphAttributes.justification = justifications[k];
+            textFrame.resize(50, 50);
+            return;
+        }
+    }
+
+    /**
+     * 分岐点名のテキストを中央揃えにする。見た目の位置は変えない（外形の中心を元の位置に戻す）
+     * @param {TextFrame} captionFrame - 分岐点名のテキスト
+     * @returns {void}
+     */
+    function centerCaptionKeepingPosition(captionFrame) {
+        var beforeBox = getItemBox(captionFrame);
+        captionFrame.textRange.paragraphAttributes.justification = Justification.CENTER;
+        centerItemAt(captionFrame, beforeBox.centerX, beforeBox.centerY);
     }
 
     /**
@@ -3130,7 +3191,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             if (flowNode.children.length > 0) {
                 /* ［ラベルを動かす］のときは分岐点名を分岐点の中心へ / With "Move Labels", center the caption on the junction */
                 if (drawContext.moveLabels && flowNode.captionFrame) centerItemAt(flowNode.captionFrame, endX, targetCenterY);
-                if (getJunctionStyle(flowNode, drawContext).shape !== "none") drawJunctionShape(flowNode, endX, targetCenterY, drawContext);
+                if (getJunctionStyle(flowNode, drawContext).shape !== "none") {
+                    /* 形で囲む分岐点名は中央揃えに（位置は変えない）/ Center-justify a caption enclosed by a shape, keeping its position */
+                    if (flowNode.captionFrame) centerCaptionKeepingPosition(flowNode.captionFrame);
+                    drawJunctionShape(flowNode, endX, targetCenterY, drawContext);
+                }
                 drawBranches(flowNode.children, endX, targetCenterY, endX, drawContext);
             }
             sourceTop -= flowNode.width;
@@ -3997,7 +4062,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
          */
         function updatePreview() {
             removePreview();
-            restoreLabelPositions(nodeInfo);
+            restoreLabelTexts(nodeInfo);
             var flowSettings = collectSettings();
             var flowRead = readFlows(flowSettings.flowText);
             if (!flowRead.errorMessage) previewGroup = drawSankeyFlow(doc, nodeInfo, flowRead.flowRoots, flowSettings);
@@ -4065,7 +4130,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var dialogResult = flowDialog.show();
         removePreview();
         if (dialogResult !== 1) {
-            restoreLabelPositions(nodeInfo);
+            restoreLabelTexts(nodeInfo);
             FitViewToItems.restoreView(initialViewState, doc);
             app.redraw();
             return null;
