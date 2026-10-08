@@ -26,7 +26,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SankeyFlow
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SankeyFlowMaker";              /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.2";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.3";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-08";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-09";                   /* 更新日 / last updated */
@@ -3064,13 +3064,15 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /**
      * 割り当てたテキストから決まる、帯の中心の Y を返す（ラベルの高さの中央）。
-     * ラベルが無い分岐する枝は、子の中心の平均にする。［ラベルを動かす］のときは決めない
+     * 分岐点名のある枝は分岐点名の中央（分岐点の形と帯をそろえる）、ラベルが無い分岐する枝は子の中心の平均にする。
+     * ［ラベルを動かす］のときは決めない
      * @param {Object} flowNode - 枝
      * @param {Object} drawContext - 描画の共通情報
      * @returns {number|null} 中心の Y。決まらなければ null
      */
     function findAnchoredCenterY(flowNode, drawContext) {
         if (drawContext.moveLabels) return null;
+        if (flowNode.children.length > 0 && flowNode.captionFrame) return getItemBox(flowNode.captionFrame).centerY;
         if (flowNode.labelFrame) return getItemBox(flowNode.labelFrame).centerY;
         var centerSum = 0;
         var centerCount = 0;

@@ -57,7 +57,7 @@ Selected texts (other than the node) are used as follows. Matching ignores case,
 | Text | Used as |
 | --- | --- |
 | "value name" or "name" matches a branch | That branch's label. The text stays put; the band's center, curve end, and arrow tip are fitted to it. |
-| Remaining texts without digits | Junction captions, assigned to junctions from the leftmost; the junction is placed at the text. |
+| Remaining texts without digits | Junction captions, assigned to junctions from the leftmost; the junction is placed at the text. A branch with a caption also centers its band on the caption (over its own label). |
 | Branches with no matching text | A new label is created in the format of the selected label texts. |
 
 ### Size Panel
@@ -145,6 +145,7 @@ Colors given as K tints become grays of the same darkness in RGB documents.
 
 ### Update History
 
+- v1.1.3 (2026-10-09) Branches with a junction caption now center their band on the caption, so the junction circle/rectangle and the band split line up
 - v1.1.2 (2026-10-09) Draw Bands as Strokes is now on by default
 - v1.1.1 (2026-10-08) Revised UI wording (Width Scale, junction panel names, etc.); captions enclosed by a circle or rectangle are now center-justified
 - v1.1.0 (2026-10-08) Added Draw Bands as Strokes and Fit to Window; Width is now a pair of radio buttons
