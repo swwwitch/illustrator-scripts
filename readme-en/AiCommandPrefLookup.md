@@ -10,7 +10,7 @@
 
 ### Overview
 
-Pick items from the list built into the script and get `app.executeMenuCommand()`, `app.selectTool()` or `app.preferences` get/set code. Use it as a reference for looking up IDs and keys from menu or setting names.
+Filter the list built into the script by kind, language, category and keyword, pick items, and get `app.executeMenuCommand()`, `app.selectTool()` or `app.preferences` get/set code. Use it as a reference for looking up IDs and keys from menu or setting names.
 
 <img alt="A menu command selected (View > Hide/Show Edges)" src="../png/ss-1184-1578-144-20260927-161848.png" width="45%" />
 
@@ -21,10 +21,10 @@ Pick items from the list built into the script and get `app.executeMenuCommand()
   - Tools: `app.selectTool('…');`
   - Preferences: `app.preferences.get…Preference('…');` and `set…Preference('…', value);` in separate fields (Boolean / Integer / Real / String by type; the sample value comes from the actual preference file)
 - Language: show menu and setting names in Japanese and/or English with checkboxes
-- For Kind and Language, option-click (Alt-click) a checkbox to turn all on; option-click again to keep only the clicked one
+- For Kind and Language, option-click (Alt-click) a checkbox to turn all on; option-click again to keep only the clicked one (the last checked one cannot be turned off)
 - Category: filter by top-level menu (File, Edit, Object…) or preference section
 - Keyword: filters names and IDs/keys as you type (case-insensitive, regular expressions allowed)
-- With several items selected, the code is listed in list order
+- With several items selected, the code is listed in list order (when preferences are mixed with other kinds, it goes into one field instead of separate get/set fields)
 - Add names as comments: appends the name, such as `// File > New...`, to each line (off by default)
 - Copy buttons: the button to the right of each code field copies that code to the clipboard (get and set can be copied separately for preferences)
 - Memo: shows what a preference value means (such as the unit codes of `rulerType`) and caveats such as "takes effect after a restart"
@@ -35,7 +35,7 @@ Pick items from the list built into the script and get `app.executeMenuCommand()
 ### How to use
 
 1. Run the script (no document needs to be open)
-2. Choose the kind and language, then filter by category or keyword
+2. Check the kinds and languages to show (several allowed), then filter by category or keyword
 3. Select an item to see its name, code and memo
 4. Copy the code with the copy button and paste it into your script
 

@@ -6,7 +6,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-内蔵の一覧から項目を選んで、app.executeMenuCommand() / app.selectTool() / app.preferences の get・set のコードを出力します。
+内蔵の一覧を種類・言語・カテゴリ・キーワードで絞り込んで項目を選び、app.executeMenuCommand() / app.selectTool() / app.preferences の get・set のコードを出力します。
 
 詳細は README を参照してください。
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiCommandPrefLookup.md
@@ -16,7 +16,7 @@ https://note.com/dtp_tranist/n/n0cf4826bf4a7
 
 ### Overview
 
-Outputs app.executeMenuCommand() / app.selectTool() / app.preferences get/set code for items selected from the built-in list.
+Filter the built-in list by kind, language, category and keyword, then output app.executeMenuCommand() / app.selectTool() / app.preferences get/set code for the selected items.
 
 See the README for details.
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiCommandPrefLookup.md
