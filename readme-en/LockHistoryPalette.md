@@ -22,7 +22,7 @@ The record is written into each object's **tag** (`PageItem.tags`, tag name `Loc
 - Lists each entry as "#1 (2 items / Path)" — the order you locked in, the count, and the type of the first object
 - Selecting an entry marks its extent with a red frame in the document
 - Unlock releases one entry at a time
-- Unlock All releases everything in the history
+- Unlock All releases everything in the history (Option/Alt-click releases everything in the document)
 - Remove from List and Remove All from List discard the record while leaving the locks in place
 - The record lives in the document, so it survives reopening the file
 - Deleted objects drop out at the next read
@@ -43,7 +43,7 @@ The record is written into each object's **tag** (`PageItem.tags`, tag name `Loc
 | --- | --- |
 | Lock | Records the selected objects as one history entry, then locks them |
 | Unlock | Unlocks the objects of the selected entry and deletes its record |
-| Unlock All | Unlocks the objects of every entry and deletes all records |
+| Unlock All | Unlocks the objects of every entry and deletes all records. Option-click (Alt-click) unlocks everything in the document, including objects not in the history |
 | Remove from List | Deletes the selected entry's record but leaves the objects locked |
 | Remove All from List | Deletes every record in the history but leaves the objects locked |
 
@@ -64,6 +64,7 @@ The record is written into each object's **tag** (`PageItem.tags`, tag name `Loc
 
 ### Change log
 
+- v1.0.8 (2026-10-10) Option-click (Alt-click) on Unlock All now unlocks everything in the document, including objects not in the history
 - v1.0.7 (2026-10-10) Fixed new entry numbers sometimes colliding with existing ones, a generic error when locking with text selected, and Unlock All stopping halfway on locked layers. The list selection now follows the entry number, returning to the palette no longer modifies the document, and each command scans the document only once
 - v1.0.6 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.0.5 (2026-10-03) Moved to the shared persistent engine `SwwwitchPalettes` so CloseAllPalettes can close it
@@ -75,6 +76,6 @@ The record is written into each object's **tag** (`PageItem.tags`, tag name `Loc
 
 ### Script info
 
-- Version: v1.0.7
+- Version: v1.0.8
 - First release: 2026-09-23
 - Last updated: 2026-10-10

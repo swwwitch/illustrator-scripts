@@ -39,7 +39,7 @@ palette. Objects locked with command+2 are not recorded.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "LockHistoryPalette";           /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.7";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.8";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-09-23";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-10";                   /* 更新日 / last updated */
@@ -492,8 +492,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n577d8a654ec1"; /* 紹�
                 en: "Unlocks the objects of the selected entry and deletes its record"
             },
             unlockAll: {
-                ja: "履歴にあるすべてのオブジェクトのロックを解除し、記録を削除します",
-                en: "Unlocks the objects of every entry and deletes all records"
+                ja: "履歴にあるすべてのオブジェクトのロックを解除し、記録を削除します。option（Alt）キーを押しながらクリックすると、履歴にないものも含めてすべてのロックを解除します",
+                en: "Unlocks the objects of every entry and deletes all records. Option-click (Alt-click) unlocks everything in the document, including objects not in the history"
             },
             forgetEntry: {
                 ja: "ロックはそのままに、選んだ履歴の記録だけを削除します",
@@ -808,6 +808,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n577d8a654ec1"; /* 紹�
         '    else if (command === "show") reply = lupShowLocation(doc, collected, entryId);',
         '    else if (command === "discard") reply = lupDiscard(collected, [entryId], keepLocked);',
         '    else if (command === "discardAll") reply = lupDiscard(collected, null, keepLocked);',
+        '    else if (command === "unlockDocument") {',
+        '        // 履歴の外も含めてドキュメントのロックをすべて解除し、記録も消す',
+        '        app.executeMenuCommand("unlockAll");',
+        '        reply = lupDiscard(collected, null, false);',
+        '    }',
         '    else reply = lupFormatEntries(collected);',
         '    app.redraw();',
         '    return reply;',
@@ -872,7 +877,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n577d8a654ec1"; /* 紹�
 
     /**
      * メインエンジンへ命令を送る（結果は非同期で戻る）
-     * @param {string} command - "read" / "lock" / "show" / "discard" / "discardAll"
+     * @param {string} command - "read" / "lock" / "show" / "discard" / "discardAll" / "unlockDocument"
      * @param {string} entryId - 対象の履歴番号（不要なときは空文字）
      * @param {boolean} keepLocked - 記録を消すときにロックを残すか
      * @returns {void}
@@ -1073,11 +1078,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n577d8a654ec1"; /* 紹�
     }
 
     /**
-     * 履歴にあるすべてのロックを解除し、記録を削除する
+     * 履歴にあるすべてのロックを解除し、記録を削除する。
+     * option（Alt）キーを押しながらなら、履歴の外も含めてドキュメントのロックをすべて解除する
      * @returns {void}
      */
     function unlockAllEntries() {
-        sendToMainEngine("discardAll", "", false);
+        var isOptionDown = false;
+        try { isOptionDown = ScriptUI.environment.keyboardState.altKey; } catch (e) { }
+        sendToMainEngine(isOptionDown ? "unlockDocument" : "discardAll", "", false);
     }
 
     /**
