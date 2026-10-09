@@ -11,10 +11,18 @@
 ### Overview
 
 Swaps the contents of two selected text objects.
-A dialog lets you choose what to swap (string / style / position).
+A dialog lets you choose what to swap (string / format / position).
 
-- Exactly two objects must be selected, and both must be text objects.
-- Shows an alert if the conditions are not met.
+- String: swaps only the strings. The formatting and positions stay put. Text with mixed formatting takes on the formatting of its first character.
+- Format: swaps the font, size, fill color, stroke color, stroke weight, tracking, leading, horizontal / vertical scale, baseline shift, and capitalization. The strings and positions stay put.
+- Position: swaps only the positions, using one of two reference points.
+  - Top left: lines up the top-left corners of the text bounds.
+  - Anchor point: lines up the text anchor points (on the baseline, at the alignment point). Point text of different sizes or alignments lands where the other one's anchor was.
+
+### Notes
+
+- Exactly two objects must be selected, and both must be text objects. Shows an alert if the conditions are not met.
+- Paragraph formatting, such as the auto leading percentage and the paragraph alignment, is not swapped by Format.
 
 ### Update history
 
