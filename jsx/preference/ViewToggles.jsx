@@ -9,6 +9,9 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 アプリケーションフレーム・コントロールパネル・ガイド・グリッド・スナップなどの表示とオン・オフを、ダイアログボックスのチェックボックスでまとめて切り替えます。
 今の状態を読んでから開くので、メニューの反転と違って意図しない切り替えが起きません。
 
+詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ViewToggles.md
+
 ### 注意
 
 メニューの状態を読むには補助アプリ /Applications/SetAiMenuState.app（ai-scripts の helpers/SetAiMenuState.applescript）とアクセシビリティの許可が要ります。
@@ -18,6 +21,9 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 Switches the application frame, Control panel, guides, grid, snapping and more on or off with checkboxes in one dialog.
 The current state is read first, so nothing is flipped by accident as with a plain menu toggle.
+
+See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ViewToggles.md
 
 ### Notes
 
@@ -30,10 +36,13 @@ Without it, only the items readable from preferences can be switched.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ViewToggles";                  /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-09";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-09";                   /* 更新日 / last updated */
+
+var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ViewToggles.md"; /* README（日本語） */
+var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ViewToggles.md"; /* README (English) */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
@@ -54,6 +63,7 @@ var SCRIPT_UPDATED  = "2026-10-09";                   /* 更新日 / last update
 
     var LEFT_COLUMN_GROUP_COUNT = 3;         /* 左の列に置くカテゴリの数（残りは右の列）/ categories in the left column (the rest go right) */
     var ROW_SPACING           = 8;           /* 行内の要素間隔 / spacing inside a row */
+    var RADIO_INDENT          = 16;          /* 項目名の下に並べるラジオボタンの字下げ / indent of radio buttons stacked under their label */
     var PRESET_DROPDOWN_WIDTH = 160;         /* プリセットのドロップダウンの幅 / preset dropdown width */
     var PRESET_ICON_SIZE      = [20, 18];    /* プリセットの保存・削除アイコンの大きさ / preset save and delete icon size */
     var SAVE_ICON_OPACITY     = 0.75;        /* 保存アイコンの濃さ（ほかのアイコンに対する比率）/ save icon opacity relative to the others */
@@ -1156,6 +1166,9 @@ var SCRIPT_UPDATED  = "2026-10-09";                   /* 更新日 / last update
      *   command : executeMenuCommand() の ID。無い項目は補助アプリがメニューをクリックする（スクリプトの終了後）
      *   prefType : "integer" なら整数として読む（真偽として読むとオフでも true が返る）。省略時は真偽
      *   writePref : 切り替えも環境設定キーに書いて行う（書けばすぐ効く項目）
+     *   prefOnValue : 整数のキーで「オン」に当たる値。省略時は 0 以外をオンとみなす
+     *   needsDocument : ドキュメントを開いているときだけ切り替えられる（ツールオプションはドキュメントが無いと開かない）
+     *   radio   : チェックボックスではなく「オフ・オン」の2択のラジオボタンで見せる（文言は radio.<key>.off / on）
      * 英語版のメニュー名は未検証
      * How each item is read and switched:
      *   pref    : read from a preference key (follows the menu immediately; measured 2026-10-09)
@@ -1163,6 +1176,9 @@ var SCRIPT_UPDATED  = "2026-10-09";                   /* 更新日 / last update
      *   command : the executeMenuCommand() ID; without one the helper clicks the menu after the script ends
      *   prefType : "integer" reads the key as an integer (read as a boolean it is true even when off); boolean otherwise
      *   writePref : switched by writing the preference key too (for keys that take effect at once)
+     *   prefOnValue : the integer value that means on; without it any non-zero value is on
+     *   needsDocument : switchable only while a document is open (tool options do not open without one)
+     *   radio   : shown as a pair of radio buttons (off, on) instead of a checkbox (labels in radio.<key>.off / on)
      * The English menu names are unverified
      */
     var VIEW_TOGGLE_GROUPS = [
@@ -1229,6 +1245,16 @@ var SCRIPT_UPDATED  = "2026-10-09";                   /* 更新日 / last update
                 { key: "backgroundExport", pref: "enableBackgroundExport", menu: { ja: "環境設定>ファイル管理...>バックグラウンドで書き出し", en: "" } },
                 { key: "backgroundSave",   pref: "enableBackgroundSave", menu: { ja: "環境設定>ファイル管理...>バックグラウンドで保存", en: "" } },
                 { key: "recoveryAutosave", pref: "CrashRecovery/AutomaticallySave", menu: { ja: "環境設定>ファイル管理...>復帰データを次の間隔で自動保存", en: "" } }
+            ]
+        },
+        {
+            /* 設定キーは読めるが、書いてもツールに反映されず［OK］で上書きされるので、補助アプリがツールオプションを操作する
+               （PaintFills は 0：オブジェクト、1：スウォッチ。2026-10-09 実測）
+               The key can be read, but writing it does not reach the tool and is overwritten on OK, so the helper operates the tool options
+               (PaintFills is 0 for Artwork, 1 for Color Swatches) */
+            labelKey: "tools",
+            items: [
+                { key: "shapeBuilderObjectColor", pref: "Planar/MergeTool/PaintFills", prefType: "integer", prefOnValue: 0, radio: true, needsDocument: true, menu: { ja: "ツールオプション>Adobe Shape Builder Tool>スウォッチ|オブジェクト", en: "" } }
             ]
         }
     ];
@@ -1327,7 +1353,14 @@ var SCRIPT_UPDATED  = "2026-10-09";                   /* 更新日 / last update
         fieldLabel: {
             brightness: { ja: "明るさ", en: "Brightness" },
             preset: { ja: "プリセット", en: "Preset" },
-            presetName: { ja: "プリセット名", en: "Preset name" }
+            presetName: { ja: "プリセット名", en: "Preset name" },
+            shapeBuilderObjectColor: { ja: "［シェイプ形成ツール］のカラー", en: "Shape Builder Tool Color" }
+        },
+        radio: {
+            shapeBuilderObjectColor: {
+                off: { ja: "スウォッチ", en: "Color Swatches" },
+                on:  { ja: "オブジェクト", en: "Artwork" }
+            }
         },
         panel: {
             basicUI:       { ja: "基本UI", en: "Basic UI" },
@@ -1336,7 +1369,8 @@ var SCRIPT_UPDATED  = "2026-10-09";                   /* 更新日 / last update
             guides:        { ja: "ガイド", en: "Guides" },
             grid:          { ja: "グリッド", en: "Grid" },
             otherSnap:     { ja: "その他のスナップ", en: "Other Snapping" },
-            saveExport:    { ja: "保存・書き出し", en: "Save and Export" }
+            saveExport:    { ja: "保存・書き出し", en: "Save and Export" },
+            tools:         { ja: "ツール", en: "Tools" }
         },
         checkbox: {
             appFrame:     { ja: "アプリケーションフレーム", en: "Application Frame" },
@@ -1366,6 +1400,7 @@ var SCRIPT_UPDATED  = "2026-10-09";                   /* 更新日 / last update
         },
         tooltip: {
             unavailable: { ja: "状態を読めないため切り替えられません", en: "Unavailable because its state cannot be read" },
+            needsDocument: { ja: "ドキュメントを開いているときだけ切り替えられます", en: "Available only while a document is open" },
             brightness: {
                 dark:        { ja: "暗（スクリプトの終了後に環境設定で切り替えます）", en: "Dark (switched in Preferences after the script ends)" },
                 mediumDark:  { ja: "やや暗め（スクリプトの終了後に環境設定で切り替えます）", en: "Medium Dark (switched in Preferences after the script ends)" },
@@ -1387,7 +1422,11 @@ var SCRIPT_UPDATED  = "2026-10-09";                   /* 更新日 / last update
             genAIButton: { ja: "裁ち落とし部分の「裁ち落としを印刷」ボタンです。スクリプトの終了後に環境設定を開いて切り替えます", en: "The Print Bleed buttons on the bleed. Switched in Preferences after the script ends" },
             backgroundExport: { ja: "スクリプトの終了後に環境設定を開いて切り替えます", en: "Switched in Preferences after the script ends" },
             backgroundSave:   { ja: "スクリプトの終了後に環境設定を開いて切り替えます", en: "Switched in Preferences after the script ends" },
-            recoveryAutosave: { ja: "スクリプトの終了後に環境設定を開いて切り替えます", en: "Switched in Preferences after the script ends" }
+            recoveryAutosave: { ja: "スクリプトの終了後に環境設定を開いて切り替えます", en: "Switched in Preferences after the script ends" },
+            shapeBuilderObjectColor: {
+                ja: "［シェイプ形成ツールオプション］の「次のカラーを利用」です。スクリプトの終了後にツールオプションを開いて切り替えます（ツールはシェイプ形成ツールになります）",
+                en: "Pick Color From in the Shape Builder Tool Options. Switched in the tool options after the script ends (the Shape Builder tool becomes active)"
+            }
         },
         button: {
             cancel: { ja: "キャンセル", en: "Cancel" },
@@ -1562,6 +1601,8 @@ var SCRIPT_UPDATED  = "2026-10-09";                   /* 更新日 / last update
             var toggleRow = toggleRows[i];
             if (toggleRow.state && typeof presetData[toggleRow.item.key] === "boolean") {
                 toggleRow.checkbox.value = presetData[toggleRow.item.key];
+                /* 相手のラジオボタンも明示的に揃える / set the partner radio explicitly too */
+                if (toggleRow.offRadio) toggleRow.offRadio.value = !presetData[toggleRow.item.key];
             }
         }
     }
@@ -1783,7 +1824,13 @@ var SCRIPT_UPDATED  = "2026-10-09";                   /* 更新日 / last update
         /* 補助アプリで切り替える項目に、今の UI 言語の道筋が無ければ使えない / Unusable when a helper-switched item has no path for this UI language */
         if (toggleItem.menu && !toggleItem.command && !toggleItem.writePref && !getMenuPath(toggleItem)) return null;
         if (toggleItem.pref) {
-            var isOn = (toggleItem.prefType === "integer") ? app.preferences.getIntegerPreference(toggleItem.pref) !== 0 : app.preferences.getBooleanPreference(toggleItem.pref);
+            var isOn;
+            if (toggleItem.prefType === "integer") {
+                var prefValue = app.preferences.getIntegerPreference(toggleItem.pref);
+                isOn = (typeof toggleItem.prefOnValue === "number") ? prefValue === toggleItem.prefOnValue : prefValue !== 0;
+            } else {
+                isOn = app.preferences.getBooleanPreference(toggleItem.pref);
+            }
             return { isOn: isOn, toolbarKind: null };
         }
         if (!menuStates) return null;
@@ -1868,6 +1915,10 @@ var SCRIPT_UPDATED  = "2026-10-09";                   /* 更新日 / last update
         for (var i = 0; i < toggleGroup.items.length; i++) {
             var toggleItem = toggleGroup.items[i];
             var currentState = readToggleState(toggleItem, menuStates);
+            if (toggleItem.radio) {
+                dialogState.toggleRows.push(addToggleRadioRow(togglePanel, toggleItem, currentState));
+                continue;
+            }
             var toggleCheckbox = togglePanel.add("checkbox", undefined, getLabel("checkbox." + toggleItem.key));
             if (currentState) {
                 toggleCheckbox.value = currentState.isOn;
@@ -1878,6 +1929,44 @@ var SCRIPT_UPDATED  = "2026-10-09";                   /* 更新日 / last update
             }
             dialogState.toggleRows.push({ item: toggleItem, state: currentState, checkbox: toggleCheckbox });
         }
+    }
+
+    /**
+     * 「項目名 :」の下に「○オフ」「○オン」のラジオボタンを縦に並べる。
+     * オン側のラジオボタンを checkbox として返すので、チェックボックスの項目と同じく value でオン・オフを読める
+     * @param {Panel} togglePanel - 行を足すパネル
+     * @param {Object} toggleItem - VIEW_TOGGLE_GROUPS の項目（radio: true）
+     * @param {{isOn: boolean, toolbarKind: Object|null}|null} currentState - 今の状態。読めなければ null
+     * @returns {{item: Object, state: Object|null, checkbox: RadioButton, offRadio: RadioButton}} 項目・状態・オンとオフのラジオボタン
+     */
+    function addToggleRadioRow(togglePanel, toggleItem, currentState) {
+        var radioRow = togglePanel.add("group");
+        radioRow.orientation = "column";
+        radioRow.alignChildren = ["left", "top"];
+        radioRow.spacing = ROW_SPACING;
+        radioRow.add("statictext", undefined, labelText("fieldLabel." + toggleItem.key));
+        var radioColumn = radioRow.add("group");
+        radioColumn.orientation = "column";
+        radioColumn.alignChildren = ["left", "top"];
+        radioColumn.spacing = ROW_SPACING;
+        radioColumn.margins = [RADIO_INDENT, 0, 0, 0];
+        var offRadio = radioColumn.add("radiobutton", undefined, getLabel("radio." + toggleItem.key + ".off"));
+        var onRadio = radioColumn.add("radiobutton", undefined, getLabel("radio." + toggleItem.key + ".on"));
+        var radioTip = getLabel("tooltip." + toggleItem.key);
+        if (currentState) {
+            onRadio.value = currentState.isOn;
+            offRadio.value = !currentState.isOn;
+        } else {
+            radioTip = getLabel("tooltip.unavailable");
+        }
+        /* 状態は読めても、ドキュメントが無ければ切り替えられない / Even when readable, it cannot be switched without a document */
+        var isDocumentMissing = toggleItem.needsDocument && !app.documents.length;
+        if (currentState && isDocumentMissing) radioTip = getLabel("tooltip.needsDocument");
+        if (!currentState || isDocumentMissing) radioRow.enabled = false;
+        offRadio.helpTip = radioTip;
+        onRadio.helpTip = radioTip;
+        /* 切り替えられない行は状態を持たせず、プリセットや［OK］で触らない / A row that cannot be switched carries no state, so presets and OK leave it alone */
+        return { item: toggleItem, state: isDocumentMissing ? null : currentState, checkbox: onRadio, offRadio: offRadio };
     }
 
     /**

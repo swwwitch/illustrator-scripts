@@ -13,8 +13,12 @@
 --       チェックボックスが無ければ同じ名前のボタンを on で押す（例: 環境設定>ユーザーインターフェイス...>明）
 --       例: 環境設定>一般...>裁ち落とし部分に「裁ち落としを印刷」生成 AI ボタンを表示
 --       JavaScript で設定キーを書いても画面に反映されない項目に使う。名前は前方一致で探す
+--     ツールオプションのポップアップは「ツールオプション>ツールのID>オフの項目名|オンの項目名」と書く（on / off のみ。日本語版のみ）
+--       ツールを選んで return でダイアログボックスを開き、両方の項目を持つポップアップで選んで［OK］を押す
+--       例: ツールオプション>Adobe Shape Builder Tool>スウォッチ|オブジェクト
 --     操作は get（読むだけ）/ on / off / toggle
 --   結果は /tmp/set_ai_menu_state_result.txt に1行1件で「道筋<TAB>変更前<TAB>変更後」を書く。
+--     ツールオプションで失敗したときは、4つ目に理由を足す（dialog did not open / popup not found）
 --     状態は on / off、項目が無ければ notfound、グレー表示なら disabled
 --   Illustrator はスクリプトの実行中にメニューを読ませない（$.sleep や app.redraw() で待っても不可）。
 --   読めるのはスクリプトが終わった後か、モーダルのダイアログボックスを表示している間だけ。
@@ -26,6 +30,7 @@
 --     An item whose label flips is written "name while off|name while on" (e.g. View>Guides>Show Guides|Hide Guides).
 --     A checkbox in the preferences dialog is written "環境設定>pane menu name>checkbox name" (on / off only, Japanese UI only),
 --       for settings whose key does not take effect when written from JavaScript. The name is matched by prefix.
+--     A popup in a tool's options dialog is written "ツールオプション>tool ID>off item|on item" (on / off only, Japanese UI only).
 --   The result file gets "path<TAB>before<TAB>after" per line (on / off / notfound / disabled).
 --   Illustrator blocks menu access while a script runs ($.sleep and app.redraw() do not help);
 --   menus are reachable only after the script ends or while a modal dialog is shown.
@@ -91,6 +96,7 @@ on applyRequest(p, requestLine)
 	set {menuPath, action} to splitText(requestLine, tab)
 	if action is "" then set action to "get"
 	if menuPath starts with "環境設定>" then return menuPath & tab & applyPrefCheckbox(menuPath, action)
+	if menuPath starts with "ツールオプション>" then return menuPath & tab & applyToolOption(p, menuPath, action)
 
 	set {mi, stateBefore} to findToggle(p, menuPath)
 	if mi is missing value then return menuPath & tab & "notfound" & tab & "notfound"
@@ -263,6 +269,123 @@ on openPrefPane(menuItemName)
 	end tell
 	error "環境設定のダイアログボックスが開きませんでした（" & menuItemName & "）。"
 end openPrefPane
+
+-- ツールオプションのポップアップを揃え、「変更前<TAB>変更後」を返す
+-- ダイアログボックスは window ではなく「〜オプション」という名前の UI element（AXLayoutArea）として現れる。
+-- ポップアップは値を書き込めず、開いた一覧の項目にもアクションが無いので、矢印キーと return で選ぶ。
+-- Illustrator が背面に回るとダイアログボックスは閉じる（2026-10-09 実測）
+-- Sets a popup in a tool's options dialog and returns "before<TAB>after".
+-- The popup value is read-only and the opened list has no actions, so the arrow keys and Return pick the item
+on applyToolOption(p, menuPath, action)
+	set names to splitText(menuPath, ">")
+	set toolId to item 2 of names
+	set {offName, onName} to splitText(item 3 of names, "|")
+	if action is "get" then return "notfound" & tab & "notfound"
+	-- tell application "System Events" の中では action がクラス名になるので、別の名前に移す
+	-- Inside a System Events tell, "action" resolves to a class, so copy it to another name
+	set requestedAction to action
+
+	tell application id "com.adobe.illustrator" to do javascript "app.selectTool('" & toolId & "');"
+	set w to openToolOptions(p)
+	if w is missing value then return "notfound" & tab & "notfound" & tab & "dialog did not open"
+
+	tell application "System Events"
+		-- 両方の項目を持つポップアップを探す / Find the popup that holds both items
+		set cb to missing value
+		repeat with candidate in (combo boxes of w)
+			set itemNames to description of UI elements of candidate
+			if itemNames contains offName and itemNames contains onName then
+				set cb to contents of candidate
+				exit repeat
+			end if
+		end repeat
+		if cb is missing value then
+			click (first button of w whose description is "キャンセル")
+			return "notfound" & tab & "notfound" & tab & "popup not found"
+		end if
+
+		set currentName to value of cb
+		if currentName is onName then
+			set stateBefore to "on"
+		else
+			set stateBefore to "off"
+		end if
+		set wanted to requestedAction
+		if requestedAction is "toggle" then
+			if stateBefore is "on" then
+				set wanted to "off"
+			else
+				set wanted to "on"
+			end if
+		end if
+		set stateAfter to stateBefore
+
+		if wanted is not stateBefore then
+			if wanted is "on" then
+				set targetName to onName
+			else
+				set targetName to offName
+			end if
+			set itemNames to description of UI elements of cb
+			set stepCount to (my indexOfItem(targetName, itemNames)) - (my indexOfItem(currentName, itemNames))
+			perform action "AXPress" of cb
+			delay 0.5
+			-- ↓（125）か ↑（126）で目的の項目まで動かす / Move to the target with Down (125) or Up (126)
+			set arrowKey to 125
+			if stepCount < 0 then
+				set arrowKey to 126
+				set stepCount to -stepCount
+			end if
+			repeat stepCount times
+				key code arrowKey
+				delay 0.1
+			end repeat
+			key code 36
+			delay 0.5
+			if (value of cb) is targetName then set stateAfter to wanted
+		end if
+		click (first button of w whose description is "OK")
+	end tell
+	return stateBefore & tab & stateAfter
+end applyToolOption
+
+-- 選んでいるツールのオプションを return で開き、ダイアログボックスを返す。開かなければ missing value
+-- 1回目の return は空振りすることがあるので、出るまで押し直す
+-- Opens the selected tool's options with Return and returns the dialog, or missing value.
+-- The first Return can be ignored, so it is pressed again until the dialog appears
+on openToolOptions(p)
+	tell application "System Events"
+		-- 起動した補助アプリが前面に来ると Illustrator のダイアログボックスは閉じるので、Illustrator が前面に戻るまで待つ
+		-- The helper itself can take the front on launch, which closes the dialog, so wait until Illustrator is frontmost
+		repeat 50 times
+			if frontmost of p then exit repeat
+			tell application id "com.adobe.illustrator" to activate
+			delay 0.1
+		end repeat
+		delay 0.3
+		repeat 3 times
+			set frontmost of p to true
+			key code 36
+			repeat 15 times
+				delay 0.2
+				repeat with candidate in (UI elements of p)
+					try
+						if (role of candidate) is "AXLayoutArea" and (name of candidate) ends with "オプション" then return contents of candidate
+					end try
+				end repeat
+			end repeat
+		end repeat
+	end tell
+	return missing value
+end openToolOptions
+
+-- リストの中の位置（1始まり）を返す。無ければ 0 / Returns the 1-based position in a list, or 0
+on indexOfItem(targetItem, itemList)
+	repeat with k from 1 to count of itemList
+		if (item k of itemList) is targetItem then return k
+	end repeat
+	return 0
+end indexOfItem
 
 -- 環境設定のダイアログボックスが閉じるまで待つ / Waits until the preferences dialog has closed
 on waitForPrefClosed()
