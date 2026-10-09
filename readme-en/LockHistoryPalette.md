@@ -64,6 +64,7 @@ The record is written into each object's **tag** (`PageItem.tags`, tag name `Loc
 
 ### Change log
 
+- v1.0.7 (2026-10-10) Fixed new entry numbers sometimes colliding with existing ones, a generic error when locking with text selected, and Unlock All stopping halfway on locked layers. The list selection now follows the entry number, returning to the palette no longer modifies the document, and each command scans the document only once
 - v1.0.6 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.0.5 (2026-10-03) Moved to the shared persistent engine `SwwwitchPalettes` so CloseAllPalettes can close it
 - v1.0.4 (2026-10-01): Unified the window and panel margins and spacing with the shared layout part
@@ -74,6 +75,6 @@ The record is written into each object's **tag** (`PageItem.tags`, tag name `Loc
 
 ### Script info
 
-- Version: v1.0.6
+- Version: v1.0.7
 - First release: 2026-09-23
-- Last updated: 2026-10-04
+- Last updated: 2026-10-10

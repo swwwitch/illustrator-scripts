@@ -39,10 +39,10 @@ palette. Objects locked with command+2 are not recorded.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "LockHistoryPalette";           /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.6";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.7";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-09-23";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-10";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/LockHistoryPalette.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/LockHistoryPalette.md"; /* README (English) */
@@ -590,32 +590,60 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n577d8a654ec1"; /* 紹�
         '    return null;',
         '}',
         '',
-        '// タグはロック中のアイテムには付けられないので、呼ぶ側で必ず解除しておく',
+        '// タグはロック中のアイテムには付けられないので、呼ぶ側で解除しておく。外せなかったアイテムを返す',
         'function lupRemoveTags(items) {',
+        '    var keptItems = [];',
         '    for (var i = 0; i < items.length; i++) {',
         '        var historyTag = lupFindTag(items[i]);',
-        '        if (historyTag) historyTag.remove();',
+        '        if (!historyTag) continue;',
+        '        // ロックされたレイヤーにあると解除できず、タグも外せない。記録は残して次へ進む',
+        '        try { historyTag.remove(); } catch (e) { keptItems.push(items[i]); }',
         '    }',
+        '    return keptItems;',
         '}',
         '',
-        '// タグの付いたアイテムを1回の走査で集める。番号順の一覧・番号ごとのアイテム・先頭の型名を返す',
+        '// タグの付いたアイテムを1回の走査で集める。番号順の一覧・番号ごとのアイテム・先頭の型名・最大の番号を返す',
         '// pageItems はグループの中身も平坦に返るので、入れ子をたどる必要はない',
         'function lupCollectEntries(doc) {',
-        '    var itemsById = {}, typeById = {}, entryIds = [];',
+        '    var itemsById = {}, typeById = {}, sortKeys = [], maxId = 0;',
         '    var allItems = doc.pageItems;',
         '    for (var i = 0; i < allItems.length; i++) {',
         '        var historyTag = lupFindTag(allItems[i]);',
         '        if (!historyTag) continue;',
-        '        var entryKey = "entry" + historyTag.value;',
+        '        var entryId = Number(historyTag.value);',
+        '        var entryKey = "entry" + entryId;',
         '        if (!itemsById[entryKey]) {',
         '            itemsById[entryKey] = [];',
         '            typeById[entryKey] = allItems[i].typename;',
-        '            entryIds.push(Number(historyTag.value));',
+        '            // 比較関数つきの sort() は並びが狂うので、0埋めした文字列を引数なしで並べる',
+        '            sortKeys.push(("0000000000" + entryId).slice(-10));',
+        '            if (entryId > maxId) maxId = entryId;',
         '        }',
         '        itemsById[entryKey].push(allItems[i]);',
         '    }',
-        '    entryIds.sort(function (a, b) { return a - b; });',
-        '    return { ids: entryIds, itemsById: itemsById, typeById: typeById };',
+        '    sortKeys.sort();',
+        '    var entryIds = [];',
+        '    for (var k = 0; k < sortKeys.length; k++) entryIds.push(Number(sortKeys[k]));',
+        '    return { ids: entryIds, itemsById: itemsById, typeById: typeById, maxId: maxId };',
+        '}',
+        '',
+        '// 番号のアイテムを差し替える。空にした番号は返信に出ない（ids はそのまま）',
+        'function lupSetEntryItems(collected, entryId, items) {',
+        '    var entryKey = "entry" + entryId;',
+        '    if (!items.length) { delete collected.itemsById[entryKey]; return; }',
+        '    collected.itemsById[entryKey] = items;',
+        '    collected.typeById[entryKey] = items[0].typename;',
+        '}',
+        '',
+        '// 別の番号へ付け替えるアイテムを、元の番号から外す',
+        'function lupDropItem(collected, entryId, item) {',
+        '    var entryItems = collected.itemsById["entry" + entryId];',
+        '    if (!entryItems) return;',
+        '    var remainingItems = [];',
+        '    for (var i = 0; i < entryItems.length; i++) {',
+        '        if (entryItems[i] !== item) remainingItems.push(entryItems[i]);',
+        '    }',
+        '    lupSetEntryItems(collected, entryId, remainingItems);',
         '}'
     ];
 
@@ -697,77 +725,90 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n577d8a654ec1"; /* 紹�
     /* パレットから呼ばれる命令。どれも最後に最新の一覧を返す
        / The commands the palette calls; each one ends by returning the current list */
     var REMOTE_COMMANDS = [
-        'function lupReadEntries(doc) {',
-        '    var collected = lupCollectEntries(doc);',
+        '// 集めた結果から返信を組み立てる。走査は lupRun の1回だけで、各命令は結果を書き換えて渡す',
+        'function lupFormatEntries(collected) {',
         '    var replyRecords = ["OK"];',
         '    for (var i = 0; i < collected.ids.length; i++) {',
         '        var entryKey = "entry" + collected.ids[i];',
+        '        if (!collected.itemsById[entryKey]) continue;',
         '        replyRecords.push(collected.ids[i] + LUP_FIELD_SEP + collected.itemsById[entryKey].length + LUP_FIELD_SEP + collected.typeById[entryKey]);',
         '    }',
         '    return replyRecords.join(LUP_RECORD_SEP);',
         '}',
         '',
-        'function lupLockSelection(doc) {',
-        '    var selected = doc.selection || [];',
-        '    if (!selected.length) return "ERROR" + LUP_FIELD_SEP + "NOSEL";',
+        'function lupLockSelection(doc, collected) {',
+        '    var selected = doc.selection;',
+        '    // 文字を選択中は TextRange が返る。length は文字数で [0] も無い',
+        '    if (!selected || selected.typename === "TextRange" || !selected.length) return "ERROR" + LUP_FIELD_SEP + "NOSEL";',
         '    // ロックすると選択から外れるので、先に配列へ写す',
         '    var items = [];',
         '    for (var i = 0; i < selected.length; i++) items.push(selected[i]);',
-        '    // 番号は昇順に並んでいるので、末尾が最大値',
-        '    var entryIds = lupCollectEntries(doc).ids;',
-        '    var newEntryId = String(entryIds.length ? entryIds[entryIds.length - 1] + 1 : 1);',
+        '    var newEntryId = collected.maxId + 1;',
         '    for (var j = 0; j < items.length; j++) {',
         '        var historyTag = lupFindTag(items[j]);',
-        '        if (!historyTag) { historyTag = items[j].tags.add(); historyTag.name = LUP_TAG_NAME; }',
-        '        historyTag.value = newEntryId;',
+        '        if (historyTag) lupDropItem(collected, Number(historyTag.value), items[j]);',
+        '        else { historyTag = items[j].tags.add(); historyTag.name = LUP_TAG_NAME; }',
+        '        historyTag.value = String(newEntryId);',
         '    }',
         '    lupSetLocked(items, true);',
         '    doc.selection = null;',
-        '    return lupReadEntries(doc);',
+        '    // 最大の番号の次なので、末尾に足せば番号順のまま',
+        '    collected.ids.push(newEntryId);',
+        '    lupSetEntryItems(collected, newEntryId, items);',
+        '    return lupFormatEntries(collected);',
         '}',
         '',
         '// entryIdList が null なら履歴のすべてが対象',
-        'function lupDiscard(doc, entryIdList, keepLocked) {',
-        '    var collected = lupCollectEntries(doc);',
+        'function lupDiscard(collected, entryIdList, keepLocked) {',
         '    var targetIds = entryIdList || collected.ids;',
         '    for (var i = 0; i < targetIds.length; i++) {',
         '        var items = collected.itemsById["entry" + targetIds[i]];',
         '        if (!items) continue;',
         '        var lockStates = keepLocked ? lupLockStates(items) : null;',
         '        lupSetLocked(items, false);',
-        '        lupRemoveTags(items);',
+        '        var keptItems = lupRemoveTags(items);',
         '        if (keepLocked) lupSetLocked(items, lockStates);',
+        '        // タグを外せなかったアイテムは記録に残る',
+        '        lupSetEntryItems(collected, targetIds[i], keptItems);',
         '    }',
-        '    return lupReadEntries(doc);',
+        '    return lupFormatEntries(collected);',
         '}',
         '',
-        'function lupShowLocation(doc, entryId) {',
-        '    var items = lupCollectEntries(doc).itemsById["entry" + entryId];',
+        'function lupShowLocation(doc, collected, entryId) {',
+        '    var items = collected.itemsById["entry" + entryId];',
         '    if (!items) return "ERROR" + LUP_FIELD_SEP + "NOITEMS";',
-        '    // ロックされたままでは範囲を測れないので、いったん外す',
-        '    var lockStates = lupLockStates(items);',
-        '    lupSetLocked(items, false);',
+        '    var frameBounds;',
         '    try {',
-        '        var frameBounds = lupUnionBounds(items);',
-        '        if (frameBounds) lupDrawFrame(doc, frameBounds);',
-        '    } finally {',
-        '        // 途中で失敗してもロック状態は必ず戻す',
-        '        lupSetLocked(items, lockStates);',
+        '        frameBounds = lupUnionBounds(items);',
+        '    } catch (e) {',
+        '        // ロックしたままで範囲を読めなかったときだけ、いったん外して測る',
+        '        var lockStates = lupLockStates(items);',
+        '        lupSetLocked(items, false);',
+        '        try {',
+        '            frameBounds = lupUnionBounds(items);',
+        '        } finally {',
+        '            // 途中で失敗してもロック状態は必ず戻す',
+        '            lupSetLocked(items, lockStates);',
+        '        }',
         '    }',
-        '    return lupReadEntries(doc);',
+        '    if (frameBounds) lupDrawFrame(doc, frameBounds);',
+        '    return lupFormatEntries(collected);',
         '}',
         '',
         'function lupRun(command, entryId, keepLocked) {',
         '    if (app.documents.length === 0) return "ERROR" + LUP_FIELD_SEP + "NODOC";',
         '    var doc = app.activeDocument;',
-        '    // どの操作でも、まず前回の枠を片づける',
-        '    lupClearFrame(doc);',
+        '    var collected = lupCollectEntries(doc);',
+        '    // 前回の枠を片づける。読み直しで、選んでいる履歴がまだあれば枠は残し、',
+        '    // パレットに戻るたびにドキュメントを書き換えない',
+        '    var keepFrame = (command === "read" && entryId !== "" && collected.itemsById["entry" + entryId]);',
+        '    if (!keepFrame) lupClearFrame(doc);',
         '    var reply;',
-        '    if (command === "lock") reply = lupLockSelection(doc);',
-        '    else if (command === "show") reply = lupShowLocation(doc, entryId);',
-        '    else if (command === "discard") reply = lupDiscard(doc, [entryId], keepLocked);',
-        '    else if (command === "discardAll") reply = lupDiscard(doc, null, keepLocked);',
-        '    else reply = lupReadEntries(doc);',
+        '    if (command === "lock") reply = lupLockSelection(doc, collected);',
+        '    else if (command === "show") reply = lupShowLocation(doc, collected, entryId);',
+        '    else if (command === "discard") reply = lupDiscard(collected, [entryId], keepLocked);',
+        '    else if (command === "discardAll") reply = lupDiscard(collected, null, keepLocked);',
+        '    else reply = lupFormatEntries(collected);',
         '    app.redraw();',
         '    return reply;',
         '}'
@@ -808,6 +849,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n577d8a654ec1"; /* 紹�
        / Pending BridgeTalk messages; held as locals they can be collected before the reply arrives */
     var pendingMessages = [];
 
+    /* 読み直しの返信待ちなら true。起動時は show() の onActivate と直後の呼び出しが重なるので、2回目は送らない
+       / True while a read is pending; at launch the onActivate from show() and the explicit call overlap */
+    var readIsPending = false;
+
     // =========================================
     // メインエンジンとのやりとり / Talking to the main engine
     // =========================================
@@ -834,6 +879,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n577d8a654ec1"; /* 紹�
      */
     function sendToMainEngine(command, entryId, keepLocked) {
         if (!paletteIsOpen) return;
+        var isRead = (command === "read");
+        if (isRead && readIsPending) return;
 
         var bridgeMessage = new BridgeTalk();
         bridgeMessage.target = "illustrator";
@@ -841,14 +888,19 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n577d8a654ec1"; /* 紹�
             'lupRun("' + command + '", "' + (entryId || "") + '", ' + (keepLocked ? "true" : "false") + ');';
         bridgeMessage.onResult = function (replyMessage) {
             forgetPendingMessage(bridgeMessage);
+            if (isRead) readIsPending = false;
             applyRemoteReply(replyMessage.body);
         };
         bridgeMessage.onError = function (replyMessage) {
             forgetPendingMessage(bridgeMessage);
-            applyRemoteReply("ERROR" + REPLY_FIELD_SEPARATOR + replyMessage.body);
+            if (isRead) readIsPending = false;
+            /* 例外の文言に区切り文字が入っていても切れないよう、返信の解析を通さない
+               / Bypass reply parsing so separators inside the message do not truncate it */
+            applyRemoteFailure(replyMessage.body);
         };
 
         pendingMessages.push(bridgeMessage);
+        if (isRead) readIsPending = true;
         statusLabel.text = getLabel("status.working");
         bridgeMessage.send();
     }
@@ -875,21 +927,34 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n577d8a654ec1"; /* 紹�
 
         var replyRecords = String(replyText).split(REPLY_RECORD_SEPARATOR);
         if (replyRecords[0] !== "OK") {
-            /* 一覧はそのまま。作り直すのは「処理中…」を消すため
-               / The list is unchanged; rebuilding only clears the "Working..." line */
-            rebuildEntryList();
             var errorFields = replyRecords[0].split(REPLY_FIELD_SEPARATOR);
-            reportRemoteError(errorFields[1] || errorFields[0]);
+            applyRemoteFailure(errorFields[1] || errorFields[0]);
             return;
         }
 
+        /* 一覧の選択は行ではなく履歴の番号で戻す（行の位置は件数の増減でずれる）
+           / Restore the selection by entry number, not by row: rows shift as entries come and go */
+        var selectedEntryId = getSelectedEntryId();
         historyEntries = [];
         for (var i = 1; i < replyRecords.length; i++) {
             if (!replyRecords[i]) continue;
             var fields = replyRecords[i].split(REPLY_FIELD_SEPARATOR);
             historyEntries.push({ id: Number(fields[0]), count: Number(fields[1]), typeName: fields[2] });
         }
-        rebuildEntryList();
+        rebuildEntryList(selectedEntryId);
+    }
+
+    /**
+     * メインエンジンでの失敗を知らせる
+     * @param {string} errorCode - エラーコード、または例外の文言
+     * @returns {void}
+     */
+    function applyRemoteFailure(errorCode) {
+        if (!paletteIsOpen) return;
+        /* 一覧はそのまま。作り直すのは「処理中…」を消すため
+           / The list is unchanged; rebuilding only clears the "Working..." line */
+        rebuildEntryList(getSelectedEntryId());
+        reportRemoteError(String(errorCode));
     }
 
     // =========================================
@@ -908,6 +973,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n577d8a654ec1"; /* 紹�
     }
 
     /**
+     * 一覧で選ばれている履歴の番号を返す
+     * @returns {number} 選択中の履歴の番号（無ければ null）
+     */
+    function getSelectedEntryId() {
+        var selectedEntry = getSelectedEntry();
+        return selectedEntry ? selectedEntry.id : null;
+    }
+
+    /**
      * 記録中のアイテムの総数を数える
      * @returns {number} アイテム数
      */
@@ -918,12 +992,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n577d8a654ec1"; /* 紹�
     }
 
     /**
-     * 履歴一覧とステータス行を作り直す（選択位置は保つ）
+     * 履歴一覧とステータス行を作り直す
+     * @param {number} selectedEntryId - 作り直したあとに選んでおく履歴の番号（無ければ null）
      * @returns {void}
      */
-    function rebuildEntryList() {
-        var selectedIndex = entryListBox.selection ? entryListBox.selection.index : -1;
-
+    function rebuildEntryList(selectedEntryId) {
         isRebuildingList = true;
         entryListBox.removeAll();
         for (var i = 0; i < historyEntries.length; i++) {
@@ -932,8 +1005,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n577d8a654ec1"; /* 紹�
                 count: historyEntries[i].count,
                 type: localizedTypeName(historyEntries[i].typeName)
             }));
+            if (historyEntries[i].id === selectedEntryId) entryListBox.selection = i;
         }
-        if (selectedIndex >= 0 && selectedIndex < entryListBox.items.length) entryListBox.selection = selectedIndex;
         isRebuildingList = false;
 
         statusLabel.text = getLabel("status.summary", {
@@ -947,11 +1020,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n577d8a654ec1"; /* 紹�
     // =========================================
 
     /**
-     * アクティブなドキュメントから記録を読み直す
+     * アクティブなドキュメントから記録を読み直す（選んでいる履歴がまだあれば枠は残す）
      * @returns {void}
      */
     function refreshHistory() {
-        sendToMainEngine("read", "", false);
+        /* 閉じたあとにも onActivate が届きうる / onActivate can still arrive after closing */
+        if (!paletteIsOpen) return;
+        sendToMainEngine("read", getSelectedEntryId(), false);
     }
 
     /**
@@ -1041,12 +1116,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n577d8a654ec1"; /* 紹�
      */
     function addButtonRow(parentPalette, buttonSpecs) {
         var buttonRow = parentPalette.add("group");
-        buttonRow.orientation = "row";
-        /* alignChildren を "left" にしないと親の fill を継承してボタンが横いっぱいに伸びる
-           / Without "left" the row inherits the parent's fill and stretches the buttons */
-        buttonRow.alignment = ["fill", "top"];
-        buttonRow.alignChildren = ["left", "center"];
-        buttonRow.spacing = PALETTE_SPACING;
+        setupRow(buttonRow, "fill", PALETTE_SPACING);
         for (var i = 0; i < buttonSpecs.length; i++) {
             var rowButton = buttonRow.add("button", undefined, getLabel(buttonSpecs[i].label));
             rowButton.helpTip = getLabel(buttonSpecs[i].tooltip);
@@ -1178,6 +1248,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n577d8a654ec1"; /* 紹�
 
         paletteIsOpen = true;
         historyPalette.show();
+        /* show() の onActivate で読み直し中なら送らない（readIsPending）
+           / Skipped when the onActivate from show() already sent a read */
         refreshHistory();
     }
 
