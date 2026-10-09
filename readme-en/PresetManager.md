@@ -14,7 +14,7 @@
 - Items that normally live in separate categories — General, Selection & Anchor Display, Type, Guides, Performance, File Handling and so on — can be changed in one place without switching tabs.
 - The dialog opens with the current preferences loaded. Choosing [Default] or [Preset 1] from the dropdown fills the UI with a whole set of values.
 - Nothing is written while you work; every change is saved at once when [OK] is pressed (pressing [Cancel] changes nothing).
-- Two views are available: the sidebar view and the two-column view. The button at the lower left switches between them and carries your unsaved changes over. The dialog reopens in the view you used last.
+- Two views are available: the sidebar view and the two-column view. The button at the lower left switches between them and carries your unsaved changes over; after a switch the dialog opens centered on the screen. The dialog reopens in the view you used last.
 
 #### Sidebar view
 
@@ -179,7 +179,7 @@ For these two keys 0 means ON and 1 means OFF, so the script inverts the value w
 1. Build the dialog: the category list and pages in the sidebar view (filling the Default column), or the panels in the two-column view
 2. Read the current preferences into the UI (`loadPreferencesIntoUI`)
 3. Selecting a preset overwrites the UI with predefined values (nothing is written to preferences)
-4. Switching views keeps the UI state, closes the dialog, and reopens it in the other view with that state restored
+4. Switching views keeps the UI state, closes the dialog, and reopens it in the other view with that state restored (centered on the screen rather than at the last location)
 5. [OK] writes every preference key and opens the Preferences panels when required
 
 Every checkbox item is declared once, on a single line that carries its preference key, its control and its preset field. Loading, saving and preset application all read that same table, so a newly added item can never be left out of the save path.
