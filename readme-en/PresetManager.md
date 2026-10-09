@@ -14,7 +14,7 @@
 - Items that normally live in separate categories — General, Selection & Anchor Display, Type, Guides, Performance, File Handling and so on — can be changed in one place without switching tabs.
 - The dialog opens with the current preferences loaded. Choosing [Default] or [Preset 1] from the dropdown fills the UI with a whole set of values.
 - Nothing is written while you work; every change is saved at once when [OK] is pressed (pressing [Cancel] changes nothing).
-- Two views are available: the sidebar view and the two-column view. The button at the lower left switches between them and carries your unsaved changes over; after a switch the dialog opens centered on the screen. The dialog reopens in the view you used last.
+- Two views are available: the sidebar view and the two-column view. The button at the lower left switches between them and carries your unsaved changes over; after a switch the dialog opens centered on the screen. The dialog first opens in the two-column view, then reopens in the view you used last.
 
 #### Sidebar view
 
@@ -216,3 +216,4 @@ Every checkbox item is declared once, on a single line that carries its preferen
 - v1.10.0 (2026-10-10) Added the sidebar view (category list, Setting | Default | Current columns, markers and counts for changed settings, [Revert All Changes]). The button at the lower left switches to the classic two-column view and carries unsaved changes over
 - v1.10.1 (2026-10-10) The dialog now opens centered after switching layouts
 - v1.10.2 (2026-10-10) Added Light Gray to the highlight colors. [Preset 1] now uses Light Gray and a stroke width of 1 (matching [Light] in the artboard display palette)
+- v1.10.3 (2026-10-10) The dialog now opens in the two-column view the first time

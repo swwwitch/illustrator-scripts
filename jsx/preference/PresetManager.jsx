@@ -29,7 +29,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PresetMana
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "PresetManager";                /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.10.2";                      /* バージョン / version */
+var SCRIPT_VERSION  = "v1.10.3";                      /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-08-07";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-10";                   /* 更新日 / last updated */
@@ -3001,12 +3001,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3b33862538f6"; /* 紹�
     }
 
     /**
-     * 最後に使ったレイアウトで開き、切り替えのたびに状態を引き継いで開き直す
-     * Open in the last used layout and reopen with the carried state on every switch
+     * 最後に使ったレイアウト（初回は2カラム表示）で開き、切り替えのたびに状態を引き継いで開き直す
+     * Open in the last used layout (the two-column view at first) and reopen with the carried state on every switch
      * @returns {void}
      */
     function main() {
-        var layoutName = ($.global[LAYOUT_STORAGE_KEY] === LAYOUT_CLASSIC) ? LAYOUT_CLASSIC : LAYOUT_SIDEBAR;
+        var layoutName = ($.global[LAYOUT_STORAGE_KEY] === LAYOUT_SIDEBAR) ? LAYOUT_SIDEBAR : LAYOUT_CLASSIC;
         var carriedSession = null;
         do {
             carriedSession = showPreferencesDialog(layoutName, carriedSession);
