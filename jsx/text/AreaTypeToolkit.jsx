@@ -574,7 +574,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
             leadingEffective: { ja: "実寸", en: "Actual" },
             width: { ja: "幅", en: "Width" },
             height: { ja: "高さ", en: "Height" },
-            charsPerLine: { ja: "文字", en: "chars" },
+            charsPerLine: { ja: "文字" },  /* 日本語UIだけ / Japanese UI only */
             kinsoku: { ja: "禁則", en: "Kinsoku" },
             mojikumi: { ja: "文字組み", en: "Mojikumi" },
             indentLeft: { ja: "左", en: "Left" },
@@ -619,9 +619,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
                 ja: "フレーム内でのテキストの縦位置。クリックするとその場で反映されます。",
                 en: "Vertical placement inside the frame. Applied as soon as you click."
             },
-            charsPerLine: {
-                ja: "1行の文字数から幅を逆算します。字幅が一定でないため日本語UIのみ。",
-                en: "Works the width back out from the characters per line. Japanese UI only, since Roman glyph widths vary."
+            charsPerLine: {  /* 日本語UIだけ / Japanese UI only */
+                ja: "1行の文字数から幅を逆算します。字幅が一定でないため日本語UIのみ。"
             },
             roleBody: {
                 ja: "本文向けの設定をまとめて適用します（行送り160%・均等配置（最終行左揃え）・弱い禁則 v2・ベタ組み・上揃え）。タブ設定は削除します。",
@@ -1458,14 +1457,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
     // パネルレイアウト / Panel layout
     // =========================================
 
-    /* 禁則・文字組みポップアップの幅（英語は語が長いので広め）/ Width of the kinsoku and mojikumi popups (wider in English) */
-    var JP_DROPDOWN_WIDTH = (uiLang === "ja") ? 140 : 190;
-    /* 日本語の組版パネルは日本語UIだけ。英語UIでは禁則・文字組みに触らない
-       The Japanese composition panel is Japanese UI only; the English UI leaves kinsoku and mojikumi alone */
-    var SHOW_JP_COMPOSITION = (uiLang === "ja");
-    /* 字詰め（［　］文字）欄も日本語UIだけ。欧文は字幅が一定でなく計算が合わないため
-       The chars-per-line field is Japanese UI only too; Roman glyph widths vary, so the math does not hold */
-    var SHOW_CHARS_PER_LINE = (uiLang === "ja");
+    /* 禁則・文字組みポップアップの幅 / Width of the kinsoku and mojikumi popups */
+    var JP_DROPDOWN_WIDTH = 140;
+    /* 日本語UIだけの項目（日本語の組版パネル・［　］文字欄）を出すか。英語UIでは禁則・文字組みに触らず、
+       欧文は字幅が一定でなく字詰めの計算が合わないため出さない
+       Whether to show the Japanese-UI-only controls (Japanese composition panel, chars-per-line field). The English UI
+       leaves kinsoku and mojikumi alone, and Roman glyph widths vary, so the chars-per-line math does not hold */
+    var SHOW_JA_ONLY_CONTROLS = (uiLang === "ja");
 
     // UIレイアウト（再利用パーツ） / UI layout (reusable)
 
@@ -1547,7 +1545,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
     // UIレイアウト（再利用パーツ）ここまで / End of the reusable UI layout
 
     var ICON_BUTTON_SIZE = 26;             /* 行揃え・配置のアイコンボタンの一辺 / side of the icon buttons */
-    var LEADING_LABEL_WIDTH = 48;          /* 行送りの行ラベルの幅 / width of the leading row labels */
     var SMALL_FIELD_CHARACTERS = 6;        /* 数値欄の文字数（単位込み）/ width of a number field, unit included */
     var SIZE_FIELD_CHARACTERS = 7;         /* 幅・高さ欄の文字数（単位込み）/ width of the width and height fields, unit included */
     var ROW_GAP_HEIGHT = 5;                /* 行のあいだの空き / gap between rows */
@@ -3635,10 +3632,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
     function addLeadingPanel(dialogControls, parentColumn, leadingUnitLabel, rulerLabel) {
         var leadingPanel = parentColumn.add("panel", undefined, getLabel("panel.leading"));
         setupPanel(leadingPanel, 6);
-        /* 英語の「Leading:」が固定幅に収まらないので、実測した幅と広い方を使う / Use the measured width when it exceeds the fixed one */
-        var leadingLabelWidth = Math.max(LEADING_LABEL_WIDTH, measureLabelWidth(leadingPanel, [
+        /* ラベルは一番長い文字列の実測幅にそろえる / Labels share the measured width of the longest one */
+        var leadingLabelWidth = measureLabelWidth(leadingPanel, [
             labelText("fieldLabel.leadingEffective"), labelText("fieldLabel.leadingPercent"), labelText("fieldLabel.firstBaselineMin")
-        ]));
+        ]);
         /* 実寸・行送り・最小のラベルは右揃え / The Actual, Leading and Min labels are right-aligned */
         var leadingEffectiveRow = addNumberRow(leadingPanel, labelText("fieldLabel.leadingEffective"), leadingLabelWidth, "", SMALL_FIELD_CHARACTERS, leadingUnitLabel);
         leadingEffectiveRow.label.justify = "right";
@@ -4082,7 +4079,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
     // リンクアイコン（再利用パーツ）ここまで / End of the reusable link toggle
 
     /**
-     * 左カラム：インデント（左右と連動）パネルを追加する
+     * 右カラム：インデント（左右と連動）パネルを追加する
      * @param {Object} dialogControls - コントロールの格納先
      * @param {Group} parentColumn - 追加先の列
      * @param {string} rulerLabel - 定規の単位の表示名
@@ -4114,7 +4111,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
     }
 
     /**
-     * ラベルと、幅を指定したドロップダウンを縦に並べて追加する（既定では fill でパネル幅いっぱいに広がるため幅を指定する）
+     * ラベルとドロップダウンを縦に並べて追加する（ドロップダウンはパネル幅いっぱいに広がる）
      * @param {Panel} parentPanel - 追加先のパネル
      * @param {string} labelPath - ラベルのパス
      * @param {Object[]} choices - 選択肢テーブル
@@ -4214,7 +4211,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
         /* 幅の下に字詰め欄（日本語UIのみ）。空きラベルで幅の入力欄と左端をそろえる
            Chars per line goes under the width (Japanese UI only), lined up with the width field via an empty label */
         dialogControls.etCharsPerLine = null;
-        if (SHOW_CHARS_PER_LINE) {
+        if (SHOW_JA_ONLY_CONTROLS) {
             var charsPerLineRow = addNumberRow(frameSizePanel, "", frameLabelWidth, "", SMALL_FIELD_CHARACTERS, getLabel("fieldLabel.charsPerLine"), true);
             dialogControls.etCharsPerLine = charsPerLineRow.field;
             charsPerLineRow.unitLabel.helpTip = getLabel("tooltip.charsPerLine");
@@ -4318,7 +4315,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
         addTextAlignPanel(dialogControls, leftColumn, alignState);
 
         /* 2カラムの下：日本語の組版（日本語UIのみ）/ Below the columns: Japanese composition (Japanese UI only) */
-        if (SHOW_JP_COMPOSITION) { addJpCompositionPanel(dialogControls, dialogControls.window); }
+        if (SHOW_JA_ONLY_CONTROLS) { addJpCompositionPanel(dialogControls, dialogControls.window); }
 
         /* ボタンエリア：左に［テキストを分離...］、右に［キャンセル］［OK］
            Button area: "Separate text..." on the left, Cancel and OK on the right */
@@ -4611,7 +4608,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
          * @returns {void}
          */
         function loadCompositionFromFrame(sourceFrame) {
-            if (!SHOW_JP_COMPOSITION) return;
+            if (!SHOW_JA_ONLY_CONTROLS) return;
             var frameKinsoku = getKinsokuId(sourceFrame);
             if (frameKinsoku !== "None") {
                 selectChoiceByValue(dialogControls.kinsokuDropdown, KINSOKU_CHOICES, "id", frameKinsoku);
@@ -4698,8 +4695,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
                 widthPt: (widthValue !== null) ? widthValue * rulerInfo.pointsPerUnit : null,
                 heightPt: (heightValue !== null && userTouched.height) ? heightValue * rulerInfo.pointsPerUnit : null,
                 leadingPercent: parseFloat(dialogControls.etLeadingPercent.text),
-                kinsoku: (SHOW_JP_COMPOSITION && userTouched.kinsoku && dialogControls.kinsokuDropdown.selection) ? KINSOKU_CHOICES[dialogControls.kinsokuDropdown.selection.index].id : null,
-                mojikumiIndex: (SHOW_JP_COMPOSITION && userTouched.mojikumi && dialogControls.mojikumiDropdown.selection) ? MOJIKUMI_CHOICES[dialogControls.mojikumiDropdown.selection.index].index : -2,
+                kinsoku: (SHOW_JA_ONLY_CONTROLS && userTouched.kinsoku && dialogControls.kinsokuDropdown.selection) ? KINSOKU_CHOICES[dialogControls.kinsokuDropdown.selection.index].id : null,
+                mojikumiIndex: (SHOW_JA_ONLY_CONTROLS && userTouched.mojikumi && dialogControls.mojikumiDropdown.selection) ? MOJIKUMI_CHOICES[dialogControls.mojikumiDropdown.selection.index].index : -2,
                 leftIndentPt: indentAndSpacing.leftIndentPt,
                 rightIndentPt: indentAndSpacing.rightIndentPt,
                 spacingPt: indentAndSpacing.spacingPt,
@@ -4977,7 +4974,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
             setFieldNumber(dialogControls.etLeadingPercent, rolePreset.leadingPercent);
             updateLeadingEffective();
             setJustification(rolePreset.justifyId);
-            if (SHOW_JP_COMPOSITION) {
+            if (SHOW_JA_ONLY_CONTROLS) {
                 selectChoiceByValue(dialogControls.kinsokuDropdown, KINSOKU_CHOICES, "id", rolePreset.kinsoku);
                 selectChoiceByValue(dialogControls.mojikumiDropdown, MOJIKUMI_CHOICES, "index", rolePreset.mojikumiIndex);
             }
@@ -5128,14 +5125,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
                 numericFields: [
                     dialogControls.etLeadingEffective, dialogControls.etLeadingPercent,
                     dialogControls.etLeftIndent, dialogControls.etRightIndent,
-                    dialogControls.etFontSize, dialogControls.etWidth, dialogControls.etCharsPerLine,
+                    dialogControls.etFontSize, dialogControls.etWidth,
                     dialogControls.etHeight, dialogControls.etSpacing, dialogControls.etFirstBaselineMin
-                ]
+                ].concat(dialogControls.etCharsPerLine ? [dialogControls.etCharsPerLine] : [])
             });
 
             dialogControls.btnShrinkToFit.onClick = function () { runFontFit("shrink"); };
             dialogControls.btnFitFontSize.onClick = function () { runFontFit("fit"); };
-            if (SHOW_JP_COMPOSITION) {
+            if (SHOW_JA_ONLY_CONTROLS) {
                 dialogControls.kinsokuDropdown.onChange = function () {
                     userTouched.kinsoku = true;
                     updatePreview();
