@@ -6,8 +6,8 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-Illustratorの主要な環境設定を、カテゴリ別に並べた1枚のダイアログでまとめて確認・変更します。
-［デフォルト］／［プリセット1］を選ぶと一式の設定値をUIに反映でき、変更は［OK］でまとめて書き込まれます。
+Illustratorの主要な環境設定を、カテゴリ一覧から選んで「デフォルト／現在の値」を並べて確認・変更します。
+変更した項目には印と件数が出て、［OK］でまとめて書き込まれます。従来の2カラム表示にも切り替えられます。
 
 詳細は README を参照してください。
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/PresetManager.md
@@ -17,8 +17,8 @@ https://note.com/dtp_tranist/n/n3b33862538f6
 
 ### Overview
 
-Reviews and changes the main Illustrator preferences from a single dialog laid out by category.
-Default and Preset 1 fill the whole UI with a set of values, and everything is written at once when you click OK.
+Reviews and changes the main Illustrator preferences by category, listing each default next to the current value.
+Changed items are marked and counted, and everything is written at once when you click OK. You can also switch to the classic two-column view.
 
 See the README for details.
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PresetManager.md
@@ -29,10 +29,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PresetMana
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "PresetManager";                /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.9.9";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.10.0";                      /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-08-07";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-10";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/PresetManager.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PresetManager.md"; /* README (English) */
@@ -149,68 +149,127 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3b33862538f6"; /* 紹�
     // UIレイアウト（再利用パーツ）ここまで / End of the reusable UI layout
 
     /* ダイアログ固有の寸法 / Dialog-specific sizes */
-    var ROW_SPACING = 10;                        /* 行内の要素間隔 / spacing inside a row */
-    var PRESET_ROW_MARGINS = [0, 10, 20, 20];    /* プリセット行の余白 / preset row margins */
-    var ANCHOR_SLIDER_WIDTH = 110;               /* アンカーサイズのスライダー幅 / anchor size slider width */
-    var GUIDE_LABEL_WIDTH = 80;                  /* ガイド内ラベルの共通幅 / unified label width inside Guides */
+    var ROW_SPACING = 6;                         /* 行内の要素間隔 / spacing inside a row */
+    var PAGE_ROW_SPACING = 4;                    /* カテゴリ内の行の間隔 / spacing between rows in a category */
+    var PRESET_ROW_MARGINS = [0, 0, 0, 2];       /* プリセット行の余白 / preset row margins */
+    var SIDEBAR_ITEM_HEIGHT = 20;                /* カテゴリ一覧の1行の高さ / height of one category list row */
+    var SIDEBAR_PADDING = 12;                    /* カテゴリ一覧の上下の余白の合計 / total vertical padding of the category list */
+    var SIDEBAR_TEXT_PADDING = 24;               /* カテゴリ一覧の幅に足す余白（左右の余白とスクロールバー）/ extra list width for side padding and the scrollbar */
+    var COLUMN_TEXT_PADDING = 8;                 /* 実測した列幅に足す余白 / extra width added to a measured column */
+    var CHANGE_MARKER_WIDTH = 8;                 /* 変更した行の印の列幅 / changed-row marker column width */
+    var CHANGE_COUNT_WIDTH = 140;                /* 変更件数の表示幅 / width of the change count */
+    var ANCHOR_SLIDER_WIDTH = 90;                /* アンカーサイズのスライダー幅 / anchor size slider width */
     var RECENT_FONTS_INPUT_CHARS = 3;            /* 最近使用したフォントの入力欄の桁数 / recent-fonts field width (chars) */
     var HISTORY_INPUT_CHARS = 4;                 /* ヒストリー数の入力欄の桁数 / history field width (chars) */
     var BRIGHTNESS_SWATCH_SIZE = 23;             /* 明るさスウォッチの一辺(px) / brightness swatch side (px) */
     var BRIGHTNESS_SWATCH_SPACING = 8;           /* スウォッチの間隔 / gap between swatches */
 
-    /**
-     * ラベル付きチェックボックスを追加 / Add a labeled checkbox
-     * @param {Panel|Group} parentContainer - 追加先
-     * @param {string} labelPath - LABELS のドット区切りパス
-     * @param {string} [tooltipPath] - ツールチップ用のパス。省略時はラベルをそのまま使う
-     * @returns {Checkbox} 追加したチェックボックス
-     */
-    function addCheckbox(parentContainer, labelPath, tooltipPath) {
-        var newCheckbox = parentContainer.add("checkbox", undefined, getLabel(labelPath));
-        newCheckbox.helpTip = getLabel(tooltipPath || labelPath);
-        return newCheckbox;
-    }
+    /* 2カラム表示の寸法（従来と同じ）/ Two-column view sizes (same as the classic layout) */
+    var CLASSIC_ROW_SPACING = 10;                  /* 行内の要素間隔 / spacing inside a row */
+    var CLASSIC_PRESET_ROW_MARGINS = [0, 10, 20, 20]; /* プリセット行の余白 / preset row margins */
+    var CLASSIC_ANCHOR_SLIDER_WIDTH = 110;         /* アンカーサイズのスライダー幅 / anchor size slider width */
+    var CLASSIC_GUIDE_LABEL_WIDTH = 80;            /* ガイド内ラベルの共通幅 / unified label width inside Guides */
 
     /**
-     * 見出し付きパネルを追加 / Add a titled panel with the shared layout
-     * @param {Group} parentColumn - 追加先のカラム
-     * @param {string} labelPath - LABELS のドット区切りパス
-     * @returns {Panel} 追加したパネル
+     * カテゴリのページを追加し、先頭に列見出し（項目・デフォルト・現在の値）を置く。
+     * ページはスタックに重ね、カテゴリ一覧で選んだものだけを表示する
+     * Add a category page with the column header; pages are stacked and only the selected one is shown
+     * @param {object} dialogControls - コントロールをまとめたオブジェクト（pageStack にページを足す）
+     * @param {string} labelPath - カテゴリ名のパス
+     * @returns {Group} 追加したページ
      */
-    function addPanel(parentColumn, labelPath) {
-        var newPanel = parentColumn.add("panel", undefined, getLabel(labelPath));
-        setupPanel(newPanel, 6);
-        return newPanel;
-    }
+    function addCategoryPage(dialogControls, labelPath) {
+        var categoryPage = dialogControls.pageStack.add("group");
+        categoryPage.orientation = "column";
+        categoryPage.alignChildren = ["fill", "top"];
+        categoryPage.alignment = ["fill", "top"];
+        categoryPage.spacing = PAGE_ROW_SPACING;
 
-    /**
-     * パネルを縦に積むカラムを追加 / Add a column that stacks panels vertically
-     * @param {Group} parentContainer - 追加先のグループ
-     * @returns {Group} 追加したカラムグループ
-     */
-    function addColumn(parentContainer) {
-        var columnGroup = parentContainer.add("group");
-        columnGroup.orientation = "column";
-        columnGroup.alignChildren = ["fill", "top"];
-        return columnGroup;
-    }
-
-    /**
-     * ラベル＋コントロールを並べる行を追加 / Add a row that starts with a static label
-     * @param {Panel|Group} parentContainer - 追加先
-     * @param {string} labelPath - LABELS のドット区切りパス
-     * @param {number} [labelWidth] - ラベル幅。指定すると右揃えで幅を固定
-     * @returns {Group} 追加した行グループ（続けてコントロールを add する）
-     */
-    function addLabeledRow(parentContainer, labelPath, labelWidth) {
-        var rowGroup = parentContainer.add("group");
-        setupRow(rowGroup, "left", ROW_SPACING);
-        var rowLabel = rowGroup.add("statictext", undefined, labelText(labelPath));
-        if (typeof labelWidth === "number") {
-            rowLabel.preferredSize = [labelWidth, -1]; /* 高さは自動 / height stays automatic */
-            rowLabel.justify = "right";
+        var headerRow = categoryPage.add("group");
+        setupRow(headerRow, "fill", ROW_SPACING);
+        headerRow.add("statictext", undefined, "").preferredSize = [CHANGE_MARKER_WIDTH, -1];
+        var headerTexts = ["column.setting", "column.defaultValue", "column.currentValue"];
+        var headerLabels = [];
+        for (var i = 0; i < headerTexts.length; i++) {
+            var headerLabel = headerRow.add("statictext", undefined, getLabel(headerTexts[i]));
+            headerLabel.enabled = false; /* 薄く表示して項目と見分ける / dimmed to set it apart from the rows */
+            headerLabels.push(headerLabel);
         }
-        return rowGroup;
+
+        /* 列幅は fitColumnWidths() で文字に合わせる / column widths are fitted to the text by fitColumnWidths() */
+        dialogControls.categoryPages.push({ page: categoryPage, labelPath: labelPath, rows: [], headerLabels: headerLabels });
+        return categoryPage;
+    }
+
+    /**
+     * 「印・項目名・デフォルト・現在の値」の1行を追加する / Add a "marker / setting / default / current" row
+     * @param {Group} categoryPage - 追加先のページ
+     * @param {string} labelPath - 項目名のパス
+     * @param {string} [tooltipPath] - 項目名のツールチップのパス（省略可）
+     * @returns {Group} 値を変えるコントロールを入れるグループ（.settingLabel / .defaultLabel / .changeMarker で参照できる）
+     */
+    function addSettingRow(categoryPage, labelPath, tooltipPath) {
+        var settingRow = categoryPage.add("group");
+        setupRow(settingRow, "fill", ROW_SPACING);
+        var changeMarker = settingRow.add("statictext", undefined, "•");
+        changeMarker.preferredSize = [CHANGE_MARKER_WIDTH, -1];
+        changeMarker.visible = false;
+        var settingLabel = settingRow.add("statictext", undefined, getLabel(labelPath));
+        if (tooltipPath) settingLabel.helpTip = getLabel(tooltipPath);
+        var defaultLabel = settingRow.add("statictext", undefined, "");
+
+        var valueGroup = settingRow.add("group");
+        setupRow(valueGroup, "left", ROW_SPACING);
+        valueGroup.settingLabel = settingLabel;
+        valueGroup.defaultLabel = defaultLabel;
+        valueGroup.changeMarker = changeMarker;
+        return valueGroup;
+    }
+
+    /**
+     * 行を変更の追跡に登録する。watchedControls を操作するたびに変更件数を数え直す
+     * Register a row for change tracking; the count is refreshed whenever a watched control is used
+     * @param {object} dialogControls - コントロールをまとめたオブジェクト
+     * @param {Group} valueGroup - addSettingRow() の戻り値
+     * @param {function} describeValue - コントロールの状態を表示用の文字列で返す関数
+     * @param {Array} watchedControls - click / change を見張るコントロール
+     * @returns {void}
+     */
+    function registerSettingRow(dialogControls, valueGroup, describeValue, watchedControls) {
+        var settingRowState = { valueGroup: valueGroup, describeValue: describeValue, baselineText: null };
+        dialogControls.settingRows.push(settingRowState);
+        dialogControls.categoryPages[dialogControls.categoryPages.length - 1].rows.push(settingRowState);
+        var refreshChangeState = function () { updateChangeState(dialogControls); };
+        for (var i = 0; i < watchedControls.length; i++) {
+            watchedControls[i].addEventListener("click", refreshChangeState);
+            watchedControls[i].addEventListener("change", refreshChangeState);
+        }
+    }
+
+    /**
+     * 項目名のクリックでチェックボックスを切り替える（チェックボックス自体は文字なし）
+     * Toggle the checkbox when its setting name is clicked (the checkbox itself has no text)
+     * @param {object} dialogControls - コントロールをまとめたオブジェクト
+     * @param {StaticText} settingLabel - 項目名
+     * @param {Checkbox} targetCheckbox - 切り替えるチェックボックス
+     * @returns {void}
+     */
+    function linkLabelToCheckbox(dialogControls, settingLabel, targetCheckbox) {
+        settingLabel.addEventListener("click", function () {
+            if (!targetCheckbox.enabled) return;
+            targetCheckbox.value = !targetCheckbox.value;
+            if (targetCheckbox.onClick) targetCheckbox.onClick();
+            updateChangeState(dialogControls);
+        });
+    }
+
+    /**
+     * オン／オフの表示 / On or Off text
+     * @param {boolean} isOn - オンなら true
+     * @returns {string} 表示文字列
+     */
+    function formatOnOff(isOn) {
+        return getLabel(isOn ? "value.on" : "value.off");
     }
 
     /**
@@ -220,9 +279,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3b33862538f6"; /* 紹�
      * @param {string} initialText - 入力欄の初期値
      * @param {number} fieldCharacters - 入力欄の桁数
      * @param {NumericRule} numericRule - 下限・上限（min/max）
+     * @param {function} [onStep] - ∧∨・↑↓キーで増減したあとに呼ぶ関数
      * @returns {EditText} 入力欄（∧∨は .stepperGroup で参照できる）
      */
-    function addIntStepperInput(parentContainer, initialText, fieldCharacters, numericRule) {
+    function addIntStepperInput(parentContainer, initialText, fieldCharacters, numericRule, onStep) {
         var stepperInputGroup = parentContainer.add("group");
         stepperInputGroup.orientation = "row";
         stepperInputGroup.alignChildren = ["left", "center"];
@@ -231,7 +291,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3b33862538f6"; /* 紹�
 
         var numberInput;
         var stepperGroup = addStepper(stepperInputGroup, function () { return numberInput; }, {
-            integer: true, min: numericRule.min, max: numericRule.max
+            integer: true, min: numericRule.min, max: numericRule.max, onStep: onStep
         });
         numberInput = stepperInputGroup.add("edittext", undefined, initialText);
         numberInput.characters = fieldCharacters;
@@ -241,19 +301,32 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3b33862538f6"; /* 紹�
     }
 
     /**
-     * ラベル付きの行にラジオボタンを並べる / Add a labeled row of radio buttons
-     * @param {Panel|Group} parentContainer - 追加先
-     * @param {string} labelPath - 行ラベルのパス
+     * ラジオの並びから選択中のラベルを返す / Text of the selected radio in a list
+     * @param {RadioButton[]} radioButtons - ラジオボタンの配列
+     * @returns {string} 選択中のラベル（未選択なら空文字）
+     */
+    function getSelectedRadioText(radioButtons) {
+        for (var i = 0; i < radioButtons.length; i++) {
+            if (radioButtons[i].value) return radioButtons[i].text;
+        }
+        return "";
+    }
+
+    /**
+     * 項目の行にラジオボタンを並べ、変更の追跡に登録する / Add a setting row of radio buttons and track it
+     * @param {object} dialogControls - コントロールをまとめたオブジェクト
+     * @param {Group} categoryPage - 追加先のページ
+     * @param {string} labelPath - 項目名のパス
      * @param {string[]} radioLabelPaths - ラジオのラベルのパス（並び順）
-     * @param {number} [labelWidth] - ラベル幅（addLabeledRow と同じ）
      * @returns {RadioButton[]} 追加したラジオボタン
      */
-    function addRadioRow(parentContainer, labelPath, radioLabelPaths, labelWidth) {
-        var radioRow = addLabeledRow(parentContainer, labelPath, labelWidth);
+    function addRadioRow(dialogControls, categoryPage, labelPath, radioLabelPaths) {
+        var radioRow = addSettingRow(categoryPage, labelPath);
         var radioButtons = [];
         for (var i = 0; i < radioLabelPaths.length; i++) {
             radioButtons.push(radioRow.add("radiobutton", undefined, getLabel(radioLabelPaths[i])));
         }
+        registerSettingRow(dialogControls, radioRow, function () { return getSelectedRadioText(radioButtons); }, radioButtons);
         return radioButtons;
     }
 
@@ -930,8 +1003,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3b33862538f6"; /* 紹�
         dialog: {
             title: { ja: "環境設定をまとめて変更", en: "Illustrator Preferences Utility" }
         },
-        /* パネル見出し / Panel titles */
-        panel: {
+        /* 2カラム表示のパネル見出し / Panel titles in the two-column view */
+        classicPanel: {
             general: { ja: "［一般］カテゴリ", en: "[General] Category" },
             selectionAnchor: { ja: "［選択範囲・アンカー表示］カテゴリ", en: "[Selection & Anchor Display] Category" },
             artboard: { ja: "アートボード", en: "Artboard" },
@@ -943,6 +1016,36 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3b33862538f6"; /* 紹�
             fileManagement: { ja: "［ファイル管理］カテゴリ", en: "[File Management] Category" },
             clipboard: { ja: "クリップボードの処理", en: "Clipboard Handling" },
             limitToPath: { ja: "パスに制限", en: "Limit to Path" }
+        },
+        /* カテゴリ名 / Category names */
+        category: {
+            general: { ja: "一般", en: "General" },
+            selectionAnchor: { ja: "選択範囲・アンカー表示", en: "Selection & Anchor Display" },
+            artboard: { ja: "アートボード", en: "Artboard" },
+            text: { ja: "テキスト", en: "Type" },
+            guides: { ja: "ガイド", en: "Guides" },
+            smartGuides: { ja: "スマートガイド", en: "Smart Guides" },
+            userInterface: { ja: "ユーザーインターフェイス", en: "User Interface" },
+            performance: { ja: "パフォーマンス", en: "Performance" },
+            fileManagement: { ja: "ファイル管理", en: "File Handling" },
+            clipboard: { ja: "クリップボードの処理", en: "Clipboard Handling" },
+            withChangeCount: { ja: "%1（%2）", en: "%1 (%2)" }
+        },
+        /* 列見出し / Column headers */
+        column: {
+            setting: { ja: "項目", en: "Setting" },
+            defaultValue: { ja: "デフォルト", en: "Default" },
+            currentValue: { ja: "現在の値", en: "Current" }
+        },
+        /* 値の表示 / Value texts */
+        value: {
+            on: { ja: "オン", en: "On" },
+            off: { ja: "オフ", en: "Off" },
+            anchorStep: { ja: "%1 / %2", en: "%1 / %2" }
+        },
+        /* 変更件数 / Change count */
+        status: {
+            changeCount: { ja: "変更した項目 %1件", en: "%1 changed" }
         },
         /* チェックボックス / Checkboxes */
         checkbox: {
@@ -1019,7 +1122,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3b33862538f6"; /* 紹�
         },
         /* ボタン / Buttons（OKは日英同一なのでリテラル）/ ("OK" is identical in both languages, so it stays a literal) */
         button: {
-            cancel: { ja: "キャンセル", en: "Cancel" }
+            cancel: { ja: "キャンセル", en: "Cancel" },
+            revertAll: { ja: "すべての変更を取り消す", en: "Revert All Changes" },
+            toClassicLayout: { ja: "2カラム表示", en: "Two-Column View" },
+            toSidebarLayout: { ja: "サイドバー表示", en: "Sidebar View" }
         },
         /* ツールチップ / Tooltips */
         tooltip: {
@@ -1038,6 +1144,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3b33862538f6"; /* 紹�
             stepDown: {
                 ja: "値を減らす（shift＋クリックで10の倍数へ、option＋クリックで0.1ずつ）",
                 en: "Decrease (Shift-click to snap to 10s, Option-click by 0.1)"
+            },
+            switchLayout: {
+                ja: "レイアウトを切り替えて開き直します。途中の変更は引き継がれます",
+                en: "Reopens the dialog in the other layout. Your unsaved changes carry over."
             },
             stepUpInteger: { ja: "値を増やす（shift＋クリックで10の倍数へ）", en: "Increase (Shift-click to snap to 10s)" },
             stepDownInteger: { ja: "値を減らす（shift＋クリックで10の倍数へ）", en: "Decrease (Shift-click to snap to 10s)" },
@@ -1306,6 +1416,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3b33862538f6"; /* 紹�
         { value: 0.50999999046326, shade: [0.70, 0.70, 0.70], labelPath: "swatch.mediumLight" },
         { value: 1.0, shade: [0.94, 0.94, 0.94], labelPath: "swatch.light" }
     ];
+    var DEFAULT_BRIGHTNESS_INDEX = 1;                       /* デフォルトの列に出す段階（やや暗）/ Step shown in the default column (Medium Dark) */
     var BRIGHTNESS_SELECTED_BORDER = [0.15, 0.5, 0.92];     /* 選択枠の青 / Blue selection border */
     var BRIGHTNESS_SWATCH_OUTLINE = [0.5, 0.5, 0.5];        /* 通常時の細枠 / Thin outline when not selected */
     var BRIGHTNESS_TOLERANCE = 0.001;                       /* プリセット同士の判定用（0.5 と 0.50999999 を区別）/ Preset comparison tolerance (keeps 0.5 and 0.50999999 distinct) */
@@ -1507,15 +1618,19 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3b33862538f6"; /* 紹�
     /**
      * 明るさの行（ラベル＋4段階のスウォッチ）を追加。SHOW_BRIGHTNESS_UI が false なら状態だけ持つ
      * Add the brightness row (label + four swatches); only keeps state when SHOW_BRIGHTNESS_UI is false
-     * @param {Panel} parentPanel - 追加先のパネル
+     * @param {object} dialogControls - コントロールをまとめたオブジェクト
+     * @param {Group|Panel} parentContainer - 追加先（サイドバー表示はページ、2カラム表示はパネル）
+     * @param {boolean} [isClassicLayout] - 2カラム表示なら true（項目名の行にし、変更の追跡には載せない）
      * @returns {{swatchButtons: Array, selectedIndex: number, isTouched: boolean}} 明るさの選択状態
      */
-    function addBrightnessPicker(parentPanel) {
+    function addBrightnessPicker(dialogControls, parentContainer, isClassicLayout) {
         /* isTouched：ユーザーがスウォッチを操作したか（未操作なら書き込まない）/ Whether the user clicked a swatch (no write when untouched) */
         var brightnessPicker = { swatchButtons: [], selectedIndex: -1, isTouched: false };
         if (!SHOW_BRIGHTNESS_UI) return brightnessPicker;
 
-        var brightnessRow = addLabeledRow(parentPanel, "fieldLabel.brightness");
+        var brightnessRow = isClassicLayout
+            ? addClassicLabeledRow(parentContainer, "fieldLabel.brightness")
+            : addSettingRow(parentContainer, "fieldLabel.brightness");
         var swatchGroup = brightnessRow.add("group");
         setupRow(swatchGroup, "left", BRIGHTNESS_SWATCH_SPACING);
 
@@ -1531,10 +1646,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3b33862538f6"; /* 紹�
                     brightnessPicker.selectedIndex = levelIndex;
                     brightnessPicker.isTouched = true;
                     refreshBrightnessSwatches(brightnessPicker);
+                    updateChangeState(dialogControls);
                 };
             })(i);
             brightnessPicker.swatchButtons.push(swatchButton);
         }
+        if (isClassicLayout) return brightnessPicker;
+        /* 選択は onClick で変わるので、見張りは onClick に任せる / the selection changes in onClick, which refreshes the count itself */
+        registerSettingRow(dialogControls, brightnessRow, function () {
+            var selectedLevel = BRIGHTNESS_LEVELS[brightnessPicker.selectedIndex];
+            return selectedLevel ? getLabel(selectedLevel.labelPath) : "";
+        }, []);
         return brightnessPicker;
     }
 
@@ -1693,6 +1815,265 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3b33862538f6"; /* 紹�
     // =========================================
 
     /**
+     * チェックボックスの行を追加し、対応表と変更の追跡に登録する / Add a checkbox row, register it in the binding table and track it
+     * 対応表（dialogControls.checkboxBindings）は読み込み・保存・プリセット適用の3か所が共通で参照する
+     * The binding table is shared by load, save and preset apply
+     * @param {object} dialogControls - コントロールをまとめたオブジェクト
+     * @param {Group} categoryPage - 追加先のページ
+     * @param {{label: string, key: string, preset: string, type: string, tooltip: string}} checkboxSpec
+     *        label=ラベルのパス / key=環境設定キー / preset=プリセット項目名 /
+     *        type=省略時 "bool"、0=ON・1=OFF の反転キーは "invertedInt" / tooltip=ツールチップのパス（省略可）
+     * @returns {Checkbox} 追加したチェックボックス
+     */
+    function bindCheckbox(dialogControls, categoryPage, checkboxSpec) {
+        var valueGroup = addSettingRow(categoryPage, checkboxSpec.label, checkboxSpec.tooltip);
+        var newCheckbox = valueGroup.add("checkbox", undefined, "");
+        newCheckbox.helpTip = getLabel(checkboxSpec.tooltip || checkboxSpec.label);
+        linkLabelToCheckbox(dialogControls, valueGroup.settingLabel, newCheckbox);
+        registerSettingRow(dialogControls, valueGroup, function () { return formatOnOff(newCheckbox.value); }, [newCheckbox]);
+        dialogControls.checkboxBindings.push({
+            key: checkboxSpec.key,
+            valueType: checkboxSpec.type || "bool",
+            control: newCheckbox,
+            presetField: checkboxSpec.preset
+        });
+        return newCheckbox;
+    }
+
+    /**
+     * ［一般］［選択範囲・アンカー表示］［アートボード］［テキスト］のページを組み立てる
+     * Build the General, Selection & Anchor Display, Artboard and Type pages
+     * @param {object} dialogControls - コントロールを登録するオブジェクト
+     * @returns {void}
+     */
+    function buildDisplayPages(dialogControls) {
+        var refreshChangeState = function () { updateChangeState(dialogControls); };
+
+        /* ［一般］/ General */
+        var generalPage = addCategoryPage(dialogControls, "category.general");
+        bindCheckbox(dialogControls, generalPage, { label: "checkbox.richToolTips", key: "showRichToolTips", preset: "richToolTips" });
+        bindCheckbox(dialogControls, generalPage, { label: "checkbox.homeScreen", key: "Hello/ShowHomeScreenWS", preset: "homeScreen", tooltip: "tooltip.homeScreen" });
+        bindCheckbox(dialogControls, generalPage, { label: "checkbox.legacyNewDoc", key: "Hello/NewDoc", preset: "legacyNewDoc", tooltip: "tooltip.legacyNewDoc" });
+        bindCheckbox(dialogControls, generalPage, { label: "checkbox.printBleedWidget", key: "enablePrintBleedWidget", preset: "printBleedWidget" });
+
+        /* ［選択範囲・アンカー表示］。パスに制限は 0=ON / 1=OFF の反転キー / Selection & Anchor Display; the Limit to Path keys store 0 = ON */
+        var selectionAnchorPage = addCategoryPage(dialogControls, "category.selectionAnchor");
+        bindCheckbox(dialogControls, selectionAnchorPage, { label: "checkbox.zoomToSelection", key: "zoomToSelection", preset: "zoomToSelection" });
+        bindCheckbox(dialogControls, selectionAnchorPage, { label: "checkbox.unlockOnCanvas", key: "showLockIcon", preset: "unlockOnCanvas", tooltip: "tooltip.unlockOnCanvas" });
+        bindCheckbox(dialogControls, selectionAnchorPage, { label: "checkbox.objectPathOnly", key: "hitShapeOnPreview", preset: "objectPathOnly", type: "invertedInt" });
+        bindCheckbox(dialogControls, selectionAnchorPage, { label: "checkbox.textPathOnly", key: "hitTypeShapeOnPreview", preset: "textPathOnly", type: "invertedInt" });
+
+        /* アンカーポイントのサイズ（4段階スライダー）/ Anchor point size (four-step slider) */
+        var anchorSizeRow = addSettingRow(selectionAnchorPage, "fieldLabel.anchorSize", "tooltip.anchorSize");
+        var anchorSizeSlider = anchorSizeRow.add("slider", undefined, 1, 1, ANCHOR_SIZE_LEVELS.length);
+        anchorSizeSlider.preferredSize = [ANCHOR_SLIDER_WIDTH, -1];
+        anchorSizeSlider.helpTip = getLabel("tooltip.anchorSize");
+        anchorSizeSlider.addEventListener("changing", refreshChangeState);
+        dialogControls.anchorSizeSlider = anchorSizeSlider;
+        registerSettingRow(dialogControls, anchorSizeRow, function () {
+            var anchorStep = clamp(Math.round(anchorSizeSlider.value), 1, ANCHOR_SIZE_LEVELS.length);
+            return getLabel("value.anchorStep", [anchorStep, ANCHOR_SIZE_LEVELS.length]);
+        }, [anchorSizeSlider]);
+
+        /* アートボード / Artboard */
+        var artboardPage = addCategoryPage(dialogControls, "category.artboard");
+        bindCheckbox(dialogControls, artboardPage, { label: "checkbox.moveLockedArt", key: "moveLockedAndHiddenArt", preset: "moveLockedArt" });
+        bindCheckbox(dialogControls, artboardPage, { label: "checkbox.showArtboardName", key: "showArtboardLabelOnCanvas", preset: "showArtboardName" });
+
+        /* ハイライトのカラー（9色のプリセットから選択）/ Highlight color (nine presets) */
+        var artboardColorRow = addSettingRow(artboardPage, "fieldLabel.artboardColor");
+        var artboardColorLabels = [];
+        for (var i = 0; i < ARTBOARD_COLOR_PRESETS.length; i++) {
+            artboardColorLabels.push(ARTBOARD_COLOR_PRESETS[i].label);
+        }
+        var artboardColorDropdown = artboardColorRow.add("dropdownlist", undefined, artboardColorLabels);
+        dialogControls.artboardColorDropdown = artboardColorDropdown;
+        registerSettingRow(dialogControls, artboardColorRow, function () {
+            return artboardColorDropdown.selection ? artboardColorDropdown.selection.text : "";
+        }, [artboardColorDropdown]);
+
+        /* ストロークの幅（1〜4）/ Stroke width (1-4) */
+        var artboardStrokeWidthRow = addSettingRow(artboardPage, "fieldLabel.artboardStrokeWidth");
+        var artboardStrokeWidthRadios = [];
+        for (var j = 0; j < ARTBOARD_STROKE_WIDTHS.length; j++) {
+            artboardStrokeWidthRadios.push(
+                artboardStrokeWidthRow.add("radiobutton", undefined, String(ARTBOARD_STROKE_WIDTHS[j]))
+            );
+        }
+        dialogControls.artboardStrokeWidthRadios = artboardStrokeWidthRadios;
+        registerSettingRow(dialogControls, artboardStrokeWidthRow, function () {
+            return getSelectedRadioText(artboardStrokeWidthRadios);
+        }, artboardStrokeWidthRadios);
+
+        /* ［テキスト］/ Type */
+        var textPage = addCategoryPage(dialogControls, "category.text");
+        bindCheckbox(dialogControls, textPage, { label: "checkbox.autoSizeAreaText", key: "text/autoSizing", preset: "autoSizeAreaText" });
+
+        /* 最近使用したフォントの表示数（チェックOFFで0＝非表示）/ Recent font count (unchecked means 0 = hidden) */
+        var recentFontsRow = addSettingRow(textPage, "checkbox.recentFonts", "tooltip.recentFonts");
+        var recentFontsCheckbox = recentFontsRow.add("checkbox", undefined, "");
+        recentFontsCheckbox.helpTip = getLabel("tooltip.recentFonts");
+        linkLabelToCheckbox(dialogControls, recentFontsRow.settingLabel, recentFontsCheckbox);
+        dialogControls.recentFontsCheckbox = recentFontsCheckbox;
+        var recentFontsInput = addIntStepperInput(recentFontsRow, "0", RECENT_FONTS_INPUT_CHARS,
+            NUMERIC_INPUT_RULES.recentFonts, refreshChangeState);
+        recentFontsInput.helpTip = getLabel("tooltip.recentFonts");
+        dialogControls.recentFontsInput = recentFontsInput;
+        /* チェックボックスの切り替えは onClick で入力欄を書き換えるので、数え直しは main の onClick で行う */
+        /* The checkbox's onClick rewrites the field, so main's onClick refreshes the count */
+        registerSettingRow(dialogControls, recentFontsRow, function () {
+            if (!recentFontsCheckbox.value) return formatOnOff(false);
+            return String(clampIntToRule(recentFontsInput.text, NUMERIC_INPUT_RULES.recentFonts));
+        }, [recentFontsInput]);
+
+        bindCheckbox(dialogControls, textPage, { label: "checkbox.missingGlyphProtection", key: "text/doFontLocking", preset: "missingGlyphProtection" });
+        bindCheckbox(dialogControls, textPage, { label: "checkbox.alternateGlyph", key: "text/enableAlternateGlyph", preset: "alternateGlyph" });
+    }
+
+    /**
+     * ［ガイド］［スマートガイド］［ユーザーインターフェイス］［パフォーマンス］［ファイル管理］［クリップボードの処理］のページを組み立てる
+     * Build the Guides, Smart Guides, User Interface, Performance, File Handling and Clipboard pages
+     * @param {object} dialogControls - コントロールを登録するオブジェクト
+     * @returns {void}
+     */
+    function buildBehaviorPages(dialogControls) {
+        var refreshChangeState = function () { updateChangeState(dialogControls); };
+
+        /* ガイド（カラー：シアン／ライトブルー、スタイル：ライン／点線）/ Guides (color: Cyan / Light Blue, style: Lines / Dots) */
+        var guidesPage = addCategoryPage(dialogControls, "category.guides");
+        var guideColorRadios = addRadioRow(dialogControls, guidesPage, "fieldLabel.guideColor",
+            ["radio.guideColorCyan", "radio.guideColorLightBlue"]);
+        dialogControls.guideColorCyanRadio = guideColorRadios[0];
+        dialogControls.guideColorLightBlueRadio = guideColorRadios[1];
+        var guideStyleRadios = addRadioRow(dialogControls, guidesPage, "fieldLabel.guideStyle",
+            ["radio.guideStyleLines", "radio.guideStyleDots"]);
+        dialogControls.guideStyleLinesRadio = guideStyleRadios[0];
+        dialogControls.guideStyleDotsRadio = guideStyleRadios[1];
+
+        /* スマートガイド / Smart Guides */
+        var smartGuidesPage = addCategoryPage(dialogControls, "category.smartGuides");
+        bindCheckbox(dialogControls, smartGuidesPage, { label: "checkbox.objectHighlighting", key: "smartGuides/showObjectHighlighting", preset: "objectHighlighting" });
+
+        /* ［ユーザーインターフェイス］/ User Interface */
+        var userInterfacePage = addCategoryPage(dialogControls, "category.userInterface");
+        dialogControls.brightnessPicker = addBrightnessPicker(dialogControls, userInterfacePage);
+        var canvasColorRadios = addRadioRow(dialogControls, userInterfacePage, "fieldLabel.canvasColor",
+            ["radio.canvasMatch", "radio.canvasWhite"]);
+        dialogControls.canvasMatchRadio = canvasColorRadios[0];
+        dialogControls.canvasWhiteRadio = canvasColorRadios[1];
+
+        /* ［パフォーマンス］/ Performance */
+        var performancePage = addCategoryPage(dialogControls, "category.performance");
+        bindCheckbox(dialogControls, performancePage, { label: "checkbox.animatedZoom", key: "Performance/AnimZoom", preset: "animatedZoom" });
+
+        var historyStatesRow = addSettingRow(performancePage, "fieldLabel.historyStates", "tooltip.historyStates");
+        var historyStatesInput = addIntStepperInput(historyStatesRow, String(NUMERIC_INPUT_RULES.historyStates.defaultValue),
+            HISTORY_INPUT_CHARS, NUMERIC_INPUT_RULES.historyStates, refreshChangeState);
+        historyStatesInput.helpTip = getLabel("tooltip.historyStates");
+        dialogControls.historyStatesInput = historyStatesInput;
+        registerSettingRow(dialogControls, historyStatesRow, function () {
+            return String(clampIntToRule(historyStatesInput.text, NUMERIC_INPUT_RULES.historyStates));
+        }, [historyStatesInput]);
+
+        bindCheckbox(dialogControls, performancePage, { label: "checkbox.realTimeDrawing", key: "LiveEdit_State_Machine", preset: "realTimeDrawing" });
+
+        /* ［ファイル管理］/ File Handling */
+        var fileManagementPage = addCategoryPage(dialogControls, "category.fileManagement");
+        bindCheckbox(dialogControls, fileManagementPage, { label: "checkbox.editOriginalSystemDefault", key: "useSysDefEdit", preset: "editOriginalSystemDefault" });
+        bindCheckbox(dialogControls, fileManagementPage, { label: "checkbox.autoActivateFonts", key: "AutoActivateMissingFont", preset: "autoActivateFonts" });
+
+        /* ファイルの保存先（コンピューター／クラウド）/ Save location (Computer / Cloud) */
+        var saveLocationRadios = addRadioRow(dialogControls, fileManagementPage, "fieldLabel.saveLocation",
+            ["radio.saveToComputer", "radio.saveToCloud"]);
+        dialogControls.saveToComputerRadio = saveLocationRadios[0];
+        dialogControls.saveToCloudRadio = saveLocationRadios[1];
+
+        /* リンクを更新（自動／手動／確認）。並びは UPDATE_LINKS_* の値と同じ / Update Links; order matches the UPDATE_LINKS_* values */
+        dialogControls.updateLinksRadios = addRadioRow(dialogControls, fileManagementPage, "fieldLabel.updateLinks",
+            ["radio.updateLinksAuto", "radio.updateLinksManual", "radio.updateLinksAsk"]);
+
+        /* クリップボードの処理 / Clipboard Handling */
+        var clipboardPage = addCategoryPage(dialogControls, "category.clipboard");
+        bindCheckbox(dialogControls, clipboardPage, { label: "checkbox.includeSvgCode", key: "plugin/FileClipboard/copySVGCode", preset: "includeSvgCode" });
+    }
+
+    // =========================================
+    // 2カラム表示（従来のレイアウト） / Two-column view (the classic layout)
+    // =========================================
+
+    /**
+     * ラベル付きチェックボックスを追加 / Add a labeled checkbox
+     * @param {Panel|Group} parentContainer - 追加先
+     * @param {string} labelPath - LABELS のドット区切りパス
+     * @param {string} [tooltipPath] - ツールチップ用のパス。省略時はラベルをそのまま使う
+     * @returns {Checkbox} 追加したチェックボックス
+     */
+    function addClassicCheckbox(parentContainer, labelPath, tooltipPath) {
+        var newCheckbox = parentContainer.add("checkbox", undefined, getLabel(labelPath));
+        newCheckbox.helpTip = getLabel(tooltipPath || labelPath);
+        return newCheckbox;
+    }
+
+    /**
+     * 見出し付きパネルを追加 / Add a titled panel with the shared layout
+     * @param {Group} parentColumn - 追加先のカラム
+     * @param {string} labelPath - LABELS のドット区切りパス
+     * @returns {Panel} 追加したパネル
+     */
+    function addClassicPanel(parentColumn, labelPath) {
+        var newPanel = parentColumn.add("panel", undefined, getLabel(labelPath));
+        setupPanel(newPanel, 6);
+        return newPanel;
+    }
+
+    /**
+     * パネルを縦に積むカラムを追加 / Add a column that stacks panels vertically
+     * @param {Group} parentContainer - 追加先のグループ
+     * @returns {Group} 追加したカラムグループ
+     */
+    function addClassicColumn(parentContainer) {
+        var columnGroup = parentContainer.add("group");
+        columnGroup.orientation = "column";
+        columnGroup.alignChildren = ["fill", "top"];
+        return columnGroup;
+    }
+
+    /**
+     * ラベル＋コントロールを並べる行を追加 / Add a row that starts with a static label
+     * @param {Panel|Group} parentContainer - 追加先
+     * @param {string} labelPath - LABELS のドット区切りパス
+     * @param {number} [labelWidth] - ラベル幅。指定すると右揃えで幅を固定
+     * @returns {Group} 追加した行グループ（続けてコントロールを add する）
+     */
+    function addClassicLabeledRow(parentContainer, labelPath, labelWidth) {
+        var rowGroup = parentContainer.add("group");
+        setupRow(rowGroup, "left", CLASSIC_ROW_SPACING);
+        var rowLabel = rowGroup.add("statictext", undefined, labelText(labelPath));
+        if (typeof labelWidth === "number") {
+            rowLabel.preferredSize = [labelWidth, -1]; /* 高さは自動 / height stays automatic */
+            rowLabel.justify = "right";
+        }
+        return rowGroup;
+    }
+
+    /**
+     * ラベル付きの行にラジオボタンを並べる / Add a labeled row of radio buttons
+     * @param {Panel|Group} parentContainer - 追加先
+     * @param {string} labelPath - 行ラベルのパス
+     * @param {string[]} radioLabelPaths - ラジオのラベルのパス（並び順）
+     * @param {number} [labelWidth] - ラベル幅（addClassicLabeledRow と同じ）
+     * @returns {RadioButton[]} 追加したラジオボタン
+     */
+    function addClassicRadioRow(parentContainer, labelPath, radioLabelPaths, labelWidth) {
+        var radioRow = addClassicLabeledRow(parentContainer, labelPath, labelWidth);
+        var radioButtons = [];
+        for (var i = 0; i < radioLabelPaths.length; i++) {
+            radioButtons.push(radioRow.add("radiobutton", undefined, getLabel(radioLabelPaths[i])));
+        }
+        return radioButtons;
+    }
+
+    /**
      * チェックボックスを追加し、対応表に登録する / Add a checkbox and register it in the binding table
      * 対応表（dialogControls.checkboxBindings）は読み込み・保存・プリセット適用の3か所が共通で参照する
      * The binding table is shared by load, save and preset apply
@@ -1703,8 +2084,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3b33862538f6"; /* 紹�
      *        type=省略時 "bool"、0=ON・1=OFF の反転キーは "invertedInt" / tooltip=ツールチップのパス（省略可）
      * @returns {Checkbox} 追加したチェックボックス
      */
-    function bindCheckbox(dialogControls, parentPanel, checkboxSpec) {
-        var newCheckbox = addCheckbox(parentPanel, checkboxSpec.label, checkboxSpec.tooltip);
+    function bindClassicCheckbox(dialogControls, parentPanel, checkboxSpec) {
+        var newCheckbox = addClassicCheckbox(parentPanel, checkboxSpec.label, checkboxSpec.tooltip);
         dialogControls.checkboxBindings.push({
             key: checkboxSpec.key,
             valueType: checkboxSpec.type || "bool",
@@ -1721,33 +2102,33 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3b33862538f6"; /* 紹�
      * @param {Group} leftColumnGroup - 左カラム
      * @returns {void}
      */
-    function buildLeftColumn(dialogControls, leftColumnGroup) {
+    function buildClassicLeftColumn(dialogControls, leftColumnGroup) {
         /* ［一般］/ General */
-        var generalPanel = addPanel(leftColumnGroup, "panel.general");
-        bindCheckbox(dialogControls, generalPanel, { label: "checkbox.richToolTips", key: "showRichToolTips", preset: "richToolTips" });
-        bindCheckbox(dialogControls, generalPanel, { label: "checkbox.homeScreen", key: "Hello/ShowHomeScreenWS", preset: "homeScreen", tooltip: "tooltip.homeScreen" });
-        bindCheckbox(dialogControls, generalPanel, { label: "checkbox.legacyNewDoc", key: "Hello/NewDoc", preset: "legacyNewDoc", tooltip: "tooltip.legacyNewDoc" });
-        bindCheckbox(dialogControls, generalPanel, { label: "checkbox.printBleedWidget", key: "enablePrintBleedWidget", preset: "printBleedWidget" });
+        var generalPanel = addClassicPanel(leftColumnGroup, "classicPanel.general");
+        bindClassicCheckbox(dialogControls, generalPanel, { label: "checkbox.richToolTips", key: "showRichToolTips", preset: "richToolTips" });
+        bindClassicCheckbox(dialogControls, generalPanel, { label: "checkbox.homeScreen", key: "Hello/ShowHomeScreenWS", preset: "homeScreen", tooltip: "tooltip.homeScreen" });
+        bindClassicCheckbox(dialogControls, generalPanel, { label: "checkbox.legacyNewDoc", key: "Hello/NewDoc", preset: "legacyNewDoc", tooltip: "tooltip.legacyNewDoc" });
+        bindClassicCheckbox(dialogControls, generalPanel, { label: "checkbox.printBleedWidget", key: "enablePrintBleedWidget", preset: "printBleedWidget" });
 
         /* ［選択範囲・アンカー表示］/ Selection & Anchor Display */
-        var selectionAnchorPanel = addPanel(leftColumnGroup, "panel.selectionAnchor");
-        bindCheckbox(dialogControls, selectionAnchorPanel, { label: "checkbox.zoomToSelection", key: "zoomToSelection", preset: "zoomToSelection" });
-        bindCheckbox(dialogControls, selectionAnchorPanel, { label: "checkbox.unlockOnCanvas", key: "showLockIcon", preset: "unlockOnCanvas", tooltip: "tooltip.unlockOnCanvas" });
+        var selectionAnchorPanel = addClassicPanel(leftColumnGroup, "classicPanel.selectionAnchor");
+        bindClassicCheckbox(dialogControls, selectionAnchorPanel, { label: "checkbox.zoomToSelection", key: "zoomToSelection", preset: "zoomToSelection" });
+        bindClassicCheckbox(dialogControls, selectionAnchorPanel, { label: "checkbox.unlockOnCanvas", key: "showLockIcon", preset: "unlockOnCanvas", tooltip: "tooltip.unlockOnCanvas" });
 
         /* アンカーポイントのサイズ（4段階スライダー）/ Anchor point size (four-step slider) */
-        var anchorSizeRow = addLabeledRow(selectionAnchorPanel, "fieldLabel.anchorSize");
+        var anchorSizeRow = addClassicLabeledRow(selectionAnchorPanel, "fieldLabel.anchorSize");
         var anchorSizeSlider = anchorSizeRow.add("slider", undefined, 1, 1, ANCHOR_SIZE_LEVELS.length);
-        anchorSizeSlider.preferredSize = [ANCHOR_SLIDER_WIDTH, -1];
+        anchorSizeSlider.preferredSize = [CLASSIC_ANCHOR_SLIDER_WIDTH, -1];
         anchorSizeSlider.helpTip = getLabel("tooltip.anchorSize");
         dialogControls.anchorSizeSlider = anchorSizeSlider;
 
         /* アートボード / Artboard */
-        var artboardPanel = addPanel(leftColumnGroup, "panel.artboard");
-        bindCheckbox(dialogControls, artboardPanel, { label: "checkbox.moveLockedArt", key: "moveLockedAndHiddenArt", preset: "moveLockedArt" });
-        bindCheckbox(dialogControls, artboardPanel, { label: "checkbox.showArtboardName", key: "showArtboardLabelOnCanvas", preset: "showArtboardName" });
+        var artboardPanel = addClassicPanel(leftColumnGroup, "classicPanel.artboard");
+        bindClassicCheckbox(dialogControls, artboardPanel, { label: "checkbox.moveLockedArt", key: "moveLockedAndHiddenArt", preset: "moveLockedArt" });
+        bindClassicCheckbox(dialogControls, artboardPanel, { label: "checkbox.showArtboardName", key: "showArtboardLabelOnCanvas", preset: "showArtboardName" });
 
         /* ハイライトのカラー（9色のプリセットから選択）/ Highlight color (nine presets) */
-        var artboardColorRow = addLabeledRow(artboardPanel, "fieldLabel.artboardColor");
+        var artboardColorRow = addClassicLabeledRow(artboardPanel, "fieldLabel.artboardColor");
         var artboardColorLabels = [];
         for (var i = 0; i < ARTBOARD_COLOR_PRESETS.length; i++) {
             artboardColorLabels.push(ARTBOARD_COLOR_PRESETS[i].label);
@@ -1755,7 +2136,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3b33862538f6"; /* 紹�
         dialogControls.artboardColorDropdown = artboardColorRow.add("dropdownlist", undefined, artboardColorLabels);
 
         /* ストロークの幅（1〜4）/ Stroke width (1-4) */
-        var artboardStrokeWidthRow = addLabeledRow(artboardPanel, "fieldLabel.artboardStrokeWidth");
+        var artboardStrokeWidthRow = addClassicLabeledRow(artboardPanel, "fieldLabel.artboardStrokeWidth");
         dialogControls.artboardStrokeWidthRadios = [];
         for (var j = 0; j < ARTBOARD_STROKE_WIDTHS.length; j++) {
             dialogControls.artboardStrokeWidthRadios.push(
@@ -1764,24 +2145,24 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3b33862538f6"; /* 紹�
         }
 
         /* ［テキスト］/ Text */
-        var textPanel = addPanel(leftColumnGroup, "panel.text");
-        bindCheckbox(dialogControls, textPanel, { label: "checkbox.autoSizeAreaText", key: "text/autoSizing", preset: "autoSizeAreaText" });
+        var textPanel = addClassicPanel(leftColumnGroup, "classicPanel.text");
+        bindClassicCheckbox(dialogControls, textPanel, { label: "checkbox.autoSizeAreaText", key: "text/autoSizing", preset: "autoSizeAreaText" });
 
         /* 最近使用したフォントの表示数（チェックOFFで0＝非表示）/ Recent font count (unchecked means 0 = hidden) */
         var recentFontsRow = textPanel.add("group");
-        setupRow(recentFontsRow, "left", ROW_SPACING);
-        dialogControls.recentFontsCheckbox = addCheckbox(recentFontsRow, "checkbox.recentFonts", "tooltip.recentFonts");
+        setupRow(recentFontsRow, "left", CLASSIC_ROW_SPACING);
+        dialogControls.recentFontsCheckbox = addClassicCheckbox(recentFontsRow, "checkbox.recentFonts", "tooltip.recentFonts");
         var recentFontsInput = addIntStepperInput(recentFontsRow, "0", RECENT_FONTS_INPUT_CHARS, NUMERIC_INPUT_RULES.recentFonts);
         recentFontsInput.helpTip = getLabel("tooltip.recentFonts");
         dialogControls.recentFontsInput = recentFontsInput;
 
-        bindCheckbox(dialogControls, textPanel, { label: "checkbox.missingGlyphProtection", key: "text/doFontLocking", preset: "missingGlyphProtection" });
-        bindCheckbox(dialogControls, textPanel, { label: "checkbox.alternateGlyph", key: "text/enableAlternateGlyph", preset: "alternateGlyph" });
+        bindClassicCheckbox(dialogControls, textPanel, { label: "checkbox.missingGlyphProtection", key: "text/doFontLocking", preset: "missingGlyphProtection" });
+        bindClassicCheckbox(dialogControls, textPanel, { label: "checkbox.alternateGlyph", key: "text/enableAlternateGlyph", preset: "alternateGlyph" });
 
         /* ［ユーザーインターフェイス］/ User Interface */
-        var userInterfacePanel = addPanel(leftColumnGroup, "panel.userInterface");
-        dialogControls.brightnessPicker = addBrightnessPicker(userInterfacePanel);
-        var canvasColorRadios = addRadioRow(userInterfacePanel, "fieldLabel.canvasColor", ["radio.canvasMatch", "radio.canvasWhite"]);
+        var userInterfacePanel = addClassicPanel(leftColumnGroup, "classicPanel.userInterface");
+        dialogControls.brightnessPicker = addBrightnessPicker(dialogControls, userInterfacePanel, true);
+        var canvasColorRadios = addClassicRadioRow(userInterfacePanel, "fieldLabel.canvasColor", ["radio.canvasMatch", "radio.canvasWhite"]);
         dialogControls.canvasMatchRadio = canvasColorRadios[0];
         dialogControls.canvasWhiteRadio = canvasColorRadios[1];
     }
@@ -1793,56 +2174,56 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3b33862538f6"; /* 紹�
      * @param {Group} rightColumnGroup - 右カラム
      * @returns {void}
      */
-    function buildRightColumn(dialogControls, rightColumnGroup) {
+    function buildClassicRightColumn(dialogControls, rightColumnGroup) {
         /* ガイド（カラー：シアン／ライトブルー、スタイル：ライン／点線）/ Guides (color: Cyan / Light Blue, style: Lines / Dots) */
-        var guidesPanel = addPanel(rightColumnGroup, "panel.guides");
-        var guideColorRadios = addRadioRow(guidesPanel, "fieldLabel.guideColor",
-            ["radio.guideColorCyan", "radio.guideColorLightBlue"], GUIDE_LABEL_WIDTH);
+        var guidesPanel = addClassicPanel(rightColumnGroup, "classicPanel.guides");
+        var guideColorRadios = addClassicRadioRow(guidesPanel, "fieldLabel.guideColor",
+            ["radio.guideColorCyan", "radio.guideColorLightBlue"], CLASSIC_GUIDE_LABEL_WIDTH);
         dialogControls.guideColorCyanRadio = guideColorRadios[0];
         dialogControls.guideColorLightBlueRadio = guideColorRadios[1];
-        var guideStyleRadios = addRadioRow(guidesPanel, "fieldLabel.guideStyle",
-            ["radio.guideStyleLines", "radio.guideStyleDots"], GUIDE_LABEL_WIDTH);
+        var guideStyleRadios = addClassicRadioRow(guidesPanel, "fieldLabel.guideStyle",
+            ["radio.guideStyleLines", "radio.guideStyleDots"], CLASSIC_GUIDE_LABEL_WIDTH);
         dialogControls.guideStyleLinesRadio = guideStyleRadios[0];
         dialogControls.guideStyleDotsRadio = guideStyleRadios[1];
 
         /* スマートガイド / Smart Guides */
-        var smartGuidesPanel = addPanel(rightColumnGroup, "panel.smartGuides");
-        bindCheckbox(dialogControls, smartGuidesPanel, { label: "checkbox.objectHighlighting", key: "smartGuides/showObjectHighlighting", preset: "objectHighlighting" });
+        var smartGuidesPanel = addClassicPanel(rightColumnGroup, "classicPanel.smartGuides");
+        bindClassicCheckbox(dialogControls, smartGuidesPanel, { label: "checkbox.objectHighlighting", key: "smartGuides/showObjectHighlighting", preset: "objectHighlighting" });
 
         /* ［パフォーマンス］/ Performance */
-        var performancePanel = addPanel(rightColumnGroup, "panel.performance");
-        bindCheckbox(dialogControls, performancePanel, { label: "checkbox.animatedZoom", key: "Performance/AnimZoom", preset: "animatedZoom" });
+        var performancePanel = addClassicPanel(rightColumnGroup, "classicPanel.performance");
+        bindClassicCheckbox(dialogControls, performancePanel, { label: "checkbox.animatedZoom", key: "Performance/AnimZoom", preset: "animatedZoom" });
 
-        var historyStatesRow = addLabeledRow(performancePanel, "fieldLabel.historyStates");
+        var historyStatesRow = addClassicLabeledRow(performancePanel, "fieldLabel.historyStates");
         var historyStatesInput = addIntStepperInput(historyStatesRow, String(NUMERIC_INPUT_RULES.historyStates.defaultValue),
             HISTORY_INPUT_CHARS, NUMERIC_INPUT_RULES.historyStates);
         historyStatesInput.helpTip = getLabel("tooltip.historyStates");
         dialogControls.historyStatesInput = historyStatesInput;
 
-        bindCheckbox(dialogControls, performancePanel, { label: "checkbox.realTimeDrawing", key: "LiveEdit_State_Machine", preset: "realTimeDrawing" });
+        bindClassicCheckbox(dialogControls, performancePanel, { label: "checkbox.realTimeDrawing", key: "LiveEdit_State_Machine", preset: "realTimeDrawing" });
 
         /* ［ファイル管理］/ File Management */
-        var fileManagementPanel = addPanel(rightColumnGroup, "panel.fileManagement");
-        bindCheckbox(dialogControls, fileManagementPanel, { label: "checkbox.editOriginalSystemDefault", key: "useSysDefEdit", preset: "editOriginalSystemDefault" });
-        bindCheckbox(dialogControls, fileManagementPanel, { label: "checkbox.autoActivateFonts", key: "AutoActivateMissingFont", preset: "autoActivateFonts" });
+        var fileManagementPanel = addClassicPanel(rightColumnGroup, "classicPanel.fileManagement");
+        bindClassicCheckbox(dialogControls, fileManagementPanel, { label: "checkbox.editOriginalSystemDefault", key: "useSysDefEdit", preset: "editOriginalSystemDefault" });
+        bindClassicCheckbox(dialogControls, fileManagementPanel, { label: "checkbox.autoActivateFonts", key: "AutoActivateMissingFont", preset: "autoActivateFonts" });
 
         /* ファイルの保存先（コンピューター／クラウド）/ Save location (Computer / Cloud) */
-        var saveLocationRadios = addRadioRow(fileManagementPanel, "fieldLabel.saveLocation", ["radio.saveToComputer", "radio.saveToCloud"]);
+        var saveLocationRadios = addClassicRadioRow(fileManagementPanel, "fieldLabel.saveLocation", ["radio.saveToComputer", "radio.saveToCloud"]);
         dialogControls.saveToComputerRadio = saveLocationRadios[0];
         dialogControls.saveToCloudRadio = saveLocationRadios[1];
 
         /* リンクを更新（自動／手動／確認）。並びは UPDATE_LINKS_* の値と同じ / Update Links; order matches the UPDATE_LINKS_* values */
-        dialogControls.updateLinksRadios = addRadioRow(fileManagementPanel, "fieldLabel.updateLinks",
+        dialogControls.updateLinksRadios = addClassicRadioRow(fileManagementPanel, "fieldLabel.updateLinks",
             ["radio.updateLinksAuto", "radio.updateLinksManual", "radio.updateLinksAsk"]);
 
         /* クリップボードの処理 / Clipboard Handling */
-        var clipboardPanel = addPanel(rightColumnGroup, "panel.clipboard");
-        bindCheckbox(dialogControls, clipboardPanel, { label: "checkbox.includeSvgCode", key: "plugin/FileClipboard/copySVGCode", preset: "includeSvgCode" });
+        var clipboardPanel = addClassicPanel(rightColumnGroup, "classicPanel.clipboard");
+        bindClassicCheckbox(dialogControls, clipboardPanel, { label: "checkbox.includeSvgCode", key: "plugin/FileClipboard/copySVGCode", preset: "includeSvgCode" });
 
         /* パスに制限。0=ON / 1=OFF の反転キー / Limit to Path; these keys store 0 = ON and 1 = OFF */
-        var limitToPathPanel = addPanel(rightColumnGroup, "panel.limitToPath");
-        bindCheckbox(dialogControls, limitToPathPanel, { label: "checkbox.objectPathOnly", key: "hitShapeOnPreview", preset: "objectPathOnly", type: "invertedInt" });
-        bindCheckbox(dialogControls, limitToPathPanel, { label: "checkbox.textPathOnly", key: "hitTypeShapeOnPreview", preset: "textPathOnly", type: "invertedInt" });
+        var limitToPathPanel = addClassicPanel(rightColumnGroup, "classicPanel.limitToPath");
+        bindClassicCheckbox(dialogControls, limitToPathPanel, { label: "checkbox.objectPathOnly", key: "hitShapeOnPreview", preset: "objectPathOnly", type: "invertedInt" });
+        bindClassicCheckbox(dialogControls, limitToPathPanel, { label: "checkbox.textPathOnly", key: "hitTypeShapeOnPreview", preset: "textPathOnly", type: "invertedInt" });
     }
 
     // ボタン行（再利用パーツ） / Button row (reusable)
@@ -2019,6 +2400,144 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3b33862538f6"; /* 紹�
     }
 
     // =========================================
+    // 変更の追跡とカテゴリの切り替え / Change tracking & category switching
+    // =========================================
+
+    /**
+     * ［デフォルト］の設定一式をいったんUIに入れ、各行の表示をデフォルトの列に書き込む。
+     * UIは書き換わるので、このあと環境設定を読み込み直す
+     * Put the [Default] set into the UI, copy each row's text into the default column; reload the preferences afterwards
+     * @param {object} dialogControls - コントロールをまとめたオブジェクト
+     * @returns {void}
+     */
+    function fillDefaultColumn(dialogControls) {
+        applyPresetStateToUI(dialogControls, PRESET_STATE_DEFAULT);
+        /* 明るさはプリセットに無いので、Illustrator の初期値（やや暗）を入れる / brightness is not in the presets; use Illustrator's initial Medium Dark */
+        dialogControls.brightnessPicker.selectedIndex = DEFAULT_BRIGHTNESS_INDEX;
+        for (var i = 0; i < dialogControls.settingRows.length; i++) {
+            var settingRowState = dialogControls.settingRows[i];
+            settingRowState.valueGroup.defaultLabel.text = settingRowState.describeValue();
+        }
+    }
+
+    /**
+     * 文字の表示幅を測る / Measure the display width of a text
+     * @param {StaticText|ListBox} control - 測るのに使うコントロール（そのフォントで測る）
+     * @param {string} text - 測る文字列
+     * @returns {number} 幅（px）
+     */
+    function measureTextWidth(control, text) {
+        return control.graphics.measureString(text)[0];
+    }
+
+    /**
+     * 項目名とデフォルトの列を、全カテゴリでいちばん長い文字に合わせた幅にそろえる（デフォルトの列を埋めたあとに呼ぶ）
+     * Fit the setting and default columns to the longest text across every category (call after filling the default column)
+     * @param {object} dialogControls - コントロールをまとめたオブジェクト
+     * @returns {void}
+     */
+    function fitColumnWidths(dialogControls) {
+        var settingColumn = [];
+        var defaultColumn = [];
+        for (var i = 0; i < dialogControls.categoryPages.length; i++) {
+            var categoryPageState = dialogControls.categoryPages[i];
+            settingColumn.push(categoryPageState.headerLabels[0]);
+            defaultColumn.push(categoryPageState.headerLabels[1]);
+            for (var j = 0; j < categoryPageState.rows.length; j++) {
+                settingColumn.push(categoryPageState.rows[j].valueGroup.settingLabel);
+                defaultColumn.push(categoryPageState.rows[j].valueGroup.defaultLabel);
+            }
+        }
+        var columns = [settingColumn, defaultColumn];
+        for (var k = 0; k < columns.length; k++) {
+            var columnWidth = 0;
+            for (var m = 0; m < columns[k].length; m++) {
+                columnWidth = Math.max(columnWidth, measureTextWidth(columns[k][m], columns[k][m].text));
+            }
+            for (var n = 0; n < columns[k].length; n++) {
+                columns[k][n].preferredSize = [columnWidth + COLUMN_TEXT_PADDING, -1]; /* 高さは自動 / height stays automatic */
+            }
+        }
+    }
+
+    /**
+     * カテゴリ一覧の幅を、件数の付いた名前がいちばん長くなる場合に合わせる / Fit the category list to its longest name with a change count
+     * @param {object} dialogControls - コントロールをまとめたオブジェクト
+     * @returns {number} 幅（px）
+     */
+    function measureCategoryListWidth(dialogControls) {
+        var listWidth = 0;
+        for (var i = 0; i < dialogControls.categoryPages.length; i++) {
+            var longestName = formatCategoryName(dialogControls.categoryPages[i].labelPath, 99);
+            listWidth = Math.max(listWidth, measureTextWidth(dialogControls.categoryList, longestName));
+        }
+        return listWidth + SIDEBAR_TEXT_PADDING;
+    }
+
+    /**
+     * 今のUIの状態を、変更を数える基準として控える（環境設定を読み込んだ直後に呼ぶ）
+     * Record the UI state as the baseline for counting changes (call right after loading the preferences)
+     * @param {object} dialogControls - コントロールをまとめたオブジェクト
+     * @returns {void}
+     */
+    function captureBaseline(dialogControls) {
+        for (var i = 0; i < dialogControls.settingRows.length; i++) {
+            var settingRowState = dialogControls.settingRows[i];
+            settingRowState.baselineText = settingRowState.describeValue();
+        }
+        updateChangeState(dialogControls);
+    }
+
+    /**
+     * 変更した行に印を付け、カテゴリごとの件数・合計件数・［すべての変更を取り消す］の有効／無効を更新する
+     * Mark changed rows and refresh the per-category counts, the total and the Revert button
+     * @param {object} dialogControls - コントロールをまとめたオブジェクト
+     * @returns {void}
+     */
+    function updateChangeState(dialogControls) {
+        /* 現在の値を控える前（組み立て中）は数えない / skip until the baseline exists (during construction) */
+        if (!dialogControls.changeCountLabel) return;
+        var totalChangeCount = 0;
+        for (var i = 0; i < dialogControls.categoryPages.length; i++) {
+            var categoryPageState = dialogControls.categoryPages[i];
+            var pageChangeCount = 0;
+            for (var j = 0; j < categoryPageState.rows.length; j++) {
+                var settingRowState = categoryPageState.rows[j];
+                var isChanged = (settingRowState.baselineText !== null && settingRowState.describeValue() !== settingRowState.baselineText);
+                settingRowState.valueGroup.changeMarker.visible = isChanged;
+                if (isChanged) pageChangeCount++;
+            }
+            dialogControls.categoryList.items[i].text = formatCategoryName(categoryPageState.labelPath, pageChangeCount);
+            totalChangeCount += pageChangeCount;
+        }
+        dialogControls.changeCountLabel.text = getLabel("status.changeCount", [totalChangeCount]);
+        dialogControls.btnRevertAll.enabled = (totalChangeCount > 0);
+    }
+
+    /**
+     * カテゴリ一覧の表示名（変更があれば件数を添える）/ Category list text, with the change count when there are changes
+     * @param {string} labelPath - カテゴリ名のパス
+     * @param {number} changeCount - そのカテゴリで変更した項目の数
+     * @returns {string} 表示名
+     */
+    function formatCategoryName(labelPath, changeCount) {
+        if (changeCount === 0) return getLabel(labelPath);
+        return getLabel("category.withChangeCount", [getLabel(labelPath), changeCount]);
+    }
+
+    /**
+     * 指定したカテゴリのページだけを表示する / Show only the page of the given category
+     * @param {object} dialogControls - コントロールをまとめたオブジェクト
+     * @param {number} pageIndex - categoryPages の index
+     * @returns {void}
+     */
+    function showCategoryPage(dialogControls, pageIndex) {
+        for (var i = 0; i < dialogControls.categoryPages.length; i++) {
+            dialogControls.categoryPages[i].page.visible = (i === pageIndex);
+        }
+    }
+
+    // =========================================
     // 読み込みとプリセット適用 / Load & preset apply
     // =========================================
 
@@ -2139,6 +2658,33 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3b33862538f6"; /* 紹�
         }
     }
 
+    /**
+     * UIの状態を、プリセットと同じ形の設定一式として読み取る（レイアウトを切り替えるときに引き継ぐ）
+     * Read the UI as a set shaped like the presets (carried over when switching layouts)
+     * @param {object} dialogControls - コントロールをまとめたオブジェクト
+     * @returns {object} PRESET_STATE_DEFAULT と同じ形の設定一式
+     */
+    function readPresetStateFromUI(dialogControls) {
+        var presetState = {};
+        for (var i = 0; i < dialogControls.checkboxBindings.length; i++) {
+            var checkboxBinding = dialogControls.checkboxBindings[i];
+            presetState[checkboxBinding.presetField] = !!checkboxBinding.control.value;
+        }
+        var artboardColorSelection = dialogControls.artboardColorDropdown.selection;
+        presetState.artboardColorIndex = artboardColorSelection ? artboardColorSelection.index : 0;
+        presetState.artboardStrokeWidth = ARTBOARD_STROKE_WIDTHS[getSelectedRadioIndex(dialogControls.artboardStrokeWidthRadios, 0)];
+        presetState.anchorSize = getSelectedAnchorSize(dialogControls);
+        presetState.recentFontsEnabled = !!dialogControls.recentFontsCheckbox.value;
+        presetState.recentFontsCount = clampIntToRule(dialogControls.recentFontsInput.text, NUMERIC_INPUT_RULES.recentFonts);
+        presetState.historyStates = clampIntToRule(dialogControls.historyStatesInput.text, NUMERIC_INPUT_RULES.historyStates);
+        presetState.canvasWhite = !!dialogControls.canvasWhiteRadio.value;
+        presetState.guideColorIsLightBlue = !!dialogControls.guideColorLightBlueRadio.value;
+        presetState.guideStyleIsDots = !!dialogControls.guideStyleDotsRadio.value;
+        presetState.saveToCloud = !!dialogControls.saveToCloudRadio.value;
+        presetState.updateLinks = getSelectedRadioIndex(dialogControls.updateLinksRadios, UPDATE_LINKS_ASK);
+        return presetState;
+    }
+
     // =========================================
     // 保存 / Save
     // =========================================
@@ -2229,13 +2775,88 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3b33862538f6"; /* 紹�
     // メイン処理 / Main
     // =========================================
 
+    /* レイアウトの種類と、切り替えで閉じたときに show() が返す値 / Layout names and the show() result when closed to switch */
+    var LAYOUT_SIDEBAR = "sidebar";
+    var LAYOUT_CLASSIC = "classic";
+    var LAYOUT_SWITCH_RESULT = 3;
+    var LAYOUT_STORAGE_KEY = "__" + SCRIPT_NAME + "_Layout"; /* 最後に使ったレイアウト / last used layout */
+
     /**
-     * ダイアログを組み立てて表示し、［OK］で環境設定を保存する / Build and show the dialog, then save preferences on [OK]
+     * サイドバー表示の本体（左にカテゴリ一覧、右にページを重ねたスタック）を組み立てる
+     * Build the sidebar view body (category list on the left, stacked pages on the right)
+     * @param {object} dialogControls - コントロールを登録するオブジェクト
+     * @param {Group} dialogContentGroup - 追加先
      * @returns {void}
      */
-    function main() {
+    function buildSidebarBody(dialogControls, dialogContentGroup) {
+        var dialogBodyGroup = dialogContentGroup.add("group");
+        dialogBodyGroup.orientation = "row";
+        dialogBodyGroup.alignChildren = ["fill", "fill"];
+        dialogBodyGroup.spacing = COLUMN_SPACING;
+        var categoryList = dialogBodyGroup.add("listbox");
+        dialogControls.categoryList = categoryList;
+
+        var pagePanel = dialogBodyGroup.add("panel");
+        setupPanel(pagePanel, PAGE_ROW_SPACING);
+        pagePanel.orientation = "stack";
+        pagePanel.alignChildren = ["fill", "top"];
+        dialogControls.pageStack = pagePanel;
+        buildDisplayPages(dialogControls);
+        buildBehaviorPages(dialogControls);
+        for (var i = 0; i < dialogControls.categoryPages.length; i++) {
+            categoryList.add("item", getLabel(dialogControls.categoryPages[i].labelPath));
+        }
+        /* 全カテゴリが見える高さにする（ページ側もこの高さまで伸びる）/ Tall enough to show every category; the page panel stretches to match */
+        categoryList.preferredSize = [measureCategoryListWidth(dialogControls),
+            dialogControls.categoryPages.length * SIDEBAR_ITEM_HEIGHT + SIDEBAR_PADDING];
+
+        /* 前回開いていたカテゴリで開く。一覧の空きをクリックして選択が外れたら選び直す */
+        /* Reopen the last category; reselect when a click on empty space clears the selection */
+        var lastPageKey = "__" + SCRIPT_NAME + "_LastPage";
+        var lastPageIndex = $.global[lastPageKey];
+        if (typeof lastPageIndex !== "number" || lastPageIndex >= dialogControls.categoryPages.length) lastPageIndex = 0;
+        categoryList.selection = lastPageIndex;
+        showCategoryPage(dialogControls, lastPageIndex);
+        categoryList.onChange = function () {
+            if (!categoryList.selection) {
+                categoryList.selection = $.global[lastPageKey] || 0;
+                return;
+            }
+            $.global[lastPageKey] = categoryList.selection.index;
+            showCategoryPage(dialogControls, categoryList.selection.index);
+        };
+    }
+
+    /**
+     * 2カラム表示の本体（従来と同じパネルの並び）を組み立てる
+     * Build the two-column view body (the same panels as the classic layout)
+     * @param {object} dialogControls - コントロールを登録するオブジェクト
+     * @param {Group} dialogContentGroup - 追加先
+     * @returns {void}
+     */
+    function buildClassicBody(dialogControls, dialogContentGroup) {
+        var panelColumnsGroup = dialogContentGroup.add("group");
+        panelColumnsGroup.orientation = "row";
+        panelColumnsGroup.alignChildren = "top";
+        panelColumnsGroup.spacing = COLUMN_SPACING;
+        buildClassicLeftColumn(dialogControls, addClassicColumn(panelColumnsGroup));
+        buildClassicRightColumn(dialogControls, addClassicColumn(panelColumnsGroup));
+    }
+
+    /**
+     * ダイアログを組み立てて表示し、［OK］で環境設定を保存する。
+     * レイアウトの切り替えで閉じたときは、引き継ぐ状態を返す
+     * Build and show the dialog, saving on [OK]; when closed to switch layouts, return the state to carry over
+     * @param {string} layoutName - LAYOUT_SIDEBAR / LAYOUT_CLASSIC
+     * @param {object|null} carriedSession - 前のレイアウトから引き継ぐ状態（presetState / presetIndex / brightnessIndex / brightnessTouched）
+     * @returns {object|null} 切り替えで閉じたときは引き継ぐ状態、それ以外は null
+     */
+    function showPreferencesDialog(layoutName, carriedSession) {
+        var isSidebarLayout = (layoutName === LAYOUT_SIDEBAR);
         /* コントロールと、チェックボックスの対応表をまとめて持つ / Holds the controls and the checkbox binding table */
-        var dialogControls = { checkboxBindings: [] };
+        /* 行の一覧（settingRows）とカテゴリのページ（categoryPages）はサイドバー表示の変更の追跡に使う / settingRows and categoryPages drive the sidebar view's change tracking */
+        var dialogControls = { checkboxBindings: [], settingRows: [], categoryPages: [] };
+        var switchSession = null;
 
         /* ダイアログ本体 / Dialog window */
         var preferencesDialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
@@ -2244,11 +2865,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3b33862538f6"; /* 紹�
         /* 全体を縦に積むコンテナ / Vertical container for the whole dialog */
         var dialogContentGroup = preferencesDialog.add("group");
         dialogContentGroup.orientation = "column";
-        dialogContentGroup.alignChildren = "left";
+        dialogContentGroup.alignChildren = "fill";
 
         /* プリセット選択行（現在の設定 / デフォルト / プリセット1）/ Preset selector row (Current / Default / Preset 1) */
         var presetRow = dialogContentGroup.add("group");
-        presetRow.margins = PRESET_ROW_MARGINS;
+        presetRow.margins = isSidebarLayout ? PRESET_ROW_MARGINS : CLASSIC_PRESET_ROW_MARGINS;
         setupRow(presetRow, "center", ROW_SPACING);
         var presetSelectorGroup = presetRow.add("group");
         setupRow(presetSelectorGroup, "left", ROW_SPACING);
@@ -2258,18 +2879,30 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3b33862538f6"; /* 紹�
             presetLabels.push(getLabel(PRESET_CHOICES[i].labelPath));
         }
         var presetDropdown = presetSelectorGroup.add("dropdownlist", undefined, presetLabels);
-        presetDropdown.selection = 0; /* 初期選択は「現在の設定」/ Default selection is "Current Settings" */
+        /* onChange を付ける前に選ぶので、引き継いだ値を上書きしない / chosen before onChange is attached, so the carried state is not overwritten */
+        presetDropdown.selection = carriedSession ? carriedSession.presetIndex : 0; /* 初期選択は「現在の設定」/ Default selection is "Current Settings" */
         presetDropdown.helpTip = getLabel("tooltip.preset");
 
-        /* パネルを左右2カラムに配置 / Two-column layout for the panels */
-        var panelColumnsGroup = dialogContentGroup.add("group");
-        panelColumnsGroup.orientation = "row";
-        panelColumnsGroup.alignChildren = "top";
-        panelColumnsGroup.spacing = COLUMN_SPACING;
-        buildLeftColumn(dialogControls, addColumn(panelColumnsGroup));
-        buildRightColumn(dialogControls, addColumn(panelColumnsGroup));
+        if (isSidebarLayout) {
+            buildSidebarBody(dialogControls, dialogContentGroup);
+        } else {
+            buildClassicBody(dialogControls, dialogContentGroup);
+        }
 
+        /* 下段：左に［レイアウト切り替え］（サイドバー表示は変更件数も）、右に［すべての変更を取り消す］［キャンセル］［OK］ */
+        /* Bottom row: layout switch (and the change count in the sidebar view) on the left, buttons on the right */
         var buttonRow = addButtonRow(dialogContentGroup);
+        var btnSwitchLayout = buttonRow.leftGroup.add("button", undefined,
+            getLabel(isSidebarLayout ? "button.toClassicLayout" : "button.toSidebarLayout"));
+        btnSwitchLayout.helpTip = getLabel("tooltip.switchLayout");
+        var btnRevertAll = null;
+        if (isSidebarLayout) {
+            var changeCountLabel = buttonRow.leftGroup.add("statictext", undefined, "");
+            changeCountLabel.preferredSize = [CHANGE_COUNT_WIDTH, -1];
+            btnRevertAll = buttonRow.rightGroup.add("button", undefined, getLabel("button.revertAll"));
+            dialogControls.changeCountLabel = changeCountLabel;
+            dialogControls.btnRevertAll = btnRevertAll;
+        }
         var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
         var btnOK = buttonRow.rightGroup.add("button", undefined, "OK", { name: "ok" });
         alignRightOnlyButtonRow(buttonRow);
@@ -2278,21 +2911,42 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3b33862538f6"; /* 紹�
         presetDropdown.onChange = function () {
             if (!presetDropdown.selection) return;
             applyPresetChoice(dialogControls, presetDropdown.selection.index);
+            updateChangeState(dialogControls);
             app.redraw();
+        };
+
+        /* 環境設定を読み直して変更をすべて捨てる / Reload the preferences and discard every change */
+        if (btnRevertAll) {
+            btnRevertAll.onClick = function () {
+                presetDropdown.selection = 0; /* 「現在の設定」/ "Current Settings" */
+                loadPreferencesIntoUI(dialogControls);
+                updateChangeState(dialogControls);
+            };
+        }
+
+        /* 今の状態を控えて閉じ、もう一方のレイアウトで開き直す / Keep the current state, close, and reopen in the other layout */
+        btnSwitchLayout.onClick = function () {
+            switchSession = {
+                presetState: readPresetStateFromUI(dialogControls),
+                presetIndex: presetDropdown.selection ? presetDropdown.selection.index : 0,
+                brightnessIndex: dialogControls.brightnessPicker.selectedIndex,
+                brightnessTouched: dialogControls.brightnessPicker.isTouched
+            };
+            preferencesDialog.close(LAYOUT_SWITCH_RESULT);
         };
 
         /* チェックOFFで入力欄を無効化（0＝非表示として保存）/ Disable the field when unchecked (saved as 0 = hidden) */
         dialogControls.recentFontsCheckbox.onClick = function () {
-            if (!dialogControls.recentFontsCheckbox.value) {
-                applyRecentFontsCount(dialogControls, 0);
-                return;
-            }
-            /* ONに戻したとき 0 のままでは矛盾するので既定値を入れる / Restore the default instead of leaving 0 when re-enabled */
-            var currentFontCount = parseIntOrNull(dialogControls.recentFontsInput.text);
-            if (currentFontCount === null || currentFontCount < NUMERIC_INPUT_RULES.recentFonts.min) {
-                currentFontCount = NUMERIC_INPUT_RULES.recentFonts.defaultValue;
+            var currentFontCount = 0;
+            if (dialogControls.recentFontsCheckbox.value) {
+                /* ONに戻したとき 0 のままでは矛盾するので既定値を入れる / Restore the default instead of leaving 0 when re-enabled */
+                currentFontCount = parseIntOrNull(dialogControls.recentFontsInput.text);
+                if (currentFontCount === null || currentFontCount < NUMERIC_INPUT_RULES.recentFonts.min) {
+                    currentFontCount = NUMERIC_INPUT_RULES.recentFonts.defaultValue;
+                }
             }
             applyRecentFontsCount(dialogControls, currentFontCount);
+            updateChangeState(dialogControls);
         };
 
         dialogControls.recentFontsInput.onChange = function () {
@@ -2319,11 +2973,43 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3b33862538f6"; /* 紹�
             if (willOpenUserInterface) openPreferencePanel("UIPref");
         };
 
-        /* 初期状態として現在の環境設定を読み込む / Load the current preferences as the initial UI state */
+        /* サイドバー表示はデフォルトの列を埋めてから、現在の環境設定を読み込んで変更を数える基準にする */
+        /* The sidebar view fills the default column first, then loads the current preferences as the baseline */
+        if (isSidebarLayout) {
+            fillDefaultColumn(dialogControls);
+            fitColumnWidths(dialogControls);
+        }
         loadPreferencesIntoUI(dialogControls);
+        if (isSidebarLayout) captureBaseline(dialogControls);
+
+        /* 前のレイアウトでの変更を戻す / Restore the changes made in the previous layout */
+        if (carriedSession) {
+            applyPresetStateToUI(dialogControls, carriedSession.presetState);
+            dialogControls.brightnessPicker.selectedIndex = carriedSession.brightnessIndex;
+            dialogControls.brightnessPicker.isTouched = carriedSession.brightnessTouched;
+            updateChangeState(dialogControls);
+        }
 
         prepareDialogWindow(preferencesDialog, SCRIPT_NAME);
-        preferencesDialog.show();
+        var dialogResult = preferencesDialog.show();
+        return (dialogResult === LAYOUT_SWITCH_RESULT) ? switchSession : null;
+    }
+
+    /**
+     * 最後に使ったレイアウトで開き、切り替えのたびに状態を引き継いで開き直す
+     * Open in the last used layout and reopen with the carried state on every switch
+     * @returns {void}
+     */
+    function main() {
+        var layoutName = ($.global[LAYOUT_STORAGE_KEY] === LAYOUT_CLASSIC) ? LAYOUT_CLASSIC : LAYOUT_SIDEBAR;
+        var carriedSession = null;
+        do {
+            carriedSession = showPreferencesDialog(layoutName, carriedSession);
+            if (carriedSession) {
+                layoutName = (layoutName === LAYOUT_SIDEBAR) ? LAYOUT_CLASSIC : LAYOUT_SIDEBAR;
+                $.global[LAYOUT_STORAGE_KEY] = layoutName;
+            }
+        } while (carriedSession);
     }
 
     main();

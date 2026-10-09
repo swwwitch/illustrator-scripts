@@ -14,11 +14,24 @@
 - Items that normally live in separate categories — General, Selection & Anchor Display, Type, Guides, Performance, File Handling and so on — can be changed in one place without switching tabs.
 - The dialog opens with the current preferences loaded. Choosing [Default] or [Preset 1] from the dropdown fills the UI with a whole set of values.
 - Nothing is written while you work; every change is saved at once when [OK] is pressed (pressing [Cancel] changes nothing).
+- Two views are available: the sidebar view and the two-column view. The button at the lower left switches between them and carries your unsaved changes over. The dialog reopens in the view you used last.
+
+#### Sidebar view
+
+- Pick a category in the list on the left; its settings appear on the right.
+- Each setting is listed in three columns: Setting | Default | Current. Default shows the value from the [Default] preset.
+- Settings changed since the dialog opened get a "•" in front, the category name shows a count (for example "General (1)"), and the lower left shows the total.
+- [Revert All Changes] reloads the preferences and discards every change.
+- Clicking a setting name also toggles its checkbox.
+
+#### Two-column view
+
+- The classic single dialog with the category panels in two columns.
 
 ### Usage
 
 1. Run the script; the dialog opens with the current preferences applied.
-2. Change what you need. Choosing [Default] or [Preset 1] from the dropdown loads a complete set of values into the UI (still not saved).
+2. Change what you need. The button at the lower left switches between the sidebar and two-column views. Choosing [Default] or [Preset 1] from the dropdown loads a complete set of values into the UI (still not saved).
 3. Press [OK] to save.
 
 ### Preferences covered
@@ -163,10 +176,11 @@ For these two keys 0 means ON and 1 means OFF, so the script inverts the value w
 
 ### Flow
 
-1. Build the dialog and lay out the panels in two columns
+1. Build the dialog: the category list and pages in the sidebar view (filling the Default column), or the panels in the two-column view
 2. Read the current preferences into the UI (`loadPreferencesIntoUI`)
 3. Selecting a preset overwrites the UI with predefined values (nothing is written to preferences)
-4. [OK] writes every preference key and opens the Preferences panels when required
+4. Switching views keeps the UI state, closes the dialog, and reopens it in the other view with that state restored
+5. [OK] writes every preference key and opens the Preferences panels when required
 
 Every checkbox item is declared once, on a single line that carries its preference key, its control and its preset field. Loading, saving and preset application all read that same table, so a newly added item can never be left out of the save path.
 
@@ -199,3 +213,4 @@ Every checkbox item is declared once, on a single line that carries its preferen
 - v1.9.7 (2026-10-01): Unified the window and panel margins and spacing with the shared layout part
 - v1.9.8 (2026-10-01): Added space below the button row to match Illustrator's own dialogs
 - v1.9.9 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
+- v1.10.0 (2026-10-10) Added the sidebar view (category list, Setting | Default | Current columns, markers and counts for changed settings, [Revert All Changes]). The button at the lower left switches to the classic two-column view and carries unsaved changes over
