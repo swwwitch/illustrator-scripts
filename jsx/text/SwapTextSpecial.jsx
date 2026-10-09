@@ -29,7 +29,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SwapTextSp
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SwapTextSpecial";              /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-06-10";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-09";                   /* 更新日 / last updated */
@@ -520,11 +520,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n071e09af28a7"; /* 紹�
         radioContents.value = true;
         updatePositionBasisEnabled();
 
-        var buttonRow = addButtonRow(swapDialog);
-        var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel(LABELS.button.cancel), { name: "cancel" });
-        var btnOK = buttonRow.rightGroup.add("button", undefined, getLabel(LABELS.button.ok), { name: "ok" });
+        /* ボタン行は左右中央に置く / Center the button row */
+        var buttonRow = addButtonRow(swapDialog, { centered: true });
+        var btnCancel = buttonRow.rowGroup.add("button", undefined, getLabel(LABELS.button.cancel), { name: "cancel" });
+        var btnOK = buttonRow.rowGroup.add("button", undefined, getLabel(LABELS.button.ok), { name: "ok" });
 
-        alignRightOnlyButtonRow(buttonRow);
         prepareDialogWindow(swapDialog, SCRIPT_NAME);
         if (swapDialog.show() !== 1) {
             return null;

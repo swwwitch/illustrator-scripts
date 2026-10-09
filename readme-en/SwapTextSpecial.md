@@ -13,6 +13,8 @@
 Swaps the contents of two selected text objects.
 A dialog lets you choose what to swap (string / format / position).
 
+<img alt="The Swap Text dialog" src="../png/ss-430-496-144-20261009-131915-s.png" width="25%" />
+
 - String: swaps only the strings. The formatting and positions stay put. Text with mixed formatting takes on the formatting of its first character.
 - Format: swaps the font, size, fill color, stroke color, stroke weight, tracking, leading, horizontal / vertical scale, baseline shift, and capitalization. The strings and positions stay put.
 - Position: swaps only the positions, using one of two reference points.
@@ -26,6 +28,7 @@ A dialog lets you choose what to swap (string / format / position).
 
 ### Update history
 
+- v1.1.1 (2026-10-09) The button row is now always centered
 - v1.1.0 (2026-10-09) Position can now swap by the top-left corner or by the anchor point. Fixed again an error when running with characters selected by the Type tool. Swapping the format no longer adds a stroke to text without one
 - v1.0.10 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.0.9 (2026-10-01): Added space below the button row to match Illustrator's own dialogs
@@ -39,4 +42,4 @@ A dialog lets you choose what to swap (string / format / position).
 
 ### Script info
 
-- Version: v1.1.0
+- Version: v1.1.1
