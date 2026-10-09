@@ -39,7 +39,7 @@ palette. Objects locked with command+2 are not recorded.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "LockHistoryPalette";           /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.8";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.9";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-09-23";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-10";                   /* 更新日 / last updated */
@@ -888,7 +888,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n577d8a654ec1"; /* 紹�
         if (isRead && readIsPending) return;
 
         var bridgeMessage = new BridgeTalk();
-        bridgeMessage.target = "illustrator";
+        /* "illustrator" だと複数バージョンを起動しているときに一番新しいほうへ届くので、自分自身を指す
+           / "illustrator" resolves to the newest running version; target this very instance instead */
+        bridgeMessage.target = BridgeTalk.appSpecifier;
         bridgeMessage.body = REMOTE_PRELUDE + "\n" +
             'lupRun("' + command + '", "' + (entryId || "") + '", ' + (keepLocked ? "true" : "false") + ');';
         bridgeMessage.onResult = function (replyMessage) {

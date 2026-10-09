@@ -64,6 +64,7 @@ The record is written into each object's **tag** (`PageItem.tags`, tag name `Loc
 
 ### Change log
 
+- v1.0.9 (2026-10-10) Fixed the palette operating on another version's document when several Illustrator versions are running
 - v1.0.8 (2026-10-10) Option-click (Alt-click) on Unlock All now unlocks everything in the document, including objects not in the history
 - v1.0.7 (2026-10-10) Fixed new entry numbers sometimes colliding with existing ones, a generic error when locking with text selected, and Unlock All stopping halfway on locked layers. The list selection now follows the entry number, returning to the palette no longer modifies the document, and each command scans the document only once
 - v1.0.6 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
@@ -76,6 +77,6 @@ The record is written into each object's **tag** (`PageItem.tags`, tag name `Loc
 
 ### Script info
 
-- Version: v1.0.8
+- Version: v1.0.9
 - First release: 2026-09-23
 - Last updated: 2026-10-10
