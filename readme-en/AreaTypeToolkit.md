@@ -10,7 +10,7 @@
 
 ## Overview
 
-Headings and button labels often start life as point text, and only later do you wish they were Area Type — so the copy wraps inside a box when it grows, or sits centred in it.
+Headings and button labels often start life as point text, and only later do you wish they were Area Type — so the copy wraps inside a box when it grows, or sits centered in it.
 
 Doing that by hand means drawing a rectangle, converting it, pouring the text in, and setting the font again. And once you have Area Type, tuning it (frame size, leading, first baseline, indents, vertical alignment) still means moving between panels.
 
@@ -35,7 +35,7 @@ Four creation methods. Methods that don't apply to the current selection are dim
 | Method | What it does |
 | --- | --- |
 | Simple | Uses a rectangle the size of the point text plus 1pt |
-| Button style | Uses a rectangle 1.2x wide and 1.8x tall, with the text centred both ways |
+| Button style | Uses a rectangle 1.2x wide and 1.8x tall, with the text centered both ways |
 | Pour into selected shape | Duplicates the selected shape as the frame and pours the selected text into it |
 | Dummy text in selected shape | Turns the selected shape itself into Area Type and fills it with dummy text |
 
@@ -49,7 +49,7 @@ Path text is split off into point text first. Per-character font, size, fill, st
 
 ### Pairing text with shapes
 
-"Pour into selected shape" accepts several text-and-shape pairs at once. Each text is matched to **the shape whose bounds contain the text's centre**, or failing that **the shape whose centre is nearest**. Matching uses `geometricBounds` (rectangular bounds).
+"Pour into selected shape" accepts several text-and-shape pairs at once. Each text is matched to **the shape whose bounds contain the text's center**, or failing that **the shape whose center is nearest**. Matching uses `geometricBounds` (rectangular bounds).
 
 Compound paths work as shapes too (the first path becomes the frame).
 
@@ -61,8 +61,9 @@ Everything about the Area Type's typesetting, in one place. **Preview is always 
 
 The panels are laid out like this:
 
-- Left: font size, frame size, offset, indent, vertical alignment
-- Right: role, leading, justification, Japanese composition (Japanese UI only)
+- Left: font size, frame size, offset, vertical alignment
+- Right: role, leading, justification, indent
+- Below both columns: Japanese composition (Japanese UI only; kinsoku and mojikumi side by side)
 - Bottom: [Separate text...], then [Cancel] and [OK]
 
 [OK] commits, [Cancel] reverts and closes — except for vertical text alignment, auto-size, the role presets, Clear overset, Fit to frame and Separate text, which are committed the moment you click them (see below).
@@ -90,6 +91,8 @@ Kinsoku and mojikumi are applied in the Japanese UI only.
 | Font size | Set directly |
 | Clear overset | Shrinks the font until the overset clears (binary search, up to 40 passes) |
 | Fit to frame | Grows until it oversets, then shrinks — filling the frame |
+
+The font-size field and the actual leading use the type unit from Preferences (leading in H when the type unit is Q).
 
 Clear overset and Fit to frame are **unavailable for text with line breaks** — holding the line count would drive the size absurdly small, so the script warns and stops. When the frame mixes font sizes, they are flattened to a single size.
 
@@ -129,7 +132,7 @@ Shown in the Japanese UI only. The English UI leaves kinsoku and mojikumi alone,
 | Control | What it does |
 | --- | --- |
 | Kinsoku | None / Strict / Loose / Loose v2 |
-| Mojikumi | Mojikumi spacing set (None / Line-end punct full-half / Half-width punctuation / ... / Tight / Solid) |
+| Mojikumi | Mojikumi spacing set (None / Line-end punct full/half / Half-width punctuation / ... / Tight / Solid) |
 
 These are paragraph attributes, so they apply to every paragraph in the frame. With mixed settings the Mojikumi menu opens empty; leave it alone and nothing changes.
 
@@ -137,7 +140,7 @@ Opening the dialog on existing Area Type shows that frame's current settings —
 
 ### Frame size
 
-Width and height in the ruler unit. The width can also be driven by a character count (Japanese UI only — Roman glyph widths vary too much for the arithmetic to hold).
+Width and height in the ruler unit. The width can also be driven by a character count (Japanese UI only — Roman glyph widths vary too much for the arithmetic to hold, so the English UI does not show the field).
 
 The character count is the width minus the offset and both indents, divided by the font size.
 
@@ -151,7 +154,6 @@ The current auto-size state cannot be read from the DOM, so the checkbox always 
 
 - Indents: left and right (the Link icon is on by default — the right follows the left and its field is dimmed; text whose two indents differ opens with the link off)
 - Offset: the distance between the frame and the text (tick the box to enter a value)
-The font-size field and the actual leading use the type unit from Preferences (leading in H when the type unit is Q).
 
 ## Separate text dialog
 
@@ -195,6 +197,7 @@ TextFrame (point / path / area text), PathItem and CompoundPathItem (closed path
 
 ## Change log
 
+- v1.4.1 (2026-10-09) Moved the Indent panel back to the right column (under Justification). The Japanese composition panel now spans the full width below both columns, with kinsoku and mojikumi side by side. The English UI now hides the "chars" field instead of dimming it. Right-aligned the Actual, Leading and Min labels in the Leading panel and the Left and Right labels in the Indent panel, and fixed the colon of "Leading:" being cut off in the English UI
 - v1.4.0 (2026-10-09) Added First Baseline and Min to the Leading panel (left as is unless changed). The font size and the actual leading now show and take the type unit from Preferences (leading in H when the type unit is Q). Units now appear inside the number fields (except "chars"). Added [Frame: keep its style] to Separate text. Moved the Indent panel under Offset (left column). The Japanese composition panel is no longer shown in the English UI. The width and height labels now fit their text and are right-aligned, fixing the cut-off "Height:"
 - v1.3.8 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.3.7 (2026-10-01) Added space below the button row to match Illustrator's own dialogs

@@ -27,7 +27,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AreaTypeTo
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AreaTypeToolkit";              /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.4.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.4.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-03-03";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-09";                   /* 更新日 / last updated */
@@ -1463,6 +1463,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
     /* 日本語の組版パネルは日本語UIだけ。英語UIでは禁則・文字組みに触らない
        The Japanese composition panel is Japanese UI only; the English UI leaves kinsoku and mojikumi alone */
     var SHOW_JP_COMPOSITION = (uiLang === "ja");
+    /* 字詰め（［　］文字）欄も日本語UIだけ。欧文は字幅が一定でなく計算が合わないため
+       The chars-per-line field is Japanese UI only too; Roman glyph widths vary, so the math does not hold */
+    var SHOW_CHARS_PER_LINE = (uiLang === "ja");
 
     // UIレイアウト（再利用パーツ） / UI layout (reusable)
 
@@ -3632,8 +3635,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
     function addLeadingPanel(dialogControls, parentColumn, leadingUnitLabel, rulerLabel) {
         var leadingPanel = parentColumn.add("panel", undefined, getLabel("panel.leading"));
         setupPanel(leadingPanel, 6);
-        dialogControls.etLeadingEffective = addNumberRow(leadingPanel, labelText("fieldLabel.leadingEffective"), LEADING_LABEL_WIDTH, "", SMALL_FIELD_CHARACTERS, leadingUnitLabel).field;
-        dialogControls.etLeadingPercent = addNumberRow(leadingPanel, labelText("fieldLabel.leadingPercent"), LEADING_LABEL_WIDTH, "", SMALL_FIELD_CHARACTERS, "%").field;
+        /* 英語の「Leading:」が固定幅に収まらないので、実測した幅と広い方を使う / Use the measured width when it exceeds the fixed one */
+        var leadingLabelWidth = Math.max(LEADING_LABEL_WIDTH, measureLabelWidth(leadingPanel, [
+            labelText("fieldLabel.leadingEffective"), labelText("fieldLabel.leadingPercent"), labelText("fieldLabel.firstBaselineMin")
+        ]));
+        /* 実寸・行送り・最小のラベルは右揃え / The Actual, Leading and Min labels are right-aligned */
+        var leadingEffectiveRow = addNumberRow(leadingPanel, labelText("fieldLabel.leadingEffective"), leadingLabelWidth, "", SMALL_FIELD_CHARACTERS, leadingUnitLabel);
+        leadingEffectiveRow.label.justify = "right";
+        dialogControls.etLeadingEffective = leadingEffectiveRow.field;
+        var leadingPercentRow = addNumberRow(leadingPanel, labelText("fieldLabel.leadingPercent"), leadingLabelWidth, "", SMALL_FIELD_CHARACTERS, "%");
+        leadingPercentRow.label.justify = "right";
+        dialogControls.etLeadingPercent = leadingPercentRow.field;
         leadingPanel.helpTip = getLabel("tooltip.leading");
         dialogControls.etLeadingPercent.helpTip = leadingPanel.helpTip;
         dialogControls.etLeadingEffective.helpTip = leadingPanel.helpTip;
@@ -3642,7 +3654,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
         var firstBaselineGap = leadingPanel.add("group");
         firstBaselineGap.preferredSize.height = ROW_GAP_HEIGHT;
         dialogControls.firstBaselineDropdown = addLabeledDropdown(leadingPanel, "fieldLabel.firstBaseline", FIRST_BASELINE_CHOICES, "tooltip.firstBaseline");
-        var firstBaselineMinRow = addNumberRow(leadingPanel, labelText("fieldLabel.firstBaselineMin"), LEADING_LABEL_WIDTH, "0", SMALL_FIELD_CHARACTERS, rulerLabel);
+        var firstBaselineMinRow = addNumberRow(leadingPanel, labelText("fieldLabel.firstBaselineMin"), leadingLabelWidth, "0", SMALL_FIELD_CHARACTERS, rulerLabel);
+        firstBaselineMinRow.label.justify = "right";
         dialogControls.etFirstBaselineMin = firstBaselineMinRow.field;
         firstBaselineMinRow.label.helpTip = getLabel("tooltip.firstBaseline");
         dialogControls.etFirstBaselineMin.helpTip = firstBaselineMinRow.label.helpTip;
@@ -4083,8 +4096,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
         var indentFieldsColumn = indentPanel.add("group");
         indentFieldsColumn.orientation = "column";
         indentFieldsColumn.alignChildren = "left";
-        dialogControls.etLeftIndent = addNumberRow(indentFieldsColumn, labelText("fieldLabel.indentLeft"), null, "0", SMALL_FIELD_CHARACTERS, rulerLabel).field;
-        dialogControls.etRightIndent = addNumberRow(indentFieldsColumn, labelText("fieldLabel.indentRight"), null, "0", SMALL_FIELD_CHARACTERS, rulerLabel).field;
+        /* 左・右のラベルは長いほうの幅にそろえて右揃え / The Left and Right labels share the longer width and are right-aligned */
+        var indentLabelWidth = measureLabelWidth(indentPanel, [labelText("fieldLabel.indentLeft"), labelText("fieldLabel.indentRight")]);
+        var leftIndentRow = addNumberRow(indentFieldsColumn, labelText("fieldLabel.indentLeft"), indentLabelWidth, "0", SMALL_FIELD_CHARACTERS, rulerLabel);
+        leftIndentRow.label.justify = "right";
+        dialogControls.etLeftIndent = leftIndentRow.field;
+        var rightIndentRow = addNumberRow(indentFieldsColumn, labelText("fieldLabel.indentRight"), indentLabelWidth, "0", SMALL_FIELD_CHARACTERS, rulerLabel);
+        rightIndentRow.label.justify = "right";
+        dialogControls.etRightIndent = rightIndentRow.field;
         /* 連動のリンクアイコンは2つの欄の右、上下の中央に置く。切り替え後の処理は dialogControls.onLinkIndentsToggle に後から入れる
            The link icon sits right of the two fields, vertically centred; the handler is set later on dialogControls.onLinkIndentsToggle */
         dialogControls.linkIndentsToggle = addLinkToggle(indentPanel, true, function () {
@@ -4111,26 +4130,39 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
     }
 
     /**
-     * 右カラム：日本語の組版（禁則・文字組みアキ量設定）パネルを追加する
+     * 2カラムの下：日本語の組版（禁則・文字組みアキ量設定）パネルを横幅いっぱいに追加し、禁則と文字組みを1行に並べる
      * @param {Object} dialogControls - コントロールの格納先
-     * @param {Group} parentColumn - 追加先の列
+     * @param {Window} parentWindow - 追加先のダイアログ
      * @returns {void}
      */
-    function addJpCompositionPanel(dialogControls, parentColumn) {
-        var jpCompositionPanel = parentColumn.add("panel", undefined, getLabel("panel.jpComposition"));
+    function addJpCompositionPanel(dialogControls, parentWindow) {
+        var jpCompositionPanel = parentWindow.add("panel", undefined, getLabel("panel.jpComposition"));
         setupPanel(jpCompositionPanel, 4);
-        dialogControls.kinsokuDropdown = addLabeledDropdown(jpCompositionPanel, "fieldLabel.kinsoku", KINSOKU_CHOICES, "tooltip.kinsoku");
+        var compositionRow = jpCompositionPanel.add("group");
+        setupRow(compositionRow, "left", COLUMN_SPACING);
+        dialogControls.kinsokuDropdown = addInlineDropdown(compositionRow, "fieldLabel.kinsoku", KINSOKU_CHOICES, "tooltip.kinsoku");
         selectChoiceByValue(dialogControls.kinsokuDropdown, KINSOKU_CHOICES, "id", DEFAULT_KINSOKU);
-        /* fill を打ち消して幅を指定する / Cancel fill and set the width */
-        dialogControls.kinsokuDropdown.alignment = "left";
-        dialogControls.kinsokuDropdown.preferredSize.width = JP_DROPDOWN_WIDTH;
-        /* 禁則との間を少し空ける / A little breathing room after the kinsoku row */
-        var mojikumiGap = jpCompositionPanel.add("group");
-        mojikumiGap.preferredSize.height = ROW_GAP_HEIGHT;
-        dialogControls.mojikumiDropdown = addLabeledDropdown(jpCompositionPanel, "fieldLabel.mojikumi", MOJIKUMI_CHOICES, "tooltip.mojikumi");
+        dialogControls.mojikumiDropdown = addInlineDropdown(compositionRow, "fieldLabel.mojikumi", MOJIKUMI_CHOICES, "tooltip.mojikumi");
         selectChoiceByValue(dialogControls.mojikumiDropdown, MOJIKUMI_CHOICES, "index", DEFAULT_MOJIKUMI_INDEX);
-        dialogControls.mojikumiDropdown.alignment = "left";
-        dialogControls.mojikumiDropdown.preferredSize.width = JP_DROPDOWN_WIDTH;
+    }
+
+    /**
+     * ラベルとドロップダウンを横に並べた1組を追加する
+     * @param {Group} parentRow - 追加先の行
+     * @param {string} labelPath - ラベルのパス
+     * @param {Object[]} choices - 選択肢テーブル
+     * @param {string} tooltipPath - ツールチップのラベルパス
+     * @returns {DropDownList} 追加したドロップダウン
+     */
+    function addInlineDropdown(parentRow, labelPath, choices, tooltipPath) {
+        var dropdownGroup = parentRow.add("group");
+        setupRow(dropdownGroup, "left", 4);
+        var dropdownLabel = dropdownGroup.add("statictext", undefined, labelText(labelPath));
+        var choiceDropdown = dropdownGroup.add("dropdownlist", undefined, buildChoiceLabels(choices));
+        choiceDropdown.preferredSize.width = JP_DROPDOWN_WIDTH;
+        dropdownLabel.helpTip = getLabel(tooltipPath);
+        choiceDropdown.helpTip = dropdownLabel.helpTip;
+        return choiceDropdown;
     }
 
     /**
@@ -4179,13 +4211,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
         var widthRow = addNumberRow(frameSizePanel, labelText("fieldLabel.width"), frameLabelWidth, "", SIZE_FIELD_CHARACTERS, rulerLabel);
         widthRow.label.justify = "right";
         dialogControls.etWidth = widthRow.field;
-        /* 幅の下に字詰め欄。空きラベルで幅の入力欄と左端をそろえる
-           Chars per line goes under the width, lined up with the width field via an empty label */
-        var charsPerLineRow = addNumberRow(frameSizePanel, "", frameLabelWidth, "", SMALL_FIELD_CHARACTERS, getLabel("fieldLabel.charsPerLine"), true);
-        dialogControls.etCharsPerLine = charsPerLineRow.field;
-        var lblCharsPerLine = charsPerLineRow.unitLabel;
-        lblCharsPerLine.helpTip = getLabel("tooltip.charsPerLine");
-        dialogControls.etCharsPerLine.helpTip = lblCharsPerLine.helpTip;
+        /* 幅の下に字詰め欄（日本語UIのみ）。空きラベルで幅の入力欄と左端をそろえる
+           Chars per line goes under the width (Japanese UI only), lined up with the width field via an empty label */
+        dialogControls.etCharsPerLine = null;
+        if (SHOW_CHARS_PER_LINE) {
+            var charsPerLineRow = addNumberRow(frameSizePanel, "", frameLabelWidth, "", SMALL_FIELD_CHARACTERS, getLabel("fieldLabel.charsPerLine"), true);
+            dialogControls.etCharsPerLine = charsPerLineRow.field;
+            charsPerLineRow.unitLabel.helpTip = getLabel("tooltip.charsPerLine");
+            dialogControls.etCharsPerLine.helpTip = charsPerLineRow.unitLabel.helpTip;
+        }
         var heightRow = addNumberRow(frameSizePanel, labelText("fieldLabel.height"), frameLabelWidth, "", SIZE_FIELD_CHARACTERS, rulerLabel);
         heightRow.label.justify = "right";
         dialogControls.heightRow = heightRow.row;
@@ -4196,11 +4230,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
         autoSizeGroup.margins = [0, 5, 0, 0]; /* 高さ欄との間を空ける / space below the height row */
         dialogControls.chkAutoSize = autoSizeGroup.add("checkbox", undefined, getLabel("checkbox.autoSize"));
         dialogControls.chkAutoSize.helpTip = getLabel("tooltip.autoSize");
-        /* 英語UIでは字詰めの計算が不正確なため使用不可にする / Chars per line is disabled in the English UI, where it is inaccurate */
-        if (uiLang !== "ja") {
-            setSteppedEditTextEnabled(dialogControls.etCharsPerLine, false);
-            lblCharsPerLine.enabled = false;
-        }
     }
 
     /**
@@ -4275,19 +4304,21 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
         rightColumn.orientation = "column";
         rightColumn.alignChildren = "fill";
 
-        /* 右カラム：種別・行送り・行揃え・日本語の組版 / Right column */
+        /* 右カラム：種別・行送り・行揃え・インデント / Right column */
         addRolePanel(dialogControls, rightColumn);
         /* 行送りは文字の単位に従う（級のときは歯）/ Leading follows the type units (H when they are Q) */
         addLeadingPanel(dialogControls, rightColumn, (typeUnitInfo.code === 5) ? "H" : typeUnitInfo.label, rulerInfo.label);
         addJustificationPanel(dialogControls, rightColumn, justifyState);
-        if (SHOW_JP_COMPOSITION) { addJpCompositionPanel(dialogControls, rightColumn); }
+        addIndentPanel(dialogControls, rightColumn, rulerInfo.label);
 
-        /* 左カラム：フォントサイズ・フレームサイズ・オフセット・インデント・テキストの配置 / Left column */
+        /* 左カラム：フォントサイズ・フレームサイズ・オフセット・テキストの配置 / Left column */
         addFontSizePanel(dialogControls, leftColumn, typeUnitInfo.label);
         addFrameSizePanel(dialogControls, leftColumn, rulerInfo.label);
         addOffsetPanel(dialogControls, leftColumn, rulerInfo.label);
-        addIndentPanel(dialogControls, leftColumn, rulerInfo.label);
         addTextAlignPanel(dialogControls, leftColumn, alignState);
+
+        /* 2カラムの下：日本語の組版（日本語UIのみ）/ Below the columns: Japanese composition (Japanese UI only) */
+        if (SHOW_JP_COMPOSITION) { addJpCompositionPanel(dialogControls, dialogControls.window); }
 
         /* ボタンエリア：左に［テキストを分離...］、右に［キャンセル］［OK］
            Button area: "Separate text..." on the left, Cancel and OK on the right */
@@ -4564,7 +4595,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
          * @returns {void}
          */
         function updateCharsPerLineField() {
-            if (currentFontSize <= 0) return;
+            if (!dialogControls.etCharsPerLine || currentFontSize <= 0) return;
             var widthPt = fieldToPt(dialogControls.etWidth);
             dialogControls.etCharsPerLine.text = Math.round(((widthPt - getWidthAdjustmentPt()) / currentFontSize) * 100) / 100;
         }
@@ -5147,7 +5178,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
             dialogControls.etFirstBaselineMin.onChange = onFirstBaselineMinChange;
             dialogControls.etWidth.onChange = onWidthChange;
             dialogControls.etHeight.onChange = onHeightChange;
-            dialogControls.etCharsPerLine.onChange = onCharsPerLineChange;
             dialogControls.etLeftIndent.onChange = onIndentOrSpacingChange;
             dialogControls.etRightIndent.onChange = onIndentOrSpacingChange;
             setFieldStepCallback(dialogControls.etFontSize, applyFontSizeFromField);
@@ -5157,7 +5187,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
             setFieldStepCallback(dialogControls.etFirstBaselineMin, onFirstBaselineMinChange);
             setFieldStepCallback(dialogControls.etWidth, onWidthChange);
             setFieldStepCallback(dialogControls.etHeight, onHeightChange);
-            setFieldStepCallback(dialogControls.etCharsPerLine, onCharsPerLineChange);
+            if (dialogControls.etCharsPerLine) {
+                dialogControls.etCharsPerLine.onChange = onCharsPerLineChange;
+                setFieldStepCallback(dialogControls.etCharsPerLine, onCharsPerLineChange);
+            }
             setFieldStepCallback(dialogControls.etLeftIndent, onIndentOrSpacingChange);
             setFieldStepCallback(dialogControls.etRightIndent, onIndentOrSpacingChange);
 
