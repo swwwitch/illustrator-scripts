@@ -16,11 +16,12 @@ Pick items from the list built into the script and get `app.executeMenuCommand()
 
 ### Features
 
-- Kind: switch between Menu commands, Preferences and Tools
+- Kind: choose Menu commands, Preferences and/or Tools with checkboxes (multiple allowed)
   - Menu commands: `app.executeMenuCommand('…');`
   - Tools: `app.selectTool('…');`
   - Preferences: `app.preferences.get…Preference('…');` and `set…Preference('…', value);` in separate fields (Boolean / Integer / Real / String by type; the sample value comes from the actual preference file)
-- Language: show menu and setting names in Japanese or English
+- Language: show menu and setting names in Japanese and/or English with checkboxes
+- For Kind and Language, option-click (Alt-click) a checkbox to turn all on; option-click again to keep only the clicked one
 - Category: filter by top-level menu (File, Edit, Object…) or preference section
 - Keyword: filters names and IDs/keys as you type (case-insensitive, regular expressions allowed)
 - With several items selected, the code is listed in list order
@@ -78,3 +79,4 @@ https://note.com/dtp_tranist/n/n0cf4826bf4a7
 - v1.0.7 (2026-10-01) Added space below the button row to match Illustrator's own dialogs
 - v1.1.1 (2026-10-03) Fixed a typo in the Japanese menu command name for Show/Hide Rulers
 - v1.1.2 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
+- v1.2.0 (2026-10-09) Kind and Language are now checkboxes instead of radio buttons, so several can be shown at once. Option-click (Alt-click) turns all on; option-click again keeps only the clicked one

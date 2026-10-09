@@ -5,6 +5,7 @@
 ### 調整
 
 - [決めておいた環境設定一式をダイアログなしで適用](readme-ja/PresetManagerNoDialog.md)（v1.2.0）：アートボードの枠線を ArtboardDisplayPresetManagerPalette の［ライト］に合わせた（ライトグレー・幅1）
+- [メニューコマンド・ツール・環境設定のコードを引く](readme-ja/AiCommandPrefLookup.md)（v1.2.0）：種類・言語をラジオボタンからチェックボックスに変更し、複数を同時に表示できるようにした。option（Alt）キーを押しながらクリックですべてオン、もう一度でクリックしたものだけオン
 
 ## 20261008
 

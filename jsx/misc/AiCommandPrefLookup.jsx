@@ -27,10 +27,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiCommandP
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AiCommandPrefLookup";          /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.2";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.2.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-09-27";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-09";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiCommandPrefLookup.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiCommandPrefLookup.md"; /* README (English) */
@@ -45,13 +45,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0cf4826bf4a7"; /* 紹�
     // ユーザー設定 / User Settings
     // =========================================
 
-    /* 種類ラジオボタンの順と初期値 / Kind radio order and default */
+    /* 種類チェックボックスの順と初期値 / Kind checkbox order and defaults */
     var KIND_KEYS = ["menu", "pref", "tool"];
-    var DEFAULT_KIND_INDEX = 0;
+    var DEFAULT_KINDS = { menu: true, pref: false, tool: false };
 
-    /* 言語ラジオボタンの順と初期値 / Language radio order and default */
+    /* 言語チェックボックスの順と初期値 / Language checkbox order and defaults */
     var MENU_LANG_KEYS = ["ja", "en"];
-    var DEFAULT_MENU_LANG_INDEX = 0;
+    var DEFAULT_MENU_LANGS = { ja: true, en: false };
 
     /* 名前をコメントで付ける（初期値）/ Add names as comments (default) */
     var DEFAULT_ADD_COMMENT = false;
@@ -314,14 +314,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0cf4826bf4a7"; /* 紹�
             tools:         { ja: "ツール", en: "Tools" },
             others:        { ja: "その他", en: "Others" }
         },
-        radio: {
-            menu: { ja: "メニューコマンド", en: "Menu commands" },
-            pref: { ja: "環境設定", en: "Preferences" },
-            tool: { ja: "ツール", en: "Tools" },
-            ja:   { ja: "日本語", en: "Japanese" },
-            en:   { ja: "英語", en: "English" }
-        },
         checkbox: {
+            menu:       { ja: "メニューコマンド", en: "Menu commands" },
+            pref:       { ja: "環境設定", en: "Preferences" },
+            tool:       { ja: "ツール", en: "Tools" },
+            ja:         { ja: "日本語", en: "Japanese" },
+            en:         { ja: "英語", en: "English" },
             addComment: { ja: "名前をコメントで付ける", en: "Add names as comments" }
         },
         button: {
@@ -333,10 +331,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0cf4826bf4a7"; /* 紹�
         },
         tooltip: {
             kind: {
-                ja: "メニューコマンドは executeMenuCommand、ツールは selectTool、環境設定は app.preferences の get／set のコードを出します。",
-                en: "Menu commands give executeMenuCommand, tools give selectTool, and preferences give app.preferences get/set code."
+                ja: "メニューコマンドは executeMenuCommand、ツールは selectTool、環境設定は app.preferences の get／set のコードを出します。option キーを押しながらクリックですべてオン、もう一度でクリックしたものだけオンにします。",
+                en: "Menu commands give executeMenuCommand, tools give selectTool, and preferences give app.preferences get/set code. Option-click to turn all on; option-click again to keep only the clicked one."
             },
-            menuLang: { ja: "リストに出す名前の言語です。", en: "Language of the names shown in the list." },
+            menuLang: {
+                ja: "リストに出す名前の言語です。option キーを押しながらクリックですべてオン、もう一度でクリックしたものだけオンにします。",
+                en: "Language of the names shown in the list. Option-click to turn all on; option-click again to keep only the clicked one."
+            },
             category: {
                 ja: "メニューの最上位（ファイル、編集...）や環境設定の区分で絞り込みます。",
                 en: "Filters by top-level menu (File, Edit...) or preference section."
@@ -577,29 +578,59 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0cf4826bf4a7"; /* 紹�
     }
 
     /**
-     * 種類と言語が条件に合うか判定する（名前が空のものはどちらの言語にも出す）
+     * フラグの表 { キー: boolean } を複製する
+     * @param {Object} flags - 元の表
+     * @returns {Object} 複製
+     */
+    function copyFlags(flags) {
+        var copiedFlags = {};
+        for (var key in flags) {
+            if (flags.hasOwnProperty(key)) {
+                copiedFlags[key] = flags[key];
+            }
+        }
+        return copiedFlags;
+    }
+
+    /**
+     * フラグの表で true の数を数える
+     * @param {Object} flags - { キー: boolean }
+     * @returns {number} true の数
+     */
+    function countTrueFlags(flags) {
+        var trueCount = 0;
+        for (var key in flags) {
+            if (flags.hasOwnProperty(key) && flags[key] === true) {
+                trueCount++;
+            }
+        }
+        return trueCount;
+    }
+
+    /**
+     * 種類と言語が条件に合うか判定する（名前が空のものはどの言語にも出す）
      * @param {CommandEntry} commandEntry - 対象の項目
-     * @param {string} kind - 種類（"menu" / "pref" / "tool"）
-     * @param {string} nameLang - 言語（"ja" / "en"）
+     * @param {Object} kinds - 出す種類 { menu, pref, tool }（true のものを出す）
+     * @param {Object} nameLangs - 出す言語 { ja, en }（true のものを出す）
      * @returns {boolean} 合えば true
      */
-    function matchesKindAndLang(commandEntry, kind, nameLang) {
-        return commandEntry.kind === kind
-            && (commandEntry.nameLang === "" || commandEntry.nameLang === nameLang);
+    function matchesKindAndLang(commandEntry, kinds, nameLangs) {
+        return kinds[commandEntry.kind] === true
+            && (commandEntry.nameLang === "" || nameLangs[commandEntry.nameLang] === true);
     }
 
     /**
      * 指定した種類・言語のカテゴリ名を重複なく、一覧に出てきた順で返す
      * @param {CommandEntry[]} entries - 一覧
-     * @param {string} kind - 種類（"menu" / "pref" / "tool"）
-     * @param {string} nameLang - 言語（"ja" / "en"）
+     * @param {Object} kinds - 出す種類 { menu, pref, tool }
+     * @param {Object} nameLangs - 出す言語 { ja, en }
      * @returns {string[]} カテゴリ名の一覧
      */
-    function collectCategoryNames(entries, kind, nameLang) {
+    function collectCategoryNames(entries, kinds, nameLangs) {
         var seenNames = {};
         var categoryNames = [];
         for (var i = 0; i < entries.length; i++) {
-            if (matchesKindAndLang(entries[i], kind, nameLang) && !seenNames[entries[i].category]) {
+            if (matchesKindAndLang(entries[i], kinds, nameLangs) && !seenNames[entries[i].category]) {
                 seenNames[entries[i].category] = true;
                 categoryNames.push(entries[i].category);
             }
@@ -628,7 +659,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0cf4826bf4a7"; /* 紹�
     /**
      * 種類・言語・カテゴリ・キーワードで絞り込む
      * @param {CommandEntry[]} entries - 一覧
-     * @param {Object} filterState - 絞り込み条件 { kind, nameLang, keywordText, categoryName（null ならすべて） }
+     * @param {Object} filterState - 絞り込み条件 { kinds, nameLangs, keywordText, categoryName（null ならすべて） }
      * @returns {CommandEntry[]} 条件に合う項目
      */
     function filterCommands(entries, filterState) {
@@ -636,7 +667,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0cf4826bf4a7"; /* 紹�
         var matchedEntries = [];
         for (var i = 0; i < entries.length; i++) {
             var commandEntry = entries[i];
-            if (!matchesKindAndLang(commandEntry, filterState.kind, filterState.nameLang)) {
+            if (!matchesKindAndLang(commandEntry, filterState.kinds, filterState.nameLangs)) {
                 continue;
             }
             if (filterState.categoryName !== null && commandEntry.category !== filterState.categoryName) {
@@ -923,24 +954,24 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0cf4826bf4a7"; /* 紹�
     }
 
     /**
-     * ラジオボタンを横に並べる（同じ行グループに入れて排他にする）
+     * チェックボックスを横に並べる
      * @param {Group} parent - 追加先
      * @param {Object} labelSet - 行ラベル
-     * @param {string[]} radioKeys - LABELS.radio のキー（並べる順）
-     * @param {number} defaultIndex - 最初に選んでおく添字
+     * @param {string[]} checkboxKeys - LABELS.checkbox のキー（並べる順）
+     * @param {Object} checkedStates - キーごとの初期値（true ならオン）
      * @param {Object} tooltipSet - ツールチップ
-     * @returns {RadioButton[]} radioKeys の順のラジオボタン
+     * @returns {Checkbox[]} checkboxKeys の順のチェックボックス
      */
-    function addRadioRow(parent, labelSet, radioKeys, defaultIndex, tooltipSet) {
-        var radioRowGroup = addFieldRow(parent, labelSet);
-        var radioButtons = [];
-        for (var i = 0; i < radioKeys.length; i++) {
-            var radioButton = radioRowGroup.add("radiobutton", undefined, getLabel(LABELS.radio[radioKeys[i]]));
-            radioButton.helpTip = getLabel(tooltipSet);
-            radioButtons.push(radioButton);
+    function addCheckboxRow(parent, labelSet, checkboxKeys, checkedStates, tooltipSet) {
+        var checkboxRowGroup = addFieldRow(parent, labelSet);
+        var checkboxes = [];
+        for (var i = 0; i < checkboxKeys.length; i++) {
+            var checkbox = checkboxRowGroup.add("checkbox", undefined, getLabel(LABELS.checkbox[checkboxKeys[i]]));
+            checkbox.helpTip = getLabel(tooltipSet);
+            checkbox.value = (checkedStates[checkboxKeys[i]] === true);
+            checkboxes.push(checkbox);
         }
-        radioButtons[defaultIndex].value = true;
-        return radioButtons;
+        return checkboxes;
     }
 
     /**
@@ -1875,20 +1906,20 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0cf4826bf4a7"; /* 紹�
     /**
      * メインダイアログの部品を作る（上から絞り込み条件・リスト・名前・コード・メモ・ボタン）
      * @param {Window} mainDialog - 追加先のダイアログ
-     * @param {Object} viewState - 表示の状態 { selectedKind, selectedNameLang, addComment }
+     * @param {Object} viewState - 表示の状態 { selectedKinds, selectedNameLangs, addComment }
      * @param {CommandEntry[]} allCommands - すべての項目
      * @returns {Object} 作成した部品
      */
     function buildMainControls(mainDialog, viewState, allCommands) {
         var mainControls = {};
-        mainControls.kindRadios = addRadioRow(mainDialog, LABELS.fieldLabel.kind, KIND_KEYS, DEFAULT_KIND_INDEX, LABELS.tooltip.kind);
-        mainControls.nameLangRadios = addRadioRow(mainDialog, LABELS.fieldLabel.menuLang, MENU_LANG_KEYS, DEFAULT_MENU_LANG_INDEX, LABELS.tooltip.menuLang);
+        mainControls.kindCheckboxes = addCheckboxRow(mainDialog, LABELS.fieldLabel.kind, KIND_KEYS, viewState.selectedKinds, LABELS.tooltip.kind);
+        mainControls.nameLangCheckboxes = addCheckboxRow(mainDialog, LABELS.fieldLabel.menuLang, MENU_LANG_KEYS, viewState.selectedNameLangs, LABELS.tooltip.menuLang);
 
         mainControls.categoryDropdown = addFieldRow(mainDialog, LABELS.fieldLabel.category).add("dropdownlist", undefined, []);
         mainControls.categoryDropdown.preferredSize.width = FILTER_FIELD_WIDTH;
         mainControls.categoryDropdown.helpTip = getLabel(LABELS.tooltip.category);
         fillCategoryDropdown(mainControls.categoryDropdown,
-            collectCategoryNames(allCommands, viewState.selectedKind, viewState.selectedNameLang));
+            collectCategoryNames(allCommands, viewState.selectedKinds, viewState.selectedNameLangs));
 
         mainControls.keywordInput = addFieldRow(mainDialog, LABELS.fieldLabel.keyword).add("edittext", undefined, "");
         mainControls.keywordInput.preferredSize.width = FILTER_FIELD_WIDTH;
@@ -1967,10 +1998,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0cf4826bf4a7"; /* 紹�
     function showMainDialog(allCommands) {
         var visibleCommands = [];
         var lastKeywordText = "";
-        /* show() 前の checkbox・radiobutton の value は読み戻せないので変数で持つ / Values cannot be read back before show() */
+        /* show() 前の checkbox の value は読み戻せないので変数で持つ / Values cannot be read back before show() */
         var viewState = {
-            selectedKind: KIND_KEYS[DEFAULT_KIND_INDEX],
-            selectedNameLang: MENU_LANG_KEYS[DEFAULT_MENU_LANG_INDEX],
+            selectedKinds: copyFlags(DEFAULT_KINDS),
+            selectedNameLangs: copyFlags(DEFAULT_MENU_LANGS),
             addComment: DEFAULT_ADD_COMMENT
         };
 
@@ -2005,7 +2036,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0cf4826bf4a7"; /* 紹�
          */
         function updateOutput() {
             var outputTexts = buildOutputTexts(getSelectedCommands(), viewState.addComment);
-            var isPref = (viewState.selectedKind === "pref");
+            var isPref = isPrefLayout(getSelectedCommands());
             mainControls.nameField.text = outputTexts.nameText;
             mainControls.memoField.text = outputTexts.memoText;
             mainControls.primaryCodeRow.codeField.text = outputTexts.primaryCodeText;
@@ -2025,8 +2056,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0cf4826bf4a7"; /* 紹�
             var categoryDropdown = mainControls.categoryDropdown;
             lastKeywordText = mainControls.keywordInput.text;
             visibleCommands = filterCommands(allCommands, {
-                kind: viewState.selectedKind,
-                nameLang: viewState.selectedNameLang,
+                kinds: viewState.selectedKinds,
+                nameLangs: viewState.selectedNameLangs,
                 keywordText: lastKeywordText,
                 categoryName: (categoryDropdown.selection.index === 0) ? null : categoryDropdown.selection.text
             });
@@ -2053,29 +2084,65 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0cf4826bf4a7"; /* 紹�
             var categoryDropdown = mainControls.categoryDropdown;
             /* 項目の入れ替えで onChange が走らないよう外しておく / Detach so refilling does not fire onChange */
             categoryDropdown.onChange = null;
-            fillCategoryDropdown(categoryDropdown, collectCategoryNames(allCommands, viewState.selectedKind, viewState.selectedNameLang));
+            fillCategoryDropdown(categoryDropdown, collectCategoryNames(allCommands, viewState.selectedKinds, viewState.selectedNameLangs));
             categoryDropdown.onChange = refreshList;
             refreshList();
         }
 
         /**
-         * ラジオボタンのクリックで viewState の値を変える処理を作る
-         * @param {string} stateName - viewState のプロパティ名
-         * @param {string} stateValue - 設定する値
+         * 選択中の項目に合わせ、コード欄を get / set の2段にするか決める
+         * 選択がなければ、種類が環境設定だけのときに2段にする
+         * @param {CommandEntry[]} selectedCommands - 選択中の項目
+         * @returns {boolean} 2段にするなら true
+         */
+        function isPrefLayout(selectedCommands) {
+            if (selectedCommands.length === 0) {
+                return viewState.selectedKinds.pref && !viewState.selectedKinds.menu && !viewState.selectedKinds.tool;
+            }
+            for (var i = 0; i < selectedCommands.length; i++) {
+                if (selectedCommands[i].kind !== "pref") {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        /**
+         * チェックボックスのクリックで viewState のフラグを変える処理を作る
+         * すべて外すと何も出なくなるので、最後の1つは外させない
+         * option（Alt）キーを押しながらのクリックは、すべてオン → すでにすべてオンならクリックしたものだけオン
+         * @param {Checkbox[]} checkboxes - 同じ行のチェックボックス
+         * @param {string[]} flagKeys - checkboxes の順のキー
+         * @param {Object} flags - 書き換える viewState のフラグ
+         * @param {number} index - クリックされたチェックボックスの添字
          * @returns {function(): void} クリック処理
          */
-        function createStateClickHandler(stateName, stateValue) {
+        function createFlagClickHandler(checkboxes, flagKeys, flags, index) {
             return function () {
-                viewState[stateName] = stateValue;
+                if (ScriptUI.environment.keyboardState.altKey) {
+                    /* クリック前の状態で判定する（checkbox の value はすでに反転済み）/ Judge by the state before the click */
+                    var isAllOn = (countTrueFlags(flags) === flagKeys.length);
+                    for (var i = 0; i < flagKeys.length; i++) {
+                        flags[flagKeys[i]] = isAllOn ? (i === index) : true;
+                        checkboxes[i].value = flags[flagKeys[i]];
+                    }
+                    refreshCategories();
+                    return;
+                }
+                if (!checkboxes[index].value && countTrueFlags(flags) <= 1) {
+                    checkboxes[index].value = true;
+                    return;
+                }
+                flags[flagKeys[index]] = checkboxes[index].value;
                 refreshCategories();
             };
         }
 
-        for (var i = 0; i < mainControls.kindRadios.length; i++) {
-            mainControls.kindRadios[i].onClick = createStateClickHandler("selectedKind", KIND_KEYS[i]);
+        for (var i = 0; i < mainControls.kindCheckboxes.length; i++) {
+            mainControls.kindCheckboxes[i].onClick = createFlagClickHandler(mainControls.kindCheckboxes, KIND_KEYS, viewState.selectedKinds, i);
         }
-        for (var j = 0; j < mainControls.nameLangRadios.length; j++) {
-            mainControls.nameLangRadios[j].onClick = createStateClickHandler("selectedNameLang", MENU_LANG_KEYS[j]);
+        for (var j = 0; j < mainControls.nameLangCheckboxes.length; j++) {
+            mainControls.nameLangCheckboxes[j].onClick = createFlagClickHandler(mainControls.nameLangCheckboxes, MENU_LANG_KEYS, viewState.selectedNameLangs, j);
         }
 
         /* 入力するたびに絞り込む。onChanging と onChange の両方から呼ばれても1回で済ませる（Enter は［閉じる］に使う）
