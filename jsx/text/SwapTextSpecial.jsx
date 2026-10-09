@@ -29,10 +29,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SwapTextSp
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SwapTextSpecial";              /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.10";                      /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
-var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last updated */
+var SCRIPT_RELEASED = "2026-06-10";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-10-09";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SwapTextSpecial.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SwapTextSpecial.md"; /* README (English) */
@@ -125,6 +125,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n071e09af28a7"; /* 紹�
     }
 
     // UIレイアウト（再利用パーツ）ここまで / End of the reusable UI layout
+
+    var POSITION_BASIS_INDENT = 20; /* ［座標］の下の基準のラジオの字下げ（px）/ indent of the basis radios under Position (px) */
 
     // =========================================
     // ローカライズ / Localization
@@ -219,7 +221,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n071e09af28a7"; /* 紹�
         radio: {
             contents: { ja: "文字列", en: "String" },
             format: { ja: "書式", en: "Format" },
-            position: { ja: "座標", en: "Position" }
+            position: { ja: "座標", en: "Position" },
+            topLeft: { ja: "左上", en: "Top left" },
+            anchorPoint: { ja: "基点", en: "Anchor point" }
         },
         button: {
             cancel: { ja: "キャンセル", en: "Cancel" },
@@ -245,6 +249,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n071e09af28a7"; /* 紹�
             position: {
                 ja: "2つのテキストの位置だけを入れ替えます。中身はそのままです。",
                 en: "Swaps only the positions. The contents stay put."
+            },
+            topLeft: {
+                ja: "テキストの外枠の左上をそろえて入れ替えます。",
+                en: "Lines up the top-left corners of the text bounds."
+            },
+            anchorPoint: {
+                ja: "テキストの基点（ベースライン上の行揃えの位置）をそろえて入れ替えます。",
+                en: "Lines up the text anchor points (on the baseline, at the alignment point)."
             }
         }
     };
@@ -391,8 +403,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n071e09af28a7"; /* 紹�
 
     /**
      * 入れ替え対象のラジオボタンを tooltip 付きで追加する
-     * @param {Panel} parentPanel - 追加先のパネル
-     * @param {string} modeKey - LABELS.radio と LABELS.tooltip のキー（"contents" / "format" / "position"）
+     * @param {Panel|Group} parentPanel - 追加先のパネルまたはグループ
+     * @param {string} modeKey - LABELS.radio と LABELS.tooltip のキー（"contents" / "format" / "position" / "topLeft" / "anchorPoint"）
      * @returns {RadioButton} 追加したラジオボタン
      */
     function addModeRadio(parentPanel, modeKey) {
@@ -476,7 +488,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n071e09af28a7"; /* 紹�
 
     /**
      * 入れ替える対象を選ぶダイアログを表示する
-     * @returns {string|null} "contents" / "format" / "position"（キャンセル時は null）
+     * @returns {{swapMode: string, positionBasis: string}|null} swapMode は "contents" / "format" / "position"、positionBasis は "topLeft" / "anchorPoint"（キャンセル時は null）
      */
     function showSwapDialog() {
         var swapDialog = new Window("dialog", getLabel(LABELS.dialog.title) + " " + SCRIPT_VERSION);
@@ -488,7 +500,25 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n071e09af28a7"; /* 紹�
         var radioContents = addModeRadio(targetPanel, "contents");
         var radioFormat = addModeRadio(targetPanel, "format");
         var radioPosition = addModeRadio(targetPanel, "position");
+
+        /* 座標の基準。別のグループなので［座標］たちとは排他にならない / Position basis; a separate group, so not exclusive with the modes above */
+        var positionBasisGroup = targetPanel.add("group");
+        setupRow(positionBasisGroup);
+        positionBasisGroup.margins = [POSITION_BASIS_INDENT, 0, 0, 0];
+        var radioTopLeft = addModeRadio(positionBasisGroup, "topLeft");
+        var radioAnchorPoint = addModeRadio(positionBasisGroup, "anchorPoint");
+        radioTopLeft.value = true;
+
+        /* 基準は［座標］を選んだときだけ使える / The basis applies only to Position */
+        function updatePositionBasisEnabled() {
+            positionBasisGroup.enabled = radioPosition.value;
+        }
+        radioContents.onClick = updatePositionBasisEnabled;
+        radioFormat.onClick = updatePositionBasisEnabled;
+        radioPosition.onClick = updatePositionBasisEnabled;
+
         radioContents.value = true;
+        updatePositionBasisEnabled();
 
         var buttonRow = addButtonRow(swapDialog);
         var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel(LABELS.button.cancel), { name: "cancel" });
@@ -500,9 +530,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n071e09af28a7"; /* 紹�
             return null;
         }
 
-        if (radioFormat.value) return "format";
-        if (radioPosition.value) return "position";
-        return "contents";
+        var swapMode = "contents";
+        if (radioFormat.value) swapMode = "format";
+        else if (radioPosition.value) swapMode = "position";
+        return { swapMode: swapMode, positionBasis: radioAnchorPoint.value ? "anchorPoint" : "topLeft" };
     }
 
     // =============================================================
@@ -529,8 +560,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n071e09af28a7"; /* 紹�
         "textFont",        /* フォント＋スタイル / font family + style */
         "size",            /* サイズ / size */
         "fillColor",       /* 文字カラー / text color */
+        "strokeWeight",    /* 線幅（線カラーより先に書く）/ stroke weight (written before the stroke color) */
         "strokeColor",     /* 線カラー / stroke color */
-        "strokeWeight",    /* 線幅 / stroke weight */
         "tracking",        /* トラッキング / tracking */
         "leading",         /* 行送り / leading */
         "autoLeading",     /* 自動行送り / auto leading */
@@ -559,6 +590,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n071e09af28a7"; /* 紹�
     }
 
     /**
+     * 控えた書式の線カラーが「なし」か
+     * @param {Object} capturedAttributes - captureFormatAttributes() の戻り値
+     * @returns {boolean} 線カラーが NoColor なら true
+     */
+    function hasNoStroke(capturedAttributes) {
+        var strokeColor = capturedAttributes.strokeColor;
+        return !!strokeColor && strokeColor.typename === "NoColor";
+    }
+
+    /**
      * 控えた書式をテキスト全体に適用する
      * @param {TextFrame} textFrame - 対象のテキスト
      * @param {Object} capturedAttributes - captureFormatAttributes() の戻り値
@@ -569,6 +610,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n071e09af28a7"; /* 紹�
         for (var i = 0; i < FORMAT_ATTRIBUTE_KEYS.length; i++) {
             var attributeKey = FORMAT_ATTRIBUTE_KEYS[i];
             if (!capturedAttributes.hasOwnProperty(attributeKey)) continue;
+            /* 線が無いのに線幅を書くと線が付くので飛ばす / Writing a weight onto text without a stroke adds a stroke, so skip it */
+            if (attributeKey === "strokeWeight" && hasNoStroke(capturedAttributes)) continue;
             /* 書き込めない値（未定義の色など）は飛ばす / skip values that cannot be written */
             try {
                 charAttributes[attributeKey] = capturedAttributes[attributeKey];
@@ -591,24 +634,33 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n071e09af28a7"; /* 紹�
     }
 
     /**
-     * 2つのテキストの位置（左上）を入れ替える
+     * 2つのテキストの位置を入れ替える
      * @param {TextFrame} firstTextFrame - 1つ目のテキスト
      * @param {TextFrame} secondTextFrame - 2つ目のテキスト
+     * @param {string} positionBasis - "topLeft"（外枠の左上）/ "anchorPoint"（テキストの基点）
      * @returns {void}
      */
-    function swapPosition(firstTextFrame, secondTextFrame) {
-        /*
-           position はベースライン基準で上端/左端が崩れるため geometricBounds を使う。
-           Use geometricBounds (not position) because TextFrame.position is baseline-based.
-           geometricBounds = [left, top, right, bottom]
-        */
+    function swapPosition(firstTextFrame, secondTextFrame, positionBasis) {
         app.redraw(); // bounds が更新されない環境対策 / refresh stale bounds
 
-        var firstBounds = firstTextFrame.geometricBounds;
-        var secondBounds = secondTextFrame.geometricBounds;
-
-        var deltaX = secondBounds[0] - firstBounds[0];
-        var deltaY = secondBounds[1] - firstBounds[1];
+        var deltaX, deltaY;
+        if (positionBasis === "anchorPoint") {
+            /* anchor = [x, y]。ベースライン上の行揃えの位置 / anchor = [x, y], on the baseline at the alignment point */
+            var firstAnchor = firstTextFrame.anchor;
+            var secondAnchor = secondTextFrame.anchor;
+            deltaX = secondAnchor[0] - firstAnchor[0];
+            deltaY = secondAnchor[1] - firstAnchor[1];
+        } else {
+            /*
+               position はベースライン基準で上端/左端が崩れるため geometricBounds を使う。
+               Use geometricBounds (not position) because TextFrame.position is baseline-based.
+               geometricBounds = [left, top, right, bottom]
+            */
+            var firstBounds = firstTextFrame.geometricBounds;
+            var secondBounds = secondTextFrame.geometricBounds;
+            deltaX = secondBounds[0] - firstBounds[0];
+            deltaY = secondBounds[1] - firstBounds[1];
+        }
 
         firstTextFrame.translate(deltaX, deltaY);
         secondTextFrame.translate(-deltaX, -deltaY);
@@ -631,7 +683,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n071e09af28a7"; /* 紹�
         var doc = app.activeDocument;
         var selectedItems = doc.selection;
 
-        if (selectedItems.length !== 2) {
+        /* 文字ツールで文字を選択しているときは TextRange が返り、length は文字数になる / Selecting characters with the Type tool returns a TextRange whose length is the character count */
+        if (!selectedItems || selectedItems.typename === "TextRange" || selectedItems.length !== 2) {
             alert(getLabel(LABELS.alert.needTwo));
             return;
         }
@@ -640,10 +693,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n071e09af28a7"; /* 紹�
             return;
         }
 
-        var swapMode = showSwapDialog();
-        if (swapMode === null) {
+        var swapChoice = showSwapDialog();
+        if (swapChoice === null) {
             return;
         }
+        var swapMode = swapChoice.swapMode;
 
         var firstTextFrame = selectedItems[0];
         var secondTextFrame = selectedItems[1];
@@ -651,7 +705,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n071e09af28a7"; /* 紹�
         if (swapMode === "format") {
             swapFormat(firstTextFrame, secondTextFrame);
         } else if (swapMode === "position") {
-            swapPosition(firstTextFrame, secondTextFrame);
+            swapPosition(firstTextFrame, secondTextFrame, swapChoice.positionBasis);
         } else {
             swapContents(firstTextFrame, secondTextFrame);
         }
