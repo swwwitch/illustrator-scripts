@@ -16,7 +16,7 @@ Doing that by hand means drawing a rectangle, converting it, pouring the text in
 
 This script puts **creation and adjustment into one flow**. It can also separate Area Type into a frame and point text.
 
-<img alt="The Adjust Area Type dialog" src="../png/ss-868-1198-144-20260728-182808.png" width="50%" />
+<img alt="The Adjust Area Type dialog" src="../png/ss-962-1344-144-20261009-125110-s.png" width="50%" />
 
 ## Usage
 
