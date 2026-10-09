@@ -29,6 +29,7 @@ A persistent palette for switching a range of Illustrator preferences. Every cha
 
 ### Update History
 
+- v1.7.4 (2026-10-10) Fixed the palette operating on another Illustrator version when several versions are running
 - v1.7.3 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.7.2 (2026-10-01) Esc now closes the palette
 - v1.7.1 (2026-10-01) Unified the window and panel margins and spacing with the shared layout part

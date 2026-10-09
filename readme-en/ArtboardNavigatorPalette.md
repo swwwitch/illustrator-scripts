@@ -68,6 +68,7 @@ https://note.com/yukifurushima/n/n9f2078dc156f
 
 ### Update History
 
+- v1.2.15 (2026-10-10) Fixed the palette operating on another Illustrator version when several versions are running
 - v1.2.14 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.2.13 (2026-10-03) Moved to the shared persistent engine `SwwwitchPalettes` so CloseAllPalettes can close it
 - v1.2.12 (2026-10-01) Unified the window and panel margins and spacing with the shared layout part

@@ -26,10 +26,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/LEConvertT
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "LEConvertToShapePalette";      /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.5";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.6";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-09-19";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-10";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/LEConvertToShapePalette.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/LEConvertToShapePalette.md"; /* README (English) */
@@ -296,7 +296,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var holder = { result: "ERR:notrun" };
 
         var bridge = new BridgeTalk();
-        bridge.target = "illustrator";
+        bridge.target = BridgeTalk.appSpecifier;
         bridge.body = 'eval(decodeURIComponent("' + encoded + '"));';
         bridge.onResult = function (resObj) { holder.result = String(resObj.body); };
         bridge.onError = function (errObj) { holder.result = "ERR:" + String(errObj.body); };

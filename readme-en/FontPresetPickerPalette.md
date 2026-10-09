@@ -96,7 +96,8 @@ https://note.com/dtp_tranist/n/n3d7f8b58ef88
 - v1.1.0 (20260925) : Presets now hold space before and after paragraphs; added "Paragraph Spacing" to Settings to Apply
 - v1.0.0 (20260917) : Initial release. The "Favorites" tab of UnifiedTypePalette.jsx, carved out as a persistent palette
 - v1.1.5 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
+- v1.1.6 (2026-10-10) Fixed the palette operating on another Illustrator version when several versions are running
 
 ### Script Info
 
-- Version: v1.1.5
+- Version: v1.1.6

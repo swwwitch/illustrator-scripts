@@ -29,10 +29,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiMemoPale
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AiMemoPalette";                /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.9";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.10";                      /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-06-15";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-10";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiMemoPalette.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiMemoPalette.md"; /* README (English) */
@@ -513,7 +513,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41e91e4b1a09"; /* 紹�
      */
     function callMainEngine(workerSource, statusByMarker, onComplete) {
         var bridgeMessage = new BridgeTalk();
-        bridgeMessage.target = 'illustrator';
+        bridgeMessage.target = BridgeTalk.appSpecifier;
         bridgeMessage.body = workerSource;
         bridgeMessage.onResult = function (response) {
             var payload = response.body || '';
@@ -1050,7 +1050,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41e91e4b1a09"; /* 紹�
     function restartScript() {
         var scriptFile = new File($.fileName);
         var bridgeMessage = new BridgeTalk();
-        bridgeMessage.target = 'illustrator';
+        bridgeMessage.target = BridgeTalk.appSpecifier;
         bridgeMessage.body = '$.evalFile("' + scriptFile.fsName.replace(/\\/g, '\\\\') + '");';
         bridgeMessage.send(100);
         isRestartingScript = true; // この close では内容を消さない / This close must not clear the content

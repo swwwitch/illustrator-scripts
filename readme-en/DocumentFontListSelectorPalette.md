@@ -45,10 +45,11 @@ the number of text frames that use the combination (a frame counts once).
 
 ### Script info
 
-- Version: v1.1.9
+- Version: v1.1.10
 
 ### Update History
 
+- v1.1.10 (2026-10-10) Fixed the palette operating on another Illustrator version when several versions are running
 - v1.1.9 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.1.8 (2026-10-03) Moved to the shared persistent engine `SwwwitchPalettes` so CloseAllPalettes can close it
 - v1.1.7 (2026-10-01) Unified the window and panel margins and spacing with the shared layout part

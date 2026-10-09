@@ -29,10 +29,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiSmartPat
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AiSmartPathfinderPalette";     /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.6";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.7";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-07-10";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-10";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiSmartPathfinderPalette.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiSmartPathfinderPalette.md"; /* README (English) */
@@ -1812,7 +1812,7 @@ function delegateCall(callExpression) {
 
     var resultHolder = { value: "TIMEOUT" };
     var bridge = new BridgeTalk();
-    bridge.target = "illustrator";
+    bridge.target = BridgeTalk.appSpecifier;
     bridge.body = 'eval(decodeURIComponent("' + encodeURIComponent(evalSource) + '"));';
     bridge.onResult = function (message) { resultHolder.value = String(message.body); };
     bridge.onError = function (message) { resultHolder.value = "ERR:" + String(message.body); };
@@ -1844,7 +1844,7 @@ var HAS_COMPOUND_SHAPE_PROBE = ''
 function delegateProbe(expression) {
     var resultHolder = { value: "" };
     var bridge = new BridgeTalk();
-    bridge.target = "illustrator";
+    bridge.target = BridgeTalk.appSpecifier;
     bridge.body = 'eval(decodeURIComponent("' + encodeURIComponent(expression) + '"));';
     bridge.onResult = function (message) { resultHolder.value = String(message.body); };
     bridge.onError = function () { resultHolder.value = ""; };

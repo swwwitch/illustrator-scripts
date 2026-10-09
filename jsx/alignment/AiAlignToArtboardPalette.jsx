@@ -31,10 +31,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiAlignToA
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AiAlignToArtboardPalette";     /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.4.2";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.4.3";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-08-23";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-10";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiAlignToArtboardPalette.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiAlignToArtboardPalette.md"; /* README (English) */
@@ -5088,7 +5088,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
             /* 同期送信の結果は resultHolder 経由で受け取る / The synchronous send hands its result back through resultHolder */
             var resultHolder = { result: null };
             var bridgeTalk = new BridgeTalk();
-            bridgeTalk.target = "illustrator";
+            bridgeTalk.target = BridgeTalk.appSpecifier;
             bridgeTalk.body = messageBody;
             bridgeTalk.onResult = function(response) { resultHolder.result = String(response.body); };
             bridgeTalk.onError = function(response) { resultHolder.result = "ERR:" + String(response.body); };

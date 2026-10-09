@@ -29,10 +29,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiAdjustVe
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AiAdjustVerticalGapPalette";   /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.4.5";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.4.6";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-06-28";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-10";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiAdjustVerticalGapPalette.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiAdjustVerticalGapPalette.md"; /* README (English) */
@@ -1733,7 +1733,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8201294835f9"; /* 紹�
      */
     function delegateToMainEngine(workerCode) {
         var bridgeTalk = new BridgeTalk();
-        bridgeTalk.target = "illustrator";
+        bridgeTalk.target = BridgeTalk.appSpecifier;
         bridgeTalk.body = "eval(decodeURIComponent(\"" + encodeURIComponent(workerCode) + "\"));";
         var resultHolder = { value: null };
         bridgeTalk.onResult = function (response) {

@@ -24,10 +24,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PathInspec
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "PathInspectorPalette";         /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.6";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.7";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-07-31";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-10";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/PathInspectorPalette.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PathInspectorPalette.md"; /* README (English) */
@@ -609,7 +609,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 src += callExpr + ";";
 
                 var bt = new BridgeTalk();
-                bt.target = "illustrator";
+                bt.target = BridgeTalk.appSpecifier;
                 bt.body = "eval(decodeURIComponent(\"" + encodeURIComponent(src) + "\"));";
                 bt.onResult = function (res) {
                     holder.value = (res && res.body != null) ? String(res.body) : "";

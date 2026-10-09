@@ -29,10 +29,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ArtboardDi
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ArtboardDisplayPresetManagerPalette";  /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.3.4";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.3.5";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-03-23";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-10";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ArtboardDisplayPresetManagerPalette.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ArtboardDisplayPresetManagerPalette.md"; /* README (English) */
@@ -1278,7 +1278,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9eba8ab03170"; /* 紹�
     function delegateToMainEngine(bodyCode, onResult) {
         if (typeof onResult !== "function") onResult = function () {};
         var bridge = new BridgeTalk();
-        bridge.target = "illustrator"; /* #targetengine 指定なし＝メインエンジン / no engine = main engine */
+        bridge.target = BridgeTalk.appSpecifier; /* #targetengine 指定なし＝メインエンジン / no engine = main engine */
         bridge.body = bodyCode;
         bridge.onResult = function (response) { onResult(String(response.body)); };
         bridge.onError = function () { onResult(""); };

@@ -14,10 +14,11 @@ A persistent palette that applies the "Convert to Shape" live effect to the sele
 
 ### Script info
 
-- Version: v1.1.5
+- Version: v1.1.6
 
 ### Update History
 
+- v1.1.6 (2026-10-10) Fixed the palette operating on another Illustrator version when several versions are running
 - v1.1.5 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.1.4 (2026-10-03) Moved to the shared persistent engine `SwwwitchPalettes` so CloseAllPalettes can close it
 - v1.1.3 (2026-10-01) Added space below the button row to match Illustrator's own dialogs

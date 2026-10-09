@@ -31,10 +31,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FontPreset
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "FontPresetPickerPalette";      /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.5";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.6";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-09-17";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-10";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/FontPresetPickerPalette.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FontPresetPickerPalette.md"; /* README (English) */
@@ -879,7 +879,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3d7f8b58ef88"; /* 紹�
         var code = WORKER_LIB_SRC + '\nvar __r=dispatch("' + actionId + '",' + paramsToSource(params) + ");__r;";
 
         var bridge = new BridgeTalk();
-        bridge.target = "illustrator";
+        bridge.target = BridgeTalk.appSpecifier;
         bridge.body = "eval(decodeURIComponent(\"" + encodeURIComponent(code) + "\"));";
         bridge.onResult = function (response) {
             var payload = response.body || "";

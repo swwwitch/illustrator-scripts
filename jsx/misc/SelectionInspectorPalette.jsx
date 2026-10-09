@@ -29,10 +29,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SelectionI
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SelectionInspectorPalette";    /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.7.8";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.7.9";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-08-06";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-10";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SelectionInspectorPalette.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SelectionInspectorPalette.md"; /* README (English) */
@@ -1024,7 +1024,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nefcb1ce828ce"; /* 紹�
             workerSource += callExpression + ";";
 
             var bridgeMessage = new BridgeTalk();
-            bridgeMessage.target = "illustrator";
+            bridgeMessage.target = BridgeTalk.appSpecifier;
             bridgeMessage.body = "eval(decodeURIComponent(\"" + encodeURIComponent(workerSource) + "\"));";
             bridgeMessage.onResult = function (bridgeResult) {
                 resultHolder.value = (bridgeResult && bridgeResult.body != null) ? String(bridgeResult.body) : "";

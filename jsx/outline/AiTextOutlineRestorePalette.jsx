@@ -29,10 +29,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiTextOutl
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AiTextOutlineRestorePalette";  /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v2.0.9";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v2.0.10";                      /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2024-07-23";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-10";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiTextOutlineRestorePalette.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiTextOutlineRestorePalette.md"; /* README (English) */
@@ -1527,7 +1527,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc476be8ad43c"; /* 紹�
         var workerFuncs = funcs || WORKER_FUNCS;
         var resultHolder = { value: null };
         var bridge = new BridgeTalk();
-        bridge.target = "illustrator";
+        bridge.target = BridgeTalk.appSpecifier;
         var code = buildWorkerSource(workerFuncs, entryCall);
         bridge.body = "eval(decodeURIComponent(\"" + encodeURIComponent(code) + "\"));";
         bridge.onResult = function (response) { resultHolder.value = String(response.body); };

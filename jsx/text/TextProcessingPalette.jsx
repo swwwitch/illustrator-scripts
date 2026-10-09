@@ -29,10 +29,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TextProces
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "TextProcessingPalette";        /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.10.2";                      /* バージョン / version */
+var SCRIPT_VERSION  = "v1.10.3";                      /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-03-18";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-06";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-10";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TextProcessingPalette.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TextProcessingPalette.md"; /* README (English) */
@@ -3504,7 +3504,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf6f34559ba46"; /* 紹�
          * パレットは常駐エンジン（#targetengine）で動くが、その app は
          * パレット表示中に DOM 接続を失い "there is no document" を投げる。
          * そこで DOM を触る全処理は、生きた DOM を持つメインエンジン
-         * （bridge.target = "illustrator"）へ BridgeTalk で都度委譲する。
+         * （bridge.target = BridgeTalk.appSpecifier）へ BridgeTalk で都度委譲する。
          *
          * 上で定義済みの処理関数群を toString() で連結して本文に同梱し、
          * 末尾の __dispatch をメインエンジンで実行する。結果は
@@ -3814,7 +3814,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf6f34559ba46"; /* 紹�
             var STATUS_BY_MARKER = { OK: "ok", LINES: "lines", TEXT: "text" };
 
             var bridge = new BridgeTalk();
-            bridge.target = "illustrator";
+            bridge.target = BridgeTalk.appSpecifier;
             bridge.body = "eval(decodeURIComponent(\"" + encodeURIComponent(code) + "\"));";
             bridge.onResult = function (bridgeResult) {
                 var body = bridgeResult.body || "";

@@ -24,10 +24,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartScale
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SmartScalePalette";            /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.2.5";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.2.6";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-08-31";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-10";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartScalePalette.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartScalePalette.md"; /* README (English) */
@@ -1238,7 +1238,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function sendToMainEngine(callExpression) {
         var resultHolder = { result: "ERR:timeout" };
         var bridgeMessage = new BridgeTalk();
-        bridgeMessage.target = "illustrator";
+        bridgeMessage.target = BridgeTalk.appSpecifier;
         bridgeMessage.body = buildWorkerBody(callExpression);
         bridgeMessage.onResult = function (message) { resultHolder.result = String(message.body); };
         bridgeMessage.onError = function (message) { resultHolder.result = "ERR:" + String(message.body); };
@@ -1307,7 +1307,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             return;
         }
         var bridgeMessage = new BridgeTalk();
-        bridgeMessage.target = "illustrator";
+        bridgeMessage.target = BridgeTalk.appSpecifier;
         bridgeMessage.body = buildWorkerBody("workerClearPreview()");
         bridgeMessage.send();
     }

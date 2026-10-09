@@ -27,10 +27,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/Preference
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "PreferenceManagerForTransformAndAlignPalette";  /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.7.3";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.7.4";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-08-04";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-10";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/PreferenceManagerForTransformAndAlignPalette.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PreferenceManagerForTransformAndAlignPalette.md"; /* README (English) */
@@ -937,7 +937,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41d8dc1961be"; /* 紹�
     function runInMainEngine(bodyCode) {
         try {
             var bt = new BridgeTalk();
-            bt.target = "illustrator"; /* #targetengine 指定なし＝メインエンジン / no engine = main engine */
+            bt.target = BridgeTalk.appSpecifier; /* #targetengine 指定なし＝メインエンジン / no engine = main engine */
             bt.body = bodyCode;
             bt.onError = function (message) {
                 /* no-op: 失敗時は既存の値を保持 / keep existing values on failure */

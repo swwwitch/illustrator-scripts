@@ -29,10 +29,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/LinkedImag
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "LinkedImageManagerPalette";    /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.6.4";                      /* バージョン / version */
+var SCRIPT_VERSION  = "v1.6.5";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-04-24";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-06";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-10";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/LinkedImageManagerPalette.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/LinkedImageManagerPalette.md"; /* README (English) */
@@ -819,7 +819,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹�
     function sendRaw(bodyExpr, timeoutSec) {
         var holder = {};
         var bridge = new BridgeTalk();
-        bridge.target = "illustrator";
+        bridge.target = BridgeTalk.appSpecifier;
         bridge.body = "eval(decodeURIComponent(\"" + encodeURIComponent(bodyExpr) + "\"))";
         bridge.onResult = function (msg) { holder.value = msg.body; };
         bridge.onError = function (msg) { holder.error = msg.body; };

@@ -24,10 +24,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TextCountS
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "TextCountStatsPalette";        /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.6";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.7";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-08-06";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-10";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TextCountStatsPalette.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TextCountStatsPalette.md"; /* README (English) */
@@ -578,7 +578,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             workerSource += callExpression + ";";
 
             var bridgeTalk = new BridgeTalk();
-            bridgeTalk.target = "illustrator";
+            bridgeTalk.target = BridgeTalk.appSpecifier;
             /* encodeURIComponent で多バイト・改行・特殊文字の破損を回避 / Avoid corrupting multibyte text and newlines */
             bridgeTalk.body = "eval(decodeURIComponent(\"" + encodeURIComponent(workerSource) + "\"));";
             bridgeTalk.onResult = function (response) {

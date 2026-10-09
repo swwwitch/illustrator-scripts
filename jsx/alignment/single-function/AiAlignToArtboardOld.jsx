@@ -23,10 +23,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AiAlignToArtboardOld";         /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-08-23";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-08-24";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-10";                   /* 更新日 / last updated */
 
 // README (Japanese)
 // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiAlignToArtboard.md
@@ -1432,7 +1432,7 @@ var paletteWindow = $.global.__aiAlignToArtboardOldWindow || null;
         var holder = { result: null };
         try {
             var bridge = new BridgeTalk();
-            bridge.target = "illustrator";
+            bridge.target = BridgeTalk.appSpecifier;
             /* バックスラッシュ・多バイト文字・改行が途中で壊れないよう、ソースはURIエンコードして送る
                URI-encode the source so backslashes, multi-byte characters and newlines survive the trip */
             bridge.body = "eval(decodeURIComponent(\"" + encodeURIComponent(workerCode) + "\"));";

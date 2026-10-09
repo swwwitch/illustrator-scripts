@@ -25,10 +25,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartDistr
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SmartDistributorPalette";      /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.6";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.7";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-10";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartDistributorPalette.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartDistributorPalette.md"; /* README (English) */
@@ -2142,12 +2142,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      */
     function createIllustratorBridgeTalk() {
         var bridgeTalk = new BridgeTalk();
-        /* 指定子を引けない環境では素の名前で送る / fall back to the bare name when no specifier is found */
-        try {
-            bridgeTalk.target = BridgeTalk.getSpecifier("illustrator");
-        } catch (e) {
-            bridgeTalk.target = "illustrator";
-        }
+        bridgeTalk.target = BridgeTalk.appSpecifier;
         return bridgeTalk;
     }
 
