@@ -12,9 +12,9 @@
 
 Headings and button labels often start life as point text, and only later do you wish they were Area Type — so the copy wraps inside a box when it grows, or sits centred in it.
 
-Doing that by hand means drawing a rectangle, converting it, pouring the text in, and setting the font again. And once you have Area Type, tuning it (frame size, leading, indents, vertical alignment) still means moving between panels.
+Doing that by hand means drawing a rectangle, converting it, pouring the text in, and setting the font again. And once you have Area Type, tuning it (frame size, leading, first baseline, indents, vertical alignment) still means moving between panels.
 
-This script puts **creation and adjustment into one flow**.
+This script puts **creation and adjustment into one flow**. It can also separate Area Type into a frame and point text.
 
 <img alt="The Adjust Area Type dialog" src="../png/ss-868-1198-144-20260728-182808.png" width="50%" />
 
@@ -61,13 +61,13 @@ Everything about the Area Type's typesetting, in one place. **Preview is always 
 
 The panels are laid out like this:
 
-- Left: font size, frame size, offset, vertical alignment
-- Right: role, leading, justification, indent, Japanese composition
+- Left: font size, frame size, offset, indent, vertical alignment
+- Right: role, leading, justification, Japanese composition (Japanese UI only)
 - Bottom: [Separate text...], then [Cancel] and [OK]
 
 [OK] commits, [Cancel] reverts and closes — except for vertical text alignment, auto-size, the role presets, Clear overset, Fit to frame and Separate text, which are committed the moment you click them (see below).
 
-When you open the dialog on existing Area Type, **settings you don't touch are left alone**: vertical alignment, height, kinsoku and mojikumi stay as they are until you change them or pick a role. (Vertical alignment and auto-size cannot be read back from the DOM, so what the dialog shows for them may not match the frame.)
+When you open the dialog on existing Area Type, **settings you don't touch are left alone**: vertical alignment, height, First Baseline, Min, kinsoku and mojikumi stay as they are until you change them or pick a role. (Vertical alignment and auto-size cannot be read back from the DOM, so what the dialog shows for them may not match the frame.)
 
 ### Role
 
@@ -78,6 +78,8 @@ One click applies a whole preset for the text's purpose.
 | Body | 160% | Justify (last line left) | Loose v2 | Solid | Top | Cleared |
 | Heading | 120% | Left | Loose v2 | Tight | Top | Cleared |
 | Menu | 150% | Right | Loose v2 | Tight | Top | Right-aligned tab with a "…" leader at 400pt |
+
+Kinsoku and mojikumi are applied in the Japanese UI only.
 
 "Menu" sets that tab on every paragraph. Changing the justification away from right drops the Menu role and clears the tab stops it set.
 
@@ -101,8 +103,10 @@ Leading is set as an **auto-leading amount (%)**. Illustrator shows it as "Auto"
 
 | Control | What it does |
 | --- | --- |
-| Actual | Font size x %, in points. Enter a value here to back-calculate the % |
+| Actual | Font size x %, in the type unit (H when it is Q). Enter a value here to back-calculate the % |
 | Leading | Auto-leading amount, in % |
+| First Baseline | Ascent / Cap Height / Leading / x Height / Em Box Height / Fixed / Legacy (as in Area Type Options) |
+| Min | The minimum for the first baseline, in the ruler unit |
 
 For text with a fixed leading the fields open empty, and nothing is applied while they stay empty.
 
@@ -119,6 +123,8 @@ That action cannot run from the preview inside a modal dialog, so it is **commit
 The current alignment cannot be read from the DOM either, so opening the dialog on existing Area Type always shows "Top". **The frame's alignment does not change until you click an icon.**
 
 ### Japanese composition
+
+Shown in the Japanese UI only. The English UI leaves kinsoku and mojikumi alone, even when a role is picked.
 
 | Control | What it does |
 | --- | --- |
@@ -145,6 +151,7 @@ The current auto-size state cannot be read from the DOM, so the checkbox always 
 
 - Indents: left and right (the Link icon is on by default — the right follows the left and its field is dimmed; text whose two indents differ opens with the link off)
 - Offset: the distance between the frame and the text (tick the box to enter a value)
+The font-size field and the actual leading use the type unit from Preferences (leading in H when the type unit is Q).
 
 ## Separate text dialog
 
@@ -155,6 +162,7 @@ Opened with the [Separate text...] button at the bottom left of the adjust dialo
 | Frame: 1pt black | Gives the rectangle a 1pt black stroke (default) |
 | Frame: unpainted | Leaves the rectangle unpainted |
 | Delete frame | Deletes the rectangle |
+| Frame: keep its style | Keeps the original frame path with its fill, stroke and effects, in its original shape (not replaced by a rectangle, not grown by the offset) |
 
 [OK] separates, then closes the adjust dialog too, since there is no Area Type left to adjust. [Cancel] does nothing and returns to the adjust dialog.
 
@@ -165,6 +173,8 @@ The resulting point text keeps the justification, indents, leading, kinsoku, moj
 ## Input fields
 
 Every numeric field steps with the stepper buttons (∧∨) on its left and with the arrow keys (click, Shift-click and Option-click on the buttons match the table below). Values never go below 0.
+
+Units show inside the field, as in "12 mm" (except "chars"). A bare number gets the unit added back, and a value typed in another unit (say "1in" in a mm field) is converted to the field's unit.
 
 | Key | Step |
 | --- | --- |
@@ -185,6 +195,8 @@ TextFrame (point / path / area text), PathItem and CompoundPathItem (closed path
 
 ## Change log
 
+- v1.4.0 (2026-10-09) Added First Baseline and Min to the Leading panel (left as is unless changed). The font size and the actual leading now show and take the type unit from Preferences (leading in H when the type unit is Q). Units now appear inside the number fields (except "chars"). Added [Frame: keep its style] to Separate text. Moved the Indent panel under Offset (left column). The Japanese composition panel is no longer shown in the English UI. The width and height labels now fit their text and are right-aligned, fixing the cut-off "Height:"
+- v1.3.8 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.3.7 (2026-10-01) Added space below the button row to match Illustrator's own dialogs
 - v1.3.6 (2026-10-01) Aligned the main dialog's button row with the standard form (no visible change). Unified the window and panel margins and spacing with the shared layout part
 - v1.3.5 (2026-10-01) Button rows with only right-side buttons are now centered in dialogs up to 200 px wide (inside the margins) and right-aligned in wider ones
@@ -201,4 +213,3 @@ TextFrame (point / path / area text), PathItem and CompoundPathItem (closed path
 ### note
 
 - [An Illustrator script for working comfortably with Area Type (Japanese)](https://note.com/dtp_tranist/n/nfd6cc5e13654)
-- v1.3.8 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
