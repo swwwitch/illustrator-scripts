@@ -29,7 +29,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PresetMana
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "PresetManager";                /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.10.0";                      /* バージョン / version */
+var SCRIPT_VERSION  = "v1.10.2";                      /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-08-07";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-10";                   /* 更新日 / last updated */
@@ -1096,6 +1096,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3b33862538f6"; /* 紹�
             colorMagenta: { ja: "マゼンタ", en: "Magenta" },
             colorCyan: { ja: "シアン", en: "Cyan" },
             colorWhite: { ja: "ホワイト", en: "White" },
+            colorLightGray: { ja: "ライトグレー", en: "Light Gray" },
             colorBlack: { ja: "ブラック", en: "Black" },
             colorYellow: { ja: "イエロー", en: "Yellow" }
         },
@@ -1391,6 +1392,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3b33862538f6"; /* 紹�
         { label: getLabel("dropdown.colorMagenta"), red: 1.0, green: 0.0, blue: 1.0 },
         { label: getLabel("dropdown.colorCyan"), red: 0.0, green: 1.0, blue: 1.0 },
         { label: getLabel("dropdown.colorWhite"), red: 1.0, green: 1.0, blue: 1.0 },
+        { label: getLabel("dropdown.colorLightGray"), red: 0.65, green: 0.65, blue: 0.65 },
         { label: getLabel("dropdown.colorBlack"), red: 0.0, green: 0.0, blue: 0.0 },
         { label: getLabel("dropdown.colorYellow"), red: 1.0, green: 1.0, blue: 0.0 }
     ];
@@ -1468,8 +1470,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3b33862538f6"; /* 紹�
         anchorSize: 7, /* anchorSizePref の値（5/7/9/11）/ anchorSizePref value (5/7/9/11) */
         textPathOnly: false,
         showArtboardName: false,
-        artboardColorIndex: 7,
-        artboardStrokeWidth: 2,
+        artboardColorIndex: 7, /* ライトグレー（アートボード表示パレットの「ライト」と同じ）/ Light Gray (same as "Light" in the artboard display palette) */
+        artboardStrokeWidth: 1,
         autoSizeAreaText: true,
         recentFontsEnabled: true,
         recentFontsCount: 15,
@@ -2990,6 +2992,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3b33862538f6"; /* 紹�
             updateChangeState(dialogControls);
         }
 
+        /* レイアウトを切り替えたときは前回の位置を使わず、既定の位置（画面の中央）で開く
+           After a layout switch, skip the remembered location and open at the default (centered) position */
+        if (carriedSession) $.global["__" + SCRIPT_NAME + "_DialogLocation"] = null;
         prepareDialogWindow(preferencesDialog, SCRIPT_NAME);
         var dialogResult = preferencesDialog.show();
         return (dialogResult === LAYOUT_SWITCH_RESULT) ? switchSession : null;

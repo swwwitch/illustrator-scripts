@@ -68,7 +68,7 @@ Anchor Point Size is a four-step slider. The values written are 5 / 7 / 9 / 11, 
 | Highlight Color | ArtboardBBColorRed / Green / Blue |
 | Stroke Width (1–4) | ArtboardBBWidth |
 
-The highlight color is picked from nine presets: Light Blue, Light Red, Green, Medium Blue, Magenta, Cyan, White, Black and Yellow. When the current value matches none of them, the preset with the smallest RGB difference is shown as selected.
+The highlight color is picked from ten presets: Light Blue, Light Red, Green, Medium Blue, Magenta, Cyan, White, Light Gray, Black and Yellow. When the current value matches none of them, the preset with the smallest RGB difference is shown as selected.
 
 #### [Type] category
 
@@ -153,8 +153,8 @@ For these two keys 0 means ON and 1 means OFF, so the script inverts the value w
 | Object Selection by Path Only | OFF | OFF |
 | Type Object Selection by Path Only | OFF | OFF |
 | Show Artboard Name | ON | OFF |
-| Highlight Color | Light Blue | Black |
-| Stroke Width | 1 | 2 |
+| Highlight Color | Light Blue | Light Gray |
+| Stroke Width | 1 | 1 |
 | Auto Size New Area Type | OFF | ON |
 | Number of Recent Fonts | 10 | 15 |
 | Enable Missing Glyph Protection | ON | OFF |
@@ -214,3 +214,5 @@ Every checkbox item is declared once, on a single line that carries its preferen
 - v1.9.8 (2026-10-01): Added space below the button row to match Illustrator's own dialogs
 - v1.9.9 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.10.0 (2026-10-10) Added the sidebar view (category list, Setting | Default | Current columns, markers and counts for changed settings, [Revert All Changes]). The button at the lower left switches to the classic two-column view and carries unsaved changes over
+- v1.10.1 (2026-10-10) The dialog now opens centered after switching layouts
+- v1.10.2 (2026-10-10) Added Light Gray to the highlight colors. [Preset 1] now uses Light Gray and a stroke width of 1 (matching [Light] in the artboard display palette)
