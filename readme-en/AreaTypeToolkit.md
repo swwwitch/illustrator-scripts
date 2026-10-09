@@ -79,8 +79,11 @@ One click applies a whole preset for the text's purpose.
 | Body | 160% | Justify (last line left) | Loose v2 | Solid | Top | Cleared |
 | Heading | 120% | Left | Loose v2 | Tight | Top | Cleared |
 | Menu | 150% | Right | Loose v2 | Tight | Top | Right-aligned tab with a "…" leader at 400pt |
+| Button | 110% | Center | Loose v2 | Tight | Center | Cleared |
 
 Kinsoku and mojikumi are applied in the Japanese UI only.
+
+"Button" also sets both indents to 0 and turns the offset off.
 
 "Menu" sets that tab on every paragraph. Changing the justification away from right drops the Menu role and clears the tab stops it set.
 
@@ -197,6 +200,7 @@ TextFrame (point / path / area text), PathItem and CompoundPathItem (closed path
 
 ## Change log
 
+- v1.5.0 (2026-10-10) Added a "Button" role (110% leading, center, vertically centered, zero indents, offset off). The role radios now sit in two rows (Body, Heading / Menu, Button). Code cleanup
 - v1.4.1 (2026-10-09) Moved the Indent panel back to the right column (under Justification). The Japanese composition panel now spans the full width below both columns, with kinsoku and mojikumi side by side. The English UI now hides the "chars" field instead of dimming it. Right-aligned the Actual, Leading and Min labels in the Leading panel and the Left and Right labels in the Indent panel, and fixed the colon of "Leading:" being cut off in the English UI
 - v1.4.0 (2026-10-09) Added First Baseline and Min to the Leading panel (left as is unless changed). The font size and the actual leading now show and take the type unit from Preferences (leading in H when the type unit is Q). Units now appear inside the number fields (except "chars"). Added [Frame: keep its style] to Separate text. Moved the Indent panel under Offset (left column). The Japanese composition panel is no longer shown in the English UI. The width and height labels now fit their text and are right-aligned, fixing the cut-off "Height:"
 - v1.3.8 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)

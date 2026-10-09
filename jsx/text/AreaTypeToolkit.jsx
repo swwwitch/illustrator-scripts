@@ -27,10 +27,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AreaTypeTo
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AreaTypeToolkit";              /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.4.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.5.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-03-03";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-09";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-10";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AreaTypeToolkit.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AreaTypeToolkit.md"; /* README (English) */
@@ -58,12 +58,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
     var DEFAULT_KINSOKU = "Soft_v2";   /* 弱い禁則 v2 / Loose v2 */
     var DEFAULT_MOJIKUMI_INDEX = 6;    /* ベタ組み / Solid */
 
-    /* 種別プリセット（本文／見出し／メニュー）。ラジオを押すと行送り・行揃え・禁則・文字組み・タブをまとめて設定する
-       Role presets (Body / Heading / Menu): one click sets leading, justification, kinsoku, mojikumi and tabs */
+    /* 種別プリセット（本文／見出し／メニュー／ボタン）。ラジオを押すと行送り・行揃え・禁則・文字組み・タブをまとめて設定する。
+       resetInsets はインデントを0、オフセットをOFFにする
+       Role presets (Body / Heading / Menu / Button): one click sets leading, justification, kinsoku, mojikumi and tabs.
+       resetInsets zeroes the indents and turns the offset off */
     var ROLE_PRESETS = {
         body: { leadingPercent: 160, justifyId: "lastLineLeft", kinsoku: "Soft_v2", mojikumiIndex: 6, alignId: "top", tabMode: "clear" },
         heading: { leadingPercent: 120, justifyId: "left", kinsoku: "Soft_v2", mojikumiIndex: 5, alignId: "top", tabMode: "clear" },
-        menu: { leadingPercent: 150, justifyId: "right", kinsoku: "Soft_v2", mojikumiIndex: 5, alignId: "top", tabMode: "leader" }
+        menu: { leadingPercent: 150, justifyId: "right", kinsoku: "Soft_v2", mojikumiIndex: 5, alignId: "top", tabMode: "leader" },
+        button: { leadingPercent: 110, justifyId: "center", kinsoku: "Soft_v2", mojikumiIndex: 5, alignId: "center", tabMode: "clear", resetInsets: true }
     };
 
     // ダイアログの位置と不透明度（再利用パーツ） / Dialog position and opacity (reusable)
@@ -519,6 +522,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
             roleBody: { ja: "本文", en: "Body" },
             roleHeading: { ja: "見出し", en: "Heading" },
             roleMenu: { ja: "メニュー", en: "Menu" },
+            roleButton: { ja: "ボタン", en: "Button" },
             styleSimple: { ja: "シンプル", en: "Simple" },
             styleButton: { ja: "ボタン風", en: "Button style" },
             useShape: { ja: "選択した図形に流し込む", en: "Pour into selected shape" },
@@ -633,6 +637,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
             roleMenu: {
                 ja: "メニュー向けの設定をまとめて適用します（行送り150%・右揃え・弱い禁則 v2・ツメ組み・上揃え）。各段落に右揃えタブ（リーダー「...」／400pt）を設定します。行揃えを変えると指定が解除され、タブ設定も削除されます。",
                 en: "Applies the menu preset (150% leading, right, top alignment) and sets a right-aligned tab with a leader at 400pt on every paragraph. Changing the justification drops this role and clears the tab stops."
+            },
+            roleButton: {
+                ja: "ボタン向けの設定をまとめて適用します（行送り110%・中央揃え・弱い禁則 v2・ツメ組み・中央揃え（垂直方向）・インデント0・オフセットOFF）。タブ設定は削除します。",
+                en: "Applies the button preset (110% leading, center, vertically centered, zero indents, offset off). Tab stops are cleared."
             },
             kinsoku: {
                 ja: "段落の禁則処理（なし／強い禁則／弱い禁則など）をまとめて適用します。",
@@ -3602,7 +3610,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
     }
 
     /**
-     * 右カラム：種別（本文／見出し／メニュー）パネルを追加する
+     * 右カラム：種別（本文／見出し／メニュー／ボタン）パネルを追加する。2行×2列（本文・見出し／メニュー・ボタン）に並べる。
+     * 列ごとのグループに分けて縦をそろえる（排他は bindExclusiveRadios で取る）
      * @param {Object} dialogControls - コントロールの格納先
      * @param {Group} parentColumn - 追加先の列
      * @returns {void}
@@ -3611,14 +3620,24 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
         var rolePanel = parentColumn.add("panel", undefined, getLabel("panel.role"));
         setupPanel(rolePanel, 4);
         rolePanel.orientation = "row";
-        rolePanel.alignChildren = ["left", "center"];
-        dialogControls.radRoleBody = rolePanel.add("radiobutton", undefined, getLabel("radio.roleBody"));
-        dialogControls.radRoleHeading = rolePanel.add("radiobutton", undefined, getLabel("radio.roleHeading"));
-        dialogControls.radRoleMenu = rolePanel.add("radiobutton", undefined, getLabel("radio.roleMenu"));
+        rolePanel.alignChildren = ["left", "top"];
+        var leftRoleColumn = rolePanel.add("group");
+        leftRoleColumn.orientation = "column";
+        leftRoleColumn.alignChildren = "left";
+        leftRoleColumn.spacing = 4;
+        var rightRoleColumn = rolePanel.add("group");
+        rightRoleColumn.orientation = "column";
+        rightRoleColumn.alignChildren = "left";
+        rightRoleColumn.spacing = 4;
+        dialogControls.radRoleBody = leftRoleColumn.add("radiobutton", undefined, getLabel("radio.roleBody"));
+        dialogControls.radRoleMenu = leftRoleColumn.add("radiobutton", undefined, getLabel("radio.roleMenu"));
+        dialogControls.radRoleHeading = rightRoleColumn.add("radiobutton", undefined, getLabel("radio.roleHeading"));
+        dialogControls.radRoleButton = rightRoleColumn.add("radiobutton", undefined, getLabel("radio.roleButton"));
         dialogControls.radRoleBody.helpTip = getLabel("tooltip.roleBody");
         dialogControls.radRoleHeading.helpTip = getLabel("tooltip.roleHeading");
         dialogControls.radRoleMenu.helpTip = getLabel("tooltip.roleMenu");
-        dialogControls.roleRadios = [dialogControls.radRoleBody, dialogControls.radRoleHeading, dialogControls.radRoleMenu];
+        dialogControls.radRoleButton.helpTip = getLabel("tooltip.roleButton");
+        dialogControls.roleRadios = [dialogControls.radRoleBody, dialogControls.radRoleHeading, dialogControls.radRoleMenu, dialogControls.radRoleButton];
     }
 
     /**
@@ -4963,7 +4982,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
 
         /**
          * 種別プリセットをダイアログに反映して適用する
-         * @param {string} roleId - "body" / "heading" / "menu"
+         * @param {string} roleId - "body" / "heading" / "menu" / "button"
          * @returns {void}
          */
         function applyRolePreset(roleId) {
@@ -4979,6 +4998,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
                 selectChoiceByValue(dialogControls.mojikumiDropdown, MOJIKUMI_CHOICES, "index", rolePreset.mojikumiIndex);
             }
             alignState.activeId = rolePreset.alignId;
+            if (rolePreset.resetInsets) {
+                setFieldNumber(dialogControls.etLeftIndent, 0);
+                setFieldNumber(dialogControls.etRightIndent, 0);
+                dialogControls.chkSpacing.value = false;
+                updateSpacingEnabled();
+                /* インデント・間隔が変わると幅の検証と文字数表示もやり直す / Indents and spacing feed the width check and chars-per-line */
+                validateWidthField();
+                updateCharsPerLineField();
+            }
             /* 種別はまとめて指定するものなので、関係する項目をすべて適用対象にする / A role sets everything at once, so all of it is applied */
             userTouched.alignment = true;
             userTouched.kinsoku = true;
@@ -5097,7 +5125,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
             bindExclusiveRadios(dialogControls.roleRadios, function (clickedRadio) {
                 if (clickedRadio === dialogControls.radRoleBody) { applyRolePreset("body"); }
                 else if (clickedRadio === dialogControls.radRoleHeading) { applyRolePreset("heading"); }
-                else { applyRolePreset("menu"); }
+                else if (clickedRadio === dialogControls.radRoleMenu) { applyRolePreset("menu"); }
+                else { applyRolePreset("button"); }
             });
             for (var buttonIndex = 0; buttonIndex < dialogControls.justifyButtons.length; buttonIndex++) {
                 dialogControls.justifyButtons[buttonIndex].onClick = function () {
