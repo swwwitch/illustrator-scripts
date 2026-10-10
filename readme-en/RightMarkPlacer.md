@@ -27,7 +27,8 @@ Use it to show the flow or the relationship between elements in a layout.
 - `─\` takes an angle for the slash, supports round ends, and can be mirrored
 - `>` / `>>` switch to a filled shape with Keep top and bottom edges horizontal (both draw the same width)
 - `➡` is sized from the stroke width alone; its head is three times the stroke width tall
-- The preview updates immediately and is always cleaned up when the dialog closes
+- The preview is always shown, updates immediately, and is always cleaned up when the dialog closes
+- Fit to Window zooms so the objects and the preview fill a given share of the window (65% by default); it is on by default, and Cancel restores the original view
 - Tooltips explain the fields and the keyboard shortcuts
 - Japanese and English UI
 
@@ -35,7 +36,7 @@ Use it to show the flow or the relationship between elements in a layout.
 
 1. Select two or more objects.
 2. Run `RightMarkPlacer.jsx`.
-3. Choose the shape and set the options (turn on Preview to check the result).
+3. Choose the shape and set the options (adjust while watching the preview).
 4. Click OK to run.
 
 ## Shape panel
@@ -140,7 +141,7 @@ These can be changed in the User settings section at the top of the script.
 - The script assumes a left-to-right arrangement; objects are sorted by the X coordinate of their center.
 - Text is measured from its outlined bounds (the measurement copy is removed automatically). The measurements are kept until the dialog closes, so text is not re-outlined on every preview refresh.
 - Marks are created on the current layer and left selected.
-- Clicking OK while Preview is on keeps the previewed objects as the result.
+- Clicking OK keeps the previewed objects as the result.
 - `➡` uses the Outline Stroke and Unite menu commands, so the selection changes during processing and is restored afterwards.
 - The number of decimals shown follows the unit: two for pt and mm, more for inches and centimeters.
 
@@ -150,6 +151,7 @@ These can be changed in the User settings section at the top of the script.
 
 ## Update history
 
+- v1.5.0 (2026-10-11): Added Fit to Window (on by default). The preview is now always shown, and the Preview checkbox was removed
 - v1.4.7 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.4.6 (2026-10-01): Added space below the button row to match Illustrator's own dialogs
 - v1.4.5 (2026-10-01): Unified the window and panel margins and spacing with the shared layout part
