@@ -79,11 +79,12 @@ https://note.com/dtp_tranist/n/n789072361c12
 
 ### Update History
 
+- v1.1.1 (2026-10-11) For horizontal rules, the dialog now starts with the stroke (butt cap) type and keeps the rule's stroke weight. Fixed stroked arrows inheriting the rule's arrowheads and width profile, overlapping anchor points at extreme heights, and missed white fills. The default stroke width and step now suit the stroke unit. Switching between the two stroke types keeps the stroke width
 - v1.1.0 (2026-10-10) Added Height. Horizontal rules are now supported. The stroke types now take the thickness as a stroke weight in the Stroke units from Preferences. Added double-headed and reverse icons. A white fill now also falls back to the stroke color
 - v1.0.0 (2026-10-10) Initial release
 
 ### Script info
 
-- Version: v1.1.0
+- Version: v1.1.1
 - First release: 2026-10-10
-- Last updated: 2026-10-10
+- Last updated: 2026-10-11

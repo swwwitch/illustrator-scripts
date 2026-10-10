@@ -29,10 +29,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RectangleT
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "RectangleToArrow";             /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-10";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-10";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-11";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/RectangleToArrow.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RectangleToArrow.md"; /* README (English) */
@@ -222,12 +222,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
                 en: "Reverses the arrow's direction (also toggled by Option-clicking (Alt-clicking) a type button). Not available for double-headed arrows."
             },
             thickness: {
-                ja: "塗りは軸の太さを長方形の短辺に対する％で、線は線幅を線の単位（環境設定）で指定します。種類ごとに値を覚えます。",
-                en: "Shaft thickness as a percentage of the rectangle's short side (fill), or stroke width in the stroke units set in Preferences (stroke). Each type keeps its own value."
+                ja: "塗りは軸の太さを長方形の短辺に対する％で、線は線幅を線の単位（環境設定）で指定します。値は塗りと線で別々に覚えます（線の2種類は共通）。",
+                en: "Shaft thickness as a percentage of the rectangle's short side (fill), or stroke width in the stroke units set in Preferences (stroke). Fill and stroke keep separate values; both stroke types share one."
             },
             height: {
-                ja: "矢印の高さ（矢じりの幅）を、長方形の短辺に対する％で指定します。軸の太さ・線幅は変わりません。3種類で共通です。",
-                en: "Arrow height (head width) as a percentage of the rectangle's short side. The shaft thickness and stroke width stay the same. Shared by all three types."
+                ja: "矢印の高さ（矢じりの幅）を、長方形の短辺に対する％で指定します。軸の太さ・線幅は変わりません（塗りの軸は高さより太くなりません）。3種類で共通です。",
+                en: "Arrow height (head width) as a percentage of the rectangle's short side. The shaft thickness and stroke width stay the same (a filled shaft is never wider than the height). Shared by all three types."
             },
             stepUp: {
                 ja: "値を増やす（shift＋クリックで10の倍数へ、option＋クリックで0.1ずつ）",
@@ -1098,13 +1098,51 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
             ? [arrowFrame.toPoint(headLength, -halfShaft), arrowFrame.toPoint(headLength, -halfSide), arrowFrame.toPoint(0, 0),
                arrowFrame.toPoint(headLength, halfSide), arrowFrame.toPoint(headLength, halfShaft)]
             : [arrowFrame.toPoint(0, -halfShaft), arrowFrame.toPoint(0, halfShaft)];
-        return [
+        /* 軸が矢じりと同じ太さのときや、矢じりが全長で止まったときにできる重なり・とげの頂点を除く / drop overlapping or spike vertices when the shaft is as wide as the head or the head fills the length */
+        return removeRedundantPoints([
             arrowFrame.toPoint(neck, halfShaft),
             arrowFrame.toPoint(neck, halfSide),
             arrowFrame.toPoint(arrowFrame.length, 0),
             arrowFrame.toPoint(neck, -halfSide),
             arrowFrame.toPoint(neck, -halfShaft)
-        ].concat(tailPoints);
+        ].concat(tailPoints));
+    }
+
+    /**
+     * 閉じた多角形の頂点から、隣と重なる頂点と、前後と一直線に並ぶ頂点（行って戻るだけのとげを含む）を除く
+     * @param {Array} points - 頂点 [[x, y], …]
+     * @returns {Array} 不要な頂点を除いた頂点
+     */
+    function removeRedundantPoints(points) {
+        var cleanPoints = points.slice(0);
+        var isChanged = true;
+        while (isChanged && cleanPoints.length > 3) {
+            isChanged = false;
+            for (var i = 0; i < cleanPoints.length; i++) {
+                var prevPoint = cleanPoints[(i + cleanPoints.length - 1) % cleanPoints.length];
+                var nextPoint = cleanPoints[(i + 1) % cleanPoints.length];
+                if (isSamePoint(prevPoint, cleanPoints[i]) || isOnLine(prevPoint, cleanPoints[i], nextPoint)) {
+                    cleanPoints.splice(i, 1);
+                    isChanged = true;
+                    break;
+                }
+            }
+        }
+        return cleanPoints;
+    }
+
+    /**
+     * 3点が一直線に並ぶかを返す（真ん中の点で折り返す場合も true）
+     * @param {number[]} firstPoint - 前の点
+     * @param {number[]} middlePoint - 判定する点
+     * @param {number[]} lastPoint - 次の点
+     * @returns {boolean} 一直線なら true
+     */
+    function isOnLine(firstPoint, middlePoint, lastPoint) {
+        var firstX = middlePoint[0] - firstPoint[0], firstY = middlePoint[1] - firstPoint[1];
+        var lastX = lastPoint[0] - middlePoint[0], lastY = lastPoint[1] - middlePoint[1];
+        var crossProduct = firstX * lastY - firstY * lastX;
+        return Math.abs(crossProduct) < TOLERANCE * Math.max(Math.abs(firstX) + Math.abs(firstY), Math.abs(lastX) + Math.abs(lastY), 1);
     }
 
     /**
@@ -1152,10 +1190,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
      */
     function isWhiteColor(color) {
         switch (color.typename) {
-            case "RGBColor": return color.red === 255 && color.green === 255 && color.blue === 255;
-            case "CMYKColor": return color.cyan === 0 && color.magenta === 0 && color.yellow === 0 && color.black === 0;
-            case "GrayColor": return color.gray === 0;
-            case "SpotColor": return color.tint === 0 || isWhiteColor(color.spot.color);
+            /* 色の値は小数で返ることがあるので、0.5 未満の差は同じとみなす / channels may come back as floats */
+            case "RGBColor": return color.red > 254.5 && color.green > 254.5 && color.blue > 254.5;
+            case "CMYKColor": return color.cyan < 0.5 && color.magenta < 0.5 && color.yellow < 0.5 && color.black < 0.5;
+            case "GrayColor": return color.gray < 0.5;
+            case "SpotColor": return color.tint < 0.5 || isWhiteColor(color.spot.color);
             default: return false;
         }
     }
@@ -1203,7 +1242,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
     /**
      * 長方形を、軸の直線とくの字の矢じりを線で組んだ矢印に置き換える。
      * 線ごとに［パスのアウトライン］効果を掛けてグループにし、グループに［パスファインダー（合体）］効果を掛ける。
-     * パスの形は長方形の範囲に合わせ、線幅のぶんは外へはみ出す
+     * パスの形は長方形の範囲に合わせ、線幅のぶんは外へはみ出す。元のパスの効果は引き継がない
      * @param {PathItem} rectanglePath - 長方形のパス（グループに置き換えて削除する）
      * @param {Object} arrowOptions - strokeWidth（線幅。pt）、heightRatio、isReversed、isBothEnds
      * @param {boolean} isRound - 丸型線端・ラウンド結合にするなら true
@@ -1220,7 +1259,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
         var targetLayer = rectanglePath.layer;
         var linePaths = [];
         for (var i = 0; i < arrowLines.length; i++) {
-            var linePath = rectanglePath.duplicate(targetLayer, ElementPlacement.PLACEATBEGINNING);
+            /* 複製すると罫線の矢印・線幅プロファイル・ブラシが残り、DOM では外せないので新しいパスで作る
+               duplicates keep the rule's arrowheads, width profile and brush, which the DOM cannot clear */
+            var linePath = targetLayer.pathItems.add();
             setArrowLine(linePath, arrowLines[i], arrowColor, arrowOptions.strokeWidth, isRound);
             linePaths.push(linePath);
         }
@@ -1234,6 +1275,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
         for (var j = 0; j < linePaths.length; j++) linePaths[j].move(arrowGroup, ElementPlacement.PLACEATEND);
         selectOnly([arrowGroup]);
         app.executeMenuCommand("Live Pathfinder Add");
+        /* 新しいパスで作ったので、元の不透明度・描画モードはグループに移す / carry over the source's opacity and blending mode */
+        arrowGroup.opacity = rectanglePath.opacity;
+        arrowGroup.blendingMode = rectanglePath.blendingMode;
 
         arrowGroup.move(rectanglePath, ElementPlacement.PLACEBEFORE);
         rectanglePath.remove();
@@ -1912,35 +1956,22 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
      * @returns {Group} アイコン（.value でオンかを読む）
      */
     function addSwapToggle(parent, initialValue, onToggle, iconSize) {
+        /* 大きさ・クリックでの切り替えはリンクアイコンの部品で作り、絵だけ差し替える / reuse the link toggle; only the drawing differs */
+        var swapToggle = addLinkToggle(parent, initialValue, onToggle, iconSize);
         var toggleSize = iconSize || LINK_ICON_SIZE;
-        var swapToggle = parent.add("group");
-        swapToggle.preferredSize = toggleSize;
-        swapToggle.minimumSize = toggleSize;
-        swapToggle.maximumSize = toggleSize;
-        swapToggle.value = initialValue;
-
         swapToggle.onDraw = function () {
             var iconGraphics = swapToggle.graphics;
-            var iconWidth = toggleSize[0];
-            var iconHeight = toggleSize[1];
             var isDimmed = !isLinkToggleEnabledInTree(swapToggle);
             if (swapToggle.value && !isDimmed) {
                 iconGraphics.newPath();
-                iconGraphics.rectPath(0, 0, iconWidth, iconHeight);
+                iconGraphics.rectPath(0, 0, toggleSize[0], toggleSize[1]);
                 iconGraphics.fillPath(iconGraphics.newBrush(iconGraphics.BrushType.SOLID_COLOR, LINK_PRESSED_COLOR));
                 iconGraphics.newPath();
-                iconGraphics.rectPath(0.5, 0.5, iconWidth - 1, iconHeight - 1);
+                iconGraphics.rectPath(0.5, 0.5, toggleSize[0] - 1, toggleSize[1] - 1);
                 iconGraphics.strokePath(iconGraphics.newPen(iconGraphics.PenType.SOLID_COLOR, LINK_FRAME_COLOR, 1));
             }
-            drawSwapIcon(iconGraphics, iconWidth, iconHeight, isDimmed ? LINK_DIM_ICON_COLOR : LINK_ICON_COLOR);
+            drawSwapIcon(iconGraphics, toggleSize[0], toggleSize[1], isDimmed ? LINK_DIM_ICON_COLOR : LINK_ICON_COLOR);
         };
-
-        swapToggle.addEventListener("mousedown", function () {
-            if (!isLinkToggleEnabledInTree(swapToggle)) return;
-            swapToggle.value = !swapToggle.value;
-            redrawLinkToggle(swapToggle);
-            if (onToggle) onToggle();
-        });
         return swapToggle;
     }
 
@@ -2051,7 +2082,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
      * @param {Group} iconColumn - 追加先の列
      * @param {string} arrowType - 種類（"fill" / "line" / "roundLine"）
      * @param {Group[]} typeIcons - 同じ組のボタン（排他にする）
-     * @param {function(): void} onSelect - 選び直したときに呼ぶ
+     * @param {function(): void} onSelect - 選び直したときに呼ぶ（ボタンの描き直しはこちらで行う）
      * @returns {Group} ボタン
      */
     function addArrowTypeIcon(iconColumn, arrowType, typeIcons, onSelect) {
@@ -2075,10 +2106,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
             if (isCommandAltClick) typeIcon.typeState.isBothEnds = !typeIcon.typeState.isBothEnds;
             /* 両矢印は向きを逆にしても同じ形なので、反転は切り替えない / reversing a double-headed arrow changes nothing */
             else if (isAltClick && !typeIcon.typeState.isBothEnds) typeIcon.typeState.isReversed = !typeIcon.typeState.isReversed;
-            for (var i = 0; i < typeIcons.length; i++) {
-                typeIcons[i].value = (typeIcons[i] === typeIcon);
-                redrawStepperGroup(typeIcons[i]);
-            }
+            /* 描き直しは onSelect 側でまとめて行う / onSelect redraws all buttons */
+            for (var i = 0; i < typeIcons.length; i++) typeIcons[i].value = (typeIcons[i] === typeIcon);
             onSelect();
         });
         return typeIcon;
@@ -2156,7 +2185,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
         }
 
         /**
-         * 絵の座標系の長方形をパスに足す（反転や左向きの矢じりでも左上・幅・高さが正になるようにする）
+         * 絵の座標系の長方形をパスに足す（反転しても左上・幅・高さが正になるようにする）
          * @param {number} designLeft - 左（右との大小は問わない）
          * @param {number} designTop - 上
          * @param {number} designRight - 右
@@ -2176,13 +2205,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
         }
         for (i = 0; i < iconShape.heads.length; i++) {
             var headShape = iconShape.heads[i];
-            var sliceCount = 12;
-            var sliceWidth = (headShape[1] - headShape[0]) / sliceCount;
-            for (k = 0; k < sliceCount; k++) {
-                var sliceHalf = headShape[3] * (1 - (k + 0.5) / sliceCount);
-                var sliceLeft = headShape[0] + sliceWidth * k;
-                addDesignRect(sliceLeft, headShape[2] - sliceHalf, sliceLeft + sliceWidth, headShape[2] + sliceHalf);
-            }
+            addArrowHeadPath(iconGraphics, toScreenX(headShape[0]), toScreenX(headShape[1]),
+                originY + headShape[2] * iconScale, headShape[3] * iconScale);
         }
         var discRadius = ARROW_TYPE_ICON_LINE_WIDTH * iconScale / 2;
         for (i = 0; i < iconShape.discs.length; i++) {
@@ -2220,14 +2244,22 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
         /* 線幅は環境設定の線の単位で入力する / stroke widths use the stroke units from Preferences */
         var strokeUnit = getUnitInfo("strokeUnits");
         var firstShortSide = getArrowFrame(getArrowBounds(rectangles[0]), false, 1).thickness;
-        var defaultLineWidth = Math.round(firstShortSide * DEFAULT_LINE_PERCENT / 100 / strokeUnit.pointsPerUnit * 10) / 10;
-        /* 種類ごとに太さを覚え、切り替えたら戻す（塗りは％、線は線の単位） / remember the thickness per type (% for fill, stroke units for strokes) */
-        var thicknessByType = { fill: DEFAULT_FILL_PERCENT, line: defaultLineWidth, roundLine: defaultLineWidth };
+        /* 入力欄は小数2桁まで。インチなど大きい単位でも 0 に丸まらないよう下限で止める / the field keeps 2 decimals; keep large units from rounding to 0 */
+        var defaultLineWidth = Math.max(0.01, Math.round(firstShortSide * DEFAULT_LINE_PERCENT / 100 / strokeUnit.pointsPerUnit * 100) / 100);
+        /* 1つ目が罫線なら、線の矢印（矢印2）で始め、線幅はその罫線のものを引き継ぐ / for a rule, start with the stroked arrow and keep the rule's stroke width */
+        var isFirstRule = !rectangles[0].closed;
+        if (isFirstRule && rectangles[0].stroked && rectangles[0].strokeWidth > 0) {
+            defaultLineWidth = Math.max(0.01, Math.round(rectangles[0].strokeWidth / strokeUnit.pointsPerUnit * 100) / 100);
+        }
+        /* 塗りと線で太さを別々に覚え、切り替えたら戻す（塗りは％、線は線の単位。線の2種類は線幅を共有）
+           remember the thickness for fill and stroke separately (% for fill, stroke units shared by both stroke types) */
+        var thicknessByKind = { fill: DEFAULT_FILL_PERCENT, stroke: defaultLineWidth };
         var thicknessFormats = {
-            percent: { unit: "%", min: 1, max: 100 },
-            strokeWidth: { unit: " " + strokeUnit.label, min: 0.01, max: 1000 / strokeUnit.pointsPerUnit }
+            percent: { step: 1, unit: "%", min: 1, max: 100 },
+            /* cm・インチなど 1 単位が大きいときは 0.1 刻み / step by 0.1 when one unit is large (cm, in) */
+            strokeWidth: { step: strokeUnit.pointsPerUnit >= 2 ? 0.1 : 1, unit: " " + strokeUnit.label, min: 0.01, max: 1000 / strokeUnit.pointsPerUnit }
         };
-        var currentType = "fill";
+        var currentType = isFirstRule ? "line" : "fill";
 
         var arrowDialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
         setupWindow(arrowDialog);
@@ -2259,13 +2291,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
 
         var thicknessInput = addSteppedField(arrowDialog, {
             label: labelText("fieldLabel.thickness"), labelWidth: LABEL_WIDTH,
-            text: thicknessByType.fill + "%", characters: FIELD_CHARACTERS,
-            step: 1, min: 1, max: 100, unit: "%",
+            text: thicknessByKind.fill + thicknessFormats.percent.unit, characters: FIELD_CHARACTERS,
+            step: thicknessFormats.percent.step, min: thicknessFormats.percent.min,
+            max: thicknessFormats.percent.max, unit: thicknessFormats.percent.unit,
             onStep: function () { refreshPreview(); }
         });
         thicknessInput.helpTip = getLabel("tooltip.thickness");
 
         redrawPreviewOnChange(thicknessInput);
+        applyThicknessFormat();
 
         var heightInput = addSteppedField(arrowDialog, {
             label: labelText("fieldLabel.height"), labelWidth: LABEL_WIDTH,
@@ -2310,17 +2344,40 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
          * @returns {void}
          */
         function switchType() {
-            thicknessByType[currentType] = parseFloat(thicknessInput.text);
-            currentType = getCheckedArrowType(typeIcons);
-            var thicknessFormat = (currentType === "fill") ? thicknessFormats.percent : thicknessFormats.strokeWidth;
-            var stepOptions = thicknessInput.stepperGroup.stepOptions;
-            stepOptions.unit = thicknessFormat.unit;
-            stepOptions.min = thicknessFormat.min;
-            stepOptions.max = thicknessFormat.max;
-            writeSteppedValue(thicknessInput, thicknessByType[currentType], stepOptions);
+            var checkedType = getCheckedArrowType(typeIcons);
+            /* option＋クリックで向きだけ変えたときは、太さの欄はそのまま / keep the field when only the direction changed */
+            if (checkedType !== currentType) {
+                thicknessByKind[getThicknessKind(currentType)] = parseFloat(thicknessInput.text);
+                currentType = checkedType;
+                applyThicknessFormat();
+            }
             /* option＋クリックで向きが変わったときのため / the click may have changed the direction */
             syncDirectionToggles();
             refreshPreview();
+        }
+
+        /**
+         * 種類から太さの区分を返す（線の2種類は線幅を共有する）
+         * @param {string} arrowType - 種類（"fill" / "line" / "roundLine"）
+         * @returns {string} "fill" または "stroke"
+         */
+        function getThicknessKind(arrowType) {
+            return (arrowType === "fill") ? "fill" : "stroke";
+        }
+
+        /**
+         * 太さの入力欄を今の種類の単位・範囲に切り替え、その区分で覚えている値を入れる
+         * @returns {void}
+         */
+        function applyThicknessFormat() {
+            var thicknessKind = getThicknessKind(currentType);
+            var thicknessFormat = (thicknessKind === "fill") ? thicknessFormats.percent : thicknessFormats.strokeWidth;
+            var stepOptions = thicknessInput.stepperGroup.stepOptions;
+            stepOptions.step = thicknessFormat.step;
+            stepOptions.unit = thicknessFormat.unit;
+            stepOptions.min = thicknessFormat.min;
+            stepOptions.max = thicknessFormat.max;
+            writeSteppedValue(thicknessInput, thicknessByKind[thicknessKind], stepOptions);
         }
 
         /**
