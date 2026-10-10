@@ -14,6 +14,8 @@ This script scans the selected objects from left to right and places a mark in t
 
 Use it to show the flow or the relationship between elements in a layout.
 
+<img alt="The Place Marks Between Objects dialog" src="../png/ss-706-1050-144-20261011-053633-s.png" width="50%" />
+
 ## Main features
 
 - Nine marks to choose from (`▶` / `>` / `>>` / `─` / `→` / `➡` / `─\` / `＋` / `×`)
