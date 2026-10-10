@@ -27,10 +27,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SymbolizeA
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SymbolizeAndReplace";          /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.11";                      /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.12";                      /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-05-09";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-10";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SymbolizeAndReplace.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SymbolizeAndReplace.md"; /* README (English) */
@@ -1004,7 +1004,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n650a4b91329d"; /* 紹�
     }
 
     /**
-     * シンボルインスタンスを作り、元オブジェクトと基準点どうしが揃うよう移動する
+     * シンボルインスタンスを元オブジェクトの直前に作り、基準点どうしが揃うよう移動する
      * @param {Layer} destinationLayer - 配置先のレイヤー
      * @param {Symbol} destinationSymbol - 配置するシンボル
      * @param {PageItem} targetItem - 位置を合わせる元オブジェクト
@@ -1014,6 +1014,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n650a4b91329d"; /* 紹�
     function createAlignedSymbolItem(destinationLayer, destinationSymbol, targetItem, referencePointIndex) {
         var destinationPosition = getAnchorPointOnBounds(targetItem.visibleBounds, referencePointIndex);
         var newSymbolItem = destinationLayer.symbolItems.add(destinationSymbol);
+        /* レイヤーの最前面に入るので、元オブジェクトの直前へ移してグループ・クリップと重ね順を保つ / Added at the top of the layer; move it just before the original to keep its group, clipping and stacking order */
+        newSymbolItem.move(targetItem, ElementPlacement.PLACEBEFORE);
         var sourcePosition = getAnchorPointOnBounds(newSymbolItem.visibleBounds, referencePointIndex);
         newSymbolItem.translate(destinationPosition[0] - sourcePosition[0], destinationPosition[1] - sourcePosition[1]);
         return newSymbolItem;

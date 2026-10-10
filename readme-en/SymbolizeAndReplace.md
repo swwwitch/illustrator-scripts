@@ -53,7 +53,8 @@ https://note.com/dtp_tranist/n/n650a4b91329d
 - v1.0.9 (2026-10-01): Added space below the button row to match Illustrator's own dialogs
 - v1.0.10 (2026-10-01): The registration point is now picked with the shared anchor widget (nine drawn squares) instead of nine radio buttons. The panel is now titled "Registration Point", and alerts appear only in the UI language. Running with characters selected by the Type tool now does nothing
 - v1.0.11 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
+- v1.0.12 (2026-10-10) Fixed replaced instances leaving their group or clipping group and jumping to the top of the layer; they now keep the original position in the stacking order
 
 ### Script info
 
-- Version: v1.0.11
+- Version: v1.0.12
