@@ -6,8 +6,8 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-選択中の長方形を、その範囲いっぱいの矢印に置き換えます。横長は右向き、縦長は上向きで、種類のボタンを option（Alt）＋クリックすると逆向き、⌘＋option（Ctrl＋Alt）＋クリックすると両矢印になります。
-矢印は塗りのほか、軸と矢じりの線の組み合わせ（線端なし／丸型線端）も選べ、太さは常にプレビューで確認しながら調整できます。
+選択中の長方形や水平な罫線を、その範囲いっぱいの矢印に置き換えます（横長は右向き、縦長は上向き。反転・両矢印も可）。
+矢印は塗りのほか、軸と矢じりの線の組み合わせ（線端なし／丸型線端）も選べ、太さと高さはプレビューで確認しながら調整できます。
 
 詳細は README を参照してください。
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/RectangleToArrow.md
@@ -17,8 +17,8 @@ https://note.com/dtp_tranist/n/n789072361c12
 
 ### Overview
 
-Turns each selected rectangle into an arrow that fills its bounds. Wide rectangles point right, tall ones point up; Option-click (Alt-click) a type button to reverse the direction, Command-Option-click (Ctrl-Alt-click) for a double-headed arrow.
-Choose a filled arrow or one built from a stroked shaft and head (butt or round caps), and adjust the thickness with a live preview.
+Turns each selected rectangle or horizontal rule into an arrow that fills its bounds (wide ones point right, tall ones up; reversed and double-headed arrows are available).
+Choose a filled arrow or one built from a stroked shaft and head (butt or round caps), and adjust the thickness and height with a live preview.
 
 See the README for details.
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RectangleToArrow.md
@@ -29,7 +29,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RectangleT
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "RectangleToArrow";             /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-10";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-10";                   /* 更新日 / last updated */
@@ -47,10 +47,51 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
     // 基本設定 / Settings
     // =========================================
     var DEFAULT_FILL_PERCENT = 45;  /* 塗りの矢印の軸の太さの初期値（短辺に対する％） / initial shaft thickness of the filled arrow (% of the short side) */
-    var DEFAULT_LINE_PERCENT = 15;  /* 線の矢印の線幅の初期値（短辺に対する％） / initial stroke width of the stroked arrow (% of the short side) */
+    var DEFAULT_LINE_PERCENT = 15;  /* 線の矢印の線幅の初期値（1つ目の対象の短辺に対する％を線の単位に換算） / initial stroke width of the stroked arrow (% of the first target's short side, in stroke units) */
+    var DEFAULT_HEIGHT_PERCENT = 100; /* 矢印の高さ（矢じりの幅）の初期値（短辺に対する％） / initial arrow height, i.e. head width (% of the short side) */
+    var LINE_SIDE_RATIO = 1 / 4;    /* 罫線（水平線）を矢印にするときの短辺（線の長さに対する比率） / short side used for a horizontal rule (relative to its length) */
     var HEAD_RATIO = 1 / 2;         /* 矢じりの長さ（短辺に対する比率。1/2 で直角の矢じり） / head length relative to the short side (1/2 gives a right-angled head) */
 
     var TOLERANCE = 0.001;          /* 座標比較の許容値（pt） / tolerance for coordinate comparison (pt) */
+
+    // =========================================
+    // 単位 / Units
+    // =========================================
+
+    /* 単位コードに対応する表示ラベルと、1単位あたりのポイント数
+       Unit code -> display label and points per unit */
+    var UNITS = [
+        { label: "in",    pointsPerUnit: 72 },                /* 0 */
+        { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
+        { label: "pt",    pointsPerUnit: 1 },                 /* 2 */
+        { label: "pica",  pointsPerUnit: 12 },                /* 3 */
+        { label: "cm",    pointsPerUnit: 72 / 2.54 },         /* 4 */
+        { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25 },  /* 5 */
+        { label: "px",    pointsPerUnit: 1 },                 /* 6 */
+        { label: "ft/in", pointsPerUnit: 72 * 12 },           /* 7 */
+        { label: "m",     pointsPerUnit: 72 / 25.4 * 1000 },  /* 8 */
+        { label: "yd",    pointsPerUnit: 72 * 36 },           /* 9 */
+        { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
+    ];
+
+    /* 単位コード5を「歯（H）」と表示する環境設定キー。文字サイズ（text/units）だけ「級（Q）」
+       Preference keys that show unit code 5 as H; only the type size (text/units) shows Q */
+    var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
+
+    /**
+     * 環境設定キーの単位を返す
+     * @param {string} [prefKey] - "rulerType"（既定）/ "strokeUnits" / "text/units" / "text/asianunits"
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位の情報
+     */
+    function getUnitInfo(prefKey) {
+        var unitKey = prefKey || "rulerType";
+        var unitCode = app.preferences.getIntegerPreference(unitKey);
+        /* 未知のコードは pt に寄せる / unknown codes fall back to points */
+        var unit = UNITS[unitCode] || UNITS[2];
+        /* 級（Q）と歯（H）は同じ長さだが、文字サイズは「Q」、距離は「H」と呼び分ける */
+        var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
+        return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
+    }
 
     // =========================================
     // ローカライズ / Localization
@@ -140,7 +181,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
         },
         fieldLabel: {
             arrowType: { ja: "種類", en: "Type" },
-            thickness: { ja: "太さ", en: "Thickness" }
+            thickness: { ja: "太さ", en: "Thickness" },
+            height: { ja: "高さ", en: "Height" }
         },
         button: {
             arrowType: {
@@ -171,9 +213,21 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
                 ja: "⌘＋option（Ctrl＋Alt）＋クリックで両矢印にします。",
                 en: "Command-Option-click (Ctrl-Alt-click) for a double-headed arrow."
             },
+            bothEndsToggle: {
+                ja: "両矢印にします（種類のボタンを ⌘＋option（Ctrl＋Alt）＋クリックしても切り替わります）。",
+                en: "Makes a double-headed arrow (also toggled by Command-Option-clicking (Ctrl-Alt-clicking) a type button)."
+            },
+            reverseToggle: {
+                ja: "矢印の向きを逆にします（種類のボタンを option（Alt）＋クリックしても切り替わります）。両矢印のときは使えません。",
+                en: "Reverses the arrow's direction (also toggled by Option-clicking (Alt-clicking) a type button). Not available for double-headed arrows."
+            },
             thickness: {
-                ja: "塗りは軸の太さ、線は線幅を、長方形の短辺に対する％で指定します。種類ごとに値を覚えます。",
-                en: "Shaft thickness (fill) or stroke width (stroke) as a percentage of the rectangle's short side. Each type keeps its own value."
+                ja: "塗りは軸の太さを長方形の短辺に対する％で、線は線幅を線の単位（環境設定）で指定します。種類ごとに値を覚えます。",
+                en: "Shaft thickness as a percentage of the rectangle's short side (fill), or stroke width in the stroke units set in Preferences (stroke). Each type keeps its own value."
+            },
+            height: {
+                ja: "矢印の高さ（矢じりの幅）を、長方形の短辺に対する％で指定します。軸の太さ・線幅は変わりません。3種類で共通です。",
+                en: "Arrow height (head width) as a percentage of the rectangle's short side. The shaft thickness and stroke width stay the same. Shared by all three types."
             },
             stepUp: {
                 ja: "値を増やす（shift＋クリックで10の倍数へ、option＋クリックで0.1ずつ）",
@@ -189,8 +243,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
         alert: {
             noDocument: { ja: "ドキュメントが開かれていません。", en: "No document is open." },
             noRectangle: {
-                ja: "長方形が選択されていません（回転した長方形・角丸は対象外です）。",
-                en: "No rectangles are selected (rotated or rounded rectangles are not supported)."
+                ja: "長方形または水平線が選択されていません（回転した長方形・角丸・斜めの線は対象外です）。",
+                en: "No rectangles or horizontal lines are selected (rotated or rounded rectangles and slanted lines are not supported)."
             }
         }
     };
@@ -203,6 +257,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
     var TYPE_ICON_SIZE = [96, 32];       /* 種類のボタンの大きさ / arrow type button size */
     var TYPE_ICON_INSET = 5;             /* 種類のボタンの枠と絵の間（px） / gap between a type button's frame and its drawing */
     var TYPE_ICON_SPACING = 6;           /* 種類のボタンどうしの縦の間隔 / vertical spacing between type buttons */
+    var DIRECTION_TOGGLE_SIZE = [30, 30]; /* 両矢印・反転のアイコンの大きさ / double-headed and reverse icon size */
+    var LINK_CHAIN_RATIO = 0.8;          /* リンクアイコンの鎖の大きさ（枠に対する比率） / chain size relative to the link icon */
 
     // UIレイアウト（再利用パーツ） / UI layout (reusable)
 
@@ -930,9 +986,40 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
     }
 
     /**
-     * 選択からグループの中まで含めて長方形を集める
+     * 罫線（水平な直線のオープンパス）かを返す（開いた 2 点・ハンドルなし・両端の高さが同じ）
+     * @param {PageItem} pageItem - 判定するオブジェクト
+     * @returns {boolean} 水平線なら true
+     */
+    function isHorizontalLine(pageItem) {
+        if (pageItem.typename !== "PathItem" || pageItem.closed) return false;
+        var pathPoints = pageItem.pathPoints;
+        if (pathPoints.length !== 2) return false;
+        for (var i = 0; i < 2; i++) {
+            var anchor = pathPoints[i].anchor;
+            if (!isSamePoint(pathPoints[i].leftDirection, anchor) || !isSamePoint(pathPoints[i].rightDirection, anchor)) return false;
+        }
+        var startAnchor = pathPoints[0].anchor, endAnchor = pathPoints[1].anchor;
+        return isNear(startAnchor[1], endAnchor[1]) && !isNear(startAnchor[0], endAnchor[0]);
+    }
+
+    /**
+     * 矢印にする範囲を返す。長方形はそのまま、罫線は高さが 0 なので、線を中心に長さの LINE_SIDE_RATIO の高さを持たせる
+     * @param {PathItem} targetPath - 長方形または罫線のパス
+     * @returns {number[]} [左, 上, 右, 下]
+     */
+    function getArrowBounds(targetPath) {
+        if (targetPath.closed) return targetPath.geometricBounds;
+        var startAnchor = targetPath.pathPoints[0].anchor, endAnchor = targetPath.pathPoints[1].anchor;
+        var left = Math.min(startAnchor[0], endAnchor[0]);
+        var right = Math.max(startAnchor[0], endAnchor[0]);
+        var halfSide = (right - left) * LINE_SIDE_RATIO / 2;
+        return [left, startAnchor[1] + halfSide, right, startAnchor[1] - halfSide];
+    }
+
+    /**
+     * 選択からグループの中まで含めて長方形と罫線（水平線）を集める
      * @param {Array|Object} pageItems - 選択または GroupItem.pageItems
-     * @param {PathItem[]} foundRectangles - 見つかった長方形を追加する配列
+     * @param {PathItem[]} foundRectangles - 見つかったパスを追加する配列
      * @returns {PathItem[]} foundRectangles
      */
     function collectRectangles(pageItems, foundRectangles) {
@@ -941,7 +1028,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
             if (pageItem.locked || pageItem.hidden) continue;
             if (pageItem.typename === "GroupItem") {
                 collectRectangles(pageItem.pageItems, foundRectangles);
-            } else if (isAxisAlignedRectangle(pageItem)) {
+            } else if (isAxisAlignedRectangle(pageItem) || isHorizontalLine(pageItem)) {
                 foundRectangles.push(pageItem);
             }
         }
@@ -957,9 +1044,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
      * u は根元から先端へ向かう距離、v は軸からの横のずれ
      * @param {Array} bounds - geometricBounds [左, 上, 右, 下]
      * @param {boolean} isReversed - 逆向きにするなら true
-     * @returns {{length: number, thickness: number, toPoint: function(number, number): Array}} 長さ・短辺・座標の変換
+     * @param {number} heightRatio - 矢印の高さ（矢じりの幅。短辺に対する比率）
+     * @returns {{length: number, thickness: number, headWidth: number, toPoint: function(number, number): Array}} 長さ・短辺・矢じりの幅・座標の変換
      */
-    function getArrowFrame(bounds, isReversed) {
+    function getArrowFrame(bounds, isReversed, heightRatio) {
         var left = bounds[0], top = bounds[1], right = bounds[2], bottom = bounds[3];
         var width = right - left;
         var height = top - bottom;
@@ -969,6 +1057,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
             return {
                 length: width,
                 thickness: height,
+                headWidth: height * heightRatio,
                 toPoint: function (u, v) { return [isReversed ? right - u : left + u, centerY + v]; }
             };
         }
@@ -977,6 +1066,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
         return {
             length: height,
             thickness: width,
+            headWidth: width * heightRatio,
             toPoint: function (u, v) { return [centerX - v, isReversed ? top - u : bottom + u]; }
         };
     }
@@ -988,7 +1078,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
      * @returns {number} 矢じりの長さ
      */
     function getHeadLength(arrowFrame, isBothEnds) {
-        return Math.min(arrowFrame.thickness * HEAD_RATIO, isBothEnds ? arrowFrame.length / 2 : arrowFrame.length);
+        return Math.min(arrowFrame.headWidth * HEAD_RATIO, isBothEnds ? arrowFrame.length / 2 : arrowFrame.length);
     }
 
     /**
@@ -999,8 +1089,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
      * @returns {Array} 頂点 [[x, y], …] 片矢印は 7 点、両矢印は 10 点
      */
     function buildFilledArrowPoints(arrowFrame, shaftRatio, isBothEnds) {
-        var halfSide = arrowFrame.thickness / 2;
-        var halfShaft = arrowFrame.thickness * shaftRatio / 2;
+        var halfSide = arrowFrame.headWidth / 2;
+        /* 高さを詰めても軸が矢じりからはみ出さないように / keep the shaft within the head when the height is reduced */
+        var halfShaft = Math.min(arrowFrame.thickness * shaftRatio / 2, halfSide);
         var headLength = getHeadLength(arrowFrame, isBothEnds);
         var neck = arrowFrame.length - headLength;
         var tailPoints = isBothEnds
@@ -1023,7 +1114,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
      * @returns {Array} 折れ線の配列 [[[x, y], …], …]
      */
     function buildStrokedArrowLines(arrowFrame, isBothEnds) {
-        var halfSide = arrowFrame.thickness / 2;
+        var halfSide = arrowFrame.headWidth / 2;
         var headLength = getHeadLength(arrowFrame, isBothEnds);
         var neck = arrowFrame.length - headLength;
         var arrowLines = [
@@ -1038,16 +1129,35 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
     }
 
     /**
-     * 塗りまたは線に使う色を返す（塗り → 線 → 黒の順で探す）
+     * 塗りまたは線に使う色を返す。塗りが白でなければ塗り、塗りがなしか白なら線の色、
+     * 線もなければ塗り（白）、どちらもなければ黒
      * @param {PathItem} rectanglePath - 元の長方形
      * @returns {Color} 色
      */
     function getArrowColor(rectanglePath) {
-        if (rectanglePath.filled) return rectanglePath.fillColor;
-        if (rectanglePath.stroked) return rectanglePath.strokeColor;
+        var hasFill = rectanglePath.filled && rectanglePath.fillColor.typename !== "NoColor";
+        var hasStroke = rectanglePath.stroked && rectanglePath.strokeColor.typename !== "NoColor";
+        if (hasFill && !isWhiteColor(rectanglePath.fillColor)) return rectanglePath.fillColor;
+        if (hasStroke) return rectanglePath.strokeColor;
+        if (hasFill) return rectanglePath.fillColor;
         var blackColor = new GrayColor();
         blackColor.gray = 100;
         return blackColor;
+    }
+
+    /**
+     * 白かを返す（RGB・CMYK・グレー・特色。特色は濃度 0% か元の色が白なら白）
+     * @param {Color} color - 判定する色
+     * @returns {boolean} 白なら true
+     */
+    function isWhiteColor(color) {
+        switch (color.typename) {
+            case "RGBColor": return color.red === 255 && color.green === 255 && color.blue === 255;
+            case "CMYKColor": return color.cyan === 0 && color.magenta === 0 && color.yellow === 0 && color.black === 0;
+            case "GrayColor": return color.gray === 0;
+            case "SpotColor": return color.tint === 0 || isWhiteColor(color.spot.color);
+            default: return false;
+        }
     }
 
     /**
@@ -1076,13 +1186,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
     /**
      * 長方形を塗りの矢印に書き換える。元のパスを書き換えるので、効果・重ね順はそのまま残る
      * @param {PathItem} rectanglePath - 長方形のパス
-     * @param {Object} arrowOptions - shaftRatio（軸の太さ。短辺に対する比率）、isReversed、isBothEnds
+     * @param {Object} arrowOptions - shaftRatio（軸の太さ。短辺に対する比率）、heightRatio、isReversed、isBothEnds
      * @returns {PageItem} できた矢印
      */
     function convertToFilledArrow(rectanglePath, arrowOptions) {
         var arrowColor = getArrowColor(rectanglePath);
-        var arrowFrame = getArrowFrame(rectanglePath.geometricBounds, arrowOptions.isReversed);
+        var arrowFrame = getArrowFrame(getArrowBounds(rectanglePath), arrowOptions.isReversed, arrowOptions.heightRatio);
         rectanglePath.setEntirePath(buildFilledArrowPoints(arrowFrame, arrowOptions.shaftRatio, arrowOptions.isBothEnds));
+        rectanglePath.closed = true; /* 罫線は開いたパスなので閉じる / rules are open paths */
         rectanglePath.fillColor = arrowColor;
         rectanglePath.filled = true;
         rectanglePath.stroked = false;
@@ -1094,14 +1205,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
      * 線ごとに［パスのアウトライン］効果を掛けてグループにし、グループに［パスファインダー（合体）］効果を掛ける。
      * パスの形は長方形の範囲に合わせ、線幅のぶんは外へはみ出す
      * @param {PathItem} rectanglePath - 長方形のパス（グループに置き換えて削除する）
-     * @param {Object} arrowOptions - shaftRatio（線幅。短辺に対する比率）、isReversed、isBothEnds
+     * @param {Object} arrowOptions - strokeWidth（線幅。pt）、heightRatio、isReversed、isBothEnds
      * @param {boolean} isRound - 丸型線端・ラウンド結合にするなら true
      * @returns {PageItem} できた矢印（グループ）
      */
     function convertToStrokedArrow(rectanglePath, arrowOptions, isRound) {
-        var arrowFrame = getArrowFrame(rectanglePath.geometricBounds, arrowOptions.isReversed);
+        var arrowFrame = getArrowFrame(getArrowBounds(rectanglePath), arrowOptions.isReversed, arrowOptions.heightRatio);
         var arrowColor = getArrowColor(rectanglePath);
-        var strokeWidth = arrowFrame.thickness * arrowOptions.shaftRatio;
         var arrowLines = buildStrokedArrowLines(arrowFrame, arrowOptions.isBothEnds);
 
         /* 入れ子のグループで効果のメニューコマンドを実行すると一番外側のグループに付くので、
@@ -1111,7 +1221,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
         var linePaths = [];
         for (var i = 0; i < arrowLines.length; i++) {
             var linePath = rectanglePath.duplicate(targetLayer, ElementPlacement.PLACEATBEGINNING);
-            setArrowLine(linePath, arrowLines[i], arrowColor, strokeWidth, isRound);
+            setArrowLine(linePath, arrowLines[i], arrowColor, arrowOptions.strokeWidth, isRound);
             linePaths.push(linePath);
         }
 
@@ -1144,7 +1254,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
     /**
      * 種類に応じて長方形を矢印にする
      * @param {PathItem} rectanglePath - 長方形のパス
-     * @param {Object} arrowOptions - arrowType（"fill" / "line" / "roundLine"）、shaftRatio、isReversed、isBothEnds
+     * @param {Object} arrowOptions - arrowType（"fill" / "line" / "roundLine"）、shaftRatio（塗り）または strokeWidth（線）、heightRatio、isReversed、isBothEnds
      * @returns {PageItem} できた矢印
      */
     function convertToArrow(rectanglePath, arrowOptions) {
@@ -1392,6 +1502,493 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
 
     // ボタン行（再利用パーツ）ここまで / End of the reusable button row
 
+    // リンクアイコン（再利用パーツ） / Link toggle (reusable)
+
+    // -----------------------------------------
+    // リンクアイコンの寸法 / Link toggle metrics
+    // -----------------------------------------
+    var LINK_ICON_SIZE          = [22, 22]; /* アイコンの大きさ / icon size */
+    var LINK_ICON_STROKE        = 1.5;      /* 線幅 / stroke width */
+    var LINK_CUT_DIRECTION      = [1, 0];   /* 連動中の左辺の切れ目の向き（水平）/ direction of the left-leg cut when linked (horizontal) */
+    var LINK_HOOK_CUT_DIRECTION = [0, 1];   /* 連動中の巻き込みの切れ目の向き（垂直）/ direction of the hook cut when linked (vertical) */
+    var LINK_STRAND_COUNT       = 4;        /* 切れ目の向きをそろえるための細い線の本数 / strands used to shape the cuts */
+    var LINK_SLASH_CLEARANCE    = 2.2;      /* 連動OFFの斜線とフックの間（22px 基準）/ gap between the slash and the hooks when unlinked */
+
+    // -----------------------------------------
+    // リンクアイコンの配色 / Link toggle colors
+    // -----------------------------------------
+    var LINK_UI_DARK = isDarkUI();
+    /* ダイアログの地に重ねる半透明の黒・白（UIの明るさの段階に追従する）。値はステップボタンの配色と同じ
+       Translucent overlays that follow the dialog background; same values as the stepper buttons */
+    var LINK_PRESSED_COLOR  = LINK_UI_DARK ? [1, 1, 1, 0.12] : [0, 0, 0, 0.13]; /* 連動中の地 / background while linked */
+    var LINK_FRAME_COLOR    = LINK_UI_DARK ? [1, 1, 1, 0.07] : [0, 0, 0, 0.10]; /* 連動中の枠 / frame while linked */
+    var LINK_ICON_COLOR     = LINK_UI_DARK ? [1, 1, 1, 1]    : [0, 0, 0, 0.70]; /* アイコンの線 / icon strokes */
+    var LINK_DIM_ICON_COLOR = LINK_UI_DARK ? [1, 1, 1, 0.20] : [0, 0, 0, 0.25]; /* 無効時の線 / strokes when disabled */
+
+    // -----------------------------------------
+    // アイコンを作る・切り替える（外から呼ぶ関数） / Public API
+    // -----------------------------------------
+    /**
+     * 連動の ON／OFF を切り替えるリンクアイコンを追加する（onDraw で自作描画）。
+     * クリックで切り替わる。連動中は押し込んだボタンのように地と枠を描く。
+     * @param {Group} parent - 追加先
+     * @param {boolean} initialValue - 連動の初期値
+     * @param {Function} onToggle - 切り替えたあとに呼ぶ関数
+     * @param {number[]} [iconSize] - アイコンの [幅, 高さ]（省略時は LINK_ICON_SIZE。絵は 22px 基準から拡大縮小する）
+     * @param {number} [chainRatio] - 鎖の絵の大きさの比率（省略時は 1。枠・地の大きさは変えず、鎖だけ縮める）
+     * @returns {Group} アイコン（.value で連動中かを読む）
+     */
+    function addLinkToggle(parent, initialValue, onToggle, iconSize, chainRatio) {
+        var toggleSize = iconSize || LINK_ICON_SIZE;
+        var linkToggle = parent.add("group");
+        linkToggle.preferredSize = toggleSize;
+        linkToggle.minimumSize = toggleSize;
+        linkToggle.maximumSize = toggleSize;
+        linkToggle.value = initialValue;
+
+        linkToggle.onDraw = function () {
+            var iconGraphics = linkToggle.graphics;
+            var iconWidth = toggleSize[0];
+            var iconHeight = toggleSize[1];
+            /* 自作描画は自動でディムにならないため、親もたどって判定する / Custom drawing is not dimmed automatically */
+            var isDimmed = !isLinkToggleEnabledInTree(linkToggle);
+            /* 連動中は押し込んだボタンのように地と枠を描く / While linked, draw it like a pressed button */
+            if (linkToggle.value && !isDimmed) {
+                iconGraphics.newPath();
+                iconGraphics.rectPath(0, 0, iconWidth, iconHeight);
+                iconGraphics.fillPath(iconGraphics.newBrush(iconGraphics.BrushType.SOLID_COLOR, LINK_PRESSED_COLOR));
+                iconGraphics.newPath();
+                iconGraphics.rectPath(0.5, 0.5, iconWidth - 1, iconHeight - 1);
+                iconGraphics.strokePath(iconGraphics.newPen(iconGraphics.PenType.SOLID_COLOR, LINK_FRAME_COLOR, 1));
+            }
+            drawLinkIcon(iconGraphics, iconWidth, iconHeight, linkToggle.value, isDimmed ? LINK_DIM_ICON_COLOR : LINK_ICON_COLOR, chainRatio);
+        };
+
+        linkToggle.addEventListener("mousedown", function () {
+            if (!isLinkToggleEnabledInTree(linkToggle)) return;
+            linkToggle.value = !linkToggle.value;
+            redrawLinkToggle(linkToggle);
+            if (onToggle) onToggle();
+        });
+        return linkToggle;
+    }
+
+    /**
+     * 連動の状態をコードから変えて描き直す（onToggle は呼ばない）
+     * @param {Group} linkToggle - addLinkToggle() で作ったアイコン
+     * @param {boolean} isLinked - 連動にするなら true
+     * @returns {void}
+     */
+    function setLinkToggleValue(linkToggle, isLinked) {
+        if (linkToggle.value === isLinked) return;
+        linkToggle.value = isLinked;
+        redrawLinkToggle(linkToggle);
+    }
+
+    /**
+     * アイコンの有効／無効を切り替えて描き直す（変わらないときは描き直さない）
+     * @param {Group} linkToggle - addLinkToggle() で作ったアイコン
+     * @param {boolean} isEnabled - 有効にするなら true
+     * @returns {void}
+     */
+    function setLinkToggleEnabled(linkToggle, isEnabled) {
+        if (linkToggle.enabled === isEnabled) return;
+        linkToggle.enabled = isEnabled;
+        redrawLinkToggle(linkToggle);
+    }
+
+    /**
+     * コントロールと親がすべて有効かを判定する（親の無効化は子の enabled に出ないため、親もたどる）
+     * @param {Object} control - 判定するコントロール
+     * @returns {boolean} すべて有効なら true
+     */
+    function isLinkToggleEnabledInTree(control) {
+        for (var node = control; node; node = node.parent) {
+            if (!node.enabled) return false;
+        }
+        return true;
+    }
+
+    /**
+     * group の onDraw を呼び直す。group には notify() が無いため、隠して再表示して描き直させる
+     * @param {Group} linkToggle - 描き直すアイコン
+     * @returns {void}
+     */
+    function redrawLinkToggle(linkToggle) {
+        linkToggle.hide();
+        linkToggle.show();
+    }
+
+    // -----------------------------------------
+    // アイコンの形 / Icon geometry
+    // -----------------------------------------
+    /**
+     * 連動アイコンを描く。Illustrator の［縦横比を固定］に合わせ、連動中は縦につながったチェーン、
+     * 連動していないときは上下に分かれたチェーンに斜線を重ねる。座標は 22px 四方を基準に拡大縮小する。
+     * @param {ScriptUIGraphics} iconGraphics - 描画先
+     * @param {number} iconWidth - 描画範囲の幅
+     * @param {number} iconHeight - 描画範囲の高さ
+     * @param {boolean} isLinked - 連動中なら true
+     * @param {number[]} iconColor - [r, g, b, a]
+     * @param {number} [chainRatio] - 鎖の大きさの比率（省略時は 1）。中央に置いたまま縮める
+     * @returns {void}
+     */
+    function drawLinkIcon(iconGraphics, iconWidth, iconHeight, isLinked, iconColor, chainRatio) {
+        var iconScale = Math.min(iconWidth, iconHeight) / 22 * (chainRatio || 1);
+        var offsetX = (iconWidth - 22 * iconScale) / 2;
+        var offsetY = (iconHeight - 22 * iconScale) / 2;
+        var strokes = isLinked ? buildLinkedChainStrokes() : buildUnlinkedChainStrokes();
+        for (var i = 0; i < strokes.length; i++) {
+            var strokePoints = strokes[i].points;
+            /* newPath() を呼ばないとパスが前の描画に積み重なる / Without newPath() the paths accumulate */
+            iconGraphics.newPath();
+            for (var j = 0; j < strokePoints.length; j++) {
+                var pointX = offsetX + strokePoints[j][0] * iconScale;
+                var pointY = offsetY + strokePoints[j][1] * iconScale;
+                if (j === 0) iconGraphics.moveTo(pointX, pointY);
+                else iconGraphics.lineTo(pointX, pointY);
+            }
+            iconGraphics.strokePath(iconGraphics.newPen(iconGraphics.PenType.SOLID_COLOR, iconColor, strokes[i].width * iconScale));
+        }
+    }
+
+    /**
+     * 連動中のチェーン（縦に組み合った2つの輪）の線を返す。
+     * 上の輪は左辺の途中から上端を回って右辺を下り、下端で内側へ巻き込む。下の輪はそれを180度回したもの。
+     * 切れ目の向きをそろえるため、輪を細い線の束にし、両端を延ばしてから直線で切る（左辺は水平、巻き込みは垂直）
+     * @returns {Array<{points: Array<number[]>, width: number}>} 線ごとの点列と線幅（22px 四方の座標）
+     */
+    function buildLinkedChainStrokes() {
+        /* 左辺は上端の丸みだけ残して短く切り、下の輪の巻き込みとの間を空ける
+           Keep only a stub on the left so it stays clear of the lower ring's hook */
+        var upperRing = densifyPoints(buildArcPoints(11, 7, 3.5, 3.5, 180, 360)
+            .concat([[14.5, 11.2]])
+            .concat(buildArcPoints(11, 11.2, 3.5, 2.3, 0, 115)));
+        var ringStart = upperRing[0];
+        var ringEnd = upperRing[upperRing.length - 1];
+        var extendedRing = extendPolylineEnds(upperRing, LINK_ICON_STROKE);
+        /* 延ばした先がどちら側かで、切り捨てる側を決める / The extended tips tell which side to cut away */
+        var startOutsideSign = sideOfLine(extendedRing[0], ringStart, LINK_CUT_DIRECTION);
+        var endOutsideSign = sideOfLine(extendedRing[extendedRing.length - 1], ringEnd, LINK_HOOK_CUT_DIRECTION);
+
+        var upperStrands = buildStrandStrokes(extendedRing, function (strandPoints) {
+            var trimmed = trimPolylineTail(strandPoints, ringEnd, LINK_HOOK_CUT_DIRECTION, endOutsideSign);
+            trimmed = trimPolylineTail(trimmed.reverse(), ringStart, LINK_CUT_DIRECTION, startOutsideSign).reverse();
+            return [trimmed];
+        });
+        var strokes = [];
+        for (var i = 0; i < upperStrands.length; i++) {
+            strokes.push(upperStrands[i]);
+            strokes.push({ points: rotatePointsHalfTurn(upperStrands[i].points), width: upperStrands[i].width });
+        }
+        return strokes;
+    }
+
+    /**
+     * 中心線を線幅の中で等分した細い線に分け、clipStrand で切った結果を線として返す。
+     * @param {Array<number[]>} centerline - 中心線の点列
+     * @param {Function} clipStrand - 細い線の点列を受け取り、残す点列の配列を返す関数
+     * @returns {Array<{points: Array<number[]>, width: number}>} 細い線ごとの点列と線幅
+     */
+    function buildStrandStrokes(centerline, clipStrand) {
+        var strandWidth = LINK_ICON_STROKE / LINK_STRAND_COUNT;
+        var strokes = [];
+        for (var k = 0; k < LINK_STRAND_COUNT; k++) {
+            /* 線幅の中を等分した位置に細い線を並べる / Lay the strands evenly across the stroke width */
+            var strandOffset = -LINK_ICON_STROKE / 2 + strandWidth * (k + 0.5);
+            var strandPieces = clipStrand(offsetPolyline(centerline, strandOffset));
+            for (var j = 0; j < strandPieces.length; j++) {
+                /* 隣の線と少し重ねて隙間を埋める / Overlap neighbours slightly so no seams show */
+                if (strandPieces[j].length > 1) strokes.push({ points: strandPieces[j], width: strandWidth * 1.4 });
+            }
+        }
+        return strokes;
+    }
+
+    /**
+     * 点列の両端を、端の向きのまま length だけ延ばす。
+     * @param {Array<number[]>} points - 点列
+     * @param {number} length - 延ばす長さ
+     * @returns {Array<number[]>} 延ばした点列
+     */
+    function extendPolylineEnds(points, length) {
+        /* from から to の向きへ、to から length 先の点 / point length beyond to, heading from from to to */
+        function extendBeyond(from, to) {
+            var dx = to[0] - from[0];
+            var dy = to[1] - from[1];
+            var segmentLength = Math.sqrt(dx * dx + dy * dy) || 1;
+            return [to[0] + dx / segmentLength * length, to[1] + dy / segmentLength * length];
+        }
+        var lastIndex = points.length - 1;
+        return [extendBeyond(points[1], points[0])].concat(points, [extendBeyond(points[lastIndex - 1], points[lastIndex])]);
+    }
+
+    /**
+     * 点が直線のどちら側にあるかを符号で返す。
+     * @param {number[]} point - 点
+     * @param {number[]} linePoint - 直線上の1点
+     * @param {number[]} direction - 直線の向き
+     * @returns {number} 正・負で側を表す値
+     */
+    function sideOfLine(point, linePoint, direction) {
+        return direction[0] * (point[1] - linePoint[1]) - direction[1] * (point[0] - linePoint[0]);
+    }
+
+    /**
+     * 点列の終わり側で、直線より outsideSign の側にはみ出した部分を切り、直線との交点で止める。
+     * 輪の別の場所が同じ直線をまたいでも切らないよう、終わりから数点の範囲だけを見る。
+     * @param {Array<number[]>} points - 点列
+     * @param {number[]} cutPoint - 切る直線上の1点
+     * @param {number[]} direction - 切る直線の向き
+     * @param {number} outsideSign - 切り捨てる側の符号
+     * @returns {Array<number[]>} 切った点列
+     */
+    function trimPolylineTail(points, cutPoint, direction, outsideSign) {
+        var lastIndex = points.length - 1;
+        var searchLimit = Math.max(0, lastIndex - 12);
+        var index = lastIndex;
+        while (index > searchLimit && sideOfLine(points[index], cutPoint, direction) * outsideSign > 0) index--;
+        if (index === lastIndex) return points.slice(0);
+        var inside = points[index];
+        var outside = points[index + 1];
+        var insideSide = sideOfLine(inside, cutPoint, direction);
+        var ratio = insideSide / (insideSide - sideOfLine(outside, cutPoint, direction));
+        return points.slice(0, index + 1).concat([[inside[0] + (outside[0] - inside[0]) * ratio, inside[1] + (outside[1] - inside[1]) * ratio]]);
+    }
+
+    /**
+     * 連動していないときのチェーン（上下に分かれた輪と斜線）の線を返す。
+     * フックは斜線の近くで切る。線の端は進む向きに直角にしか切れないため、フックを細い線の束にして
+     * 1本ずつ斜線と平行な境界で切り、切り口が斜線に沿って見えるようにする。
+     * @returns {Array<{points: Array<number[]>, width: number}>} 線ごとの点列と線幅（22px 四方の座標）
+     */
+    function buildUnlinkedChainStrokes() {
+        var slashStart = [3.5, 3.5];
+        var slashEnd = [18.5, 18.5];
+        var upperHook = densifyPoints(buildArcPoints(11, 7, 3.5, 3.5, 180, 360).concat([[14.5, 11.5]]));
+        var hooks = [upperHook, rotatePointsHalfTurn(upperHook)];
+
+        /* 斜線の近くの帯を切り取る / Cut away the band around the slash */
+        function clipAroundSlash(strandPoints) {
+            return clipOutsideBand(strandPoints, slashStart, slashEnd, LINK_SLASH_CLEARANCE);
+        }
+        var strokes = buildStrandStrokes(hooks[0], clipAroundSlash).concat(buildStrandStrokes(hooks[1], clipAroundSlash));
+        strokes.push({ points: [slashStart, slashEnd], width: LINK_ICON_STROKE });
+        return strokes;
+    }
+
+    /**
+     * 点の間隔が 0.5 以下になるよう、線分の間に点を足す。
+     * @param {Array<number[]>} points - 点列
+     * @returns {Array<number[]>} 細かくした点列
+     */
+    function densifyPoints(points) {
+        var densePoints = [points[0]];
+        for (var i = 1; i < points.length; i++) {
+            var from = points[i - 1];
+            var to = points[i];
+            var steps = Math.max(1, Math.ceil(Math.sqrt(Math.pow(to[0] - from[0], 2) + Math.pow(to[1] - from[1], 2)) / 0.5));
+            for (var j = 1; j <= steps; j++) {
+                densePoints.push([from[0] + (to[0] - from[0]) * j / steps, from[1] + (to[1] - from[1]) * j / steps]);
+            }
+        }
+        return densePoints;
+    }
+
+    /**
+     * 点列を、進む向きの左側へ offset だけずらした点列を返す（負の値なら右側）。
+     * @param {Array<number[]>} points - 点列
+     * @param {number} offset - ずらす距離
+     * @returns {Array<number[]>} ずらした点列
+     */
+    function offsetPolyline(points, offset) {
+        var shifted = [];
+        for (var i = 0; i < points.length; i++) {
+            var before = points[Math.max(0, i - 1)];
+            var after = points[Math.min(points.length - 1, i + 1)];
+            var tangentX = after[0] - before[0];
+            var tangentY = after[1] - before[1];
+            var tangentLength = Math.sqrt(tangentX * tangentX + tangentY * tangentY) || 1;
+            shifted.push([points[i][0] - tangentY / tangentLength * offset, points[i][1] + tangentX / tangentLength * offset]);
+        }
+        return shifted;
+    }
+
+    /**
+     * 直線（線分を延長したもの）から clearance 未満の帯に入る部分を切り取り、残りを点列に分けて返す。
+     * 帯の境界で線分を補間して切るので、切り口は直線と平行にそろう。
+     * @param {Array<number[]>} points - 点列
+     * @param {number[]} lineStart - 直線上の1点
+     * @param {number[]} lineEnd - 直線上のもう1点
+     * @param {number} clearance - 空ける距離
+     * @returns {Array<Array<number[]>>} 帯の外側に残った点列（2点未満のものは除く）
+     */
+    function clipOutsideBand(points, lineStart, lineEnd, clearance) {
+        var directionX = lineEnd[0] - lineStart[0];
+        var directionY = lineEnd[1] - lineStart[1];
+        var directionLength = Math.sqrt(directionX * directionX + directionY * directionY);
+
+        /* 直線からの符号付き距離 / signed distance from the line */
+        function signedDistance(point) {
+            return (directionX * (point[1] - lineStart[1]) - directionY * (point[0] - lineStart[0])) / directionLength;
+        }
+        /* 2点の間で、距離が boundary になる点 / point between two points where the distance equals boundary */
+        function interpolateAt(from, to, fromDistance, toDistance, boundary) {
+            var ratio = (boundary - fromDistance) / (toDistance - fromDistance);
+            return [from[0] + (to[0] - from[0]) * ratio, from[1] + (to[1] - from[1]) * ratio];
+        }
+
+        var pieces = [];
+        var currentPiece = [];
+        for (var i = 0; i < points.length; i++) {
+            var distance = signedDistance(points[i]);
+            var isOutside = Math.abs(distance) >= clearance;
+            if (i > 0) {
+                var previousDistance = signedDistance(points[i - 1]);
+                var wasOutside = Math.abs(previousDistance) >= clearance;
+                if (wasOutside && !isOutside) {
+                    /* 帯に入る: 境界で止める / entering the band: stop at the boundary */
+                    currentPiece.push(interpolateAt(points[i - 1], points[i], previousDistance, distance, previousDistance > 0 ? clearance : -clearance));
+                    if (currentPiece.length > 1) pieces.push(currentPiece);
+                    currentPiece = [];
+                } else if (!wasOutside && isOutside) {
+                    /* 帯から出る: 境界から始める / leaving the band: start at the boundary */
+                    currentPiece = [interpolateAt(points[i - 1], points[i], previousDistance, distance, distance > 0 ? clearance : -clearance)];
+                }
+            }
+            if (isOutside) currentPiece.push(points[i]);
+        }
+        if (currentPiece.length > 1) pieces.push(currentPiece);
+        return pieces;
+    }
+
+    /**
+     * 楕円弧の点列を返す（角度は右が0度、下が90度の画面座標）。
+     * @param {number} centerX - 中心X
+     * @param {number} centerY - 中心Y
+     * @param {number} radiusX - 横の半径
+     * @param {number} radiusY - 縦の半径
+     * @param {number} startDegrees - 開始角度
+     * @param {number} endDegrees - 終了角度
+     * @returns {Array<number[]>} 点列
+     */
+    function buildArcPoints(centerX, centerY, radiusX, radiusY, startDegrees, endDegrees) {
+        var arcSteps = 12;
+        var arcPoints = [];
+        for (var i = 0; i <= arcSteps; i++) {
+            var angle = (startDegrees + (endDegrees - startDegrees) * i / arcSteps) * Math.PI / 180;
+            arcPoints.push([centerX + radiusX * Math.cos(angle), centerY + radiusY * Math.sin(angle)]);
+        }
+        return arcPoints;
+    }
+
+    /**
+     * 点列を 22px 四方の中心で180度回す。
+     * @param {Array<number[]>} points - 点列
+     * @returns {Array<number[]>} 回した点列
+     */
+    function rotatePointsHalfTurn(points) {
+        var rotated = [];
+        for (var i = 0; i < points.length; i++) {
+            rotated.push([22 - points[i][0], 22 - points[i][1]]);
+        }
+        return rotated;
+    }
+
+    // リンクアイコン（再利用パーツ）ここまで / End of the reusable link toggle
+
+    // =========================================
+    // 向きのアイコン（両矢印・反転） / Direction toggles (double-headed, reverse)
+    // =========================================
+    /* SmartStrokeSettings の［終点も同じ］［入れ替え］と同じ見た目 / same look as Same at end and Swap in SmartStrokeSettings */
+
+    /**
+     * 始点と終点の入れ替えアイコン（⇄）を追加する。見た目と操作はリンクアイコンにそろえる
+     * （オンのときは押し込んだボタンのように地と枠を描く。配色・描き直しはリンクアイコンの部品を使う）
+     * @param {Group} parent - 追加先
+     * @param {boolean} initialValue - 初期値
+     * @param {Function} onToggle - 切り替えたあとに呼ぶ関数
+     * @param {number[]} [iconSize] - [幅, 高さ]（省略時は LINK_ICON_SIZE）
+     * @returns {Group} アイコン（.value でオンかを読む）
+     */
+    function addSwapToggle(parent, initialValue, onToggle, iconSize) {
+        var toggleSize = iconSize || LINK_ICON_SIZE;
+        var swapToggle = parent.add("group");
+        swapToggle.preferredSize = toggleSize;
+        swapToggle.minimumSize = toggleSize;
+        swapToggle.maximumSize = toggleSize;
+        swapToggle.value = initialValue;
+
+        swapToggle.onDraw = function () {
+            var iconGraphics = swapToggle.graphics;
+            var iconWidth = toggleSize[0];
+            var iconHeight = toggleSize[1];
+            var isDimmed = !isLinkToggleEnabledInTree(swapToggle);
+            if (swapToggle.value && !isDimmed) {
+                iconGraphics.newPath();
+                iconGraphics.rectPath(0, 0, iconWidth, iconHeight);
+                iconGraphics.fillPath(iconGraphics.newBrush(iconGraphics.BrushType.SOLID_COLOR, LINK_PRESSED_COLOR));
+                iconGraphics.newPath();
+                iconGraphics.rectPath(0.5, 0.5, iconWidth - 1, iconHeight - 1);
+                iconGraphics.strokePath(iconGraphics.newPen(iconGraphics.PenType.SOLID_COLOR, LINK_FRAME_COLOR, 1));
+            }
+            drawSwapIcon(iconGraphics, iconWidth, iconHeight, isDimmed ? LINK_DIM_ICON_COLOR : LINK_ICON_COLOR);
+        };
+
+        swapToggle.addEventListener("mousedown", function () {
+            if (!isLinkToggleEnabledInTree(swapToggle)) return;
+            swapToggle.value = !swapToggle.value;
+            redrawLinkToggle(swapToggle);
+            if (onToggle) onToggle();
+        });
+        return swapToggle;
+    }
+
+    /**
+     * ⇄ を描く（22px 基準の絵を大きさに合わせて拡大し、中央に置く。右向きの矢印を上、左向きの矢印を下）。
+     * ScriptUI は多角形を塗れないため、矢じりは細い長方形を並べて三角形に近づける
+     * @param {ScriptUIGraphics} iconGraphics - 描画先
+     * @param {number} iconWidth - アイコンの幅
+     * @param {number} iconHeight - アイコンの高さ
+     * @param {number[]} iconColor - [r, g, b, a]
+     * @returns {void}
+     */
+    function drawSwapIcon(iconGraphics, iconWidth, iconHeight, iconColor) {
+        var iconScale = Math.min(iconWidth, iconHeight) / 22;
+        var offsetX = (iconWidth - 22 * iconScale) / 2;
+        var offsetY = (iconHeight - 22 * iconScale) / 2;
+        /** 22px 基準の x を描画先へ / map a 22 px based x */
+        function mapX(x) { return offsetX + x * iconScale; }
+        /** 22px 基準の y を描画先へ / map a 22 px based y */
+        function mapY(y) { return offsetY + y * iconScale; }
+        iconGraphics.newPath();
+        iconGraphics.rectPath(mapX(5.5), mapY(7.2), 6 * iconScale, 2 * iconScale);   /* 上の矢印の軸 / upper shaft */
+        addArrowHeadPath(iconGraphics, mapX(11.5), mapX(17), mapY(8.2), 2.8 * iconScale);
+        iconGraphics.rectPath(mapX(9.3), mapY(13), 6 * iconScale, 2 * iconScale);    /* 下の矢印の軸 / lower shaft */
+        addArrowHeadPath(iconGraphics, mapX(9.3), mapX(3.8), mapY(14), 2.8 * iconScale);
+        iconGraphics.fillPath(iconGraphics.newBrush(iconGraphics.BrushType.SOLID_COLOR, iconColor));
+    }
+
+    /**
+     * 矢じり（三角形）を細い長方形の並びでパスに足す
+     * @param {ScriptUIGraphics} iconGraphics - 描画先
+     * @param {number} baseX - 矢じりの付け根の x
+     * @param {number} tipX - 先端の x
+     * @param {number} centerY - 中心の y
+     * @param {number} halfHeight - 付け根の高さの半分
+     * @returns {void}
+     */
+    function addArrowHeadPath(iconGraphics, baseX, tipX, centerY, halfHeight) {
+        var sliceCount = 12;
+        var sliceWidth = Math.abs(tipX - baseX) / sliceCount;
+        var direction = (tipX > baseX) ? 1 : -1;
+        for (var k = 0; k < sliceCount; k++) {
+            var sliceStart = baseX + direction * sliceWidth * k;
+            var sliceHalf = halfHeight * (1 - (k + 0.5) / sliceCount);
+            iconGraphics.rectPath(direction > 0 ? sliceStart : sliceStart - sliceWidth, centerY - sliceHalf, sliceWidth, sliceHalf * 2);
+        }
+    }
+
     // =========================================
     // 種類のボタン / Arrow type buttons
     // =========================================
@@ -1476,7 +2073,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
             var isCommandAltClick = isAltClick && !!(mouseEvent.metaKey || mouseEvent.ctrlKey);
             if (typeIcon.value && !isAltClick) return;
             if (isCommandAltClick) typeIcon.typeState.isBothEnds = !typeIcon.typeState.isBothEnds;
-            else if (isAltClick) typeIcon.typeState.isReversed = !typeIcon.typeState.isReversed;
+            /* 両矢印は向きを逆にしても同じ形なので、反転は切り替えない / reversing a double-headed arrow changes nothing */
+            else if (isAltClick && !typeIcon.typeState.isBothEnds) typeIcon.typeState.isReversed = !typeIcon.typeState.isReversed;
             for (var i = 0; i < typeIcons.length; i++) {
                 typeIcons[i].value = (typeIcons[i] === typeIcon);
                 redrawStepperGroup(typeIcons[i]);
@@ -1613,14 +2211,22 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
     // =========================================
 
     /**
-     * 矢印の種類と太さを指定するダイアログボックスを表示する
+     * 矢印の種類・太さ・高さを指定するダイアログボックスを表示する
      * @param {Array} rectangles - 対象の長方形（プレビューに使う）
-     * @returns {Object|null} arrowType・shaftRatio・isReversed・isBothEnds。キャンセルなら null
+     * @returns {Object|null} arrowType・shaftRatio（塗り）・strokeWidth（線）・heightRatio・isReversed・isBothEnds。キャンセルなら null
      */
     function showArrowDialog(rectangles) {
         var arrowPreview = createArrowPreview(rectangles);
-        /* 種類ごとに太さを覚え、切り替えたら戻す / remember the thickness per type */
-        var percentByType = { fill: DEFAULT_FILL_PERCENT, line: DEFAULT_LINE_PERCENT, roundLine: DEFAULT_LINE_PERCENT };
+        /* 線幅は環境設定の線の単位で入力する / stroke widths use the stroke units from Preferences */
+        var strokeUnit = getUnitInfo("strokeUnits");
+        var firstShortSide = getArrowFrame(getArrowBounds(rectangles[0]), false, 1).thickness;
+        var defaultLineWidth = Math.round(firstShortSide * DEFAULT_LINE_PERCENT / 100 / strokeUnit.pointsPerUnit * 10) / 10;
+        /* 種類ごとに太さを覚え、切り替えたら戻す（塗りは％、線は線の単位） / remember the thickness per type (% for fill, stroke units for strokes) */
+        var thicknessByType = { fill: DEFAULT_FILL_PERCENT, line: defaultLineWidth, roundLine: defaultLineWidth };
+        var thicknessFormats = {
+            percent: { unit: "%", min: 1, max: 100 },
+            strokeWidth: { unit: " " + strokeUnit.label, min: 0.01, max: 1000 / strokeUnit.pointsPerUnit }
+        };
         var currentType = "fill";
 
         var arrowDialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
@@ -1635,20 +2241,40 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
         var typeIcons = addArrowTypeIcons(typeRow, currentType, switchType);
         var typeState = typeIcons[0].typeState;
 
+        /* 両矢印・反転のアイコンは種類のボタンの下に並べる / double-headed and reverse toggles under the type buttons */
+        var directionRow = typeIcons[0].parent.add("group");
+        setupRow(directionRow, "left", TYPE_ICON_SPACING);
+        var bothEndsToggle = addLinkToggle(directionRow, typeState.isBothEnds, function () {
+            typeState.isBothEnds = bothEndsToggle.value;
+            syncDirectionToggles();
+            refreshPreview();
+        }, DIRECTION_TOGGLE_SIZE, LINK_CHAIN_RATIO);
+        bothEndsToggle.helpTip = getLabel("tooltip.bothEndsToggle");
+        var reverseToggle = addSwapToggle(directionRow, typeState.isReversed, function () {
+            typeState.isReversed = reverseToggle.value;
+            syncDirectionToggles();
+            refreshPreview();
+        }, DIRECTION_TOGGLE_SIZE);
+        reverseToggle.helpTip = getLabel("tooltip.reverseToggle");
+
         var thicknessInput = addSteppedField(arrowDialog, {
             label: labelText("fieldLabel.thickness"), labelWidth: LABEL_WIDTH,
-            text: percentByType.fill + "%", characters: FIELD_CHARACTERS,
+            text: thicknessByType.fill + "%", characters: FIELD_CHARACTERS,
             step: 1, min: 1, max: 100, unit: "%",
             onStep: function () { refreshPreview(); }
         });
         thicknessInput.helpTip = getLabel("tooltip.thickness");
 
-        /* 直接入力でも描き直す。部品の onChange（値の正規化）のあとに呼ぶ / redraw on typed input too, after the part's own normalizing onChange */
-        var normalizeThicknessInput = thicknessInput.onChange;
-        thicknessInput.onChange = function () {
-            normalizeThicknessInput();
-            refreshPreview();
-        };
+        redrawPreviewOnChange(thicknessInput);
+
+        var heightInput = addSteppedField(arrowDialog, {
+            label: labelText("fieldLabel.height"), labelWidth: LABEL_WIDTH,
+            text: DEFAULT_HEIGHT_PERCENT + "%", characters: FIELD_CHARACTERS,
+            step: 1, min: 1, max: 500, unit: "%",
+            onStep: function () { refreshPreview(); }
+        });
+        heightInput.helpTip = getLabel("tooltip.height");
+        redrawPreviewOnChange(heightInput);
 
         /* ボタン行は左右中央に置く / center the button row */
         var buttonRow = addButtonRow(arrowDialog, { centered: true });
@@ -1656,25 +2282,58 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
         buttonRow.rowGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
 
         /**
-         * 選ばれた種類に切り替え、その種類で覚えている太さを入力欄に戻す
+         * 両矢印・反転のアイコンと種類のボタンの絵を、今の向きに合わせて描き直す（両矢印のときは反転をディム）
+         * @returns {void}
+         */
+        function syncDirectionToggles() {
+            setLinkToggleValue(bothEndsToggle, typeState.isBothEnds);
+            setLinkToggleValue(reverseToggle, typeState.isReversed);
+            setLinkToggleEnabled(reverseToggle, !typeState.isBothEnds);
+            for (var i = 0; i < typeIcons.length; i++) redrawStepperGroup(typeIcons[i]);
+        }
+
+        /**
+         * 入力欄の直接入力でもプレビューを描き直す（部品の onChange による値の正規化のあとに呼ぶ）
+         * @param {EditText} numberInput - addSteppedField() で作った入力欄
+         * @returns {void}
+         */
+        function redrawPreviewOnChange(numberInput) {
+            var normalizeInput = numberInput.onChange;
+            numberInput.onChange = function () {
+                normalizeInput();
+                refreshPreview();
+            };
+        }
+
+        /**
+         * 選ばれた種類に切り替え、その種類で覚えている太さを入力欄に戻す（塗りは％、線は線の単位に切り替える）
          * @returns {void}
          */
         function switchType() {
-            percentByType[currentType] = parseFloat(thicknessInput.text);
+            thicknessByType[currentType] = parseFloat(thicknessInput.text);
             currentType = getCheckedArrowType(typeIcons);
-            thicknessInput.text = percentByType[currentType] + "%";
-            thicknessInput.lastValidText = thicknessInput.text;
+            var thicknessFormat = (currentType === "fill") ? thicknessFormats.percent : thicknessFormats.strokeWidth;
+            var stepOptions = thicknessInput.stepperGroup.stepOptions;
+            stepOptions.unit = thicknessFormat.unit;
+            stepOptions.min = thicknessFormat.min;
+            stepOptions.max = thicknessFormat.max;
+            writeSteppedValue(thicknessInput, thicknessByType[currentType], stepOptions);
+            /* option＋クリックで向きが変わったときのため / the click may have changed the direction */
+            syncDirectionToggles();
             refreshPreview();
         }
 
         /**
          * 今の指定を返す
-         * @returns {Object} arrowType・shaftRatio（短辺に対する比率）・isReversed・isBothEnds
+         * @returns {Object} arrowType・shaftRatio（塗り。短辺に対する比率）・strokeWidth（線。pt）・heightRatio（短辺に対する比率）・isReversed・isBothEnds
          */
         function getArrowOptions() {
+            var thicknessValue = parseFloat(thicknessInput.text);
             return {
                 arrowType: currentType,
-                shaftRatio: parseFloat(thicknessInput.text) / 100,
+                shaftRatio: thicknessValue / 100,
+                strokeWidth: thicknessValue * strokeUnit.pointsPerUnit,
+                heightRatio: parseFloat(heightInput.text) / 100,
                 isReversed: typeState.isReversed,
                 isBothEnds: typeState.isBothEnds
             };
