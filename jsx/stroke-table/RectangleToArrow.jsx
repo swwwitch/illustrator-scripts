@@ -29,7 +29,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RectangleT
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "RectangleToArrow";             /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.2.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.2.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-10";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-12";                   /* 更新日 / last updated */
@@ -49,7 +49,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
     var DEFAULT_FILL_PERCENT = 45;  /* 塗りの矢印の軸の太さの初期値（短辺に対する％） / initial shaft thickness of the filled arrow (% of the short side) */
     var DEFAULT_LINE_PERCENT = 15;  /* 線の矢印の線幅の初期値（1つ目の対象の短辺に対する％を線の単位に換算） / initial stroke width of the stroked arrow (% of the first target's short side, in stroke units) */
     var DEFAULT_HEIGHT_PERCENT = 100; /* 矢印の高さ（矢じりの幅）の初期値（短辺に対する％） / initial arrow height, i.e. head width (% of the short side) */
-    var DEFAULT_TIP_ANGLE = 90;     /* ホームベースの先端の角度の初期値（度） / initial tip angle of the pentagon (degrees) */
+    var DEFAULT_TIP_ANGLE = 45;     /* ホームベースの先端の角度の初期値（度。軸に対する斜辺の角度で、45° で直角の先端） / initial tip angle of the pentagon (degrees between the axis and a slanted side; 45 gives a right-angled tip) */
     var LINE_SIDE_RATIO = 1 / 4;    /* 罫線（直線）を矢印にするときの短辺（線の長さに対する比率） / short side used for a rule (relative to its length) */
     var HEAD_RATIO = 1 / 2;         /* 矢じりの長さ（短辺に対する比率。1/2 で直角の矢じり） / head length relative to the short side (1/2 gives a right-angled head) */
 
@@ -237,8 +237,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
                 en: "Arrow height (head width) as a percentage of the rectangle's short side. The shaft thickness and stroke width stay the same (a filled shaft is never wider than the height). Shared by the fill and stroke types; not used for the pentagon."
             },
             tipAngle: {
-                ja: "ホームベースの先端の角度を指定します（1〜179°）。長方形が短くて収まらないときは、先端が鈍くなります。",
-                en: "Tip angle of the pentagon (1–179°). When the rectangle is too short for it, the tip becomes blunter."
+                ja: "ホームベースの先端の角度を、軸に対する斜辺の角度で指定します（1〜89°。45° で直角の先端）。長方形が短くて収まらないときは、先端が鈍くなります。",
+                en: "Tip angle of the pentagon, measured between the axis and a slanted side (1–89°; 45° gives a right-angled tip). When the rectangle is too short for it, the tip becomes blunter."
             },
             stepUp: {
                 ja: "値を増やす（shift＋クリックで10の倍数へ、option＋クリックで0.1ずつ）",
@@ -1201,14 +1201,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
 
     /**
      * ホームベース（長方形の一端をとがらせた形）の頂点を求める。軸と矢じりが短辺いっぱいの塗りの矢印として作り、
-     * 先端を tipAngle の角度にとがらせる（長方形が短いときは getHeadLength() で止まり、先端は鈍くなる）
+     * 斜辺が軸に対して tipAngle の角度になるようにとがらせる（長方形が短いときは getHeadLength() で止まり、先端は鈍くなる）
      * @param {Object} arrowFrame - getArrowFrame() の戻り値（heightRatio は 1）
-     * @param {number} tipAngle - 先端の角度（度）
+     * @param {number} tipAngle - 先端の角度（度。軸に対する斜辺の角度で、先端の頂角の半分）
      * @param {boolean} isBothEnds - 両端をとがらせるなら true
      * @returns {Array} 頂点 [[x, y], …] 片側は 5 点、両側は 6 点
      */
     function buildPentagonPoints(arrowFrame, tipAngle, isBothEnds) {
-        var tipLength = (arrowFrame.headWidth / 2) / Math.tan(tipAngle / 2 * Math.PI / 180);
+        var tipLength = (arrowFrame.headWidth / 2) / Math.tan(tipAngle * Math.PI / 180);
         return buildFilledArrowPoints(arrowFrame, 1, isBothEnds, tipLength);
     }
 
@@ -1340,7 +1340,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
     /**
      * 長方形をホームベース（一端をとがらせた形）に書き換える。元のパスを書き換えるので、効果・重ね順はそのまま残る
      * @param {PathItem} rectanglePath - 長方形のパス
-     * @param {Object} arrowOptions - tipAngle（先端の角度。度）、isReversed、isBothEnds
+     * @param {Object} arrowOptions - tipAngle（先端の角度。軸に対する斜辺の角度、度）、isReversed、isBothEnds
      * @returns {PageItem} できたホームベース
      */
     function convertToPentagonArrow(rectanglePath, arrowOptions) {
@@ -2444,7 +2444,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
         var tipAngleInput = addSteppedField(arrowDialog, {
             label: labelText("fieldLabel.tipAngle"), labelWidth: LABEL_WIDTH,
             text: DEFAULT_TIP_ANGLE + "°", characters: FIELD_CHARACTERS,
-            step: 1, min: 1, max: 179, unit: "°",
+            step: 1, min: 1, max: 89, unit: "°",
             onStep: function () { refreshPreview(); }
         });
         tipAngleInput.helpTip = getLabel("tooltip.tipAngle");

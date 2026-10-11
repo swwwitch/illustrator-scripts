@@ -14,7 +14,7 @@
 - Choose Fill, Pentagon, Stroke (Butt Cap) or Stroke (Round Cap), and adjust the thickness, height and angle with a live preview.
 - Reverse the direction or make a double-headed arrow with the icons, or by modifier-clicking a type button.
 
-<img alt="The Rectangle to Arrow dialog" src="../png/ss-430-518-144-20261010-165317-s.png" width="50%" />
+<img alt="The Rectangle to Arrow dialog" src="../png/ss-430-802-144-20261012-011629-s.png" width="50%" />
 
 ### Features
 
@@ -48,7 +48,7 @@
 
 #### Angle
 
-- The tip angle of the pentagon (1–179°, starting at 90°). Available only for Pentagon
+- The tip angle of the pentagon, measured between the axis and a slanted side (1–89°, starting at 45°). 45° gives a right-angled tip; smaller values make it sharper. Available only for Pentagon
 - When the rectangle is too short for the angle, the point is capped at the full length (single) or half the length (both ends), so the tip gets blunter
 
 #### Rules
@@ -87,6 +87,7 @@ https://note.com/dtp_tranist/n/n789072361c12
 
 ### Update History
 
+- v1.2.2 (2026-10-12) Pentagon's Angle is now the angle between the axis and a slanted side instead of the full tip angle (a right-angled tip is now 45° instead of 90°). The shapes are unchanged
 - v1.2.1 (2026-10-12) Fixed squares rotated 45° pointing different ways depending on their anchor order (they now point up-right). The Pentagon button drawing is now easier to tell apart from Fill
 - v1.2.0 (2026-10-12) Added the Pentagon type, with its tip angle set by Angle. Rotated rectangles and slanted or vertical rules are now supported
 - v1.1.1 (2026-10-11) For horizontal rules, the dialog now starts with the stroke (butt cap) type and keeps the rule's stroke weight. Fixed stroked arrows inheriting the rule's arrowheads and width profile, overlapping anchor points at extreme heights, and missed white fills. The default stroke width and step now suit the stroke unit. Switching between the two stroke types keeps the stroke width
@@ -95,6 +96,6 @@ https://note.com/dtp_tranist/n/n789072361c12
 
 ### Script info
 
-- Version: v1.2.1
+- Version: v1.2.2
 - First release: 2026-10-10
 - Last updated: 2026-10-12
