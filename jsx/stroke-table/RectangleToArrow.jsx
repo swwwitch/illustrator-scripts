@@ -6,8 +6,8 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-選択中の長方形や水平な罫線を、その範囲いっぱいの矢印に置き換えます（横長は右向き、縦長は上向き。反転・両矢印も可）。
-矢印は塗りのほか、軸と矢じりの線の組み合わせ（線端なし／丸型線端）も選べ、太さと高さはプレビューで確認しながら調整できます。
+選択中の長方形や罫線（回転・斜めも可）を、その範囲いっぱいの矢印に置き換えます。
+種類は塗り・ホームベース・線（線端なし／丸型線端）の4つで、太さ・高さ・角度をプレビューで確認しながら調整できます。
 
 詳細は README を参照してください。
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/RectangleToArrow.md
@@ -17,8 +17,8 @@ https://note.com/dtp_tranist/n/n789072361c12
 
 ### Overview
 
-Turns each selected rectangle or horizontal rule into an arrow that fills its bounds (wide ones point right, tall ones up; reversed and double-headed arrows are available).
-Choose a filled arrow or one built from a stroked shaft and head (butt or round caps), and adjust the thickness and height with a live preview.
+Turns each selected rectangle or rule (rotated or slanted ones too) into an arrow that fills its bounds.
+Choose Fill, Pentagon, or Stroke (butt or round cap), and adjust the thickness, height and angle with a live preview.
 
 See the README for details.
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RectangleToArrow.md
@@ -29,10 +29,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RectangleT
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "RectangleToArrow";             /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.2.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-10";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-11";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-12";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/RectangleToArrow.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RectangleToArrow.md"; /* README (English) */
@@ -49,7 +49,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
     var DEFAULT_FILL_PERCENT = 45;  /* 塗りの矢印の軸の太さの初期値（短辺に対する％） / initial shaft thickness of the filled arrow (% of the short side) */
     var DEFAULT_LINE_PERCENT = 15;  /* 線の矢印の線幅の初期値（1つ目の対象の短辺に対する％を線の単位に換算） / initial stroke width of the stroked arrow (% of the first target's short side, in stroke units) */
     var DEFAULT_HEIGHT_PERCENT = 100; /* 矢印の高さ（矢じりの幅）の初期値（短辺に対する％） / initial arrow height, i.e. head width (% of the short side) */
-    var LINE_SIDE_RATIO = 1 / 4;    /* 罫線（水平線）を矢印にするときの短辺（線の長さに対する比率） / short side used for a horizontal rule (relative to its length) */
+    var DEFAULT_TIP_ANGLE = 90;     /* ホームベースの先端の角度の初期値（度） / initial tip angle of the pentagon (degrees) */
+    var LINE_SIDE_RATIO = 1 / 4;    /* 罫線（直線）を矢印にするときの短辺（線の長さに対する比率） / short side used for a rule (relative to its length) */
     var HEAD_RATIO = 1 / 2;         /* 矢じりの長さ（短辺に対する比率。1/2 で直角の矢じり） / head length relative to the short side (1/2 gives a right-angled head) */
 
     var TOLERANCE = 0.001;          /* 座標比較の許容値（pt） / tolerance for coordinate comparison (pt) */
@@ -182,11 +183,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
         fieldLabel: {
             arrowType: { ja: "種類", en: "Type" },
             thickness: { ja: "太さ", en: "Thickness" },
-            height: { ja: "高さ", en: "Height" }
+            height: { ja: "高さ", en: "Height" },
+            tipAngle: { ja: "角度", en: "Angle" }
         },
         button: {
             arrowType: {
                 fill: { ja: "塗り", en: "Fill" },
+                pentagon: { ja: "ホームベース", en: "Pentagon" },
                 line: { ja: "線（線端なし）", en: "Stroke (Butt Cap)" },
                 roundLine: { ja: "線（丸型線端）", en: "Stroke (Round Cap)" }
             },
@@ -196,6 +199,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
         tooltip: {
             arrowType: {
                 fill: { ja: "塗りの矢印にします。", en: "Makes a filled arrow." },
+                pentagon: {
+                    ja: "長方形の一端をとがらせた、塗りのホームベース型にします。先端の角度は［角度］で指定します。",
+                    en: "Makes a filled pentagon by pointing one end of the rectangle. Set the tip angle with Angle."
+                },
                 line: {
                     ja: "軸の直線とくの字の矢じりを、線端なし・マイター結合の線で組み、［パスのアウトライン］と［パスファインダー（合体）］の効果で1つの形にします。",
                     en: "Builds the arrow from a straight shaft and a chevron head with butt caps and miter joins, merged with the Outline Stroke and Pathfinder (Add) effects."
@@ -222,12 +229,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
                 en: "Reverses the arrow's direction (also toggled by Option-clicking (Alt-clicking) a type button). Not available for double-headed arrows."
             },
             thickness: {
-                ja: "塗りは軸の太さを長方形の短辺に対する％で、線は線幅を線の単位（環境設定）で指定します。値は塗りと線で別々に覚えます（線の2種類は共通）。",
-                en: "Shaft thickness as a percentage of the rectangle's short side (fill), or stroke width in the stroke units set in Preferences (stroke). Fill and stroke keep separate values; both stroke types share one."
+                ja: "塗りは軸の太さを長方形の短辺に対する％で、線は線幅を線の単位（環境設定）で指定します。値は塗りと線で別々に覚えます（線の2種類は共通）。ホームベースでは使いません。",
+                en: "Shaft thickness as a percentage of the rectangle's short side (fill), or stroke width in the stroke units set in Preferences (stroke). Fill and stroke keep separate values; both stroke types share one. Not used for the pentagon."
             },
             height: {
-                ja: "矢印の高さ（矢じりの幅）を、長方形の短辺に対する％で指定します。軸の太さ・線幅は変わりません（塗りの軸は高さより太くなりません）。3種類で共通です。",
-                en: "Arrow height (head width) as a percentage of the rectangle's short side. The shaft thickness and stroke width stay the same (a filled shaft is never wider than the height). Shared by all three types."
+                ja: "矢印の高さ（矢じりの幅）を、長方形の短辺に対する％で指定します。軸の太さ・線幅は変わりません（塗りの軸は高さより太くなりません）。塗りと線の3種類で共通で、ホームベースでは使いません。",
+                en: "Arrow height (head width) as a percentage of the rectangle's short side. The shaft thickness and stroke width stay the same (a filled shaft is never wider than the height). Shared by the fill and stroke types; not used for the pentagon."
+            },
+            tipAngle: {
+                ja: "ホームベースの先端の角度を指定します（1〜179°）。長方形が短くて収まらないときは、先端が鈍くなります。",
+                en: "Tip angle of the pentagon (1–179°). When the rectangle is too short for it, the tip becomes blunter."
             },
             stepUp: {
                 ja: "値を増やす（shift＋クリックで10の倍数へ、option＋クリックで0.1ずつ）",
@@ -243,8 +254,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
         alert: {
             noDocument: { ja: "ドキュメントが開かれていません。", en: "No document is open." },
             noRectangle: {
-                ja: "長方形または水平線が選択されていません（回転した長方形・角丸・斜めの線は対象外です）。",
-                en: "No rectangles or horizontal lines are selected (rotated or rounded rectangles and slanted lines are not supported)."
+                ja: "長方形または直線が選択されていません（角丸の長方形・曲線は対象外です）。",
+                en: "No rectangles or straight lines are selected (rounded rectangles and curves are not supported)."
             }
         }
     };
@@ -968,56 +979,114 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
     }
 
     /**
-     * 回転していない長方形のパスかを返す（閉じた 4 点・ハンドルなし・各辺が水平か垂直）
-     * @param {PageItem} pageItem - 判定するオブジェクト
-     * @returns {boolean} 長方形なら true
+     * パスのアンカーポイントがすべてハンドルなし（直線の角）かを返す
+     * @param {PathItem} targetPath - 判定するパス
+     * @returns {boolean} ハンドルがなければ true
      */
-    function isAxisAlignedRectangle(pageItem) {
-        if (pageItem.typename !== "PathItem" || !pageItem.closed) return false;
-        var pathPoints = pageItem.pathPoints;
-        if (pathPoints.length !== 4) return false;
-        for (var i = 0; i < 4; i++) {
+    function hasNoHandles(targetPath) {
+        var pathPoints = targetPath.pathPoints;
+        for (var i = 0; i < pathPoints.length; i++) {
             var anchor = pathPoints[i].anchor;
-            var nextAnchor = pathPoints[(i + 1) % 4].anchor;
             if (!isSamePoint(pathPoints[i].leftDirection, anchor) || !isSamePoint(pathPoints[i].rightDirection, anchor)) return false;
-            if (!isNear(anchor[0], nextAnchor[0]) && !isNear(anchor[1], nextAnchor[1])) return false;
         }
         return true;
     }
 
     /**
-     * 罫線（水平な直線のオープンパス）かを返す（開いた 2 点・ハンドルなし・両端の高さが同じ）
+     * 長方形のパスかを返す（閉じた 4 点・ハンドルなし・4つの角が直角。回転していてもよい）
      * @param {PageItem} pageItem - 判定するオブジェクト
-     * @returns {boolean} 水平線なら true
+     * @returns {boolean} 長方形なら true
      */
-    function isHorizontalLine(pageItem) {
-        if (pageItem.typename !== "PathItem" || pageItem.closed) return false;
+    function isRectanglePath(pageItem) {
+        if (pageItem.typename !== "PathItem" || !pageItem.closed || pageItem.pathPoints.length !== 4) return false;
+        if (!hasNoHandles(pageItem)) return false;
         var pathPoints = pageItem.pathPoints;
-        if (pathPoints.length !== 2) return false;
-        for (var i = 0; i < 2; i++) {
-            var anchor = pathPoints[i].anchor;
-            if (!isSamePoint(pathPoints[i].leftDirection, anchor) || !isSamePoint(pathPoints[i].rightDirection, anchor)) return false;
+        for (var i = 0; i < 4; i++) {
+            var edge = getEdgeVector(pathPoints[i].anchor, pathPoints[(i + 1) % 4].anchor);
+            var nextEdge = getEdgeVector(pathPoints[(i + 1) % 4].anchor, pathPoints[(i + 2) % 4].anchor);
+            var edgeLength = getVectorLength(edge), nextEdgeLength = getVectorLength(nextEdge);
+            if (edgeLength < TOLERANCE || nextEdgeLength < TOLERANCE) return false;
+            /* 隣り合う辺の内積が 0 に近ければ直角 / adjacent edges are perpendicular when their dot product is near 0 */
+            if (Math.abs(edge[0] * nextEdge[0] + edge[1] * nextEdge[1]) > TOLERANCE * edgeLength * nextEdgeLength) return false;
         }
-        var startAnchor = pathPoints[0].anchor, endAnchor = pathPoints[1].anchor;
-        return isNear(startAnchor[1], endAnchor[1]) && !isNear(startAnchor[0], endAnchor[0]);
+        return true;
     }
 
     /**
-     * 矢印にする範囲を返す。長方形はそのまま、罫線は高さが 0 なので、線を中心に長さの LINE_SIDE_RATIO の高さを持たせる
-     * @param {PathItem} targetPath - 長方形または罫線のパス
-     * @returns {number[]} [左, 上, 右, 下]
+     * 罫線（直線のオープンパス）かを返す（開いた 2 点・ハンドルなし・長さがある。斜めでもよい）
+     * @param {PageItem} pageItem - 判定するオブジェクト
+     * @returns {boolean} 直線なら true
      */
-    function getArrowBounds(targetPath) {
-        if (targetPath.closed) return targetPath.geometricBounds;
-        var startAnchor = targetPath.pathPoints[0].anchor, endAnchor = targetPath.pathPoints[1].anchor;
-        var left = Math.min(startAnchor[0], endAnchor[0]);
-        var right = Math.max(startAnchor[0], endAnchor[0]);
-        var halfSide = (right - left) * LINE_SIDE_RATIO / 2;
-        return [left, startAnchor[1] + halfSide, right, startAnchor[1] - halfSide];
+    function isStraightLine(pageItem) {
+        if (pageItem.typename !== "PathItem" || pageItem.closed || pageItem.pathPoints.length !== 2) return false;
+        if (!hasNoHandles(pageItem)) return false;
+        /* 長さ 0 の線（両端が同じ点）は除く / skip zero-length lines */
+        return !isSamePoint(pageItem.pathPoints[0].anchor, pageItem.pathPoints[1].anchor);
     }
 
     /**
-     * 選択からグループの中まで含めて長方形と罫線（水平線）を集める
+     * 2点を結ぶベクトルを返す
+     * @param {number[]} fromPoint - 始点 [x, y]
+     * @param {number[]} toPoint - 終点 [x, y]
+     * @returns {number[]} [dx, dy]
+     */
+    function getEdgeVector(fromPoint, toPoint) {
+        return [toPoint[0] - fromPoint[0], toPoint[1] - fromPoint[1]];
+    }
+
+    /**
+     * ベクトルの長さを返す
+     * @param {number[]} vector - [dx, dy]
+     * @returns {number} 長さ
+     */
+    function getVectorLength(vector) {
+        return Math.sqrt(vector[0] * vector[0] + vector[1] * vector[1]);
+    }
+
+    /**
+     * 矢印の軸を返す。長方形は長辺の向き、罫線は線の向き。
+     * 向きは水平寄りなら右、垂直寄りなら上に向ける。罫線は短辺が 0 なので、長さの LINE_SIDE_RATIO を短辺とする
+     * @param {PathItem} targetPath - 長方形または罫線のパス
+     * @returns {{center: number[], direction: number[], length: number, thickness: number}} 中心・向き（長さ1）・長さ・短辺
+     */
+    function getArrowAxis(targetPath) {
+        var pathPoints = targetPath.pathPoints;
+        var firstAnchor = pathPoints[0].anchor;
+        var axisVector, thickness, center;
+        if (!targetPath.closed) {
+            var endAnchor = pathPoints[1].anchor;
+            axisVector = getEdgeVector(firstAnchor, endAnchor);
+            thickness = getVectorLength(axisVector) * LINE_SIDE_RATIO;
+            center = [(firstAnchor[0] + endAnchor[0]) / 2, (firstAnchor[1] + endAnchor[1]) / 2];
+        } else {
+            var oppositeAnchor = pathPoints[2].anchor;
+            var firstEdge = getEdgeVector(firstAnchor, pathPoints[1].anchor);
+            var secondEdge = getEdgeVector(pathPoints[1].anchor, oppositeAnchor);
+            var firstLength = getVectorLength(firstEdge), secondLength = getVectorLength(secondEdge);
+            /* 長いほうの辺を軸にする。正方形なら水平に近いほう / the longer edge is the axis; for a square, the more horizontal one */
+            var isFirstAxis = isNear(firstLength, secondLength)
+                ? Math.abs(firstEdge[0]) / firstLength >= Math.abs(secondEdge[0]) / secondLength
+                : firstLength > secondLength;
+            axisVector = isFirstAxis ? firstEdge : secondEdge;
+            thickness = isFirstAxis ? secondLength : firstLength;
+            /* 対角線の中点 / midpoint of the diagonal */
+            center = [(firstAnchor[0] + oppositeAnchor[0]) / 2, (firstAnchor[1] + oppositeAnchor[1]) / 2];
+        }
+        var axisLength = getVectorLength(axisVector);
+        var direction = [axisVector[0] / axisLength, axisVector[1] / axisLength];
+        /* 水平・垂直からの浮動小数のずれはそろえる / snap float noise on horizontal and vertical axes */
+        if (Math.abs(direction[0]) < 1e-9) direction = [0, direction[1] > 0 ? 1 : -1];
+        else if (Math.abs(direction[1]) < 1e-9) direction = [direction[0] > 0 ? 1 : -1, 0];
+        /* 水平寄りなら右向き、垂直寄りなら上向き / point right when mostly horizontal, up when mostly vertical */
+        var isMostlyHorizontal = Math.abs(direction[0]) >= Math.abs(direction[1]);
+        if ((isMostlyHorizontal && direction[0] < 0) || (!isMostlyHorizontal && direction[1] < 0)) {
+            direction = [-direction[0], -direction[1]];
+        }
+        return { center: center, direction: direction, length: axisLength, thickness: thickness };
+    }
+
+    /**
+     * 選択からグループの中まで含めて長方形と罫線（直線）を集める
      * @param {Array|Object} pageItems - 選択または GroupItem.pageItems
      * @param {PathItem[]} foundRectangles - 見つかったパスを追加する配列
      * @returns {PathItem[]} foundRectangles
@@ -1028,7 +1097,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
             if (pageItem.locked || pageItem.hidden) continue;
             if (pageItem.typename === "GroupItem") {
                 collectRectangles(pageItem.pageItems, foundRectangles);
-            } else if (isAxisAlignedRectangle(pageItem) || isHorizontalLine(pageItem)) {
+            } else if (isRectanglePath(pageItem) || isStraightLine(pageItem)) {
                 foundRectangles.push(pageItem);
             }
         }
@@ -1040,34 +1109,27 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
     // =========================================
 
     /**
-     * 長方形の範囲に、矢印の向きに沿った座標系を作る（横長は右向き、縦長は上向き。逆向きなら左向き・下向き）。
-     * u は根元から先端へ向かう距離、v は軸からの横のずれ
-     * @param {Array} bounds - geometricBounds [左, 上, 右, 下]
+     * 長方形・罫線に、矢印の向きに沿った座標系を作る（getArrowAxis() の向き。逆向きならその反対）。
+     * u は根元から先端へ向かう距離、v は軸からの横のずれ（向きの左側が正。逆向きでも左右は入れ替えない）
+     * @param {PathItem} targetPath - 長方形または罫線のパス
      * @param {boolean} isReversed - 逆向きにするなら true
      * @param {number} heightRatio - 矢印の高さ（矢じりの幅。短辺に対する比率）
      * @returns {{length: number, thickness: number, headWidth: number, toPoint: function(number, number): Array}} 長さ・短辺・矢じりの幅・座標の変換
      */
-    function getArrowFrame(bounds, isReversed, heightRatio) {
-        var left = bounds[0], top = bounds[1], right = bounds[2], bottom = bounds[3];
-        var width = right - left;
-        var height = top - bottom;
-
-        if (width >= height) {
-            var centerY = (top + bottom) / 2;
-            return {
-                length: width,
-                thickness: height,
-                headWidth: height * heightRatio,
-                toPoint: function (u, v) { return [isReversed ? right - u : left + u, centerY + v]; }
-            };
-        }
-
-        var centerX = (left + right) / 2;
+    function getArrowFrame(targetPath, isReversed, heightRatio) {
+        var arrowAxis = getArrowAxis(targetPath);
+        var axisDirection = arrowAxis.direction;
+        var direction = isReversed ? [-axisDirection[0], -axisDirection[1]] : axisDirection;
+        var normal = [-axisDirection[1], axisDirection[0]];
+        var originX = arrowAxis.center[0] - direction[0] * arrowAxis.length / 2;
+        var originY = arrowAxis.center[1] - direction[1] * arrowAxis.length / 2;
         return {
-            length: height,
-            thickness: width,
-            headWidth: width * heightRatio,
-            toPoint: function (u, v) { return [centerX - v, isReversed ? top - u : bottom + u]; }
+            length: arrowAxis.length,
+            thickness: arrowAxis.thickness,
+            headWidth: arrowAxis.thickness * heightRatio,
+            toPoint: function (u, v) {
+                return [originX + direction[0] * u + normal[0] * v, originY + direction[1] * u + normal[1] * v];
+            }
         };
     }
 
@@ -1105,6 +1167,29 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
             arrowFrame.toPoint(arrowFrame.length, 0),
             arrowFrame.toPoint(neck, -halfSide),
             arrowFrame.toPoint(neck, -halfShaft)
+        ].concat(tailPoints));
+    }
+
+    /**
+     * ホームベース（長方形の一端をとがらせた形）の頂点を求める。先端は短辺いっぱいの幅で、tipAngle の角度にとがらせる
+     * @param {Object} arrowFrame - getArrowFrame() の戻り値（heightRatio は 1）
+     * @param {number} tipAngle - 先端の角度（度）
+     * @param {boolean} isBothEnds - 両端をとがらせるなら true
+     * @returns {Array} 頂点 [[x, y], …] 片側は 5 点、両側は 6 点
+     */
+    function buildPentagonPoints(arrowFrame, tipAngle, isBothEnds) {
+        var halfSide = arrowFrame.headWidth / 2;
+        /* 長方形が短いときは、片側は全長、両側は半分で止める（先端は鈍くなる） / cap at the full or half length; the tip gets blunter */
+        var maxHeadLength = isBothEnds ? arrowFrame.length / 2 : arrowFrame.length;
+        var headLength = Math.min(halfSide / Math.tan(tipAngle / 2 * Math.PI / 180), maxHeadLength);
+        var neck = arrowFrame.length - headLength;
+        var tailPoints = isBothEnds
+            ? [arrowFrame.toPoint(headLength, -halfSide), arrowFrame.toPoint(0, 0), arrowFrame.toPoint(headLength, halfSide)]
+            : [arrowFrame.toPoint(0, -halfSide), arrowFrame.toPoint(0, halfSide)];
+        return removeRedundantPoints([
+            arrowFrame.toPoint(neck, halfSide),
+            arrowFrame.toPoint(arrowFrame.length, 0),
+            arrowFrame.toPoint(neck, -halfSide)
         ].concat(tailPoints));
     }
 
@@ -1229,9 +1314,30 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
      * @returns {PageItem} できた矢印
      */
     function convertToFilledArrow(rectanglePath, arrowOptions) {
+        var arrowFrame = getArrowFrame(rectanglePath, arrowOptions.isReversed, arrowOptions.heightRatio);
+        return fillArrowPath(rectanglePath, buildFilledArrowPoints(arrowFrame, arrowOptions.shaftRatio, arrowOptions.isBothEnds));
+    }
+
+    /**
+     * 長方形をホームベース（一端をとがらせた形）に書き換える。元のパスを書き換えるので、効果・重ね順はそのまま残る
+     * @param {PathItem} rectanglePath - 長方形のパス
+     * @param {Object} arrowOptions - tipAngle（先端の角度。度）、isReversed、isBothEnds
+     * @returns {PageItem} できたホームベース
+     */
+    function convertToPentagonArrow(rectanglePath, arrowOptions) {
+        var arrowFrame = getArrowFrame(rectanglePath, arrowOptions.isReversed, 1);
+        return fillArrowPath(rectanglePath, buildPentagonPoints(arrowFrame, arrowOptions.tipAngle, arrowOptions.isBothEnds));
+    }
+
+    /**
+     * パスを頂点の多角形に書き換え、元の色で塗る（線はなし）
+     * @param {PathItem} rectanglePath - 書き換えるパス
+     * @param {Array} arrowPoints - 頂点 [[x, y], …]
+     * @returns {PageItem} 書き換えたパス
+     */
+    function fillArrowPath(rectanglePath, arrowPoints) {
         var arrowColor = getArrowColor(rectanglePath);
-        var arrowFrame = getArrowFrame(getArrowBounds(rectanglePath), arrowOptions.isReversed, arrowOptions.heightRatio);
-        rectanglePath.setEntirePath(buildFilledArrowPoints(arrowFrame, arrowOptions.shaftRatio, arrowOptions.isBothEnds));
+        rectanglePath.setEntirePath(arrowPoints);
         rectanglePath.closed = true; /* 罫線は開いたパスなので閉じる / rules are open paths */
         rectanglePath.fillColor = arrowColor;
         rectanglePath.filled = true;
@@ -1249,7 +1355,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
      * @returns {PageItem} できた矢印（グループ）
      */
     function convertToStrokedArrow(rectanglePath, arrowOptions, isRound) {
-        var arrowFrame = getArrowFrame(getArrowBounds(rectanglePath), arrowOptions.isReversed, arrowOptions.heightRatio);
+        var arrowFrame = getArrowFrame(rectanglePath, arrowOptions.isReversed, arrowOptions.heightRatio);
         var arrowColor = getArrowColor(rectanglePath);
         var arrowLines = buildStrokedArrowLines(arrowFrame, arrowOptions.isBothEnds);
 
@@ -1298,11 +1404,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
     /**
      * 種類に応じて長方形を矢印にする
      * @param {PathItem} rectanglePath - 長方形のパス
-     * @param {Object} arrowOptions - arrowType（"fill" / "line" / "roundLine"）、shaftRatio（塗り）または strokeWidth（線）、heightRatio、isReversed、isBothEnds
+     * @param {Object} arrowOptions - arrowType（"fill" / "pentagon" / "line" / "roundLine"）、shaftRatio（塗り）または strokeWidth（線）、heightRatio、tipAngle（ホームベース）、isReversed、isBothEnds
      * @returns {PageItem} できた矢印
      */
     function convertToArrow(rectanglePath, arrowOptions) {
         if (arrowOptions.arrowType === "fill") return convertToFilledArrow(rectanglePath, arrowOptions);
+        if (arrowOptions.arrowType === "pentagon") return convertToPentagonArrow(rectanglePath, arrowOptions);
         return convertToStrokedArrow(rectanglePath, arrowOptions, arrowOptions.arrowType === "roundLine");
     }
 
@@ -2031,6 +2138,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
     var ARROW_TYPE_ICON_LINE_WIDTH = 3;
     var ARROW_TYPE_ICON_SHAPES = {
         fill: { rects: [[1, 5.5, 69, 14.5]], heads: [[69, 79, 10, 10]], lines: [], discs: [] },
+        pentagon: { rects: [[1, 1, 70, 19]], heads: [[70, 79, 10, 9]], lines: [], discs: [] },
         line: { rects: [], heads: [], lines: [[[1, 10], [77, 10], 3], [[69.5, 2.5], [77, 10], [69.5, 17.5], 3]], discs: [] },
         roundLine: {
             rects: [], heads: [],
@@ -2039,6 +2147,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
         },
         /* 両矢印 / double-headed */
         fillBothEnds: { rects: [[11, 5.5, 69, 14.5]], heads: [[69, 79, 10, 10], [11, 1, 10, 10]], lines: [], discs: [] },
+        pentagonBothEnds: { rects: [[10, 1, 70, 19]], heads: [[70, 79, 10, 9], [10, 1, 10, 9]], lines: [], discs: [] },
         lineBothEnds: {
             rects: [], heads: [],
             lines: [[[3, 10], [77, 10], 3], [[69.5, 2.5], [77, 10], [69.5, 17.5], 3], [[10.5, 2.5], [3, 10], [10.5, 17.5], 3]],
@@ -2050,7 +2159,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
             discs: [[69.5, 2.5], [69.5, 17.5], [77, 10], [10.5, 2.5], [10.5, 17.5], [3, 10]]
         }
     };
-    var ARROW_TYPE_KEYS = ["fill", "line", "roundLine"];
+    var ARROW_TYPE_KEYS = ["fill", "pentagon", "line", "roundLine"];
 
     /**
      * ラジオボタンの代わりに、矢印の種類を絵で描いたボタンを縦に並べる（SmartStrokeSettings のよく使う矢印と同じ見た目）。
@@ -2080,7 +2189,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
      * option（Alt）＋クリックでは、そのボタンを選んだうえで矢印の向きを逆にし、
      * ⌘＋option（Ctrl＋Alt）＋クリックでは両矢印のオン／オフを切り替える
      * @param {Group} iconColumn - 追加先の列
-     * @param {string} arrowType - 種類（"fill" / "line" / "roundLine"）
+     * @param {string} arrowType - 種類（"fill" / "pentagon" / "line" / "roundLine"）
      * @param {Group[]} typeIcons - 同じ組のボタン（排他にする）
      * @param {function(): void} onSelect - 選び直したときに呼ぶ（ボタンの描き直しはこちらで行う）
      * @returns {Group} ボタン
@@ -2126,7 +2235,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
     }
 
     /**
-     * 種類のボタンを描く（選択中は灰色の地、そうでなければ白の地。ダークUIでは明暗を反転）
+     * 種類のボタンを描く（選択中は灰色の地と濃い枠、そうでなければ白の地と薄い枠。ダークUIでは明暗を反転）
      * @param {Group} typeIcon - addArrowTypeIcon() で作ったボタン
      * @returns {void}
      */
@@ -2134,10 +2243,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
         var iconGraphics = typeIcon.graphics;
         var isDark = isDarkUI();
         var isDimmed = !isStepperEnabledInTree(typeIcon);
-        var inkLevel = isDark ? 0.65 : 0.45; /* 絵と枠は真っ黒・真っ白より抑える / keep the ink softer than pure black or white */
-        var groundLevel = typeIcon.value ? (isDark ? 0.45 : 0.7) : (isDark ? 0.2 : 1);
+        var inkLevel = isDark ? 0.65 : 0.45; /* 絵は真っ黒・真っ白より抑える / keep the ink softer than pure black or white */
+        /* 枠は選択中だけ濃くする / the frame is strong only while selected */
+        var frameLevel = typeIcon.value ? (isDark ? 0.85 : 0.25) : (isDark ? 0.4 : 0.75);
+        var groundLevel = typeIcon.value ? (isDark ? 0.33 : 0.9) : (isDark ? 0.2 : 1);
         var inkColor = [inkLevel, inkLevel, inkLevel, isDimmed ? 0.4 : 1];
         var groundColor = [groundLevel, groundLevel, groundLevel, isDimmed ? 0.4 : 1];
+        var frameColor = [frameLevel, frameLevel, frameLevel, isDimmed ? 0.4 : 1];
         var iconWidth = TYPE_ICON_SIZE[0];
         var iconHeight = TYPE_ICON_SIZE[1];
 
@@ -2151,7 +2263,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
         iconGraphics.lineTo(iconWidth - 0.5, iconHeight - 0.5);
         iconGraphics.lineTo(0.5, iconHeight - 0.5);
         iconGraphics.lineTo(0.5, 0.5);
-        iconGraphics.strokePath(iconGraphics.newPen(iconGraphics.PenType.SOLID_COLOR, inkColor, 1));
+        iconGraphics.strokePath(iconGraphics.newPen(iconGraphics.PenType.SOLID_COLOR, frameColor, 1));
 
         var typeState = typeIcon.typeState;
         drawArrowTypeShape(iconGraphics, ARROW_TYPE_ICON_SHAPES[typeIcon.arrowType + (typeState.isBothEnds ? "BothEnds" : "")],
@@ -2235,15 +2347,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
     // =========================================
 
     /**
-     * 矢印の種類・太さ・高さを指定するダイアログボックスを表示する
+     * 矢印の種類・太さ・高さ・角度を指定するダイアログボックスを表示する
      * @param {Array} rectangles - 対象の長方形（プレビューに使う）
-     * @returns {Object|null} arrowType・shaftRatio（塗り）・strokeWidth（線）・heightRatio・isReversed・isBothEnds。キャンセルなら null
+     * @returns {Object|null} arrowType・shaftRatio（塗り）・strokeWidth（線）・heightRatio・tipAngle（ホームベース）・isReversed・isBothEnds。キャンセルなら null
      */
     function showArrowDialog(rectangles) {
         var arrowPreview = createArrowPreview(rectangles);
         /* 線幅は環境設定の線の単位で入力する / stroke widths use the stroke units from Preferences */
         var strokeUnit = getUnitInfo("strokeUnits");
-        var firstShortSide = getArrowFrame(getArrowBounds(rectangles[0]), false, 1).thickness;
+        var firstShortSide = getArrowFrame(rectangles[0], false, 1).thickness;
         /* 入力欄は小数2桁まで。インチなど大きい単位でも 0 に丸まらないよう下限で止める / the field keeps 2 decimals; keep large units from rounding to 0 */
         var defaultLineWidth = Math.max(0.01, Math.round(firstShortSide * DEFAULT_LINE_PERCENT / 100 / strokeUnit.pointsPerUnit * 100) / 100);
         /* 1つ目が罫線なら、線の矢印（矢印2）で始め、線幅はその罫線のものを引き継ぐ / for a rule, start with the stroked arrow and keep the rule's stroke width */
@@ -2310,6 +2422,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
         heightInput.helpTip = getLabel("tooltip.height");
         redrawPreviewOnChange(heightInput);
 
+        var tipAngleInput = addSteppedField(arrowDialog, {
+            label: labelText("fieldLabel.tipAngle"), labelWidth: LABEL_WIDTH,
+            text: DEFAULT_TIP_ANGLE + "°", characters: FIELD_CHARACTERS,
+            step: 1, min: 1, max: 179, unit: "°",
+            onStep: function () { refreshPreview(); }
+        });
+        tipAngleInput.helpTip = getLabel("tooltip.tipAngle");
+        redrawPreviewOnChange(tipAngleInput);
+        syncFieldStates();
+
         /* ボタン行は左右中央に置く / center the button row */
         var buttonRow = addButtonRow(arrowDialog, { centered: true });
         buttonRow.rowGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
@@ -2353,16 +2475,28 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
             }
             /* option＋クリックで向きが変わったときのため / the click may have changed the direction */
             syncDirectionToggles();
+            syncFieldStates();
             refreshPreview();
         }
 
         /**
-         * 種類から太さの区分を返す（線の2種類は線幅を共有する）
-         * @param {string} arrowType - 種類（"fill" / "line" / "roundLine"）
+         * 今の種類で使う欄だけを有効にする（ホームベースは角度だけ、ほかは太さと高さ）
+         * @returns {void}
+         */
+        function syncFieldStates() {
+            var isPentagon = (currentType === "pentagon");
+            setSteppedFieldEnabled(thicknessInput, !isPentagon);
+            setSteppedFieldEnabled(heightInput, !isPentagon);
+            setSteppedFieldEnabled(tipAngleInput, isPentagon);
+        }
+
+        /**
+         * 種類から太さの区分を返す（線の2種類は線幅を共有する。ホームベースは太さを使わないので塗りの値を見せておく）
+         * @param {string} arrowType - 種類（"fill" / "pentagon" / "line" / "roundLine"）
          * @returns {string} "fill" または "stroke"
          */
         function getThicknessKind(arrowType) {
-            return (arrowType === "fill") ? "fill" : "stroke";
+            return (arrowType === "fill" || arrowType === "pentagon") ? "fill" : "stroke";
         }
 
         /**
@@ -2382,7 +2516,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
 
         /**
          * 今の指定を返す
-         * @returns {Object} arrowType・shaftRatio（塗り。短辺に対する比率）・strokeWidth（線。pt）・heightRatio（短辺に対する比率）・isReversed・isBothEnds
+         * @returns {Object} arrowType・shaftRatio（塗り。短辺に対する比率）・strokeWidth（線。pt）・heightRatio（短辺に対する比率）・tipAngle（ホームベース。度）・isReversed・isBothEnds
          */
         function getArrowOptions() {
             var thicknessValue = parseFloat(thicknessInput.text);
@@ -2391,6 +2525,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
                 shaftRatio: thicknessValue / 100,
                 strokeWidth: thicknessValue * strokeUnit.pointsPerUnit,
                 heightRatio: parseFloat(heightInput.text) / 100,
+                tipAngle: parseFloat(tipAngleInput.text),
                 isReversed: typeState.isReversed,
                 isBothEnds: typeState.isBothEnds
             };
