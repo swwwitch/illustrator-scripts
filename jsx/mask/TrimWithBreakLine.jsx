@@ -27,10 +27,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TrimWithBr
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "TrimWithBreakLine";            /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.2.9";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.3.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-09-20";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-11";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TrimWithBreakLine.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TrimWithBreakLine.md"; /* README (English) */
@@ -361,6 +361,7 @@ var STEPPER_OPTION_STEP    = 0.1; /* option＋クリック・option＋↑↓の�
             groupRules: { ja: "グループ化", en: "Group with parts" }
         },
         button: {
+            reset:  { ja: "リセット", en: "Reset" },
             cancel: { ja: "キャンセル", en: "Cancel" },
             ok:     { ja: "OK", en: "OK" }
         },
@@ -445,6 +446,7 @@ var STEPPER_OPTION_STEP    = 0.1; /* option＋クリック・option＋↑↓の�
                 ja: "値を減らす（shift＋クリックで10の倍数へ、option＋クリックで0.1ずつ）",
                 en: "Decrease (Shift-click to snap to 10s, Option-click by 0.1)"
             },
+            reset: { ja: "すべての項目を初期値に戻します。", en: "Restore every setting to its default." },
             stepUpInteger:   { ja: "値を増やす（shift＋クリックで10の倍数へ）", en: "Increase (Shift-click to snap to 10s)" },
             stepDownInteger: { ja: "値を減らす（shift＋クリックで10の倍数へ）", en: "Decrease (Shift-click to snap to 10s)" }
         },
@@ -2162,8 +2164,8 @@ var STEPPER_OPTION_STEP    = 0.1; /* option＋クリック・option＋↑↓の�
     var rulerUnit = getUnitInfo();
     var strokeUnit = getUnitInfo("strokeUnits");
 
-    /* 前回の設定があればそれを初期値にする / start from the settings saved last time */
-    var savedValues = settingsStore.load({
+    /* 既定値（長さはpt）。前回の設定の補完と［リセット］で使う / defaults in pt, used to fill saved settings and by Reset */
+    var DEFAULT_SETTINGS = {
         maskScale: DEFAULT_MASK_SCALE,
         maskCrossScale: DEFAULT_MASK_CROSS_SCALE,
         maskOffsetPt: DEFAULT_MASK_OFFSET,
@@ -2178,7 +2180,10 @@ var STEPPER_OPTION_STEP    = 0.1; /* option＋クリック・option＋↑↓の�
         ruleWidthPt: DEFAULT_RULE_WIDTH,
         roundCap: DEFAULT_ROUND_CAP,
         groupRules: DEFAULT_GROUP_RULES
-    });
+    };
+
+    /* 前回の設定があればそれを初期値にする / start from the settings saved last time */
+    var savedValues = settingsStore.load(DEFAULT_SETTINGS);
     var initialValues = {
         maskScale:    savedValues.maskScale,
         maskCrossScale: savedValues.maskCrossScale,
@@ -3140,7 +3145,7 @@ var STEPPER_OPTION_STEP    = 0.1; /* option＋クリック・option＋↑↓の�
      * @param {Window|Group} parentGroup - 追加先
      * @param {number} selectedIndex - 初期選択の位置（WARP_STYLE_KEYS 上）
      * @param {function} onValueChanged - 選択が変わったあとに呼ぶ処理
-     * @returns {{row: Group, getSelectedKey: function}} 追加した行と、選択中のキーを返す関数
+     * @returns {{row: Group, selectKey: function, getSelectedKey: function}} 追加した行と、キーで選ぶ関数・選択中のキーを返す関数
      */
     function addStyleIconRow(parentGroup, selectedIndex, onValueChanged) {
         var iconRow = addFieldRow(parentGroup);
@@ -3182,6 +3187,9 @@ var STEPPER_OPTION_STEP    = 0.1; /* option＋クリック・option＋↑↓の�
 
         return {
             row: iconRow,
+            selectKey: function (warpStyleKey) {
+                selectIconAt(getWarpStyleIndex(warpStyleKey));
+            },
             getSelectedKey: function () {
                 for (var buttonIndex = 0; buttonIndex < iconButtons.length; buttonIndex++) {
                     if (iconButtons[buttonIndex].isSelected) return iconButtons[buttonIndex].warpStyleKey;
@@ -3217,6 +3225,7 @@ var STEPPER_OPTION_STEP    = 0.1; /* option＋クリック・option＋↑↓の�
 
         return {
             getStyleKey: warpStyleRow.getSelectedKey,
+            setStyleKey: warpStyleRow.selectKey,
             warpAmountRow: warpAmountRow.row,
             warpAmountField: warpAmountRow.field,
             jaggedSizeRow: jaggedSizeRow.row,
@@ -3285,6 +3294,8 @@ var STEPPER_OPTION_STEP    = 0.1; /* option＋クリック・option＋↑↓の�
         var cutEdgeControls = buildCutEdgePanel(leftColumn, onSettingChanged);
         var ruleControls = buildBreakLinePanel(rightColumn);
         var buttonRow = addButtonRow(dialog);
+        var btnReset = buttonRow.leftGroup.add("button", undefined, getLabel("button.reset"));
+        btnReset.helpTip = getLabel("tooltip.reset");
         var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
         var btnOK = buttonRow.rightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
 
@@ -3360,7 +3371,32 @@ var STEPPER_OPTION_STEP    = 0.1; /* option＋クリック・option＋↑↓の�
             .concat(ruleControls.capRadios)
             .concat([ruleControls.groupRulesCheckbox]), onSettingChanged);
 
+        /**
+         * すべての項目を既定値に戻す（長さは今の単位に換算）
+         * @returns {void}
+         */
+        function resetToDefaults() {
+            maskControls.scaleField.text = formatFieldNumber(DEFAULT_SETTINGS.maskScale);
+            maskControls.crossScaleField.text = formatFieldNumber(DEFAULT_SETTINGS.maskCrossScale);
+            maskControls.offsetField.text = formatFieldNumber(DEFAULT_SETTINGS.maskOffsetPt / rulerUnit.pointsPerUnit);
+            cutEdgeControls.setStyleKey(DEFAULT_SETTINGS.warpStyleKey);
+            cutEdgeControls.warpAmountField.text = formatFieldNumber(DEFAULT_SETTINGS.warpPercent);
+            cutEdgeControls.jaggedSizeField.text = formatFieldNumber(DEFAULT_SETTINGS.jaggedSizePt / rulerUnit.pointsPerUnit);
+            cutEdgeControls.jaggedRidgesField.text = formatFieldNumber(DEFAULT_SETTINGS.jaggedRidges);
+            cutEdgeControls.gapField.text = formatFieldNumber(DEFAULT_SETTINGS.gapPt / rulerUnit.pointsPerUnit);
+            ruleControls.addRuleCheckbox.value = DEFAULT_SETTINGS.addRule;
+            ruleControls.widthField.text = formatFieldNumber(DEFAULT_SETTINGS.ruleWidthPt / strokeUnit.pointsPerUnit);
+            ruleControls.capRadios[0].value = !DEFAULT_SETTINGS.roundCap;
+            ruleControls.capRadios[1].value = DEFAULT_SETTINGS.roundCap;
+            ruleControls.styleRadios[0].value = !DEFAULT_SETTINGS.ruleDashed;
+            ruleControls.styleRadios[1].value = DEFAULT_SETTINGS.ruleDashed;
+            ruleControls.segmentsField.text = formatFieldNumber(DEFAULT_SETTINGS.dashSegments);
+            ruleControls.groupRulesCheckbox.value = DEFAULT_SETTINGS.groupRules;
+            onSettingChanged();
+        }
+
         var dialogSettings = null;
+        btnReset.onClick = resetToDefaults;
         btnOK.onClick = function () {
             dialogSettings = collectSettings();
             dialog.close(1);
