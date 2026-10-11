@@ -29,7 +29,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RectangleT
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "RectangleToArrow";             /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.2.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.2.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-10";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-12";                   /* 更新日 / last updated */
@@ -1001,13 +1001,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
         if (pageItem.typename !== "PathItem" || !pageItem.closed || pageItem.pathPoints.length !== 4) return false;
         if (!hasNoHandles(pageItem)) return false;
         var pathPoints = pageItem.pathPoints;
+        var edges = [], edgeLengths = [];
         for (var i = 0; i < 4; i++) {
-            var edge = getEdgeVector(pathPoints[i].anchor, pathPoints[(i + 1) % 4].anchor);
-            var nextEdge = getEdgeVector(pathPoints[(i + 1) % 4].anchor, pathPoints[(i + 2) % 4].anchor);
-            var edgeLength = getVectorLength(edge), nextEdgeLength = getVectorLength(nextEdge);
-            if (edgeLength < TOLERANCE || nextEdgeLength < TOLERANCE) return false;
+            edges.push(getEdgeVector(pathPoints[i].anchor, pathPoints[(i + 1) % 4].anchor));
+            edgeLengths.push(getVectorLength(edges[i]));
+            if (edgeLengths[i] < TOLERANCE) return false;
+        }
+        for (var j = 0; j < 4; j++) {
+            var nextIndex = (j + 1) % 4;
             /* 隣り合う辺の内積が 0 に近ければ直角 / adjacent edges are perpendicular when their dot product is near 0 */
-            if (Math.abs(edge[0] * nextEdge[0] + edge[1] * nextEdge[1]) > TOLERANCE * edgeLength * nextEdgeLength) return false;
+            var dotProduct = edges[j][0] * edges[nextIndex][0] + edges[j][1] * edges[nextIndex][1];
+            if (Math.abs(dotProduct) > TOLERANCE * edgeLengths[j] * edgeLengths[nextIndex]) return false;
         }
         return true;
     }
@@ -1044,45 +1048,67 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
     }
 
     /**
-     * 矢印の軸を返す。長方形は長辺の向き、罫線は線の向き。
-     * 向きは水平寄りなら右、垂直寄りなら上に向ける。罫線は短辺が 0 なので、長さの LINE_SIDE_RATIO を短辺とする
+     * ベクトルを長さ1にし、水平寄りなら右、垂直寄りなら上へ向ける（水平・垂直からの浮動小数のずれはそろえる）
+     * @param {number[]} vector - [dx, dy]（長さ 0 は不可）
+     * @returns {number[]} 向き [x, y]
+     */
+    function getArrowDirection(vector) {
+        var vectorLength = getVectorLength(vector);
+        var direction = [vector[0] / vectorLength, vector[1] / vectorLength];
+        if (Math.abs(direction[0]) < 1e-9) direction = [0, direction[1] > 0 ? 1 : -1];
+        else if (Math.abs(direction[1]) < 1e-9) direction = [direction[0] > 0 ? 1 : -1, 0];
+        /* 水平寄りなら右向き、垂直寄りなら上向き。45°ちょうどは右寄りとみなす / right when mostly horizontal, up when mostly vertical */
+        var isMostlyHorizontal = Math.abs(direction[0]) >= Math.abs(direction[1]);
+        if ((isMostlyHorizontal && direction[0] < 0) || (!isMostlyHorizontal && direction[1] < 0)) {
+            direction = [-direction[0], -direction[1]];
+        }
+        return direction;
+    }
+
+    /**
+     * 矢印の軸を返す。長方形は長辺の向き、罫線は線の向き（向きは getArrowDirection() で決める）。
+     * 正方形は、水平に近い辺、同じなら上を向く辺を軸にし、アンカーポイントの順番に左右されないようにする。
+     * 罫線は短辺が 0 なので、長さの LINE_SIDE_RATIO を短辺とする
      * @param {PathItem} targetPath - 長方形または罫線のパス
      * @returns {{center: number[], direction: number[], length: number, thickness: number}} 中心・向き（長さ1）・長さ・短辺
      */
     function getArrowAxis(targetPath) {
         var pathPoints = targetPath.pathPoints;
         var firstAnchor = pathPoints[0].anchor;
-        var axisVector, thickness, center;
         if (!targetPath.closed) {
             var endAnchor = pathPoints[1].anchor;
-            axisVector = getEdgeVector(firstAnchor, endAnchor);
-            thickness = getVectorLength(axisVector) * LINE_SIDE_RATIO;
-            center = [(firstAnchor[0] + endAnchor[0]) / 2, (firstAnchor[1] + endAnchor[1]) / 2];
+            var lineVector = getEdgeVector(firstAnchor, endAnchor);
+            var lineLength = getVectorLength(lineVector);
+            return {
+                center: [(firstAnchor[0] + endAnchor[0]) / 2, (firstAnchor[1] + endAnchor[1]) / 2],
+                direction: getArrowDirection(lineVector),
+                length: lineLength,
+                thickness: lineLength * LINE_SIDE_RATIO
+            };
+        }
+        var oppositeAnchor = pathPoints[2].anchor;
+        var firstEdge = getEdgeVector(firstAnchor, pathPoints[1].anchor);
+        var secondEdge = getEdgeVector(pathPoints[1].anchor, oppositeAnchor);
+        var firstLength = getVectorLength(firstEdge), secondLength = getVectorLength(secondEdge);
+        var firstDirection = getArrowDirection(firstEdge), secondDirection = getArrowDirection(secondEdge);
+        var isFirstAxis;
+        if (!isNear(firstLength, secondLength)) {
+            /* 長いほうの辺を軸にする / the longer edge is the axis */
+            isFirstAxis = firstLength > secondLength;
+        } else if (!isNear(Math.abs(firstDirection[0]), Math.abs(secondDirection[0]))) {
+            /* 正方形は水平に近い辺 / for a square, the more horizontal edge */
+            isFirstAxis = Math.abs(firstDirection[0]) > Math.abs(secondDirection[0]);
         } else {
-            var oppositeAnchor = pathPoints[2].anchor;
-            var firstEdge = getEdgeVector(firstAnchor, pathPoints[1].anchor);
-            var secondEdge = getEdgeVector(pathPoints[1].anchor, oppositeAnchor);
-            var firstLength = getVectorLength(firstEdge), secondLength = getVectorLength(secondEdge);
-            /* 長いほうの辺を軸にする。正方形なら水平に近いほう / the longer edge is the axis; for a square, the more horizontal one */
-            var isFirstAxis = isNear(firstLength, secondLength)
-                ? Math.abs(firstEdge[0]) / firstLength >= Math.abs(secondEdge[0]) / secondLength
-                : firstLength > secondLength;
-            axisVector = isFirstAxis ? firstEdge : secondEdge;
-            thickness = isFirstAxis ? secondLength : firstLength;
+            /* 45°の正方形は上を向く辺 / for a square at 45°, the edge pointing up */
+            isFirstAxis = firstDirection[1] >= secondDirection[1];
+        }
+        return {
             /* 対角線の中点 / midpoint of the diagonal */
-            center = [(firstAnchor[0] + oppositeAnchor[0]) / 2, (firstAnchor[1] + oppositeAnchor[1]) / 2];
-        }
-        var axisLength = getVectorLength(axisVector);
-        var direction = [axisVector[0] / axisLength, axisVector[1] / axisLength];
-        /* 水平・垂直からの浮動小数のずれはそろえる / snap float noise on horizontal and vertical axes */
-        if (Math.abs(direction[0]) < 1e-9) direction = [0, direction[1] > 0 ? 1 : -1];
-        else if (Math.abs(direction[1]) < 1e-9) direction = [direction[0] > 0 ? 1 : -1, 0];
-        /* 水平寄りなら右向き、垂直寄りなら上向き / point right when mostly horizontal, up when mostly vertical */
-        var isMostlyHorizontal = Math.abs(direction[0]) >= Math.abs(direction[1]);
-        if ((isMostlyHorizontal && direction[0] < 0) || (!isMostlyHorizontal && direction[1] < 0)) {
-            direction = [-direction[0], -direction[1]];
-        }
-        return { center: center, direction: direction, length: axisLength, thickness: thickness };
+            center: [(firstAnchor[0] + oppositeAnchor[0]) / 2, (firstAnchor[1] + oppositeAnchor[1]) / 2],
+            direction: isFirstAxis ? firstDirection : secondDirection,
+            length: isFirstAxis ? firstLength : secondLength,
+            thickness: isFirstAxis ? secondLength : firstLength
+        };
     }
 
     /**
@@ -1137,10 +1163,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
      * 矢じりの長さを返す（長方形が短すぎるときは、片矢印は全長、両矢印は半分で止める）
      * @param {Object} arrowFrame - getArrowFrame() の戻り値
      * @param {boolean} isBothEnds - 両矢印なら true
+     * @param {number} [preferredLength] - 求めたい長さ（省略時は矢じりの幅の HEAD_RATIO 倍。直角の矢じり）
      * @returns {number} 矢じりの長さ
      */
-    function getHeadLength(arrowFrame, isBothEnds) {
-        return Math.min(arrowFrame.headWidth * HEAD_RATIO, isBothEnds ? arrowFrame.length / 2 : arrowFrame.length);
+    function getHeadLength(arrowFrame, isBothEnds, preferredLength) {
+        var headLength = (preferredLength !== undefined) ? preferredLength : arrowFrame.headWidth * HEAD_RATIO;
+        return Math.min(headLength, isBothEnds ? arrowFrame.length / 2 : arrowFrame.length);
     }
 
     /**
@@ -1148,13 +1176,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
      * @param {Object} arrowFrame - getArrowFrame() の戻り値
      * @param {number} shaftRatio - 軸の太さ（短辺に対する比率）
      * @param {boolean} isBothEnds - 両矢印なら true
-     * @returns {Array} 頂点 [[x, y], …] 片矢印は 7 点、両矢印は 10 点
+     * @param {number} [preferredHeadLength] - 矢じりの長さ（省略時は直角の矢じり。getHeadLength() を参照）
+     * @returns {Array} 頂点 [[x, y], …] 片矢印は 7 点、両矢印は 10 点（軸と矢じりが同じ幅なら 5 点・6 点）
      */
-    function buildFilledArrowPoints(arrowFrame, shaftRatio, isBothEnds) {
+    function buildFilledArrowPoints(arrowFrame, shaftRatio, isBothEnds, preferredHeadLength) {
         var halfSide = arrowFrame.headWidth / 2;
         /* 高さを詰めても軸が矢じりからはみ出さないように / keep the shaft within the head when the height is reduced */
         var halfShaft = Math.min(arrowFrame.thickness * shaftRatio / 2, halfSide);
-        var headLength = getHeadLength(arrowFrame, isBothEnds);
+        var headLength = getHeadLength(arrowFrame, isBothEnds, preferredHeadLength);
         var neck = arrowFrame.length - headLength;
         var tailPoints = isBothEnds
             ? [arrowFrame.toPoint(headLength, -halfShaft), arrowFrame.toPoint(headLength, -halfSide), arrowFrame.toPoint(0, 0),
@@ -1171,26 +1200,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
     }
 
     /**
-     * ホームベース（長方形の一端をとがらせた形）の頂点を求める。先端は短辺いっぱいの幅で、tipAngle の角度にとがらせる
+     * ホームベース（長方形の一端をとがらせた形）の頂点を求める。軸と矢じりが短辺いっぱいの塗りの矢印として作り、
+     * 先端を tipAngle の角度にとがらせる（長方形が短いときは getHeadLength() で止まり、先端は鈍くなる）
      * @param {Object} arrowFrame - getArrowFrame() の戻り値（heightRatio は 1）
      * @param {number} tipAngle - 先端の角度（度）
      * @param {boolean} isBothEnds - 両端をとがらせるなら true
      * @returns {Array} 頂点 [[x, y], …] 片側は 5 点、両側は 6 点
      */
     function buildPentagonPoints(arrowFrame, tipAngle, isBothEnds) {
-        var halfSide = arrowFrame.headWidth / 2;
-        /* 長方形が短いときは、片側は全長、両側は半分で止める（先端は鈍くなる） / cap at the full or half length; the tip gets blunter */
-        var maxHeadLength = isBothEnds ? arrowFrame.length / 2 : arrowFrame.length;
-        var headLength = Math.min(halfSide / Math.tan(tipAngle / 2 * Math.PI / 180), maxHeadLength);
-        var neck = arrowFrame.length - headLength;
-        var tailPoints = isBothEnds
-            ? [arrowFrame.toPoint(headLength, -halfSide), arrowFrame.toPoint(0, 0), arrowFrame.toPoint(headLength, halfSide)]
-            : [arrowFrame.toPoint(0, -halfSide), arrowFrame.toPoint(0, halfSide)];
-        return removeRedundantPoints([
-            arrowFrame.toPoint(neck, halfSide),
-            arrowFrame.toPoint(arrowFrame.length, 0),
-            arrowFrame.toPoint(neck, -halfSide)
-        ].concat(tailPoints));
+        var tipLength = (arrowFrame.headWidth / 2) / Math.tan(tipAngle / 2 * Math.PI / 180);
+        return buildFilledArrowPoints(arrowFrame, 1, isBothEnds, tipLength);
     }
 
     /**
@@ -2138,7 +2157,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
     var ARROW_TYPE_ICON_LINE_WIDTH = 3;
     var ARROW_TYPE_ICON_SHAPES = {
         fill: { rects: [[1, 5.5, 69, 14.5]], heads: [[69, 79, 10, 10]], lines: [], discs: [] },
-        pentagon: { rects: [[1, 1, 70, 19]], heads: [[70, 79, 10, 9]], lines: [], discs: [] },
+        pentagon: { rects: [[1, 2.5, 72, 17.5]], heads: [[71.5, 79, 10, 7.5]], lines: [], discs: [] },
         line: { rects: [], heads: [], lines: [[[1, 10], [77, 10], 3], [[69.5, 2.5], [77, 10], [69.5, 17.5], 3]], discs: [] },
         roundLine: {
             rects: [], heads: [],
@@ -2147,7 +2166,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
         },
         /* 両矢印 / double-headed */
         fillBothEnds: { rects: [[11, 5.5, 69, 14.5]], heads: [[69, 79, 10, 10], [11, 1, 10, 10]], lines: [], discs: [] },
-        pentagonBothEnds: { rects: [[10, 1, 70, 19]], heads: [[70, 79, 10, 9], [10, 1, 10, 9]], lines: [], discs: [] },
+        pentagonBothEnds: { rects: [[8, 2.5, 72, 17.5]], heads: [[71.5, 79, 10, 7.5], [8.5, 1, 10, 7.5]], lines: [], discs: [] },
         lineBothEnds: {
             rects: [], heads: [],
             lines: [[[3, 10], [77, 10], 3], [[69.5, 2.5], [77, 10], [69.5, 17.5], 3], [[10.5, 2.5], [3, 10], [10.5, 17.5], 3]],
@@ -2355,7 +2374,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
         var arrowPreview = createArrowPreview(rectangles);
         /* 線幅は環境設定の線の単位で入力する / stroke widths use the stroke units from Preferences */
         var strokeUnit = getUnitInfo("strokeUnits");
-        var firstShortSide = getArrowFrame(rectangles[0], false, 1).thickness;
+        var firstShortSide = getArrowAxis(rectangles[0]).thickness;
         /* 入力欄は小数2桁まで。インチなど大きい単位でも 0 に丸まらないよう下限で止める / the field keeps 2 decimals; keep large units from rounding to 0 */
         var defaultLineWidth = Math.max(0.01, Math.round(firstShortSide * DEFAULT_LINE_PERCENT / 100 / strokeUnit.pointsPerUnit * 100) / 100);
         /* 1つ目が罫線なら、線の矢印（矢印2）で始め、線幅はその罫線のものを引き継ぐ / for a rule, start with the stroked arrow and keep the rule's stroke width */

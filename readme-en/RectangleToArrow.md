@@ -26,7 +26,7 @@
   - Stroke (Butt Cap): a straight shaft and a chevron head stroked with butt caps and miter joins
   - Stroke (Round Cap): the same with round caps and round joins
 - The two stroke types apply the Outline Stroke effect to each line, group the lines, and apply the Pathfinder (Add) effect to the group. They stay live, so you can still edit the stroke weight and so on
-- Direction: the arrow runs along the long side (or the rule itself), pointing right when mostly horizontal and up when mostly vertical. Unrotated wide rectangles point right, tall ones up
+- Direction: the arrow runs along the long side (or the rule itself), pointing right when mostly horizontal and up when mostly vertical. Unrotated wide rectangles point right, tall ones up. Squares follow the more horizontal side and point up-right at 45°
   - Option-click (Alt-click) a button to reverse the direction. Do it again to switch back
   - Command-Option-click (Ctrl-Alt-click) a button to toggle a double-headed arrow
   - The link (double-headed) and ⇄ (reverse) icons under the type buttons switch them too. Reverse is unavailable for double-headed arrows
@@ -87,6 +87,7 @@ https://note.com/dtp_tranist/n/n789072361c12
 
 ### Update History
 
+- v1.2.1 (2026-10-12) Fixed squares rotated 45° pointing different ways depending on their anchor order (they now point up-right). The Pentagon button drawing is now easier to tell apart from Fill
 - v1.2.0 (2026-10-12) Added the Pentagon type, with its tip angle set by Angle. Rotated rectangles and slanted or vertical rules are now supported
 - v1.1.1 (2026-10-11) For horizontal rules, the dialog now starts with the stroke (butt cap) type and keeps the rule's stroke weight. Fixed stroked arrows inheriting the rule's arrowheads and width profile, overlapping anchor points at extreme heights, and missed white fills. The default stroke width and step now suit the stroke unit. Switching between the two stroke types keeps the stroke width
 - v1.1.0 (2026-10-10) Added Height. Horizontal rules are now supported. The stroke types now take the thickness as a stroke weight in the Stroke units from Preferences. Added double-headed and reverse icons. A white fill now also falls back to the stroke color
@@ -94,6 +95,6 @@ https://note.com/dtp_tranist/n/n789072361c12
 
 ### Script info
 
-- Version: v1.2.0
+- Version: v1.2.1
 - First release: 2026-10-10
 - Last updated: 2026-10-12
