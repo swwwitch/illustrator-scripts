@@ -22,6 +22,7 @@ The dummy text is split into tiers to match the height of the rules and blurred.
 - Vertical dummy text on both sides, with the rule height split into tiers (one character of space and a tier rule between tiers)
 - Type size calculated from the characters per line; 85% vertical scale, Hiragino Mincho W3
 - Full-width tiers added above and below
+- With Western, the dummy is set in horizontal justified columns (Times New Roman); the column width and type size follow from how many columns the headline spans
 - The horizontal spacing of the rules nudged so the lines of the tiers above and below align with the side tiers
 - The side dummy text trimmed to whole lines, keeping the space next to the rules equal on both sides
 - A paper-colored rectangle (Y10 K25) behind the dummy text
@@ -45,15 +46,17 @@ The dummy text is split into tiers to match the height of the rules and blurred.
 | Side Rules | Extend | 5 pt | How far the rules extend beyond the top and bottom of the headline |
 | Side Rules | Spacing | 8 pt | Distance between the headline and the inner rule; may widen slightly so the dummy lines align |
 | Side Rules | Gap | 5 pt | Distance between the inner and outer rule; 0 draws a single rule |
-| Newspaper Dummy | Chars per line | 11 chars | Characters in one line of a tier |
-| Newspaper Dummy | Tiers | 3 tiers | Number of tiers the rule height is split into; 0 adds no dummy text |
-| Newspaper Dummy | Extra tiers | 1 tier | Full-width tiers added above and below each |
+| Newspaper Dummy | Japanese / Western | Japanese | Vertical Japanese tiers or horizontal Western columns |
+| Newspaper Dummy | Chars per line | 11 chars | Characters in one line of a tier (Japanese only) |
+| Newspaper Dummy | Tiers | 3 tiers | Number of tiers the rule height is split into; 0 adds no dummy text (Japanese only) |
+| Newspaper Dummy | Columns | 3 columns | How many columns the headline spans; sets the column width and type size (Western only) |
+| Newspaper Dummy | Extra tiers | 1 tier | Full-width tiers added above and below each (with Western, bands of columns as tall as the rules) |
 | Newspaper Dummy | Width | 30 mm | Width of the dummy text on each side (trimmed to whole lines) |
 | Newspaper Dummy | Blur | 8 px | Radius of the Gaussian Blur on the dummy text; 0 applies none |
 | Options | Rotation | 3° | Rotation applied to the whole piece with the Transform effect; 0 adds no effect |
 | Options | Mask | On | Masks the whole piece with a rectangle that leaves no corner missing after the rotation; when off, no clip group is made. Turns off automatically when Extra tiers is set to 0 |
 
-Lengths are shown in the ruler unit. The numeric fields step with the stepper buttons to their left or the Up/Down arrow keys (to the next whole number rather than by 1, e.g. 1.5 → 2; Shift: to the next multiple of ten; Option: ±0.1; Chars per line, Tiers and Extra tiers take whole numbers only). Only Rotation accepts negative values.
+Lengths are shown in the ruler unit. The numeric fields step with the stepper buttons to their left or the Up/Down arrow keys (to the next whole number rather than by 1, e.g. 1.5 → 2; Shift: to the next multiple of ten; Option: ±0.1; Chars per line, Tiers, Columns and Extra tiers take whole numbers only). Only Rotation accepts negative values.
 
 ### Dummy text dimensions
 
@@ -66,6 +69,17 @@ Lengths are shown in the ruler unit. The numeric fields step with the stepper bu
 | Space next to the rules | One character |
 | Font | Hiragino Mincho W3 (the default font when it is missing) |
 | Background | Y10 K25 rectangle |
+
+With Western, the dummy is set as follows.
+
+| Item | Value |
+| --- | --- |
+| Column width | Approximate characters per line (32) × average character width (0.5 em) |
+| Type size | The size at which the span between the outer rules equals columns × column width + (columns − 1) × gutter |
+| Gutter and space next to the rules | 1 em |
+| Leading | Type size × 1.2 |
+| Bands above and below | As tall as the rules, with a rule (0.3 pt) between them and the headline |
+| Font | Times New Roman (then Times, Georgia, or the default font) |
 
 The rule and background colors, the font, the vertical scale, the leading and so on can be changed under "User Settings" at the top of the script. In RGB documents, the CMYK values are converted to RGB with a simple formula.
 
@@ -85,7 +99,7 @@ From front to back, everything is wrapped in one clip group (with Mask off, only
 - Works with Illustrator 2024–2026.
 - Select exactly one text object or one group before running.
 - The headline is expected to be vertical text (the rules are drawn on its left and right).
-- The dummy text repeats the opening of "I Am a Cat". Kinsoku is set to None so every line keeps the set length (a period may start a line).
+- The dummy text repeats the opening of "I Am a Cat" (Japanese) or Lorem ipsum (Western). For Japanese, kinsoku is set to None so every line keeps the set length (a period may start a line).
 - The blur and the rotation are live effects, so they can be adjusted later in the Appearance panel.
 - While previewing, the selected headline is hidden and a copy is shown. Cancel restores the original state.
 
@@ -95,6 +109,7 @@ https://note.com/dtp_tranist/n/ndb9bee6b7a2e
 
 ### Change log
 
+- v1.4.0 (2026-10-12): Added Japanese and Western options to the newspaper dummy; Western builds horizontal columns from the number of columns the headline spans. The dialog now has two columns, with the newspaper dummy settings on the right
 - v1.3.7 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.3.6 (2026-10-01): Added space below the button row to match Illustrator's own dialogs
 - v1.3.5 (2026-10-01): The button row, previously always centered, is now centered in dialogs up to 200 px wide (inside the margins) and right-aligned in wider ones. Unified the window and panel margins and spacing with the shared layout part

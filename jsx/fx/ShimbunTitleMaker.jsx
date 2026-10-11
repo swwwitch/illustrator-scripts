@@ -29,10 +29,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ShimbunTit
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ShimbunTitleMaker";            /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.3.7";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.4.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-09-23";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-12";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ShimbunTitleMaker.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ShimbunTitleMaker.md"; /* README (English) */
@@ -68,6 +68,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb9bee6b7a2e"; /* 紹�
     var EFFECT_RESOLUTION = 300;         /* 効果のプレビュー解像度（ppi）/ effect preview resolution */
     /* 新聞ダミーの文字列。句点は禁則を「なし」にして行頭にも置く / Dummy text; kinsoku is turned off so periods may start a line */
     var DUMMY_TEXT = "吾輩は猫である。名前はまだ無い。どこで生れたかとんと見当がつかぬ。何でも薄暗い所で泣いていた事だけは記憶している。";
+    var DEFAULT_DUMMY_SCRIPT = "japanese"; /* 新聞ダミーの組み方（"japanese" 和文 / "western" 欧文）/ Dummy script */
+    var DEFAULT_COLUMN_COUNT = 3;        /* 欧文：見出しの横幅に入る段組数 / Western: columns spanned by the headline */
+    var WESTERN_CHARS_PER_LINE = 32;     /* 欧文：1行あたりのおよその文字数 / Western: approximate characters per line */
+    var WESTERN_CHAR_WIDTH_RATIO = 0.5;  /* 欧文：1文字の平均幅（文字サイズ比）/ Western: average character width as a ratio of type size */
+    var WESTERN_LEADING_RATIO = 1.2;     /* 欧文：行送り（文字サイズ比）/ Western: leading as a ratio of type size */
+    /* 欧文の新聞ダミーのフォント（PostScript 名、前から順に探す）/ Western dummy font PostScript names, tried in order */
+    var WESTERN_FONT_NAMES = ["TimesNewRomanPSMT", "Times-Roman", "Georgia"];
+    /* 欧文の新聞ダミーの文字列 / Western dummy text */
+    var WESTERN_DUMMY_TEXT = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. ";
 
     // =========================================
     // レイアウト / Layout
@@ -1038,15 +1047,21 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb9bee6b7a2e"; /* 紹�
             tierCount: { ja: "段数", en: "Tiers" },
             extraTierCount: { ja: "上下に追加", en: "Extra tiers" },
             dummyWidth: { ja: "左右の幅", en: "Width" },
+            columnCount: { ja: "段組数", en: "Columns" },
             blurRadius: { ja: "ぼかし", en: "Blur" },
             rotation: { ja: "回転", en: "Rotation" }
+        },
+        radio: {
+            japanese: { ja: "和文", en: "Japanese" },
+            western: { ja: "欧文", en: "Western" }
         },
         checkbox: {
             useMask: { ja: "マスク", en: "Mask" }
         },
         unit: {
             chars: { ja: "文字", en: "chars" },
-            tiers: { ja: "段", en: "tiers" }
+            tiers: { ja: "段", en: "tiers" },
+            columns: { ja: "段", en: "columns" }
         },
         tooltip: {
             marginVertical: { ja: "二重線を対象の上端／下端から伸ばす量", en: "How far the rules extend beyond the top and bottom of the object" },
@@ -1065,6 +1080,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb9bee6b7a2e"; /* 紹�
                 en: "Full-width tiers added above and below each. 0 adds none."
             },
             dummyWidth: { ja: "左右それぞれの新聞ダミーの幅", en: "Width of the dummy text on each side" },
+            columnCount: {
+                ja: "欧文で、見出しの横幅に入る段の数。段の幅と文字サイズはこれから決まります。",
+                en: "Western only: how many columns the headline spans. Sets the column width and type size."
+            },
+            japanese: { ja: "縦組みの段で新聞ダミーを作る", en: "Builds the dummy as vertical Japanese tiers" },
+            western: { ja: "横組みの段組みで新聞ダミーを作る", en: "Builds the dummy as horizontal Western columns" },
             blurRadius: {
                 ja: "新聞ダミーにかけるぼかし（ガウス）の半径（px）。0でかけません。",
                 en: "Radius of the Gaussian blur on the dummy text, in pixels. 0 applies none."
@@ -1361,7 +1382,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb9bee6b7a2e"; /* 紹�
             fontSize: fontSize,
             charAdvance: charAdvance,
             linePitch: dummyLayout.linePitch,
-            textFont: findDummyFont(),
+            textFont: findDummyFont(DUMMY_FONT_NAMES),
             strokeColor: createProcessColor(doc, RULE_CMYK)
         };
 
@@ -1401,13 +1422,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb9bee6b7a2e"; /* 紹�
 
     /**
      * 新聞ダミーのフォントを探す（見つからなければ null で既定のフォントのまま）
+     * @param {string[]} fontNames - PostScript 名の候補（前から順に探す）
      * @returns {TextFont|null} フォント
      */
-    function findDummyFont() {
-        for (var i = 0; i < DUMMY_FONT_NAMES.length; i++) {
+    function findDummyFont(fontNames) {
+        for (var i = 0; i < fontNames.length; i++) {
             /* getByName は見つからないと例外 / getByName throws when the font is missing */
             try {
-                return app.textFonts.getByName(DUMMY_FONT_NAMES[i]);
+                return app.textFonts.getByName(fontNames[i]);
             } catch (e) {}
         }
         return null;
@@ -1474,7 +1496,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb9bee6b7a2e"; /* 紹�
         var targetLayer = tierContext.targetLayer;
         var framePath = targetLayer.pathItems.rectangle(tierTop, textLeft - widthSlack, frameWidth, frameHeight);
         var dummyFrame = targetLayer.textFrames.areaText(framePath, TextOrientation.VERTICAL);
-        dummyFrame.contents = buildDummyText(lineCount * charsPerLine);
+        dummyFrame.contents = buildDummyText(DUMMY_TEXT, lineCount * charsPerLine, 0);
 
         /* 句点が行頭に来ても字詰どおりに流す / keep every line at the set length even when a period starts it */
         dummyFrame.textRange.paragraphAttributes.kinsoku = "None";
@@ -1492,15 +1514,149 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb9bee6b7a2e"; /* 紹�
 
     /**
      * ダミー文字列を指定の文字数まで繰り返す
+     * @param {string} sourceText - 繰り返す元の文字列
      * @param {number} charCount - 文字数
+     * @param {number} startOffset - 元の文字列のどこから始めるか（文字数）
      * @returns {string} ダミー文字列
      */
-    function buildDummyText(charCount) {
-        var dummyText = "";
+    function buildDummyText(sourceText, charCount, startOffset) {
+        var dummyText = sourceText.substr(startOffset % sourceText.length);
         while (dummyText.length < charCount) {
-            dummyText += DUMMY_TEXT;
+            dummyText += sourceText;
         }
         return dummyText.substr(0, charCount);
+    }
+
+    /**
+     * 欧文の新聞ダミーの寸法を求める。
+     * 二重線の外側の線から外側の線までを段組数ぶんの段（段間は1em）とし、
+     * 段の幅（およその1行の文字数 × 平均字幅）から文字サイズを決める。左右の段数は幅に収まる数
+     * @param {Object} ruleFrame - getRuleFrame() で求めた二重線の枠
+     * @param {{columnCount: number, dummyWidthPt: number}} headlineSettings - 新聞ダミーの設定
+     * @returns {Object|null} 新聞ダミーの寸法（作らないときは null）
+     */
+    function computeWesternDummyLayout(ruleFrame, headlineSettings) {
+        var columnCount = headlineSettings.columnCount;
+        var headlineSpan = ruleFrame.outerRightX - ruleFrame.outerLeftX;
+        var ruleHeight = ruleFrame.topY - ruleFrame.bottomY;
+        if (columnCount < 1 || headlineSettings.dummyWidthPt <= 0 || headlineSpan <= 0 || ruleHeight <= 0) return null;
+
+        /* 段の幅を em で表すと、見出しの幅 = 段組数 × 段の幅 ＋（段組数 − 1）× 段間 / the span holds the columns plus the gutters between them */
+        var columnWidthEm = WESTERN_CHARS_PER_LINE * WESTERN_CHAR_WIDTH_RATIO;
+        var fontSize = headlineSpan / (columnCount * columnWidthEm + columnCount - 1);
+        var gutter = fontSize;
+        var columnWidth = columnWidthEm * fontSize;
+        var columnPitch = columnWidth + gutter;
+        var sideColumnCount = Math.max(1, Math.floor((headlineSettings.dummyWidthPt + gutter) / columnPitch + 1e-6));
+        return {
+            fontSize: fontSize,
+            linePitch: fontSize * WESTERN_LEADING_RATIO,
+            gutter: gutter,
+            columnWidth: columnWidth,
+            columnPitch: columnPitch,
+            sideColumnCount: sideColumnCount,
+            sideWidth: sideColumnCount * columnPitch - gutter,
+            bandHeight: ruleHeight
+        };
+    }
+
+    /**
+     * 二重線の外側の左右に欧文の段組みを描画し、上下には左右の幅いっぱいの段組みを足す。
+     * 上下の段組みは二重線と同じ高さで、見出しとの間に横罫を引く
+     * @param {Document} doc - 対象のドキュメント
+     * @param {Layer} targetLayer - 描画先のレイヤー
+     * @param {Object} ruleFrame - 二重線の枠
+     * @param {Object} dummyLayout - computeWesternDummyLayout() で求めた寸法
+     * @param {number} extraTierCount - 上下それぞれに足す段組みの数
+     * @returns {GroupItem} 生成した新聞ダミーのグループ
+     */
+    function drawWesternDummy(doc, targetLayer, ruleFrame, dummyLayout, extraTierCount) {
+        var gutter = dummyLayout.gutter;
+        var bandHeight = dummyLayout.bandHeight;
+
+        var dummyGroup = targetLayer.groupItems.add();
+        dummyGroup.name = getLabel("itemName.dummyGroup");
+        var columnContext = {
+            targetLayer: targetLayer,
+            dummyGroup: dummyGroup,
+            fontSize: dummyLayout.fontSize,
+            linePitch: dummyLayout.linePitch,
+            columnWidth: dummyLayout.columnWidth,
+            columnPitch: dummyLayout.columnPitch,
+            textFont: findDummyFont(WESTERN_FONT_NAMES),
+            strokeColor: createProcessColor(doc, RULE_CMYK),
+            columnIndex: 0
+        };
+
+        /* 外側の線と本文の間は段間と同じ1em / one gutter between the outer rule and the text */
+        var leftSideLeft = ruleFrame.outerLeftX - gutter - dummyLayout.sideWidth;
+        var sideColumnCount = dummyLayout.sideColumnCount;
+        addWesternColumns(columnContext, leftSideLeft, ruleFrame.topY, sideColumnCount, bandHeight);
+        addWesternColumns(columnContext, ruleFrame.outerRightX + gutter, ruleFrame.topY, sideColumnCount, bandHeight);
+
+        /* 上下は左の段から右の段まで、見出しの上も同じ段の並びで / above and below, the same column grid runs across the headline */
+        var fullColumnCount = sideColumnCount * 2 + Math.round((ruleFrame.outerRightX - ruleFrame.outerLeftX + gutter) / dummyLayout.columnPitch);
+        var fullWidth = fullColumnCount * dummyLayout.columnPitch - gutter;
+        var bandPitch = bandHeight + gutter;
+        for (var j = 0; j < extraTierCount; j++) {
+            var upperRuleY = ruleFrame.topY + gutter / 2 + j * bandPitch;
+            addTierRule(columnContext, leftSideLeft, upperRuleY, fullWidth);
+            addWesternColumns(columnContext, leftSideLeft, upperRuleY + gutter / 2 + bandHeight, fullColumnCount, bandHeight);
+
+            var lowerRuleY = ruleFrame.bottomY - gutter / 2 - j * bandPitch;
+            addTierRule(columnContext, leftSideLeft, lowerRuleY, fullWidth);
+            addWesternColumns(columnContext, leftSideLeft, lowerRuleY - gutter / 2, fullColumnCount, bandHeight);
+        }
+        return dummyGroup;
+    }
+
+    /**
+     * 欧文の段を横に並べて作る。段ごとに本文の書き出しをずらす
+     * @param {Object} columnContext - 段の共通設定（columnIndex を進める）
+     * @param {number} columnsLeft - 最初の段の左端の X 座標
+     * @param {number} columnsTop - 上端の Y 座標
+     * @param {number} columnCount - 段の数
+     * @param {number} columnHeight - 段の高さ（pt）
+     * @returns {void}
+     */
+    function addWesternColumns(columnContext, columnsLeft, columnsTop, columnCount, columnHeight) {
+        for (var i = 0; i < columnCount; i++) {
+            addWesternColumn(columnContext, columnsLeft + i * columnContext.columnPitch, columnsTop, columnHeight);
+            columnContext.columnIndex++;
+        }
+    }
+
+    /**
+     * 欧文の段を1つ、両端揃えの横組みエリア内文字で作り、新聞ダミーのグループに入れる。
+     * あふれるだけの本文を流し込み、あふれた分は見せない
+     * @param {Object} columnContext - 段の共通設定
+     * @param {number} columnLeft - 左端の X 座標
+     * @param {number} columnTop - 上端の Y 座標
+     * @param {number} columnHeight - 高さ（pt）
+     * @returns {TextFrame} 生成したテキストフレーム
+     */
+    function addWesternColumn(columnContext, columnLeft, columnTop, columnHeight) {
+        var targetLayer = columnContext.targetLayer;
+        var framePath = targetLayer.pathItems.rectangle(columnTop, columnLeft, columnContext.columnWidth, columnHeight);
+        var dummyFrame = targetLayer.textFrames.areaText(framePath);
+
+        var lineCount = Math.ceil(columnHeight / columnContext.linePitch) + 1;
+        var charCount = Math.ceil(lineCount * WESTERN_CHARS_PER_LINE * 1.5);
+        /* 段ごとに書き出しをずらして、同じ文が横に並ばないようにする / start each column elsewhere in the text */
+        dummyFrame.contents = buildDummyText(WESTERN_DUMMY_TEXT, charCount, columnContext.columnIndex * 37);
+
+        var dummyParagraph = dummyFrame.textRange.paragraphAttributes;
+        dummyParagraph.justification = Justification.FULLJUSTIFYLASTLINELEFT;
+        dummyParagraph.hyphenation = true;
+
+        var dummyAttributes = dummyFrame.textRange.characterAttributes;
+        if (columnContext.textFont) dummyAttributes.textFont = columnContext.textFont;
+        dummyAttributes.size = columnContext.fontSize;
+        dummyAttributes.autoLeading = false;
+        dummyAttributes.leading = columnContext.linePitch;
+
+        dummyFrame.move(columnContext.dummyGroup, ElementPlacement.PLACEATEND);
+        return dummyFrame;
     }
 
     /**
@@ -1513,14 +1669,19 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb9bee6b7a2e"; /* 紹�
      */
     function buildHeadlineGroup(doc, targetItem, headlineSettings) {
         var ruleFrame = getRuleFrame(targetItem, headlineSettings);
-        var dummyLayout = computeDummyLayout(ruleFrame, headlineSettings);
-        /* 二重線を描く前に、新聞ダミーの行に合わせて左右の間隔を調整 / adjust the side spacing to the dummy lines before drawing the rules */
-        if (dummyLayout) alignRuleFrameToDummyLines(ruleFrame, dummyLayout);
+        var isWestern = headlineSettings.dummyScript === "western";
+        var dummyLayout = isWestern ?
+            computeWesternDummyLayout(ruleFrame, headlineSettings) :
+            computeDummyLayout(ruleFrame, headlineSettings);
+        /* 二重線を描く前に、和文の新聞ダミーの行に合わせて左右の間隔を調整 / adjust the side spacing to the Japanese dummy lines before drawing the rules */
+        if (dummyLayout && !isWestern) alignRuleFrameToDummyLines(ruleFrame, dummyLayout);
 
         var ruleGroup = drawSideRules(doc, targetItem, ruleFrame, headlineSettings);
-        var dummyGroup = dummyLayout ?
-            drawNewspaperDummy(doc, targetItem.layer, ruleFrame, dummyLayout, headlineSettings.extraTierCount) :
-            null;
+        var dummyGroup = null;
+        if (dummyLayout) {
+            var drawDummy = isWestern ? drawWesternDummy : drawNewspaperDummy;
+            dummyGroup = drawDummy(doc, targetItem.layer, ruleFrame, dummyLayout, headlineSettings.extraTierCount);
+        }
         var headlineGroup = groupHeadlineParts(targetItem, ruleGroup, dummyGroup);
 
         var blursDummy = dummyGroup && headlineSettings.blurRadius > 0;
@@ -1737,7 +1898,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb9bee6b7a2e"; /* 紹�
      * @param {string} unitLabel - 入力欄に添える単位の表示名
      * @param {number} pointsPerUnit - 1単位あたりのポイント数
      * @param {Function} onValueChange - 入力値が変わったときに呼ぶ関数
-     * @returns {{dialog: Window, fieldInputs: Object, maskCheckbox: Checkbox}} ダイアログ、キーごとの入力欄、マスクのチェックボックス
+     * @returns {{dialog: Window, fieldInputs: Object, maskCheckbox: Checkbox, getDummyScript: Function}} ダイアログ、キーごとの入力欄、マスクのチェックボックス、和文／欧文の取得
      */
     function buildDialog(unitLabel, pointsPerUnit, onValueChange) {
         var headlineDialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
@@ -1748,6 +1909,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb9bee6b7a2e"; /* 紹�
         var fieldInputs = {};
         var maskCheckbox = null;
         var lastExtraTierCount = DEFAULT_EXTRA_TIER_COUNT;
+        /* 表示前のラジオの value は読み戻せないので、選択は変数で持つ / radio values cannot be read back before show() */
+        var dummyScript = DEFAULT_DUMMY_SCRIPT;
 
         /**
          * ［上下に追加］が0になったらマスクをOFFにしてから、変更を通知する。0のままでも手動でONに戻せる
@@ -1761,21 +1924,73 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb9bee6b7a2e"; /* 紹�
             onValueChange();
         }
 
-        addNumericFieldPanel(headlineDialog, "panel.sideRules", [
+        /* 2カラム：左に二重線とオプション、右に新聞ダミー / two columns: rules and options on the left, dummy on the right */
+        var columnsGroup = headlineDialog.add("group");
+        columnsGroup.orientation = "row";
+        columnsGroup.alignChildren = ["fill", "top"];
+        columnsGroup.spacing = COLUMN_SPACING;
+        var leftColumn = columnsGroup.add("group");
+        leftColumn.orientation = "column";
+        leftColumn.alignChildren = ["fill", "top"];
+        leftColumn.spacing = WINDOW_SPACING;
+        var rightColumn = columnsGroup.add("group");
+        rightColumn.orientation = "column";
+        rightColumn.alignChildren = ["fill", "top"];
+        rightColumn.spacing = WINDOW_SPACING;
+
+        addNumericFieldPanel(leftColumn, "panel.sideRules", [
             { key: "marginVertical", initialText: formatUnitValue(DEFAULT_VERTICAL_MARGIN_PT, pointsPerUnit), unitLabel: unitLabel },
             { key: "marginHorizontal", initialText: formatUnitValue(DEFAULT_HORIZONTAL_MARGIN_PT, pointsPerUnit), unitLabel: unitLabel },
             { key: "lineGap", initialText: formatUnitValue(DEFAULT_LINE_GAP_PT, pointsPerUnit), unitLabel: unitLabel }
         ], fieldInputs, handleValueChange);
 
-        addNumericFieldPanel(headlineDialog, "panel.newspaperDummy", [
+        var dummyPanel = rightColumn.add("panel", undefined, getLabel("panel.newspaperDummy"));
+        setupPanel(dummyPanel);
+
+        /* 和文／欧文 / Japanese or Western */
+        var scriptRow = dummyPanel.add("group");
+        setupRow(scriptRow);
+        var japaneseRadio = scriptRow.add("radiobutton", undefined, getLabel("radio.japanese"));
+        var westernRadio = scriptRow.add("radiobutton", undefined, getLabel("radio.western"));
+        japaneseRadio.helpTip = getLabel("tooltip.japanese");
+        westernRadio.helpTip = getLabel("tooltip.western");
+        japaneseRadio.value = (dummyScript !== "western");
+        westernRadio.value = (dummyScript === "western");
+
+        addNumericFieldRows(dummyPanel, [
             { key: "charsPerLine", initialText: String(DEFAULT_CHARS_PER_LINE), unitLabel: getLabel("unit.chars"), integer: true, min: 1 },
             { key: "tierCount", initialText: String(DEFAULT_TIER_COUNT), unitLabel: getLabel("unit.tiers"), integer: true },
+            { key: "columnCount", initialText: String(DEFAULT_COLUMN_COUNT), unitLabel: getLabel("unit.columns"), integer: true, min: 1 },
             { key: "extraTierCount", initialText: String(DEFAULT_EXTRA_TIER_COUNT), unitLabel: getLabel("unit.tiers"), integer: true },
             { key: "dummyWidth", initialText: formatUnitValue(DEFAULT_DUMMY_WIDTH_PT, pointsPerUnit), unitLabel: unitLabel },
             { key: "blurRadius", initialText: String(DEFAULT_BLUR_RADIUS), unitLabel: "px" }
-        ], fieldInputs, handleValueChange);
+        ], fieldInputs, handleValueChange, true);
 
-        var optionsPanel = addNumericFieldPanel(headlineDialog, "panel.options", [
+        /**
+         * 和文／欧文に合わせて、使わない欄を無効にする（字詰・段数は和文、段組数は欧文だけ）
+         * @param {boolean} redrawsSteppers - ∧∨も描き直すか（表示前は false）
+         * @returns {void}
+         */
+        function updateScriptFields(redrawsSteppers) {
+            var isWestern = dummyScript === "western";
+            setFieldRowEnabled(fieldInputs.charsPerLine, !isWestern, redrawsSteppers);
+            setFieldRowEnabled(fieldInputs.tierCount, !isWestern, redrawsSteppers);
+            setFieldRowEnabled(fieldInputs.columnCount, isWestern, redrawsSteppers);
+        }
+
+        japaneseRadio.onClick = function () {
+            dummyScript = "japanese";
+            updateScriptFields(true);
+            onValueChange();
+        };
+        westernRadio.onClick = function () {
+            dummyScript = "western";
+            updateScriptFields(true);
+            onValueChange();
+        };
+        updateScriptFields(false);
+
+        var optionsPanel = addNumericFieldPanel(leftColumn, "panel.options", [
             { key: "rotation", initialText: String(DEFAULT_ROTATION_DEG), unitLabel: "°", allowNegative: true }
         ], fieldInputs, handleValueChange);
         maskCheckbox = addCheckboxRow(optionsPanel, "useMask", DEFAULT_USE_MASK && DEFAULT_EXTRA_TIER_COUNT > 0, onValueChange);
@@ -1784,25 +1999,57 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb9bee6b7a2e"; /* 紹�
         var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
         var btnOK = buttonRow.rightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
         alignRightOnlyButtonRow(buttonRow);
-        return { dialog: headlineDialog, fieldInputs: fieldInputs, maskCheckbox: maskCheckbox };
+        return {
+            dialog: headlineDialog,
+            fieldInputs: fieldInputs,
+            maskCheckbox: maskCheckbox,
+            getDummyScript: function () { return dummyScript; }
+        };
     }
 
     /**
      * パネルを作り、数値入力の行を並べる
-     * @param {Window} parentDialog - 追加先のダイアログ
+     * @param {Group} parentColumn - 追加先のカラム
      * @param {string} panelLabelPath - パネル見出しのラベルパス
      * @param {Object[]} fieldSpecs - 行の定義（key, initialText, unitLabel, allowNegative, integer, min）
      * @param {Object} fieldInputs - 作った入力欄を key ごとに入れる先
      * @param {Function} onValueChange - 入力値が変わったときに呼ぶ関数
+     * @param {boolean} [autoLabelWidth] - true なら項目名の幅を固定せず成り行きにする
      * @returns {Panel} 作ったパネル
      */
-    function addNumericFieldPanel(parentDialog, panelLabelPath, fieldSpecs, fieldInputs, onValueChange) {
-        var fieldPanel = parentDialog.add("panel", undefined, getLabel(panelLabelPath));
+    function addNumericFieldPanel(parentColumn, panelLabelPath, fieldSpecs, fieldInputs, onValueChange, autoLabelWidth) {
+        var fieldPanel = parentColumn.add("panel", undefined, getLabel(panelLabelPath));
         setupPanel(fieldPanel);
-        for (var i = 0; i < fieldSpecs.length; i++) {
-            fieldInputs[fieldSpecs[i].key] = addNumericFieldRow(fieldPanel, fieldSpecs[i], onValueChange);
-        }
+        addNumericFieldRows(fieldPanel, fieldSpecs, fieldInputs, onValueChange, autoLabelWidth);
         return fieldPanel;
+    }
+
+    /**
+     * 数値入力の行を順に並べる
+     * @param {Panel|Group} parentContainer - 追加先
+     * @param {Object[]} fieldSpecs - 行の定義（addNumericFieldRow() を参照）
+     * @param {Object} fieldInputs - 作った入力欄を key ごとに入れる先
+     * @param {Function} onValueChange - 入力値が変わったときに呼ぶ関数
+     * @param {boolean} [autoLabelWidth] - true なら項目名の幅を固定せず成り行きにする
+     * @returns {void}
+     */
+    function addNumericFieldRows(parentContainer, fieldSpecs, fieldInputs, onValueChange, autoLabelWidth) {
+        for (var i = 0; i < fieldSpecs.length; i++) {
+            fieldInputs[fieldSpecs[i].key] = addNumericFieldRow(parentContainer, fieldSpecs[i], onValueChange, autoLabelWidth);
+        }
+    }
+
+    /**
+     * 数値入力の行（項目名・∧∨・入力欄・単位）をまとめて有効／無効にする
+     * @param {EditText} inputField - addNumericFieldRow() で作った入力欄
+     * @param {boolean} isEnabled - 有効にするなら true
+     * @param {boolean} redrawsSteppers - ∧∨も描き直すか（表示前は false）
+     * @returns {void}
+     */
+    function setFieldRowEnabled(inputField, isEnabled, redrawsSteppers) {
+        inputField.fieldRow.enabled = isEnabled;
+        /* ∧∨は自作描画なので、描き直してディム表示を切り替える / redraw the custom-drawn buttons to update the dimming */
+        if (redrawsSteppers) redrawSteppersIn(inputField.fieldRow);
     }
 
     /**
@@ -1811,17 +2058,20 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb9bee6b7a2e"; /* 紹�
      * @param {{key: string, initialText: string, unitLabel: string, allowNegative: boolean, integer: boolean, min: number}} fieldSpec - 行の定義
      *     （integer は整数の欄、min は下限。負の値を許さない欄の下限は省略時0）
      * @param {Function} onValueChange - 入力値が変わったときに呼ぶ関数
+     * @param {boolean} [autoLabelWidth] - true なら項目名の幅を固定せず成り行きにする
      * @returns {EditText} 生成した入力欄
      */
-    function addNumericFieldRow(parentContainer, fieldSpec, onValueChange) {
+    function addNumericFieldRow(parentContainer, fieldSpec, onValueChange, autoLabelWidth) {
         var fieldRow = parentContainer.add("group");
         fieldRow.orientation = "row";
         fieldRow.alignChildren = ["left", "center"];
         fieldRow.spacing = FIELD_ROW_SPACING;
 
         var fieldLabel = fieldRow.add("statictext", undefined, labelText("fieldLabel." + fieldSpec.key));
-        fieldLabel.preferredSize = [FIELD_LABEL_WIDTH, -1];
-        fieldLabel.justify = "right";
+        if (!autoLabelWidth) {
+            fieldLabel.preferredSize = [FIELD_LABEL_WIDTH, -1];
+            fieldLabel.justify = "right";
+        }
 
         /* ∧∨と入力欄は隙間0で突き合わせる / butt the stepper against the field */
         var stepperInputGroup = fieldRow.add("group");
@@ -1846,6 +2096,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb9bee6b7a2e"; /* 紹�
         bindSteppedArrowKeys(inputField, stepperGroup); /* ↑↓キーも∧∨と同じ処理で増減 / arrow keys share the stepper's logic */
 
         fieldRow.add("statictext", undefined, fieldSpec.unitLabel);
+        inputField.fieldRow = fieldRow;
         return inputField;
     }
 
@@ -1900,7 +2151,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb9bee6b7a2e"; /* 紹�
 
         /**
          * 入力欄の値を設定値にまとめる
-         * @returns {{marginVerticalPt: number, marginHorizontalPt: number, lineGapPt: number, charsPerLine: number, tierCount: number, extraTierCount: number, dummyWidthPt: number, blurRadius: number, rotationDeg: number, useMask: boolean}} マージン・間隔・幅（pt）、文字数・段数、ぼかし（px）、回転（°）、マスクの有無
+         * @returns {{marginVerticalPt: number, marginHorizontalPt: number, lineGapPt: number, charsPerLine: number, tierCount: number, extraTierCount: number, dummyScript: string, columnCount: number, dummyWidthPt: number, blurRadius: number, rotationDeg: number, useMask: boolean}} マージン・間隔・幅（pt）、文字数・段数、ぼかし（px）、回転（°）、マスクの有無
          */
         function readHeadlineSettings() {
             var fieldInputs = dialogUI.fieldInputs;
@@ -1912,6 +2163,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb9bee6b7a2e"; /* 紹�
                 charsPerLine: Math.floor(readFieldAsNumber(fieldInputs.charsPerLine, DEFAULT_CHARS_PER_LINE, false)),
                 tierCount: Math.floor(readFieldAsNumber(fieldInputs.tierCount, DEFAULT_TIER_COUNT, false)),
                 extraTierCount: Math.floor(readFieldAsNumber(fieldInputs.extraTierCount, DEFAULT_EXTRA_TIER_COUNT, false)),
+                dummyScript: dialogUI.getDummyScript(),
+                columnCount: Math.floor(readFieldAsNumber(fieldInputs.columnCount, DEFAULT_COLUMN_COUNT, false)),
                 dummyWidthPt: readFieldAsPoints(fieldInputs.dummyWidth, DEFAULT_DUMMY_WIDTH_PT, pointsPerUnit),
                 blurRadius: readFieldAsNumber(fieldInputs.blurRadius, DEFAULT_BLUR_RADIUS, false),
                 rotationDeg: readFieldAsNumber(fieldInputs.rotation, DEFAULT_ROTATION_DEG, true),
