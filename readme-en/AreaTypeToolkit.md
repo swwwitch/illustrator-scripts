@@ -200,6 +200,7 @@ TextFrame (point / path / area text), PathItem and CompoundPathItem (closed path
 
 ## Change log
 
+- v1.5.2 (2026-10-12) Fixed Separate text shifting the point text sideways when the justification is center or right
 - v1.5.1 (2026-10-12) Fixed "Frame: keep its style" in Separate text leaving an invisible rectangle instead of the frame with its fill and stroke. Fixed the separated point text shifting up, down or sideways from its original position depending on First Baseline (such as Fixed at 0) and the inset spacing
 - v1.5.0 (2026-10-10) Added a "Button" role (110% leading, center, vertically centered, zero indents, offset off). The role radios now sit in two rows (Body, Heading / Menu, Button). Code cleanup
 - v1.4.1 (2026-10-09) Moved the Indent panel back to the right column (under Justification). The Japanese composition panel now spans the full width below both columns, with kinsoku and mojikumi side by side. The English UI now hides the "chars" field instead of dimming it. Right-aligned the Actual, Leading and Min labels in the Leading panel and the Left and Right labels in the Indent panel, and fixed the colon of "Leading:" being cut off in the English UI

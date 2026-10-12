@@ -27,7 +27,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AreaTypeTo
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AreaTypeToolkit";              /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.5.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.5.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-03-03";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-12";                   /* 更新日 / last updated */
@@ -3395,6 +3395,25 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
     }
 
     /**
+     * 行揃えに合わせて、ポイント文字の基準点を置く X 座標を返す
+     * ポイント文字は左揃えなら基準点から右へ、中央揃えなら基準点を中心に、右揃えなら基準点から左へ組まれる
+     * Point type sets text rightward from the anchor when left-aligned, around it when centered, leftward when right-aligned
+     * @param {number[]} frameBounds - 元の枠の geometricBounds
+     * @param {number} insetPt - 枠の間隔（pt）
+     * @param {Justification} justification - ポイント文字の行揃え
+     * @returns {number} 基準点の X 座標
+     */
+    function getPointAnchorX(frameBounds, insetPt, justification) {
+        if (justification === Justification.CENTER || justification === Justification.FULLJUSTIFYLASTLINECENTER) {
+            return (frameBounds[0] + frameBounds[2]) / 2;
+        }
+        if (justification === Justification.RIGHT || justification === Justification.FULLJUSTIFYLASTLINERIGHT) {
+            return frameBounds[2] - insetPt;
+        }
+        return frameBounds[0] + insetPt;
+    }
+
+    /**
      * エリア内文字の1行目のベースラインの高さ（Y座標）を実測する
      * 複製をポイント文字に変換し、その anchor を読む（先頭ベースラインの位置・間隔・垂直方向の揃えを反映）
      * convertAreaObjectToPointObject() は null を返すので、変換後のオブジェクトは参照の差分で探す
@@ -3504,18 +3523,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
         } catch (e0) { }
         restoreCharacterAttributes(pointTextFrame, charAttrSnapshots, false);
 
-        /* 1行目の文字の起点を元の位置にそろえる（文字サイズを戻した後、行揃えを変える前に合わせる）
-           anchor は読み取り専用なので translate で動かす。X は枠の左端＋間隔（変換は間隔を反映しない）
-           Line the first character's origin up with the original, after the sizes are restored and before
-           the justification changes; anchor is read-only, so translate moves it. X is the frame's left edge
-           plus the inset, which the conversion ignores */
-        if (firstBaselineY !== null) {
-            try {
-                var pointAnchor = pointTextFrame.anchor;
-                pointTextFrame.translate(frameBounds[0] + areaInsetPt - pointAnchor[0], firstBaselineY - pointAnchor[1]);
-            } catch (eAnchor) { }
-        }
-
         areaTextFrame.remove();
 
         var createdItems = [pointTextFrame];
@@ -3523,6 +3530,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
         if (keptFrameRect) { createdItems.push(keptFrameRect); }
 
         applyParagraphSettings(pointTextFrame, adjustSettings);
+
+        /* 基準点を元の位置にそろえる（文字サイズと行揃えを適用した後に合わせる）
+           anchor は読み取り専用なので translate で動かす。X は行揃えで決まる枠の左端・中央・右端
+           Line the anchor up with the original once the sizes and justification are applied;
+           anchor is read-only, so translate moves it. X is the frame's left, center or right, by justification */
+        if (firstBaselineY !== null) {
+            try {
+                var pointAnchor = pointTextFrame.anchor;
+                var anchorX = getPointAnchorX(frameBounds, areaInsetPt, pointTextFrame.paragraphs[0].paragraphAttributes.justification);
+                pointTextFrame.translate(anchorX - pointAnchor[0], firstBaselineY - pointAnchor[1]);
+            } catch (eAnchor) { }
+        }
         return createdItems;
     }
 
@@ -4284,8 +4303,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
         /* 幅の下に字詰め欄（日本語UIのみ）。空きラベルで幅の入力欄と左端をそろえる
            Chars per line goes under the width (Japanese UI only), lined up with the width field via an empty label */
         dialogControls.etCharsPerLine = null;
+        dialogControls.charsPerLineRow = null;
         if (SHOW_JA_ONLY_CONTROLS) {
             var charsPerLineRow = addNumberRow(frameSizePanel, "", frameLabelWidth, "", SMALL_FIELD_CHARACTERS, getLabel("fieldLabel.charsPerLine"), true);
+            dialogControls.charsPerLineRow = charsPerLineRow.row;
             dialogControls.etCharsPerLine = charsPerLineRow.field;
             charsPerLineRow.unitLabel.helpTip = getLabel("tooltip.charsPerLine");
             dialogControls.etCharsPerLine.helpTip = charsPerLineRow.unitLabel.helpTip;
@@ -4616,6 +4637,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
             roleState.activeId = "";
             roleState.tabMode = "clear";
             selectRadio(dialogControls.roleRadios, null);
+            updateCharsPerLineEnabled();
+        }
+
+        /**
+         * 字詰め欄は種別が「本文」のとき（種別を選んでいないときも）だけ使える。見出し・メニュー・ボタンではディム
+         * Chars per line is only for Body (or no role); Heading, Menu and Button dim it
+         * @returns {void}
+         */
+        function updateCharsPerLineEnabled() {
+            if (!dialogControls.charsPerLineRow) return;
+            dialogControls.charsPerLineRow.enabled = (roleState.activeId === "" || roleState.activeId === "body");
         }
 
         /**
@@ -5044,6 +5076,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
             if (!rolePreset) return;
             roleState.activeId = roleId;
             roleState.tabMode = rolePreset.tabMode;
+            updateCharsPerLineEnabled();
             setFieldNumber(dialogControls.etLeadingPercent, rolePreset.leadingPercent);
             updateLeadingEffective();
             setJustification(rolePreset.justifyId);
