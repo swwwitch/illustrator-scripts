@@ -27,7 +27,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AreaTypeTo
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AreaTypeToolkit";              /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.5.2";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.6.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-03-03";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-12";                   /* 更新日 / last updated */
@@ -58,15 +58,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
     var DEFAULT_KINSOKU = "Soft_v2";   /* 弱い禁則 v2 / Loose v2 */
     var DEFAULT_MOJIKUMI_INDEX = 6;    /* ベタ組み / Solid */
 
-    /* 種別プリセット（本文／見出し／メニュー／ボタン）。ラジオを押すと行送り・行揃え・禁則・文字組み・タブをまとめて設定する。
+    /* 種別プリセット（本文／見出し／メニュー／ボタン）。ラジオを押すと行送り・行揃え・禁則・文字組み・自動カーニング・タブをまとめて設定する。
        resetInsets はインデントを0、オフセットをOFFにする
-       Role presets (Body / Heading / Menu / Button): one click sets leading, justification, kinsoku, mojikumi and tabs.
+       Role presets (Body / Heading / Menu / Button): one click sets leading, justification, kinsoku, mojikumi, auto kerning and tabs.
        resetInsets zeroes the indents and turns the offset off */
     var ROLE_PRESETS = {
-        body: { leadingPercent: 160, justifyId: "lastLineLeft", kinsoku: "Soft_v2", mojikumiIndex: 6, alignId: "top", tabMode: "clear" },
-        heading: { leadingPercent: 120, justifyId: "left", kinsoku: "Soft_v2", mojikumiIndex: 5, alignId: "top", tabMode: "clear" },
-        menu: { leadingPercent: 150, justifyId: "right", kinsoku: "Soft_v2", mojikumiIndex: 5, alignId: "top", tabMode: "leader" },
-        button: { leadingPercent: 110, justifyId: "center", kinsoku: "Soft_v2", mojikumiIndex: 5, alignId: "center", tabMode: "clear", resetInsets: true }
+        body: { leadingPercent: 160, justifyId: "lastLineLeft", kinsoku: "Soft_v2", mojikumiIndex: 6, kerning: "mono", alignId: "top", tabMode: "clear" },
+        heading: { leadingPercent: 120, justifyId: "left", kinsoku: "Soft_v2", mojikumiIndex: 5, kerning: "metrics", alignId: "top", tabMode: "clear" },
+        menu: { leadingPercent: 150, justifyId: "right", kinsoku: "Soft_v2", mojikumiIndex: 5, kerning: "metrics", alignId: "top", tabMode: "leader" },
+        button: { leadingPercent: 110, justifyId: "center", kinsoku: "Soft_v2", mojikumiIndex: 5, kerning: "metrics", alignId: "center", tabMode: "clear", resetInsets: true }
     };
 
     // ダイアログの位置と不透明度（再利用パーツ） / Dialog position and opacity (reusable)
@@ -498,7 +498,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
         dialog: {
             title: { ja: "エリア内文字を調整", en: "Adjust Area Type" },
             convertTitle: { ja: "エリア内文字に変換", en: "Convert to Area Type" },
-            separateTitle: { ja: "テキストを分離", en: "Separate text" }
+            separateTitle: { ja: "テキストを分離", en: "Separate Text" }
         },
         panel: {
             createMethod: { ja: "作成方法", en: "Creation method" },
@@ -511,7 +511,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
             fontSize: { ja: "フォントサイズ", en: "Font size" },
             frameSize: { ja: "フレームサイズ", en: "Frame size" },
             indent: { ja: "インデント", en: "Indent" },
-            jpComposition: { ja: "日本語の組版", en: "Japanese composition" },
+            kerningComposition: { ja: "カーニングと組版", en: "Kerning and composition" },
             offset: { ja: "オフセット", en: "Offset" }
         },
         radio: {
@@ -523,6 +523,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
             roleHeading: { ja: "見出し", en: "Heading" },
             roleMenu: { ja: "メニュー", en: "Menu" },
             roleButton: { ja: "ボタン", en: "Button" },
+            kernMetrics: { ja: "メトリクス", en: "Metrics" },
+            kernMono: { ja: "和文等幅", en: "Metrics - Roman Only" },
+            kernOptical: { ja: "オプティカル", en: "Optical" },
             styleSimple: { ja: "シンプル", en: "Simple" },
             styleButton: { ja: "ボタン風", en: "Button style" },
             useShape: { ja: "選択した図形に流し込む", en: "Pour into selected shape" },
@@ -562,7 +565,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
         },
         checkbox: {
             autoSize: { ja: "自動サイズ調整", en: "Auto-size" },
-            resolveOverset: { ja: "オーバーセットを解決する", en: "Resolve overset" },
+            resolveOverset: { ja: "文字あふれを解消", en: "Clear overset" },
             forceLineBreaks: { ja: "見かけの改行を強制改行に変換", en: "Convert visual line breaks to hard returns" }
         },
         button: {
@@ -579,6 +582,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
             width: { ja: "幅", en: "Width" },
             height: { ja: "高さ", en: "Height" },
             charsPerLine: { ja: "文字" },  /* 日本語UIだけ / Japanese UI only */
+            autoKern: { ja: "自動カーニング", en: "Auto kerning" },
             kinsoku: { ja: "禁則", en: "Kinsoku" },
             mojikumi: { ja: "文字組み", en: "Mojikumi" },
             indentLeft: { ja: "左", en: "Left" },
@@ -624,23 +628,27 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
                 en: "Vertical placement inside the frame. Applied as soon as you click."
             },
             charsPerLine: {  /* 日本語UIだけ / Japanese UI only */
-                ja: "1行の文字数から幅を逆算します。字幅が一定でないため日本語UIのみ。"
+                ja: "1行の文字数から幅を逆算します。種別が見出し・メニュー・ボタンのときは使えません。"
             },
             roleBody: {
-                ja: "本文向けの設定をまとめて適用します（行送り160%・均等配置（最終行左揃え）・弱い禁則 v2・ベタ組み・上揃え）。タブ設定は削除します。",
+                ja: "本文向けの設定をまとめて適用します（行送り160%・均等配置（最終行左揃え）・弱い禁則 v2・ベタ組み・和文等幅・上揃え）。タブ設定は削除します。",
                 en: "Applies the body-text preset (160% leading, justify with last line left, top alignment). Tab stops are cleared."
             },
             roleHeading: {
-                ja: "見出し向けの設定をまとめて適用します（行送り120%・左揃え・弱い禁則 v2・ツメ組み・上揃え）。タブ設定は削除します。",
+                ja: "見出し向けの設定をまとめて適用します（行送り120%・左揃え・弱い禁則 v2・ツメ組み・メトリクス・上揃え）。タブ設定は削除します。",
                 en: "Applies the heading preset (120% leading, left, top alignment). Tab stops are cleared."
             },
             roleMenu: {
-                ja: "メニュー向けの設定をまとめて適用します（行送り150%・右揃え・弱い禁則 v2・ツメ組み・上揃え）。各段落に右揃えタブ（リーダー「...」／400pt）を設定します。行揃えを変えると指定が解除され、タブ設定も削除されます。",
+                ja: "メニュー向けの設定をまとめて適用します（行送り150%・右揃え・弱い禁則 v2・ツメ組み・メトリクス・上揃え）。各段落に右揃えタブ（リーダー「...」／400pt）を設定します。行揃えを変えると指定が解除され、タブ設定も削除されます。",
                 en: "Applies the menu preset (150% leading, right, top alignment) and sets a right-aligned tab with a leader at 400pt on every paragraph. Changing the justification drops this role and clears the tab stops."
             },
             roleButton: {
-                ja: "ボタン向けの設定をまとめて適用します（行送り110%・中央揃え・弱い禁則 v2・ツメ組み・中央揃え（垂直方向）・インデント0・オフセットOFF）。タブ設定は削除します。",
+                ja: "ボタン向けの設定をまとめて適用します（行送り110%・中央揃え・弱い禁則 v2・ツメ組み・メトリクス・中央揃え（垂直方向）・インデント0・オフセットOFF）。タブ設定は削除します。",
                 en: "Applies the button preset (110% leading, center, vertically centered, zero indents, offset off). Tab stops are cleared."
+            },
+            autoKern: {
+                ja: "自動カーニングを全文字に適用します。メトリクスではOpenTypeのプロポーショナルメトリクスをON、和文等幅・オプティカルではOFFにします。設定が混在しているときは未選択で、そのままなら変更しません。",
+                en: "Applies auto kerning to every character. Metrics turns OpenType Proportional Metrics on; Metrics - Roman Only and Optical turn it off. With mixed settings nothing is selected and nothing is changed."
             },
             kinsoku: {
                 ja: "段落の禁則処理（なし／強い禁則／弱い禁則など）をまとめて適用します。",
@@ -664,8 +672,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
                 en: "Keeps the Area Type's own path with its fill and stroke, in its original shape (not replaced by a rectangle, not grown by the offset)."
             },
             separateText: {
-                ja: "エリア内文字を、囲み罫（長方形）とポイント文字に分解します。別ダイアログで枠の処理を選びます。選択したエリア内文字をまとめて処理します。",
-                en: "Breaks Area Type apart into a rectangle plus point text. A separate dialog picks how the frame is handled. Every selected Area Type frame is processed at once."
+                ja: "エリア内文字を、枠（パス）とポイント文字に分解します。枠の処理は次のダイアログボックスで選びます。選択したエリア内文字をまとめて処理します。",
+                en: "Breaks Area Type apart into a frame path plus point text. The next dialog picks how the frame is handled. Every selected Area Type frame is processed at once."
             },
             resolveOverset: {
                 ja: "あふれている文字が隠れたまま分離されないよう、枠の高さを全文が収まる高さまで広げてから分解します。あふれていないフレームには何もしません。",
@@ -689,7 +697,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
         alert: {
             selectText: {
                 ja: "ポイント文字・パス上文字・エリア内文字・図形を選択してください。",
-                en: "Please select point text, path text, area text, or a shape."
+                en: "Select point type, type on a path, Area Type, or a shape."
             },
             noDocument: { ja: "ドキュメントが開かれていません。", en: "No document is open." },
             lineBreakNotSupported: {
@@ -704,7 +712,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
                 ja: "分離できるエリア内文字がありませんでした。ロックや非表示になっていないか確認してください。",
                 en: "No Area Type could be separated. Check whether the frames are locked or hidden."
             },
-            actionFailed: { ja: "アクションを実行できませんでした。", en: "Could not run the action." }
+            actionFailed: { ja: "アクションを読み込めませんでした。", en: "Could not load the action." }
         }
     };
 
@@ -1467,9 +1475,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
 
     /* 禁則・文字組みポップアップの幅 / Width of the kinsoku and mojikumi popups */
     var JP_DROPDOWN_WIDTH = 140;
-    /* 日本語UIだけの項目（日本語の組版パネル・［　］文字欄）を出すか。英語UIでは禁則・文字組みに触らず、
+    /* 日本語UIだけの項目（カーニングと組版パネル・［　］文字欄）を出すか。英語UIでは禁則・文字組みに触らず、
        欧文は字幅が一定でなく字詰めの計算が合わないため出さない
-       Whether to show the Japanese-UI-only controls (Japanese composition panel, chars-per-line field). The English UI
+       Whether to show the Japanese-UI-only controls (kerning and composition panel, chars-per-line field). The English UI
        leaves kinsoku and mojikumi alone, and Roman glyph widths vary, so the chars-per-line math does not hold */
     var SHOW_JA_ONLY_CONTROLS = (uiLang === "ja");
 
@@ -1823,9 +1831,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
     }
 
     // =========================================
-    // 日本語の組版（禁則・文字組みアキ量設定）/ Japanese composition (kinsoku and mojikumi)
+    // カーニングと組版（自動カーニング・禁則・文字組みアキ量設定）/ Kerning and composition (auto kerning, kinsoku and mojikumi)
     //   UnifiedTypePalette.jsx から移植 / Ported from UnifiedTypePalette.jsx
     // =========================================
+
+    /* 自動カーニングの選択肢（和文等幅は欧文だけメトリクス＝METRICSROMANONLY）
+       Auto-kerning choices (Metrics - Roman Only is METRICSROMANONLY) */
+    var KERNING_CHOICES = [
+        { id: "metrics", labelKey: "radio.kernMetrics", value: AutoKernType.AUTO },
+        { id: "mono", labelKey: "radio.kernMono", value: AutoKernType.METRICSROMANONLY },
+        { id: "optical", labelKey: "radio.kernOptical", value: AutoKernType.OPTICAL }
+    ];
 
     /* 禁則の選択肢（id は paragraphAttributes.kinsoku に渡す値）
        Kinsoku choices (id is the value passed to paragraphAttributes.kinsoku) */
@@ -2009,6 +2025,48 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
     }
 
     /**
+     * 自動カーニングの現在値を選択肢の id で返す
+     * @param {TextFrame} textFrame - 対象のテキストフレーム
+     * @returns {string|null} 選択肢の id（混在・「0」など選択肢に無いときは null）
+     */
+    function getKerningId(textFrame) {
+        var kerningValue;
+        /* textRange で読むと混在でも先頭の文字の値が返るため、1文字ずつ比べる
+           Reading the whole range returns the first character's value even when mixed, so compare each character */
+        try {
+            var frameCharacters = textFrame.characters;
+            if (!frameCharacters.length) return null;
+            kerningValue = String(frameCharacters[0].characterAttributes.kerningMethod);
+            for (var j = 1; j < frameCharacters.length; j++) {
+                if (String(frameCharacters[j].characterAttributes.kerningMethod) !== kerningValue) return null;
+            }
+        } catch (e) { return null; }
+        for (var i = 0; i < KERNING_CHOICES.length; i++) {
+            if (String(KERNING_CHOICES[i].value) === kerningValue) return KERNING_CHOICES[i].id;
+        }
+        return null;
+    }
+
+    /**
+     * 自動カーニングを適用する。メトリクスのときだけプロポーショナルメトリクスをON、それ以外はOFF
+     * @param {TextFrame} textFrame - 対象のテキストフレーム
+     * @param {string|null} kerningId - 選択肢の id（null なら触らない）
+     * @returns {void}
+     */
+    function applyKerningToTextFrame(textFrame, kerningId) {
+        if (!kerningId) return;
+        for (var i = 0; i < KERNING_CHOICES.length; i++) {
+            if (KERNING_CHOICES[i].id !== kerningId) continue;
+            try {
+                var charAttrs = textFrame.textRange.characterAttributes;
+                charAttrs.kerningMethod = KERNING_CHOICES[i].value;
+                charAttrs.proportionalMetrics = (kerningId === "metrics");
+            } catch (e) { }
+            return;
+        }
+    }
+
+    /**
      * 禁則処理を適用する（「なし」も含めて設定できる）
      * @param {TextFrame} textFrame - 対象のテキストフレーム
      * @param {string|null} kinsokuId - 禁則の id（null なら触らない）
@@ -2107,7 +2165,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
                 leading: charAttr.leading,
                 baselineShift: charAttr.baselineShift,
                 horizontalScale: charAttr.horizontalScale,
-                verticalScale: charAttr.verticalScale
+                verticalScale: charAttr.verticalScale,
+                kerningMethod: charAttr.kerningMethod,
+                proportionalMetrics: charAttr.proportionalMetrics
             });
         }
         return snapshots;
@@ -2141,6 +2201,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
                 destAttrs.autoLeading = srcAttrs.autoLeading;
                 if (!srcAttrs.autoLeading) { destAttrs.leading = srcAttrs.leading; }
             } catch (e1) { }
+            /* 自動カーニングとプロポーショナルメトリクス（ほかの属性と分けて、失敗しても続ける）
+               Auto kerning and proportional metrics, kept apart so a failure does not stop the rest */
+            try {
+                destAttrs.kerningMethod = srcAttrs.kerningMethod;
+                destAttrs.proportionalMetrics = srcAttrs.proportionalMetrics;
+            } catch (e2) { }
         }
     }
 
@@ -2236,7 +2302,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
      * @returns {boolean} 改行を含めば true
      */
     function hasLineBreak(textFrame) {
-        try { return /[\r\n\u2028\u2029]/.test(textFrame.contents); } catch (e) { return false; }
+        return /[\r\n\u2028\u2029]/.test(textFrame.contents);
     }
 
     /**
@@ -3168,6 +3234,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
             paraAttrs.rightIndent = adjustSettings.rightIndentPt;
         } catch (e) { }
         applyAutoLeading(textFrame, adjustSettings.leadingPercent);
+        applyKerningToTextFrame(textFrame, adjustSettings.kerning);
         applyKinsokuToTextFrame(textFrame, adjustSettings.kinsoku);
         applyMojikumiToTextFrame(textFrame, adjustSettings.mojikumiIndex);
         if (adjustSettings.tabMode === "leader") { applyLeaderTabStops(textFrame); }
@@ -3205,8 +3272,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
     function resolveFrameOverset(areaTextFrame) {
         if (!isFrameOverset(areaTextFrame)) return;
 
-        var textPath;
-        try { textPath = areaTextFrame.textPath; } catch (e) { return; }
+        var textPath = areaTextFrame.textPath;
 
         var startHeight = getFramePathHeight(areaTextFrame);
         if (!(startHeight > 0)) return;
@@ -3285,8 +3351,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
 
         var brokenText = "", sourceIndices = [], position = 0;
         for (var i = 0; i < frameLines.length && position < sourceText.length; i++) {
-            var lineLength = 0;
-            try { lineLength = frameLines[i].characters.length; } catch (e0) { lineLength = 0; }
+            var lineLength = frameLines[i].characters.length;
             for (var j = 0; j < lineLength && position < sourceText.length; j++) {
                 brokenText += sourceText.charAt(position);
                 sourceIndices.push(position);
@@ -3471,17 +3536,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
         if (adjustSettings.resolveOverset) { resolveFrameOverset(areaTextFrame); }
 
         var frameBounds = areaTextFrame.geometricBounds;
-        var spacingPt = adjustSettings.spacingPt;
-        var left = frameBounds[0] - spacingPt, top = frameBounds[1] + spacingPt;
-        var right = frameBounds[2] + spacingPt, bottom = frameBounds[3] - spacingPt;
+        var areaInsetPt = areaTextFrame.spacing || 0;
 
-        /* 削除する前に、文字ごとの書式と1行目のベースライン位置に使うサイズを控える
-           Snapshot the per-character formatting and the first-baseline size before the frame goes away */
+        /* 削除する前に、文字ごとの書式と1行目のベースラインの位置を控える
+           Snapshot the per-character formatting and the first baseline before the frame goes away */
         var charAttrSnapshots = snapshotCharacterAttributes(areaTextFrame);
         var firstLineOffset = getRepresentativeFontSize(areaTextFrame);
-        var firstBaselineY = null, areaInsetPt = 0;
+        /* 変換は DOM 側で失敗しうる。測れなければ従来の位置合わせに任せる / The conversion can fail in the DOM; then the rough placement stands */
+        var firstBaselineY = null;
         try { firstBaselineY = measureFirstBaselineY(areaTextFrame); } catch (eBaseline) { firstBaselineY = null; }
-        try { areaInsetPt = areaTextFrame.spacing || 0; } catch (eInset) { areaInsetPt = 0; }
         var pointTextContents = areaTextFrame.contents;
 
         /* 見かけの改行を強制改行に変換する（文字属性も同じ並びに合わせる）
@@ -3494,21 +3557,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
             }
         }
 
-        /* 枠のスタイルを保持：元の枠をそのまま残す（長方形を作らず、オフセット分も広げない）
-           Keep the frame's style: the original path stays as is (no rectangle, not grown by the offset) */
         var ownerContainer = getOwnerContainer(doc, areaTextFrame);
-        var frameRect;
-        if (adjustSettings.keepPathStyle) {
-            frameRect = rebuildStyledFramePath(areaTextFrame, ownerContainer);
-        } else {
-            frameRect = ownerContainer.pathItems.rectangle(top, left, right - left, top - bottom);
-            frameRect.filled = false;
-            frameRect.stroked = true;
-        }
+        var frameRect = createSeparatedFrame(areaTextFrame, ownerContainer, frameBounds, adjustSettings);
 
+        /* ひとまず枠の左上に置き、書式を戻した後で元の位置に合わせる / Placed at the frame's top left for now, aligned once the formatting is back */
         var pointTextFrame = ownerContainer.textFrames.add();
         pointTextFrame.contents = pointTextContents;
-        pointTextFrame.position = [left, top - firstLineOffset];
+        pointTextFrame.position = [frameBounds[0] - adjustSettings.spacingPt, frameBounds[1] + adjustSettings.spacingPt - firstLineOffset];
 
         /* 元の重ね順に差し込む（囲み罫の上にポイント文字）/ Slot both in at the original depth, text above the rectangle */
         try {
@@ -3516,7 +3571,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
             pointTextFrame.moveBefore(frameRect);
         } catch (eOrder) { }
 
-        /* 既定の線をいったん外し、このあと文字単位で復元する / Clear the default stroke, then restore per character */
+        /* 既定の線をいったん外し、このあと文字単位で復元する（空のテキストでは書き込めないことがある）
+           Clear the default stroke, then restore per character (an empty text may refuse the write) */
         try {
             pointTextFrame.textRange.characterAttributes.strokeColor = new NoColor();
             pointTextFrame.textRange.characterAttributes.strokeWeight = 0;
@@ -3530,19 +3586,48 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
         if (keptFrameRect) { createdItems.push(keptFrameRect); }
 
         applyParagraphSettings(pointTextFrame, adjustSettings);
-
-        /* 基準点を元の位置にそろえる（文字サイズと行揃えを適用した後に合わせる）
-           anchor は読み取り専用なので translate で動かす。X は行揃えで決まる枠の左端・中央・右端
-           Line the anchor up with the original once the sizes and justification are applied;
-           anchor is read-only, so translate moves it. X is the frame's left, center or right, by justification */
-        if (firstBaselineY !== null) {
-            try {
-                var pointAnchor = pointTextFrame.anchor;
-                var anchorX = getPointAnchorX(frameBounds, areaInsetPt, pointTextFrame.paragraphs[0].paragraphAttributes.justification);
-                pointTextFrame.translate(anchorX - pointAnchor[0], firstBaselineY - pointAnchor[1]);
-            } catch (eAnchor) { }
-        }
+        /* 文字サイズと行揃えを適用した後に合わせる / Aligned once the sizes and justification are applied */
+        if (firstBaselineY !== null) { alignPointTextToOriginal(pointTextFrame, frameBounds, areaInsetPt, firstBaselineY); }
         return createdItems;
+    }
+
+    /**
+     * 分離後の枠を作る。［枠のスタイルを保持］なら元の枠を作り直し、それ以外はオフセット分だけ外側に広げた長方形
+     * @param {TextFrame} areaTextFrame - 元のエリア内文字
+     * @param {Layer|GroupItem|Document} ownerContainer - 枠を追加する親
+     * @param {number[]} frameBounds - 元の枠の geometricBounds
+     * @param {Object} adjustSettings - spacingPt / keepPathStyle を持つ設定
+     * @returns {PathItem} 作った枠
+     */
+    function createSeparatedFrame(areaTextFrame, ownerContainer, frameBounds, adjustSettings) {
+        /* 枠のスタイルを保持：元の形・塗り・線のまま（長方形を作らず、オフセット分も広げない）
+           Keep the frame's style: the original shape and paint (no rectangle, not grown by the offset) */
+        if (adjustSettings.keepPathStyle) { return rebuildStyledFramePath(areaTextFrame, ownerContainer); }
+        var spacingPt = adjustSettings.spacingPt;
+        var left = frameBounds[0] - spacingPt, top = frameBounds[1] + spacingPt;
+        var right = frameBounds[2] + spacingPt, bottom = frameBounds[3] - spacingPt;
+        var frameRect = ownerContainer.pathItems.rectangle(top, left, right - left, top - bottom);
+        frameRect.filled = false;
+        frameRect.stroked = true;
+        return frameRect;
+    }
+
+    /**
+     * ポイント文字の基準点を、元のエリア内文字の1行目の位置にそろえる
+     * anchor は読み取り専用なので translate で動かす。X は行揃えで決まる枠の左端・中央・右端
+     * anchor is read-only, so translate moves it; X is the frame's left, center or right, by justification
+     * @param {TextFrame} pointTextFrame - 分離してできたポイント文字
+     * @param {number[]} frameBounds - 元の枠の geometricBounds
+     * @param {number} areaInsetPt - 元の枠の間隔（pt）
+     * @param {number} firstBaselineY - 元の1行目のベースラインの Y 座標
+     * @returns {void}
+     */
+    function alignPointTextToOriginal(pointTextFrame, frameBounds, areaInsetPt, firstBaselineY) {
+        /* 空のテキストには段落が無い / Empty text has no paragraph to read */
+        if (!pointTextFrame.paragraphs.length) return;
+        var pointAnchor = pointTextFrame.anchor;
+        var anchorX = getPointAnchorX(frameBounds, areaInsetPt, pointTextFrame.paragraphs[0].paragraphAttributes.justification);
+        pointTextFrame.translate(anchorX - pointAnchor[0], firstBaselineY - pointAnchor[1]);
     }
 
     /**
@@ -4219,15 +4304,29 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
     }
 
     /**
-     * 2カラムの下：日本語の組版（禁則・文字組みアキ量設定）パネルを横幅いっぱいに追加し、禁則と文字組みを1行に並べる
+     * 2カラムの下：カーニングと組版パネルを横幅いっぱいに追加する。1行目に自動カーニング、2行目に禁則と文字組みを並べる
      * @param {Object} dialogControls - コントロールの格納先
      * @param {Window} parentWindow - 追加先のダイアログ
      * @returns {void}
      */
-    function addJpCompositionPanel(dialogControls, parentWindow) {
-        var jpCompositionPanel = parentWindow.add("panel", undefined, getLabel("panel.jpComposition"));
-        setupPanel(jpCompositionPanel, 4);
-        var compositionRow = jpCompositionPanel.add("group");
+    function addKerningCompositionPanel(dialogControls, parentWindow) {
+        var kerningCompositionPanel = parentWindow.add("panel", undefined, getLabel("panel.kerningComposition"));
+        setupPanel(kerningCompositionPanel, 4);
+
+        /* 禁則の上に自動カーニング（横並びのラジオ、同じ行グループの中なので排他になる）
+           Auto kerning above kinsoku (radios in a row; one group, so they stay exclusive) */
+        var kerningRow = kerningCompositionPanel.add("group");
+        setupRow(kerningRow, "left", 4);
+        var kerningLabel = kerningRow.add("statictext", undefined, labelText("fieldLabel.autoKern"));
+        kerningLabel.helpTip = getLabel("tooltip.autoKern");
+        dialogControls.kerningRadios = [];
+        for (var i = 0; i < KERNING_CHOICES.length; i++) {
+            var kerningRadio = kerningRow.add("radiobutton", undefined, getLabel(KERNING_CHOICES[i].labelKey));
+            kerningRadio.helpTip = kerningLabel.helpTip;
+            dialogControls.kerningRadios.push(kerningRadio);
+        }
+
+        var compositionRow = kerningCompositionPanel.add("group");
         setupRow(compositionRow, "left", COLUMN_SPACING);
         dialogControls.kinsokuDropdown = addInlineDropdown(compositionRow, "fieldLabel.kinsoku", KINSOKU_CHOICES, "tooltip.kinsoku");
         selectChoiceByValue(dialogControls.kinsokuDropdown, KINSOKU_CHOICES, "id", DEFAULT_KINSOKU);
@@ -4408,8 +4507,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
         addOffsetPanel(dialogControls, leftColumn, rulerInfo.label);
         addTextAlignPanel(dialogControls, leftColumn, alignState);
 
-        /* 2カラムの下：日本語の組版（日本語UIのみ）/ Below the columns: Japanese composition (Japanese UI only) */
-        if (SHOW_JA_ONLY_CONTROLS) { addJpCompositionPanel(dialogControls, dialogControls.window); }
+        /* 2カラムの下：カーニングと組版（日本語UIのみ）/ Below the columns: kerning and composition (Japanese UI only) */
+        if (SHOW_JA_ONLY_CONTROLS) { addKerningCompositionPanel(dialogControls, dialogControls.window); }
 
         /* ボタンエリア：左に［テキストを分離...］、右に［キャンセル］［OK］
            Button area: "Separate text..." on the left, Cancel and OK on the right */
@@ -4455,27 +4554,27 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
      * 幅・高さ欄の値を検証して返す（0以下・NaN・極端値を弾いて Illustrator の不安定化を避ける）
      * 不正なときは直前の有効な値に戻す。上限・下限を超えたら丸めて欄も書き換える
      * @param {EditText} sizeField - 幅または高さの欄
-     * @param {number|null} lastValue - 直前の有効な値（定規の単位）
+     * @param {number|null} lastValidValue - 直前の有効な値（定規の単位）
      * @param {Object} rulerInfo - 定規の単位（getUnitInfo() の結果）
      * @returns {number|null} 有効な値（定規の単位。不正なら null）
      */
-    function validateSizeField(sizeField, lastValue, rulerInfo) {
-        var value = parseFloat(String(sizeField.text));
-        if (isNaN(value) || !isFinite(value) || value <= 0) {
-            if (lastValue !== null) setFieldNumber(sizeField, lastValue);
+    function validateSizeField(sizeField, lastValidValue, rulerInfo) {
+        var sizeValue = parseFloat(String(sizeField.text));
+        if (isNaN(sizeValue) || !isFinite(sizeValue) || sizeValue <= 0) {
+            if (lastValidValue !== null) setFieldNumber(sizeField, lastValidValue);
             return null;
         }
         var maxValue = MAX_FRAME_SIZE_PT / rulerInfo.pointsPerUnit;
-        if (value > maxValue) {
-            value = maxValue;
-            setFieldNumber(sizeField, value);
+        if (sizeValue > maxValue) {
+            sizeValue = maxValue;
+            setFieldNumber(sizeField, sizeValue);
         }
         /* 小さすぎる値も事故の元なので下限を設ける / Too small a value is just as risky, so there is a floor too */
-        if (value < 0.01) {
-            value = 0.01;
-            setFieldNumber(sizeField, value);
+        if (sizeValue < 0.01) {
+            sizeValue = 0.01;
+            setFieldNumber(sizeField, sizeValue);
         }
-        return value;
+        return sizeValue;
     }
 
     /**
@@ -4528,6 +4627,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
             height: isNewlyConverted,
             kinsoku: isNewlyConverted,
             mojikumi: isNewlyConverted,
+            kerning: false,
             firstBaseline: false,
             firstBaselineMin: false
         };
@@ -4703,7 +4803,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
         }
 
         /**
-         * 禁則・文字組みの現在値をダイアログに読み込む
+         * 選ばれている自動カーニングの id を返す
+         * @returns {string|null} 選択肢の id（未選択なら null）
+         */
+        function getSelectedKerningId() {
+            for (var i = 0; i < dialogControls.kerningRadios.length; i++) {
+                if (dialogControls.kerningRadios[i].value) return KERNING_CHOICES[i].id;
+            }
+            return null;
+        }
+
+        /**
+         * 自動カーニング・禁則・文字組みの現在値をダイアログに読み込む（自動カーニングは表示だけで、触るまで適用しない）
          * 設定済みならその値を表示して適用対象にする（表示＝実際の設定なので、当ててもフレームは変わらない）。
          * 未設定のときは、変換直後だけ初期値（DEFAULT_KINSOKU / DEFAULT_MOJIKUMI_INDEX）を当て、
          * 既存フレームでは「なし」を表示して勝手に付けない。混在（-2）のときは未選択にして触らない
@@ -4714,6 +4825,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
          */
         function loadCompositionFromFrame(sourceFrame) {
             if (!SHOW_JA_ONLY_CONTROLS) return;
+            /* 自動カーニングは表示だけ（触るまで適用しない）/ Auto kerning is only shown; it is applied once touched */
+            var frameKerningId = getKerningId(sourceFrame);
+            for (var i = 0; i < KERNING_CHOICES.length; i++) {
+                dialogControls.kerningRadios[i].value = (KERNING_CHOICES[i].id === frameKerningId);
+            }
             var frameKinsoku = getKinsokuId(sourceFrame);
             if (frameKinsoku !== "None") {
                 selectChoiceByValue(dialogControls.kinsokuDropdown, KINSOKU_CHOICES, "id", frameKinsoku);
@@ -4800,6 +4916,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
                 widthPt: (widthValue !== null) ? widthValue * rulerInfo.pointsPerUnit : null,
                 heightPt: (heightValue !== null && userTouched.height) ? heightValue * rulerInfo.pointsPerUnit : null,
                 leadingPercent: parseFloat(dialogControls.etLeadingPercent.text),
+                kerning: (SHOW_JA_ONLY_CONTROLS && userTouched.kerning) ? getSelectedKerningId() : null,
                 kinsoku: (SHOW_JA_ONLY_CONTROLS && userTouched.kinsoku && dialogControls.kinsokuDropdown.selection) ? KINSOKU_CHOICES[dialogControls.kinsokuDropdown.selection.index].id : null,
                 mojikumiIndex: (SHOW_JA_ONLY_CONTROLS && userTouched.mojikumi && dialogControls.mojikumiDropdown.selection) ? MOJIKUMI_CHOICES[dialogControls.mojikumiDropdown.selection.index].index : -2,
                 leftIndentPt: indentAndSpacing.leftIndentPt,
@@ -5083,6 +5200,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
             if (SHOW_JA_ONLY_CONTROLS) {
                 selectChoiceByValue(dialogControls.kinsokuDropdown, KINSOKU_CHOICES, "id", rolePreset.kinsoku);
                 selectChoiceByValue(dialogControls.mojikumiDropdown, MOJIKUMI_CHOICES, "index", rolePreset.mojikumiIndex);
+                for (var i = 0; i < KERNING_CHOICES.length; i++) {
+                    dialogControls.kerningRadios[i].value = (KERNING_CHOICES[i].id === rolePreset.kerning);
+                }
+                userTouched.kerning = true;
             }
             alignState.activeId = rolePreset.alignId;
             if (rolePreset.resetInsets) {
@@ -5205,10 +5326,21 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
         }
 
         /**
-         * 各コントロールにイベントを付ける
+         * 数値欄の確定（onChange）とステップボタン・↑↓キーに同じ処理を付ける
+         * @param {EditText} numberField - addSteppedEditText() で作った数値欄
+         * @param {Function} changeHandler - 値が変わったときの処理
          * @returns {void}
          */
-        function bindAdjustDialogEvents() {
+        function bindNumberField(numberField, changeHandler) {
+            numberField.onChange = changeHandler;
+            setFieldStepCallback(numberField, changeHandler);
+        }
+
+        /**
+         * 種別・行揃え・垂直方向の配置のボタンと、行揃えのショートカットキーにイベントを付ける
+         * @returns {void}
+         */
+        function bindPresetAndIconEvents() {
             bindExclusiveRadios(dialogControls.roleRadios, function (clickedRadio) {
                 if (clickedRadio === dialogControls.radRoleBody) { applyRolePreset("body"); }
                 else if (clickedRadio === dialogControls.radRoleHeading) { applyRolePreset("heading"); }
@@ -5245,10 +5377,20 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
                     dialogControls.etHeight, dialogControls.etSpacing, dialogControls.etFirstBaselineMin
                 ].concat(dialogControls.etCharsPerLine ? [dialogControls.etCharsPerLine] : [])
             });
+        }
 
-            dialogControls.btnShrinkToFit.onClick = function () { runFontFit("shrink"); };
-            dialogControls.btnFitFontSize.onClick = function () { runFontFit("fit"); };
+        /**
+         * 自動カーニング・禁則・文字組み・先頭ベースラインの位置にイベントを付ける
+         * @returns {void}
+         */
+        function bindCompositionEvents() {
             if (SHOW_JA_ONLY_CONTROLS) {
+                for (var kerningIndex = 0; kerningIndex < dialogControls.kerningRadios.length; kerningIndex++) {
+                    dialogControls.kerningRadios[kerningIndex].onClick = function () {
+                        userTouched.kerning = true;
+                        updatePreview();
+                    };
+                }
                 dialogControls.kinsokuDropdown.onChange = function () {
                     userTouched.kinsoku = true;
                     updatePreview();
@@ -5262,6 +5404,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
                 userTouched.firstBaseline = true;
                 updatePreview();
             };
+        }
+
+        /**
+         * 自動サイズ調整・オフセット・インデントの連動の切り替えにイベントを付ける
+         * @returns {void}
+         */
+        function bindToggleEvents() {
             dialogControls.chkAutoSize.onClick = function () {
                 updateHeightEnabled();
                 /* プレビューを外してから ON/OFF を本適用し、あらためてプレビューを貼り直す / Commit ON/OFF with the preview off, then re-apply it */
@@ -5283,30 +5432,32 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
                 updateRightIndentEnabled();
                 onIndentOrSpacingChange();
             };
+        }
 
-            dialogControls.etFontSize.onChange = applyFontSizeFromField;
-            dialogControls.etLeadingPercent.onChange = onLeadingPercentChange;
-            dialogControls.etLeadingEffective.onChange = onLeadingEffectiveChange;
-            dialogControls.etSpacing.onChange = onIndentOrSpacingChange;
-            dialogControls.etFirstBaselineMin.onChange = onFirstBaselineMinChange;
-            dialogControls.etWidth.onChange = onWidthChange;
-            dialogControls.etHeight.onChange = onHeightChange;
-            dialogControls.etLeftIndent.onChange = onIndentOrSpacingChange;
-            dialogControls.etRightIndent.onChange = onIndentOrSpacingChange;
-            setFieldStepCallback(dialogControls.etFontSize, applyFontSizeFromField);
-            setFieldStepCallback(dialogControls.etLeadingPercent, onLeadingPercentChange);
-            setFieldStepCallback(dialogControls.etLeadingEffective, onLeadingEffectiveChange);
-            setFieldStepCallback(dialogControls.etSpacing, onIndentOrSpacingChange);
-            setFieldStepCallback(dialogControls.etFirstBaselineMin, onFirstBaselineMinChange);
-            setFieldStepCallback(dialogControls.etWidth, onWidthChange);
-            setFieldStepCallback(dialogControls.etHeight, onHeightChange);
-            if (dialogControls.etCharsPerLine) {
-                dialogControls.etCharsPerLine.onChange = onCharsPerLineChange;
-                setFieldStepCallback(dialogControls.etCharsPerLine, onCharsPerLineChange);
-            }
-            setFieldStepCallback(dialogControls.etLeftIndent, onIndentOrSpacingChange);
-            setFieldStepCallback(dialogControls.etRightIndent, onIndentOrSpacingChange);
+        /**
+         * 数値欄にイベントを付ける
+         * @returns {void}
+         */
+        function bindNumberFieldEvents() {
+            bindNumberField(dialogControls.etFontSize, applyFontSizeFromField);
+            bindNumberField(dialogControls.etLeadingPercent, onLeadingPercentChange);
+            bindNumberField(dialogControls.etLeadingEffective, onLeadingEffectiveChange);
+            bindNumberField(dialogControls.etSpacing, onIndentOrSpacingChange);
+            bindNumberField(dialogControls.etFirstBaselineMin, onFirstBaselineMinChange);
+            bindNumberField(dialogControls.etWidth, onWidthChange);
+            bindNumberField(dialogControls.etHeight, onHeightChange);
+            bindNumberField(dialogControls.etLeftIndent, onIndentOrSpacingChange);
+            bindNumberField(dialogControls.etRightIndent, onIndentOrSpacingChange);
+            if (dialogControls.etCharsPerLine) { bindNumberField(dialogControls.etCharsPerLine, onCharsPerLineChange); }
+        }
 
+        /**
+         * フォントサイズ調整・テキストを分離・OK・キャンセルのボタンにイベントを付ける
+         * @returns {void}
+         */
+        function bindButtonEvents() {
+            dialogControls.btnShrinkToFit.onClick = function () { runFontFit("shrink"); };
+            dialogControls.btnFitFontSize.onClick = function () { runFontFit("fit"); };
             dialogControls.btnSeparateText.onClick = separateTargetFrames;
             dialogControls.btnRun.onClick = function () {
                 revertPreview();
@@ -5317,6 +5468,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
                 revertPreview();
                 dialogControls.window.close(0);
             };
+        }
+
+        /**
+         * 各コントロールにイベントを付ける
+         * @returns {void}
+         */
+        function bindAdjustDialogEvents() {
+            bindPresetAndIconEvents();
+            bindCompositionEvents();
+            bindToggleEvents();
+            bindNumberFieldEvents();
+            bindButtonEvents();
         }
 
         bindAdjustDialogEvents();

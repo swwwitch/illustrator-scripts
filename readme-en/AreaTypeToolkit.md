@@ -63,7 +63,7 @@ The panels are laid out like this:
 
 - Left: font size, frame size, offset, vertical alignment
 - Right: role, leading, justification, indent
-- Below both columns: Japanese composition (Japanese UI only; kinsoku and mojikumi side by side)
+- Below both columns: Kerning and composition (Japanese UI only; kinsoku and mojikumi side by side)
 - Bottom: [Separate text...], then [Cancel] and [OK]
 
 [OK] commits, [Cancel] reverts and closes — except for vertical text alignment, auto-size, the role presets, Clear overset, Fit to frame and Separate text, which are committed the moment you click them (see below).
@@ -74,14 +74,14 @@ When you open the dialog on existing Area Type, **settings you don't touch are l
 
 One click applies a whole preset for the text's purpose.
 
-| Role | Leading | Justification | Kinsoku | Mojikumi | Vertical alignment | Tab stops |
-| --- | --- | --- | --- | --- | --- | --- |
-| Body | 160% | Justify (last line left) | Loose v2 | Solid | Top | Cleared |
-| Heading | 120% | Left | Loose v2 | Tight | Top | Cleared |
-| Menu | 150% | Right | Loose v2 | Tight | Top | Right-aligned tab with a "…" leader at 400pt |
-| Button | 110% | Center | Loose v2 | Tight | Center | Cleared |
+| Role | Leading | Justification | Kinsoku | Mojikumi | Auto kerning | Vertical alignment | Tab stops |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Body | 160% | Justify (last line left) | Loose v2 | Solid | Metrics - Roman Only | Top | Cleared |
+| Heading | 120% | Left | Loose v2 | Tight | Metrics | Top | Cleared |
+| Menu | 150% | Right | Loose v2 | Tight | Metrics | Top | Right-aligned tab with a "…" leader at 400pt |
+| Button | 110% | Center | Loose v2 | Tight | Metrics | Center | Cleared |
 
-Kinsoku and mojikumi are applied in the Japanese UI only.
+Auto kerning, kinsoku and mojikumi are applied in the Japanese UI only.
 
 "Button" also sets both indents to 0 and turns the offset off.
 
@@ -128,12 +128,13 @@ That action cannot run from the preview inside a modal dialog, so it is **commit
 
 The current alignment cannot be read from the DOM either, so opening the dialog on existing Area Type always shows "Top". **The frame's alignment does not change until you click an icon.**
 
-### Japanese composition
+### Kerning and composition
 
-Shown in the Japanese UI only. The English UI leaves kinsoku and mojikumi alone, even when a role is picked.
+Shown in the Japanese UI only. The English UI leaves auto kerning, kinsoku and mojikumi alone, even when a role is picked.
 
 | Control | What it does |
 | --- | --- |
+| Auto kerning | Metrics / Metrics - Roman Only / Optical. Metrics turns OpenType Proportional Metrics on; the others turn it off. Shows the current setting; nothing is selected when it is mixed (left as is unless changed) |
 | Kinsoku | None / Strict / Loose / Loose v2 |
 | Mojikumi | Mojikumi spacing set (None / Line-end punct full/half / Half-width punctuation / ... / Tight / Solid) |
 
@@ -158,7 +159,7 @@ The current auto-size state cannot be read from the DOM, so the checkbox always 
 - Indents: left and right (the Link icon is on by default — the right follows the left and its field is dimmed; text whose two indents differ opens with the link off)
 - Offset: the distance between the frame and the text (tick the box to enter a value)
 
-## Separate text dialog
+## Separate Text dialog
 
 Opened with the [Separate text...] button at the bottom left of the adjust dialog. It breaks Area Type apart into **a rectangle plus point text**.
 
@@ -173,7 +174,7 @@ Opened with the [Separate text...] button at the bottom left of the adjust dialo
 
 Clicking [Separate text...] first commits what is set in the adjust dialog (frame size and the rest), so the rectangle is built from that size plus the offset — you can settle the width, then separate.
 
-The resulting point text keeps the justification, indents, leading, kinsoku, mojikumi and tab stops set in the adjust dialog, and **per-character font, size, fill, stroke, baseline shift and scaling are preserved**. Once separated, the new rectangle and point text are left selected.
+The resulting point text keeps the justification, indents, leading, auto kerning, kinsoku, mojikumi and tab stops set in the adjust dialog, and **per-character font, size, fill, stroke, baseline shift, scaling, auto kerning and Proportional Metrics are preserved**. Once separated, the new rectangle and point text are left selected.
 
 ## Input fields
 
@@ -200,6 +201,7 @@ TextFrame (point / path / area text), PathItem and CompoundPathItem (closed path
 
 ## Change log
 
+- v1.6.0 (2026-10-12) Renamed the "Japanese composition" panel to "Kerning and composition" and added Auto kerning (Metrics / Metrics - Roman Only / Optical) above Kinsoku. Metrics turns Proportional Metrics on, the others turn it off. Role presets now set auto kerning (Body: Metrics - Roman Only; Heading, Menu, Button: Metrics). Separate text now keeps auto kerning and Proportional Metrics per character. Reviewed the UI wording (such as Clear overset) and cleaned up the code
 - v1.5.2 (2026-10-12) Fixed Separate text shifting the point text sideways when the justification is center or right
 - v1.5.1 (2026-10-12) Fixed "Frame: keep its style" in Separate text leaving an invisible rectangle instead of the frame with its fill and stroke. Fixed the separated point text shifting up, down or sideways from its original position depending on First Baseline (such as Fixed at 0) and the inset spacing
 - v1.5.0 (2026-10-10) Added a "Button" role (110% leading, center, vertically centered, zero indents, offset off). The role radios now sit in two rows (Body, Heading / Menu, Button). Code cleanup
