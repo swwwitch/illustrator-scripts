@@ -27,10 +27,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AreaTypeTo
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AreaTypeToolkit";              /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.5.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.5.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-03-03";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-10";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-12";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AreaTypeToolkit.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AreaTypeToolkit.md"; /* README (English) */
@@ -3356,43 +3356,85 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
         return frameRect;
     }
 
+    /* 枠のパス（TextPath）から写す塗り・線の属性 / Paint attributes copied from the frame's TextPath */
+    var FRAME_PATH_PAINT_KEYS = [
+        "filled", "fillColor", "fillOverprint", "evenodd",
+        "stroked", "strokeColor", "strokeWidth", "strokeDashes", "strokeDashOffset",
+        "strokeCap", "strokeJoin", "strokeMiterLimit", "strokeOverprint",
+        "opacity", "blendingMode"
+    ];
+
     /**
-     * 外形の枠を探す（中身の字形をたどり、bounds が一致する PathItem を返す）
-     * @param {PageItem} outlineItem - createOutline() の結果、またはその中身
-     * @param {number[]} frameBounds - 元の枠の geometricBounds
-     * @returns {PathItem|null} 見つかった枠のパス
+     * エリア内文字の枠を、同じ形・塗り・線のパスとして作り直す
+     * アウトライン化しても枠のパスは出てこないため、textPath のパスポイントと属性を写す
+     * Outlining never outputs the frame path, so the TextPath's points and paint are copied instead
+     * @param {TextFrame} areaTextFrame - 元のエリア内文字
+     * @param {Layer|GroupItem|Document} ownerContainer - パスを追加する親
+     * @returns {PathItem} 作り直した枠
      */
-    function findOutlinedFramePath(outlineItem, frameBounds) {
-        if (outlineItem.typename === "GroupItem") {
-            for (var i = 0; i < outlineItem.pageItems.length; i++) {
-                var foundPath = findOutlinedFramePath(outlineItem.pageItems[i], frameBounds);
-                if (foundPath) return foundPath;
-            }
-            return null;
+    function rebuildStyledFramePath(areaTextFrame, ownerContainer) {
+        var textPath = areaTextFrame.textPath;
+        var sourcePoints = textPath.pathPoints;
+        var anchorList = [];
+        for (var i = 0; i < sourcePoints.length; i++) { anchorList.push(sourcePoints[i].anchor); }
+
+        var framePath = ownerContainer.pathItems.add();
+        framePath.setEntirePath(anchorList);
+        for (var j = 0; j < sourcePoints.length; j++) {
+            framePath.pathPoints[j].leftDirection = sourcePoints[j].leftDirection;
+            framePath.pathPoints[j].rightDirection = sourcePoints[j].rightDirection;
+            framePath.pathPoints[j].pointType = sourcePoints[j].pointType;
         }
-        if (outlineItem.typename !== "PathItem") return null;
-        var itemBounds = outlineItem.geometricBounds;
-        for (var j = 0; j < 4; j++) {
-            if (Math.abs(itemBounds[j] - frameBounds[j]) > 0.5) return null;
+        framePath.closed = textPath.closed;
+
+        /* 読めない属性（線なしの破線など）は飛ばす / Skip attributes that cannot be read or written */
+        for (var k = 0; k < FRAME_PATH_PAINT_KEYS.length; k++) {
+            try { framePath[FRAME_PATH_PAINT_KEYS[k]] = textPath[FRAME_PATH_PAINT_KEYS[k]]; } catch (e) { }
         }
-        return outlineItem;
+        return framePath;
     }
 
     /**
-     * エリア内文字の枠を、塗り・線・効果ごとパスとして取り出す（複製をアウトライン化して字形を捨てる）
-     * 枠に塗りも線もなくアウトラインに枠が出てこないときは null
-     * Duplicates the frame, outlines it and drops the glyphs; null when the frame has no paint and is not output
+     * エリア内文字の1行目のベースラインの高さ（Y座標）を実測する
+     * 複製をポイント文字に変換し、その anchor を読む（先頭ベースラインの位置・間隔・垂直方向の揃えを反映）
+     * convertAreaObjectToPointObject() は null を返すので、変換後のオブジェクトは参照の差分で探す
+     * The duplicate is converted to point type and its anchor is read; the method returns null,
+     * so the converted object is found as the one reference that was not there before
      * @param {TextFrame} areaTextFrame - 元のエリア内文字
-     * @returns {PathItem|null} 取り出した枠
+     * @returns {number|null} ベースラインの Y 座標（測れなければ null）
      */
-    function extractStyledFramePath(areaTextFrame) {
-        var frameBounds = areaTextFrame.geometricBounds;
-        /* createOutline() は複製を消費するので、複製は remove() しない / createOutline() consumes the duplicate, so it is not removed */
-        var outlinedGroup = areaTextFrame.duplicate().createOutline();
-        var framePath = findOutlinedFramePath(outlinedGroup, frameBounds);
-        if (framePath) { framePath.moveBefore(outlinedGroup); }
-        outlinedGroup.remove();
-        return framePath;
+    function measureFirstBaselineY(areaTextFrame) {
+        var ownerContainer = areaTextFrame.parent;
+        var duplicatedFrame = areaTextFrame.duplicate();
+        var knownFrames = [];
+        for (var i = 0; i < ownerContainer.textFrames.length; i++) { knownFrames.push(ownerContainer.textFrames[i]); }
+
+        /* あふれた文字の確認アラートを出さない / Keep the overset warning from popping up */
+        var savedInteractionLevel = app.userInteractionLevel;
+        app.userInteractionLevel = UserInteractionLevel.DONTDISPLAYALERTS;
+        var isConverted = true;
+        try { duplicatedFrame.convertAreaObjectToPointObject(); } catch (eConvert) { isConverted = false; }
+        app.userInteractionLevel = savedInteractionLevel;
+        if (!isConverted) {
+            /* 変換できなければ複製を片付ける / Clean up the duplicate when it cannot be converted */
+            try { duplicatedFrame.remove(); } catch (eRemove) { }
+            return null;
+        }
+
+        for (var j = 0; j < ownerContainer.textFrames.length; j++) {
+            var candidateFrame = ownerContainer.textFrames[j];
+            var isKnown = false;
+            for (var k = 0; k < knownFrames.length; k++) {
+                if (knownFrames[k] === candidateFrame) { isKnown = true; break; }
+            }
+            if (isKnown) continue;
+            /* 読めなくても変換後の文字は必ず消す / Always remove the converted text, even when the anchor cannot be read */
+            var baselineY = null;
+            try { baselineY = candidateFrame.anchor[1]; } catch (eAnchor) { baselineY = null; }
+            candidateFrame.remove();
+            return baselineY;
+        }
+        return null;
     }
 
     /**
@@ -3418,6 +3460,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
            Snapshot the per-character formatting and the first-baseline size before the frame goes away */
         var charAttrSnapshots = snapshotCharacterAttributes(areaTextFrame);
         var firstLineOffset = getRepresentativeFontSize(areaTextFrame);
+        var firstBaselineY = null, areaInsetPt = 0;
+        try { firstBaselineY = measureFirstBaselineY(areaTextFrame); } catch (eBaseline) { firstBaselineY = null; }
+        try { areaInsetPt = areaTextFrame.spacing || 0; } catch (eInset) { areaInsetPt = 0; }
         var pointTextContents = areaTextFrame.contents;
 
         /* 見かけの改行を強制改行に変換する（文字属性も同じ並びに合わせる）
@@ -3432,17 +3477,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
 
         /* 枠のスタイルを保持：元の枠をそのまま残す（長方形を作らず、オフセット分も広げない）
            Keep the frame's style: the original path stays as is (no rectangle, not grown by the offset) */
-        var styledFramePath = null;
-        if (adjustSettings.keepPathStyle) {
-            try { styledFramePath = extractStyledFramePath(areaTextFrame); } catch (eOutline) { styledFramePath = null; }
-        }
-
         var ownerContainer = getOwnerContainer(doc, areaTextFrame);
-        var frameRect = styledFramePath;
-        if (!frameRect) {
+        var frameRect;
+        if (adjustSettings.keepPathStyle) {
+            frameRect = rebuildStyledFramePath(areaTextFrame, ownerContainer);
+        } else {
             frameRect = ownerContainer.pathItems.rectangle(top, left, right - left, top - bottom);
             frameRect.filled = false;
-            frameRect.stroked = !adjustSettings.keepPathStyle; /* 塗りも線もない枠は、そのまま塗りも線もなしで残す / an unpainted frame stays unpainted */
+            frameRect.stroked = true;
         }
 
         var pointTextFrame = ownerContainer.textFrames.add();
@@ -3461,6 +3503,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
             pointTextFrame.textRange.characterAttributes.strokeWeight = 0;
         } catch (e0) { }
         restoreCharacterAttributes(pointTextFrame, charAttrSnapshots, false);
+
+        /* 1行目の文字の起点を元の位置にそろえる（文字サイズを戻した後、行揃えを変える前に合わせる）
+           anchor は読み取り専用なので translate で動かす。X は枠の左端＋間隔（変換は間隔を反映しない）
+           Line the first character's origin up with the original, after the sizes are restored and before
+           the justification changes; anchor is read-only, so translate moves it. X is the frame's left edge
+           plus the inset, which the conversion ignores */
+        if (firstBaselineY !== null) {
+            try {
+                var pointAnchor = pointTextFrame.anchor;
+                pointTextFrame.translate(frameBounds[0] + areaInsetPt - pointAnchor[0], firstBaselineY - pointAnchor[1]);
+            } catch (eAnchor) { }
+        }
 
         areaTextFrame.remove();
 
