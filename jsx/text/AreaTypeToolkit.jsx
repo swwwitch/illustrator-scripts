@@ -660,8 +660,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
                 en: "Sets First Baseline and Min (Area Type Options). Left as is unless you change them."
             },
             keepPathStyle: {
-                ja: "エリア内文字の枠（パス）を、塗り・線・効果ごとそのまま残します。形も元のまま（長方形に置き換えず、オフセット分も広げません）。",
-                en: "Keeps the Area Type's own path with its fill, stroke and effects, in its original shape (not replaced by a rectangle, not grown by the offset)."
+                ja: "エリア内文字の枠（パス）を、塗り・線ごとそのまま残します。形も元のまま（長方形に置き換えず、オフセット分も広げません）。",
+                en: "Keeps the Area Type's own path with its fill and stroke, in its original shape (not replaced by a rectangle, not grown by the offset)."
             },
             separateText: {
                 ja: "エリア内文字を、囲み罫（長方形）とポイント文字に分解します。別ダイアログで枠の処理を選びます。選択したエリア内文字をまとめて処理します。",

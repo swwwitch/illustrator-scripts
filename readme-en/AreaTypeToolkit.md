@@ -167,7 +167,7 @@ Opened with the [Separate text...] button at the bottom left of the adjust dialo
 | Frame: 1pt black | Gives the rectangle a 1pt black stroke (default) |
 | Frame: unpainted | Leaves the rectangle unpainted |
 | Delete frame | Deletes the rectangle |
-| Frame: keep its style | Keeps the original frame path with its fill, stroke and effects, in its original shape (not replaced by a rectangle, not grown by the offset) |
+| Frame: keep its style | Keeps the original frame path with its fill and stroke, in its original shape (not replaced by a rectangle, not grown by the offset) |
 
 [OK] separates, then closes the adjust dialog too, since there is no Area Type left to adjust. [Cancel] does nothing and returns to the adjust dialog.
 
