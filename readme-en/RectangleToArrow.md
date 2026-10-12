@@ -27,6 +27,7 @@
   - Stroke (Round Cap): the same with round caps and round joins
 - The two stroke types apply the Outline Stroke effect to each line, group the lines, and apply the Pathfinder (Add) effect to the group. They stay live, so you can still edit the stroke weight and so on
 - Direction: the arrow runs along the long side (or the rule itself), pointing right when mostly horizontal and up when mostly vertical. Unrotated wide rectangles point right, tall ones up. Squares follow the more horizontal side and point up-right at 45°
+  - For squares, choose Horizontal or Vertical under Direction (Horizontal by default; Vertical points up). Rectangles and rules are unaffected, and the option is dimmed when no square is selected
   - Option-click (Alt-click) a button to reverse the direction. Do it again to switch back
   - Command-Option-click (Ctrl-Alt-click) a button to toggle a double-headed arrow
   - The link (double-headed) and ⇄ (reverse) icons under the type buttons switch them too. Reverse is unavailable for double-headed arrows
@@ -59,7 +60,7 @@
 #### Shape and color
 
 - The head is right-angled and half the height long. On short rectangles it is capped at the full length (single) or half the length (double-headed)
-- Stroked arrows fit the path to the rectangle, so the stroke weight sticks out past its edges
+- Stroked arrows pull the path inward by the stroke weight so that the caps and the pointed tip stay within the rectangle. The thicker the stroke, the smaller the head
 - The color comes from the rectangle's fill. When the fill is none or white, the stroke color is used; with neither fill nor stroke, black
 
 #### Preview
@@ -87,6 +88,7 @@ https://note.com/dtp_tranist/n/n789072361c12
 
 ### Update History
 
+- v1.3.0 (2026-10-12) Added Direction (Horizontal / Vertical) so squares can become vertical arrows. Fixed the tip and head ends of stroked arrows (butt and round cap) sticking out of the rectangle by the stroke weight
 - v1.2.2 (2026-10-12) Pentagon's Angle is now the angle between the axis and a slanted side instead of the full tip angle (a right-angled tip is now 45° instead of 90°). The shapes are unchanged
 - v1.2.1 (2026-10-12) Fixed squares rotated 45° pointing different ways depending on their anchor order (they now point up-right). The Pentagon button drawing is now easier to tell apart from Fill
 - v1.2.0 (2026-10-12) Added the Pentagon type, with its tip angle set by Angle. Rotated rectangles and slanted or vertical rules are now supported
@@ -96,6 +98,6 @@ https://note.com/dtp_tranist/n/n789072361c12
 
 ### Script info
 
-- Version: v1.2.2
+- Version: v1.3.0
 - First release: 2026-10-10
 - Last updated: 2026-10-12

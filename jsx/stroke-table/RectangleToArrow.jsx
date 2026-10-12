@@ -29,7 +29,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RectangleT
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "RectangleToArrow";             /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.2.2";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.3.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-10";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-12";                   /* 更新日 / last updated */
@@ -184,7 +184,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
             arrowType: { ja: "種類", en: "Type" },
             thickness: { ja: "太さ", en: "Thickness" },
             height: { ja: "高さ", en: "Height" },
-            tipAngle: { ja: "角度", en: "Angle" }
+            tipAngle: { ja: "角度", en: "Angle" },
+            squareAxis: { ja: "方向", en: "Direction" }
         },
         button: {
             arrowType: {
@@ -192,6 +193,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
                 pentagon: { ja: "ホームベース", en: "Pentagon" },
                 line: { ja: "線（線端なし）", en: "Stroke (Butt Cap)" },
                 roundLine: { ja: "線（丸型線端）", en: "Stroke (Round Cap)" }
+            },
+            squareAxis: {
+                horizontal: { ja: "水平", en: "Horizontal" },
+                vertical: { ja: "垂直", en: "Vertical" }
             },
             ok: { ja: "OK", en: "OK" },
             cancel: { ja: "キャンセル", en: "Cancel" }
@@ -239,6 +244,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
             tipAngle: {
                 ja: "ホームベースの先端の角度を、軸に対する斜辺の角度で指定します（1〜89°。45° で直角の先端）。長方形が短くて収まらないときは、先端が鈍くなります。",
                 en: "Tip angle of the pentagon, measured between the axis and a slanted side (1–89°; 45° gives a right-angled tip). When the rectangle is too short for it, the tip becomes blunter."
+            },
+            squareAxis: {
+                ja: "正方形を水平・垂直のどちらの矢印にするかを選びます。長方形は長辺、罫線は線の向きで決まるので変わりません。正方形が選択されていないときは使えません。",
+                en: "Choose whether squares become horizontal or vertical arrows. Rectangles follow their long side and rules their own direction, so they are unaffected. Not available when no square is selected."
             },
             stepUp: {
                 ja: "値を増やす（shift＋クリックで10の倍数へ、option＋クリックで0.1ずつ）",
@@ -1067,12 +1076,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
 
     /**
      * 矢印の軸を返す。長方形は長辺の向き、罫線は線の向き（向きは getArrowDirection() で決める）。
-     * 正方形は、水平に近い辺、同じなら上を向く辺を軸にし、アンカーポイントの順番に左右されないようにする。
+     * 正方形は、水平に近い辺、同じなら上を向く辺を軸にし、アンカーポイントの順番に左右されないようにする（垂直ならもう一方の辺）。
      * 罫線は短辺が 0 なので、長さの LINE_SIDE_RATIO を短辺とする
      * @param {PathItem} targetPath - 長方形または罫線のパス
+     * @param {boolean} [isSquareVertical] - 正方形を垂直の矢印にするなら true
      * @returns {{center: number[], direction: number[], length: number, thickness: number}} 中心・向き（長さ1）・長さ・短辺
      */
-    function getArrowAxis(targetPath) {
+    function getArrowAxis(targetPath, isSquareVertical) {
         var pathPoints = targetPath.pathPoints;
         var firstAnchor = pathPoints[0].anchor;
         if (!targetPath.closed) {
@@ -1102,6 +1112,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
             /* 45°の正方形は上を向く辺 / for a square at 45°, the edge pointing up */
             isFirstAxis = firstDirection[1] >= secondDirection[1];
         }
+        /* 正方形の垂直はもう一方の辺 / a vertical square takes the other edge */
+        if (isSquareVertical && isNear(firstLength, secondLength)) isFirstAxis = !isFirstAxis;
         return {
             /* 対角線の中点 / midpoint of the diagonal */
             center: [(firstAnchor[0] + oppositeAnchor[0]) / 2, (firstAnchor[1] + oppositeAnchor[1]) / 2],
@@ -1109,6 +1121,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
             length: isFirstAxis ? firstLength : secondLength,
             thickness: isFirstAxis ? secondLength : firstLength
         };
+    }
+
+    /**
+     * 正方形（2辺の長さが等しい長方形。回転していてもよい）かを返す
+     * @param {PathItem} targetPath - 長方形または罫線のパス
+     * @returns {boolean} 正方形なら true
+     */
+    function isSquarePath(targetPath) {
+        if (!targetPath.closed) return false;
+        var pathPoints = targetPath.pathPoints;
+        return isNear(getVectorLength(getEdgeVector(pathPoints[0].anchor, pathPoints[1].anchor)),
+            getVectorLength(getEdgeVector(pathPoints[1].anchor, pathPoints[2].anchor)));
     }
 
     /**
@@ -1140,10 +1164,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
      * @param {PathItem} targetPath - 長方形または罫線のパス
      * @param {boolean} isReversed - 逆向きにするなら true
      * @param {number} heightRatio - 矢印の高さ（矢じりの幅。短辺に対する比率）
+     * @param {boolean} isSquareVertical - 正方形を垂直の矢印にするなら true
      * @returns {{length: number, thickness: number, headWidth: number, toPoint: function(number, number): Array}} 長さ・短辺・矢じりの幅・座標の変換
      */
-    function getArrowFrame(targetPath, isReversed, heightRatio) {
-        var arrowAxis = getArrowAxis(targetPath);
+    function getArrowFrame(targetPath, isReversed, heightRatio, isSquareVertical) {
+        var arrowAxis = getArrowAxis(targetPath, isSquareVertical);
         var axisDirection = arrowAxis.direction;
         var direction = isReversed ? [-axisDirection[0], -axisDirection[1]] : axisDirection;
         var normal = [-axisDirection[1], axisDirection[0]];
@@ -1250,22 +1275,47 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
     }
 
     /**
-     * 線の矢印の折れ線を求める（軸・先端の矢じり・両矢印なら根元の矢じり）
+     * 線の矢印の折れ線を求める（軸・先端の矢じり・両矢印なら根元の矢じり）。
+     * 線幅のぶんを内側へ詰め、線端と角も含めて長方形の範囲（長さ × 矢じりの幅）に収める。
+     * 詰める量は矢じりの開き具合で変わるので、詰めた形の矢じりの角度で数回求め直す
      * @param {Object} arrowFrame - getArrowFrame() の戻り値
      * @param {boolean} isBothEnds - 両矢印なら true
+     * @param {number} strokeWidth - 線幅（pt）
+     * @param {boolean} isRound - 丸型線端・ラウンド結合なら true
      * @returns {Array} 折れ線の配列 [[[x, y], …], …]
      */
-    function buildStrokedArrowLines(arrowFrame, isBothEnds) {
+    function buildStrokedArrowLines(arrowFrame, isBothEnds, strokeWidth, isRound) {
+        var halfWidth = strokeWidth / 2;
         var halfSide = arrowFrame.headWidth / 2;
-        var headLength = getHeadLength(arrowFrame, isBothEnds);
-        var neck = arrowFrame.length - headLength;
+        /* 詰めすぎて頂点が重ならないよう、最小でもこの長さは残す / keep at least this much so vertices never collapse */
+        var minimumSize = 0.01;
+        /* 矢じりの半角（軸と腕の角度）。初めは直角の矢じり / half-angle of the head; starts as a right-angled head */
+        var halfAngle = Math.atan(1 / (2 * HEAD_RATIO));
+        var tipU, tailU, innerHalfSide, headLength;
+        for (var k = 0; k < 4; k++) {
+            /* マイター結合の先端は (線幅/2)/sin、線端なしの腕の端の角は横へ (線幅/2)·cos・後ろへ (線幅/2)·sin はみ出す。丸型はどれも線幅/2
+               a miter tip sticks out by (w/2)/sin; butt-capped arm ends by (w/2)·cos sideways and (w/2)·sin backward; round ones by w/2 */
+            var tipInset = isRound ? halfWidth : halfWidth / Math.sin(halfAngle);
+            var sideInset = isRound ? halfWidth : halfWidth * Math.cos(halfAngle);
+            var armBackInset = isRound ? halfWidth : halfWidth * Math.sin(halfAngle);
+            innerHalfSide = Math.max(halfSide - sideInset, minimumSize);
+            tipU = arrowFrame.length - tipInset;
+            /* 片矢印の根元は軸の線端だけ。線端なしならそのまま / the single arrow's tail is just the shaft's cap */
+            tailU = isBothEnds ? tipInset : (isRound ? halfWidth : 0);
+            var maxHeadLength = isBothEnds ? (tipU - tailU) / 2 : tipU - armBackInset;
+            headLength = Math.min(innerHalfSide * 2 * HEAD_RATIO, Math.max(maxHeadLength, minimumSize));
+            var nextHalfAngle = Math.atan2(innerHalfSide, headLength);
+            if (Math.abs(nextHalfAngle - halfAngle) < 1e-6) break;
+            halfAngle = nextHalfAngle;
+        }
+        var neck = tipU - headLength;
         var arrowLines = [
             /* 軸は先端まで通す。合体するので継ぎ目は残らない / the shaft runs to the tip; uniting hides the joint */
-            [arrowFrame.toPoint(0, 0), arrowFrame.toPoint(arrowFrame.length, 0)],
-            [arrowFrame.toPoint(neck, halfSide), arrowFrame.toPoint(arrowFrame.length, 0), arrowFrame.toPoint(neck, -halfSide)]
+            [arrowFrame.toPoint(tailU, 0), arrowFrame.toPoint(tipU, 0)],
+            [arrowFrame.toPoint(neck, innerHalfSide), arrowFrame.toPoint(tipU, 0), arrowFrame.toPoint(neck, -innerHalfSide)]
         ];
         if (isBothEnds) {
-            arrowLines.push([arrowFrame.toPoint(headLength, halfSide), arrowFrame.toPoint(0, 0), arrowFrame.toPoint(headLength, -halfSide)]);
+            arrowLines.push([arrowFrame.toPoint(tailU + headLength, innerHalfSide), arrowFrame.toPoint(tailU, 0), arrowFrame.toPoint(tailU + headLength, -innerHalfSide)]);
         }
         return arrowLines;
     }
@@ -1329,22 +1379,22 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
     /**
      * 長方形を塗りの矢印に書き換える。元のパスを書き換えるので、効果・重ね順はそのまま残る
      * @param {PathItem} rectanglePath - 長方形のパス
-     * @param {Object} arrowOptions - shaftRatio（軸の太さ。短辺に対する比率）、heightRatio、isReversed、isBothEnds
+     * @param {Object} arrowOptions - shaftRatio（軸の太さ。短辺に対する比率）、heightRatio、isReversed、isBothEnds、isSquareVertical
      * @returns {PageItem} できた矢印
      */
     function convertToFilledArrow(rectanglePath, arrowOptions) {
-        var arrowFrame = getArrowFrame(rectanglePath, arrowOptions.isReversed, arrowOptions.heightRatio);
+        var arrowFrame = getArrowFrame(rectanglePath, arrowOptions.isReversed, arrowOptions.heightRatio, arrowOptions.isSquareVertical);
         return fillArrowPath(rectanglePath, buildFilledArrowPoints(arrowFrame, arrowOptions.shaftRatio, arrowOptions.isBothEnds));
     }
 
     /**
      * 長方形をホームベース（一端をとがらせた形）に書き換える。元のパスを書き換えるので、効果・重ね順はそのまま残る
      * @param {PathItem} rectanglePath - 長方形のパス
-     * @param {Object} arrowOptions - tipAngle（先端の角度。軸に対する斜辺の角度、度）、isReversed、isBothEnds
+     * @param {Object} arrowOptions - tipAngle（先端の角度。軸に対する斜辺の角度、度）、isReversed、isBothEnds、isSquareVertical
      * @returns {PageItem} できたホームベース
      */
     function convertToPentagonArrow(rectanglePath, arrowOptions) {
-        var arrowFrame = getArrowFrame(rectanglePath, arrowOptions.isReversed, 1);
+        var arrowFrame = getArrowFrame(rectanglePath, arrowOptions.isReversed, 1, arrowOptions.isSquareVertical);
         return fillArrowPath(rectanglePath, buildPentagonPoints(arrowFrame, arrowOptions.tipAngle, arrowOptions.isBothEnds));
     }
 
@@ -1367,16 +1417,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
     /**
      * 長方形を、軸の直線とくの字の矢じりを線で組んだ矢印に置き換える。
      * 線ごとに［パスのアウトライン］効果を掛けてグループにし、グループに［パスファインダー（合体）］効果を掛ける。
-     * パスの形は長方形の範囲に合わせ、線幅のぶんは外へはみ出す。元のパスの効果は引き継がない
+     * 線幅のぶんを内側へ詰め、線端・角も含めて長方形の範囲に収める。元のパスの効果は引き継がない
      * @param {PathItem} rectanglePath - 長方形のパス（グループに置き換えて削除する）
-     * @param {Object} arrowOptions - strokeWidth（線幅。pt）、heightRatio、isReversed、isBothEnds
+     * @param {Object} arrowOptions - strokeWidth（線幅。pt）、heightRatio、isReversed、isBothEnds、isSquareVertical
      * @param {boolean} isRound - 丸型線端・ラウンド結合にするなら true
      * @returns {PageItem} できた矢印（グループ）
      */
     function convertToStrokedArrow(rectanglePath, arrowOptions, isRound) {
-        var arrowFrame = getArrowFrame(rectanglePath, arrowOptions.isReversed, arrowOptions.heightRatio);
+        var arrowFrame = getArrowFrame(rectanglePath, arrowOptions.isReversed, arrowOptions.heightRatio, arrowOptions.isSquareVertical);
         var arrowColor = getArrowColor(rectanglePath);
-        var arrowLines = buildStrokedArrowLines(arrowFrame, arrowOptions.isBothEnds);
+        var arrowLines = buildStrokedArrowLines(arrowFrame, arrowOptions.isBothEnds, arrowOptions.strokeWidth, isRound);
 
         /* 入れ子のグループで効果のメニューコマンドを実行すると一番外側のグループに付くので、
            部品はレイヤー直下で作って効果を掛け、最後に元の位置へ移す
@@ -1423,7 +1473,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
     /**
      * 種類に応じて長方形を矢印にする
      * @param {PathItem} rectanglePath - 長方形のパス
-     * @param {Object} arrowOptions - arrowType（"fill" / "pentagon" / "line" / "roundLine"）、shaftRatio（塗り）または strokeWidth（線）、heightRatio、tipAngle（ホームベース）、isReversed、isBothEnds
+     * @param {Object} arrowOptions - arrowType（"fill" / "pentagon" / "line" / "roundLine"）、shaftRatio（塗り）または strokeWidth（線）、heightRatio、tipAngle（ホームベース）、isReversed、isBothEnds、isSquareVertical
      * @returns {PageItem} できた矢印
      */
     function convertToArrow(rectanglePath, arrowOptions) {
@@ -2366,9 +2416,21 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
     // =========================================
 
     /**
-     * 矢印の種類・太さ・高さ・角度を指定するダイアログボックスを表示する
+     * 対象に正方形が含まれるかを返す
+     * @param {Array} rectangles - 対象の長方形・罫線
+     * @returns {boolean} 正方形が1つでもあれば true
+     */
+    function hasSquare(rectangles) {
+        for (var i = 0; i < rectangles.length; i++) {
+            if (isSquarePath(rectangles[i])) return true;
+        }
+        return false;
+    }
+
+    /**
+     * 矢印の種類・太さ・高さ・角度・方向を指定するダイアログボックスを表示する
      * @param {Array} rectangles - 対象の長方形（プレビューに使う）
-     * @returns {Object|null} arrowType・shaftRatio（塗り）・strokeWidth（線）・heightRatio・tipAngle（ホームベース）・isReversed・isBothEnds。キャンセルなら null
+     * @returns {Object|null} arrowType・shaftRatio（塗り）・strokeWidth（線）・heightRatio・tipAngle（ホームベース）・isReversed・isBothEnds・isSquareVertical。キャンセルなら null
      */
     function showArrowDialog(rectangles) {
         var arrowPreview = createArrowPreview(rectangles);
@@ -2419,6 +2481,19 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
             refreshPreview();
         }, DIRECTION_TOGGLE_SIZE);
         reverseToggle.helpTip = getLabel("tooltip.reverseToggle");
+
+        /* 正方形の方向。ラジオは同じ親の中だけ排他なので1つの行に並べる / radios are exclusive only within one parent */
+        var squareAxisRow = arrowDialog.add("group");
+        setupRow(squareAxisRow);
+        var squareAxisLabel = squareAxisRow.add("statictext", undefined, labelText("fieldLabel.squareAxis"));
+        squareAxisLabel.preferredSize.width = LABEL_WIDTH;
+        squareAxisLabel.justify = "right";
+        var horizontalRadio = squareAxisRow.add("radiobutton", undefined, getLabel("button.squareAxis.horizontal"));
+        var verticalRadio = squareAxisRow.add("radiobutton", undefined, getLabel("button.squareAxis.vertical"));
+        horizontalRadio.value = true;
+        horizontalRadio.onClick = verticalRadio.onClick = function () { refreshPreview(); };
+        squareAxisRow.helpTip = horizontalRadio.helpTip = verticalRadio.helpTip = getLabel("tooltip.squareAxis");
+        squareAxisRow.enabled = hasSquare(rectangles);
 
         var thicknessInput = addSteppedField(arrowDialog, {
             label: labelText("fieldLabel.thickness"), labelWidth: LABEL_WIDTH,
@@ -2535,7 +2610,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
 
         /**
          * 今の指定を返す
-         * @returns {Object} arrowType・shaftRatio（塗り。短辺に対する比率）・strokeWidth（線。pt）・heightRatio（短辺に対する比率）・tipAngle（ホームベース。度）・isReversed・isBothEnds
+         * @returns {Object} arrowType・shaftRatio（塗り。短辺に対する比率）・strokeWidth（線。pt）・heightRatio（短辺に対する比率）・tipAngle（ホームベース。度）・isReversed・isBothEnds・isSquareVertical
          */
         function getArrowOptions() {
             var thicknessValue = parseFloat(thicknessInput.text);
@@ -2546,7 +2621,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
                 heightRatio: parseFloat(heightInput.text) / 100,
                 tipAngle: parseFloat(tipAngleInput.text),
                 isReversed: typeState.isReversed,
-                isBothEnds: typeState.isBothEnds
+                isBothEnds: typeState.isBothEnds,
+                isSquareVertical: verticalRadio.value
             };
         }
 
