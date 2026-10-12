@@ -12,13 +12,14 @@
 
 オブジェクトの中心へ表示を移し、ウィンドウに対して指定した割合（％）で収まるよう表示倍率を合わせる再利用テンプレートです。
 
-ダイアログに「□画面にフィット［65］%」の行を追加でき、キャンセル時に元の表示へ戻すための関数もそろっています。
+ダイアログに「□画面にフィット［65］%」の行（∧∨付きにもできる）を追加でき、キャンセル時に元の表示へ戻すための関数もそろっています。
 
 ### 主な機能
 
 - 対象の外接範囲（効果を含まない）の中心に表示を移し、指定の割合で収まるよう拡大・縮小します
 - 表示倍率はIllustratorが受け付ける範囲（3.125〜6400%）に収めます
 - 日本語／英語のラベルとツールチップを内蔵した「□画面にフィット［％］」の行を追加できます
+- `stepper: true` で入力欄の左に∧∨を付け、↑↓キーでも増減（StepperButtons 部品が必要）
 - 表示位置と倍率を控えて戻す `captureView` / `restoreView`
 
 ### 使い方
@@ -42,6 +43,10 @@
         /* キャンセル時 */
         FitViewToItems.restoreView(initialView, doc);
 
+∧∨を付けるときは、先に StepperButtons 部品（`addStepper` / `bindSteppedArrowKeys` / `redrawSteppersIn`）を貼り、`stepper: true` を渡します。増減したときは `percentInput.onChange` が呼ばれます。
+
+        var fitViewControls = FitViewToItems.addControls(buttonRow.leftGroup, { value: true, stepper: true });
+
 ### 注意点
 
 - 表示倍率の変更はUndo履歴に残らないため、キャンセル時の `restoreView` は呼び出し側で行います。
@@ -52,4 +57,5 @@
 
 ### 更新履歴
 
+- v1.1.0（2026-10-12）`addControls` に `stepper: true` を追加し、割合の欄に∧∨と↑↓キーの増減を付けられるようにした（StepperButtons 部品を使う）
 - v1.0.0: 初版（テンプレート。SmartShapeMaker v2.3.0 から抜き出し）

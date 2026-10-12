@@ -6,8 +6,8 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-選択した見出しの左右に二重線を引き、まわりに段組みの新聞ダミーを敷いて、新聞の見出しのような画像を作ります。
-新聞ダミーはぼかし、全体を［変形］効果で傾けて、欠けない長方形でマスクします。
+選択した見出しのまわりに罫線と段組みの新聞ダミーを敷いて、新聞の紙面を切り取ったような画像を作ります。
+新聞ダミーは縦組み・横組み、和文・欧文（英字新聞モード）で作れ、全体を傾けて欠けない長方形でマスクします。
 
 詳細は README を参照してください。
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ShimbunTitleMaker.md
@@ -17,8 +17,8 @@ https://note.com/dtp_tranist/n/ndb9bee6b7a2e
 
 ### Overview
 
-Draws double rules on both sides of the selected headline and lays newspaper-style dummy columns around it.
-The dummy text is blurred, the whole piece is tilted with the Transform effect and masked so no corner is missing.
+Surrounds the selected headline with rules and newspaper-style dummy columns, like a clipping from a newspaper page.
+The dummy can be vertical or horizontal, Japanese or Western (English newspaper mode), and the piece is tilted and masked so no corner is missing.
 
 See the README for details.
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ShimbunTitleMaker.md
@@ -29,7 +29,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ShimbunTit
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ShimbunTitleMaker";            /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.4.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.5.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-09-23";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-12";                   /* 更新日 / last updated */
@@ -49,28 +49,38 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb9bee6b7a2e"; /* 紹�
 
     var DEFAULT_VERTICAL_MARGIN_PT = 5;    /* 上下マージンの既定値（pt）/ Default vertical margin */
     var DEFAULT_HORIZONTAL_MARGIN_PT = 8;  /* 左右マージンの既定値（pt）/ Default horizontal margin */
+    var DEFAULT_LINK_MARGINS = false;      /* 上下・左右マージンの連動の既定値 / Default for linking the margins */
+    var DEFAULT_RULE_STYLE = "double";   /* 罫線の種類（"double" 二重 / "single" 1本 / "none" なし）/ Rule style */
     var DEFAULT_LINE_GAP_PT = 5;         /* 二重線の間隔の既定値（pt）/ Default gap between the two rules */
-    var RULE_STROKE_WIDTH_PT = 0.6;      /* 二重線の線幅（pt）/ Stroke width of the rules */
+    var DEFAULT_RULE_STROKE_WIDTH_PT = 0.6; /* 罫線の線幅の既定値（pt）/ Default stroke width of the rules */
     var DEFAULT_ROTATION_DEG = 3;        /* 回転の既定値（°）/ Default rotation angle */
+    var DEFAULT_FIT_VIEW = true;         /* ［画面にフィット］の既定値 / Default for Fit to Window */
+    var DEFAULT_MASK_VERTICAL_PT = 28.35; /* マスクの［上下］：罫線の上端／下端から見せる長さ（pt、10mm）/ Mask reach beyond the rules */
     var DEFAULT_USE_MASK = true;         /* マスクの既定値 / Default for the mask option */
     var DEFAULT_CHARS_PER_LINE = 11;     /* 新聞ダミーの1行あたりの文字数 / Dummy characters per line */
+    var HORIZONTAL_HEADLINE_TIER_COUNT = 1; /* 見出しが和文の横組みのときの段数の初期値 / Initial tiers for a horizontal Japanese headline */
     var DEFAULT_TIER_COUNT = 3;          /* 新聞ダミーの段数（0で作らない）/ Dummy tiers (0 = none) */
+    var DEFAULT_TIER_GAP_PT = 8.5;       /* 段間の既定値（pt、3mm）/ Default gutter between tiers */
     var DEFAULT_EXTRA_TIER_COUNT = 1;    /* 新聞ダミーの上下に足す段数 / Dummy tiers added above and below */
     var DEFAULT_DUMMY_WIDTH_PT = 85.04;  /* 新聞ダミーの左右それぞれの幅（pt、30mm）/ Dummy width on each side */
     var DUMMY_LEADING_RATIO = 1.4;       /* 新聞ダミーの行送り（文字サイズ比）/ Dummy leading as a ratio of type size */
     var DUMMY_VERTICAL_SCALE = 85;       /* 新聞ダミーの垂直比率（%）/ Dummy vertical scale */
     /* 新聞ダミーのフォント（PostScript 名、前から順に探す）/ Dummy font PostScript names, tried in order */
     var DUMMY_FONT_NAMES = ["HiraMinProN-W3", "HiraMinPro-W3"];
-    var DUMMY_RULE_WIDTH_PT = 0.3;       /* 段の区切り罫の線幅（pt）/ Stroke width of the tier rules */
+    var DEFAULT_USE_TIER_RULES = true;   /* 段間の罫線の既定値 / Default for the rules between tiers */
+    var DEFAULT_TIER_RULE_WIDTH_PT = 0.3; /* 段間の罫線の線幅の既定値（pt）/ Default stroke width of the tier rules */
     var DUMMY_BACKGROUND_CMYK = [0, 0, 10, 25]; /* 新聞ダミーの背景色 [C,M,Y,K]（%）/ Dummy background color */
     var RULE_CMYK = [0, 0, 0, 100];      /* 二重線・区切り罫の色 [C,M,Y,K]（%）/ Color of the rules */
+    var DEFAULT_USE_BLUR = true;         /* ぼかしの既定値 / Default for the blur option */
     var DEFAULT_BLUR_RADIUS = 8;         /* 新聞ダミーのぼかし（ガウス）の半径（px、0でかけない）/ Dummy blur radius in px (0 = none) */
     var EFFECT_RESOLUTION = 300;         /* 効果のプレビュー解像度（ppi）/ effect preview resolution */
     /* 新聞ダミーの文字列。句点は禁則を「なし」にして行頭にも置く / Dummy text; kinsoku is turned off so periods may start a line */
     var DUMMY_TEXT = "吾輩は猫である。名前はまだ無い。どこで生れたかとんと見当がつかぬ。何でも薄暗い所で泣いていた事だけは記憶している。";
-    var DEFAULT_DUMMY_SCRIPT = "japanese"; /* 新聞ダミーの組み方（"japanese" 和文 / "western" 欧文）/ Dummy script */
+    var DEFAULT_DUMMY_SCRIPT = "japanese"; /* 新聞ダミーの文章（"japanese" 和文 / "western" 欧文）。見出しがすべて欧文なら欧文で始める / Dummy script; all-Western headlines start as Western */
+    var DEFAULT_DUMMY_DIRECTION = "vertical"; /* 新聞ダミーの組み方向（"vertical" 縦組み / "horizontal" 横組み）。欧文で始めるときは横組み / Dummy direction; horizontal when starting as Western */
     var DEFAULT_COLUMN_COUNT = 3;        /* 欧文：見出しの横幅に入る段組数 / Western: columns spanned by the headline */
-    var WESTERN_CHARS_PER_LINE = 32;     /* 欧文：1行あたりのおよその文字数 / Western: approximate characters per line */
+    var WESTERN_CHARS_PER_LINE = 32;     /* 欧文の横組み：1行あたりのおよその文字数 / Western horizontal: approximate characters per line */
+    var WESTERN_TEXT_RATIO = 2.5;        /* 欧文の縦組み：字詰に対して流す文字数の倍率（字幅が狭いぶん）/ Western vertical: extra characters for the narrower glyphs */
     var WESTERN_CHAR_WIDTH_RATIO = 0.5;  /* 欧文：1文字の平均幅（文字サイズ比）/ Western: average character width as a ratio of type size */
     var WESTERN_LEADING_RATIO = 1.2;     /* 欧文：行送り（文字サイズ比）/ Western: leading as a ratio of type size */
     /* 欧文の新聞ダミーのフォント（PostScript 名、前から順に探す）/ Western dummy font PostScript names, tried in order */
@@ -161,8 +171,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb9bee6b7a2e"; /* 紹�
 
     // UIレイアウト（再利用パーツ）ここまで / End of the reusable UI layout
 
-    var FIELD_LABEL_WIDTH = 104;          /* 項目名の幅 / width of the field labels */
+    var DUMMY_TEXT_INPUT_SIZE = [320, 72]; /* 文言の入力欄の大きさ / size of the dummy text fields */
+    var RADIO_COLUMN_SPACING = 6;         /* 縦に積んだラジオボタンの間隔 / spacing of stacked radio buttons */
     var FIELD_CHARS = 5;                  /* 数値入力欄の幅（文字数）/ width of the numeric fields */
+    var UNIT_FIELD_CHARS = 7;             /* 単位を中に入れる長さの欄の幅（文字数）/ width of the length fields that hold their unit */
     var FIELD_ROW_SPACING = 6;            /* 入力行の間隔 / spacing inside a field row */
 
     // ボタン行（再利用パーツ） / Button row (reusable)
@@ -275,9 +287,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb9bee6b7a2e"; /* 紹�
        「p」は「1p6」（1パイカ6ポイント）の形にも使う
        Units UnitValue lacks, mapped onto UnitValue units (how many of `unit` make one) */
     var STEPPER_UNIT_ALIASES = {
-        "q": { unit: "mm", amount: 0.25 }, /* 級 / Q */
-        "h": { unit: "mm", amount: 0.25 }, /* 歯 / H */
-        "p": { unit: "pc", amount: 1 }     /* パイカ / pica */
+        "q": { unit: "mm", amount: 0.25 },    /* 級 / Q */
+        "h": { unit: "mm", amount: 0.25 },    /* 歯 / H */
+        "p": { unit: "pc", amount: 1 },       /* パイカ / pica */
+        "ft/in": { unit: "ft", amount: 1 },   /* Illustrator の単位コード7の表示 / Illustrator unit code 7 */
+        "c": { unit: "ci", amount: 1 },       /* シセロ（InDesign の表示） / ciceros as InDesign shows them */
+        "ag": { unit: "in", amount: 1 / 14 }, /* アゲート / agates */
+        "ap": { unit: "tpt", amount: 1 }      /* アメリカンポイント / American points */
     };
 
     // -----------------------------------------
@@ -371,6 +387,28 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb9bee6b7a2e"; /* 紹�
     }
 
     /**
+     * 数値欄の単位を差し替える（単位の設定やドロップダウンを切り替えたとき用）。
+     * shouldConvert が true なら値を新しい単位へ換算し（10 mm → 28.35 pt）、false なら数値はそのままで単位だけ付け替える
+     * @param {EditText} numberInput - addSteppedField() で作った入力欄、または bindSteppedArrowKeys() を呼んだ入力欄
+     * @param {string} unit - 新しい単位（例 " pt"。単位なしは ""）
+     * @param {boolean} [shouldConvert] - 値も換算するなら true
+     * @returns {void}
+     */
+    function setSteppedFieldUnit(numberInput, unit, shouldConvert) {
+        var stepOptions = numberInput.stepperGroup.stepOptions;
+        var oldUnit = stepOptions.unit || "";
+        var value = parseFloat(numberInput.text);
+        stepOptions.unit = unit;
+        if (isNaN(value)) return;
+        if (shouldConvert) {
+            var converted = evaluateArithmetic(String(value) + oldUnit, unit);
+            if (!isNaN(converted)) value = converted;
+        }
+        numberInput.text = formatStepperNumber(value) + unit;
+        numberInput.lastValidText = numberInput.text;
+    }
+
+    /**
      * 入力欄の値を増減する∧∨ボタンを、隙間なく縦に積んで追加する
      * @param {Group|Panel} parent - 追加先
      * @param {Function} getNumberInput - 対象の入力欄を返す関数（入力欄を∧∨より後に作れるよう、クリック時に引く）
@@ -441,9 +479,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb9bee6b7a2e"; /* 紹�
             if (isNaN(value)) return; /* 計算できなければ各スクリプトの処理に任せる / leave it to the script's own handler */
             /* 式か、換算で値が変わったときだけ書き戻す（ただの数値は書式を崩さない） / rewrite only expressions and converted values */
             var hasOperator = /[*\/()\u00D7\u00F7\uFF0A\uFF0F\uFF08\uFF09]|[\d.\uFF10-\uFF19][^\d.\uFF10-\uFF19]*[+\-\u2212\uFF0B\uFF0D]/.test(numberInput.text);
-            if (!hasOperator && value === parseFloat(numberInput.text)) return;
+            if (!hasOperator && value === parseFloat(numberInput.text)) {
+                /* 単位を省いて入れた数値には、欄の単位だけ付け足す（桁は丸めない） / append the field unit to a bare number */
+                var trimmedText = numberInput.text.replace(/^\s+|\s+$/g, "");
+                if (fieldUnit && /[\d.]$/.test(trimmedText)) numberInput.text = trimmedText + fieldUnit;
+                return;
+            }
             numberInput.text = formatStepperNumber(value) + (fieldUnit || "");
         });
+        numberInput.stepperGroup = stepperGroup; /* setSteppedFieldUnit() から∧∨の設定を引けるようにする / lets setSteppedFieldUnit() find the options */
     }
 
     // -----------------------------------------
@@ -571,7 +615,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb9bee6b7a2e"; /* 紹�
          * @returns {number} 欄の単位での値（換算できない単位なら NaN）
          */
         function readUnitSuffix(value) {
-            var unitMatch = /^([A-Za-z]+|%|°)/.exec(source.substring(position));
+            var unitMatch = /^(ft\/in|[A-Za-z]+|%|°)/i.exec(source.substring(position));
             if (!unitMatch) return value; /* 単位なしは欄の単位 / no unit means the field's unit */
             position += unitMatch[0].length;
             var unitKey = unitMatch[0].toLowerCase();
@@ -810,6 +854,636 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb9bee6b7a2e"; /* 紹�
 
     // ステップボタン（再利用パーツ）ここまで / End of the reusable stepper
 
+    // リンクアイコン（再利用パーツ） / Link toggle (reusable)
+
+    // -----------------------------------------
+    // リンクアイコンの寸法 / Link toggle metrics
+    // -----------------------------------------
+    var LINK_ICON_SIZE          = [22, 22]; /* アイコンの大きさ / icon size */
+    var LINK_ICON_STROKE        = 1.5;      /* 線幅 / stroke width */
+    var LINK_CUT_DIRECTION      = [1, 0];   /* 連動中の左辺の切れ目の向き（水平）/ direction of the left-leg cut when linked (horizontal) */
+    var LINK_HOOK_CUT_DIRECTION = [0, 1];   /* 連動中の巻き込みの切れ目の向き（垂直）/ direction of the hook cut when linked (vertical) */
+    var LINK_STRAND_COUNT       = 4;        /* 切れ目の向きをそろえるための細い線の本数 / strands used to shape the cuts */
+    var LINK_SLASH_CLEARANCE    = 2.2;      /* 連動OFFの斜線とフックの間（22px 基準）/ gap between the slash and the hooks when unlinked */
+
+    // -----------------------------------------
+    // リンクアイコンの配色 / Link toggle colors
+    // -----------------------------------------
+    var LINK_UI_DARK = isDarkUI();
+    /* ダイアログの地に重ねる半透明の黒・白（UIの明るさの段階に追従する）。値はステップボタンの配色と同じ
+       Translucent overlays that follow the dialog background; same values as the stepper buttons */
+    var LINK_PRESSED_COLOR  = LINK_UI_DARK ? [1, 1, 1, 0.12] : [0, 0, 0, 0.13]; /* 連動中の地 / background while linked */
+    var LINK_FRAME_COLOR    = LINK_UI_DARK ? [1, 1, 1, 0.07] : [0, 0, 0, 0.10]; /* 連動中の枠 / frame while linked */
+    var LINK_ICON_COLOR     = LINK_UI_DARK ? [1, 1, 1, 1]    : [0, 0, 0, 0.70]; /* アイコンの線 / icon strokes */
+    var LINK_DIM_ICON_COLOR = LINK_UI_DARK ? [1, 1, 1, 0.20] : [0, 0, 0, 0.25]; /* 無効時の線 / strokes when disabled */
+
+    // -----------------------------------------
+    // アイコンを作る・切り替える（外から呼ぶ関数） / Public API
+    // -----------------------------------------
+    /**
+     * 連動の ON／OFF を切り替えるリンクアイコンを追加する（onDraw で自作描画）。
+     * クリックで切り替わる。連動中は押し込んだボタンのように地と枠を描く。
+     * @param {Group} parent - 追加先
+     * @param {boolean} initialValue - 連動の初期値
+     * @param {Function} onToggle - 切り替えたあとに呼ぶ関数
+     * @param {number[]} [iconSize] - アイコンの [幅, 高さ]（省略時は LINK_ICON_SIZE。絵は 22px 基準から拡大縮小する）
+     * @param {number} [chainRatio] - 鎖の絵の大きさの比率（省略時は 1。枠・地の大きさは変えず、鎖だけ縮める）
+     * @returns {Group} アイコン（.value で連動中かを読む）
+     */
+    function addLinkToggle(parent, initialValue, onToggle, iconSize, chainRatio) {
+        var toggleSize = iconSize || LINK_ICON_SIZE;
+        var linkToggle = parent.add("group");
+        linkToggle.preferredSize = toggleSize;
+        linkToggle.minimumSize = toggleSize;
+        linkToggle.maximumSize = toggleSize;
+        linkToggle.value = initialValue;
+
+        linkToggle.onDraw = function () {
+            var iconGraphics = linkToggle.graphics;
+            var iconWidth = toggleSize[0];
+            var iconHeight = toggleSize[1];
+            /* 自作描画は自動でディムにならないため、親もたどって判定する / Custom drawing is not dimmed automatically */
+            var isDimmed = !isLinkToggleEnabledInTree(linkToggle);
+            /* 連動中は押し込んだボタンのように地と枠を描く / While linked, draw it like a pressed button */
+            if (linkToggle.value && !isDimmed) {
+                iconGraphics.newPath();
+                iconGraphics.rectPath(0, 0, iconWidth, iconHeight);
+                iconGraphics.fillPath(iconGraphics.newBrush(iconGraphics.BrushType.SOLID_COLOR, LINK_PRESSED_COLOR));
+                iconGraphics.newPath();
+                iconGraphics.rectPath(0.5, 0.5, iconWidth - 1, iconHeight - 1);
+                iconGraphics.strokePath(iconGraphics.newPen(iconGraphics.PenType.SOLID_COLOR, LINK_FRAME_COLOR, 1));
+            }
+            drawLinkIcon(iconGraphics, iconWidth, iconHeight, linkToggle.value, isDimmed ? LINK_DIM_ICON_COLOR : LINK_ICON_COLOR, chainRatio);
+        };
+
+        linkToggle.addEventListener("mousedown", function () {
+            if (!isLinkToggleEnabledInTree(linkToggle)) return;
+            linkToggle.value = !linkToggle.value;
+            redrawLinkToggle(linkToggle);
+            if (onToggle) onToggle();
+        });
+        return linkToggle;
+    }
+
+    /**
+     * 連動の状態をコードから変えて描き直す（onToggle は呼ばない）
+     * @param {Group} linkToggle - addLinkToggle() で作ったアイコン
+     * @param {boolean} isLinked - 連動にするなら true
+     * @returns {void}
+     */
+    function setLinkToggleValue(linkToggle, isLinked) {
+        if (linkToggle.value === isLinked) return;
+        linkToggle.value = isLinked;
+        redrawLinkToggle(linkToggle);
+    }
+
+    /**
+     * アイコンの有効／無効を切り替えて描き直す（変わらないときは描き直さない）
+     * @param {Group} linkToggle - addLinkToggle() で作ったアイコン
+     * @param {boolean} isEnabled - 有効にするなら true
+     * @returns {void}
+     */
+    function setLinkToggleEnabled(linkToggle, isEnabled) {
+        if (linkToggle.enabled === isEnabled) return;
+        linkToggle.enabled = isEnabled;
+        redrawLinkToggle(linkToggle);
+    }
+
+    /**
+     * コントロールと親がすべて有効かを判定する（親の無効化は子の enabled に出ないため、親もたどる）
+     * @param {Object} control - 判定するコントロール
+     * @returns {boolean} すべて有効なら true
+     */
+    function isLinkToggleEnabledInTree(control) {
+        for (var node = control; node; node = node.parent) {
+            if (!node.enabled) return false;
+        }
+        return true;
+    }
+
+    /**
+     * group の onDraw を呼び直す。group には notify() が無いため、隠して再表示して描き直させる
+     * @param {Group} linkToggle - 描き直すアイコン
+     * @returns {void}
+     */
+    function redrawLinkToggle(linkToggle) {
+        linkToggle.hide();
+        linkToggle.show();
+    }
+
+    // -----------------------------------------
+    // アイコンの形 / Icon geometry
+    // -----------------------------------------
+    /**
+     * 連動アイコンを描く。Illustrator の［縦横比を固定］に合わせ、連動中は縦につながったチェーン、
+     * 連動していないときは上下に分かれたチェーンに斜線を重ねる。座標は 22px 四方を基準に拡大縮小する。
+     * @param {ScriptUIGraphics} iconGraphics - 描画先
+     * @param {number} iconWidth - 描画範囲の幅
+     * @param {number} iconHeight - 描画範囲の高さ
+     * @param {boolean} isLinked - 連動中なら true
+     * @param {number[]} iconColor - [r, g, b, a]
+     * @param {number} [chainRatio] - 鎖の大きさの比率（省略時は 1）。中央に置いたまま縮める
+     * @returns {void}
+     */
+    function drawLinkIcon(iconGraphics, iconWidth, iconHeight, isLinked, iconColor, chainRatio) {
+        var iconScale = Math.min(iconWidth, iconHeight) / 22 * (chainRatio || 1);
+        var offsetX = (iconWidth - 22 * iconScale) / 2;
+        var offsetY = (iconHeight - 22 * iconScale) / 2;
+        var strokes = isLinked ? buildLinkedChainStrokes() : buildUnlinkedChainStrokes();
+        for (var i = 0; i < strokes.length; i++) {
+            var strokePoints = strokes[i].points;
+            /* newPath() を呼ばないとパスが前の描画に積み重なる / Without newPath() the paths accumulate */
+            iconGraphics.newPath();
+            for (var j = 0; j < strokePoints.length; j++) {
+                var pointX = offsetX + strokePoints[j][0] * iconScale;
+                var pointY = offsetY + strokePoints[j][1] * iconScale;
+                if (j === 0) iconGraphics.moveTo(pointX, pointY);
+                else iconGraphics.lineTo(pointX, pointY);
+            }
+            iconGraphics.strokePath(iconGraphics.newPen(iconGraphics.PenType.SOLID_COLOR, iconColor, strokes[i].width * iconScale));
+        }
+    }
+
+    /**
+     * 連動中のチェーン（縦に組み合った2つの輪）の線を返す。
+     * 上の輪は左辺の途中から上端を回って右辺を下り、下端で内側へ巻き込む。下の輪はそれを180度回したもの。
+     * 切れ目の向きをそろえるため、輪を細い線の束にし、両端を延ばしてから直線で切る（左辺は水平、巻き込みは垂直）
+     * @returns {Array<{points: Array<number[]>, width: number}>} 線ごとの点列と線幅（22px 四方の座標）
+     */
+    function buildLinkedChainStrokes() {
+        /* 左辺は上端の丸みだけ残して短く切り、下の輪の巻き込みとの間を空ける
+           Keep only a stub on the left so it stays clear of the lower ring's hook */
+        var upperRing = densifyPoints(buildArcPoints(11, 7, 3.5, 3.5, 180, 360)
+            .concat([[14.5, 11.2]])
+            .concat(buildArcPoints(11, 11.2, 3.5, 2.3, 0, 115)));
+        var ringStart = upperRing[0];
+        var ringEnd = upperRing[upperRing.length - 1];
+        var extendedRing = extendPolylineEnds(upperRing, LINK_ICON_STROKE);
+        /* 延ばした先がどちら側かで、切り捨てる側を決める / The extended tips tell which side to cut away */
+        var startOutsideSign = sideOfLine(extendedRing[0], ringStart, LINK_CUT_DIRECTION);
+        var endOutsideSign = sideOfLine(extendedRing[extendedRing.length - 1], ringEnd, LINK_HOOK_CUT_DIRECTION);
+
+        var upperStrands = buildStrandStrokes(extendedRing, function (strandPoints) {
+            var trimmed = trimPolylineTail(strandPoints, ringEnd, LINK_HOOK_CUT_DIRECTION, endOutsideSign);
+            trimmed = trimPolylineTail(trimmed.reverse(), ringStart, LINK_CUT_DIRECTION, startOutsideSign).reverse();
+            return [trimmed];
+        });
+        var strokes = [];
+        for (var i = 0; i < upperStrands.length; i++) {
+            strokes.push(upperStrands[i]);
+            strokes.push({ points: rotatePointsHalfTurn(upperStrands[i].points), width: upperStrands[i].width });
+        }
+        return strokes;
+    }
+
+    /**
+     * 中心線を線幅の中で等分した細い線に分け、clipStrand で切った結果を線として返す。
+     * @param {Array<number[]>} centerline - 中心線の点列
+     * @param {Function} clipStrand - 細い線の点列を受け取り、残す点列の配列を返す関数
+     * @returns {Array<{points: Array<number[]>, width: number}>} 細い線ごとの点列と線幅
+     */
+    function buildStrandStrokes(centerline, clipStrand) {
+        var strandWidth = LINK_ICON_STROKE / LINK_STRAND_COUNT;
+        var strokes = [];
+        for (var k = 0; k < LINK_STRAND_COUNT; k++) {
+            /* 線幅の中を等分した位置に細い線を並べる / Lay the strands evenly across the stroke width */
+            var strandOffset = -LINK_ICON_STROKE / 2 + strandWidth * (k + 0.5);
+            var strandPieces = clipStrand(offsetPolyline(centerline, strandOffset));
+            for (var j = 0; j < strandPieces.length; j++) {
+                /* 隣の線と少し重ねて隙間を埋める / Overlap neighbours slightly so no seams show */
+                if (strandPieces[j].length > 1) strokes.push({ points: strandPieces[j], width: strandWidth * 1.4 });
+            }
+        }
+        return strokes;
+    }
+
+    /**
+     * 点列の両端を、端の向きのまま length だけ延ばす。
+     * @param {Array<number[]>} points - 点列
+     * @param {number} length - 延ばす長さ
+     * @returns {Array<number[]>} 延ばした点列
+     */
+    function extendPolylineEnds(points, length) {
+        /* from から to の向きへ、to から length 先の点 / point length beyond to, heading from from to to */
+        function extendBeyond(from, to) {
+            var dx = to[0] - from[0];
+            var dy = to[1] - from[1];
+            var segmentLength = Math.sqrt(dx * dx + dy * dy) || 1;
+            return [to[0] + dx / segmentLength * length, to[1] + dy / segmentLength * length];
+        }
+        var lastIndex = points.length - 1;
+        return [extendBeyond(points[1], points[0])].concat(points, [extendBeyond(points[lastIndex - 1], points[lastIndex])]);
+    }
+
+    /**
+     * 点が直線のどちら側にあるかを符号で返す。
+     * @param {number[]} point - 点
+     * @param {number[]} linePoint - 直線上の1点
+     * @param {number[]} direction - 直線の向き
+     * @returns {number} 正・負で側を表す値
+     */
+    function sideOfLine(point, linePoint, direction) {
+        return direction[0] * (point[1] - linePoint[1]) - direction[1] * (point[0] - linePoint[0]);
+    }
+
+    /**
+     * 点列の終わり側で、直線より outsideSign の側にはみ出した部分を切り、直線との交点で止める。
+     * 輪の別の場所が同じ直線をまたいでも切らないよう、終わりから数点の範囲だけを見る。
+     * @param {Array<number[]>} points - 点列
+     * @param {number[]} cutPoint - 切る直線上の1点
+     * @param {number[]} direction - 切る直線の向き
+     * @param {number} outsideSign - 切り捨てる側の符号
+     * @returns {Array<number[]>} 切った点列
+     */
+    function trimPolylineTail(points, cutPoint, direction, outsideSign) {
+        var lastIndex = points.length - 1;
+        var searchLimit = Math.max(0, lastIndex - 12);
+        var index = lastIndex;
+        while (index > searchLimit && sideOfLine(points[index], cutPoint, direction) * outsideSign > 0) index--;
+        if (index === lastIndex) return points.slice(0);
+        var inside = points[index];
+        var outside = points[index + 1];
+        var insideSide = sideOfLine(inside, cutPoint, direction);
+        var ratio = insideSide / (insideSide - sideOfLine(outside, cutPoint, direction));
+        return points.slice(0, index + 1).concat([[inside[0] + (outside[0] - inside[0]) * ratio, inside[1] + (outside[1] - inside[1]) * ratio]]);
+    }
+
+    /**
+     * 連動していないときのチェーン（上下に分かれた輪と斜線）の線を返す。
+     * フックは斜線の近くで切る。線の端は進む向きに直角にしか切れないため、フックを細い線の束にして
+     * 1本ずつ斜線と平行な境界で切り、切り口が斜線に沿って見えるようにする。
+     * @returns {Array<{points: Array<number[]>, width: number}>} 線ごとの点列と線幅（22px 四方の座標）
+     */
+    function buildUnlinkedChainStrokes() {
+        var slashStart = [3.5, 3.5];
+        var slashEnd = [18.5, 18.5];
+        var upperHook = densifyPoints(buildArcPoints(11, 7, 3.5, 3.5, 180, 360).concat([[14.5, 11.5]]));
+        var hooks = [upperHook, rotatePointsHalfTurn(upperHook)];
+
+        /* 斜線の近くの帯を切り取る / Cut away the band around the slash */
+        function clipAroundSlash(strandPoints) {
+            return clipOutsideBand(strandPoints, slashStart, slashEnd, LINK_SLASH_CLEARANCE);
+        }
+        var strokes = buildStrandStrokes(hooks[0], clipAroundSlash).concat(buildStrandStrokes(hooks[1], clipAroundSlash));
+        strokes.push({ points: [slashStart, slashEnd], width: LINK_ICON_STROKE });
+        return strokes;
+    }
+
+    /**
+     * 点の間隔が 0.5 以下になるよう、線分の間に点を足す。
+     * @param {Array<number[]>} points - 点列
+     * @returns {Array<number[]>} 細かくした点列
+     */
+    function densifyPoints(points) {
+        var densePoints = [points[0]];
+        for (var i = 1; i < points.length; i++) {
+            var from = points[i - 1];
+            var to = points[i];
+            var steps = Math.max(1, Math.ceil(Math.sqrt(Math.pow(to[0] - from[0], 2) + Math.pow(to[1] - from[1], 2)) / 0.5));
+            for (var j = 1; j <= steps; j++) {
+                densePoints.push([from[0] + (to[0] - from[0]) * j / steps, from[1] + (to[1] - from[1]) * j / steps]);
+            }
+        }
+        return densePoints;
+    }
+
+    /**
+     * 点列を、進む向きの左側へ offset だけずらした点列を返す（負の値なら右側）。
+     * @param {Array<number[]>} points - 点列
+     * @param {number} offset - ずらす距離
+     * @returns {Array<number[]>} ずらした点列
+     */
+    function offsetPolyline(points, offset) {
+        var shifted = [];
+        for (var i = 0; i < points.length; i++) {
+            var before = points[Math.max(0, i - 1)];
+            var after = points[Math.min(points.length - 1, i + 1)];
+            var tangentX = after[0] - before[0];
+            var tangentY = after[1] - before[1];
+            var tangentLength = Math.sqrt(tangentX * tangentX + tangentY * tangentY) || 1;
+            shifted.push([points[i][0] - tangentY / tangentLength * offset, points[i][1] + tangentX / tangentLength * offset]);
+        }
+        return shifted;
+    }
+
+    /**
+     * 直線（線分を延長したもの）から clearance 未満の帯に入る部分を切り取り、残りを点列に分けて返す。
+     * 帯の境界で線分を補間して切るので、切り口は直線と平行にそろう。
+     * @param {Array<number[]>} points - 点列
+     * @param {number[]} lineStart - 直線上の1点
+     * @param {number[]} lineEnd - 直線上のもう1点
+     * @param {number} clearance - 空ける距離
+     * @returns {Array<Array<number[]>>} 帯の外側に残った点列（2点未満のものは除く）
+     */
+    function clipOutsideBand(points, lineStart, lineEnd, clearance) {
+        var directionX = lineEnd[0] - lineStart[0];
+        var directionY = lineEnd[1] - lineStart[1];
+        var directionLength = Math.sqrt(directionX * directionX + directionY * directionY);
+
+        /* 直線からの符号付き距離 / signed distance from the line */
+        function signedDistance(point) {
+            return (directionX * (point[1] - lineStart[1]) - directionY * (point[0] - lineStart[0])) / directionLength;
+        }
+        /* 2点の間で、距離が boundary になる点 / point between two points where the distance equals boundary */
+        function interpolateAt(from, to, fromDistance, toDistance, boundary) {
+            var ratio = (boundary - fromDistance) / (toDistance - fromDistance);
+            return [from[0] + (to[0] - from[0]) * ratio, from[1] + (to[1] - from[1]) * ratio];
+        }
+
+        var pieces = [];
+        var currentPiece = [];
+        for (var i = 0; i < points.length; i++) {
+            var distance = signedDistance(points[i]);
+            var isOutside = Math.abs(distance) >= clearance;
+            if (i > 0) {
+                var previousDistance = signedDistance(points[i - 1]);
+                var wasOutside = Math.abs(previousDistance) >= clearance;
+                if (wasOutside && !isOutside) {
+                    /* 帯に入る: 境界で止める / entering the band: stop at the boundary */
+                    currentPiece.push(interpolateAt(points[i - 1], points[i], previousDistance, distance, previousDistance > 0 ? clearance : -clearance));
+                    if (currentPiece.length > 1) pieces.push(currentPiece);
+                    currentPiece = [];
+                } else if (!wasOutside && isOutside) {
+                    /* 帯から出る: 境界から始める / leaving the band: start at the boundary */
+                    currentPiece = [interpolateAt(points[i - 1], points[i], previousDistance, distance, distance > 0 ? clearance : -clearance)];
+                }
+            }
+            if (isOutside) currentPiece.push(points[i]);
+        }
+        if (currentPiece.length > 1) pieces.push(currentPiece);
+        return pieces;
+    }
+
+    /**
+     * 楕円弧の点列を返す（角度は右が0度、下が90度の画面座標）。
+     * @param {number} centerX - 中心X
+     * @param {number} centerY - 中心Y
+     * @param {number} radiusX - 横の半径
+     * @param {number} radiusY - 縦の半径
+     * @param {number} startDegrees - 開始角度
+     * @param {number} endDegrees - 終了角度
+     * @returns {Array<number[]>} 点列
+     */
+    function buildArcPoints(centerX, centerY, radiusX, radiusY, startDegrees, endDegrees) {
+        var arcSteps = 12;
+        var arcPoints = [];
+        for (var i = 0; i <= arcSteps; i++) {
+            var angle = (startDegrees + (endDegrees - startDegrees) * i / arcSteps) * Math.PI / 180;
+            arcPoints.push([centerX + radiusX * Math.cos(angle), centerY + radiusY * Math.sin(angle)]);
+        }
+        return arcPoints;
+    }
+
+    /**
+     * 点列を 22px 四方の中心で180度回す。
+     * @param {Array<number[]>} points - 点列
+     * @returns {Array<number[]>} 回した点列
+     */
+    function rotatePointsHalfTurn(points) {
+        var rotated = [];
+        for (var i = 0; i < points.length; i++) {
+            rotated.push([22 - points[i][0], 22 - points[i][1]]);
+        }
+        return rotated;
+    }
+
+    // リンクアイコン（再利用パーツ）ここまで / End of the reusable link toggle
+
+    // 画面にフィット（再利用パーツ、_templates/FitViewToItems.jsx） / Fit view to items (reusable)
+
+    var FitViewToItems = (function () {
+
+        // =========================================
+        // ユーザー設定 / User Settings
+        // =========================================
+
+        /* ウィンドウに対して対象が占める割合の既定値（%）と範囲。呼び出し側で上書きできる
+           Default share of the window the items fill, in percent, and its range; callers can override the default */
+        var DEFAULT_FIT_PERCENT = 65;
+        var FIT_PERCENT_RANGE = [10, 100];
+
+        /* Illustratorが受け付ける表示倍率の範囲（3.125%〜6400%） / Zoom range Illustrator accepts */
+        var VIEW_ZOOM_RANGE = [0.03125, 64];
+
+        // =========================================
+        // ローカライズ / Localization
+        // =========================================
+        var LABELS = {
+            checkbox: {
+                fitView: { ja: "画面にフィット", en: "Fit to Window" }
+            },
+            tooltip: {
+                fitView: {
+                    ja: "作成するオブジェクトが収まるよう表示倍率を合わせます。",
+                    en: "Refits the view to the objects being created."
+                },
+                fitViewPercent: {
+                    ja: "ウィンドウに対するオブジェクトの大きさ（100%でいっぱい）",
+                    en: "Size of the objects relative to the window; 100% fills it"
+                }
+            }
+        };
+
+        /**
+         * UI言語を返す
+         * @returns {string} "ja" または "en"
+         */
+        function getCurrentLang() {
+            return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+        }
+
+        /**
+         * LABELS の組から指定言語の文言を返す
+         * @param {object} labelSet - { ja: string, en: string } の組
+         * @param {string} uiLang - "ja" または "en"
+         * @returns {string} 文言（無ければ英語）
+         */
+        function getLabel(labelSet, uiLang) {
+            return (labelSet[uiLang] != null) ? labelSet[uiLang] : labelSet.en;
+        }
+
+        // =========================================
+        // メイン処理 / Main
+        // =========================================
+
+        /**
+         * 数値を範囲に収める。数値として読めないときは既定値を返す
+         * @param {string|number} value - 入力値
+         * @param {number[]} range - [下限, 上限]
+         * @param {number} fallbackValue - 読めないときの既定値
+         * @returns {number} 範囲内の数値
+         */
+        function clampNumber(value, range, fallbackValue) {
+            var numberValue = Number(value);
+            if (isNaN(numberValue) || (typeof value === "string" && !/\S/.test(value))) numberValue = fallbackValue;
+            return Math.min(range[1], Math.max(range[0], numberValue));
+        }
+
+        /**
+         * 「□画面にフィット［65］%」の行を追加する（ラベルとツールチップは内蔵）
+         * @param {Group|Panel|Window} parentContainer - 追加先のコンテナ
+         * @param {object} [rowOptions] - value: チェックの初期値（既定 false）／percent: 割合の初期値／lang: 表示言語／
+         *     stepper: true で入力欄の左に∧∨を付け、↑↓キーでも増減（StepperButtons 部品の addStepper / bindSteppedArrowKeys /
+         *     redrawSteppersIn を使う。増減したら percentInput.onChange を呼ぶ）
+         * @returns {{row: Group, checkbox: Checkbox, percentInput: EditText, getFillRatio: function, updateEnabled: function}} 作成したコントロール一式
+         */
+        function addControls(parentContainer, rowOptions) {
+            if (!rowOptions) rowOptions = {};
+            var uiLang = rowOptions.lang || getCurrentLang();
+
+            var fitViewRow = parentContainer.add("group");
+            fitViewRow.orientation = "row";
+            fitViewRow.alignChildren = ["left", "center"];
+            fitViewRow.spacing = 6;
+
+            var fitViewCheck = fitViewRow.add("checkbox", undefined, getLabel(LABELS.checkbox.fitView, uiLang));
+            fitViewCheck.helpTip = getLabel(LABELS.tooltip.fitView, uiLang);
+            /* 明示的に true を渡したときだけONで始める / only an explicit true starts it checked */
+            fitViewCheck.value = (rowOptions.value === true);
+
+            var fitPercent = (rowOptions.percent > 0) ? rowOptions.percent : DEFAULT_FIT_PERCENT;
+            var percentInput;
+            var percentParent = fitViewRow;
+            var stepperGroup = null;
+            if (rowOptions.stepper === true) {
+                /* ∧∨と入力欄は隙間0で突き合わせる / Butt the stepper against the field */
+                percentParent = fitViewRow.add("group");
+                percentParent.orientation = "row";
+                percentParent.alignChildren = ["left", "center"];
+                percentParent.spacing = 0;
+                percentParent.margins = 0;
+                stepperGroup = addStepper(percentParent, function () { return percentInput; }, {
+                    integer: true,
+                    min: FIT_PERCENT_RANGE[0],
+                    max: FIT_PERCENT_RANGE[1],
+                    /* text の代入ではイベントが来ないので、増減後に onChange を呼ぶ / assigning text fires no event */
+                    onStep: function () { if (percentInput.onChange) percentInput.onChange(); }
+                });
+            }
+            percentInput = percentParent.add("edittext", undefined, String(fitPercent));
+            percentInput.characters = 3;
+            percentInput.helpTip = getLabel(LABELS.tooltip.fitViewPercent, uiLang);
+            if (stepperGroup) bindSteppedArrowKeys(percentInput, stepperGroup); /* ↑↓キーも∧∨と同じ処理で増減 / arrow keys share the stepper's logic */
+            var percentUnitLabel = fitViewRow.add("statictext", undefined, "%");
+
+            var controls = {
+                row: fitViewRow,
+                checkbox: fitViewCheck,
+                percentInput: percentInput,
+
+                /**
+                 * 入力欄の割合を 0〜1 の比率で返す
+                 * @returns {number} ウィンドウに対して占める割合（1でいっぱい）
+                 */
+                getFillRatio: function () {
+                    return clampNumber(percentInput.text, FIT_PERCENT_RANGE, fitPercent) / 100;
+                },
+
+                /**
+                 * 割合の入力欄をチェックの状態に合わせて有効・無効にする
+                 * @returns {void}
+                 */
+                updateEnabled: function () {
+                    percentInput.enabled = fitViewCheck.value;
+                    percentUnitLabel.enabled = fitViewCheck.value;
+                    if (!stepperGroup) return;
+                    stepperGroup.enabled = fitViewCheck.value;
+                    /* ∧∨は自作描画なので、表示中なら描き直してディム表示を切り替える / redraw the custom-drawn stepper once shown */
+                    if (fitViewRow.window.visible) redrawSteppersIn(stepperGroup);
+                }
+            };
+            controls.updateEnabled();
+            return controls;
+        }
+
+        /**
+         * 複数アイテムを囲む外接範囲を求める（効果を含まない geometricBounds）
+         * @param {PageItem[]} targetItems - 対象アイテム
+         * @returns {number[]|null} [left, top, right, bottom]（求められない場合は null）
+         */
+        function getItemsBounds(targetItems) {
+            var unionBounds = null;
+            for (var i = 0; i < targetItems.length; i++) {
+                var itemBounds = targetItems[i].geometricBounds;
+                if (unionBounds === null) {
+                    unionBounds = [itemBounds[0], itemBounds[1], itemBounds[2], itemBounds[3]];
+                    continue;
+                }
+                if (itemBounds[0] < unionBounds[0]) unionBounds[0] = itemBounds[0];
+                if (itemBounds[1] > unionBounds[1]) unionBounds[1] = itemBounds[1];
+                if (itemBounds[2] > unionBounds[2]) unionBounds[2] = itemBounds[2];
+                if (itemBounds[3] < unionBounds[3]) unionBounds[3] = itemBounds[3];
+            }
+            return unionBounds;
+        }
+
+        /**
+         * 対象が指定の割合でウィンドウに収まるよう、中心を合わせて表示倍率を変える
+         * 拡大・縮小のどちらも行う（KeepInView と違い、常に同じ大きさに見せる）
+         * @param {PageItem[]} targetItems - 対象アイテム
+         * @param {object} [fitOptions] - doc: 対象ドキュメント（省略時は最前面）／fillRatio: 占める割合（1でいっぱい）
+         * @returns {boolean} 表示を動かしたら true
+         */
+        function fit(targetItems, fitOptions) {
+            if (!targetItems || targetItems.length === 0) return false;
+            if (!fitOptions) fitOptions = {};
+
+            var targetDoc = fitOptions.doc || app.activeDocument;
+            var bounds = getItemsBounds(targetItems);
+            if (bounds === null) return false;
+
+            var itemWidth = bounds[2] - bounds[0];
+            var itemHeight = bounds[1] - bounds[3];
+            var activeView = targetDoc.activeView;
+            activeView.centerPoint = [(bounds[0] + bounds[2]) / 2, (bounds[1] + bounds[3]) / 2];
+            if (itemWidth <= 0 || itemHeight <= 0) return true;
+
+            /* 中心をそろえたあとの表示範囲を基準に倍率を求める / Scale from the view bounds after the center has moved */
+            var fillRatio = (fitOptions.fillRatio > 0) ? fitOptions.fillRatio : DEFAULT_FIT_PERCENT / 100;
+            var viewBounds = activeView.bounds;
+            var scale = Math.min(
+                (viewBounds[2] - viewBounds[0]) / itemWidth,
+                (viewBounds[1] - viewBounds[3]) / itemHeight
+            ) * fillRatio;
+            activeView.zoom = clampNumber(activeView.zoom * scale, VIEW_ZOOM_RANGE, 1);
+            return true;
+        }
+
+        /**
+         * 現在の表示位置と倍率を控える（キャンセル時に restoreView で戻す）
+         * @param {Document} [targetDoc] - 対象ドキュメント（省略時は最前面）
+         * @returns {{centerPoint: number[], zoom: number}} 控えた表示状態
+         */
+        function captureView(targetDoc) {
+            var activeView = (targetDoc || app.activeDocument).activeView;
+            return { centerPoint: activeView.centerPoint, zoom: activeView.zoom };
+        }
+
+        /**
+         * captureView で控えた表示位置と倍率に戻す
+         * @param {{centerPoint: number[], zoom: number}} viewState - 控えた表示状態
+         * @param {Document} [targetDoc] - 対象ドキュメント（省略時は最前面）
+         * @returns {void}
+         */
+        function restoreView(viewState, targetDoc) {
+            if (!viewState) return;
+            var activeView = (targetDoc || app.activeDocument).activeView;
+            activeView.centerPoint = viewState.centerPoint;
+            activeView.zoom = viewState.zoom;
+        }
+
+        return {
+            addControls: addControls,
+            fit: fit,
+            captureView: captureView,
+            restoreView: restoreView,
+            getItemsBounds: getItemsBounds
+        };
+
+    })();
+
+    // 画面にフィット（再利用パーツ）ここまで / End of the reusable fit view
+
     // ダイアログの位置と不透明度（再利用パーツ） / Dialog position and opacity (reusable)
 
     var DIALOG_OPACITY = 0.98;       /* ダイアログの不透明度 / dialog opacity */
@@ -1032,31 +1706,47 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb9bee6b7a2e"; /* 紹�
     /* 日英ラベル定義 / Japanese-English label definitions */
     var LABELS = {
         dialog: {
-            title: { ja: "新聞見出しメーカー", en: "Newspaper Headline Maker" }
+            title: { ja: "新聞見出しメーカー", en: "Newspaper Headline Maker" },
+            dummyTextTitle: { ja: "ダミー文章", en: "Dummy Text" }
         },
         panel: {
-            sideRules: { ja: "左右の二重線", en: "Side Rules" },
-            newspaperDummy: { ja: "新聞ダミー", en: "Newspaper Dummy" },
-            options: { ja: "オプション", en: "Options" }
+            margin: { ja: "マージン", en: "Margins" },
+            sideRules: { ja: "罫線", en: "Rules" },
+            typesetting: { ja: "組版設定", en: "Typesetting" },
+            dummyText: { ja: "ダミー文章", en: "Dummy Text" },
+            maskRotation: { ja: "マスクと回転", en: "Mask and Rotation" }
         },
         fieldLabel: {
-            marginVertical: { ja: "上下の伸び", en: "Extend" },
-            marginHorizontal: { ja: "見出しとのアキ", en: "Spacing" },
+            marginVertical: { ja: "上下", en: "Vertical" },
+            marginHorizontal: { ja: "左右", en: "Horizontal" },
+            ruleStrokeWidth: { ja: "線幅", en: "Weight" },
+            tierRuleWidth: { ja: "線幅", en: "Weight" },
             lineGap: { ja: "線の間隔", en: "Gap" },
+            dummyDirection: { ja: "組み方向", en: "Direction" },
             charsPerLine: { ja: "字詰", en: "Chars per line" },
             tierCount: { ja: "段数", en: "Tiers" },
-            extraTierCount: { ja: "上下に追加", en: "Extra tiers" },
-            dummyWidth: { ja: "左右の幅", en: "Width" },
-            columnCount: { ja: "段組数", en: "Columns" },
+            tierGap: { ja: "段間", en: "Gutter" },
+            extraTierCount: { ja: "段数追加", en: "Extra tiers" },
+            dummyWidth: { ja: "左右", en: "Horizontal" },
+            maskVertical: { ja: "上下", en: "Vertical" },
             blurRadius: { ja: "ぼかし", en: "Blur" },
             rotation: { ja: "回転", en: "Rotation" }
         },
         radio: {
+            ruleDouble: { ja: "二重", en: "Double" },
+            ruleSingle: { ja: "1本（上下）", en: "Single (both)" },
+            ruleSingleTop: { ja: "1本（上のみ）", en: "Single (top only)" },
+            ruleNone: { ja: "なし", en: "None" },
+            vertical: { ja: "縦組み", en: "Vertical" },
+            horizontal: { ja: "横組み", en: "Horizontal" },
             japanese: { ja: "和文", en: "Japanese" },
             western: { ja: "欧文", en: "Western" }
         },
         checkbox: {
-            useMask: { ja: "マスク", en: "Mask" }
+            useMask: { ja: "マスク", en: "Mask" },
+            useBlur: { ja: "ぼかし", en: "Blur" },
+            useTierRules: { ja: "段間の罫線", en: "Tier rules" },
+            englishNewspaper: { ja: "英字新聞モード", en: "English newspaper mode" }
         },
         unit: {
             chars: { ja: "文字", en: "chars" },
@@ -1064,39 +1754,102 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb9bee6b7a2e"; /* 紹�
             columns: { ja: "段", en: "columns" }
         },
         tooltip: {
-            marginVertical: { ja: "二重線を対象の上端／下端から伸ばす量", en: "How far the rules extend beyond the top and bottom of the object" },
-            marginHorizontal: {
-                ja: "対象と内側の線との距離。新聞ダミーの行をそろえるため、少し広がることがあります。",
-                en: "Distance between the object and the inner rule. It may widen slightly so the dummy lines align."
+            marginVertical: {
+                ja: "見出しの上端／下端から、罫線と新聞ダミーの天地を伸ばす量。横組みの欧文では見出しと横棒の距離",
+                en: "How far the rules and the dummy height extend beyond the top and bottom of the headline. Horizontal Western: distance between the headline and the rules"
             },
-            lineGap: { ja: "内側の線と外側の線の間隔", en: "Distance between the inner and outer rule" },
-            charsPerLine: { ja: "1段の1行に入れる文字数", en: "Characters in one line of a tier" },
+            marginHorizontal: {
+                ja: "見出しと内側の線との距離。新聞ダミーの行をそろえるため、少し広がることがある。横組みの欧文では横棒を見出しの左右に伸ばす量",
+                en: "Distance between the headline and the inner rule. It may widen slightly so the dummy lines align. Horizontal Western: how far the rules extend past the headline"
+            },
+            linkMargins: { ja: "上下と左右を同じ値にする", en: "Keeps the vertical and horizontal margins equal" },
+            ruleStrokeWidth: { ja: "左右の罫線の線幅。［なし］では無効", en: "Stroke weight of the side rules. Disabled with None" },
+            tierRuleWidth: {
+                ja: "段間の罫線の線幅。［段間の罫線］がOFFのときは無効",
+                en: "Stroke weight of the tier rules. Disabled while Tier rules is off"
+            },
+            lineGap: { ja: "内側の線と外側の線の間隔。［二重］のときだけ有効", en: "Distance between the inner and outer rule. Double only" },
+            ruleDouble: {
+                ja: "見出しの左右に二重線を引く。横組みの欧文では上下に横棒で引く",
+                en: "Draws double rules on both sides of the headline. Horizontal Western draws them above and below"
+            },
+            ruleSingle: {
+                ja: "見出しの左右に1本ずつ線を引く。横組みの欧文では上下に横棒で引く",
+                en: "Draws a single rule on each side of the headline. Horizontal Western draws them above and below"
+            },
+            ruleSingleTop: {
+                ja: "見出しの上にだけ横棒を1本引く。横組みの欧文のときだけ選べる",
+                en: "Draws one horizontal rule above the headline only. Available for horizontal Western only"
+            },
+            ruleNone: {
+                ja: "罫線を引かない。新聞ダミーの位置は［マージン］で決まる",
+                en: "Draws no rules. The dummy text is placed by Margins"
+            },
+            charsPerLine: {
+                ja: "1段の1行に入れる文字数。欧文の横組みでは無効",
+                en: "Characters in one line of a tier or column. Disabled for Western horizontal"
+            },
             tierCount: {
-                ja: "二重線の天地を分ける段数。0で新聞ダミーを作りません。",
-                en: "Number of tiers the rule height is split into. 0 adds no dummy text."
+                ja: "縦組み：罫線の天地を分ける段数。0で新聞ダミーを作らない",
+                en: "Vertical: number of tiers the rule height is split into. 0 adds no dummy text"
+            },
+            tierGap: {
+                ja: "段と段の間隔。段間の罫線はこの中央に引く",
+                en: "Space between tiers. Tier rules run through its middle"
             },
             extraTierCount: {
-                ja: "上と下にそれぞれ足す、左右の幅いっぱいの段の数。0で足しません。",
-                en: "Full-width tiers added above and below each. 0 adds none."
+                ja: "上と下にそれぞれ足す、左右の幅いっぱいの段の数。0で足さない",
+                en: "Full-width tiers added above and below each. 0 adds none"
             },
-            dummyWidth: { ja: "左右それぞれの新聞ダミーの幅", en: "Width of the dummy text on each side" },
+            dummyWidth: {
+                ja: "左右それぞれの新聞ダミーの幅。マスクがOFFでも新聞ダミーの幅として使う",
+                en: "Width of the dummy text on each side. Still used as the dummy width while Mask is off"
+            },
             columnCount: {
-                ja: "欧文で、見出しの横幅に入る段の数。段の幅と文字サイズはこれから決まります。",
-                en: "Western only: how many columns the headline spans. Sets the column width and type size."
+                ja: "横組み：見出しの横幅に入る段の数。段の幅と文字サイズはこれから決まる。0で新聞ダミーを作らない",
+                en: "Horizontal: how many columns the headline spans. Sets the column width and type size. 0 adds no dummy text"
             },
-            japanese: { ja: "縦組みの段で新聞ダミーを作る", en: "Builds the dummy as vertical Japanese tiers" },
-            western: { ja: "横組みの段組みで新聞ダミーを作る", en: "Builds the dummy as horizontal Western columns" },
-            blurRadius: {
-                ja: "新聞ダミーにかけるぼかし（ガウス）の半径（px）。0でかけません。",
-                en: "Radius of the Gaussian blur on the dummy text, in pixels. 0 applies none."
+            dummyText: {
+                ja: "新聞ダミーに流す文章を和文・欧文それぞれ設定する",
+                en: "Sets the text poured into the dummy, for Japanese and Western"
+            },
+            dummyTextInput: {
+                ja: "足りない分は繰り返す。空欄なら既定の文章。改行は詰める",
+                en: "Repeated as needed. Empty uses the default text. Line breaks are removed"
+            },
+            vertical: { ja: "罫線の天地を段に分けた縦組みで新聞ダミーを作る", en: "Builds the dummy as vertical tiers that split the rule height" },
+            horizontal: { ja: "見出しの横幅を段組みに分けた横組みで新聞ダミーを作る", en: "Builds the dummy as horizontal columns across the headline width" },
+            japanese: { ja: "和文の文章とフォント（ヒラギノ明朝 W3）で新聞ダミーを作る", en: "Uses Japanese text and font (Hiragino Mincho W3) for the dummy" },
+            western: { ja: "欧文の文章とフォント（Times New Roman）で新聞ダミーを作る", en: "Uses Western text and font (Times New Roman) for the dummy" },
+            westernVertical: {
+                ja: "欧文の文章とフォント（Times New Roman）で新聞ダミーを作る。縦組みの見出しでは選べない",
+                en: "Uses Western text and font (Times New Roman) for the dummy. Not available for vertical headlines"
+            },
+            blurRadius: { ja: "新聞ダミーにかけるぼかし（ガウス）の半径（px）", en: "Radius of the Gaussian blur on the dummy text, in pixels" },
+            useBlur: { ja: "新聞ダミーにぼかし（ガウス）をかける", en: "Applies a Gaussian blur to the dummy text" },
+            maskVertical: {
+                ja: "マスクの天地を、罫線の上端／下端からこの長さまでにする。回転後も角が欠けない大きさが上限",
+                en: "Limits the mask to this distance beyond the top and bottom of the rules. Capped at the largest size that leaves no corner missing"
+            },
+            englishNewspaper: {
+                ja: "横組み・欧文に固定し、罫線を［1本（上のみ）］にする。OFFで元の組み方向と和文／欧文に戻す",
+                en: "Locks Horizontal and Western and sets the rules to Single (top only). Turning it off restores the previous direction and script"
+            },
+            englishNewspaperVertical: {
+                ja: "横組み・欧文に固定し、罫線を［1本（上のみ）］にする。縦組みの見出しでは選べない",
+                en: "Locks Horizontal and Western and sets the rules to Single (top only). Not available for vertical headlines"
+            },
+            useTierRules: {
+                ja: "段と段の間に罫線を引く。横組みの和文は見出しと上下の段組みの間、横組みの欧文は段と段の間の縦棒",
+                en: "Draws rules between the tiers. Horizontal Japanese: between the headline and the bands above and below. Horizontal Western: vertical rules between columns"
             },
             rotation: {
-                ja: "全体のグループに［変形］効果で適用する回転角度。0で効果を付けません。",
-                en: "Rotation applied to the whole group with the Transform effect. 0 adds no effect."
+                ja: "全体のグループに［変形］効果で適用する回転角度。0で効果を付けない",
+                en: "Rotation applied to the whole group with the Transform effect. 0 adds no effect"
             },
             useMask: {
-                ja: "回転後も角が欠けない長方形で全体をマスクする。［上下に追加］を0にするとOFFになります。",
-                en: "Masks the whole piece with a rectangle that leaves no corner missing after the rotation. Turns off when Extra tiers is set to 0."
+                ja: "回転後も角が欠けない範囲で、天地を［上下］で切った長方形で全体をマスクする。［段数追加］を0にするとOFFになる",
+                en: "Masks the whole piece with a rectangle that leaves no corner missing after the rotation, its height cut by Vertical. Turns off when Extra tiers is set to 0"
             },
             stepUp: {
                 ja: "値を増やす（shift＋クリックで10の倍数へ、option＋クリックで0.1ずつ）",
@@ -1111,14 +1864,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb9bee6b7a2e"; /* 紹�
         },
         button: {
             cancel: { ja: "キャンセル", en: "Cancel" },
-            ok: { ja: "OK", en: "OK" }
+            ok: { ja: "OK", en: "OK" },
+            dummyText: { ja: "文章...", en: "Text..." }
         },
         alert: {
             noDocument: { ja: "ドキュメントが開かれていません。", en: "No document is open." },
             noTarget: { ja: "テキストオブジェクトまたはグループを1つ選択してください。", en: "Select one text object or one group." }
         },
         itemName: {
-            ruleGroup: { ja: "左右二重線", en: "Side rules" },
+            ruleGroup: { ja: "左右の罫線", en: "Side rules" },
             dummyGroup: { ja: "新聞ダミー", en: "Newspaper dummy" }
         }
     };
@@ -1192,6 +1946,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb9bee6b7a2e"; /* 紹�
      */
     function readFieldAsNumber(inputField, fallbackValue, allowNegative) {
         var enteredValue = parseLocaleNumber(inputField.text);
+        /* 単位付き（"5 mm"）や計算式はステップボタン部品の計算で読み、欄の単位に換算する / units and expressions go through the stepper's evaluator */
+        if (isNaN(enteredValue)) enteredValue = evaluateArithmetic(inputField.text, inputField.fieldUnit);
         if (isNaN(enteredValue)) return fallbackValue;
         if (!allowNegative && enteredValue < 0) return 0;
         return enteredValue;
@@ -1208,6 +1964,211 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb9bee6b7a2e"; /* 紹�
         var enteredValue = readFieldAsNumber(inputField, NaN, false);
         return isNaN(enteredValue) ? fallbackPt : enteredValue * pointsPerUnit;
     }
+
+    // キーボードショートカット（再利用パーツ） / Keyboard shortcuts (reusable)
+
+    /* 入力中はショートカットを止めるコントロールの種類 / Control types that swallow keys while focused */
+    var KEY_SHORTCUT_TYPING_TYPES = { edittext: true, dropdownlist: true, listbox: true };
+
+    /* 修飾キーの並び順（キーの表記をそろえる）/ Canonical order of modifiers in a key spec */
+    var KEY_SHORTCUT_MODIFIERS = ["SHIFT", "ALT", "CMD"];
+
+    /* 修飾キーの別名 / Aliases accepted for the modifiers */
+    var KEY_SHORTCUT_MODIFIER_ALIASES = {
+        SHIFT: "SHIFT",
+        ALT: "ALT", OPTION: "ALT", OPT: "ALT",
+        CMD: "CMD", COMMAND: "CMD", META: "CMD", CTRL: "CMD", CONTROL: "CMD"
+    };
+
+    /**
+     * キーの指定（"Shift+R" など）を、照合用の表記（"SHIFT+R"）にそろえる
+     * @param {string} keySpec - キーの指定。修飾キーは "Shift+" / "Alt+" / "Cmd+" を前に付ける
+     * @returns {string} 照合用の表記（大文字、修飾キーは SHIFT → ALT → CMD の順）
+     */
+    function normalizeKeyShortcutSpec(keySpec) {
+        var specParts = String(keySpec).split("+");
+        var baseKey = specParts.pop().toUpperCase();
+        var modifierFlags = {};
+        for (var i = 0; i < specParts.length; i++) {
+            var modifierName = KEY_SHORTCUT_MODIFIER_ALIASES[specParts[i].toUpperCase()];
+            if (modifierName) modifierFlags[modifierName] = true;
+        }
+        return buildKeyShortcutSpec(modifierFlags, baseKey);
+    }
+
+    /**
+     * 修飾キーの状態とキー名から照合用の表記を組み立てる
+     * @param {Object} modifierFlags - { SHIFT: true, ALT: true, CMD: true } のうち押されているもの
+     * @param {string} baseKey - 大文字のキー名
+     * @returns {string} 照合用の表記
+     */
+    function buildKeyShortcutSpec(modifierFlags, baseKey) {
+        var specText = "";
+        for (var i = 0; i < KEY_SHORTCUT_MODIFIERS.length; i++) {
+            if (modifierFlags[KEY_SHORTCUT_MODIFIERS[i]]) specText += KEY_SHORTCUT_MODIFIERS[i] + "+";
+        }
+        return specText + baseKey;
+    }
+
+    /**
+     * keydown イベントから照合用の表記を作る。修飾キーはイベントと keyboardState の両方を見る
+     * @param {Object} keyEvent - keydown イベント
+     * @returns {string} 照合用の表記。キー名が無いときは空文字
+     */
+    function readKeyShortcutSpec(keyEvent) {
+        if (!keyEvent || !keyEvent.keyName) return "";
+        var keyboardState = {};
+        try { keyboardState = ScriptUI.environment.keyboardState; } catch (e) { }
+        var modifierFlags = {
+            SHIFT: !!(keyEvent.shiftKey || keyboardState.shiftKey),
+            ALT: !!(keyEvent.altKey || keyboardState.altKey),
+            CMD: !!(keyEvent.metaKey || keyEvent.ctrlKey || keyboardState.metaKey || keyboardState.ctrlKey)
+        };
+        return buildKeyShortcutSpec(modifierFlags, String(keyEvent.keyName).toUpperCase());
+    }
+
+    /**
+     * コントロールが押せる状態か（自分と親がすべて有効で表示中か）を返す
+     * @param {Object} control - コントロール
+     * @returns {boolean} 押せるなら true
+     */
+    function isKeyShortcutControlUsable(control) {
+        for (var node = control; node; node = node.parent) {
+            if (node.enabled === false || node.visible === false) return false;
+        }
+        return true;
+    }
+
+    /**
+     * キーを受けたコントロールが、文字を入力する欄か
+     * @param {Object} focusedControl - イベントの発生元
+     * @param {Object[]} numericFields - 数値だけの欄（ショートカットを効かせる）
+     * @returns {boolean} 入力中としてショートカットを止めるなら true
+     */
+    function isKeyShortcutTypingTarget(focusedControl, numericFields) {
+        if (!focusedControl || !KEY_SHORTCUT_TYPING_TYPES[focusedControl.type]) return false;
+        for (var i = 0; i < numericFields.length; i++) {
+            if (numericFields[i] === focusedControl) return false;
+        }
+        return true;
+    }
+
+    /**
+     * コントロールをクリックしたときと同じ動作をする
+     * ラジオは同じ親のラジオを外して選び、チェックボックスは反転してから onClick を呼ぶ
+     * @param {Object} control - ラジオボタン・チェックボックス・ボタンなど
+     * @returns {void}
+     */
+    function pressKeyShortcutControl(control) {
+        if (control.type === "radiobutton") {
+            /* 同じ親の直下だけが排他になるので、クリックと同じく兄弟を外す / Clear siblings like a click would */
+            var siblings = control.parent ? control.parent.children : [];
+            for (var i = 0; i < siblings.length; i++) {
+                if (siblings[i] !== control && siblings[i].type === "radiobutton") siblings[i].value = false;
+            }
+            control.value = true;
+        } else if (control.type === "checkbox") {
+            control.value = !control.value;
+        }
+        if (typeof control.onClick === "function") {
+            control.onClick.call(control);
+        } else if (control.type === "button" && typeof control.notify === "function") {
+            /* onClick の無い OK・キャンセルは notify で既定の動作（閉じる）を起こす / Let default buttons close the dialog */
+            control.notify("onClick");
+        }
+    }
+
+    /**
+     * 1つのショートカットを実行する
+     * @param {Object|Function} shortcutTarget - コントロール、または関数
+     * @param {Object} keyEvent - keydown イベント
+     * @returns {boolean} キーを使ったなら true（false なら文字をそのまま通す）
+     */
+    function runKeyShortcutTarget(shortcutTarget, keyEvent) {
+        var targetControl = shortcutTarget;
+        if (typeof shortcutTarget === "function") {
+            var runResult = shortcutTarget(keyEvent);
+            if (runResult === false || runResult === null) return false;
+            if (!runResult || typeof runResult !== "object" || !runResult.type) return true;
+            targetControl = runResult;
+        }
+        /* 無効なコントロールのキーも使ったことにして、数値欄へ文字を入れない / Consume the key even when disabled */
+        if (isKeyShortcutControlUsable(targetControl)) pressKeyShortcutControl(targetControl);
+        return true;
+    }
+
+    /**
+     * キーの指定に修飾キーの表示名を当てて、ツールチップ用の表記にする
+     * @param {string} normalizedSpec - 照合用の表記（"SHIFT+R" など）
+     * @returns {string} 表示用の表記（"Shift+R" など）
+     */
+    function formatKeyShortcutLabel(normalizedSpec) {
+        var isMac = ($.os.indexOf("Mac") === 0);
+        var displayNames = { SHIFT: "Shift", ALT: isMac ? "Option" : "Alt", CMD: isMac ? "Cmd" : "Ctrl" };
+        var specParts = normalizedSpec.split("+");
+        var baseKey = specParts.pop();
+        var labelText = "";
+        for (var i = 0; i < specParts.length; i++) labelText += displayNames[specParts[i]] + "+";
+        if (baseKey.length > 1) baseKey = baseKey.charAt(0) + baseKey.substring(1).toLowerCase();
+        return labelText + baseKey;
+    }
+
+    /**
+     * コントロールのツールチップの末尾にキーを足す（すでに書いてあれば足さない）
+     * @param {Object} control - コントロール
+     * @param {string} normalizedSpec - 照合用の表記
+     * @returns {void}
+     */
+    function appendKeyShortcutToTip(control, normalizedSpec) {
+        var keyLabel = formatKeyShortcutLabel(normalizedSpec);
+        var currentTip = control.helpTip ? String(control.helpTip) : "";
+        if (currentTip.indexOf("（" + keyLabel) >= 0 || currentTip.indexOf("(" + keyLabel) >= 0) return;
+        var keySuffix = (uiLang === "ja") ? "（" + keyLabel + "）" : " (" + keyLabel + ")";
+        control.helpTip = currentTip ? currentTip + keySuffix : keyLabel;
+    }
+
+    /**
+     * ダイアログ・パレットに文字キーのショートカットを付ける
+     * @param {Window} targetWindow - キーを受けるダイアログ・パレット
+     * @param {Object} shortcutMap - { "L": ラジオ, "Shift+R": ボタン, "G": 関数, "Escape": { target: 関数, inFields: true } }
+     * @param {Object} [shortcutOptions] - numericFields（数値だけの欄の配列）/ afterKey（キーを使ったあとに呼ぶ関数）/ showInTip（ツールチップにキーを足す）
+     * @returns {Object} 照合用の表記 → { target, inFields } の表（テスト・デバッグ用）
+     */
+    function addKeyShortcuts(targetWindow, shortcutMap, shortcutOptions) {
+        var shortcutSettings = shortcutOptions || {};
+        var numericFields = shortcutSettings.numericFields || [];
+        var bindingTable = {};
+
+        for (var keySpec in shortcutMap) {
+            if (!shortcutMap.hasOwnProperty(keySpec)) continue;
+            var mapEntry = shortcutMap[keySpec];
+            if (!mapEntry) continue;
+            var isWrapped = (typeof mapEntry === "object" && !mapEntry.type && mapEntry.target);
+            var normalizedSpec = normalizeKeyShortcutSpec(keySpec);
+            bindingTable[normalizedSpec] = {
+                target: isWrapped ? mapEntry.target : mapEntry,
+                inFields: !!(isWrapped && mapEntry.inFields)
+            };
+            var tipControl = bindingTable[normalizedSpec].target;
+            if (shortcutSettings.showInTip && typeof tipControl === "object" && tipControl.type) {
+                appendKeyShortcutToTip(tipControl, normalizedSpec);
+            }
+        }
+
+        /* キャプチャで受けて、数値欄に文字が入る前に止める / Capture phase keeps the letter out of numeric fields */
+        targetWindow.addEventListener("keydown", function (keyEvent) {
+            var binding = bindingTable[readKeyShortcutSpec(keyEvent)];
+            if (!binding) return;
+            if (!binding.inFields && isKeyShortcutTypingTarget(keyEvent.target, numericFields)) return;
+            if (!runKeyShortcutTarget(binding.target, keyEvent)) return;
+            if (keyEvent.preventDefault) keyEvent.preventDefault();
+            if (typeof shortcutSettings.afterKey === "function") shortcutSettings.afterKey(keyEvent);
+        }, true);
+
+        return bindingTable;
+    }
+
+    // キーボードショートカット（再利用パーツ）ここまで / End of the reusable keyboard shortcuts
 
     // =========================================
     // メイン処理 / Main
@@ -1250,53 +2211,112 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb9bee6b7a2e"; /* 紹�
     }
 
     /**
-     * 二重線の上下端と、内側・外側の線の X 座標を求める
+     * 対象の文字がすべて欧文なら "western"、和文（かな・漢字・全角）を含むか文字が無ければ既定の組み方を返す。
+     * 縦組みのテキストを含むときは欧文を選べないので "japanese"
      * @param {PageItem} targetItem - 基準にするテキストまたはグループ
-     * @param {{marginVerticalPt: number, marginHorizontalPt: number, lineGapPt: number}} headlineSettings - マージンと間隔（pt）
-     * @returns {{topY: number, bottomY: number, innerLeftX: number, innerRightX: number, outerLeftX: number, outerRightX: number}} 二重線の枠
+     * @returns {string} "japanese" または "western"
      */
-    function getRuleFrame(targetItem, headlineSettings) {
+    function detectDummyScript(targetItem) {
+        if (hasVerticalText(targetItem)) return "japanese";
+        var targetText = collectTextContents(targetItem);
+        if (!/\S/.test(targetText)) return DEFAULT_DUMMY_SCRIPT;
+        /* 全角スペース・句読点・かな・漢字・全角英数を和文と見なす / CJK punctuation, kana, kanji and full-width forms count as Japanese */
+        return /[\u3000-\u30FF\u3400-\u9FFF\uF900-\uFAFF\uFF00-\uFFEF]/.test(targetText) ? "japanese" : "western";
+    }
+
+    /**
+     * 縦組みのテキストを含むかを返す（グループは入れ子もたどる）
+     * @param {PageItem} pageItem - 対象
+     * @returns {boolean} 縦組みのテキストがあれば true
+     */
+    function hasVerticalText(pageItem) {
+        if (pageItem.typename === "TextFrame") return pageItem.orientation === TextOrientation.VERTICAL;
+        if (pageItem.typename !== "GroupItem") return false;
+        for (var i = 0; i < pageItem.pageItems.length; i++) {
+            if (hasVerticalText(pageItem.pageItems[i])) return true;
+        }
+        return false;
+    }
+
+    /**
+     * テキストまたはグループの中のテキストの内容をすべてつないで返す（グループは入れ子もたどる）
+     * @param {PageItem} pageItem - 対象
+     * @returns {string} つないだ文字列
+     */
+    function collectTextContents(pageItem) {
+        if (pageItem.typename === "TextFrame") return pageItem.contents;
+        if (pageItem.typename !== "GroupItem") return "";
+        var collectedText = "";
+        for (var i = 0; i < pageItem.pageItems.length; i++) {
+            collectedText += collectTextContents(pageItem.pageItems[i]);
+        }
+        return collectedText;
+    }
+
+    /**
+     * 罫線の枠（見出しをマージンぶん広げた範囲と、内側・外側の線の位置）を求める。［二重］以外は外側の線を内側の線に重ねる。
+     * 横棒（見出しの上下に引く）のときは、外側の線のぶん topY / bottomY を広げ、新聞ダミーはその外に置く
+     * @param {PageItem} targetItem - 基準にするテキストまたはグループ
+     * @param {{marginVerticalPt: number, marginHorizontalPt: number, lineGapPt: number, ruleStyle: string}} headlineSettings - マージンと間隔（pt）、罫線の種類
+     * @param {boolean} usesHorizontalRules - 罫線を見出しの上下に横棒で引くなら true
+     * @returns {{isHorizontal: boolean, topY: number, bottomY: number, innerTopY: number, innerBottomY: number, innerLeftX: number, innerRightX: number, outerLeftX: number, outerRightX: number}} 罫線の枠
+     */
+    function getRuleFrame(targetItem, headlineSettings, usesHorizontalRules) {
         /* visibleBounds: [左, 上, 右, 下] / visibleBounds: [left, top, right, bottom] */
         var targetBounds = targetItem.visibleBounds;
         var innerLeftX = targetBounds[0] - headlineSettings.marginHorizontalPt;
         var innerRightX = targetBounds[2] + headlineSettings.marginHorizontalPt;
+        var innerTopY = targetBounds[1] + headlineSettings.marginVerticalPt;
+        var innerBottomY = targetBounds[3] - headlineSettings.marginVerticalPt;
+        var lineGapPt = (headlineSettings.ruleStyle === "double") ? headlineSettings.lineGapPt : 0;
+        var sideGapPt = usesHorizontalRules ? 0 : lineGapPt;
+        var endGapPt = usesHorizontalRules ? lineGapPt : 0;
         return {
-            topY: targetBounds[1] + headlineSettings.marginVerticalPt,
-            bottomY: targetBounds[3] - headlineSettings.marginVerticalPt,
+            isHorizontal: usesHorizontalRules,
+            topY: innerTopY + endGapPt,
+            bottomY: innerBottomY - endGapPt,
+            innerTopY: innerTopY,
+            innerBottomY: innerBottomY,
             innerLeftX: innerLeftX,
             innerRightX: innerRightX,
-            outerLeftX: innerLeftX - headlineSettings.lineGapPt,
-            outerRightX: innerRightX + headlineSettings.lineGapPt
+            outerLeftX: innerLeftX - sideGapPt,
+            outerRightX: innerRightX + sideGapPt
         };
     }
 
     /**
-     * 対象の左右に二重線を描画する
+     * 対象の左右（横棒のときは上下）に罫線を描画する（［二重］は2本ずつ、［1本］は内側の線だけ、［1本（上のみ）］は上の線だけ）
      * @param {Document} doc - 対象のドキュメント
      * @param {PageItem} targetItem - 基準にするテキストまたはグループ
-     * @param {Object} ruleFrame - getRuleFrame() で求めた二重線の枠
-     * @param {{lineGapPt: number}} headlineSettings - 間隔（pt）
-     * @returns {GroupItem} 生成した二重線のグループ
+     * @param {Object} ruleFrame - getRuleFrame() で求めた罫線の枠
+     * @param {{ruleStyle: string, ruleStrokeWidthPt: number}} headlineSettings - 罫線の種類と線幅（pt）
+     * @returns {GroupItem|null} 生成した罫線のグループ。［なし］のときは null
      */
     function drawSideRules(doc, targetItem, ruleFrame, headlineSettings) {
+        if (headlineSettings.ruleStyle === "none") return null;
         var ruleGroup = targetItem.layer.groupItems.add();
         ruleGroup.name = getLabel("itemName.ruleGroup");
 
         var strokeColor = createProcessColor(doc, RULE_CMYK);
-        var lineXPositions = [ruleFrame.innerLeftX, ruleFrame.innerRightX];
-        /* 間隔が0なら内側の線に重なるので、外側の線は描かない / A zero gap would stack the rules, so skip the outer pair */
-        if (headlineSettings.lineGapPt > 0) {
-            lineXPositions.push(ruleFrame.outerLeftX);
-            lineXPositions.push(ruleFrame.outerRightX);
+        var linePoints = [];
+        if (ruleFrame.isHorizontal) {
+            /* 見出しの上下に横棒。外側の線が内側に重なる（［1本］か間隔0）なら描かない / horizontal rules above and below; skip stacked outer lines */
+            /* ［1本（上のみ）］は上の線だけ / Single (top) draws only the upper rule */
+            var lineYPositions = (headlineSettings.ruleStyle === "singleTop") ? [ruleFrame.innerTopY] : [ruleFrame.innerTopY, ruleFrame.innerBottomY];
+            if (ruleFrame.topY > ruleFrame.innerTopY) lineYPositions.push(ruleFrame.topY, ruleFrame.bottomY);
+            for (var j = 0; j < lineYPositions.length; j++) {
+                linePoints.push([[ruleFrame.innerLeftX, lineYPositions[j]], [ruleFrame.innerRightX, lineYPositions[j]]]);
+            }
+        } else {
+            /* 見出しの左右に縦の線。外側の線が内側に重なるなら描かない / vertical rules left and right; skip stacked outer lines */
+            var lineXPositions = [ruleFrame.innerLeftX, ruleFrame.innerRightX];
+            if (ruleFrame.outerRightX > ruleFrame.innerRightX) lineXPositions.push(ruleFrame.outerLeftX, ruleFrame.outerRightX);
+            for (var k = 0; k < lineXPositions.length; k++) {
+                linePoints.push([[lineXPositions[k], ruleFrame.topY], [lineXPositions[k], ruleFrame.bottomY]]);
+            }
         }
-        for (var i = 0; i < lineXPositions.length; i++) {
-            createRuleLine(
-                ruleGroup,
-                [lineXPositions[i], ruleFrame.topY],
-                [lineXPositions[i], ruleFrame.bottomY],
-                strokeColor,
-                RULE_STROKE_WIDTH_PT
-            );
+        for (var i = 0; i < linePoints.length; i++) {
+            createRuleLine(ruleGroup, linePoints[i][0], linePoints[i][1], strokeColor, headlineSettings.ruleStrokeWidthPt);
         }
 
         /* 対象のすぐ背面へ / Move the rules just behind the target */
@@ -1305,30 +2325,34 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb9bee6b7a2e"; /* 紹�
     }
 
     /**
-     * 新聞ダミーの文字サイズ・行送り・左右の行数を求める。
-     * 二重線の天地（A）を段数で分け、段の間は1文字分空ける。
-     * 1文字の送り（文字サイズ × 垂直比率）は A ÷（段数 × 字詰 ＋ 段数 − 1）。
+     * 縦組みの新聞ダミーの文字サイズ・行送り・左右の行数を求める。
+     * 罫線の天地（A）を段数で分け、段の間は段間（pt）だけ空ける。
+     * 1文字の送り（文字サイズ × 垂直比率）は（A −（段数 − 1）× 段間）÷（段数 × 字詰）。
      * 左右の幅は行の整数倍に切り詰める
      * @param {Object} ruleFrame - getRuleFrame() で求めた二重線の枠
-     * @param {{charsPerLine: number, tierCount: number, dummyWidthPt: number}} headlineSettings - 新聞ダミーの設定
+     * @param {{charsPerLine: number, tierCount: number, tierGap: number, dummyWidthPt: number}} headlineSettings - 新聞ダミーの設定（tierGap は pt）
+     * @param {Object} typeStyle - getDummyTypeStyle() で求めた書体の設定
      * @returns {Object|null} 新聞ダミーの寸法（作らないときは null）
      */
-    function computeDummyLayout(ruleFrame, headlineSettings) {
+    function computeTierLayout(ruleFrame, headlineSettings, typeStyle) {
         var tierCount = headlineSettings.tierCount;
         var charsPerLine = headlineSettings.charsPerLine;
         var ruleHeight = ruleFrame.topY - ruleFrame.bottomY;
         if (tierCount < 1 || charsPerLine < 1 || headlineSettings.dummyWidthPt <= 0 || ruleHeight <= 0) return null;
 
         /* 縦組みでは垂直比率のぶん字送りが詰まる / in vertical text the vertical scale shortens each character's advance */
-        var charAdvance = ruleHeight / (tierCount * charsPerLine + tierCount - 1);
-        var fontSize = charAdvance / (DUMMY_VERTICAL_SCALE / 100);
+        var tierGap = headlineSettings.tierGap;
+        var charAdvance = (ruleHeight - (tierCount - 1) * tierGap) / (tierCount * charsPerLine);
+        if (charAdvance <= 0) return null; /* 段間が天地を食い尽くしたら作らない / the gutters leave no room for text */
+        var fontSize = charAdvance / (typeStyle.verticalScale / 100);
         var dummyLayout = {
             tierCount: tierCount,
             charsPerLine: charsPerLine,
             fontSize: fontSize,
             charAdvance: charAdvance,
             linePitch: fontSize * DUMMY_LEADING_RATIO,
-            tierPitch: (charsPerLine + 1) * charAdvance
+            tierGap: tierGap,
+            tierPitch: charsPerLine * charAdvance + tierGap
         };
         dummyLayout.sideLineCount = countFittingLines(dummyLayout, headlineSettings.dummyWidthPt);
         dummyLayout.sideTextWidth = getTextWidth(dummyLayout, dummyLayout.sideLineCount);
@@ -1339,7 +2363,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb9bee6b7a2e"; /* 紹�
      * 上下の段の行が左右の段の行と揃うように、二重線を左右へ均等に広げる。
      * 左の本文の右端から右の本文の右端までが行送りの整数倍になればよい
      * @param {Object} ruleFrame - getRuleFrame() で求めた二重線の枠（書き換える）
-     * @param {Object} dummyLayout - computeDummyLayout() で求めた寸法
+     * @param {Object} dummyLayout - computeTierLayout() で求めた寸法
      * @returns {void}
      */
     function alignRuleFrameToDummyLines(ruleFrame, dummyLayout) {
@@ -1357,19 +2381,22 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb9bee6b7a2e"; /* 紹�
     }
 
     /**
-     * 二重線の外側の左右に段組みの新聞ダミーを描画し、上下には左右の幅いっぱいの段を足す。
-     * 段の間は1文字分空けて区切り罫を引く
+     * 罫線の外側の左右に縦組みの段の新聞ダミーを描画し、上下には左右の幅いっぱいの段を足す。
+     * 段の間は段間だけ空けて、その中央に区切り罫を引く
      * @param {Document} doc - 対象のドキュメント
      * @param {Layer} targetLayer - 描画先のレイヤー
      * @param {Object} ruleFrame - 二重線の枠
-     * @param {Object} dummyLayout - computeDummyLayout() で求めた寸法
+     * @param {Object} dummyLayout - computeTierLayout() で求めた寸法
      * @param {number} extraTierCount - 上下それぞれに足す段数
+     * @param {Object} typeStyle - getDummyTypeStyle() で求めた書体の設定
+     * @param {number} tierRuleWidthPt - 段間の罫線の線幅（pt、0なら引かない）
      * @returns {GroupItem} 生成した新聞ダミーのグループ
      */
-    function drawNewspaperDummy(doc, targetLayer, ruleFrame, dummyLayout, extraTierCount) {
+    function drawTierDummy(doc, targetLayer, ruleFrame, dummyLayout, extraTierCount, typeStyle, tierRuleWidthPt) {
         var fontSize = dummyLayout.fontSize;
         var charAdvance = dummyLayout.charAdvance;
         var tierPitch = dummyLayout.tierPitch;
+        var tierGap = dummyLayout.tierGap;
         var sideLineCount = dummyLayout.sideLineCount;
         var sideTextWidth = dummyLayout.sideTextWidth;
 
@@ -1382,7 +2409,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb9bee6b7a2e"; /* 紹�
             fontSize: fontSize,
             charAdvance: charAdvance,
             linePitch: dummyLayout.linePitch,
-            textFont: findDummyFont(DUMMY_FONT_NAMES),
+            textFont: findDummyFont(typeStyle.fontNames),
+            typeStyle: typeStyle,
+            tierRuleWidthPt: tierRuleWidthPt,
             strokeColor: createProcessColor(doc, RULE_CMYK)
         };
 
@@ -1397,7 +2426,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb9bee6b7a2e"; /* 紹�
             for (var k = 0; k < dummyLayout.tierCount; k++) {
                 var sideTierTop = ruleFrame.topY - k * tierPitch;
                 addDummyTier(tierContext, sideTextLefts[i], sideTierTop, sideLineCount);
-                if (k > 0) addTierRule(tierContext, sideTextLefts[i], sideTierTop + charAdvance / 2, sideTextWidth);
+                if (k > 0) addTierRule(tierContext, sideTextLefts[i], sideTierTop + tierGap / 2, sideTextWidth);
             }
         }
 
@@ -1411,11 +2440,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb9bee6b7a2e"; /* 紹�
         for (var j = 1; j <= extraTierCount; j++) {
             var upperTop = ruleFrame.topY + j * tierPitch;
             addDummyTier(tierContext, fullLeft, upperTop, fullLineCount);
-            addTierRule(tierContext, fullLeft, upperTop - tierPitch + charAdvance / 2, fullWidth);
+            addTierRule(tierContext, fullLeft, upperTop - tierPitch + tierGap / 2, fullWidth);
 
-            var lowerTop = ruleFrame.bottomY - charAdvance - (j - 1) * tierPitch;
+            var lowerTop = ruleFrame.bottomY - tierGap - (j - 1) * tierPitch;
             addDummyTier(tierContext, fullLeft, lowerTop, fullLineCount);
-            addTierRule(tierContext, fullLeft, lowerTop + charAdvance / 2, fullWidth);
+            addTierRule(tierContext, fullLeft, lowerTop + tierGap / 2, fullWidth);
         }
         return dummyGroup;
     }
@@ -1458,21 +2487,39 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb9bee6b7a2e"; /* 紹�
     }
 
     /**
-     * 段の区切り罫を1本引く
-     * @param {{dummyGroup: GroupItem, strokeColor: Object}} tierContext - 段の共通設定
+     * 段の区切り罫を1本引く（線幅が0、つまり段間の罫線がOFFなら何もしない）
+     * @param {{dummyGroup: GroupItem, strokeColor: Object, tierRuleWidthPt: number}} dummyContext - 段の共通設定
+     * @param {number[]} startPoint - 始点 [x, y]
+     * @param {number[]} endPoint - 終点 [x, y]
+     * @returns {void}
+     */
+    function addDummyRule(dummyContext, startPoint, endPoint) {
+        if (!(dummyContext.tierRuleWidthPt > 0)) return;
+        createRuleLine(dummyContext.dummyGroup, startPoint, endPoint, dummyContext.strokeColor, dummyContext.tierRuleWidthPt);
+    }
+
+    /**
+     * 段の間に横の区切り罫を1本引く
+     * @param {Object} dummyContext - 段の共通設定
      * @param {number} ruleLeft - 左端の X 座標
      * @param {number} ruleY - Y 座標
      * @param {number} ruleWidth - 長さ（pt）
      * @returns {void}
      */
-    function addTierRule(tierContext, ruleLeft, ruleY, ruleWidth) {
-        createRuleLine(
-            tierContext.dummyGroup,
-            [ruleLeft, ruleY],
-            [ruleLeft + ruleWidth, ruleY],
-            tierContext.strokeColor,
-            DUMMY_RULE_WIDTH_PT
-        );
+    function addTierRule(dummyContext, ruleLeft, ruleY, ruleWidth) {
+        addDummyRule(dummyContext, [ruleLeft, ruleY], [ruleLeft + ruleWidth, ruleY]);
+    }
+
+    /**
+     * 段と段の間に縦の区切り罫を1本引く
+     * @param {Object} dummyContext - 段の共通設定
+     * @param {number} ruleX - X 座標
+     * @param {number} ruleTop - 上端の Y 座標
+     * @param {number} ruleHeight - 長さ（pt）
+     * @returns {void}
+     */
+    function addColumnRule(dummyContext, ruleX, ruleTop, ruleHeight) {
+        addDummyRule(dummyContext, [ruleX, ruleTop], [ruleX, ruleTop - ruleHeight]);
     }
 
     /**
@@ -1496,7 +2543,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb9bee6b7a2e"; /* 紹�
         var targetLayer = tierContext.targetLayer;
         var framePath = targetLayer.pathItems.rectangle(tierTop, textLeft - widthSlack, frameWidth, frameHeight);
         var dummyFrame = targetLayer.textFrames.areaText(framePath, TextOrientation.VERTICAL);
-        dummyFrame.contents = buildDummyText(DUMMY_TEXT, lineCount * charsPerLine, 0);
+        var typeStyle = tierContext.typeStyle;
+        dummyFrame.contents = buildDummyText(typeStyle.sourceText, Math.ceil(lineCount * charsPerLine * typeStyle.textRatio), 0);
 
         /* 句点が行頭に来ても字詰どおりに流す / keep every line at the set length even when a period starts it */
         dummyFrame.textRange.paragraphAttributes.kinsoku = "None";
@@ -1504,12 +2552,60 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb9bee6b7a2e"; /* 紹�
         var dummyAttributes = dummyFrame.textRange.characterAttributes;
         if (tierContext.textFont) dummyAttributes.textFont = tierContext.textFont;
         dummyAttributes.size = tierContext.fontSize;
-        dummyAttributes.verticalScale = DUMMY_VERTICAL_SCALE;
+        dummyAttributes.verticalScale = typeStyle.verticalScale;
         dummyAttributes.autoLeading = false;
         dummyAttributes.leading = tierContext.linePitch;
 
         dummyFrame.move(tierContext.dummyGroup, ElementPlacement.PLACEATEND);
         return dummyFrame;
+    }
+
+    /**
+     * 和文／欧文に合わせた新聞ダミーの書体の設定を返す（組み方向とは別に決まる）
+     * @param {boolean} isWestern - 欧文なら true
+     * @param {string} sourceText - 流す文章（normalizeDummyText() で整えたもの）
+     * @param {number} charsPerLine - 字詰（和文の横組みでは1行の文字数に使う）
+     * @returns {{fontNames: string[], sourceText: string, textRatio: number, columnCharsPerLine: number, charWidthRatio: number, columnLeadingRatio: number, verticalScale: number, hyphenation: boolean, verticalColumnRules: boolean}} 書体の設定
+     */
+    function getDummyTypeStyle(isWestern, sourceText, charsPerLine) {
+        if (isWestern) {
+            return {
+                fontNames: WESTERN_FONT_NAMES,
+                sourceText: sourceText,
+                textRatio: WESTERN_TEXT_RATIO,
+                columnCharsPerLine: WESTERN_CHARS_PER_LINE,
+                charWidthRatio: WESTERN_CHAR_WIDTH_RATIO,
+                columnLeadingRatio: WESTERN_LEADING_RATIO,
+                verticalScale: 100,
+                hyphenation: true,
+                verticalColumnRules: true /* 横組みの段間の罫線は段と段の間の縦棒 / horizontal layout: vertical rules between columns */
+            };
+        }
+        return {
+            fontNames: DUMMY_FONT_NAMES,
+            sourceText: sourceText,
+            textRatio: 1,
+            columnCharsPerLine: charsPerLine,
+            charWidthRatio: 1, /* 全角 / full-width */
+            columnLeadingRatio: DUMMY_LEADING_RATIO,
+            verticalScale: DUMMY_VERTICAL_SCALE,
+            hyphenation: false,
+            verticalColumnRules: false
+        };
+    }
+
+    /**
+     * 新聞ダミーに流す文言を整える。改行は詰め（欧文は空白に）、空なら既定の文言にする。
+     * 欧文は繰り返しの継ぎ目で語がくっつかないよう、末尾に空白を足す
+     * @param {string} inputText - 入力された文言
+     * @param {boolean} isWestern - 欧文なら true
+     * @returns {string} 整えた文言
+     */
+    function normalizeDummyText(inputText, isWestern) {
+        var dummyText = String(inputText || "").replace(/[\r\n]+/g, isWestern ? " " : "");
+        if (/^\s*$/.test(dummyText)) return isWestern ? WESTERN_DUMMY_TEXT : DUMMY_TEXT;
+        if (isWestern && !/\s$/.test(dummyText)) dummyText += " ";
+        return dummyText;
     }
 
     /**
@@ -1528,29 +2624,31 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb9bee6b7a2e"; /* 紹�
     }
 
     /**
-     * 欧文の新聞ダミーの寸法を求める。
-     * 二重線の外側の線から外側の線までを段組数ぶんの段（段間は1em）とし、
+     * 横組みの新聞ダミーの寸法を求める。
+     * 罫線の外側の線から外側の線までを段組数ぶんの段（段間は指定の pt）とし、
      * 段の幅（およその1行の文字数 × 平均字幅）から文字サイズを決める。左右の段数は幅に収まる数
      * @param {Object} ruleFrame - getRuleFrame() で求めた二重線の枠
-     * @param {{columnCount: number, dummyWidthPt: number}} headlineSettings - 新聞ダミーの設定
+     * @param {{columnCount: number, tierGap: number, dummyWidthPt: number}} headlineSettings - 新聞ダミーの設定（tierGap は pt）
+     * @param {Object} typeStyle - getDummyTypeStyle() で求めた書体の設定
      * @returns {Object|null} 新聞ダミーの寸法（作らないときは null）
      */
-    function computeWesternDummyLayout(ruleFrame, headlineSettings) {
+    function computeColumnLayout(ruleFrame, headlineSettings, typeStyle) {
         var columnCount = headlineSettings.columnCount;
         var headlineSpan = ruleFrame.outerRightX - ruleFrame.outerLeftX;
         var ruleHeight = ruleFrame.topY - ruleFrame.bottomY;
         if (columnCount < 1 || headlineSettings.dummyWidthPt <= 0 || headlineSpan <= 0 || ruleHeight <= 0) return null;
 
         /* 段の幅を em で表すと、見出しの幅 = 段組数 × 段の幅 ＋（段組数 − 1）× 段間 / the span holds the columns plus the gutters between them */
-        var columnWidthEm = WESTERN_CHARS_PER_LINE * WESTERN_CHAR_WIDTH_RATIO;
-        var fontSize = headlineSpan / (columnCount * columnWidthEm + columnCount - 1);
-        var gutter = fontSize;
+        var columnWidthEm = typeStyle.columnCharsPerLine * typeStyle.charWidthRatio;
+        var gutter = headlineSettings.tierGap;
+        var fontSize = (headlineSpan - (columnCount - 1) * gutter) / (columnCount * columnWidthEm);
+        if (fontSize <= 0) return null; /* 段間が見出しの幅を食い尽くしたら作らない / the gutters leave no room for columns */
         var columnWidth = columnWidthEm * fontSize;
         var columnPitch = columnWidth + gutter;
         var sideColumnCount = Math.max(1, Math.floor((headlineSettings.dummyWidthPt + gutter) / columnPitch + 1e-6));
         return {
             fontSize: fontSize,
-            linePitch: fontSize * WESTERN_LEADING_RATIO,
+            linePitch: fontSize * typeStyle.columnLeadingRatio,
             gutter: gutter,
             columnWidth: columnWidth,
             columnPitch: columnPitch,
@@ -1561,16 +2659,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb9bee6b7a2e"; /* 紹�
     }
 
     /**
-     * 二重線の外側の左右に欧文の段組みを描画し、上下には左右の幅いっぱいの段組みを足す。
-     * 上下の段組みは二重線と同じ高さで、見出しとの間に横罫を引く
+     * 罫線の外側の左右に横組みの段組みを描画し、上下には左右の幅いっぱいの段組みを足す。
+     * 上下の段組みは罫線と同じ高さで、見出しとの間に横罫を引く
      * @param {Document} doc - 対象のドキュメント
      * @param {Layer} targetLayer - 描画先のレイヤー
      * @param {Object} ruleFrame - 二重線の枠
-     * @param {Object} dummyLayout - computeWesternDummyLayout() で求めた寸法
+     * @param {Object} dummyLayout - computeColumnLayout() で求めた寸法
      * @param {number} extraTierCount - 上下それぞれに足す段組みの数
+     * @param {Object} typeStyle - getDummyTypeStyle() で求めた書体の設定
+     * @param {number} tierRuleWidthPt - 段間の罫線の線幅（pt、0なら引かない）
      * @returns {GroupItem} 生成した新聞ダミーのグループ
      */
-    function drawWesternDummy(doc, targetLayer, ruleFrame, dummyLayout, extraTierCount) {
+    function drawColumnDummy(doc, targetLayer, ruleFrame, dummyLayout, extraTierCount, typeStyle, tierRuleWidthPt) {
         var gutter = dummyLayout.gutter;
         var bandHeight = dummyLayout.bandHeight;
 
@@ -1583,35 +2683,66 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb9bee6b7a2e"; /* 紹�
             linePitch: dummyLayout.linePitch,
             columnWidth: dummyLayout.columnWidth,
             columnPitch: dummyLayout.columnPitch,
-            textFont: findDummyFont(WESTERN_FONT_NAMES),
+            gutter: gutter,
+            textFont: findDummyFont(typeStyle.fontNames),
+            typeStyle: typeStyle,
+            tierRuleWidthPt: tierRuleWidthPt,
             strokeColor: createProcessColor(doc, RULE_CMYK),
             columnIndex: 0
         };
 
-        /* 外側の線と本文の間は段間と同じ1em / one gutter between the outer rule and the text */
+        /* 外側の線と本文の間も段間と同じ。見出しの上下で段の並びがそろう / one gutter between the outer rule and the text, so the grid lines up across the headline */
         var leftSideLeft = ruleFrame.outerLeftX - gutter - dummyLayout.sideWidth;
+        var rightSideLeft = ruleFrame.outerRightX + gutter;
         var sideColumnCount = dummyLayout.sideColumnCount;
-        addWesternColumns(columnContext, leftSideLeft, ruleFrame.topY, sideColumnCount, bandHeight);
-        addWesternColumns(columnContext, ruleFrame.outerRightX + gutter, ruleFrame.topY, sideColumnCount, bandHeight);
-
-        /* 上下は左の段から右の段まで、見出しの上も同じ段の並びで / above and below, the same column grid runs across the headline */
-        var fullColumnCount = sideColumnCount * 2 + Math.round((ruleFrame.outerRightX - ruleFrame.outerLeftX + gutter) / dummyLayout.columnPitch);
-        var fullWidth = fullColumnCount * dummyLayout.columnPitch - gutter;
+        var columnPitch = dummyLayout.columnPitch;
         var bandPitch = bandHeight + gutter;
+        /* 上下は左の段から右の段まで、見出しの上も同じ段の並びで / above and below, the same column grid runs across the headline */
+        var fullColumnCount = sideColumnCount * 2 + Math.round((ruleFrame.outerRightX - ruleFrame.outerLeftX + gutter) / columnPitch);
+        var fullWidth = fullColumnCount * columnPitch - gutter;
+
+        if (columnContext.typeStyle.joinsSideColumns) {
+            /* 英字新聞モード：左右の段は上下の段組みの分までつないで1本の長い段にし、上下は見出しの上の段だけ足す
+               English newspaper mode: the side columns run through the bands as single tall columns; bands only over the headline */
+            var columnsTop = ruleFrame.topY + extraTierCount * bandPitch;
+            var columnsHeight = (ruleFrame.topY - ruleFrame.bottomY) + extraTierCount * bandPitch * 2;
+            addDummyColumns(columnContext, leftSideLeft, columnsTop, sideColumnCount, columnsHeight);
+            addDummyColumns(columnContext, rightSideLeft, columnsTop, sideColumnCount, columnsHeight);
+
+            var middleLeft = leftSideLeft + sideColumnCount * columnPitch;
+            var middleCount = fullColumnCount - sideColumnCount * 2;
+            for (var j = 0; j < extraTierCount; j++) {
+                var upperBandTop = ruleFrame.topY + (j + 1) * bandPitch;
+                var lowerBandTop = ruleFrame.bottomY - gutter - j * bandPitch;
+                addDummyColumns(columnContext, middleLeft, upperBandTop, middleCount, bandHeight);
+                addDummyColumns(columnContext, middleLeft, lowerBandTop, middleCount, bandHeight);
+                /* 左右の長い段との境にも縦の罫 / vertical rules where the bands meet the tall side columns */
+                var boundaryXs = [middleLeft - gutter / 2, middleLeft + middleCount * columnPitch - gutter / 2];
+                for (var k = 0; k < boundaryXs.length; k++) {
+                    addColumnRule(columnContext, boundaryXs[k], upperBandTop, bandHeight);
+                    addColumnRule(columnContext, boundaryXs[k], lowerBandTop, bandHeight);
+                }
+            }
+            return dummyGroup;
+        }
+
+        addDummyColumns(columnContext, leftSideLeft, ruleFrame.topY, sideColumnCount, bandHeight);
+        addDummyColumns(columnContext, rightSideLeft, ruleFrame.topY, sideColumnCount, bandHeight);
         for (var j = 0; j < extraTierCount; j++) {
             var upperRuleY = ruleFrame.topY + gutter / 2 + j * bandPitch;
-            addTierRule(columnContext, leftSideLeft, upperRuleY, fullWidth);
-            addWesternColumns(columnContext, leftSideLeft, upperRuleY + gutter / 2 + bandHeight, fullColumnCount, bandHeight);
+            if (!columnContext.typeStyle.verticalColumnRules) addTierRule(columnContext, leftSideLeft, upperRuleY, fullWidth);
+            addDummyColumns(columnContext, leftSideLeft, upperRuleY + gutter / 2 + bandHeight, fullColumnCount, bandHeight);
 
             var lowerRuleY = ruleFrame.bottomY - gutter / 2 - j * bandPitch;
-            addTierRule(columnContext, leftSideLeft, lowerRuleY, fullWidth);
-            addWesternColumns(columnContext, leftSideLeft, lowerRuleY - gutter / 2, fullColumnCount, bandHeight);
+            if (!columnContext.typeStyle.verticalColumnRules) addTierRule(columnContext, leftSideLeft, lowerRuleY, fullWidth);
+            addDummyColumns(columnContext, leftSideLeft, lowerRuleY - gutter / 2, fullColumnCount, bandHeight);
         }
         return dummyGroup;
     }
 
     /**
-     * 欧文の段を横に並べて作る。段ごとに本文の書き出しをずらす
+     * 横組みの段を横に並べて作る。段ごとに本文の書き出しをずらす。
+     * 欧文では段と段の間の中央に縦の罫を引く
      * @param {Object} columnContext - 段の共通設定（columnIndex を進める）
      * @param {number} columnsLeft - 最初の段の左端の X 座標
      * @param {number} columnsTop - 上端の Y 座標
@@ -1619,15 +2750,19 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb9bee6b7a2e"; /* 紹�
      * @param {number} columnHeight - 段の高さ（pt）
      * @returns {void}
      */
-    function addWesternColumns(columnContext, columnsLeft, columnsTop, columnCount, columnHeight) {
+    function addDummyColumns(columnContext, columnsLeft, columnsTop, columnCount, columnHeight) {
         for (var i = 0; i < columnCount; i++) {
-            addWesternColumn(columnContext, columnsLeft + i * columnContext.columnPitch, columnsTop, columnHeight);
+            var columnLeft = columnsLeft + i * columnContext.columnPitch;
+            addDummyColumn(columnContext, columnLeft, columnsTop, columnHeight);
             columnContext.columnIndex++;
+            if (i > 0 && columnContext.typeStyle.verticalColumnRules) {
+                addColumnRule(columnContext, columnLeft - columnContext.gutter / 2, columnsTop, columnHeight);
+            }
         }
     }
 
     /**
-     * 欧文の段を1つ、両端揃えの横組みエリア内文字で作り、新聞ダミーのグループに入れる。
+     * 横組みの段を1つ、両端揃えのエリア内文字で作り、新聞ダミーのグループに入れる。
      * あふれるだけの本文を流し込み、あふれた分は見せない
      * @param {Object} columnContext - 段の共通設定
      * @param {number} columnLeft - 左端の X 座標
@@ -1635,23 +2770,30 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb9bee6b7a2e"; /* 紹�
      * @param {number} columnHeight - 高さ（pt）
      * @returns {TextFrame} 生成したテキストフレーム
      */
-    function addWesternColumn(columnContext, columnLeft, columnTop, columnHeight) {
+    function addDummyColumn(columnContext, columnLeft, columnTop, columnHeight) {
         var targetLayer = columnContext.targetLayer;
         var framePath = targetLayer.pathItems.rectangle(columnTop, columnLeft, columnContext.columnWidth, columnHeight);
         var dummyFrame = targetLayer.textFrames.areaText(framePath);
 
         var lineCount = Math.ceil(columnHeight / columnContext.linePitch) + 1;
-        var charCount = Math.ceil(lineCount * WESTERN_CHARS_PER_LINE * 1.5);
+        var typeStyle = columnContext.typeStyle;
+        var charCount = Math.ceil(lineCount * typeStyle.columnCharsPerLine * 1.5);
         /* 段ごとに書き出しをずらして、同じ文が横に並ばないようにする / start each column elsewhere in the text */
-        dummyFrame.contents = buildDummyText(WESTERN_DUMMY_TEXT, charCount, columnContext.columnIndex * 37);
+        var columnText = buildDummyText(typeStyle.sourceText, charCount, columnContext.columnIndex * 37);
+        /* 欧文は語の途中や空白から始めない / Western columns start at a word, not mid-word or on a space */
+        if (typeStyle.hyphenation && columnContext.columnIndex > 0) columnText = columnText.replace(/^\S*\s+/, "");
+        dummyFrame.contents = columnText;
 
         var dummyParagraph = dummyFrame.textRange.paragraphAttributes;
         dummyParagraph.justification = Justification.FULLJUSTIFYLASTLINELEFT;
-        dummyParagraph.hyphenation = true;
+        dummyParagraph.hyphenation = typeStyle.hyphenation;
+        /* 和文は句点が行頭に来ても詰めて流す / let Japanese periods start a line */
+        if (!typeStyle.hyphenation) dummyParagraph.kinsoku = "None";
 
         var dummyAttributes = dummyFrame.textRange.characterAttributes;
         if (columnContext.textFont) dummyAttributes.textFont = columnContext.textFont;
         dummyAttributes.size = columnContext.fontSize;
+        dummyAttributes.verticalScale = typeStyle.verticalScale;
         dummyAttributes.autoLeading = false;
         dummyAttributes.leading = columnContext.linePitch;
 
@@ -1668,19 +2810,25 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb9bee6b7a2e"; /* 紹�
      * @returns {GroupItem} 全体をまとめたグループ（マスクしたときはクリップグループ）
      */
     function buildHeadlineGroup(doc, targetItem, headlineSettings) {
-        var ruleFrame = getRuleFrame(targetItem, headlineSettings);
         var isWestern = headlineSettings.dummyScript === "western";
-        var dummyLayout = isWestern ?
-            computeWesternDummyLayout(ruleFrame, headlineSettings) :
-            computeDummyLayout(ruleFrame, headlineSettings);
-        /* 二重線を描く前に、和文の新聞ダミーの行に合わせて左右の間隔を調整 / adjust the side spacing to the Japanese dummy lines before drawing the rules */
-        if (dummyLayout && !isWestern) alignRuleFrameToDummyLines(ruleFrame, dummyLayout);
+        var isHorizontal = headlineSettings.dummyDirection === "horizontal";
+        /* 横組みの欧文では、見出しの罫線を上下の横棒にする / horizontal Western puts the headline rules above and below */
+        var ruleFrame = getRuleFrame(targetItem, headlineSettings, isWestern && isHorizontal);
+        var typeStyle = getDummyTypeStyle(isWestern, normalizeDummyText(headlineSettings.dummyText, isWestern), headlineSettings.charsPerLine);
+        /* 英字新聞モードでは左右の段を上下までつなぐ / English newspaper mode joins the side columns top to bottom */
+        typeStyle.joinsSideColumns = headlineSettings.englishNewspaper === true;
+        var dummyLayout = isHorizontal ?
+            computeColumnLayout(ruleFrame, headlineSettings, typeStyle) :
+            computeTierLayout(ruleFrame, headlineSettings, typeStyle);
+        /* 罫線を描く前に、縦組みの新聞ダミーの行に合わせて左右の間隔を調整 / adjust the side spacing to the vertical dummy lines before drawing the rules */
+        if (dummyLayout && !isHorizontal) alignRuleFrameToDummyLines(ruleFrame, dummyLayout);
 
         var ruleGroup = drawSideRules(doc, targetItem, ruleFrame, headlineSettings);
         var dummyGroup = null;
         if (dummyLayout) {
-            var drawDummy = isWestern ? drawWesternDummy : drawNewspaperDummy;
-            dummyGroup = drawDummy(doc, targetItem.layer, ruleFrame, dummyLayout, headlineSettings.extraTierCount);
+            var drawDummy = isHorizontal ? drawColumnDummy : drawTierDummy;
+            dummyGroup = drawDummy(doc, targetItem.layer, ruleFrame, dummyLayout, headlineSettings.extraTierCount,
+                typeStyle, headlineSettings.useTierRules ? headlineSettings.tierRuleWidthPt : 0);
         }
         var headlineGroup = groupHeadlineParts(targetItem, ruleGroup, dummyGroup);
 
@@ -1701,13 +2849,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb9bee6b7a2e"; /* 紹�
             headlineGroup.applyEffect(buildTransformEffectXml(headlineSettings.rotationDeg));
         }
         if (!headlineSettings.useMask) return headlineGroup;
-        return maskWithInscribedRect(headlineGroup, contentBounds, blurInset, headlineSettings.rotationDeg);
+        /* マスクの高さは罫線の天地＋［上下］の長さまで / cap the mask height at the rules plus the Vertical reach */
+        var maxMaskHeight = (ruleFrame.topY - ruleFrame.bottomY) + headlineSettings.maskVerticalPt * 2;
+        return maskWithInscribedRect(headlineGroup, contentBounds, blurInset, headlineSettings.rotationDeg, maxMaskHeight);
     }
 
     /**
      * 対象の位置にグループを置き、前面から対象・二重線・新聞ダミーの順に入れる
      * @param {PageItem} targetItem - 基準にするテキストまたはグループ
-     * @param {GroupItem} ruleGroup - 二重線のグループ
+     * @param {GroupItem|null} ruleGroup - 罫線のグループ（無ければ null）
      * @param {GroupItem|null} dummyGroup - 新聞ダミーのグループ（無ければ null）
      * @returns {GroupItem} まとめたグループ
      */
@@ -1715,7 +2865,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb9bee6b7a2e"; /* 紹�
         var headlineGroup = targetItem.layer.groupItems.add();
         headlineGroup.move(targetItem, ElementPlacement.PLACEBEFORE);
         targetItem.move(headlineGroup, ElementPlacement.PLACEATEND);
-        ruleGroup.move(headlineGroup, ElementPlacement.PLACEATEND);
+        if (ruleGroup) ruleGroup.move(headlineGroup, ElementPlacement.PLACEATEND);
         if (dummyGroup) dummyGroup.move(headlineGroup, ElementPlacement.PLACEATEND);
         return headlineGroup;
     }
@@ -1747,14 +2897,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb9bee6b7a2e"; /* 紹�
      * @param {number[]} contentBounds - 回転前の範囲 [左, 上, 右, 下]
      * @param {number} edgeInset - 範囲の四辺から内側に詰める量（pt）
      * @param {number} rotationDeg - 回転角度（°）
+     * @param {number} maxMaskHeight - マスクの高さの上限（pt）
      * @returns {GroupItem} クリップグループ（範囲が無いときは headlineGroup のまま）
      */
-    function maskWithInscribedRect(headlineGroup, contentBounds, edgeInset, rotationDeg) {
+    function maskWithInscribedRect(headlineGroup, contentBounds, edgeInset, rotationDeg, maxMaskHeight) {
         var contentWidth = contentBounds[2] - contentBounds[0] - edgeInset * 2;
         var contentHeight = contentBounds[1] - contentBounds[3] - edgeInset * 2;
         if (contentWidth <= 0 || contentHeight <= 0) return headlineGroup;
 
         var maskSize = getInscribedRectSize(contentWidth, contentHeight, rotationDeg);
+        maskSize.height = Math.min(maskSize.height, maxMaskHeight);
         /* ［変形］効果は中心を基準に回すので、マスクも中心をそろえる / the Transform effect rotates around the center */
         var centerX = (contentBounds[0] + contentBounds[2]) / 2;
         var centerY = (contentBounds[1] + contentBounds[3]) / 2;
@@ -1894,117 +3046,526 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb9bee6b7a2e"; /* 紹�
     // =========================================
 
     /**
-     * ダイアログと各コントロールを作る
+     * ダイアログと各コントロールを作る。パネルはそれぞれの関数で作り、選択の連動は bindDummyChoices() でつなぐ
      * @param {string} unitLabel - 入力欄に添える単位の表示名
      * @param {number} pointsPerUnit - 1単位あたりのポイント数
      * @param {Function} onValueChange - 入力値が変わったときに呼ぶ関数
-     * @returns {{dialog: Window, fieldInputs: Object, maskCheckbox: Checkbox, getDummyScript: Function}} ダイアログ、キーごとの入力欄、マスクのチェックボックス、和文／欧文の取得
+     * @param {string} initialDummyScript - 和文／欧文の初期値（"japanese" / "western"）
+     * @param {string} initialDummyDirection - 組み方向の初期値（"vertical" / "horizontal"）
+     * @param {number} initialTierCount - 縦組みの［段数］の初期値
+     * @param {boolean} allowsWestern - ［欧文］を選べるか（縦組みの見出しでは false）
+     * @returns {{dialog: Window, fieldInputs: Object, maskCheckbox: Checkbox, tierRuleCheckbox: Checkbox, englishNewspaperCheckbox: Checkbox, fitViewControls: Object, getDummyScript: Function, getDummyDirection: Function, getRuleStyle: Function, getDummyText: Function}} ダイアログ、キーごとの入力欄、マスク・段間の罫線・英字新聞モードのチェックボックス、［画面にフィット］の部品、和文／欧文・組み方向・罫線の種類・文章の取得
      */
-    function buildDialog(unitLabel, pointsPerUnit, onValueChange) {
+    function buildDialog(unitLabel, pointsPerUnit, onValueChange, initialDummyScript, initialDummyDirection, initialTierCount, allowsWestern) {
         var headlineDialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
         setupWindow(headlineDialog);
 
-        /* 入力欄はキー名で fieldLabel／tooltip のラベルを引く。pt の既定値は現在の単位に換算して表示
-           Each field looks up its fieldLabel/tooltip by key; point defaults are shown in the current unit */
-        var fieldInputs = {};
-        var maskCheckbox = null;
-        var lastExtraTierCount = DEFAULT_EXTRA_TIER_COUNT;
-        /* 表示前のラジオの value は読み戻せないので、選択は変数で持つ / radio values cannot be read back before show() */
-        var dummyScript = DEFAULT_DUMMY_SCRIPT;
+        /* パネルの関数で共有する入力欄・単位・状態。表示前のラジオの value は読み戻せないので、選択は state に持つ
+           Shared by the panel builders; radio values cannot be read back before show(), so choices live in state */
+        var dialogContext = {
+            fieldInputs: {},
+            pointsPerUnit: pointsPerUnit,
+            lengthUnit: " " + unitLabel, /* 長さの欄は単位を中に入れる / length fields hold their unit */
+            strokeUnitInfo: getUnitInfo("strokeUnits"), /* 線幅は線の単位 / stroke weight uses the stroke unit */
+            allowsWestern: allowsWestern,
+            onValueChange: onValueChange,
+            onFieldChange: null,
+            state: {
+                ruleStyle: DEFAULT_RULE_STYLE,
+                dummyScript: initialDummyScript,
+                dummyDirection: initialDummyDirection,
+                dummyTexts: { japanese: DUMMY_TEXT, western: WESTERN_DUMMY_TEXT },
+                tierCountTexts: { vertical: String(initialTierCount), horizontal: String(DEFAULT_COLUMN_COUNT) },
+                lastExtraTierCount: DEFAULT_EXTRA_TIER_COUNT
+            },
+            controls: {}
+        };
+        var fieldInputs = dialogContext.fieldInputs;
+        var controls = dialogContext.controls;
 
         /**
-         * ［上下に追加］が0になったらマスクをOFFにしてから、変更を通知する。0のままでも手動でONに戻せる
+         * 数値欄の変更を伝える。［段数追加］が0になったらマスクをOFFにする（0のままでも手動でONに戻せる）
          * @returns {void}
          */
-        function handleValueChange() {
+        dialogContext.onFieldChange = function () {
             /* 空欄は入力途中なので0と見なさない（NaN）/ an empty field is mid-edit, not 0 */
             var extraTierCount = Math.floor(readFieldAsNumber(fieldInputs.extraTierCount, NaN, false));
-            if (extraTierCount === 0 && lastExtraTierCount !== 0) maskCheckbox.value = false;
-            lastExtraTierCount = extraTierCount;
+            if (extraTierCount === 0 && dialogContext.state.lastExtraTierCount !== 0) {
+                controls.maskCheckbox.value = false;
+                controls.updateMaskFields(true);
+            }
+            dialogContext.state.lastExtraTierCount = extraTierCount;
             onValueChange();
-        }
+        };
 
-        /* 2カラム：左に二重線とオプション、右に新聞ダミー / two columns: rules and options on the left, dummy on the right */
+        /* 2カラム：左にマージン・罫線・マスクと回転、右に組版設定・ダミー文章 / two columns: margins, rules, and mask and rotation on the left; typesetting and dummy text on the right */
         var columnsGroup = headlineDialog.add("group");
         columnsGroup.orientation = "row";
         columnsGroup.alignChildren = ["fill", "top"];
         columnsGroup.spacing = COLUMN_SPACING;
-        var leftColumn = columnsGroup.add("group");
-        leftColumn.orientation = "column";
-        leftColumn.alignChildren = ["fill", "top"];
-        leftColumn.spacing = WINDOW_SPACING;
-        var rightColumn = columnsGroup.add("group");
-        rightColumn.orientation = "column";
-        rightColumn.alignChildren = ["fill", "top"];
-        rightColumn.spacing = WINDOW_SPACING;
+        var leftColumn = addDialogColumn(columnsGroup);
+        var rightColumn = addDialogColumn(columnsGroup);
 
-        addNumericFieldPanel(leftColumn, "panel.sideRules", [
-            { key: "marginVertical", initialText: formatUnitValue(DEFAULT_VERTICAL_MARGIN_PT, pointsPerUnit), unitLabel: unitLabel },
-            { key: "marginHorizontal", initialText: formatUnitValue(DEFAULT_HORIZONTAL_MARGIN_PT, pointsPerUnit), unitLabel: unitLabel },
-            { key: "lineGap", initialText: formatUnitValue(DEFAULT_LINE_GAP_PT, pointsPerUnit), unitLabel: unitLabel }
-        ], fieldInputs, handleValueChange);
-
-        var dummyPanel = rightColumn.add("panel", undefined, getLabel("panel.newspaperDummy"));
-        setupPanel(dummyPanel);
-
-        /* 和文／欧文 / Japanese or Western */
-        var scriptRow = dummyPanel.add("group");
-        setupRow(scriptRow);
-        var japaneseRadio = scriptRow.add("radiobutton", undefined, getLabel("radio.japanese"));
-        var westernRadio = scriptRow.add("radiobutton", undefined, getLabel("radio.western"));
-        japaneseRadio.helpTip = getLabel("tooltip.japanese");
-        westernRadio.helpTip = getLabel("tooltip.western");
-        japaneseRadio.value = (dummyScript !== "western");
-        westernRadio.value = (dummyScript === "western");
-
-        addNumericFieldRows(dummyPanel, [
-            { key: "charsPerLine", initialText: String(DEFAULT_CHARS_PER_LINE), unitLabel: getLabel("unit.chars"), integer: true, min: 1 },
-            { key: "tierCount", initialText: String(DEFAULT_TIER_COUNT), unitLabel: getLabel("unit.tiers"), integer: true },
-            { key: "columnCount", initialText: String(DEFAULT_COLUMN_COUNT), unitLabel: getLabel("unit.columns"), integer: true, min: 1 },
-            { key: "extraTierCount", initialText: String(DEFAULT_EXTRA_TIER_COUNT), unitLabel: getLabel("unit.tiers"), integer: true },
-            { key: "dummyWidth", initialText: formatUnitValue(DEFAULT_DUMMY_WIDTH_PT, pointsPerUnit), unitLabel: unitLabel },
-            { key: "blurRadius", initialText: String(DEFAULT_BLUR_RADIUS), unitLabel: "px" }
-        ], fieldInputs, handleValueChange, true);
-
-        /**
-         * 和文／欧文に合わせて、使わない欄を無効にする（字詰・段数は和文、段組数は欧文だけ）
-         * @param {boolean} redrawsSteppers - ∧∨も描き直すか（表示前は false）
-         * @returns {void}
-         */
-        function updateScriptFields(redrawsSteppers) {
-            var isWestern = dummyScript === "western";
-            setFieldRowEnabled(fieldInputs.charsPerLine, !isWestern, redrawsSteppers);
-            setFieldRowEnabled(fieldInputs.tierCount, !isWestern, redrawsSteppers);
-            setFieldRowEnabled(fieldInputs.columnCount, isWestern, redrawsSteppers);
-        }
-
-        japaneseRadio.onClick = function () {
-            dummyScript = "japanese";
-            updateScriptFields(true);
-            onValueChange();
-        };
-        westernRadio.onClick = function () {
-            dummyScript = "western";
-            updateScriptFields(true);
-            onValueChange();
-        };
-        updateScriptFields(false);
-
-        var optionsPanel = addNumericFieldPanel(leftColumn, "panel.options", [
-            { key: "rotation", initialText: String(DEFAULT_ROTATION_DEG), unitLabel: "°", allowNegative: true }
-        ], fieldInputs, handleValueChange);
-        maskCheckbox = addCheckboxRow(optionsPanel, "useMask", DEFAULT_USE_MASK && DEFAULT_EXTRA_TIER_COUNT > 0, onValueChange);
+        buildMarginPanel(leftColumn, dialogContext);
+        buildRulePanel(leftColumn, dialogContext);
+        buildTypesettingPanel(rightColumn, dialogContext);
+        buildDummyTextPanel(rightColumn, dialogContext);
+        buildMaskRotationPanel(leftColumn, dialogContext);
+        bindDummyChoices(dialogContext);
+        alignDialogLabels(dialogContext);
 
         var buttonRow = addButtonRow(headlineDialog);
-        var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
-        var btnOK = buttonRow.rightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+        /* ボタン行の左に［画面にフィット］/ Fit to Window on the left of the button row */
+        var fitViewControls = FitViewToItems.addControls(buttonRow.leftGroup, { value: DEFAULT_FIT_VIEW, stepper: true });
+        buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+        buttonRow.rightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
         alignRightOnlyButtonRow(buttonRow);
+
+        /* option＋B で［ぼかし］を切り替える。数値欄にフォーカスがあっても効かせる / Option+B toggles Blur, even from the numeric fields */
+        var numericFields = [fitViewControls.percentInput];
+        for (var fieldKey in fieldInputs) {
+            if (fieldInputs.hasOwnProperty(fieldKey)) numericFields.push(fieldInputs[fieldKey]);
+        }
+        addKeyShortcuts(headlineDialog, {
+            "Alt+B": fieldInputs.blurRadius.optionCheckbox
+        }, { numericFields: numericFields, showInTip: true });
+
+        var state = dialogContext.state;
         return {
             dialog: headlineDialog,
             fieldInputs: fieldInputs,
-            maskCheckbox: maskCheckbox,
-            getDummyScript: function () { return dummyScript; }
+            maskCheckbox: controls.maskCheckbox,
+            tierRuleCheckbox: controls.tierRuleCheckbox,
+            englishNewspaperCheckbox: controls.englishNewspaperCheckbox,
+            fitViewControls: fitViewControls,
+            getDummyScript: function () { return state.dummyScript; },
+            getDummyDirection: function () { return state.dummyDirection; },
+            getRuleStyle: function () { return state.ruleStyle; },
+            getDummyText: function () { return state.dummyTexts[state.dummyScript]; }
         };
+    }
+
+    /**
+     * ダイアログの縦のカラム（パネルを縦に積む group）を追加する
+     * @param {Group} columnsGroup - 追加先の横並びの group
+     * @returns {Group} 追加したカラム
+     */
+    function addDialogColumn(columnsGroup) {
+        var dialogColumn = columnsGroup.add("group");
+        dialogColumn.orientation = "column";
+        dialogColumn.alignChildren = ["fill", "top"];
+        dialogColumn.spacing = WINDOW_SPACING;
+        return dialogColumn;
+    }
+
+    /**
+     * ［マージン］パネルを作る。上下・左右の欄を縦に積み、右に連動のリンクアイコンを置く
+     * @param {Group} parentColumn - 追加先のカラム
+     * @param {Object} dialogContext - buildDialog() の共有データ
+     * @returns {void}
+     */
+    function buildMarginPanel(parentColumn, dialogContext) {
+        var fieldInputs = dialogContext.fieldInputs;
+        var marginPanel = parentColumn.add("panel", undefined, getLabel("panel.margin"));
+        setupPanel(marginPanel);
+        var marginRow = marginPanel.add("group");
+        marginRow.orientation = "row";
+        marginRow.alignChildren = ["left", "center"];
+        marginRow.spacing = FIELD_ROW_SPACING;
+        var marginFieldsGroup = marginRow.add("group");
+        marginFieldsGroup.orientation = "column";
+        marginFieldsGroup.alignChildren = ["left", "center"];
+        marginFieldsGroup.spacing = marginPanel.spacing;
+        marginFieldsGroup.margins = 0;
+        var marginLinkToggle = null;
+
+        /**
+         * 連動中なら、変更した側の値をもう一方へ写してから変更を通知する
+         * @param {string} sourceKey - 変更した欄のキー
+         * @returns {void}
+         */
+        function handleMarginChange(sourceKey) {
+            if (marginLinkToggle && marginLinkToggle.value) {
+                var targetKey = (sourceKey === "marginVertical") ? "marginHorizontal" : "marginVertical";
+                fieldInputs[targetKey].text = fieldInputs[sourceKey].text;
+            }
+            dialogContext.onFieldChange();
+        }
+
+        fieldInputs.marginVertical = addNumericFieldRow(marginFieldsGroup,
+            { key: "marginVertical", initialText: formatUnitValue(DEFAULT_VERTICAL_MARGIN_PT, dialogContext.pointsPerUnit), fieldUnit: dialogContext.lengthUnit },
+            function () { handleMarginChange("marginVertical"); });
+        fieldInputs.marginHorizontal = addNumericFieldRow(marginFieldsGroup,
+            { key: "marginHorizontal", initialText: formatUnitValue(DEFAULT_HORIZONTAL_MARGIN_PT, dialogContext.pointsPerUnit), fieldUnit: dialogContext.lengthUnit },
+            function () { handleMarginChange("marginHorizontal"); });
+        /* 連動をONにしたら上下の値に左右をそろえる / turning the link on copies the vertical value to the horizontal one */
+        marginLinkToggle = addLinkToggle(marginRow, DEFAULT_LINK_MARGINS, function () { handleMarginChange("marginVertical"); });
+        marginLinkToggle.helpTip = getLabel("tooltip.linkMargins");
+        if (DEFAULT_LINK_MARGINS) fieldInputs.marginHorizontal.text = fieldInputs.marginVertical.text;
+    }
+
+    /**
+     * ［罫線］パネルを作る。種類のラジオボタン（4つなので縦に積む）と、線幅・線の間隔
+     * @param {Group} parentColumn - 追加先のカラム
+     * @param {Object} dialogContext - buildDialog() の共有データ（controls.ruleStyleRadios と controls.updateRuleFields を足す）
+     * @returns {void}
+     */
+    function buildRulePanel(parentColumn, dialogContext) {
+        var fieldInputs = dialogContext.fieldInputs;
+        var state = dialogContext.state;
+        var strokeUnitInfo = dialogContext.strokeUnitInfo;
+        var rulePanel = parentColumn.add("panel", undefined, getLabel("panel.sideRules"));
+        setupPanel(rulePanel);
+
+        /* 4つあるので縦に積み、ダイアログの幅を広げない / stacked so the four choices do not widen the dialog */
+        var ruleStyleGroup = rulePanel.add("group");
+        ruleStyleGroup.orientation = "column";
+        ruleStyleGroup.alignChildren = ["left", "center"];
+        ruleStyleGroup.spacing = RADIO_COLUMN_SPACING;
+        var ruleStyleOptions = [
+            { name: "double", labelKey: "ruleDouble" },
+            { name: "single", labelKey: "ruleSingle" },
+            { name: "singleTop", labelKey: "ruleSingleTop" },
+            { name: "none", labelKey: "ruleNone" }
+        ];
+        var ruleStyleRadios = {};
+        for (var i = 0; i < ruleStyleOptions.length; i++) {
+            var ruleStyleRadio = ruleStyleGroup.add("radiobutton", undefined, getLabel("radio." + ruleStyleOptions[i].labelKey));
+            ruleStyleRadios[ruleStyleOptions[i].name] = ruleStyleRadio;
+            ruleStyleRadio.helpTip = getLabel("tooltip." + ruleStyleOptions[i].labelKey);
+            ruleStyleRadio.value = (ruleStyleOptions[i].name === state.ruleStyle);
+            ruleStyleRadio.ruleStyle = ruleStyleOptions[i].name;
+            ruleStyleRadio.onClick = function () {
+                state.ruleStyle = this.ruleStyle;
+                updateRuleFields(true);
+                dialogContext.onValueChange();
+            };
+        }
+
+        addNumericFieldRows(rulePanel, [
+            {
+                key: "ruleStrokeWidth", fieldUnit: " " + strokeUnitInfo.label,
+                initialText: formatUnitValue(DEFAULT_RULE_STROKE_WIDTH_PT, strokeUnitInfo.pointsPerUnit)
+            },
+            { key: "lineGap", initialText: formatUnitValue(DEFAULT_LINE_GAP_PT, dialogContext.pointsPerUnit), fieldUnit: dialogContext.lengthUnit }
+        ], fieldInputs, dialogContext.onFieldChange);
+
+        /**
+         * ［線幅］は［なし］以外、［線の間隔］は［二重］のときだけ有効にする
+         * @param {boolean} redrawsSteppers - ∧∨も描き直すか（表示前は false）
+         * @returns {void}
+         */
+        function updateRuleFields(redrawsSteppers) {
+            setFieldRowEnabled(fieldInputs.ruleStrokeWidth, state.ruleStyle !== "none", redrawsSteppers);
+            setFieldRowEnabled(fieldInputs.lineGap, state.ruleStyle === "double", redrawsSteppers);
+        }
+        updateRuleFields(false);
+
+        dialogContext.controls.ruleStyleRadios = ruleStyleRadios;
+        dialogContext.controls.updateRuleFields = updateRuleFields;
+    }
+
+    /**
+     * ［組版設定］パネルを作る。組み方向・英字新聞モード・字詰・段数・段間・段数追加・段間の罫線と線幅・ぼかし
+     * @param {Group} parentColumn - 追加先のカラム
+     * @param {Object} dialogContext - buildDialog() の共有データ（組み方向のラジオと各チェックボックスを controls に足す）
+     * @returns {void}
+     */
+    function buildTypesettingPanel(parentColumn, dialogContext) {
+        var fieldInputs = dialogContext.fieldInputs;
+        var controls = dialogContext.controls;
+        var state = dialogContext.state;
+        var strokeUnitInfo = dialogContext.strokeUnitInfo;
+        var typesettingPanel = parentColumn.add("panel", undefined, getLabel("panel.typesetting"));
+        setupPanel(typesettingPanel);
+
+        /* 組み方向：縦組み（段）／横組み（段組み） / direction: vertical tiers or horizontal columns */
+        var directionRow = typesettingPanel.add("group");
+        setupRow(directionRow, undefined, FIELD_ROW_SPACING);
+        controls.directionLabel = directionRow.add("statictext", undefined, labelText("fieldLabel.dummyDirection"));
+        controls.verticalRadio = directionRow.add("radiobutton", undefined, getLabel("radio.vertical"));
+        controls.horizontalRadio = directionRow.add("radiobutton", undefined, getLabel("radio.horizontal"));
+        controls.verticalRadio.helpTip = getLabel("tooltip.vertical");
+        controls.horizontalRadio.helpTip = getLabel("tooltip.horizontal");
+        controls.verticalRadio.value = (state.dummyDirection !== "horizontal");
+        controls.horizontalRadio.value = (state.dummyDirection === "horizontal");
+
+        /* 英字新聞モード：ON の間は横組み・欧文に固定し、罫線を［1本（上のみ）］にする / English newspaper mode */
+        var englishNewspaperCheckbox = addCheckboxRow(typesettingPanel, "englishNewspaper", false, dialogContext.onValueChange);
+        englishNewspaperCheckbox.enabled = dialogContext.allowsWestern; /* 縦組みの見出しでは欧文を使わない / not for vertical headlines */
+        if (!dialogContext.allowsWestern) englishNewspaperCheckbox.helpTip = getLabel("tooltip.englishNewspaperVertical");
+        controls.englishNewspaperCheckbox = englishNewspaperCheckbox;
+
+        addNumericFieldRows(typesettingPanel, [
+            { key: "charsPerLine", initialText: String(DEFAULT_CHARS_PER_LINE), unitLabel: getLabel("unit.chars"), integer: true, min: 1 },
+            /* ［段数］は縦組みと横組みで意味を切り替える。単位は長い方で幅を取っておく / one Tiers field whose meaning follows the direction; the unit is sized for the longer label */
+            { key: "tierCount", initialText: state.tierCountTexts[state.dummyDirection], unitLabel: getLabel("unit.columns"), integer: true },
+            { key: "tierGap", initialText: formatUnitValue(DEFAULT_TIER_GAP_PT, dialogContext.pointsPerUnit), fieldUnit: dialogContext.lengthUnit },
+            { key: "extraTierCount", initialText: String(DEFAULT_EXTRA_TIER_COUNT), unitLabel: getLabel("unit.tiers"), integer: true }
+        ], fieldInputs, dialogContext.onFieldChange);
+        /* 単位は長い方（columns）で作ってあるので、短い単位に替えても幅を保つ / the unit was created with the longer label; keep that width */
+        fieldInputs.tierCount.unitText.preferredSize.width = fieldInputs.tierCount.unitText.preferredSize.width;
+
+        var tierRuleCheckbox = addCheckboxRow(typesettingPanel, "useTierRules", DEFAULT_USE_TIER_RULES, dialogContext.onValueChange);
+        addNumericFieldRows(typesettingPanel, [
+            {
+                key: "tierRuleWidth", fieldUnit: " " + strokeUnitInfo.label,
+                initialText: formatUnitValue(DEFAULT_TIER_RULE_WIDTH_PT, strokeUnitInfo.pointsPerUnit)
+            },
+            { key: "blurRadius", initialText: String(DEFAULT_BLUR_RADIUS), unitLabel: "px", checkboxKey: "useBlur", checked: DEFAULT_USE_BLUR }
+        ], fieldInputs, dialogContext.onFieldChange);
+
+        /* ［段間の罫線］がOFFなら［線幅］をディムにする / dim Weight while Tier rules is off */
+        tierRuleCheckbox.onClick = function () {
+            setFieldRowEnabled(fieldInputs.tierRuleWidth, tierRuleCheckbox.value, true);
+            dialogContext.onValueChange();
+        };
+        setFieldRowEnabled(fieldInputs.tierRuleWidth, DEFAULT_USE_TIER_RULES, false);
+        controls.tierRuleCheckbox = tierRuleCheckbox;
+    }
+
+    /**
+     * ［ダミー文章］パネルを作る。和文／欧文のラジオボタンと、文章を設定する［文章...］ボタン
+     * @param {Group} parentColumn - 追加先のカラム
+     * @param {Object} dialogContext - buildDialog() の共有データ（和文／欧文のラジオを controls に足す）
+     * @returns {void}
+     */
+    function buildDummyTextPanel(parentColumn, dialogContext) {
+        var controls = dialogContext.controls;
+        var state = dialogContext.state;
+        var dummyTextPanel = parentColumn.add("panel", undefined, getLabel("panel.dummyText"));
+        setupPanel(dummyTextPanel);
+
+        var scriptRow = dummyTextPanel.add("group");
+        setupRow(scriptRow);
+        controls.japaneseRadio = scriptRow.add("radiobutton", undefined, getLabel("radio.japanese"));
+        controls.westernRadio = scriptRow.add("radiobutton", undefined, getLabel("radio.western"));
+        controls.japaneseRadio.helpTip = getLabel("tooltip.japanese");
+        controls.westernRadio.helpTip = getLabel(dialogContext.allowsWestern ? "tooltip.western" : "tooltip.westernVertical");
+        controls.westernRadio.enabled = dialogContext.allowsWestern; /* 縦組みの見出しには欧文を組み合わせない / no Western text for vertical headlines */
+        controls.japaneseRadio.value = (state.dummyScript !== "western");
+        controls.westernRadio.value = (state.dummyScript === "western");
+
+        /* 文章は和文・欧文で別々に持ち、別ダイアログボックスで設定する / the text is kept per script and edited in a separate dialog */
+        var dummyTextRow = dummyTextPanel.add("group");
+        setupRow(dummyTextRow);
+        var btnDummyText = dummyTextRow.add("button", undefined, getLabel("button.dummyText"));
+        btnDummyText.helpTip = getLabel("tooltip.dummyText");
+        btnDummyText.onClick = function () {
+            if (showDummyTextDialog(state.dummyTexts)) dialogContext.onValueChange();
+        };
+    }
+
+    /**
+     * ［マスクと回転］パネルを作る。上から回転・マスク・左右・上下
+     * @param {Group} parentColumn - 追加先のカラム
+     * @param {Object} dialogContext - buildDialog() の共有データ（controls.maskCheckbox と controls.updateMaskFields を足す）
+     * @returns {void}
+     */
+    function buildMaskRotationPanel(parentColumn, dialogContext) {
+        var fieldInputs = dialogContext.fieldInputs;
+        var maskRotationPanel = addNumericFieldPanel(parentColumn, "panel.maskRotation", [
+            { key: "rotation", initialText: String(DEFAULT_ROTATION_DEG), unitLabel: "°", allowNegative: true }
+        ], fieldInputs, dialogContext.onFieldChange);
+        var maskCheckbox = addCheckboxRow(maskRotationPanel, "useMask", DEFAULT_USE_MASK && DEFAULT_EXTRA_TIER_COUNT > 0, dialogContext.onValueChange);
+        addNumericFieldRows(maskRotationPanel, [
+            { key: "dummyWidth", initialText: formatUnitValue(DEFAULT_DUMMY_WIDTH_PT, dialogContext.pointsPerUnit), fieldUnit: dialogContext.lengthUnit },
+            { key: "maskVertical", initialText: formatUnitValue(DEFAULT_MASK_VERTICAL_PT, dialogContext.pointsPerUnit), fieldUnit: dialogContext.lengthUnit }
+        ], fieldInputs, dialogContext.onFieldChange);
+
+        /**
+         * マスクがOFFなら［左右］［上下］をディムにする
+         * @param {boolean} redrawsSteppers - ∧∨も描き直すか（表示前は false）
+         * @returns {void}
+         */
+        function updateMaskFields(redrawsSteppers) {
+            setFieldRowEnabled(fieldInputs.dummyWidth, maskCheckbox.value, redrawsSteppers);
+            setFieldRowEnabled(fieldInputs.maskVertical, maskCheckbox.value, redrawsSteppers);
+        }
+        maskCheckbox.onClick = function () {
+            updateMaskFields(true);
+            dialogContext.onValueChange();
+        };
+        updateMaskFields(false);
+
+        dialogContext.controls.maskCheckbox = maskCheckbox;
+        dialogContext.controls.updateMaskFields = updateMaskFields;
+    }
+
+    /**
+     * 和文／欧文・組み方向・英字新聞モード・罫線の種類の連動をつなぐ。
+     * ［段数］の値は組み方向ごとに持ち、［1本（上のみ）］は横組みの欧文のときだけ選べる
+     * @param {Object} dialogContext - buildDialog() の共有データ（パネルをすべて作ったあとに呼ぶ）
+     * @returns {void}
+     */
+    function bindDummyChoices(dialogContext) {
+        var fieldInputs = dialogContext.fieldInputs;
+        var controls = dialogContext.controls;
+        var state = dialogContext.state;
+        var ruleStyleRadios = controls.ruleStyleRadios;
+        /* 英字新聞モードを ON にする前の選択（OFF で戻す）/ choices before English newspaper mode, restored on OFF */
+        var choicesBeforeEnglishMode = null;
+
+        /**
+         * 和文／欧文を選び、ラジオボタンもそろえる（プレビューはしない）
+         * @param {string} nextScript - "japanese" または "western"
+         * @returns {void}
+         */
+        function setDummyScript(nextScript) {
+            state.dummyScript = nextScript;
+            controls.japaneseRadio.value = (nextScript !== "western");
+            controls.westernRadio.value = (nextScript === "western");
+        }
+
+        /**
+         * 縦組み／横組みを選び、ラジオボタンと［段数］もそろえる（プレビューはしない）。［段数］の値は組み方向ごとに持つ
+         * @param {string} nextDirection - "vertical" または "horizontal"
+         * @returns {void}
+         */
+        function setDummyDirection(nextDirection) {
+            state.tierCountTexts[state.dummyDirection] = fieldInputs.tierCount.text;
+            state.dummyDirection = nextDirection;
+            fieldInputs.tierCount.text = state.tierCountTexts[nextDirection];
+            controls.verticalRadio.value = (nextDirection !== "horizontal");
+            controls.horizontalRadio.value = (nextDirection === "horizontal");
+        }
+
+        /**
+         * 字詰を有効／無効にし（欧文の横組みだけ無効）、［段数］の説明と単位を組み方向に合わせる。
+         * ［1本（上のみ）］は横組みの欧文のときだけ選べ、選べなくなったら［1本（上下）］に戻す
+         * @param {boolean} redrawsSteppers - ∧∨も描き直すか（表示前は false）
+         * @returns {void}
+         */
+        function updateDummyFields(redrawsSteppers) {
+            var isHorizontal = state.dummyDirection === "horizontal";
+            var isHorizontalWestern = isHorizontal && state.dummyScript === "western";
+            setFieldRowEnabled(fieldInputs.charsPerLine, !isHorizontalWestern, redrawsSteppers);
+            ruleStyleRadios.singleTop.enabled = isHorizontalWestern;
+            if (!isHorizontalWestern && state.ruleStyle === "singleTop") {
+                state.ruleStyle = "single";
+                ruleStyleRadios.single.value = true;
+                ruleStyleRadios.singleTop.value = false;
+                controls.updateRuleFields(redrawsSteppers);
+            }
+            fieldInputs.tierCount.helpTip = getLabel(isHorizontal ? "tooltip.columnCount" : "tooltip.tierCount");
+            fieldInputs.tierCount.unitText.text = getLabel(isHorizontal ? "unit.columns" : "unit.tiers");
+        }
+
+        /**
+         * 選択を反映してプレビューする
+         * @returns {void}
+         */
+        function refreshAfterChoice() {
+            updateDummyFields(true);
+            dialogContext.onValueChange();
+        }
+
+        /**
+         * 英字新聞モードの ON／OFF を反映する。ON で横組み・欧文・［1本（上のみ）］にして組み方向と和文／欧文を固定、
+         * OFF で元の組み方向と和文／欧文に戻す
+         * @returns {void}
+         */
+        function applyEnglishNewspaperMode() {
+            var isOn = controls.englishNewspaperCheckbox.value;
+            if (isOn) {
+                choicesBeforeEnglishMode = { script: state.dummyScript, direction: state.dummyDirection };
+                setDummyScript("western");
+                setDummyDirection("horizontal");
+                state.ruleStyle = "singleTop";
+                for (var styleName in ruleStyleRadios) {
+                    if (ruleStyleRadios.hasOwnProperty(styleName)) ruleStyleRadios[styleName].value = (styleName === "singleTop");
+                }
+            } else if (choicesBeforeEnglishMode) {
+                setDummyScript(choicesBeforeEnglishMode.script);
+                setDummyDirection(choicesBeforeEnglishMode.direction);
+                choicesBeforeEnglishMode = null;
+            }
+            controls.verticalRadio.enabled = !isOn;
+            controls.horizontalRadio.enabled = !isOn;
+            controls.japaneseRadio.enabled = !isOn;
+            controls.westernRadio.enabled = !isOn && dialogContext.allowsWestern;
+            controls.updateRuleFields(true);
+            refreshAfterChoice();
+        }
+
+        controls.japaneseRadio.onClick = function () { state.dummyScript = "japanese"; refreshAfterChoice(); };
+        controls.westernRadio.onClick = function () { state.dummyScript = "western"; refreshAfterChoice(); };
+        controls.verticalRadio.onClick = function () { setDummyDirection("vertical"); refreshAfterChoice(); };
+        controls.horizontalRadio.onClick = function () { setDummyDirection("horizontal"); refreshAfterChoice(); };
+        controls.englishNewspaperCheckbox.onClick = applyEnglishNewspaperMode;
+        updateDummyFields(false);
+    }
+
+    /**
+     * 左右のカラムそれぞれで、項目名をいちばん長いものの実測幅にそろえて右揃えにする。
+     * チェックボックスの行の字下げと、［ぼかし］のチェックボックスの幅も同じにして入力欄の列を合わせる
+     * @param {Object} dialogContext - buildDialog() の共有データ（パネルをすべて作ったあとに呼ぶ）
+     * @returns {void}
+     */
+    function alignDialogLabels(dialogContext) {
+        var fieldInputs = dialogContext.fieldInputs;
+        var controls = dialogContext.controls;
+
+        var leftLabelWidth = alignLabelWidths([
+            fieldInputs.marginVertical.fieldLabel,
+            fieldInputs.marginHorizontal.fieldLabel,
+            fieldInputs.ruleStrokeWidth.fieldLabel,
+            fieldInputs.lineGap.fieldLabel,
+            fieldInputs.rotation.fieldLabel,
+            fieldInputs.dummyWidth.fieldLabel,
+            fieldInputs.maskVertical.fieldLabel
+        ], "right");
+        controls.maskCheckbox.labelSpacer.preferredSize.width = leftLabelWidth;
+
+        var typesettingLabels = [
+            controls.directionLabel,
+            fieldInputs.charsPerLine.fieldLabel,
+            fieldInputs.tierCount.fieldLabel,
+            fieldInputs.tierGap.fieldLabel,
+            fieldInputs.extraTierCount.fieldLabel,
+            fieldInputs.tierRuleWidth.fieldLabel
+        ];
+        var blurCheckbox = fieldInputs.blurRadius.optionCheckbox;
+        var typesettingLabelWidth = Math.max(alignLabelWidths(typesettingLabels, "right"), blurCheckbox.preferredSize.width);
+        for (var i = 0; i < typesettingLabels.length; i++) {
+            typesettingLabels[i].preferredSize.width = typesettingLabelWidth;
+        }
+        blurCheckbox.preferredSize.width = typesettingLabelWidth;
+        controls.tierRuleCheckbox.labelSpacer.preferredSize.width = typesettingLabelWidth;
+        controls.englishNewspaperCheckbox.labelSpacer.preferredSize.width = typesettingLabelWidth;
+    }
+
+    /**
+     * 新聞ダミーの文言を和文・欧文それぞれ編集するダイアログボックスを表示する。OK なら dummyTexts を書き換える
+     * @param {{japanese: string, western: string}} dummyTexts - 和文・欧文の文言（OK で書き換える）
+     * @returns {boolean} OK で閉じたら true
+     */
+    function showDummyTextDialog(dummyTexts) {
+        var textDialog = new Window("dialog", getLabel("dialog.dummyTextTitle"));
+        setupWindow(textDialog);
+
+        var scriptKeys = ["japanese", "western"];
+        var textInputs = {};
+        for (var i = 0; i < scriptKeys.length; i++) {
+            var textPanel = textDialog.add("panel", undefined, getLabel("radio." + scriptKeys[i]));
+            setupPanel(textPanel);
+            var textInput = textPanel.add("edittext", undefined, dummyTexts[scriptKeys[i]], { multiline: true, scrolling: true });
+            textInput.preferredSize = DUMMY_TEXT_INPUT_SIZE;
+            textInput.helpTip = getLabel("tooltip.dummyTextInput");
+            textInputs[scriptKeys[i]] = textInput;
+        }
+
+        var buttonRow = addButtonRow(textDialog);
+        buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+        buttonRow.rightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+        alignRightOnlyButtonRow(buttonRow);
+        prepareDialogWindow(textDialog, SCRIPT_NAME + "DummyText");
+
+        if (textDialog.show() !== 1) return false;
+        for (var j = 0; j < scriptKeys.length; j++) {
+            dummyTexts[scriptKeys[j]] = textInputs[scriptKeys[j]].text;
+        }
+        return true;
     }
 
     /**
@@ -2014,13 +3575,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb9bee6b7a2e"; /* 紹�
      * @param {Object[]} fieldSpecs - 行の定義（key, initialText, unitLabel, allowNegative, integer, min）
      * @param {Object} fieldInputs - 作った入力欄を key ごとに入れる先
      * @param {Function} onValueChange - 入力値が変わったときに呼ぶ関数
-     * @param {boolean} [autoLabelWidth] - true なら項目名の幅を固定せず成り行きにする
      * @returns {Panel} 作ったパネル
      */
-    function addNumericFieldPanel(parentColumn, panelLabelPath, fieldSpecs, fieldInputs, onValueChange, autoLabelWidth) {
+    function addNumericFieldPanel(parentColumn, panelLabelPath, fieldSpecs, fieldInputs, onValueChange) {
         var fieldPanel = parentColumn.add("panel", undefined, getLabel(panelLabelPath));
         setupPanel(fieldPanel);
-        addNumericFieldRows(fieldPanel, fieldSpecs, fieldInputs, onValueChange, autoLabelWidth);
+        addNumericFieldRows(fieldPanel, fieldSpecs, fieldInputs, onValueChange);
         return fieldPanel;
     }
 
@@ -2030,12 +3590,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb9bee6b7a2e"; /* 紹�
      * @param {Object[]} fieldSpecs - 行の定義（addNumericFieldRow() を参照）
      * @param {Object} fieldInputs - 作った入力欄を key ごとに入れる先
      * @param {Function} onValueChange - 入力値が変わったときに呼ぶ関数
-     * @param {boolean} [autoLabelWidth] - true なら項目名の幅を固定せず成り行きにする
      * @returns {void}
      */
-    function addNumericFieldRows(parentContainer, fieldSpecs, fieldInputs, onValueChange, autoLabelWidth) {
+    function addNumericFieldRows(parentContainer, fieldSpecs, fieldInputs, onValueChange) {
         for (var i = 0; i < fieldSpecs.length; i++) {
-            fieldInputs[fieldSpecs[i].key] = addNumericFieldRow(parentContainer, fieldSpecs[i], onValueChange, autoLabelWidth);
+            fieldInputs[fieldSpecs[i].key] = addNumericFieldRow(parentContainer, fieldSpecs[i], onValueChange);
         }
     }
 
@@ -2055,26 +3614,42 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb9bee6b7a2e"; /* 紹�
     /**
      * 「項目名＋数値入力欄＋単位」の行を生成する。項目名と helpTip は fieldLabel.<key> / tooltip.<key> から引く
      * @param {Panel|Group} parentContainer - 追加先
-     * @param {{key: string, initialText: string, unitLabel: string, allowNegative: boolean, integer: boolean, min: number}} fieldSpec - 行の定義
-     *     （integer は整数の欄、min は下限。負の値を許さない欄の下限は省略時0）
+     * @param {{key: string, initialText: string, unitLabel: string, fieldUnit: string, allowNegative: boolean, integer: boolean, min: number, checkboxKey: string, checked: boolean}} fieldSpec - 行の定義
+     *     （integer は整数の欄、min は下限。負の値を許さない欄の下限は省略時0。
+     *     checkboxKey を指定すると項目名をチェックボックスにし、OFFのあいだ入力欄を無効にする。checked はその初期状態。
+     *     fieldUnit（" mm" など）を指定すると単位を入力欄の中に入れ、横の単位は置かない。別の単位で入れた値も換算する）
      * @param {Function} onValueChange - 入力値が変わったときに呼ぶ関数
-     * @param {boolean} [autoLabelWidth] - true なら項目名の幅を固定せず成り行きにする
      * @returns {EditText} 生成した入力欄
      */
-    function addNumericFieldRow(parentContainer, fieldSpec, onValueChange, autoLabelWidth) {
+    function addNumericFieldRow(parentContainer, fieldSpec, onValueChange) {
         var fieldRow = parentContainer.add("group");
         fieldRow.orientation = "row";
         fieldRow.alignChildren = ["left", "center"];
         fieldRow.spacing = FIELD_ROW_SPACING;
 
-        var fieldLabel = fieldRow.add("statictext", undefined, labelText("fieldLabel." + fieldSpec.key));
-        if (!autoLabelWidth) {
-            fieldLabel.preferredSize = [FIELD_LABEL_WIDTH, -1];
+        var optionCheckbox = null;
+        var fieldLabel;
+        if (fieldSpec.checkboxKey) {
+            optionCheckbox = fieldRow.add("checkbox", undefined, getLabel("checkbox." + fieldSpec.checkboxKey));
+            optionCheckbox.helpTip = getLabel("tooltip." + fieldSpec.checkboxKey);
+            fieldLabel = optionCheckbox;
+        } else {
+            fieldLabel = fieldRow.add("statictext", undefined, labelText("fieldLabel." + fieldSpec.key));
             fieldLabel.justify = "right";
         }
 
+        /* チェックボックスの行は、入力欄と単位をまとめて有効／無効にする / the checkbox toggles the field and unit together */
+        var valueGroup = fieldRow;
+        if (optionCheckbox) {
+            valueGroup = fieldRow.add("group");
+            valueGroup.orientation = "row";
+            valueGroup.alignChildren = ["left", "center"];
+            valueGroup.spacing = FIELD_ROW_SPACING;
+            valueGroup.margins = 0;
+        }
+
         /* ∧∨と入力欄は隙間0で突き合わせる / butt the stepper against the field */
-        var stepperInputGroup = fieldRow.add("group");
+        var stepperInputGroup = valueGroup.add("group");
         stepperInputGroup.orientation = "row";
         stepperInputGroup.alignChildren = ["left", "center"];
         stepperInputGroup.spacing = 0;
@@ -2083,21 +3658,64 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb9bee6b7a2e"; /* 紹�
         var inputField;
         var stepOptions = {
             integer: fieldSpec.integer === true,
+            unit: fieldSpec.fieldUnit, /* 単位入りの欄は増減後も単位を付ける / keep the unit in the field after stepping */
             /* text の代入では onChanging が発火しないので、増減後に変更を通知する / assigning text does not fire onChanging */
             onStep: function () { onValueChange(); }
         };
         if (fieldSpec.allowNegative !== true) stepOptions.min = (fieldSpec.min !== undefined) ? fieldSpec.min : 0;
         var stepperGroup = addStepper(stepperInputGroup, function () { return inputField; }, stepOptions);
 
-        inputField = stepperInputGroup.add("edittext", undefined, fieldSpec.initialText);
-        inputField.characters = FIELD_CHARS;
+        inputField = stepperInputGroup.add("edittext", undefined, fieldSpec.initialText + (fieldSpec.fieldUnit || ""));
+        inputField.characters = fieldSpec.fieldUnit ? UNIT_FIELD_CHARS : FIELD_CHARS;
+        inputField.fieldUnit = fieldSpec.fieldUnit;
         inputField.helpTip = getLabel("tooltip." + fieldSpec.key);
         inputField.onChanging = onValueChange;
         bindSteppedArrowKeys(inputField, stepperGroup); /* ↑↓キーも∧∨と同じ処理で増減 / arrow keys share the stepper's logic */
 
-        fieldRow.add("statictext", undefined, fieldSpec.unitLabel);
+        if (!fieldSpec.fieldUnit) inputField.unitText = valueGroup.add("statictext", undefined, fieldSpec.unitLabel);
         inputField.fieldRow = fieldRow;
+        inputField.fieldLabel = fieldLabel; /* 項目名の幅をあとで実測してそろえる / label widths are aligned after measuring */
+
+        if (optionCheckbox) {
+            /* 表示前の value は読み戻せないので、初期状態は fieldSpec.checked から決める / value cannot be read back before show() */
+            optionCheckbox.value = fieldSpec.checked === true;
+            valueGroup.enabled = fieldSpec.checked === true;
+            optionCheckbox.onClick = function () {
+                valueGroup.enabled = optionCheckbox.value;
+                redrawSteppersIn(valueGroup);
+                onValueChange();
+            };
+            inputField.optionCheckbox = optionCheckbox;
+        }
         return inputField;
+    }
+
+    /**
+     * 複数のラベル（statictext）の幅を最長のものへ揃え、指定方向に揃えます。
+     * 実際の描画幅（preferredSize.width）を測るため、文言長やロケールに依存しません。
+     * @param {StaticText[]} labelControls - 幅を揃える statictext の配列。
+     * @param {string} [justify] - 揃え方向 "left" | "center" | "right"（省略時は "right"）。
+     * @returns {number} 揃えた後の共通ラベル幅（px）。
+     */
+    function alignLabelWidths(labelControls, justify) {
+        if (!labelControls || !labelControls.length) return 0;
+        justify = justify || 'right';
+
+        /* 1パス目：各ラベルの自然幅を測り、最大値を求める / Pass 1: find the widest natural width */
+        var maxLabelWidth = 0;
+        for (var i = 0; i < labelControls.length; i++) {
+            /* preferredSize を返さない環境では実サイズで代用する / fall back to the laid-out size */
+            var naturalWidth = labelControls[i].preferredSize.width || labelControls[i].size.width;
+            if (naturalWidth > maxLabelWidth) maxLabelWidth = naturalWidth;
+        }
+
+        /* 2パス目：全ラベルを最大幅に固定し、揃え方向を適用 / Pass 2: apply common width and justification */
+        for (var j = 0; j < labelControls.length; j++) {
+            labelControls[j].preferredSize.width = maxLabelWidth;
+            labelControls[j].justify = justify;
+        }
+
+        return maxLabelWidth;
     }
 
     /**
@@ -2116,12 +3734,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb9bee6b7a2e"; /* 紹�
 
         /* 項目名の欄を空けて入力欄の左端にそろえる / leave the label column empty to line up with the fields */
         var labelSpacer = checkboxRow.add("statictext", undefined, "");
-        labelSpacer.preferredSize = [FIELD_LABEL_WIDTH, -1];
 
         var optionCheckbox = checkboxRow.add("checkbox", undefined, getLabel("checkbox." + checkboxKey));
         optionCheckbox.value = initialValue;
         optionCheckbox.helpTip = getLabel("tooltip." + checkboxKey);
         optionCheckbox.onClick = onValueChange;
+        optionCheckbox.labelSpacer = labelSpacer; /* 幅は項目名の実測後に入れる / sized after the labels are measured */
         return optionCheckbox;
     }
 
@@ -2137,6 +3755,62 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb9bee6b7a2e"; /* 紹�
     }
 
     /**
+     * ダイアログの入力欄と選択を、buildHeadlineGroup() に渡す設定値にまとめる
+     * @param {Object} dialogUI - buildDialog() の戻り値
+     * @param {number} pointsPerUnit - 定規の単位の1単位あたりのポイント数
+     * @param {number} strokePointsPerUnit - 線の単位の1単位あたりのポイント数
+     * @returns {{marginVerticalPt: number, marginHorizontalPt: number, lineGapPt: number, ruleStyle: string, ruleStrokeWidthPt: number, charsPerLine: number, tierCount: number, tierGap: number, extraTierCount: number, dummyScript: string, dummyDirection: string, dummyText: string, columnCount: number, dummyWidthPt: number, blurRadius: number, useTierRules: boolean, tierRuleWidthPt: number, rotationDeg: number, useMask: boolean, englishNewspaper: boolean, maskVerticalPt: number}} マージン・間隔・幅（pt）、罫線の種類と線幅（pt）、和文／欧文と組み方向と文章、文字数・段数・段間（pt）、ぼかし（px）、段間の罫線の有無と線幅（pt）・回転（°）・マスクの有無とマスクの上下（pt）
+     */
+    function readHeadlineSettings(dialogUI, pointsPerUnit, strokePointsPerUnit) {
+        var fieldInputs = dialogUI.fieldInputs;
+        return {
+            marginVerticalPt: readFieldAsPoints(fieldInputs.marginVertical, DEFAULT_VERTICAL_MARGIN_PT, pointsPerUnit),
+            marginHorizontalPt: readFieldAsPoints(fieldInputs.marginHorizontal, DEFAULT_HORIZONTAL_MARGIN_PT, pointsPerUnit),
+            lineGapPt: readFieldAsPoints(fieldInputs.lineGap, DEFAULT_LINE_GAP_PT, pointsPerUnit),
+            ruleStyle: dialogUI.getRuleStyle(),
+            ruleStrokeWidthPt: readFieldAsPoints(fieldInputs.ruleStrokeWidth, DEFAULT_RULE_STROKE_WIDTH_PT, strokePointsPerUnit),
+            /* 文字数・段数は整数に切り捨て / character and tier counts are truncated to integers */
+            charsPerLine: Math.floor(readFieldAsNumber(fieldInputs.charsPerLine, DEFAULT_CHARS_PER_LINE, false)),
+            tierCount: Math.floor(readFieldAsNumber(fieldInputs.tierCount, DEFAULT_TIER_COUNT, false)),
+            tierGap: readFieldAsPoints(fieldInputs.tierGap, DEFAULT_TIER_GAP_PT, pointsPerUnit),
+            extraTierCount: Math.floor(readFieldAsNumber(fieldInputs.extraTierCount, DEFAULT_EXTRA_TIER_COUNT, false)),
+            dummyScript: dialogUI.getDummyScript(),
+            dummyDirection: dialogUI.getDummyDirection(),
+            dummyText: dialogUI.getDummyText(),
+            /* ［段数］は横組みでは段組数として使う / the Tiers field doubles as the column count for horizontal */
+            columnCount: Math.floor(readFieldAsNumber(fieldInputs.tierCount, DEFAULT_COLUMN_COUNT, false)),
+            dummyWidthPt: readFieldAsPoints(fieldInputs.dummyWidth, DEFAULT_DUMMY_WIDTH_PT, pointsPerUnit),
+            /* ぼかしがOFFなら半径0（かけない）/ radius 0 (no blur) when the blur option is off */
+            blurRadius: fieldInputs.blurRadius.optionCheckbox.value ? readFieldAsNumber(fieldInputs.blurRadius, DEFAULT_BLUR_RADIUS, false) : 0,
+            rotationDeg: readFieldAsNumber(fieldInputs.rotation, DEFAULT_ROTATION_DEG, true),
+            useTierRules: dialogUI.tierRuleCheckbox.value,
+            tierRuleWidthPt: readFieldAsPoints(fieldInputs.tierRuleWidth, DEFAULT_TIER_RULE_WIDTH_PT, strokePointsPerUnit),
+            useMask: dialogUI.maskCheckbox.value,
+            englishNewspaper: dialogUI.englishNewspaperCheckbox.value,
+            maskVerticalPt: readFieldAsPoints(fieldInputs.maskVertical, DEFAULT_MASK_VERTICAL_PT, pointsPerUnit)
+        };
+    }
+
+    /**
+     * 選択した見出しから、ダイアログの初期の選択を決める。
+     * すべて欧文なら［欧文］・［横組み］で始め、和文の横組みなら［段数］を1段にする。縦組みなら［欧文］は選べない
+     * @param {PageItem} targetItem - 基準にするテキストまたはグループ
+     * @returns {{dummyScript: string, dummyDirection: string, tierCount: number, allowsWestern: boolean}} 初期の選択
+     */
+    function getInitialDummyChoices(targetItem) {
+        var dummyScript = detectDummyScript(targetItem);
+        var isVerticalHeadline = hasVerticalText(targetItem);
+        var isHorizontalJapaneseHeadline = dummyScript === "japanese" && !isVerticalHeadline &&
+            /\S/.test(collectTextContents(targetItem));
+        return {
+            dummyScript: dummyScript,
+            dummyDirection: (dummyScript === "western") ? "horizontal" : DEFAULT_DUMMY_DIRECTION,
+            tierCount: isHorizontalJapaneseHeadline ? HORIZONTAL_HEADLINE_TIER_COUNT : DEFAULT_TIER_COUNT,
+            allowsWestern: !isVerticalHeadline
+        };
+    }
+
+    /**
      * ダイアログを表示し、入力に合わせてプレビューする。
      * プレビューは対象の複製で作り、その間は元の対象を隠しておく。
      * OK で元の対象を使って確定し、キャンセルで元に戻す
@@ -2147,30 +3821,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb9bee6b7a2e"; /* 紹�
     function showDialog(doc, targetItem) {
         var unitInfo = getUnitInfo();
         var pointsPerUnit = unitInfo.pointsPerUnit;
+        var strokePointsPerUnit = getUnitInfo("strokeUnits").pointsPerUnit;
         var previewGroup = null;
-
-        /**
-         * 入力欄の値を設定値にまとめる
-         * @returns {{marginVerticalPt: number, marginHorizontalPt: number, lineGapPt: number, charsPerLine: number, tierCount: number, extraTierCount: number, dummyScript: string, columnCount: number, dummyWidthPt: number, blurRadius: number, rotationDeg: number, useMask: boolean}} マージン・間隔・幅（pt）、文字数・段数、ぼかし（px）、回転（°）、マスクの有無
-         */
-        function readHeadlineSettings() {
-            var fieldInputs = dialogUI.fieldInputs;
-            return {
-                marginVerticalPt: readFieldAsPoints(fieldInputs.marginVertical, DEFAULT_VERTICAL_MARGIN_PT, pointsPerUnit),
-                marginHorizontalPt: readFieldAsPoints(fieldInputs.marginHorizontal, DEFAULT_HORIZONTAL_MARGIN_PT, pointsPerUnit),
-                lineGapPt: readFieldAsPoints(fieldInputs.lineGap, DEFAULT_LINE_GAP_PT, pointsPerUnit),
-                /* 文字数・段数は整数に切り捨て / character and tier counts are truncated to integers */
-                charsPerLine: Math.floor(readFieldAsNumber(fieldInputs.charsPerLine, DEFAULT_CHARS_PER_LINE, false)),
-                tierCount: Math.floor(readFieldAsNumber(fieldInputs.tierCount, DEFAULT_TIER_COUNT, false)),
-                extraTierCount: Math.floor(readFieldAsNumber(fieldInputs.extraTierCount, DEFAULT_EXTRA_TIER_COUNT, false)),
-                dummyScript: dialogUI.getDummyScript(),
-                columnCount: Math.floor(readFieldAsNumber(fieldInputs.columnCount, DEFAULT_COLUMN_COUNT, false)),
-                dummyWidthPt: readFieldAsPoints(fieldInputs.dummyWidth, DEFAULT_DUMMY_WIDTH_PT, pointsPerUnit),
-                blurRadius: readFieldAsNumber(fieldInputs.blurRadius, DEFAULT_BLUR_RADIUS, false),
-                rotationDeg: readFieldAsNumber(fieldInputs.rotation, DEFAULT_ROTATION_DEG, true),
-                useMask: dialogUI.maskCheckbox.value
-            };
-        }
 
         /**
          * 前回のプレビューを削除する
@@ -2192,26 +3844,50 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb9bee6b7a2e"; /* 紹�
             /* 複製は隠した元の hidden を引き継ぐので表示に戻す / the duplicate inherits hidden from the original */
             var previewSource = targetItem.duplicate();
             previewSource.hidden = false;
-            previewGroup = buildHeadlineGroup(doc, previewSource, readHeadlineSettings());
+            previewGroup = buildHeadlineGroup(doc, previewSource, readHeadlineSettings(dialogUI, pointsPerUnit, strokePointsPerUnit));
+            fitViewToPreview();
             app.redraw();
         }
 
-        var dialogUI = buildDialog(unitInfo.label, pointsPerUnit, updatePreview);
+        /**
+         * ［画面にフィット］がオンなら、プレビューが指定の割合でウィンドウに収まるよう表示を合わせる
+         * @returns {void}
+         */
+        function fitViewToPreview() {
+            var fitViewControls = dialogUI.fitViewControls;
+            if (!previewGroup || !fitViewControls.checkbox.value) return;
+            FitViewToItems.fit([previewGroup], { doc: doc, fillRatio: fitViewControls.getFillRatio() });
+        }
+
+        var initialChoices = getInitialDummyChoices(targetItem);
+        var dialogUI = buildDialog(unitInfo.label, pointsPerUnit, updatePreview, initialChoices.dummyScript,
+            initialChoices.dummyDirection, initialChoices.tierCount, initialChoices.allowsWestern);
         dialogUI.dialog.onShow = updatePreview;
+        dialogUI.fitViewControls.checkbox.onClick = function () {
+            dialogUI.fitViewControls.updateEnabled();
+            fitViewToPreview();
+            app.redraw();
+        };
+        dialogUI.fitViewControls.percentInput.onChange = function () {
+            fitViewToPreview();
+            app.redraw();
+        };
 
         prepareDialogWindow(dialogUI.dialog, SCRIPT_NAME);
+        var initialViewState = FitViewToItems.captureView(doc); /* キャンセルで戻す表示 / view restored on Cancel */
         targetItem.hidden = true;
         var dialogResult = dialogUI.dialog.show();
         removePreview();
         targetItem.hidden = false;
 
         if (dialogResult !== 1) {
+            FitViewToItems.restoreView(initialViewState, doc);
             targetItem.selected = true;
             app.redraw();
             return null;
         }
 
-        var headlineGroup = buildHeadlineGroup(doc, targetItem, readHeadlineSettings());
+        var headlineGroup = buildHeadlineGroup(doc, targetItem, readHeadlineSettings(dialogUI, pointsPerUnit, strokePointsPerUnit));
         doc.selection = [headlineGroup];
         return headlineGroup;
     }

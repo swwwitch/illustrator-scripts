@@ -19,6 +19,7 @@ It can add a "Fit to Window [65] %" row to a dialog, and includes helpers to res
 - Centers the view on the objects' bounds (effects excluded) and zooms in or out so they fill the given share
 - Keeps the zoom within the range Illustrator accepts (3.125% to 6400%)
 - Adds a "Fit to Window [%]" row with built-in Japanese / English labels and tooltips
+- `stepper: true` adds stepper buttons to the left of the field, with Up/Down key stepping (needs the StepperButtons part)
 - `captureView` / `restoreView` save and restore the view position and zoom
 
 ### How to use
@@ -42,6 +43,10 @@ It can add a "Fit to Window [65] %" row to a dialog, and includes helpers to res
         /* on Cancel */
         FitViewToItems.restoreView(initialView, doc);
 
+To add stepper buttons, paste the StepperButtons part first (`addStepper` / `bindSteppedArrowKeys` / `redrawSteppersIn`) and pass `stepper: true`. Stepping calls `percentInput.onChange`.
+
+        var fitViewControls = FitViewToItems.addControls(buttonRow.leftGroup, { value: true, stepper: true });
+
 ### Notes
 
 - Zoom changes are not recorded in the undo history, so the caller has to run `restoreView` on Cancel.
@@ -52,4 +57,5 @@ It can add a "Fit to Window [65] %" row to a dialog, and includes helpers to res
 
 ### Changelog
 
+- v1.1.0 (2026-10-12): Added `stepper: true` to `addControls` for stepper buttons and Up/Down key stepping on the percent field (uses the StepperButtons part)
 - v1.0.0: Initial release (template, extracted from SmartShapeMaker v2.3.0)

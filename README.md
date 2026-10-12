@@ -51,6 +51,9 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 - [選択テキストのフォントを一つ上／下のウェイトに切り替え](readme-ja/FontWeightUp.md)
 - [似ているフォントのウェイトを見本で見比べて適用](readme-ja/FontWeightPicker.md)
 - [よく使うフォントだけを一覧から選んで適用](readme-ja/FavoriteFontPickerPalette.md)
+- [インストール済みフォントの見本を自動生成](readme-ja/FontCatalogGenerator.md)
+- [ドキュメント内の段落書式を一覧にして、まとめて変更・置換](readme-ja/FontPresetCollector.md)
+- [文字設定を「定番」として登録し、選択テキストへ一括適用](readme-ja/FontPresetPickerPalette.md)
 
 
 ## テキスト関連
@@ -94,6 +97,15 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 - [選択したテキストの基本的な文字組み設定（フォントサイズと行送り・自動カーニング・文字ツメ・](readme-ja/TypeBasicsPalette.md)
 - [基準フォントサイズと倍率からタイプスケールを自動生成](readme-ja/TypeScaler.md)
 - [選択中のテキストフレームを、指定した文字の直後で改行する](readme-ja/titlemaker.md)
+- [指定文字のベースラインを自動的に天地中央にする](readme-ja/AdjustBaselineVerticalCenter.md)
+- [行頭の文字サイズを基準に行送りを再計算](readme-ja/ApplyLeadingPerTextFramePalette.md)
+- [エリア内文字を天地・左右とも中央にそろえる](readme-ja/AreaTypeCenterMiddle.md)
+- [ドキュメント内の日付を検索して置換](readme-ja/DateFindReplace.md)
+- [選択したテキストをアーチ・円・弓のパス上文字に変換、または行の幅をそろえる](readme-ja/DynamicTextGenerator.md)
+- [複数のテキストをエリア内文字にまとめる／分割する](readme-ja/MultiAreaText.md)
+- [テキストを一覧で編集してドキュメントに書き戻す](readme-ja/TextScopeEdit.md)
+- [複数の条件でテキストフレームを一括選択](readme-ja/TextSelector.md)
+- [選択したテキストの体裁を段落スタイルとして登録](readme-ja/%E6%AE%B5%E8%90%BD%E3%82%B9%E3%82%BF%E3%82%A4%E3%83%AB.md)
 
 
 ## オブジェクトの配置や整列
@@ -129,6 +141,10 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 - [選択した複数オブジェクトを行・列として自動判定し、歯抜け（欠け）を許容しつつ、](readme-ja/TransposeGrid.md)
 - [オブジェクトの重ね順を位置（X/Y）やZインデックスで並べ替える](readme-ja/ZIndexSorter.md)
 - [選択した 2 つのオブジェクトの中心位置を入れ替えます](readme-ja/swap-2-objects.md)
+- [基準にする側を決めて、間隔と位置をそろえる](readme-ja/AdjustPairGap.md)
+- [パスに沿ってオブジェクトを等間隔に配置](readme-ja/ArrangeObjectsAlongPath.md)
+- [複数のオブジェクトをアートボードの端・中央・ガイドへ整列](readme-ja/GroupEdgeAlign.md)
+- [行送りと配置を上下方向に調整するパレット](readme-ja/SmartDistributorPalette.md)
 
 
 ## 基本図形と変形
@@ -152,6 +168,19 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 - [選択した長方形を、左下隅・上辺中央・右下隅の 3 点を通る円弧に変換](readme-ja/RectangleToArc.md)
 - [角丸長方形の角の半径を変更](readme-ja/EditCornerRadius.md)
 - [テキストやオブジェクトの背面に図形を敷く](readme-ja/AddBackdrop.md)
+- [新聞の見出しのような画像を作る](readme-ja/ShimbunTitleMaker.md)
+- [波括弧（カーリーブラケット）をプレビューしながら作成](readme-ja/AiCurlyBracketMaker.md)
+- [ブレンドの作成と調整](readme-ja/BlendSp.md)
+- [選択全体の外接矩形をひとつの長方形に](readme-ja/BoundsToRectangle.md)
+- [アピアランスを消去して塗り・線だけ残す](readme-ja/ClearAppearance.md)
+- [破線を1本ずつの線分に分割](readme-ja/DashNipper.md)
+- [グラデーションを単色オブジェクトに分割](readme-ja/ExpandGradient.md)
+- [パターンの塗りを通常のパスに展開](readme-ja/ExpandPattern.md)
+- [テキストの背面に座布団を作る](readme-ja/FitShapeToContent.md)
+- [テキストを原稿用紙に組む](readme-ja/GenkoYoshiMaker.md)
+- [線を塗りに変換してから合流して分割](readme-ja/MergeExpand.md)
+- [選択したオブジェクトから枝分かれするサンキー図を作る](readme-ja/SankeyFlowMaker.md)
+- [雨のような罫線を生成](readme-ja/VTRainMaker.md)
 
 
 ## アートワークやファイル
@@ -177,6 +206,12 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 - [ダイアログで選んだアートボードを PNG・JPEG・PDF で書き出します](readme-ja/ArtboardExporter.md)
 - [アクティブなアートボードを PNG24 形式で書き出します](readme-ja/export200.md)
 - [指定したファイルを開いて PDF として保存し、閉じる](readme-ja/OpenSaveAsPDFAndClose.md)
+- [複数のフォルダーを横断して .ai/.svg ファイルを探す](readme-ja/AiFileFinder.md)
+- [同じシンボルのインスタンスをすべて選択](readme-ja/FindAllSymbolInstances.md)
+- [配置画像の埋め込み・解除・リンクをまとめて扱う](readme-ja/ImageLinkManager.md)
+- [リンク切れの画像を同名ファイルで自動再リンク](readme-ja/RelinkMissingLinks.md)
+- [見開きを左右2つの片ページに分割](readme-ja/SplitSpreadToSingle.md)
+- [選択オブジェクトを一覧から選んだシンボルに置き換え](readme-ja/%E3%82%B7%E3%83%B3%E3%83%9C%E3%83%AB%E3%81%AB%E7%BD%AE%E3%81%8D%E6%8F%9B%E3%81%88-sw.md)
 
 
 ## カラー
@@ -190,6 +225,10 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 - [不透明度を塗りのカラーに焼き込む](readme-ja/FlattenOpacityPro.md)
 - [選択オブジェクト（閉じたパス、テキスト）の塗りおよび線のカラーをスウォッチ（スポットカラー）として登録し、そ…](readme-ja/RegisterAndApplySwatches.md)
 - [選択オブジェクトのグラデーションを、指定した数のカラーストップでセパレートグラデーション（縞模様）に変換](readme-ja/Convert2SeparateGradient.md)
+- [カラーパレットを生成してスウォッチに登録](readme-ja/ColorGenerator.md)
+- [明るさをスライダーで調整](readme-ja/ColorToneSlider.md)
+- [元の塗り色を始点にした線形グラデーションを作成](readme-ja/GradientFromFill.md)
+- [配置順で塗り色を抽出してスウォッチグループに登録](readme-ja/SwatchGroupFromSelection.md)
 
 
 ## アートボード
@@ -212,6 +251,9 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 - [ダイアログで指定した「幅」「高さ」に、アートボードをライブプレビューしながら変形します](readme-ja/ResizeArtboardsAll.md)
 - [アクティブまたは全アートボードと同サイズの長方形を、オフセットを考慮して描画します](readme-ja/SmartDrawArtboardRectangle.md)
 - [開いているすべてのドキュメントへ同じ位置にペースト](readme-ja/PasteInAllDocs.md)
+- [並びを引き継いでアートボードを追加](readme-ja/AddArtboardPlus.md)
+- [アートボード全体が正方形に近づくよう再配置](readme-ja/ArrangeArtboardsToSquareGrid.md)
+- [アートボードをランダムな順序でグリッドに並べ替え](readme-ja/RandomizeArtboards.md)
 
 
 ## レイヤー、重ね順
@@ -223,6 +265,12 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 - [アートボード単位でオブジェクトをレイヤーに整理](readme-ja/ArtboardLayerOrganizer.md)
 - [実行前にダイアログを表示し、処理条件を選択可能](readme-ja/FlattenLayers.md)
 - [アクティブレイヤーの「テンプレート」属性（ロック・印刷不可・画像を薄く表示）を ON / OFF する](readme-ja/ToggleTemplateLayer.md)
+- [レイヤーの階層・ロック・表示状態を一覧表示](readme-ja/InspectLayerTree.md)
+- [「Guides Preview for Trim View」レイヤーを削除](readme-ja/RemoveTrimViewGuideLayer.md)
+- [指定したレイヤーをテンプレート化して接頭辞を付ける](readme-ja/SetTemplateLayer.md)
+- [アートボードと同じ大きさの背景をテンプレート化して最背面へ](readme-ja/bg-template.md)
+- [「Guides Preview for Trim View」レイヤーをテンプレート化](readme-ja/%E3%82%AC%E3%82%A4%E3%83%89%E3%82%92%E3%83%86%E3%83%B3%E3%83%97%E3%83%AC%E3%83%BC%E3%83%88%E3%81%AB.md)
+- [「下絵」レイヤーをテンプレート化](readme-ja/%E3%83%AC%E3%82%A4%E3%83%A4%E3%83%BC%E3%82%92%E3%83%86%E3%83%B3%E3%83%97%E3%83%AC%E3%83%BC%E3%83%88%E3%81%AB.md)
 
 
 ## マスク
@@ -234,6 +282,10 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 - [クリップグループのマスクと内容を調整](readme-ja/ClipMaskAdjust.md)
 - [マスクした複製で、ぼかし・ルーペ・部分拡大をつくる](readme-ja/MaskSpotlight.md)
 - [画像を省略線でトリミング](readme-ja/TrimWithBreakLine.md)
+- [マスク編集モードへの切り替えとクリッピングマスク作成](readme-ja/ClipEditMask.md)
+- [クリップ形状を正方形・正円・六角形に置き換え](readme-ja/ClipMaskShapeChanger.md)
+- [複数の図形と画像をまとめてクリッピングマスク化](readme-ja/ImgFitMaskMultiple.md)
+- [クリッピングマスクの作成と解除を切り替える](readme-ja/MakeClippingMask.md)
 
 
 ## ガイド
@@ -254,6 +306,7 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 - [ドキュメントの切替](readme-ja/SmartSwitchDocs.md)
 - [ファイル名を変更して保存](readme-ja/AiFileNameManager.md)
 - [選択オブジェクトのみを残した複製ドキュメントを作成するInDesign用スクリプトです](readme-ja/CloneDocSelectedOnly.md)
+- [複数ドキュメントの選択オブジェクトを同じ座標に揃える](readme-ja/SyncSelectionPosition.md)
 
 
 ## 環境設定
@@ -265,6 +318,7 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 - [環境設定をまとめて変更](readme-ja/PresetManager.md)
 - [Illustrator の各種環境設定をダイアログボックスから変更可能にします](readme-ja/PreferenceManager-unit.md)
 - [環境設定をまとめて変更（ダイアログなし）](readme-ja/PresetManagerNoDialog.md)
+- [表示とスナップのオン・オフをまとめて切り替え](readme-ja/ViewToggles.md)
 
 
 ## その他
@@ -299,4 +353,33 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 - [選択オブジェクトに合わせて、アクティブビューをズーム＆センタリングします](readme-ja/ZoomToSelection.md)
 - [選択中のオブジェクトの見た目を「名称未設定」で登録する Illustrator 標準の挙動を回避し、固定名の…](readme-ja/register-temp-style.md)
 - [アートボード／レイヤー／シンボル／グラフィックスタイルの名前を、検索置換とナンバリングでまとめて変更します](readme-ja/renamer.md)
+- [メニューコマンド・ツール・環境設定のコードを引く](readme-ja/AiCommandPrefLookup.md)
+- [キーオブジェクトから各図形へコネクターを引く](readme-ja/AiConnectorBuilder.md)
+- [スクリプトをキーワードで絞り込んで実行](readme-ja/AiScriptLauncher.md)
+- [保存した文字属性をテキストに適用](readme-ja/ApplyTextAttributesFromClipboard.md)
+- [外枠の中で罫線を均等に再配置](readme-ja/AverageRulesInRectangle.md)
+- [選択オブジェクトの領域に紙吹雪を散らす](readme-ja/ConfettiMaker.md)
+- [文字属性・段落属性を取得して保存](readme-ja/CopyTextAttributesToClipboard.md)
+- [破線計算機（DashGapCalculator）](readme-ja/DashGapCalculator.md)
+- [オブジェクトの間に水平の罫線を描く](readme-ja/DrawLinesBetween.md)
+- [Excel由来のデータを表組みとして整形](readme-ja/ExcelTableNormalizer.md)
+- [隣接アンカーを結ぶ直線を描画範囲いっぱいに延長](readme-ja/ExtendLines.md)
+- [対象のバウンディングボックスを最寄りの基準線に合わせる](readme-ja/FillSnapper.md)
+- [ロゴ設計や解析に役立つ補助線を生成](readme-ja/GuideLineBuilder.md)
+- [外接矩形から指定角度の引き出し線を作成](readme-ja/LeaderLineBuilder.md)
+- [ロゴ用の補助線とクリアスペースを生成](readme-ja/LogoGridMaker.md)
+- [容器の中にタイルを等間隔で敷き詰める](readme-ja/PatternFill.md)
+- [長方形を矢印に置き換え](readme-ja/RectangleToArrow.md)
+- [水平線・垂直線を長方形グリッドとして再構成](readme-ja/RectangularGridReverseTool.md)
+- [奇数番目／偶数番目だけを互い違いに選択](readme-ja/SelectAlternateItems.md)
+- [複数のオブジェクトを基準に「共通 > アピアランス」を実行](readme-ja/SelectSameAppearanceMulti.md)
+- [よく使う矢印と線の設定をまとめて適用](readme-ja/SmartStrokeSettings.md)
+- [2つのオブジェクトの見た目または文字列を交換](readme-ja/SwapStyle.md)
+- [テキストフレームの見た目に合わせて罫線と背景を生成](readme-ja/TableMaker.md)
+- [テキストの周りで罫線が欠けたタイトル帯を作成](readme-ja/TitleBarLineCut.md)
+- [選択の周りで罫線を欠けさせる](readme-ja/TitleBarLineCutSp.md)
+- [トリミング表示を切り替えてガイドを表示](readme-ja/ToggleTrimView.md)
+- [テキストのツリー記号をパスの罫線に変換](readme-ja/TreeSymbolToStroke.md)
+- [グラフィックスタイル「temp_style」を適用](readme-ja/apply-temp-style-or-last.md)
+- [選択を表として解釈して罫線と塗りを生成](readme-ja/tabularize.md)
 

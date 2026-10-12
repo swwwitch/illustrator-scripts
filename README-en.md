@@ -51,6 +51,9 @@ After release, we continue to fix bugs and make adjustments through daily use.
 - [Switch the selected text to the next heavier weight](readme-en/FontWeightUp.md)
 - [Compare weights of similar fonts with samples and apply one](readme-en/FontWeightPicker.md)
 - [Pick from your favorite fonts and apply one](readme-en/FavoriteFontPickerPalette.md)
+- [Generate a specimen sheet of installed fonts](readme-en/FontCatalogGenerator.md)
+- [List the paragraph formats in a document and change o…](readme-en/FontPresetCollector.md)
+- [Save type settings as presets and apply them to the s…](readme-en/FontPresetPickerPalette.md)
 
 
 ## Text
@@ -90,6 +93,19 @@ After release, we continue to fix bugs and make adjustments through daily use.
 - [A docked palette that sets only the basic text-composi…](readme-en/TypeBasicsPalette.md)
 - [Generates a type scale from a base font size and a ratio](readme-en/TypeScaler.md)
 - [Inserts a line break right after the specified charact…](readme-en/titlemaker.md)
+- [Center the baseline of specified characters](readme-en/AdjustBaselineVerticalCenter.md)
+- [Select the paragraph under the cursor](readme-en/AiSelectParagraph.md)
+- [Recalculate leading from the size of each line's firs…](readme-en/ApplyLeadingPerTextFramePalette.md)
+- [Center Area Type both vertically and horizontally](readme-en/AreaTypeCenterMiddle.md)
+- [Find and replace dates in the document](readme-en/DateFindReplace.md)
+- [Convert text into arched, circular or bowed type, or …](readme-en/DynamicTextGenerator.md)
+- [Merge text into one area type, or split them apart](readme-en/MultiAreaText.md)
+- [Replace text with the first line of the clipboard](readme-en/ReplaceTextWithPasteSequential.md)
+- [Text Processing](readme-en/TextProcessingPalette.md)
+- [List the document's text, edit it and write it back](readme-en/TextScopeEdit.md)
+- [Select text frames by a combination of conditions](readme-en/TextSelector.md)
+- [Convert point text, path text or shape plus text into…](readme-en/TextWithShapeToAreaType.md)
+- [Register the selected text's formatting as a paragrap…](readme-en/%E6%AE%B5%E8%90%BD%E3%82%B9%E3%82%BF%E3%82%A4%E3%83%AB.md)
 
 
 ## Object arrangement and alignment
@@ -125,6 +141,10 @@ After release, we continue to fix bugs and make adjustments through daily use.
 - [Infers rows and columns from the selected objects, tol…](readme-en/TransposeGrid.md)
 - [Reorders the stacking order of objects by position (X/…](readme-en/ZIndexSorter.md)
 - [Swaps the center positions of two selected objects](readme-en/swap-2-objects.md)
+- [Set the gap and position from a side you fix](readme-en/AdjustPairGap.md)
+- [Distribute objects evenly along a path](readme-en/ArrangeObjectsAlongPath.md)
+- [Align multiple objects to the artboard edges, center,…](readme-en/GroupEdgeAlign.md)
+- [Adjust leading and placement up or down from a palette](readme-en/SmartDistributorPalette.md)
 
 
 ## Basic shapes and Ajust
@@ -144,6 +164,22 @@ After release, we continue to fix bugs and make adjustments through daily use.
 - [Runs release compound path, unite, expand appearance, …](readme-en/PathUniteOffsetTool.md)
 - [Converts the selected rectangle into an arc through th…](readme-en/RectangleToArc.md)
 - [Edit the corner radius of rounded rectangles](readme-en/EditCornerRadius.md)
+- [Make a newspaper-style headline](readme-en/ShimbunTitleMaker.md)
+- [Lay a shape behind text or objects](readme-en/AddBackdrop.md)
+- [Draw a curly bracket against a live preview](readme-en/AiCurlyBracketMaker.md)
+- [Pathfinder operations from a palette](readme-en/AiSmartPathfinderPalette.md)
+- [Create and adjust a blend](readme-en/BlendSp.md)
+- [Merge the selection's bounds into one rectangle](readme-en/BoundsToRectangle.md)
+- [Clear appearance, keep fill and stroke](readme-en/ClearAppearance.md)
+- [Ticket and Coupon Shapes](readme-en/CouponTicketMaker.md)
+- [Split a dashed line into separate segments](readme-en/DashNipper.md)
+- [Split a gradient into solid-color objects](readme-en/ExpandGradient.md)
+- [Expand pattern fills into regular paths](readme-en/ExpandPattern.md)
+- [Create a backing shape behind text](readme-en/FitShapeToContent.md)
+- [Set text on manuscript paper](readme-en/GenkoYoshiMaker.md)
+- [Convert strokes to fills, merge and expand](readme-en/MergeExpand.md)
+- [Draw a branching Sankey diagram from the selected obj…](readme-en/SankeyFlowMaker.md)
+- [Generate rain-like rules](readme-en/VTRainMaker.md)
 
 
 ## Artwork and files
@@ -169,6 +205,12 @@ After release, we continue to fix bugs and make adjustments through daily use.
 - [Exports the artboards chosen in a dialog as PNG, JPEG or PDF](readme-en/ArtboardExporter.md)
 - [Exports the active artboard as PNG24](readme-en/export200.md)
 - [Open files, save them as PDF, and close them](readme-en/OpenSaveAsPDFAndClose.md)
+- [Find .ai/.svg files across several folders](readme-en/AiFileFinder.md)
+- [Select all instances of the same symbols](readme-en/FindAllSymbolInstances.md)
+- [Embed, unembed and relink placed images in one dialog](readme-en/ImageLinkManager.md)
+- [Relink missing images from a chosen folder](readme-en/RelinkMissingLinks.md)
+- [Split spreads into left and right single pages](readme-en/SplitSpreadToSingle.md)
+- [Replace the selection with a symbol chosen from the d…](readme-en/%E3%82%B7%E3%83%B3%E3%83%9C%E3%83%AB%E3%81%AB%E7%BD%AE%E3%81%8D%E6%8F%9B%E3%81%88-sw.md)
 
 
 ## Color
@@ -181,6 +223,11 @@ After release, we continue to fix bugs and make adjustments through daily use.
 - [Bake opacity into the fill color](readme-en/FlattenOpacityPro.md)
 - [An Illustrator script to register fill and stroke colo…](readme-en/RegisterAndApplySwatches.md)
 - [Adds a specified number of intermediate color stops to…](readme-en/Convert2SeparateGradient.md)
+- [Generate a color palette and register it as swatches](readme-en/ColorGenerator.md)
+- [Build a color palette from an image](readme-en/ColorPaletteFromImage.md)
+- [Adjust brightness with a slider](readme-en/ColorToneSlider.md)
+- [Create a linear gradient starting from the current fi…](readme-en/GradientFromFill.md)
+- [Register fill colors as a swatch group in layout order](readme-en/SwatchGroupFromSelection.md)
 
 
 ## Artboards
@@ -201,6 +248,11 @@ After release, we continue to fix bugs and make adjustments through daily use.
 - [Resize artboards to the specified width/height with li…](readme-en/ResizeArtboardsAll.md)
 - [Draws rectangles that match the active or all artboard…](readme-en/SmartDrawArtboardRectangle.md)
 - [Paste into every open document at the same position](readme-en/PasteInAllDocs.md)
+- [Add artboards that follow the existing layout](readme-en/AddArtboardPlus.md)
+- [Scale artboards with a live preview](readme-en/AiArtboardScaler.md)
+- [Re-lay out artboards so the whole grid is near-square](readme-en/ArrangeArtboardsToSquareGrid.md)
+- [Move between artboards from a palette](readme-en/ArtboardNavigatorPalette.md)
+- [Shuffle artboards into a grid](readme-en/RandomizeArtboards.md)
 
 
 ## Layers, Z-order
@@ -211,6 +263,12 @@ After release, we continue to fix bugs and make adjustments through daily use.
 - [Organize objects into layers per artboard](readme-en/ArtboardLayerOrganizer.md)
 - [Show a dialog before execution so the processing condi…](readme-en/FlattenLayers.md)
 - [Turns the active layer's template attribute (locked, n…](readme-en/ToggleTemplateLayer.md)
+- [List layers with their lock and visibility state](readme-en/InspectLayerTree.md)
+- [Delete the "Guides Preview for Trim View" layer](readme-en/RemoveTrimViewGuideLayer.md)
+- [Turn a chosen layer into a template and prefix its na…](readme-en/SetTemplateLayer.md)
+- [Create an artboard-sized background, template it and …](readme-en/bg-template.md)
+- [Create the "Guides Preview for Trim View" layer as a …](readme-en/%E3%82%AC%E3%82%A4%E3%83%89%E3%82%92%E3%83%86%E3%83%B3%E3%83%97%E3%83%AC%E3%83%BC%E3%83%88%E3%81%AB.md)
+- [Turn the layer named "下絵" into a template layer](readme-en/%E3%83%AC%E3%82%A4%E3%83%A4%E3%83%BC%E3%82%92%E3%83%86%E3%83%B3%E3%83%97%E3%83%AC%E3%83%BC%E3%83%88%E3%81%AB.md)
 
 
 ## Masks
@@ -220,6 +278,12 @@ After release, we continue to fix bugs and make adjustments through daily use.
 - [Puzzle-like slicing](readme-en/SmartSliceWithPuzzlify.md)
 - [Resize Clip Mask](readme-en/ResizeClipMask.md)
 - [Adjust the mask and contents of clip groups](readme-en/ClipMaskAdjust.md)
+- [Toggle mask-edit mode or create a clipping mask](readme-en/ClipEditMask.md)
+- [Replace the clipping shape with a square, circle or h…](readme-en/ClipMaskShapeChanger.md)
+- [Fit and clip several images to their shapes](readme-en/ImgFitMaskMultiple.md)
+- [Create or release a clipping mask](readme-en/MakeClippingMask.md)
+- [Build a blur, a spotlight, a loupe or a detail callou…](readme-en/MaskSpotlight.md)
+- [Trim an image with break lines](readme-en/TrimWithBreakLine.md)
 
 
 ## Guides
@@ -232,6 +296,7 @@ After release, we continue to fix bugs and make adjustments through daily use.
 - [Collects guides scattered across multiple layers and s…](readme-en/CollectGuides.md)
 - [Automatically creates rectangles based on intersection…](readme-en/MakeRectangleFromGuides.md)
 - [Release guides on the _guide layer as paths](readme-en/ReleaseGuidesAsPaths.md)
+- [Copy guides as stroked paths](readme-en/CopyGuidesAsPaths.md)
 
 
 ## Document
@@ -239,6 +304,7 @@ After release, we continue to fix bugs and make adjustments through daily use.
 - [Switch between documents](readme-en/SmartSwitchDocs.md)
 - [Rename and save](readme-en/AiFileNameManager.md)
 - [An InDesign script that creates a duplicate document c…](readme-en/CloneDocSelectedOnly.md)
+- [Align selected objects across documents to the same p…](readme-en/SyncSelectionPosition.md)
 
 
 ## Preferences
@@ -249,6 +315,8 @@ After release, we continue to fix bugs and make adjustments through daily use.
 - [Change preferences from a single dialog](readme-en/PresetManager.md)
 - [Lets you change a range of Illustrator preferences fro…](readme-en/PreferenceManager-unit.md)
 - [Change preferences in one pass, without a dialog](readme-en/PresetManagerNoDialog.md)
+- [Switch transform and align preferences from a palette](readme-en/PreferenceManagerForTransformAndAlignPalette.md)
+- [Switch view and snapping options on or off in one dia…](readme-en/ViewToggles.md)
 
 
 ## Others
@@ -282,4 +350,36 @@ After release, we continue to fix bugs and make adjustments through daily use.
 - [Zooms and centers the active view on the selection](readme-en/ZoomToSelection.md)
 - [Registers the appearance of the selected object as a g…](readme-en/register-temp-style.md)
 - [Renames artboards, layers, symbols and graphic styles…](readme-en/renamer.md)
+- [Look up code for menu commands, tools and preferences](readme-en/AiCommandPrefLookup.md)
+- [Draw connectors from the key object to each object](readme-en/AiConnectorBuilder.md)
+- [Filter scripts by keyword and run them](readme-en/AiScriptLauncher.md)
+- [Apply saved text attributes to the selection](readme-en/ApplyTextAttributesFromClipboard.md)
+- [Redistribute rules evenly inside a frame](readme-en/AverageRulesInRectangle.md)
+- [Scatter confetti across the selected area](readme-en/ConfettiMaker.md)
+- [Save the character and paragraph attributes](readme-en/CopyTextAttributesToClipboard.md)
+- [Dash Calculator (DashGapCalculator)](readme-en/DashGapCalculator.md)
+- [Draw horizontal rules between objects](readme-en/DrawLinesBetween.md)
+- [Duplicate in a grid, row, column or at random](readme-en/DuplicateInGridPlus.md)
+- [Normalize Excel artwork into a usable table](readme-en/ExcelTableNormalizer.md)
+- [Extend lines through adjacent anchors across the artb…](readme-en/ExtendLines.md)
+- [Snap the bounding box to the nearest reference edge](readme-en/FillSnapper.md)
+- [Build construction lines for logo design and analysis](readme-en/GuideLineBuilder.md)
+- [Build leader lines at a given angle from the bounds](readme-en/LeaderLineBuilder.md)
+- [Generate construction lines and clear space for a logo](readme-en/LogoGridMaker.md)
+- [Generate a long shadow from distance, angle and scale](readme-en/LongShadowMaker.md)
+- [Tile the smaller object inside the larger one](readme-en/PatternFill.md)
+- [Turn rectangles into arrows](readme-en/RectangleToArrow.md)
+- [Rebuild horizontal and vertical lines into a grid](readme-en/RectangularGridReverseTool.md)
+- [Register the appearance as a graphic style](readme-en/RegisterGraphicStyleWithText.md)
+- [Select every other object in stacking order](readme-en/SelectAlternateItems.md)
+- [Run "Select > Same > Appearance" from several referen…](readme-en/SelectSameAppearanceMulti.md)
+- [Apply a favorite arrowhead and stroke settings at once](readme-en/SmartStrokeSettings.md)
+- [Swap the appearance or the text between two objects](readme-en/SwapStyle.md)
+- [Generate rules and backgrounds matching the text fram…](readme-en/TableMaker.md)
+- [Build a title bar whose rule breaks around the text](readme-en/TitleBarLineCut.md)
+- [Cut a gap into the rule around the selection](readme-en/TitleBarLineCutSp.md)
+- [Toggle Trim View and show the guides](readme-en/ToggleTrimView.md)
+- [Convert tree symbols in text into stroked paths](readme-en/TreeSymbolToStroke.md)
+- [Apply the graphic style named "temp_style"](readme-en/apply-temp-style-or-last.md)
+- [Read the selection as a table and generate fills and …](readme-en/tabularize.md)
 

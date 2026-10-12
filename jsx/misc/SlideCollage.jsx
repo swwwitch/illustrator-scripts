@@ -2043,7 +2043,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
         /**
          * 「□画面にフィット［65］%」の行を追加する（ラベルとツールチップは内蔵）
          * @param {Group|Panel|Window} parentContainer - 追加先のコンテナ
-         * @param {object} [rowOptions] - value: チェックの初期値（既定 false）／percent: 割合の初期値／lang: 表示言語
+         * @param {object} [rowOptions] - value: チェックの初期値（既定 false）／percent: 割合の初期値／lang: 表示言語／
+         *     stepper: true で入力欄の左に∧∨を付け、↑↓キーでも増減（StepperButtons 部品の addStepper / bindSteppedArrowKeys /
+         *     redrawSteppersIn を使う。増減したら percentInput.onChange を呼ぶ）
          * @returns {{row: Group, checkbox: Checkbox, percentInput: EditText, getFillRatio: function, updateEnabled: function}} 作成したコントロール一式
          */
         function addControls(parentContainer, rowOptions) {
@@ -2061,9 +2063,28 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
             fitViewCheck.value = (rowOptions.value === true);
 
             var fitPercent = (rowOptions.percent > 0) ? rowOptions.percent : DEFAULT_FIT_PERCENT;
-            var percentInput = fitViewRow.add("edittext", undefined, String(fitPercent));
+            var percentInput;
+            var percentParent = fitViewRow;
+            var stepperGroup = null;
+            if (rowOptions.stepper === true) {
+                /* ∧∨と入力欄は隙間0で突き合わせる / Butt the stepper against the field */
+                percentParent = fitViewRow.add("group");
+                percentParent.orientation = "row";
+                percentParent.alignChildren = ["left", "center"];
+                percentParent.spacing = 0;
+                percentParent.margins = 0;
+                stepperGroup = addStepper(percentParent, function () { return percentInput; }, {
+                    integer: true,
+                    min: FIT_PERCENT_RANGE[0],
+                    max: FIT_PERCENT_RANGE[1],
+                    /* text の代入ではイベントが来ないので、増減後に onChange を呼ぶ / assigning text fires no event */
+                    onStep: function () { if (percentInput.onChange) percentInput.onChange(); }
+                });
+            }
+            percentInput = percentParent.add("edittext", undefined, String(fitPercent));
             percentInput.characters = 3;
             percentInput.helpTip = getLabel(LABELS.tooltip.fitViewPercent, uiLang);
+            if (stepperGroup) bindSteppedArrowKeys(percentInput, stepperGroup); /* ↑↓キーも∧∨と同じ処理で増減 / arrow keys share the stepper's logic */
             var percentUnitLabel = fitViewRow.add("statictext", undefined, "%");
 
             var controls = {
@@ -2086,6 +2107,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
                 updateEnabled: function () {
                     percentInput.enabled = fitViewCheck.value;
                     percentUnitLabel.enabled = fitViewCheck.value;
+                    if (!stepperGroup) return;
+                    stepperGroup.enabled = fitViewCheck.value;
+                    /* ∧∨は自作描画なので、表示中なら描き直してディム表示を切り替える / redraw the custom-drawn stepper once shown */
+                    if (fitViewRow.window.visible) redrawSteppersIn(stepperGroup);
                 }
             };
             controls.updateEnabled();
