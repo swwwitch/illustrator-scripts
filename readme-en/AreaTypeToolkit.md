@@ -173,7 +173,7 @@ Opened with the [Separate text...] button at the bottom left of the adjust dialo
 | Text handling | What it does |
 | --- | --- |
 | Clear overset | Grows the frame until the whole text fits before separating, so no overset character stays hidden (on by default) |
-| Convert visual line breaks to hard returns | Inserts a return where the text wrapped, keeping the same line breaks (on by default) |
+| Convert visual line breaks to hard returns | Inserts a return where the text wrapped, keeping the same line breaks (on by default). The space at each wrap is removed |
 | Remove returns and line breaks | Removes every return and forced line break for single-line point text (off by default). While on, Convert visual line breaks is unavailable |
 
 [OK] separates, then closes the adjust dialog too, since there is no Area Type left to adjust. [Cancel] does nothing and returns to the adjust dialog.
@@ -207,6 +207,7 @@ TextFrame (point / path / area text), PathItem and CompoundPathItem (closed path
 
 ## Change log
 
+- v1.6.2 (2026-10-12) Fixed Separate Text shifting centered and right-aligned Roman text left by the space left at each wrap (that space is now replaced by the return). Fixed point text landing far from the frame when the whole text was overset
 - v1.6.1 (2026-10-12) Added Remove returns and line breaks to the text handling in Separate Text
 - v1.6.0 (2026-10-12) Renamed the "Japanese composition" panel to "Kerning and composition" and added Auto kerning (Metrics / Metrics - Roman Only / Optical) above Kinsoku. Metrics turns Proportional Metrics on, the others turn it off. Role presets now set auto kerning (Body: Metrics - Roman Only; Heading, Menu, Button: Metrics). Separate text now keeps auto kerning and Proportional Metrics per character. Reviewed the UI wording (such as Clear overset) and cleaned up the code
 - v1.5.2 (2026-10-12) Fixed Separate text shifting the point text sideways when the justification is center or right

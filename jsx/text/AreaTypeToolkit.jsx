@@ -27,7 +27,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AreaTypeTo
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AreaTypeToolkit";              /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.6.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.6.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-03-03";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-12";                   /* 更新日 / last updated */
@@ -3329,6 +3329,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
     }
 
     /**
+     * 折り返し位置で行末に残るスペースか（欧文スペース・タブ）
+     * @param {string} character - 1文字
+     * @returns {boolean} スペースなら true
+     */
+    function isWrapSpaceChar(character) {
+        return character === " " || character === "\t";
+    }
+
+    /**
      * 改行・強制改行を取り除いた文字列と、それに合わせた文字属性を返す
      * @param {string} sourceText - 元の文字列
      * @param {Object[]} snapshots - snapshotCharacterAttributes() の戻り値（文字列と1対1）
@@ -3374,6 +3383,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
         var brokenText = "", sourceIndices = [], position = 0;
         for (var i = 0; i < frameLines.length && position < sourceText.length; i++) {
             var lineLength = frameLines[i].characters.length;
+            var lineStartLength = brokenText.length;
             for (var j = 0; j < lineLength && position < sourceText.length; j++) {
                 brokenText += sourceText.charAt(position);
                 sourceIndices.push(position);
@@ -3389,8 +3399,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
                 sourceIndices.push(position);
                 position++;
             } else {
+                /* 折り返し位置に残ったスペースは削る（ポイント文字では行揃えの幅に数えられ、中央・右揃えがずれるため）
+                   Drop the spaces left at the wrap: point type counts them in the line width, which shifts centered and right-aligned lines */
+                var breakSourceIndex = position - 1;
+                while (brokenText.length > lineStartLength && isWrapSpaceChar(brokenText.charAt(brokenText.length - 1))) {
+                    brokenText = brokenText.slice(0, -1);
+                    breakSourceIndex = sourceIndices.pop();
+                }
                 brokenText += "\r";
-                sourceIndices.push(position > 0 ? position - 1 : 0);
+                sourceIndices.push(breakSourceIndex);
             }
         }
 
@@ -3565,8 +3582,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
         var charAttrSnapshots = snapshotCharacterAttributes(areaTextFrame);
         var firstLineOffset = getRepresentativeFontSize(areaTextFrame);
         /* 変換は DOM 側で失敗しうる。測れなければ従来の位置合わせに任せる / The conversion can fail in the DOM; then the rough placement stands */
+        /* 1行も枠に入っていない（全文があふれている）ときは測れない / Nothing to measure when not a single line fits the frame */
         var firstBaselineY = null;
-        try { firstBaselineY = measureFirstBaselineY(areaTextFrame); } catch (eBaseline) { firstBaselineY = null; }
+        if (areaTextFrame.lines.length > 0) {
+            try { firstBaselineY = measureFirstBaselineY(areaTextFrame); } catch (eBaseline) { firstBaselineY = null; }
+        }
         var pointTextContents = areaTextFrame.contents;
 
         /* 見かけの改行を強制改行に変換する（文字属性も同じ並びに合わせる）
