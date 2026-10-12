@@ -27,7 +27,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AreaTypeTo
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AreaTypeToolkit";              /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.6.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.6.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-03-03";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-12";                   /* 更新日 / last updated */
@@ -566,7 +566,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
         checkbox: {
             autoSize: { ja: "自動サイズ調整", en: "Auto-size" },
             resolveOverset: { ja: "文字あふれを解消", en: "Clear overset" },
-            forceLineBreaks: { ja: "見かけの改行を強制改行に変換", en: "Convert visual line breaks to hard returns" }
+            forceLineBreaks: { ja: "見かけの改行を強制改行に変換", en: "Convert visual line breaks to hard returns" },
+            removeLineBreaks: { ja: "改行・強制改行を削除", en: "Remove returns and line breaks" }
         },
         button: {
             convert: { ja: "変換", en: "Convert" },
@@ -682,6 +683,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
             forceLineBreaks: {
                 ja: "エリア内文字で折り返していた位置に改行を入れ、見た目の行分けをポイント文字でも保ちます。OFFにすると段落ごとに1行につながります。",
                 en: "Inserts a return where the Area Type wrapped, so the point text keeps the same line breaks. When off, each paragraph becomes a single long line."
+            },
+            removeLineBreaks: {
+                ja: "改行と強制改行をすべて削除し、1行のポイント文字にします。ONのあいだ［見かけの改行を強制改行に変換］は使えません。",
+                en: "Removes every return and forced line break, so the point text becomes a single line. While on, Convert visual line breaks is unavailable."
             },
             stepUp: {
                 ja: "値を増やす（shift＋クリックで10の倍数へ、option＋クリックで0.1ずつ）",
@@ -2302,7 +2307,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
      * @returns {boolean} 改行を含めば true
      */
     function hasLineBreak(textFrame) {
-        return /[\r\n\u2028\u2029]/.test(textFrame.contents);
+        return /[\r\n\u0003\u2028\u2029]/.test(textFrame.contents);
     }
 
     /**
@@ -3319,7 +3324,24 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
      * @returns {boolean} 改行なら true
      */
     function isLineBreakChar(character) {
-        return character === "\r" || character === "\n" || character === "\u2028" || character === "\u2029";
+        /* \u0003 は Illustrator の強制改行 / \u0003 is Illustrator's forced line break */
+        return character === "\r" || character === "\n" || character === "\u0003" || character === "\u2028" || character === "\u2029";
+    }
+
+    /**
+     * 改行・強制改行を取り除いた文字列と、それに合わせた文字属性を返す
+     * @param {string} sourceText - 元の文字列
+     * @param {Object[]} snapshots - snapshotCharacterAttributes() の戻り値（文字列と1対1）
+     * @returns {{contents: string, snapshots: Object[]}} 改行を除いた文字列と文字属性
+     */
+    function removeLineBreakChars(sourceText, snapshots) {
+        var joinedText = "", keptSnapshots = [];
+        for (var i = 0; i < sourceText.length; i++) {
+            if (isLineBreakChar(sourceText.charAt(i))) continue;
+            joinedText += sourceText.charAt(i);
+            if (i < snapshots.length) { keptSnapshots.push(snapshots[i]); }
+        }
+        return { contents: joinedText, snapshots: keptSnapshots };
     }
 
     /**
@@ -3549,7 +3571,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
 
         /* 見かけの改行を強制改行に変換する（文字属性も同じ並びに合わせる）
            Turn the visual wraps into hard returns, keeping the attributes lined up with them */
-        if (adjustSettings.forceLineBreaks) {
+        if (adjustSettings.removeLineBreaks) {
+            /* 改行・強制改行を削除して1行にする（強制改行への変換とは併用しない）
+               Remove the returns for a single line (never combined with the hard-return conversion) */
+            var joinedText = removeLineBreakChars(pointTextContents, charAttrSnapshots);
+            pointTextContents = joinedText.contents;
+            charAttrSnapshots = joinedText.snapshots;
+        } else if (adjustSettings.forceLineBreaks) {
             var brokenText = buildForcedLineBreakText(areaTextFrame);
             if (brokenText) {
                 pointTextContents = brokenText.contents;
@@ -3653,16 +3681,21 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
         radStrokeBlack.value = true;
         bindExclusiveRadios([radStrokeBlack, radHidePath, radRemovePath, radKeepPathStyle]);
 
-        /* テキストの処理：あふれの解決と、折り返しの強制改行化
-           Text handling: resolving the overset and turning the wraps into hard returns */
+        /* テキストの処理：あふれの解決、折り返しの強制改行化、改行の削除
+           Text handling: resolving the overset, turning the wraps into hard returns, removing the returns */
         var textHandlingPanel = separateDialog.add("panel", undefined, getLabel("panel.textHandling"));
         setupPanel(textHandlingPanel, 6);
         var chkResolveOverset = textHandlingPanel.add("checkbox", undefined, getLabel("checkbox.resolveOverset"));
         var chkForceLineBreaks = textHandlingPanel.add("checkbox", undefined, getLabel("checkbox.forceLineBreaks"));
+        var chkRemoveLineBreaks = textHandlingPanel.add("checkbox", undefined, getLabel("checkbox.removeLineBreaks"));
         chkResolveOverset.helpTip = getLabel("tooltip.resolveOverset");
         chkForceLineBreaks.helpTip = getLabel("tooltip.forceLineBreaks");
+        chkRemoveLineBreaks.helpTip = getLabel("tooltip.removeLineBreaks");
         chkResolveOverset.value = true;
         chkForceLineBreaks.value = true;
+        chkRemoveLineBreaks.value = false;
+        /* 改行を削除するなら、折り返しに改行を入れる処理は使えない / Removing the returns rules out inserting them at the wraps */
+        chkRemoveLineBreaks.onClick = function () { chkForceLineBreaks.enabled = !chkRemoveLineBreaks.value; };
 
         /* ボタンエリア：右寄せで［キャンセル］［OK］/ Button area: Cancel and OK, right-aligned */
         var buttonRow = addButtonRow(separateDialog);
@@ -3677,7 +3710,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
             adjustSettings.removePath = radRemovePath.value;
             adjustSettings.keepPathStyle = radKeepPathStyle.value;
             adjustSettings.resolveOverset = chkResolveOverset.value;
-            adjustSettings.forceLineBreaks = chkForceLineBreaks.value;
+            adjustSettings.removeLineBreaks = chkRemoveLineBreaks.value;
+            adjustSettings.forceLineBreaks = chkForceLineBreaks.value && !chkRemoveLineBreaks.value;
 
             /* 分離するとオブジェクトが置き換わるので後ろから処理する
                Each frame is replaced as it goes, so the list is walked from the back */

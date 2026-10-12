@@ -170,6 +170,12 @@ Opened with the [Separate text...] button at the bottom left of the adjust dialo
 | Delete frame | Deletes the rectangle |
 | Frame: keep its style | Keeps the original frame path with its fill and stroke, in its original shape (not replaced by a rectangle, not grown by the offset) |
 
+| Text handling | What it does |
+| --- | --- |
+| Clear overset | Grows the frame until the whole text fits before separating, so no overset character stays hidden (on by default) |
+| Convert visual line breaks to hard returns | Inserts a return where the text wrapped, keeping the same line breaks (on by default) |
+| Remove returns and line breaks | Removes every return and forced line break for single-line point text (off by default). While on, Convert visual line breaks is unavailable |
+
 [OK] separates, then closes the adjust dialog too, since there is no Area Type left to adjust. [Cancel] does nothing and returns to the adjust dialog.
 
 Clicking [Separate text...] first commits what is set in the adjust dialog (frame size and the rest), so the rectangle is built from that size plus the offset — you can settle the width, then separate.
@@ -201,6 +207,7 @@ TextFrame (point / path / area text), PathItem and CompoundPathItem (closed path
 
 ## Change log
 
+- v1.6.1 (2026-10-12) Added Remove returns and line breaks to the text handling in Separate Text
 - v1.6.0 (2026-10-12) Renamed the "Japanese composition" panel to "Kerning and composition" and added Auto kerning (Metrics / Metrics - Roman Only / Optical) above Kinsoku. Metrics turns Proportional Metrics on, the others turn it off. Role presets now set auto kerning (Body: Metrics - Roman Only; Heading, Menu, Button: Metrics). Separate text now keeps auto kerning and Proportional Metrics per character. Reviewed the UI wording (such as Clear overset) and cleaned up the code
 - v1.5.2 (2026-10-12) Fixed Separate text shifting the point text sideways when the justification is center or right
 - v1.5.1 (2026-10-12) Fixed "Frame: keep its style" in Separate text leaving an invisible rectangle instead of the frame with its fill and stroke. Fixed the separated point text shifting up, down or sideways from its original position depending on First Baseline (such as Fixed at 0) and the inset spacing
