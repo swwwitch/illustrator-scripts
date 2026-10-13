@@ -29,10 +29,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SlideColla
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SlideCollage";                 /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.7.7";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.8.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-03-01";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-13";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SlideCollage.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SlideCollage.md"; /* README (English) */
@@ -50,7 +50,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
     /* ダイアログを開いたときの値。距離は pt、角丸の半径は定規の単位で持つ
        Values the dialog opens with. Distances in pt; corner radii in ruler units */
     var DEFAULT_SETTINGS = {
-        cropIndex: 2,              /* 配置範囲（0 アート / 1 トリミング / 2 仕上がり / 3 裁ち落とし） / crop box */
+        layoutMode: 0,             /* モード（0 グリッド / 1 奥行き） / layout mode */
+        coverScale: 120,           /* 奥行きの表紙の倍率（%、ほかのスライドに対して） / depth-mode cover size relative to the others */
+        farScale: 70,              /* 奥行きのいちばん奥のスライドの大きさ（%、手前に対して） / size of the farthest slide relative to the nearest */
+        scatter: 30,               /* 奥行きの散らばり（%、升目の大きさに対して） / offset from the cell center, relative to the cell */
+        dimOpacity: 60,            /* 奥行きで表紙以外を暗くする黒の不透明度（%） / opacity of the black dimming layer */
+        cropIndex: 2,             /* 配置範囲（0 アート / 1 トリミング / 2 仕上がり / 3 裁ち落とし） / crop box */
         roundEnabled: false,       /* 角丸 / round corners */
         roundRadius: 10,           /* 角丸の半径（定規の単位） / corner radius (ruler units) */
         splitSpreads: false,       /* 見開きを左右に分割 / split spreads */
@@ -87,6 +92,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
 
     /* 綴じ方向の判定で読む PDF の行数 / number of PDF lines scanned for the binding direction */
     var BINDING_SCAN_LINE_LIMIT = 200;
+
+    /* 奥行きモード / Depth mode */
+    var DEPTH_ITEM_FILL = 0.65;  /* 升目の大きさに対するアイテムの大きさ / item size relative to its cell */
 
     // =========================================
     // レイアウト / Layout
@@ -174,7 +182,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
     var UNIT_LABEL_WIDTH   = 24;               /* 単位の幅 / unit label width */
     var SLIDER_WIDTH       = 140;              /* スライダーの幅 / slider width */
     var SWATCH_SIZE        = 24;               /* 背景色の色見本の大きさ / swatch size */
-    var MASK_ROW_SPACING   = 10;               /* マスクとマージンの間隔 / spacing between Mask and Margin */
 
     // ローカライズ（再利用パーツ） / Localization (reusable)
 
@@ -264,15 +271,21 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
         panel: {
             source: { ja: "読み込みファイル", en: "Source File" },
             artboards: { ja: "アートボードの読み込み", en: "Load Artboards" },
+            mode: { ja: "モード", en: "Mode" },
+            depth: { ja: "奥行き", en: "Depth" },
             item: { ja: "アイテム", en: "Items" },
             grid: { ja: "グリッド", en: "Grid" },
             evenColumns: { ja: "偶数列", en: "Even Columns" },
             layout: { ja: "レイアウト", en: "Layout" },
-            artboardMask: { ja: "アートボードとマスク", en: "Artboard & Mask" }
+            artboardMask: { ja: "アートボード背景とマスク", en: "Artboard Background & Mask" }
         },
         fieldLabel: {
             range: { ja: "範囲", en: "Range" },
             count: { ja: "総数", en: "Total" },
+            cover: { ja: "表紙", en: "Cover" },
+            farScale: { ja: "奥の大きさ", en: "Far Size" },
+            scatter: { ja: "散らばり", en: "Scatter" },
+            dim: { ja: "暗さ", en: "Dimming" },
             evenPage: { ja: "偶数ページ", en: "Even Pages" },
             direction: { ja: "方向", en: "Flow" },
             columns: { ja: "列数", en: "Columns" },
@@ -281,6 +294,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
             margin: { ja: "マージン", en: "Margin" }
         },
         radio: {
+            modeGrid: { ja: "グリッド", en: "Grid" },
+            modeDepth: { ja: "奥行き", en: "Depth" },
             horizontal: { ja: "横", en: "Horizontal" },
             vertical: { ja: "縦", en: "Vertical" },
             random: { ja: "ランダム", en: "Random" },
@@ -322,6 +337,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
             pageCountFailed: { ja: "ファイルのページ数を取得できませんでした。", en: "Could not read the page count of the file." }
         },
         tooltip: {
+            modeGrid: { ja: "列と行にそろえて並べます", en: "Lays the items out in rows and columns" },
+            modeDepth: {
+                ja: "1つ目を表紙として中央に置き、ほかは奥行きをつけて散らして暗くします",
+                en: "Puts the first item in the center as the cover and scatters the rest in depth, dimmed"
+            },
+            cover: { ja: "ほかのスライドに対する表紙の大きさ", en: "Size of the cover relative to the other slides" },
+            farScale: { ja: "いちばん奥のスライドの大きさ（手前のスライドに対する割合）", en: "Size of the farthest slide relative to the nearest" },
+            scatter: { ja: "升目の中心からずらす量（升目の大きさに対する割合）。0 で升目にそろう", en: "How far slides move from their cell centers, relative to the cell; 0 keeps them on the grid" },
+            dim: { ja: "表紙以外に重ねる黒の不透明度。0 で暗くしない", en: "Opacity of the black layer over the slides behind the cover; 0 turns dimming off" },
             range: {
                 ja: "読み込むアートボード（PDFはページ）の番号。例：1-20、1,3,5",
                 en: "Artboard (or PDF page) numbers to load, e.g. 1-20 or 1,3,5"
@@ -1188,12 +1212,165 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
         return null;
     }
 
+    /* 相互参照表（xref）をたどるときに1回で読む量（バイト）と、たどる区画の上限
+       Bytes read per lookup while following the cross-reference table, and the section limit */
+    var PDF_TAIL_READ_BYTES = 2048;
+    var PDF_OBJECT_READ_BYTES = 4096;
+    var PDF_LARGE_OBJECT_READ_BYTES = 262144;
+    var PDF_XREF_SECTION_LIMIT = 32;
+
     /**
-     * PDF / AI ファイルの中身を読んで総ページ数を推定する（ドキュメントとして開かない）
+     * PDF / AI ファイルの総ページ数を返す。まず末尾の相互参照表から速く読み、読めなければ中身を先頭から探す
      * @param {File} sourceFile - ファイル
      * @returns {number} ページ数。読めなければ 0
      */
     function readPageCountFromFile(sourceFile) {
+        var pageCount = readPageCountFromXref(sourceFile);
+        if (!(pageCount > 0)) pageCount = readPageCountFromLinearized(sourceFile);
+        return (pageCount > 0) ? pageCount : scanPageCountFromFile(sourceFile);
+    }
+
+    /**
+     * 先頭の Linearized 辞書（Web 表示用に最適化した PDF）からページ数（/N）を読む。
+     * 最適化のあとに追記保存されたファイルはページ数が変わっていることがあるので、/L（ファイルの長さ）が一致するときだけ使う
+     * @param {File} sourceFile - ファイル
+     * @returns {number} ページ数。読めなければ 0
+     */
+    function readPageCountFromLinearized(sourceFile) {
+        var previousEncoding = sourceFile.encoding;
+        sourceFile.encoding = "BINARY";
+        if (!sourceFile.open("r")) {
+            sourceFile.encoding = previousEncoding;
+            return 0;
+        }
+        try {
+            var headText = sourceFile.read(PDF_OBJECT_READ_BYTES);
+            var dictMatch = /\/Linearized[^>]*/.exec(headText);
+            if (!dictMatch) return 0;
+            var lengthMatch = /\/L\s+(\d+)/.exec(dictMatch[0]);
+            var pagesMatch = /\/N\s+(\d+)/.exec(dictMatch[0]);
+            if (!lengthMatch || !pagesMatch || parseInt(lengthMatch[1], 10) !== sourceFile.length) return 0;
+            return parseInt(pagesMatch[1], 10);
+        } catch (e) {
+            return 0; /* 読めなければ先頭からの探索に任せる / leave it to the full scan */
+        } finally {
+            sourceFile.close();
+            sourceFile.encoding = previousEncoding;
+        }
+    }
+
+    /**
+     * 末尾の相互参照表（xref）から、カタログ → ページツリーの /Count をたどってページ数を読む。
+     * 必要な箇所だけ読むので、大きなファイルでも速い。相互参照ストリーム（PDF 1.5 以降の圧縮形式）は読めない
+     * @param {File} sourceFile - ファイル
+     * @returns {number} ページ数。読めなければ 0
+     */
+    function readPageCountFromXref(sourceFile) {
+        var previousEncoding = sourceFile.encoding;
+        sourceFile.encoding = "BINARY";
+        if (!sourceFile.open("r")) {
+            sourceFile.encoding = previousEncoding;
+            return 0;
+        }
+        var subsections = []; /* 新しい区画から順の { start, count, entriesPos } / newest sections first */
+
+        /**
+         * 指定した位置から読む
+         * @param {number} position - 先頭からの位置（バイト）
+         * @param {number} byteCount - 読む量（バイト）
+         * @returns {string} 読んだ文字列
+         */
+        function readBytesAt(position, byteCount) {
+            sourceFile.seek(position, 0);
+            return sourceFile.read(byteCount);
+        }
+
+        /**
+         * 相互参照表の1区画を読み、小区画を subsections に足す
+         * @param {number} position - 「xref」の位置
+         * @returns {{root: number, prev: number}|null} trailer の /Root と /Prev（無ければ -1）。表でなければ null
+         */
+        function readXrefSection(position) {
+            var headerText = readBytesAt(position, 16);
+            if (!/^\s*xref/.test(headerText)) return null;
+            var cursor = position + headerText.indexOf("xref") + 4;
+            while (true) {
+                var chunkText = readBytesAt(cursor, 64);
+                if (/^\s*trailer/.test(chunkText)) {
+                    var trailerText = readBytesAt(cursor, PDF_OBJECT_READ_BYTES);
+                    var rootMatch = /\/Root\s+(\d+)\s+\d+\s+R/.exec(trailerText);
+                    var prevMatch = /\/Prev\s+(\d+)/.exec(trailerText);
+                    return { root: rootMatch ? parseInt(rootMatch[1], 10) : -1, prev: prevMatch ? parseInt(prevMatch[1], 10) : -1 };
+                }
+                var subsectionMatch = /^\s*(\d+)\s+(\d+)[ \t]*(?:\r\n|\r|\n)/.exec(chunkText);
+                if (!subsectionMatch) return null;
+                var entriesPos = cursor + subsectionMatch[0].length;
+                var entryCount = parseInt(subsectionMatch[2], 10);
+                subsections.push({ start: parseInt(subsectionMatch[1], 10), count: entryCount, entriesPos: entriesPos });
+                cursor = entriesPos + entryCount * 20; /* 1項目は20バイト固定 / each entry is 20 bytes */
+            }
+        }
+
+        /**
+         * オブジェクト番号から、オブジェクトの本文を読む（endobj まで）
+         * @param {number} objectNumber - オブジェクト番号
+         * @returns {string|null} 本文。見つからなければ null
+         */
+        function readObjectText(objectNumber) {
+            for (var i = 0; i < subsections.length; i++) {
+                var subsection = subsections[i];
+                if (objectNumber < subsection.start || objectNumber >= subsection.start + subsection.count) continue;
+                var entryMatch = /^(\d{10}) (\d{5}) ([nf])/.exec(readBytesAt(subsection.entriesPos + (objectNumber - subsection.start) * 20, 20));
+                if (!entryMatch || entryMatch[3] !== "n") return null;
+                var objectOffset = parseInt(entryMatch[1], 10);
+                var objectText = readBytesAt(objectOffset, PDF_OBJECT_READ_BYTES);
+                /* 子の一覧（/Kids）が長いと収まらないので、endobj が無ければ大きく読み直す / reread larger when /Kids overflows */
+                if (objectText.indexOf("endobj") < 0) objectText = readBytesAt(objectOffset, PDF_LARGE_OBJECT_READ_BYTES);
+                if (!new RegExp("^\\s*" + objectNumber + "\\s+\\d+\\s+obj").test(objectText)) return null;
+                var endIndex = objectText.indexOf("endobj");
+                return (endIndex >= 0) ? objectText.substring(0, endIndex) : null;
+            }
+            return null;
+        }
+
+        try {
+            var tailText = readBytesAt(Math.max(0, sourceFile.length - PDF_TAIL_READ_BYTES), PDF_TAIL_READ_BYTES);
+            var startxrefMatch = /startxref\s+(\d+)/.exec(tailText.substring(Math.max(0, tailText.lastIndexOf("startxref"))));
+            if (!startxrefMatch) return 0;
+
+            /* 追記保存された区画は /Prev で前へたどる / follow /Prev through incremental updates */
+            var xrefPos = parseInt(startxrefMatch[1], 10);
+            var rootNumber = -1;
+            var visitedPositions = {};
+            for (var i = 0; i < PDF_XREF_SECTION_LIMIT && xrefPos >= 0 && !visitedPositions[xrefPos]; i++) {
+                visitedPositions[xrefPos] = true;
+                var trailerInfo = readXrefSection(xrefPos);
+                if (!trailerInfo) return 0;
+                if (rootNumber < 0) rootNumber = trailerInfo.root;
+                xrefPos = trailerInfo.prev;
+            }
+            if (rootNumber < 0) return 0;
+
+            var catalogText = readObjectText(rootNumber);
+            var pagesMatch = catalogText ? /\/Pages\s+(\d+)\s+\d+\s+R/.exec(catalogText) : null;
+            if (!pagesMatch) return 0;
+            var pagesText = readObjectText(parseInt(pagesMatch[1], 10));
+            var countMatch = pagesText ? /\/Count\s+(\d+)/.exec(pagesText) : null;
+            return countMatch ? parseInt(countMatch[1], 10) : 0;
+        } catch (e) {
+            return 0; /* 壊れた表などは先頭からの探索に任せる / leave broken tables to the full scan */
+        } finally {
+            sourceFile.close();
+            sourceFile.encoding = previousEncoding;
+        }
+    }
+
+    /**
+     * PDF / AI ファイルの中身を先頭から読んで総ページ数を推定する（相互参照表から読めなかったときの予備。大きなファイルでは遅い）
+     * @param {File} sourceFile - ファイル
+     * @returns {number} ページ数。読めなければ 0
+     */
+    function scanPageCountFromFile(sourceFile) {
         var countPattern = /<<\/Count\s(\d+)/;
         var linearizedPattern = /<<\/Linearized\s.+\/N\s(\d+)\/T\s.+>>/;
         var pagePatterns = [/<<\/Type\/Page\/Parent/, /\/Type\s\/Page\s/, /\/StructParents\s\d+.*\/Type\/Page>>/];
@@ -1347,6 +1524,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
     // グリッド計算 / Grid math
     // =========================================
 
+    /* モード / Layout modes */
+    var MODE_GRID = 0;
+    var MODE_DEPTH = 1;
+
     /* 方向 / Flow modes */
     var FLOW_HORIZONTAL = 0;
     var FLOW_VERTICAL = 1;
@@ -1441,6 +1622,112 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
         return indexes;
     }
 
+    /**
+     * 種から同じ並びの乱数を返す関数を作る（Park–Miller。プレビューを並べ直しても配置が変わらないようにする）
+     * @param {number} seed - 種（1〜2147483646）
+     * @returns {Function} 呼ぶたびに 0 以上 1 未満の数を返す関数
+     */
+    function createSeededRandom(seed) {
+        var state = Math.floor(seed) % 2147483647;
+        if (state <= 0) state += 2147483646;
+        return function () {
+            state = state * 16807 % 2147483647;
+            return (state - 1) / 2147483646;
+        };
+    }
+
+    /**
+     * 新しい乱数の種を返す
+     * @returns {number} 1〜2147483646 の整数
+     */
+    function newRandomSeed() {
+        return Math.floor(Math.random() * 2147483646) + 1;
+    }
+
+    /**
+     * 奥行きモードの配置を求める。1つ目（表紙）を中央に置き、ほかは範囲を升目に分けてランダムに散らす。
+     * 奥のものほど小さく、背面に重ねる
+     * @param {Object} depthParams - itemSizes（[{ width, height }]、配置したままの大きさ）/
+     *     area（{ left, top, width, height }、並べる範囲）/ scalePercent（スケール）/
+     *     coverScalePercent（ほかのスライドに対する表紙の倍率）/ farScalePercent（いちばん奥の大きさ）/
+     *     scatterPercent（升目の中心からずらす最大量）/ seed（乱数の種）
+     * @returns {{frames: Object[], stackOrder: number[]}} アイテムごとの枠（{ left, top, width, height }）と、背面→前面の重ね順
+     */
+    function calcDepthLayout(depthParams) {
+        var itemSizes = depthParams.itemSizes;
+        var area = depthParams.area;
+        var itemCount = itemSizes.length;
+        var random = createSeededRandom(depthParams.seed);
+        var coverSize = itemSizes[0];
+
+        /* 升目の縦横比がアイテムに近くなるよう行数を決める / choose rows so cells match the item shape */
+        var shapeRatio = (area.width / area.height) / (coverSize.width / coverSize.height);
+        var rowCount = Math.max(1, Math.round(Math.sqrt(itemCount / shapeRatio)));
+        var columnCount = Math.max(1, Math.ceil(itemCount / rowCount));
+        var cellWidth = area.width / columnCount;
+        var cellHeight = area.height / rowCount;
+        var fitRatio = Math.min(cellWidth / coverSize.width, cellHeight / coverSize.height) * DEPTH_ITEM_FILL * depthParams.scalePercent / 100;
+
+        /* 範囲の中心にいちばん近い升目は表紙のぶん空け、残りを混ぜる / keep the center cell for the cover, shuffle the rest */
+        var centerX = area.left + area.width / 2;
+        var centerY = area.top - area.height / 2;
+        var cells = [];
+        var centerCellIndex = 0;
+        var nearestDistance = Infinity;
+        for (var row = 0; row < rowCount; row++) {
+            for (var col = 0; col < columnCount; col++) {
+                var cell = { x: area.left + (col + 0.5) * cellWidth, y: area.top - (row + 0.5) * cellHeight };
+                var distance = Math.pow(cell.x - centerX, 2) + Math.pow(cell.y - centerY, 2);
+                if (distance < nearestDistance) {
+                    nearestDistance = distance;
+                    centerCellIndex = cells.length;
+                }
+                cells.push(cell);
+            }
+        }
+        cells.splice(centerCellIndex, 1);
+        for (var i = cells.length - 1; i > 0; i--) {
+            var swapIndex = Math.floor(random() * (i + 1));
+            var swapCell = cells[i];
+            cells[i] = cells[swapIndex];
+            cells[swapIndex] = swapCell;
+        }
+
+        var coverRatio = fitRatio * depthParams.coverScalePercent / 100;
+        var farRatio = depthParams.farScalePercent / 100;
+        var scatterRatio = depthParams.scatterPercent / 100;
+        var frames = [makeCenteredFrame(centerX, centerY, coverSize.width * coverRatio, coverSize.height * coverRatio)];
+        var depths = [];
+        for (var j = 1; j < itemCount; j++) {
+            var targetCell = cells[(j - 1) % cells.length];
+            var depth = random(); /* 0 が奥、1 が手前 / 0 is far, 1 is near */
+            var depthRatio = fitRatio * (farRatio + (1 - farRatio) * depth);
+            var frameCenterX = targetCell.x + (random() * 2 - 1) * scatterRatio * cellWidth;
+            var frameCenterY = targetCell.y + (random() * 2 - 1) * scatterRatio * cellHeight;
+            frames.push(makeCenteredFrame(frameCenterX, frameCenterY, itemSizes[j].width * depthRatio, itemSizes[j].height * depthRatio));
+            depths.push(String(10000 + Math.round(depth * 9999)) + "|" + (10000 + j)); /* 比較関数なしで並べられる文字列キー / string key for a plain sort() */
+        }
+
+        /* 奥（小さい）ものから重ね、表紙を最前面に / stack far to near, cover on top */
+        depths.sort();
+        var stackOrder = [];
+        for (var k = 0; k < depths.length; k++) stackOrder.push(parseInt(depths[k].split("|")[1], 10) - 10000);
+        stackOrder.push(0);
+        return { frames: frames, stackOrder: stackOrder };
+    }
+
+    /**
+     * 中心と大きさから枠を作る
+     * @param {number} centerX - 中心の X（pt）
+     * @param {number} centerY - 中心の Y（pt）
+     * @param {number} width - 幅（pt）
+     * @param {number} height - 高さ（pt）
+     * @returns {{left: number, top: number, width: number, height: number}} 枠
+     */
+    function makeCenteredFrame(centerX, centerY, width, height) {
+        return { left: centerX - width / 2, top: centerY + height / 2, width: width, height: height };
+    }
+
     // =========================================
     // アートボードと図形 / Artboard and shapes
     // =========================================
@@ -1475,6 +1762,35 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
         backgroundRect.fillColor = fillColor;
         backgroundRect.zOrder(ZOrderMethod.SENDTOBACK);
         return backgroundRect;
+    }
+
+    /**
+     * 背面のものを暗くする、半透明の黒い長方形を描く
+     * @param {Document} doc - ドキュメント
+     * @param {number[]} bounds - 覆う範囲 [left, top, right, bottom]
+     * @param {number} opacity - 不透明度（%）
+     * @returns {PathItem} 長方形
+     */
+    function drawDimRect(doc, bounds, opacity) {
+        var dimRect = doc.activeLayer.pathItems.rectangle(bounds[1], bounds[0], bounds[2] - bounds[0], bounds[1] - bounds[3]);
+        dimRect.stroked = false;
+        dimRect.filled = true;
+        dimRect.fillColor = makeRGBColor(0, 0, 0);
+        dimRect.opacity = opacity;
+        return dimRect;
+    }
+
+    /**
+     * 2つの範囲を合わせた範囲を返す
+     * @param {number[]} boundsA - [left, top, right, bottom]
+     * @param {number[]} boundsB - [left, top, right, bottom]
+     * @returns {number[]} 合わせた範囲
+     */
+    function mergeBounds(boundsA, boundsB) {
+        return [
+            Math.min(boundsA[0], boundsB[0]), Math.max(boundsA[1], boundsB[1]),
+            Math.max(boundsA[2], boundsB[2]), Math.min(boundsA[3], boundsB[3])
+        ];
     }
 
     /**
@@ -1815,6 +2131,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
         var unitLabel = numberRow.group.add("statictext", undefined, rowOptions.unit || "");
         if (rowOptions.slider) {
             unitLabel.preferredSize.width = UNIT_LABEL_WIDTH;
+            numberRow.group.alignment = ["fill", "center"]; /* 行を広げてスライダーを右端にそろえる / stretch the row so sliders line up at the right */
             addRowSpacer(numberRow.group);
             numberRow.slider = numberRow.group.add("slider", undefined, rowOptions.slider.min, rowOptions.slider.min, rowOptions.slider.max);
             numberRow.slider.preferredSize.width = SLIDER_WIDTH;
@@ -1946,6 +2263,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
         offsetRow.checkbox = rowGroup.add("checkbox", undefined, checkboxLabel);
         offsetRow.checkbox.preferredSize.width = OFFSET_LABEL_WIDTH;
         offsetRow.checkbox.helpTip = tooltip;
+        rowGroup.alignment = ["fill", "center"]; /* 行を広げてスライダーを右端にそろえる / stretch the row so sliders line up at the right */
         addRowSpacer(rowGroup);
         offsetRow.slider = rowGroup.add("slider", undefined, 0, -range, range);
         offsetRow.slider.preferredSize.width = SLIDER_WIDTH;
@@ -2342,6 +2660,52 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
     // ダイアログの位置と不透明度（再利用パーツ）ここまで / End of the reusable dialog position and opacity
 
     // =========================================
+    // 計測（一時） / Profiling (temporary)
+    // =========================================
+    // 計測（一時）ここから：原因を特定したらこのブロックと「計測（一時）」の行を削除する
+
+    var PROFILE_LOG_PATH = "/private/tmp/SlideCollage-profile.txt";
+    var profileLines = [];
+
+    /**
+     * 計測の開始時刻を返す
+     * @returns {number} ミリ秒
+     */
+    function profileNow() {
+        return new Date().getTime();
+    }
+
+    /**
+     * 開始時刻からの経過時間を記録する
+     * @param {string} label - 計測した処理の名前
+     * @param {number} startTime - profileNow() の戻り値
+     * @returns {void}
+     */
+    function profileAdd(label, startTime) {
+        profileLines.push(label + ": " + (profileNow() - startTime) + " ms");
+    }
+
+    /**
+     * 記録を alert で表示し、ファイルに追記して空にする
+     * @param {string} title - 見出し
+     * @returns {void}
+     */
+    function profileFlush(title) {
+        if (profileLines.length === 0) return;
+        var reportText = "[" + title + "]\n" + profileLines.join("\n");
+        profileLines = [];
+        var logFile = new File(PROFILE_LOG_PATH);
+        logFile.encoding = "UTF-8";
+        if (logFile.open("a")) {
+            logFile.writeln(reportText + "\n");
+            logFile.close();
+        }
+        alert(reportText);
+    }
+
+    // 計測（一時）ここまで
+
+    // =========================================
     // メイン処理 / Main
     // =========================================
 
@@ -2412,8 +2776,37 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
         dialogControls.evenPageRightRadio.helpTip = dialogControls.evenPageLeftRadio.helpTip = getLabel("tooltip.evenPage");
         dialogControls.evenPageRightRadio.value = true;
 
+        /* モード / Mode */
+        var modePanel = addPanel(rightColumn, getLabel("panel.mode"));
+        var modeRowGroup = addRow(modePanel);
+        dialogControls.modeRadios = [
+            modeRowGroup.add("radiobutton", undefined, getLabel("radio.modeGrid")),  /* MODE_GRID */
+            modeRowGroup.add("radiobutton", undefined, getLabel("radio.modeDepth"))  /* MODE_DEPTH */
+        ];
+        dialogControls.modeRadios[MODE_GRID].helpTip = getLabel("tooltip.modeGrid");
+        dialogControls.modeRadios[MODE_DEPTH].helpTip = getLabel("tooltip.modeDepth");
+
+        /* 奥行き / Depth */
+        dialogControls.depthPanel = addPanel(rightColumn, getLabel("panel.depth"));
+        dialogControls.coverScaleRow = addNumberRow(dialogControls.depthPanel, {
+            label: labelText("fieldLabel.cover"), tooltip: getLabel("tooltip.cover"),
+            characters: 4, min: 50, max: 300, integer: true, fallback: 120, unit: "%", slider: { min: 50, max: 300 }
+        });
+        dialogControls.farScaleRow = addNumberRow(dialogControls.depthPanel, {
+            label: labelText("fieldLabel.farScale"), tooltip: getLabel("tooltip.farScale"),
+            characters: 4, min: 20, max: 100, integer: true, fallback: 70, unit: "%", slider: { min: 20, max: 100 }
+        });
+        dialogControls.scatterRow = addNumberRow(dialogControls.depthPanel, {
+            label: labelText("fieldLabel.scatter"), tooltip: getLabel("tooltip.scatter"),
+            characters: 4, min: 0, max: 100, integer: true, fallback: 30, unit: "%", slider: { min: 0, max: 100 }
+        });
+        dialogControls.dimRow = addNumberRow(dialogControls.depthPanel, {
+            label: labelText("fieldLabel.dim"), tooltip: getLabel("tooltip.dim"),
+            characters: 4, min: 0, max: 100, integer: true, fallback: 60, unit: "%", slider: { min: 0, max: 100 }
+        });
+
         /* グリッド / Grid */
-        var gridPanel = addPanel(rightColumn, getLabel("panel.grid"));
+        var gridPanel = dialogControls.gridPanel = addPanel(rightColumn, getLabel("panel.grid"));
         var directionRowGroup = addRow(gridPanel);
         directionRowGroup.add("statictext", undefined, labelText("fieldLabel.direction"));
         dialogControls.flowRadios = [
@@ -2431,7 +2824,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
         });
 
         /* 偶数列 / Even columns */
-        var evenColumnsPanel = addPanel(rightColumn, getLabel("panel.evenColumns"));
+        var evenColumnsPanel = dialogControls.evenColumnsPanel = addPanel(rightColumn, getLabel("panel.evenColumns"));
         dialogControls.evenPlusCheckbox = evenColumnsPanel.add("checkbox", undefined, getLabel("checkbox.evenPlusSlot"));
         dialogControls.evenPlusCheckbox.helpTip = getLabel("tooltip.evenPlusSlot");
         dialogControls.evenShiftRow = addNumberRow(evenColumnsPanel, {
@@ -2450,15 +2843,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
             characters: 4, min: -30, max: 30, integer: true, unit: "°", slider: { min: -30, max: 30 }
         });
         /* スライダーのある行は、頭の幅をそろえて入力欄の位置を合わせる / align the leads of the slider rows */
-        alignNumberRowLeads([dialogControls.columnsRow, dialogControls.spacingRow, dialogControls.evenShiftRow, dialogControls.scaleRow, dialogControls.rotateRow]);
+        alignNumberRowLeads([dialogControls.coverScaleRow, dialogControls.farScaleRow, dialogControls.scatterRow, dialogControls.dimRow, dialogControls.columnsRow, dialogControls.spacingRow, dialogControls.evenShiftRow, dialogControls.scaleRow, dialogControls.rotateRow]);
 
         /* 位置調整のスライダーは、アートボードの幅・高さ（定規の単位）まで動かせる / offset range follows the artboard size */
         var artboardRect = getInnerArtboardRect(doc, 0);
         dialogControls.offsetXRow = addOffsetRow(layoutPanel, labelText("checkbox.offsetX"), getLabel("tooltip.offsetX"), artboardRect.width / rulerUnit.pointsPerUnit);
         dialogControls.offsetYRow = addOffsetRow(layoutPanel, labelText("checkbox.offsetY"), getLabel("tooltip.offsetY"), artboardRect.height / rulerUnit.pointsPerUnit);
 
-        /* アートボードとマスク / Artboard & mask */
-        var artboardMaskPanel = addPanel(rightColumn, getLabel("panel.artboardMask"));
+        /* アートボード背景とマスク / Artboard background & mask */
+        var artboardMaskPanel = addPanel(leftColumn, getLabel("panel.artboardMask"));
         var backgroundRowGroup = addRow(artboardMaskPanel);
         dialogControls.backgroundCheckbox = backgroundRowGroup.add("checkbox", undefined, labelText("checkbox.background"));
         dialogControls.backgroundSwatch = backgroundRowGroup.add("panel");
@@ -2468,20 +2861,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
         dialogControls.backgroundHexInput.characters = 7;
         dialogControls.backgroundHexInput.helpTip = getLabel("tooltip.backgroundHex");
 
-        /* マスクとマージンは同じ行、マスク角丸はマージンの左端にそろえて次の行 / mask and margin share a row; the mask corner row starts under the margin */
-        var maskRowGroup = addRow(artboardMaskPanel);
-        maskRowGroup.spacing = MASK_ROW_SPACING; /* 字下げの計算に使うので明示する / set explicitly for the indent below */
-        dialogControls.maskCheckbox = maskRowGroup.add("checkbox", undefined, getLabel("checkbox.mask"));
+        /* マスク・マージン・マスク角丸はそれぞれ1行 / mask, margin and mask corners on separate rows */
+        dialogControls.maskCheckbox = artboardMaskPanel.add("checkbox", undefined, getLabel("checkbox.mask"));
         dialogControls.maskCheckbox.helpTip = getLabel("tooltip.mask");
-        dialogControls.marginRow = addNumberRow(maskRowGroup, {
+        dialogControls.marginRow = addNumberRow(artboardMaskPanel, {
             label: labelText("fieldLabel.margin"), characters: 5, min: 0, unit: rulerUnit.label
         });
-        dialogControls.marginRow.group.margins = 0;
         dialogControls.maskRoundRow = addNumberRow(artboardMaskPanel, {
             checkboxLabel: labelText("checkbox.maskRound"), tooltip: getLabel("tooltip.maskRound"),
             characters: 3, min: 0, unit: rulerUnit.label
         });
-        dialogControls.maskRoundRow.group.margins = [(dialogControls.maskCheckbox.preferredSize.width || 0) + maskRowGroup.spacing, 0, 0, 0];
 
         /* ボタン行（左：リセット・画面にフィット／右：キャンセル・OK） / Button row */
         var buttonRow = addButtonRow(dialogControls.dialog);
@@ -2518,6 +2907,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
         var previewState = {
             items: [], baseWidths: [], baseHeights: [],
             group: null, background: null, rotation: 0, randomOrder: null, roundRadiusPt: 0,
+            dimRect: null, depthSeed: 0,
             cropIndex: -1, splitSpreads: false, evenPageOnRight: true
         };
 
@@ -2545,6 +2935,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
         // -----------------------------------------
         // UI の値 / UI values
         // -----------------------------------------
+
+        /**
+         * 選んでいるモードを返す
+         * @returns {number} MODE_GRID / MODE_DEPTH
+         */
+        function getLayoutMode() {
+            return dialogControls.modeRadios[MODE_DEPTH].value ? MODE_DEPTH : MODE_GRID;
+        }
 
         /**
          * 選んでいる方向を返す
@@ -2579,7 +2977,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
          */
         function getSourcePageCount() {
             if (sourcePageCount > 0) return sourcePageCount;
-            return sourceFile ? countArtboardsByOpening(sourceFile, doc) : 0;
+            if (!sourceFile) return 0;
+            var profileStart = profileNow(); /* 計測（一時） */
+            var openedCount = countArtboardsByOpening(sourceFile, doc);
+            profileAdd("開いてアートボードを数える（" + openedCount + "）", profileStart); /* 計測（一時） */
+            return openedCount;
         }
 
         /**
@@ -2641,10 +3043,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
             dialogControls.sourceNameText.helpTip = decodeURIComponent(sourceFile.fsName);
             dialogControls.cropDropdown.enabled = isPdfFile(sourceFile);
             /* 綴じ方向から偶数ページの位置を設定する / set the even-page side from the binding direction */
+            var profileStart = profileNow(); /* 計測（一時） */
             dialogControls.evenPageRightRadio.value = isRightBoundFile(sourceFile);
+            profileAdd("綴じ方向の判定", profileStart); /* 計測（一時） */
+            profileLines.push("ファイルサイズ: " + Math.round(sourceFile.length / 1024 / 1024 * 10) / 10 + " MB"); /* 計測（一時） */
             dialogControls.evenPageLeftRadio.value = !dialogControls.evenPageRightRadio.value;
 
+            profileStart = profileNow(); /* 計測（一時） */
             sourcePageCount = readPageCountFromFile(sourceFile);
+            profileAdd("ページ数の読み取り（" + sourcePageCount + "ページ）", profileStart); /* 計測（一時） */
             if (sourcePageCount > 0) {
                 dialogControls.rangeInput.text = "1-" + sourcePageCount;
                 isCountLinkedToRange = true;
@@ -2701,6 +3108,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
             previewState.rotation = 0;
             previewState.randomOrder = null;
             previewState.roundRadiusPt = 0;
+            previewState.dimRect = null;
+            previewState.depthSeed = 0;
         }
 
         /**
@@ -2715,6 +3124,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
             clearPreview();
             removeLeftoverPreviewGroups(doc);
 
+            var loadStart = profileNow(); /* 計測（一時） */
             var targetPages = getTargetPages();
             if (!dialogControls.countInput.text) dialogControls.countInput.text = String(targetPages.length);
             var cropToValue = getCropToValue();
@@ -2725,13 +3135,20 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
             /* 回転・後始末をまとめて扱えるよう、1つのグループに入れる / keep everything in one group for rotation and cleanup */
             previewState.group = doc.groupItems.add();
             previewState.group.name = PREVIEW_GROUP_NAME;
+            var placeTotal = 0, placeMax = 0, placeMaxPage = 0, splitTotal = 0; /* 計測（一時） */
             for (var i = 0; i < targetPages.length; i++) {
+                var placeStart = profileNow(); /* 計測（一時） */
                 var placedItem = placeSourcePage(doc, sourceFile, targetPages[i], cropToValue);
+                var placeTime = profileNow() - placeStart; /* 計測（一時） */
+                placeTotal += placeTime; /* 計測（一時） */
+                if (placeTime > placeMax) { placeMax = placeTime; placeMaxPage = targetPages[i]; } /* 計測（一時） */
                 if (!placedItem) continue;
                 var placedPieces = [placedItem];
+                var splitStart = profileNow(); /* 計測（一時） */
                 if (previewState.splitSpreads && isSpreadSize(placedItem.width, placedItem.height)) {
                     placedPieces = splitSpreadItem(doc, placedItem, previewState.evenPageOnRight);
                 }
+                splitTotal += profileNow() - splitStart; /* 計測（一時） */
                 for (var j = 0; j < placedPieces.length; j++) {
                     placedPieces[j].moveToEnd(previewState.group);
                     previewState.items.push(placedPieces[j]);
@@ -2740,9 +3157,19 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
                     previewState.baseHeights.push(pieceBounds[1] - pieceBounds[3]);
                 }
             }
+            profileLines.push("配置（" + targetPages.length + "ページ）: " + placeTotal + " ms（1ページ平均 " + Math.round(placeTotal / Math.max(1, targetPages.length)) + " ms、最大 " + placeMax + " ms：" + placeMaxPage + "ページ目）"); /* 計測（一時） */
+            profileLines.push("見開きの分割: " + splitTotal + " ms"); /* 計測（一時） */
+            var stepStart = profileNow(); /* 計測（一時） */
             updateBackgroundPreview();
+            profileAdd("背景", stepStart); /* 計測（一時） */
+            stepStart = profileNow(); /* 計測（一時） */
             applyLayout(false);
+            profileAdd("並べる（再描画込み）", stepStart); /* 計測（一時） */
+            stepStart = profileNow(); /* 計測（一時） */
             fitViewToArtboard();
+            profileAdd("画面にフィット", stepStart); /* 計測（一時） */
+            profileAdd("読み込み全体", loadStart); /* 計測（一時） */
+            profileFlush("読み込み"); /* 計測（一時） */
             return true;
         }
 
@@ -2763,26 +3190,23 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
         }
 
         /**
-         * 今の設定でプレビューのアイテムを並べ直す（大きさ・位置・角丸・回転・位置調整）
+         * 今の設定でプレビューのアイテムを並べ直す（大きさ・位置・角丸・回転・位置調整。奥行きモードは重ね順と暗くする黒も）
          * @param {boolean} withRoundCorners - 角丸もかけるなら true（OK のとき。プレビューではかけない）
          * @returns {void}
          */
         function applyLayout(withRoundCorners) {
-            var itemCount = previewState.items.length;
-            if (itemCount === 0) return;
+            if (previewState.items.length === 0) return;
 
-            var innerRect = getInnerArtboardRect(doc, getMarginPt());
-            var columnCount = dialogControls.columnsRow.getValue();
-            var gapPt = toPoints(dialogControls.spacingRow.getValue());
-            var evenShiftPt = dialogControls.evenShiftRow.isChecked() ? toPoints(dialogControls.evenShiftRow.getValue()) : 0;
+            var isDepthMode = (getLayoutMode() === MODE_DEPTH);
             var rotateDeg = dialogControls.rotateRow.isChecked() ? dialogControls.rotateRow.getValue() : 0;
             var offsetXPt = dialogControls.offsetXRow.checkbox.value ? toPoints(dialogControls.offsetXRow.slider.value) : 0;
             var offsetYPt = dialogControls.offsetYRow.checkbox.value ? toPoints(dialogControls.offsetYRow.slider.value) : 0; /* ＋で下へ / positive moves down */
-            var flowMode = getFlowMode();
-            var placementOrder = getPlacementOrder(flowMode);
-            var slotCounts = dialogControls.evenPlusCheckbox.value ? getEvenPlusSlotCounts(itemCount, columnCount) : null;
-            var finalPercent = calcFitPercentForUI(itemCount, { width: previewState.baseWidths[0], height: previewState.baseHeights[0] }) * dialogControls.scaleRow.getValue() / 100;
 
+            /* 暗くする黒は回転の外接範囲に合わせて作り直すので、先に消す / the dimming rectangle is rebuilt after rotation */
+            if (previewState.dimRect) {
+                previewState.dimRect.remove();
+                previewState.dimRect = null;
+            }
             /* 前回の回転を戻してから並べる / undo the previous rotation before laying out */
             if (previewState.rotation !== 0) {
                 previewState.group.rotate(-previewState.rotation);
@@ -2791,21 +3215,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
 
             /* 回転するときは回したあとで中央に合わせてから位置調整するので、ここでは足さない
                When rotating, the offset is applied after centering, not here */
-            var startX = innerRect.left + (rotateDeg !== 0 ? 0 : offsetXPt);
-            var startY = innerRect.top - (rotateDeg !== 0 ? 0 : offsetYPt);
-            for (var i = 0; i < itemCount; i++) {
-                var itemIndex = placementOrder ? placementOrder[i] : i;
-                var layoutItem = previewState.items[itemIndex];
-                /* 元の大きさから毎回計算し、拡大縮小が積み重ならないようにする / size from the base each time */
-                var cellWidth = previewState.baseWidths[itemIndex] * finalPercent / 100;
-                var cellHeight = previewState.baseHeights[itemIndex] * finalPercent / 100;
-                var gridCell = getGridCell(i, itemCount, columnCount, flowMode, slotCounts);
-                var cellTop = startY - gridCell.row * (cellHeight + gapPt);
-                if (gridCell.col % 2 === 1) cellTop -= evenShiftPt; /* 偶数列だけずらす / offset even columns */
-                fitItemToFrame(layoutItem, startX + gridCell.col * (cellWidth + gapPt), cellTop, cellWidth, cellHeight);
+            var layoutArea = getInnerArtboardRect(doc, getMarginPt());
+            if (rotateDeg === 0) {
+                layoutArea.left += offsetXPt;
+                layoutArea.top -= offsetYPt;
             }
+            var stackOrder = isDepthMode ? layoutDepthItems(layoutArea) : layoutGridItems(layoutArea);
 
             if (withRoundCorners) applyItemRoundCorners();
+            /* 角丸でクリップグループに包むと重なり順が変わるので、そのあとで重ねる / stack after wrapping for round corners */
+            if (stackOrder) {
+                for (var i = 0; i < stackOrder.length; i++) previewState.items[stackOrder[i]].zOrder(ZOrderMethod.BRINGTOFRONT);
+            }
 
             if (rotateDeg !== 0) {
                 previewState.group.rotate(rotateDeg);
@@ -2813,7 +3234,73 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
                 moveCenterToArtboardCenter(doc, previewState.group);
                 if (offsetXPt !== 0 || offsetYPt !== 0) previewState.group.translate(offsetXPt, -offsetYPt);
             }
+            if (isDepthMode && previewState.items.length > 1 && dialogControls.dimRow.getValue() > 0) addDimRectBehindCover();
             app.redraw();
+        }
+
+        /**
+         * グリッドモードで並べる
+         * @param {{left: number, top: number, width: number, height: number}} layoutArea - 並べる範囲（位置調整込み）
+         * @returns {null} 重ね順は変えない
+         */
+        function layoutGridItems(layoutArea) {
+            var itemCount = previewState.items.length;
+            var columnCount = dialogControls.columnsRow.getValue();
+            var gapPt = toPoints(dialogControls.spacingRow.getValue());
+            var evenShiftPt = dialogControls.evenShiftRow.isChecked() ? toPoints(dialogControls.evenShiftRow.getValue()) : 0;
+            var flowMode = getFlowMode();
+            var placementOrder = getPlacementOrder(flowMode);
+            var slotCounts = dialogControls.evenPlusCheckbox.value ? getEvenPlusSlotCounts(itemCount, columnCount) : null;
+            var finalPercent = calcFitPercentForUI(itemCount, { width: previewState.baseWidths[0], height: previewState.baseHeights[0] }) * dialogControls.scaleRow.getValue() / 100;
+
+            for (var i = 0; i < itemCount; i++) {
+                var itemIndex = placementOrder ? placementOrder[i] : i;
+                /* 元の大きさから毎回計算し、拡大縮小が積み重ならないようにする / size from the base each time */
+                var cellWidth = previewState.baseWidths[itemIndex] * finalPercent / 100;
+                var cellHeight = previewState.baseHeights[itemIndex] * finalPercent / 100;
+                var gridCell = getGridCell(i, itemCount, columnCount, flowMode, slotCounts);
+                var cellTop = layoutArea.top - gridCell.row * (cellHeight + gapPt);
+                if (gridCell.col % 2 === 1) cellTop -= evenShiftPt; /* 偶数列だけずらす / offset even columns */
+                fitItemToFrame(previewState.items[itemIndex], layoutArea.left + gridCell.col * (cellWidth + gapPt), cellTop, cellWidth, cellHeight);
+            }
+            return null;
+        }
+
+        /**
+         * 奥行きモードで並べる（1つ目を表紙として中央に、ほかは散らす）
+         * @param {{left: number, top: number, width: number, height: number}} layoutArea - 並べる範囲（位置調整込み）
+         * @returns {number[]} 背面→前面の重ね順
+         */
+        function layoutDepthItems(layoutArea) {
+            if (!previewState.depthSeed) previewState.depthSeed = newRandomSeed();
+            var itemSizes = [];
+            for (var i = 0; i < previewState.items.length; i++) {
+                itemSizes.push({ width: previewState.baseWidths[i], height: previewState.baseHeights[i] });
+            }
+            var depthLayout = calcDepthLayout({
+                itemSizes: itemSizes, area: layoutArea,
+                scalePercent: dialogControls.scaleRow.getValue(), coverScalePercent: dialogControls.coverScaleRow.getValue(),
+                farScalePercent: dialogControls.farScaleRow.getValue(), scatterPercent: dialogControls.scatterRow.getValue(),
+                seed: previewState.depthSeed
+            });
+            for (var j = 0; j < previewState.items.length; j++) {
+                var frame = depthLayout.frames[j];
+                fitItemToFrame(previewState.items[j], frame.left, frame.top, frame.width, frame.height);
+            }
+            return depthLayout.stackOrder;
+        }
+
+        /**
+         * 表紙のすぐ背面に、ほかのアイテムを暗くする黒を敷く（アートボードと並べたアイテム全体を覆う）
+         * @returns {void}
+         */
+        function addDimRectBehindCover() {
+            var artboardRect = doc.artboards[doc.artboards.getActiveArtboardIndex()].artboardRect;
+            var coverBounds = mergeBounds(artboardRect, getVisibleBounds(previewState.group));
+            previewState.dimRect = drawDimRect(doc, coverBounds, dialogControls.dimRow.getValue());
+            /* 黒をグループの最前面に入れてから、表紙をその上へ送る / put the black on top of the group, then bring the cover above it */
+            previewState.dimRect.move(previewState.group, ElementPlacement.PLACEATBEGINNING);
+            previewState.items[0].zOrder(ZOrderMethod.BRINGTOFRONT);
         }
 
         /**
@@ -2953,6 +3440,20 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
         }
 
         /**
+         * モードに合わせて、奥行き・グリッド・偶数列の有効／無効を切り替える
+         * @returns {void}
+         */
+        function updateModeControls() {
+            var isGridMode = (getLayoutMode() === MODE_GRID);
+            dialogControls.depthPanel.enabled = !isGridMode;
+            redrawSteppersIn(dialogControls.depthPanel);
+            dialogControls.gridPanel.enabled = isGridMode;
+            dialogControls.evenColumnsPanel.enabled = isGridMode;
+            redrawSteppersIn(dialogControls.gridPanel);
+            redrawSteppersIn(dialogControls.evenColumnsPanel);
+        }
+
+        /**
          * 見開きの分割に合わせて、偶数ページの位置の有効／無効を切り替える
          * @returns {void}
          */
@@ -2972,6 +3473,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
         function applySettings(settings) {
             /* selection の代入で onChange が走るので、反映し終えるまで読み込み直しを止める / assigning selection fires onChange */
             isApplyingSettings = true;
+            dialogControls.modeRadios[settings.layoutMode].value = true;
+            updateModeControls();
+            dialogControls.coverScaleRow.setValue(settings.coverScale);
+            dialogControls.farScaleRow.setValue(settings.farScale);
+            dialogControls.scatterRow.setValue(settings.scatter);
+            dialogControls.dimRow.setValue(settings.dimOpacity);
             dialogControls.cropDropdown.selection = settings.cropIndex;
             dialogControls.roundRow.setChecked(settings.roundEnabled);
             dialogControls.roundRow.setValue(settings.roundRadius);
@@ -3009,6 +3516,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
          * @returns {void}
          */
         function centerGridHorizontally() {
+            if (getLayoutMode() !== MODE_GRID) return; /* 奥行きモードは中央に置くので不要 / depth mode is already centered */
             var itemSize = getReferenceItemSize();
             if (!itemSize) return;
             var itemCount = (previewState.items.length > 0) ? previewState.items.length : getTargetPages().length;
@@ -3029,6 +3537,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
             var resetSettingsValues = {};
             for (var settingKey in DEFAULT_SETTINGS) resetSettingsValues[settingKey] = DEFAULT_SETTINGS[settingKey];
             for (var overrideKey in RESET_OVERRIDES) resetSettingsValues[overrideKey] = RESET_OVERRIDES[overrideKey];
+            resetSettingsValues.layoutMode = getLayoutMode(); /* モードは戻さない / keep the mode */
             applySettings(resetSettingsValues);
             /* 中央寄せは読み込み直したあとのアイテムで測る / measure the centering on the reloaded items */
             if (previewState.items.length > 0 && previewNeedsReload()) loadPreview();
@@ -3091,6 +3600,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
                 return;
             }
             setSourceFile(chosenFile);
+            profileFlush("ファイルを選択"); /* 計測（一時） */
         };
         dialogControls.rangeInput.onChanging = syncCountToRange;
         dialogControls.countInput.onChanging = dialogControls.countStepOptions.onStep = function () {
@@ -3105,7 +3615,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
         };
         dialogControls.evenPageRightRadio.onClick = dialogControls.evenPageLeftRadio.onClick = reloadOrRefreshPreview;
 
-        var layoutRows = [dialogControls.columnsRow, dialogControls.spacingRow, dialogControls.evenShiftRow, dialogControls.scaleRow, dialogControls.rotateRow, dialogControls.marginRow, dialogControls.offsetXRow, dialogControls.offsetYRow];
+        var layoutRows = [dialogControls.coverScaleRow, dialogControls.farScaleRow, dialogControls.scatterRow, dialogControls.dimRow, dialogControls.columnsRow, dialogControls.spacingRow, dialogControls.evenShiftRow, dialogControls.scaleRow, dialogControls.rotateRow, dialogControls.marginRow, dialogControls.offsetXRow, dialogControls.offsetYRow];
         for (var i = 0; i < layoutRows.length; i++) layoutRows[i].onValueChange = refreshPreview;
 
         /* ずらしをオンにしたら、ずらし量を自動で入れてから並べ直す / auto-fill the offset when Shift is turned on */
@@ -3125,6 +3635,22 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
             };
         }
         dialogControls.evenPlusCheckbox.onClick = refreshPreview;
+        for (var k = 0; k < dialogControls.modeRadios.length; k++) {
+            dialogControls.modeRadios[k].onClick = function () {
+                previewState.depthSeed = 0; /* 奥行きを選び直したら配置も引き直す / reshuffle on every click */
+                if (getLayoutMode() === MODE_DEPTH) {
+                    /* 奥行きは回転・背景なし、マスクはアートボードぴったりで始める / depth starts unrotated, without background, mask flush with the artboard */
+                    dialogControls.rotateRow.setChecked(false);
+                    dialogControls.marginRow.setValue(0);
+                    dialogControls.maskRoundRow.setChecked(false);
+                    dialogControls.backgroundCheckbox.value = false;
+                    updateBackgroundControls();
+                    updateBackgroundPreview();
+                }
+                updateModeControls();
+                refreshPreview();
+            };
+        }
 
         dialogControls.backgroundCheckbox.onClick = function () {
             updateBackgroundControls();
@@ -3155,8 +3681,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
 
         applySettings(DEFAULT_SETTINGS);
         dialogControls.cropDropdown.enabled = false;
+        var initStart = profileNow(); /* 計測（一時） */
         useSelectedPlacedFile();
+        profileAdd("選択中の配置画像から読み込みファイルを設定", initStart); /* 計測（一時） */
+        initStart = profileNow(); /* 計測（一時） */
         if (sourceFile) setDefaultEvenShift();
+        profileAdd("ずらし量の自動計算（仮配置で大きさを測る）", initStart); /* 計測（一時） */
+        profileFlush("ダイアログを開く"); /* 計測（一時） */
 
         prepareDialogWindow(dialogControls.dialog, SCRIPT_NAME);
         if (dialogControls.dialog.show() === 1) {
