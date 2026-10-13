@@ -6,8 +6,8 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-選んだ .ai / .pdf のアートボード（PDFはページ）をグリッドに並べ、ポートフォリオ用のサムネイル一覧を作成します。
-見開きを片ページに分けたり、回転・マスク・背景色を付けたりできます。
+選んだ .ai / .pdf のアートボード（PDFはページ）を並べ、ポートフォリオ用のサムネイル一覧を作成します。
+並べ方は、列と行にそろえる［グリッド］と、表紙を中央に置いてほかを奥に散らす［スポットライト］の2種類です。
 
 詳細は README を参照してください。
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SlideCollage.md
@@ -17,8 +17,8 @@ https://note.com/dtp_tranist/n/n9f8c7370f4e5
 
 ### Overview
 
-Lays out the artboards (or PDF pages) of the .ai / .pdf file you choose in a grid to build a portfolio-style thumbnail sheet.
-Spreads can be split into single pages, and the layout can be rotated, masked and given a background color.
+Lays out the artboards (or PDF pages) of the .ai / .pdf file you choose to build a portfolio-style thumbnail sheet.
+Two layouts: Grid lines them up in rows and columns; Spotlight centers the cover and scatters the rest in depth.
 
 See the README for details.
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SlideCollage.md
@@ -29,7 +29,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SlideColla
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SlideCollage";                 /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.8.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.8.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-03-01";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-13";                   /* 更新日 / last updated */
@@ -50,11 +50,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
     /* ダイアログを開いたときの値。距離は pt、角丸の半径は定規の単位で持つ
        Values the dialog opens with. Distances in pt; corner radii in ruler units */
     var DEFAULT_SETTINGS = {
-        layoutMode: 0,             /* モード（0 グリッド / 1 奥行き） / layout mode */
-        coverScale: 120,           /* 奥行きの表紙の倍率（%、ほかのスライドに対して） / depth-mode cover size relative to the others */
-        farScale: 70,              /* 奥行きのいちばん奥のスライドの大きさ（%、手前に対して） / size of the farthest slide relative to the nearest */
-        scatter: 30,               /* 奥行きの散らばり（%、升目の大きさに対して） / offset from the cell center, relative to the cell */
-        dimOpacity: 60,            /* 奥行きで表紙以外を暗くする黒の不透明度（%） / opacity of the black dimming layer */
+        layoutMode: 0,             /* モード（0 グリッド / 1 スポットライト） / layout mode */
+        coverScale: 190,           /* スポットライトの表紙の倍率（%、ほかのスライドに対して） / spotlight cover size relative to the others */
+        farScale: 50,              /* スポットライトのいちばん奥のスライドの大きさ（%、手前に対して） / size of the farthest slide relative to the nearest */
+        scatter: 70,               /* スポットライトの散らばり（%、升目の大きさに対して） / offset from the cell center, relative to the cell */
+        dimOpacity: 80,            /* スポットライトで表紙以外を暗くする黒の不透明度（%） / opacity of the black dimming layer */
         cropIndex: 2,             /* 配置範囲（0 アート / 1 トリミング / 2 仕上がり / 3 裁ち落とし） / crop box */
         roundEnabled: false,       /* 角丸 / round corners */
         roundRadius: 10,           /* 角丸の半径（定規の単位） / corner radius (ruler units) */
@@ -93,8 +93,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
     /* 綴じ方向の判定で読む PDF の行数 / number of PDF lines scanned for the binding direction */
     var BINDING_SCAN_LINE_LIMIT = 200;
 
-    /* 奥行きモード / Depth mode */
-    var DEPTH_ITEM_FILL = 0.65;  /* 升目の大きさに対するアイテムの大きさ / item size relative to its cell */
+    /* スポットライトモード / Spotlight mode */
+    var SPOTLIGHT_ITEM_FILL = 0.65;  /* 升目の大きさに対するアイテムの大きさ / item size relative to its cell */
 
     // =========================================
     // レイアウト / Layout
@@ -271,10 +271,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
         panel: {
             source: { ja: "読み込みファイル", en: "Source File" },
             artboards: { ja: "アートボードの読み込み", en: "Load Artboards" },
-            mode: { ja: "モード", en: "Mode" },
-            depth: { ja: "奥行き", en: "Depth" },
             item: { ja: "アイテム", en: "Items" },
-            grid: { ja: "グリッド", en: "Grid" },
             evenColumns: { ja: "偶数列", en: "Even Columns" },
             layout: { ja: "レイアウト", en: "Layout" },
             artboardMask: { ja: "アートボード背景とマスク", en: "Artboard Background & Mask" }
@@ -282,7 +279,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
         fieldLabel: {
             range: { ja: "範囲", en: "Range" },
             count: { ja: "総数", en: "Total" },
-            cover: { ja: "表紙", en: "Cover" },
+            crop: { ja: "配置範囲", en: "Crop To" },
+            cover: { ja: "表紙の大きさ", en: "Cover Size" },
             farScale: { ja: "奥の大きさ", en: "Far Size" },
             scatter: { ja: "散らばり", en: "Scatter" },
             dim: { ja: "暗さ", en: "Dimming" },
@@ -293,9 +291,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
             scale: { ja: "スケール", en: "Scale" },
             margin: { ja: "マージン", en: "Margin" }
         },
+        tab: {
+            grid: { ja: "グリッド", en: "Grid" },
+            spotlight: { ja: "スポットライト", en: "Spotlight" }
+        },
         radio: {
-            modeGrid: { ja: "グリッド", en: "Grid" },
-            modeDepth: { ja: "奥行き", en: "Depth" },
             horizontal: { ja: "横", en: "Horizontal" },
             vertical: { ja: "縦", en: "Vertical" },
             random: { ja: "ランダム", en: "Random" },
@@ -337,14 +337,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
             pageCountFailed: { ja: "ファイルのページ数を取得できませんでした。", en: "Could not read the page count of the file." }
         },
         tooltip: {
-            modeGrid: { ja: "列と行にそろえて並べます", en: "Lays the items out in rows and columns" },
-            modeDepth: {
-                ja: "1つ目を表紙として中央に置き、ほかは奥行きをつけて散らして暗くします",
-                en: "Puts the first item in the center as the cover and scatters the rest in depth, dimmed"
-            },
             cover: { ja: "ほかのスライドに対する表紙の大きさ", en: "Size of the cover relative to the other slides" },
             farScale: { ja: "いちばん奥のスライドの大きさ（手前のスライドに対する割合）", en: "Size of the farthest slide relative to the nearest" },
-            scatter: { ja: "升目の中心からずらす量（升目の大きさに対する割合）。0 で升目にそろう", en: "How far slides move from their cell centers, relative to the cell; 0 keeps them on the grid" },
+            scatter: {
+                ja: "升目の中心からずらす量（升目の大きさに対する割合）。0 で升目にそろう",
+                en: "How far slides move from their cell centers, relative to the cell; 0 keeps them on the grid"
+            },
             dim: { ja: "表紙以外に重ねる黒の不透明度。0 で暗くしない", en: "Opacity of the black layer over the slides behind the cover; 0 turns dimming off" },
             range: {
                 ja: "読み込むアートボード（PDFはページ）の番号。例：1-20、1,3,5",
@@ -1117,10 +1115,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
         var rangeParts = normalized.split(/[,、]/);
 
         for (var i = 0; i < rangeParts.length; i++) {
-            var bounds = rangeParts[i].split("-");
-            var startPage = parseInt(bounds[0], 10);
+            var rangeEnds = rangeParts[i].split("-");
+            var startPage = parseInt(rangeEnds[0], 10);
             if (isNaN(startPage)) continue;
-            var endPage = (bounds.length > 1) ? parseInt(bounds[1], 10) : startPage;
+            var endPage = (rangeEnds.length > 1) ? parseInt(rangeEnds[1], 10) : startPage;
             if (isNaN(endPage)) endPage = startPage;
             for (var j = Math.min(startPage, endPage); j <= Math.max(startPage, endPage); j++) {
                 pageNumbers.push(j);
@@ -1220,6 +1218,29 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
     var PDF_XREF_SECTION_LIMIT = 32;
 
     /**
+     * ファイルをバイナリで開いて読み、閉じて元のエンコーディングに戻す
+     * @param {File} sourceFile - ファイル
+     * @param {Function} readFile - 開いたファイルを読む関数。戻り値をそのまま返す
+     * @returns {number} readFile の戻り値。開けないとき・読み取り中に例外が出たときは 0
+     */
+    function readBinaryFile(sourceFile, readFile) {
+        var previousEncoding = sourceFile.encoding;
+        sourceFile.encoding = "BINARY";
+        if (!sourceFile.open("r")) {
+            sourceFile.encoding = previousEncoding;
+            return 0;
+        }
+        try {
+            return readFile();
+        } catch (e) {
+            return 0; /* 壊れた表などは呼び出し側の予備の読み方に任せる / leave broken files to the caller's fallback */
+        } finally {
+            sourceFile.close();
+            sourceFile.encoding = previousEncoding;
+        }
+    }
+
+    /**
      * PDF / AI ファイルの総ページ数を返す。まず末尾の相互参照表から速く読み、読めなければ中身を先頭から探す
      * @param {File} sourceFile - ファイル
      * @returns {number} ページ数。読めなければ 0
@@ -1237,13 +1258,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
      * @returns {number} ページ数。読めなければ 0
      */
     function readPageCountFromLinearized(sourceFile) {
-        var previousEncoding = sourceFile.encoding;
-        sourceFile.encoding = "BINARY";
-        if (!sourceFile.open("r")) {
-            sourceFile.encoding = previousEncoding;
-            return 0;
-        }
-        try {
+        return readBinaryFile(sourceFile, function () {
             var headText = sourceFile.read(PDF_OBJECT_READ_BYTES);
             var dictMatch = /\/Linearized[^>]*/.exec(headText);
             if (!dictMatch) return 0;
@@ -1251,12 +1266,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
             var pagesMatch = /\/N\s+(\d+)/.exec(dictMatch[0]);
             if (!lengthMatch || !pagesMatch || parseInt(lengthMatch[1], 10) !== sourceFile.length) return 0;
             return parseInt(pagesMatch[1], 10);
-        } catch (e) {
-            return 0; /* 読めなければ先頭からの探索に任せる / leave it to the full scan */
-        } finally {
-            sourceFile.close();
-            sourceFile.encoding = previousEncoding;
-        }
+        });
     }
 
     /**
@@ -1266,12 +1276,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
      * @returns {number} ページ数。読めなければ 0
      */
     function readPageCountFromXref(sourceFile) {
-        var previousEncoding = sourceFile.encoding;
-        sourceFile.encoding = "BINARY";
-        if (!sourceFile.open("r")) {
-            sourceFile.encoding = previousEncoding;
-            return 0;
-        }
         var subsections = []; /* 新しい区画から順の { start, count, entriesPos } / newest sections first */
 
         /**
@@ -1333,7 +1337,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
             return null;
         }
 
-        try {
+        return readBinaryFile(sourceFile, function () {
             var tailText = readBytesAt(Math.max(0, sourceFile.length - PDF_TAIL_READ_BYTES), PDF_TAIL_READ_BYTES);
             var startxrefMatch = /startxref\s+(\d+)/.exec(tailText.substring(Math.max(0, tailText.lastIndexOf("startxref"))));
             if (!startxrefMatch) return 0;
@@ -1357,12 +1361,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
             var pagesText = readObjectText(parseInt(pagesMatch[1], 10));
             var countMatch = pagesText ? /\/Count\s+(\d+)/.exec(pagesText) : null;
             return countMatch ? parseInt(countMatch[1], 10) : 0;
-        } catch (e) {
-            return 0; /* 壊れた表などは先頭からの探索に任せる / leave broken tables to the full scan */
-        } finally {
-            sourceFile.close();
-            sourceFile.encoding = previousEncoding;
-        }
+        });
     }
 
     /**
@@ -1526,7 +1525,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
 
     /* モード / Layout modes */
     var MODE_GRID = 0;
-    var MODE_DEPTH = 1;
+    var MODE_SPOTLIGHT = 1;
 
     /* 方向 / Flow modes */
     var FLOW_HORIZONTAL = 0;
@@ -1606,6 +1605,22 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
     }
 
     /**
+     * 配列をその場でシャッフルする（Fisher–Yates）
+     * @param {Array} values - 並べ替える配列
+     * @param {Function} nextRandom - 0 以上 1 未満の数を返す関数
+     * @returns {Array} 並べ替えた同じ配列
+     */
+    function shuffleInPlace(values, nextRandom) {
+        for (var i = values.length - 1; i > 0; i--) {
+            var swapIndex = Math.floor(nextRandom() * (i + 1));
+            var swapValue = values[i];
+            values[i] = values[swapIndex];
+            values[swapIndex] = swapValue;
+        }
+        return values;
+    }
+
+    /**
      * 0〜count-1 の番号をシャッフルした配列を返す
      * @param {number} count - 個数
      * @returns {number[]} シャッフルした番号
@@ -1613,13 +1628,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
     function shuffledIndexes(count) {
         var indexes = [];
         for (var i = 0; i < count; i++) indexes.push(i);
-        for (var j = indexes.length - 1; j > 0; j--) {
-            var k = Math.floor(Math.random() * (j + 1));
-            var swapValue = indexes[j];
-            indexes[j] = indexes[k];
-            indexes[k] = swapValue;
-        }
-        return indexes;
+        return shuffleInPlace(indexes, Math.random);
     }
 
     /**
@@ -1645,65 +1654,60 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
     }
 
     /**
-     * 奥行きモードの配置を求める。1つ目（表紙）を中央に置き、ほかは範囲を升目に分けてランダムに散らす。
+     * スポットライトモードの配置を求める。1つ目（表紙）を中央に置き、ほかは範囲を升目に分けてランダムに散らす。
      * 奥のものほど小さく、背面に重ねる
-     * @param {Object} depthParams - itemSizes（[{ width, height }]、配置したままの大きさ）/
-     *     area（{ left, top, width, height }、並べる範囲）/ scalePercent（スケール）/
+     * @param {Object} spotlightParams - itemSizes（[{ width, height }]、配置したままの大きさ）/
+     *     layoutArea（{ left, top, width, height }、並べる範囲）/ scalePercent（スケール）/
      *     coverScalePercent（ほかのスライドに対する表紙の倍率）/ farScalePercent（いちばん奥の大きさ）/
      *     scatterPercent（升目の中心からずらす最大量）/ seed（乱数の種）
      * @returns {{frames: Object[], stackOrder: number[]}} アイテムごとの枠（{ left, top, width, height }）と、背面→前面の重ね順
      */
-    function calcDepthLayout(depthParams) {
-        var itemSizes = depthParams.itemSizes;
-        var area = depthParams.area;
+    function calcSpotlightLayout(spotlightParams) {
+        var itemSizes = spotlightParams.itemSizes;
+        var layoutArea = spotlightParams.layoutArea;
         var itemCount = itemSizes.length;
-        var random = createSeededRandom(depthParams.seed);
+        var nextRandom = createSeededRandom(spotlightParams.seed);
         var coverSize = itemSizes[0];
 
         /* 升目の縦横比がアイテムに近くなるよう行数を決める / choose rows so cells match the item shape */
-        var shapeRatio = (area.width / area.height) / (coverSize.width / coverSize.height);
+        var shapeRatio = (layoutArea.width / layoutArea.height) / (coverSize.width / coverSize.height);
         var rowCount = Math.max(1, Math.round(Math.sqrt(itemCount / shapeRatio)));
         var columnCount = Math.max(1, Math.ceil(itemCount / rowCount));
-        var cellWidth = area.width / columnCount;
-        var cellHeight = area.height / rowCount;
-        var fitRatio = Math.min(cellWidth / coverSize.width, cellHeight / coverSize.height) * DEPTH_ITEM_FILL * depthParams.scalePercent / 100;
+        var cellWidth = layoutArea.width / columnCount;
+        var cellHeight = layoutArea.height / rowCount;
+        var fitRatio = Math.min(cellWidth / coverSize.width, cellHeight / coverSize.height) * SPOTLIGHT_ITEM_FILL * spotlightParams.scalePercent / 100;
 
         /* 範囲の中心にいちばん近い升目は表紙のぶん空け、残りを混ぜる / keep the center cell for the cover, shuffle the rest */
-        var centerX = area.left + area.width / 2;
-        var centerY = area.top - area.height / 2;
-        var cells = [];
+        var centerX = layoutArea.left + layoutArea.width / 2;
+        var centerY = layoutArea.top - layoutArea.height / 2;
+        var cellCenters = [];
         var centerCellIndex = 0;
         var nearestDistance = Infinity;
         for (var row = 0; row < rowCount; row++) {
             for (var col = 0; col < columnCount; col++) {
-                var cell = { x: area.left + (col + 0.5) * cellWidth, y: area.top - (row + 0.5) * cellHeight };
+                var cell = { x: layoutArea.left + (col + 0.5) * cellWidth, y: layoutArea.top - (row + 0.5) * cellHeight };
                 var distance = Math.pow(cell.x - centerX, 2) + Math.pow(cell.y - centerY, 2);
                 if (distance < nearestDistance) {
                     nearestDistance = distance;
-                    centerCellIndex = cells.length;
+                    centerCellIndex = cellCenters.length;
                 }
-                cells.push(cell);
+                cellCenters.push(cell);
             }
         }
-        cells.splice(centerCellIndex, 1);
-        for (var i = cells.length - 1; i > 0; i--) {
-            var swapIndex = Math.floor(random() * (i + 1));
-            var swapCell = cells[i];
-            cells[i] = cells[swapIndex];
-            cells[swapIndex] = swapCell;
-        }
+        cellCenters.splice(centerCellIndex, 1);
+        shuffleInPlace(cellCenters, nextRandom);
 
-        var coverRatio = fitRatio * depthParams.coverScalePercent / 100;
-        var farRatio = depthParams.farScalePercent / 100;
-        var scatterRatio = depthParams.scatterPercent / 100;
+        var coverRatio = fitRatio * spotlightParams.coverScalePercent / 100;
+        var farRatio = spotlightParams.farScalePercent / 100;
+        var scatterRatio = spotlightParams.scatterPercent / 100;
         var frames = [makeCenteredFrame(centerX, centerY, coverSize.width * coverRatio, coverSize.height * coverRatio)];
         var depths = [];
         for (var j = 1; j < itemCount; j++) {
-            var targetCell = cells[(j - 1) % cells.length];
-            var depth = random(); /* 0 が奥、1 が手前 / 0 is far, 1 is near */
+            var targetCell = cellCenters[(j - 1) % cellCenters.length];
+            var depth = nextRandom(); /* 0 が奥、1 が手前 / 0 is far, 1 is near */
             var depthRatio = fitRatio * (farRatio + (1 - farRatio) * depth);
-            var frameCenterX = targetCell.x + (random() * 2 - 1) * scatterRatio * cellWidth;
-            var frameCenterY = targetCell.y + (random() * 2 - 1) * scatterRatio * cellHeight;
+            var frameCenterX = targetCell.x + (nextRandom() * 2 - 1) * scatterRatio * cellWidth;
+            var frameCenterY = targetCell.y + (nextRandom() * 2 - 1) * scatterRatio * cellHeight;
             frames.push(makeCenteredFrame(frameCenterX, frameCenterY, itemSizes[j].width * depthRatio, itemSizes[j].height * depthRatio));
             depths.push(String(10000 + Math.round(depth * 9999)) + "|" + (10000 + j)); /* 比較関数なしで並べられる文字列キー / string key for a plain sort() */
         }
@@ -1733,13 +1737,22 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
     // =========================================
 
     /**
+     * アクティブなアートボードの矩形を返す
+     * @param {Document} doc - ドキュメント
+     * @returns {number[]} [left, top, right, bottom]
+     */
+    function getActiveArtboardRect(doc) {
+        return doc.artboards[doc.artboards.getActiveArtboardIndex()].artboardRect;
+    }
+
+    /**
      * アクティブなアートボードから、マージンを除いた内側の矩形を返す
      * @param {Document} doc - ドキュメント
      * @param {number} marginPt - マージン（pt）
      * @returns {{left: number, top: number, width: number, height: number}} 内側の矩形（幅・高さは最低1）
      */
     function getInnerArtboardRect(doc, marginPt) {
-        var artboardRect = doc.artboards[doc.artboards.getActiveArtboardIndex()].artboardRect; /* [left, top, right, bottom] */
+        var artboardRect = getActiveArtboardRect(doc);
         return {
             left: artboardRect[0] + marginPt,
             top: artboardRect[1] - marginPt,
@@ -1749,17 +1762,28 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
     }
 
     /**
+     * 線なし・塗りありの長方形を作業レイヤーに描く
+     * @param {Document} doc - ドキュメント
+     * @param {number[]} bounds - [left, top, right, bottom]
+     * @param {RGBColor} fillColor - 塗り
+     * @returns {PathItem} 長方形
+     */
+    function drawFilledRect(doc, bounds, fillColor) {
+        var filledRect = doc.activeLayer.pathItems.rectangle(bounds[1], bounds[0], bounds[2] - bounds[0], bounds[1] - bounds[3]);
+        filledRect.stroked = false;
+        filledRect.filled = true;
+        filledRect.fillColor = fillColor;
+        return filledRect;
+    }
+
+    /**
      * アートボードと同じ大きさの背景を最背面に描く
      * @param {Document} doc - ドキュメント
      * @param {RGBColor} fillColor - 塗り
      * @returns {PathItem} 背景の長方形
      */
     function drawArtboardBackground(doc, fillColor) {
-        var artboardRect = getInnerArtboardRect(doc, 0);
-        var backgroundRect = doc.activeLayer.pathItems.rectangle(artboardRect.top, artboardRect.left, artboardRect.width, artboardRect.height);
-        backgroundRect.stroked = false;
-        backgroundRect.filled = true;
-        backgroundRect.fillColor = fillColor;
+        var backgroundRect = drawFilledRect(doc, getActiveArtboardRect(doc), fillColor);
         backgroundRect.zOrder(ZOrderMethod.SENDTOBACK);
         return backgroundRect;
     }
@@ -1772,10 +1796,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
      * @returns {PathItem} 長方形
      */
     function drawDimRect(doc, bounds, opacity) {
-        var dimRect = doc.activeLayer.pathItems.rectangle(bounds[1], bounds[0], bounds[2] - bounds[0], bounds[1] - bounds[3]);
-        dimRect.stroked = false;
-        dimRect.filled = true;
-        dimRect.fillColor = makeRGBColor(0, 0, 0);
+        var dimRect = drawFilledRect(doc, bounds, makeRGBColor(0, 0, 0));
         dimRect.opacity = opacity;
         return dimRect;
     }
@@ -1914,7 +1935,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
      * @returns {void}
      */
     function moveCenterToArtboardCenter(doc, item) {
-        var artboardRect = doc.artboards[doc.artboards.getActiveArtboardIndex()].artboardRect;
+        var artboardRect = getActiveArtboardRect(doc);
         var itemBounds = getVisibleBounds(item);
         var dx = (artboardRect[0] + artboardRect[2]) / 2 - (itemBounds[0] + itemBounds[2]) / 2;
         var dy = (artboardRect[1] + artboardRect[3]) / 2 - (itemBounds[1] + itemBounds[3]) / 2;
@@ -2076,6 +2097,19 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
         /* ボタンや入力欄は広げない / keep buttons and fields at their natural width */
         newPanel.alignChildren = ["left", "top"];
         return newPanel;
+    }
+
+    /**
+     * モードのタブを追加する（中身はパネルと同じく左寄せ）
+     * @param {TabbedPanel} tabbedPanel - 追加先
+     * @param {string} title - タブ名
+     * @returns {Tab} タブ
+     */
+    function addModeTab(tabbedPanel, title) {
+        var newTab = tabbedPanel.add("tab", undefined, title);
+        setupTab(newTab, PANEL_SPACING);
+        newTab.alignChildren = ["left", "top"];
+        return newTab;
     }
 
     /**
@@ -2660,54 +2694,206 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
     // ダイアログの位置と不透明度（再利用パーツ）ここまで / End of the reusable dialog position and opacity
 
     // =========================================
-    // 計測（一時） / Profiling (temporary)
-    // =========================================
-    // 計測（一時）ここから：原因を特定したらこのブロックと「計測（一時）」の行を削除する
-
-    var PROFILE_LOG_PATH = "/private/tmp/SlideCollage-profile.txt";
-    var profileLines = [];
-
-    /**
-     * 計測の開始時刻を返す
-     * @returns {number} ミリ秒
-     */
-    function profileNow() {
-        return new Date().getTime();
-    }
-
-    /**
-     * 開始時刻からの経過時間を記録する
-     * @param {string} label - 計測した処理の名前
-     * @param {number} startTime - profileNow() の戻り値
-     * @returns {void}
-     */
-    function profileAdd(label, startTime) {
-        profileLines.push(label + ": " + (profileNow() - startTime) + " ms");
-    }
-
-    /**
-     * 記録を alert で表示し、ファイルに追記して空にする
-     * @param {string} title - 見出し
-     * @returns {void}
-     */
-    function profileFlush(title) {
-        if (profileLines.length === 0) return;
-        var reportText = "[" + title + "]\n" + profileLines.join("\n");
-        profileLines = [];
-        var logFile = new File(PROFILE_LOG_PATH);
-        logFile.encoding = "UTF-8";
-        if (logFile.open("a")) {
-            logFile.writeln(reportText + "\n");
-            logFile.close();
-        }
-        alert(reportText);
-    }
-
-    // 計測（一時）ここまで
-
-    // =========================================
     // メイン処理 / Main
     // =========================================
+
+    /**
+     * ［読み込みファイル］と［アートボードの読み込み］のパネルを追加する
+     * @param {Group} parent - 追加先のカラム
+     * @param {Object} dialogControls - コントロールを書き込む先
+     * @returns {void}
+     */
+    function addSourcePanels(parent, dialogControls) {
+        /* 読み込みファイル / Source file */
+        var sourcePanel = addPanel(parent, getLabel("panel.source"));
+        dialogControls.btnChooseFile = sourcePanel.add("button", undefined, getLabel("button.chooseFile"));
+        dialogControls.sourceNameText = sourcePanel.add("statictext", undefined, getLabel("fallbackName.noFile"));
+        dialogControls.sourceNameText.characters = 20;
+
+        /* アートボードの読み込み（範囲・総数・読み込み） / Load artboards */
+        var artboardsPanel = addPanel(parent, getLabel("panel.artboards"));
+        var rangeRowGroup = addRow(artboardsPanel);
+        rangeRowGroup.add("statictext", undefined, labelText("fieldLabel.range")).helpTip = getLabel("tooltip.range");
+        dialogControls.rangeInput = rangeRowGroup.add("edittext", undefined, "");
+        dialogControls.rangeInput.characters = 10;
+        dialogControls.rangeInput.helpTip = getLabel("tooltip.range");
+
+        var countRowGroup = addRow(artboardsPanel);
+        countRowGroup.add("statictext", undefined, labelText("fieldLabel.count")).helpTip = getLabel("tooltip.count");
+        /* onStep は main 側で入れる（手で増減したら範囲との連動を切る） / onStep is set in main */
+        dialogControls.countStepOptions = { integer: true, min: 1 };
+        dialogControls.countInput = addStepperEditText(countRowGroup, "", 4, dialogControls.countStepOptions);
+        dialogControls.countInput.helpTip = getLabel("tooltip.count");
+
+        dialogControls.btnLoad = artboardsPanel.add("button", undefined, getLabel("button.load"));
+        dialogControls.btnLoad.helpTip = getLabel("tooltip.load");
+    }
+
+    /**
+     * ［アイテム］パネル（配置範囲・角丸・見開きの分割）を追加する
+     * @param {Group} parent - 追加先のカラム
+     * @param {Object} dialogControls - コントロールを書き込む先
+     * @param {Object} rulerUnit - getUnitInfo() の戻り値
+     * @returns {void}
+     */
+    function addItemPanel(parent, dialogControls, rulerUnit) {
+        /* アイテム / Items */
+        var itemPanel = addPanel(parent, getLabel("panel.item"));
+        var cropRowGroup = addRow(itemPanel);
+        cropRowGroup.add("statictext", undefined, labelText("fieldLabel.crop")).helpTip = getLabel("tooltip.crop");
+        dialogControls.cropDropdown = cropRowGroup.add("dropdownlist", undefined, [
+            getLabel("dropdown.cropArt"), getLabel("dropdown.cropCrop"), getLabel("dropdown.cropTrim"), getLabel("dropdown.cropBleed")
+        ]);
+        dialogControls.cropDropdown.minimumSize.width = 120; /* 項目名と並べてもカラムを広げない幅 / narrow enough beside the label */
+        dialogControls.cropDropdown.helpTip = getLabel("tooltip.crop");
+        dialogControls.roundRow = addNumberRow(itemPanel, {
+            checkboxLabel: labelText("checkbox.roundCorners"), tooltip: getLabel("tooltip.roundCorners"),
+            characters: 3, min: 0, unit: rulerUnit.label
+        });
+
+        dialogControls.splitSpreadsCheckbox = itemPanel.add("checkbox", undefined, getLabel("checkbox.splitSpreads"));
+        dialogControls.splitSpreadsCheckbox.helpTip = getLabel("tooltip.splitSpreads");
+        dialogControls.evenPageGroup = addRow(itemPanel);
+        dialogControls.evenPageGroup.add("statictext", undefined, labelText("fieldLabel.evenPage")).helpTip = getLabel("tooltip.evenPage");
+        dialogControls.evenPageRightRadio = dialogControls.evenPageGroup.add("radiobutton", undefined, getLabel("radio.evenPageRight"));
+        dialogControls.evenPageLeftRadio = dialogControls.evenPageGroup.add("radiobutton", undefined, getLabel("radio.evenPageLeft"));
+        dialogControls.evenPageRightRadio.helpTip = dialogControls.evenPageLeftRadio.helpTip = getLabel("tooltip.evenPage");
+        dialogControls.evenPageRightRadio.value = true;
+    }
+
+    /**
+     * モードのタブ（グリッド・スポットライト）と、それぞれの設定を追加する
+     * @param {Group} parent - 追加先のカラム
+     * @param {Object} dialogControls - コントロールを書き込む先
+     * @param {Object} rulerUnit - getUnitInfo() の戻り値
+     * @returns {void}
+     */
+    function addModeTabs(parent, dialogControls, rulerUnit) {
+        /* モード。タブの並びは MODE_GRID / MODE_SPOTLIGHT の順 / Mode tabs, in MODE_GRID / MODE_SPOTLIGHT order */
+        dialogControls.modeTabs = parent.add("tabbedpanel");
+        dialogControls.modeTabs.alignChildren = "fill";
+        var gridPanel = dialogControls.gridPanel = addModeTab(dialogControls.modeTabs, getLabel("tab.grid"));
+        dialogControls.spotlightPanel = addModeTab(dialogControls.modeTabs, getLabel("tab.spotlight"));
+
+        /* スポットライト / Spotlight */
+        dialogControls.coverScaleRow = addNumberRow(dialogControls.spotlightPanel, {
+            label: labelText("fieldLabel.cover"), tooltip: getLabel("tooltip.cover"),
+            characters: 4, min: 50, max: 300, integer: true, fallback: 190, unit: "%", slider: { min: 50, max: 300 }
+        });
+        dialogControls.farScaleRow = addNumberRow(dialogControls.spotlightPanel, {
+            label: labelText("fieldLabel.farScale"), tooltip: getLabel("tooltip.farScale"),
+            characters: 4, min: 20, max: 100, integer: true, fallback: 50, unit: "%", slider: { min: 20, max: 100 }
+        });
+        dialogControls.scatterRow = addNumberRow(dialogControls.spotlightPanel, {
+            label: labelText("fieldLabel.scatter"), tooltip: getLabel("tooltip.scatter"),
+            characters: 4, min: 0, max: 100, integer: true, fallback: 70, unit: "%", slider: { min: 0, max: 100 }
+        });
+        dialogControls.dimRow = addNumberRow(dialogControls.spotlightPanel, {
+            label: labelText("fieldLabel.dim"), tooltip: getLabel("tooltip.dim"),
+            characters: 4, min: 0, max: 100, integer: true, fallback: 80, unit: "%", slider: { min: 0, max: 100 }
+        });
+
+        /* グリッド / Grid */
+        var directionRowGroup = addRow(gridPanel);
+        directionRowGroup.add("statictext", undefined, labelText("fieldLabel.direction"));
+        dialogControls.flowRadios = [
+            directionRowGroup.add("radiobutton", undefined, getLabel("radio.horizontal")), /* FLOW_HORIZONTAL */
+            directionRowGroup.add("radiobutton", undefined, getLabel("radio.vertical")),   /* FLOW_VERTICAL */
+            directionRowGroup.add("radiobutton", undefined, getLabel("radio.random"))      /* FLOW_RANDOM */
+        ];
+        dialogControls.columnsRow = addNumberRow(gridPanel, {
+            label: labelText("fieldLabel.columns"), characters: 4,
+            min: 1, max: MAX_COLUMNS, integer: true, fallback: 1, unit: "", slider: { min: 1, max: MAX_COLUMNS }
+        });
+        dialogControls.spacingRow = addNumberRow(gridPanel, {
+            label: labelText("fieldLabel.spacing"), characters: 4,
+            min: 0, max: 100, unit: rulerUnit.label, slider: { min: 0, max: 100 }
+        });
+
+        /* 偶数列 / Even columns */
+        var evenColumnsPanel = dialogControls.evenColumnsPanel = addPanel(gridPanel, getLabel("panel.evenColumns"));
+        evenColumnsPanel.alignment = "fill"; /* タブの中身は左寄せなので、パネルだけ幅いっぱいに / stretch within the left-aligned tab */
+        dialogControls.evenPlusCheckbox = evenColumnsPanel.add("checkbox", undefined, getLabel("checkbox.evenPlusSlot"));
+        dialogControls.evenPlusCheckbox.helpTip = getLabel("tooltip.evenPlusSlot");
+        dialogControls.evenShiftRow = addNumberRow(evenColumnsPanel, {
+            checkboxLabel: labelText("checkbox.evenShift"), tooltip: getLabel("tooltip.evenShift"),
+            characters: 4, min: -200, max: 200, unit: rulerUnit.label, slider: { min: -200, max: 200 }
+        });
+    }
+
+    /**
+     * ［レイアウト］パネル（スケール・回転・位置調整）を追加する
+     * @param {Group} parent - 追加先のカラム
+     * @param {Object} dialogControls - コントロールを書き込む先
+     * @param {Object} rulerUnit - getUnitInfo() の戻り値
+     * @param {Document} doc - ドキュメント（位置調整の範囲をアートボードの大きさから決める）
+     * @returns {void}
+     */
+    function addLayoutPanel(parent, dialogControls, rulerUnit, doc) {
+        /* レイアウト / Layout */
+        var layoutPanel = addPanel(parent, getLabel("panel.layout"));
+        dialogControls.scaleRow = addNumberRow(layoutPanel, {
+            label: labelText("fieldLabel.scale"), tooltip: getLabel("tooltip.scale"),
+            characters: 4, min: 10, max: 250, integer: true, fallback: 100, unit: "%", slider: { min: 10, max: 250 }
+        });
+        dialogControls.rotateRow = addNumberRow(layoutPanel, {
+            checkboxLabel: labelText("checkbox.rotate"), tooltip: getLabel("tooltip.rotate"),
+            characters: 4, min: -30, max: 30, integer: true, unit: "°", slider: { min: -30, max: 30 }
+        });
+        /* 位置調整のスライダーは、アートボードの幅・高さ（定規の単位）まで動かせる / offset range follows the artboard size */
+        var artboardRect = getInnerArtboardRect(doc, 0);
+        dialogControls.offsetXRow = addOffsetRow(layoutPanel, labelText("checkbox.offsetX"), getLabel("tooltip.offsetX"), artboardRect.width / rulerUnit.pointsPerUnit);
+        dialogControls.offsetYRow = addOffsetRow(layoutPanel, labelText("checkbox.offsetY"), getLabel("tooltip.offsetY"), artboardRect.height / rulerUnit.pointsPerUnit);
+    }
+
+    /**
+     * ［アートボード背景とマスク］パネルを追加する
+     * @param {Group} parent - 追加先のカラム
+     * @param {Object} dialogControls - コントロールを書き込む先
+     * @param {Object} rulerUnit - getUnitInfo() の戻り値
+     * @returns {void}
+     */
+    function addArtboardMaskPanel(parent, dialogControls, rulerUnit) {
+        /* アートボード背景とマスク / Artboard background & mask */
+        var artboardMaskPanel = addPanel(parent, getLabel("panel.artboardMask"));
+        var backgroundRowGroup = addRow(artboardMaskPanel);
+        dialogControls.backgroundCheckbox = backgroundRowGroup.add("checkbox", undefined, labelText("checkbox.background"));
+        dialogControls.backgroundSwatch = backgroundRowGroup.add("panel");
+        dialogControls.backgroundSwatch.preferredSize = [SWATCH_SIZE, SWATCH_SIZE];
+        dialogControls.backgroundSwatch.helpTip = getLabel("tooltip.backgroundHex");
+        dialogControls.backgroundHexInput = backgroundRowGroup.add("edittext", undefined, "");
+        dialogControls.backgroundHexInput.characters = 7;
+        dialogControls.backgroundHexInput.helpTip = getLabel("tooltip.backgroundHex");
+
+        /* マスク・マージン・マスク角丸はそれぞれ1行 / mask, margin and mask corners on separate rows */
+        dialogControls.maskCheckbox = artboardMaskPanel.add("checkbox", undefined, getLabel("checkbox.mask"));
+        dialogControls.maskCheckbox.helpTip = getLabel("tooltip.mask");
+        dialogControls.marginRow = addNumberRow(artboardMaskPanel, {
+            label: labelText("fieldLabel.margin"), characters: 5, min: 0, unit: rulerUnit.label
+        });
+        dialogControls.maskRoundRow = addNumberRow(artboardMaskPanel, {
+            checkboxLabel: labelText("checkbox.maskRound"), tooltip: getLabel("tooltip.maskRound"),
+            characters: 3, min: 0, unit: rulerUnit.label
+        });
+    }
+
+    /**
+     * 下のボタン行（リセット・画面にフィット・キャンセル・OK）を追加する
+     * @param {Object} dialogControls - コントロールを書き込む先
+     * @returns {void}
+     */
+    function addDialogButtons(dialogControls) {
+        /* ボタン行（左：リセット・画面にフィット／右：キャンセル・OK） / Button row */
+        var buttonRow = addButtonRow(dialogControls.dialog);
+        dialogControls.btnReset = buttonRow.leftGroup.add("button", undefined, getLabel("button.reset"));
+        dialogControls.btnReset.helpTip = getLabel("tooltip.reset");
+        dialogControls.fitViewControls = FitViewToItems.addControls(buttonRow.leftGroup, { lang: uiLang });
+        /* 部品の既定の説明は「作成するオブジェクト」向けなので、アートボードに合わせる説明に差し替える / describe the artboard fit */
+        dialogControls.fitViewControls.checkbox.helpTip = getLabel("tooltip.fitView");
+        dialogControls.btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+        dialogControls.btnOK = buttonRow.rightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+        alignRightOnlyButtonRow(buttonRow);
+    }
 
     /**
      * ダイアログを作る（イベントの配線は main 側）
@@ -2731,157 +2917,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
         rightColumn.orientation = "column";
         rightColumn.alignChildren = "fill";
 
-        /* 読み込みファイル / Source file */
-        var sourcePanel = addPanel(leftColumn, getLabel("panel.source"));
-        dialogControls.btnChooseFile = sourcePanel.add("button", undefined, getLabel("button.chooseFile"));
-        dialogControls.sourceNameText = sourcePanel.add("statictext", undefined, getLabel("fallbackName.noFile"));
-        dialogControls.sourceNameText.characters = 20;
-
-        /* アートボードの読み込み（範囲・総数・読み込み） / Load artboards */
-        var artboardsPanel = addPanel(leftColumn, getLabel("panel.artboards"));
-        var rangeRowGroup = addRow(artboardsPanel);
-        rangeRowGroup.add("statictext", undefined, labelText("fieldLabel.range")).helpTip = getLabel("tooltip.range");
-        dialogControls.rangeInput = rangeRowGroup.add("edittext", undefined, "");
-        dialogControls.rangeInput.characters = 10;
-        dialogControls.rangeInput.helpTip = getLabel("tooltip.range");
-
-        var countRowGroup = addRow(artboardsPanel);
-        countRowGroup.add("statictext", undefined, labelText("fieldLabel.count")).helpTip = getLabel("tooltip.count");
-        /* onStep は main 側で入れる（手で増減したら範囲との連動を切る） / onStep is set in main */
-        dialogControls.countStepOptions = { integer: true, min: 1 };
-        dialogControls.countInput = addStepperEditText(countRowGroup, "", 4, dialogControls.countStepOptions);
-        dialogControls.countInput.helpTip = getLabel("tooltip.count");
-
-        dialogControls.btnLoad = artboardsPanel.add("button", undefined, getLabel("button.load"));
-        dialogControls.btnLoad.helpTip = getLabel("tooltip.load");
-
-        /* アイテム / Items */
-        var itemPanel = addPanel(leftColumn, getLabel("panel.item"));
-        dialogControls.cropDropdown = itemPanel.add("dropdownlist", undefined, [
-            getLabel("dropdown.cropArt"), getLabel("dropdown.cropCrop"), getLabel("dropdown.cropTrim"), getLabel("dropdown.cropBleed")
-        ]);
-        dialogControls.cropDropdown.minimumSize.width = 160;
-        dialogControls.cropDropdown.helpTip = getLabel("tooltip.crop");
-        dialogControls.roundRow = addNumberRow(itemPanel, {
-            checkboxLabel: labelText("checkbox.roundCorners"), tooltip: getLabel("tooltip.roundCorners"),
-            characters: 3, min: 0, unit: rulerUnit.label
-        });
-
-        dialogControls.splitSpreadsCheckbox = itemPanel.add("checkbox", undefined, getLabel("checkbox.splitSpreads"));
-        dialogControls.splitSpreadsCheckbox.helpTip = getLabel("tooltip.splitSpreads");
-        dialogControls.evenPageGroup = addRow(itemPanel);
-        dialogControls.evenPageGroup.add("statictext", undefined, labelText("fieldLabel.evenPage")).helpTip = getLabel("tooltip.evenPage");
-        dialogControls.evenPageRightRadio = dialogControls.evenPageGroup.add("radiobutton", undefined, getLabel("radio.evenPageRight"));
-        dialogControls.evenPageLeftRadio = dialogControls.evenPageGroup.add("radiobutton", undefined, getLabel("radio.evenPageLeft"));
-        dialogControls.evenPageRightRadio.helpTip = dialogControls.evenPageLeftRadio.helpTip = getLabel("tooltip.evenPage");
-        dialogControls.evenPageRightRadio.value = true;
-
-        /* モード / Mode */
-        var modePanel = addPanel(rightColumn, getLabel("panel.mode"));
-        var modeRowGroup = addRow(modePanel);
-        dialogControls.modeRadios = [
-            modeRowGroup.add("radiobutton", undefined, getLabel("radio.modeGrid")),  /* MODE_GRID */
-            modeRowGroup.add("radiobutton", undefined, getLabel("radio.modeDepth"))  /* MODE_DEPTH */
-        ];
-        dialogControls.modeRadios[MODE_GRID].helpTip = getLabel("tooltip.modeGrid");
-        dialogControls.modeRadios[MODE_DEPTH].helpTip = getLabel("tooltip.modeDepth");
-
-        /* 奥行き / Depth */
-        dialogControls.depthPanel = addPanel(rightColumn, getLabel("panel.depth"));
-        dialogControls.coverScaleRow = addNumberRow(dialogControls.depthPanel, {
-            label: labelText("fieldLabel.cover"), tooltip: getLabel("tooltip.cover"),
-            characters: 4, min: 50, max: 300, integer: true, fallback: 120, unit: "%", slider: { min: 50, max: 300 }
-        });
-        dialogControls.farScaleRow = addNumberRow(dialogControls.depthPanel, {
-            label: labelText("fieldLabel.farScale"), tooltip: getLabel("tooltip.farScale"),
-            characters: 4, min: 20, max: 100, integer: true, fallback: 70, unit: "%", slider: { min: 20, max: 100 }
-        });
-        dialogControls.scatterRow = addNumberRow(dialogControls.depthPanel, {
-            label: labelText("fieldLabel.scatter"), tooltip: getLabel("tooltip.scatter"),
-            characters: 4, min: 0, max: 100, integer: true, fallback: 30, unit: "%", slider: { min: 0, max: 100 }
-        });
-        dialogControls.dimRow = addNumberRow(dialogControls.depthPanel, {
-            label: labelText("fieldLabel.dim"), tooltip: getLabel("tooltip.dim"),
-            characters: 4, min: 0, max: 100, integer: true, fallback: 60, unit: "%", slider: { min: 0, max: 100 }
-        });
-
-        /* グリッド / Grid */
-        var gridPanel = dialogControls.gridPanel = addPanel(rightColumn, getLabel("panel.grid"));
-        var directionRowGroup = addRow(gridPanel);
-        directionRowGroup.add("statictext", undefined, labelText("fieldLabel.direction"));
-        dialogControls.flowRadios = [
-            directionRowGroup.add("radiobutton", undefined, getLabel("radio.horizontal")), /* FLOW_HORIZONTAL */
-            directionRowGroup.add("radiobutton", undefined, getLabel("radio.vertical")),   /* FLOW_VERTICAL */
-            directionRowGroup.add("radiobutton", undefined, getLabel("radio.random"))      /* FLOW_RANDOM */
-        ];
-        dialogControls.columnsRow = addNumberRow(gridPanel, {
-            label: labelText("fieldLabel.columns"), characters: 4,
-            min: 1, max: MAX_COLUMNS, integer: true, fallback: 1, unit: "", slider: { min: 1, max: MAX_COLUMNS }
-        });
-        dialogControls.spacingRow = addNumberRow(gridPanel, {
-            label: labelText("fieldLabel.spacing"), characters: 4,
-            min: 0, max: 100, unit: rulerUnit.label, slider: { min: 0, max: 100 }
-        });
-
-        /* 偶数列 / Even columns */
-        var evenColumnsPanel = dialogControls.evenColumnsPanel = addPanel(rightColumn, getLabel("panel.evenColumns"));
-        dialogControls.evenPlusCheckbox = evenColumnsPanel.add("checkbox", undefined, getLabel("checkbox.evenPlusSlot"));
-        dialogControls.evenPlusCheckbox.helpTip = getLabel("tooltip.evenPlusSlot");
-        dialogControls.evenShiftRow = addNumberRow(evenColumnsPanel, {
-            checkboxLabel: labelText("checkbox.evenShift"), tooltip: getLabel("tooltip.evenShift"),
-            characters: 4, min: -200, max: 200, unit: rulerUnit.label, slider: { min: -200, max: 200 }
-        });
-
-        /* レイアウト / Layout */
-        var layoutPanel = addPanel(rightColumn, getLabel("panel.layout"));
-        dialogControls.scaleRow = addNumberRow(layoutPanel, {
-            label: labelText("fieldLabel.scale"), tooltip: getLabel("tooltip.scale"),
-            characters: 4, min: 10, max: 250, integer: true, fallback: 100, unit: "%", slider: { min: 10, max: 250 }
-        });
-        dialogControls.rotateRow = addNumberRow(layoutPanel, {
-            checkboxLabel: labelText("checkbox.rotate"), tooltip: getLabel("tooltip.rotate"),
-            characters: 4, min: -30, max: 30, integer: true, unit: "°", slider: { min: -30, max: 30 }
-        });
+        addSourcePanels(leftColumn, dialogControls);
+        addItemPanel(leftColumn, dialogControls, rulerUnit);
+        addModeTabs(rightColumn, dialogControls, rulerUnit);
+        addLayoutPanel(rightColumn, dialogControls, rulerUnit, doc);
+        addArtboardMaskPanel(rightColumn, dialogControls, rulerUnit);
         /* スライダーのある行は、頭の幅をそろえて入力欄の位置を合わせる / align the leads of the slider rows */
         alignNumberRowLeads([dialogControls.coverScaleRow, dialogControls.farScaleRow, dialogControls.scatterRow, dialogControls.dimRow, dialogControls.columnsRow, dialogControls.spacingRow, dialogControls.evenShiftRow, dialogControls.scaleRow, dialogControls.rotateRow]);
-
-        /* 位置調整のスライダーは、アートボードの幅・高さ（定規の単位）まで動かせる / offset range follows the artboard size */
-        var artboardRect = getInnerArtboardRect(doc, 0);
-        dialogControls.offsetXRow = addOffsetRow(layoutPanel, labelText("checkbox.offsetX"), getLabel("tooltip.offsetX"), artboardRect.width / rulerUnit.pointsPerUnit);
-        dialogControls.offsetYRow = addOffsetRow(layoutPanel, labelText("checkbox.offsetY"), getLabel("tooltip.offsetY"), artboardRect.height / rulerUnit.pointsPerUnit);
-
-        /* アートボード背景とマスク / Artboard background & mask */
-        var artboardMaskPanel = addPanel(leftColumn, getLabel("panel.artboardMask"));
-        var backgroundRowGroup = addRow(artboardMaskPanel);
-        dialogControls.backgroundCheckbox = backgroundRowGroup.add("checkbox", undefined, labelText("checkbox.background"));
-        dialogControls.backgroundSwatch = backgroundRowGroup.add("panel");
-        dialogControls.backgroundSwatch.preferredSize = [SWATCH_SIZE, SWATCH_SIZE];
-        dialogControls.backgroundSwatch.helpTip = getLabel("tooltip.backgroundHex");
-        dialogControls.backgroundHexInput = backgroundRowGroup.add("edittext", undefined, "");
-        dialogControls.backgroundHexInput.characters = 7;
-        dialogControls.backgroundHexInput.helpTip = getLabel("tooltip.backgroundHex");
-
-        /* マスク・マージン・マスク角丸はそれぞれ1行 / mask, margin and mask corners on separate rows */
-        dialogControls.maskCheckbox = artboardMaskPanel.add("checkbox", undefined, getLabel("checkbox.mask"));
-        dialogControls.maskCheckbox.helpTip = getLabel("tooltip.mask");
-        dialogControls.marginRow = addNumberRow(artboardMaskPanel, {
-            label: labelText("fieldLabel.margin"), characters: 5, min: 0, unit: rulerUnit.label
-        });
-        dialogControls.maskRoundRow = addNumberRow(artboardMaskPanel, {
-            checkboxLabel: labelText("checkbox.maskRound"), tooltip: getLabel("tooltip.maskRound"),
-            characters: 3, min: 0, unit: rulerUnit.label
-        });
-
-        /* ボタン行（左：リセット・画面にフィット／右：キャンセル・OK） / Button row */
-        var buttonRow = addButtonRow(dialogControls.dialog);
-        dialogControls.btnReset = buttonRow.leftGroup.add("button", undefined, getLabel("button.reset"));
-        dialogControls.btnReset.helpTip = getLabel("tooltip.reset");
-        dialogControls.fitViewControls = FitViewToItems.addControls(buttonRow.leftGroup, { lang: uiLang });
-        /* 部品の既定の説明は「作成するオブジェクト」向けなので、アートボードに合わせる説明に差し替える / describe the artboard fit */
-        dialogControls.fitViewControls.checkbox.helpTip = getLabel("tooltip.fitView");
-        dialogControls.btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
-        dialogControls.btnOK = buttonRow.rightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
-        alignRightOnlyButtonRow(buttonRow);
+        addDialogButtons(dialogControls);
         return dialogControls;
     }
 
@@ -2901,13 +2944,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
         var sourcePageCount = 0;        /* ファイルのページ数（中身から読めたとき） / page count read from the file */
         var isCountLinkedToRange = true; /* 総数を範囲に合わせるか（手入力したら切る） / whether Total follows the range */
         var isApplyingSettings = false;  /* 設定をまとめて反映している最中か / true while applySettings() runs */
+        /* 選んでいるモード。閉じたあとはタブの selection が読めないので控えておく / the tab selection is unreadable after closing */
+        var currentLayoutMode = MODE_GRID;
 
         /* 読み込んだプレビューの状態。items は並べる前の順で、baseWidths / baseHeights は配置したままの大きさ
            Loaded preview state; items keep their load order, base sizes are as placed */
         var previewState = {
             items: [], baseWidths: [], baseHeights: [],
             group: null, background: null, rotation: 0, randomOrder: null, roundRadiusPt: 0,
-            dimRect: null, depthSeed: 0,
+            dimRect: null, spotlightSeed: 0,
             cropIndex: -1, splitSpreads: false, evenPageOnRight: true
         };
 
@@ -2937,11 +2982,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
         // -----------------------------------------
 
         /**
-         * 選んでいるモードを返す
-         * @returns {number} MODE_GRID / MODE_DEPTH
+         * 選んでいるタブからモードを読み取る
+         * @returns {number|null} MODE_GRID / MODE_SPOTLIGHT。選択が読めなければ null
          */
-        function getLayoutMode() {
-            return dialogControls.modeRadios[MODE_DEPTH].value ? MODE_DEPTH : MODE_GRID;
+        function readModeTab() {
+            var selectedTab = dialogControls.modeTabs.selection;
+            if (!selectedTab) return null;
+            /* Tab に index は無いので、タブ名で比べる / Tab has no index, compare by tab title */
+            return (selectedTab.text === dialogControls.spotlightPanel.text) ? MODE_SPOTLIGHT : MODE_GRID;
         }
 
         /**
@@ -2964,6 +3012,31 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
         }
 
         /**
+         * 回転角を返す（回転がオフなら 0）
+         * @returns {number} 角度（°）
+         */
+        function getRotateDeg() {
+            return dialogControls.rotateRow.isChecked() ? dialogControls.rotateRow.getValue() : 0;
+        }
+
+        /**
+         * 偶数列のずらし量を pt で返す（ずらしがオフなら 0）
+         * @returns {number} ずらし量（pt）
+         */
+        function getEvenShiftPt() {
+            return dialogControls.evenShiftRow.isChecked() ? toPoints(dialogControls.evenShiftRow.getValue()) : 0;
+        }
+
+        /**
+         * 読み込んだアイテムの、配置したままの大きさを返す
+         * @param {number} itemIndex - アイテムの番号
+         * @returns {{width: number, height: number}} 大きさ（pt）
+         */
+        function getBaseItemSize(itemIndex) {
+            return { width: previewState.baseWidths[itemIndex], height: previewState.baseHeights[itemIndex] };
+        }
+
+        /**
          * マージンを pt で返す
          * @returns {number} マージン（pt）
          */
@@ -2978,10 +3051,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
         function getSourcePageCount() {
             if (sourcePageCount > 0) return sourcePageCount;
             if (!sourceFile) return 0;
-            var profileStart = profileNow(); /* 計測（一時） */
-            var openedCount = countArtboardsByOpening(sourceFile, doc);
-            profileAdd("開いてアートボードを数える（" + openedCount + "）", profileStart); /* 計測（一時） */
-            return openedCount;
+            return countArtboardsByOpening(sourceFile, doc);
         }
 
         /**
@@ -2997,7 +3067,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
          * @returns {{width: number, height: number}|null} 大きさ。測れなければ null
          */
         function getReferenceItemSize() {
-            if (previewState.items.length > 0) return { width: previewState.baseWidths[0], height: previewState.baseHeights[0] };
+            if (previewState.items.length > 0) return getBaseItemSize(0);
             if (!sourceFile) return null;
             var pageSize = measureSourcePage(doc, sourceFile, getTargetPages()[0], getCropToValue());
             if (pageSize && dialogControls.splitSpreadsCheckbox.value && isSpreadSize(pageSize.width, pageSize.height)) {
@@ -3022,9 +3092,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
                 gapPt: toPoints(dialogControls.spacingRow.getValue()),
                 innerWidth: innerRect.width, innerHeight: innerRect.height,
                 slotCounts: dialogControls.evenPlusCheckbox.value ? getEvenPlusSlotCounts(itemCount, columnCount) : null,
-                evenShiftPt: (evenShiftPtOverride !== undefined) ? evenShiftPtOverride :
-                    (dialogControls.evenShiftRow.isChecked() ? toPoints(dialogControls.evenShiftRow.getValue()) : 0),
-                rotateDeg: dialogControls.rotateRow.isChecked() ? dialogControls.rotateRow.getValue() : 0
+                evenShiftPt: (evenShiftPtOverride !== undefined) ? evenShiftPtOverride : getEvenShiftPt(),
+                rotateDeg: getRotateDeg()
             });
         }
 
@@ -3043,15 +3112,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
             dialogControls.sourceNameText.helpTip = decodeURIComponent(sourceFile.fsName);
             dialogControls.cropDropdown.enabled = isPdfFile(sourceFile);
             /* 綴じ方向から偶数ページの位置を設定する / set the even-page side from the binding direction */
-            var profileStart = profileNow(); /* 計測（一時） */
             dialogControls.evenPageRightRadio.value = isRightBoundFile(sourceFile);
-            profileAdd("綴じ方向の判定", profileStart); /* 計測（一時） */
-            profileLines.push("ファイルサイズ: " + Math.round(sourceFile.length / 1024 / 1024 * 10) / 10 + " MB"); /* 計測（一時） */
             dialogControls.evenPageLeftRadio.value = !dialogControls.evenPageRightRadio.value;
 
-            profileStart = profileNow(); /* 計測（一時） */
             sourcePageCount = readPageCountFromFile(sourceFile);
-            profileAdd("ページ数の読み取り（" + sourcePageCount + "ページ）", profileStart); /* 計測（一時） */
             if (sourcePageCount > 0) {
                 dialogControls.rangeInput.text = "1-" + sourcePageCount;
                 isCountLinkedToRange = true;
@@ -3109,7 +3173,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
             previewState.randomOrder = null;
             previewState.roundRadiusPt = 0;
             previewState.dimRect = null;
-            previewState.depthSeed = 0;
+            previewState.spotlightSeed = 0;
         }
 
         /**
@@ -3124,7 +3188,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
             clearPreview();
             removeLeftoverPreviewGroups(doc);
 
-            var loadStart = profileNow(); /* 計測（一時） */
             var targetPages = getTargetPages();
             if (!dialogControls.countInput.text) dialogControls.countInput.text = String(targetPages.length);
             var cropToValue = getCropToValue();
@@ -3135,20 +3198,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
             /* 回転・後始末をまとめて扱えるよう、1つのグループに入れる / keep everything in one group for rotation and cleanup */
             previewState.group = doc.groupItems.add();
             previewState.group.name = PREVIEW_GROUP_NAME;
-            var placeTotal = 0, placeMax = 0, placeMaxPage = 0, splitTotal = 0; /* 計測（一時） */
             for (var i = 0; i < targetPages.length; i++) {
-                var placeStart = profileNow(); /* 計測（一時） */
                 var placedItem = placeSourcePage(doc, sourceFile, targetPages[i], cropToValue);
-                var placeTime = profileNow() - placeStart; /* 計測（一時） */
-                placeTotal += placeTime; /* 計測（一時） */
-                if (placeTime > placeMax) { placeMax = placeTime; placeMaxPage = targetPages[i]; } /* 計測（一時） */
                 if (!placedItem) continue;
                 var placedPieces = [placedItem];
-                var splitStart = profileNow(); /* 計測（一時） */
                 if (previewState.splitSpreads && isSpreadSize(placedItem.width, placedItem.height)) {
                     placedPieces = splitSpreadItem(doc, placedItem, previewState.evenPageOnRight);
                 }
-                splitTotal += profileNow() - splitStart; /* 計測（一時） */
                 for (var j = 0; j < placedPieces.length; j++) {
                     placedPieces[j].moveToEnd(previewState.group);
                     previewState.items.push(placedPieces[j]);
@@ -3157,19 +3213,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
                     previewState.baseHeights.push(pieceBounds[1] - pieceBounds[3]);
                 }
             }
-            profileLines.push("配置（" + targetPages.length + "ページ）: " + placeTotal + " ms（1ページ平均 " + Math.round(placeTotal / Math.max(1, targetPages.length)) + " ms、最大 " + placeMax + " ms：" + placeMaxPage + "ページ目）"); /* 計測（一時） */
-            profileLines.push("見開きの分割: " + splitTotal + " ms"); /* 計測（一時） */
-            var stepStart = profileNow(); /* 計測（一時） */
-            updateBackgroundPreview();
-            profileAdd("背景", stepStart); /* 計測（一時） */
-            stepStart = profileNow(); /* 計測（一時） */
+            updateBackgroundPreview(true); /* 直後の applyLayout で再描画する / applyLayout redraws right after */
             applyLayout(false);
-            profileAdd("並べる（再描画込み）", stepStart); /* 計測（一時） */
-            stepStart = profileNow(); /* 計測（一時） */
             fitViewToArtboard();
-            profileAdd("画面にフィット", stepStart); /* 計測（一時） */
-            profileAdd("読み込み全体", loadStart); /* 計測（一時） */
-            profileFlush("読み込み"); /* 計測（一時） */
             return true;
         }
 
@@ -3190,15 +3236,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
         }
 
         /**
-         * 今の設定でプレビューのアイテムを並べ直す（大きさ・位置・角丸・回転・位置調整。奥行きモードは重ね順と暗くする黒も）
+         * 今の設定でプレビューのアイテムを並べ直す（大きさ・位置・角丸・回転・位置調整。スポットライトモードは重ね順と暗くする黒も）
          * @param {boolean} withRoundCorners - 角丸もかけるなら true（OK のとき。プレビューではかけない）
          * @returns {void}
          */
         function applyLayout(withRoundCorners) {
             if (previewState.items.length === 0) return;
 
-            var isDepthMode = (getLayoutMode() === MODE_DEPTH);
-            var rotateDeg = dialogControls.rotateRow.isChecked() ? dialogControls.rotateRow.getValue() : 0;
+            var isSpotlightMode = (currentLayoutMode === MODE_SPOTLIGHT);
+            var rotateDeg = getRotateDeg();
             var offsetXPt = dialogControls.offsetXRow.checkbox.value ? toPoints(dialogControls.offsetXRow.slider.value) : 0;
             var offsetYPt = dialogControls.offsetYRow.checkbox.value ? toPoints(dialogControls.offsetYRow.slider.value) : 0; /* ＋で下へ / positive moves down */
 
@@ -3220,7 +3266,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
                 layoutArea.left += offsetXPt;
                 layoutArea.top -= offsetYPt;
             }
-            var stackOrder = isDepthMode ? layoutDepthItems(layoutArea) : layoutGridItems(layoutArea);
+            var stackOrder = isSpotlightMode ? layoutSpotlightItems(layoutArea) : layoutGridItems(layoutArea);
 
             if (withRoundCorners) applyItemRoundCorners();
             /* 角丸でクリップグループに包むと重なり順が変わるので、そのあとで重ねる / stack after wrapping for round corners */
@@ -3234,7 +3280,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
                 moveCenterToArtboardCenter(doc, previewState.group);
                 if (offsetXPt !== 0 || offsetYPt !== 0) previewState.group.translate(offsetXPt, -offsetYPt);
             }
-            if (isDepthMode && previewState.items.length > 1 && dialogControls.dimRow.getValue() > 0) addDimRectBehindCover();
+            if (isSpotlightMode && previewState.items.length > 1 && dialogControls.dimRow.getValue() > 0) addDimRectBehindCover();
             app.redraw();
         }
 
@@ -3247,11 +3293,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
             var itemCount = previewState.items.length;
             var columnCount = dialogControls.columnsRow.getValue();
             var gapPt = toPoints(dialogControls.spacingRow.getValue());
-            var evenShiftPt = dialogControls.evenShiftRow.isChecked() ? toPoints(dialogControls.evenShiftRow.getValue()) : 0;
+            var evenShiftPt = getEvenShiftPt();
             var flowMode = getFlowMode();
             var placementOrder = getPlacementOrder(flowMode);
             var slotCounts = dialogControls.evenPlusCheckbox.value ? getEvenPlusSlotCounts(itemCount, columnCount) : null;
-            var finalPercent = calcFitPercentForUI(itemCount, { width: previewState.baseWidths[0], height: previewState.baseHeights[0] }) * dialogControls.scaleRow.getValue() / 100;
+            var finalPercent = calcFitPercentForUI(itemCount, getBaseItemSize(0)) * dialogControls.scaleRow.getValue() / 100;
 
             for (var i = 0; i < itemCount; i++) {
                 var itemIndex = placementOrder ? placementOrder[i] : i;
@@ -3267,27 +3313,25 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
         }
 
         /**
-         * 奥行きモードで並べる（1つ目を表紙として中央に、ほかは散らす）
+         * スポットライトモードで並べる（1つ目を表紙として中央に、ほかは散らす）
          * @param {{left: number, top: number, width: number, height: number}} layoutArea - 並べる範囲（位置調整込み）
          * @returns {number[]} 背面→前面の重ね順
          */
-        function layoutDepthItems(layoutArea) {
-            if (!previewState.depthSeed) previewState.depthSeed = newRandomSeed();
+        function layoutSpotlightItems(layoutArea) {
+            if (!previewState.spotlightSeed) previewState.spotlightSeed = newRandomSeed();
             var itemSizes = [];
-            for (var i = 0; i < previewState.items.length; i++) {
-                itemSizes.push({ width: previewState.baseWidths[i], height: previewState.baseHeights[i] });
-            }
-            var depthLayout = calcDepthLayout({
-                itemSizes: itemSizes, area: layoutArea,
+            for (var i = 0; i < previewState.items.length; i++) itemSizes.push(getBaseItemSize(i));
+            var spotlightLayout = calcSpotlightLayout({
+                itemSizes: itemSizes, layoutArea: layoutArea,
                 scalePercent: dialogControls.scaleRow.getValue(), coverScalePercent: dialogControls.coverScaleRow.getValue(),
                 farScalePercent: dialogControls.farScaleRow.getValue(), scatterPercent: dialogControls.scatterRow.getValue(),
-                seed: previewState.depthSeed
+                seed: previewState.spotlightSeed
             });
             for (var j = 0; j < previewState.items.length; j++) {
-                var frame = depthLayout.frames[j];
+                var frame = spotlightLayout.frames[j];
                 fitItemToFrame(previewState.items[j], frame.left, frame.top, frame.width, frame.height);
             }
-            return depthLayout.stackOrder;
+            return spotlightLayout.stackOrder;
         }
 
         /**
@@ -3295,8 +3339,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
          * @returns {void}
          */
         function addDimRectBehindCover() {
-            var artboardRect = doc.artboards[doc.artboards.getActiveArtboardIndex()].artboardRect;
-            var coverBounds = mergeBounds(artboardRect, getVisibleBounds(previewState.group));
+            var coverBounds = mergeBounds(getActiveArtboardRect(doc), getVisibleBounds(previewState.group));
             previewState.dimRect = drawDimRect(doc, coverBounds, dialogControls.dimRow.getValue());
             /* 黒をグループの最前面に入れてから、表紙をその上へ送る / put the black on top of the group, then bring the cover above it */
             previewState.dimRect.move(previewState.group, ElementPlacement.PLACEATBEGINNING);
@@ -3358,9 +3401,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
          */
         function fitViewToArtboard() {
             if (!dialogControls.fitViewControls.checkbox.value) return;
-            var artboardRect = doc.artboards[doc.artboards.getActiveArtboardIndex()].artboardRect;
             /* fit() は geometricBounds だけを読むので、アートボードの矩形を渡す / fit() only reads geometricBounds */
-            FitViewToItems.fit([{ geometricBounds: artboardRect }], { doc: doc, fillRatio: dialogControls.fitViewControls.getFillRatio() });
+            FitViewToItems.fit([{ geometricBounds: getActiveArtboardRect(doc) }], { doc: doc, fillRatio: dialogControls.fitViewControls.getFillRatio() });
             app.redraw();
         }
 
@@ -3388,9 +3430,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
 
         /**
          * プレビューの背景だけを作る・塗り直す・消す（並べ直さない）
+         * @param {boolean} [skipRedraw] - 再描画しない（すぐあとで並べ直して再描画するとき）
          * @returns {void}
          */
-        function updateBackgroundPreview() {
+        function updateBackgroundPreview(skipRedraw) {
             if (previewState.items.length === 0) return;
             if (!dialogControls.backgroundCheckbox.value) {
                 if (previewState.background) previewState.background.remove();
@@ -3401,7 +3444,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
                 previewState.background.fillColor = getBackgroundColor();
             }
             placeBackgroundBehind(previewState.group);
-            app.redraw();
+            if (!skipRedraw) app.redraw();
         }
 
         /**
@@ -3440,17 +3483,35 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
         }
 
         /**
-         * モードに合わせて、奥行き・グリッド・偶数列の有効／無効を切り替える
+         * スポットライトの初期値にする（回転・背景・マスク角丸なし、マスクはアートボードぴったり）
+         * @returns {void}
+         */
+        function applySpotlightValues() {
+            dialogControls.rotateRow.setChecked(false);
+            dialogControls.marginRow.setValue(0);
+            dialogControls.maskRoundRow.setChecked(false);
+            dialogControls.backgroundCheckbox.value = false;
+            updateBackgroundControls();
+        }
+
+        /**
+         * グリッドに戻したとき、スポットライトで書き換えた値をダイアログを開いたときの値（DEFAULT_SETTINGS）に戻す
+         * @returns {void}
+         */
+        function applyGridModeValues() {
+            dialogControls.rotateRow.setChecked(DEFAULT_SETTINGS.rotateEnabled);
+            dialogControls.marginRow.setValue(roundTo2(fromPoints(DEFAULT_SETTINGS.marginPt)));
+            dialogControls.maskRoundRow.setChecked(DEFAULT_SETTINGS.maskRoundEnabled);
+            dialogControls.backgroundCheckbox.value = DEFAULT_SETTINGS.backgroundEnabled;
+            updateBackgroundControls();
+        }
+
+        /**
+         * 表に出たモードのタブの ▲▼ を描き直す（隠れていたあいだは onDraw が呼ばれない）
          * @returns {void}
          */
         function updateModeControls() {
-            var isGridMode = (getLayoutMode() === MODE_GRID);
-            dialogControls.depthPanel.enabled = !isGridMode;
-            redrawSteppersIn(dialogControls.depthPanel);
-            dialogControls.gridPanel.enabled = isGridMode;
-            dialogControls.evenColumnsPanel.enabled = isGridMode;
-            redrawSteppersIn(dialogControls.gridPanel);
-            redrawSteppersIn(dialogControls.evenColumnsPanel);
+            redrawSteppersIn(currentLayoutMode === MODE_SPOTLIGHT ? dialogControls.spotlightPanel : dialogControls.gridPanel);
         }
 
         /**
@@ -3473,7 +3534,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
         function applySettings(settings) {
             /* selection の代入で onChange が走るので、反映し終えるまで読み込み直しを止める / assigning selection fires onChange */
             isApplyingSettings = true;
-            dialogControls.modeRadios[settings.layoutMode].value = true;
+            currentLayoutMode = settings.layoutMode;
+            dialogControls.modeTabs.selection = (settings.layoutMode === MODE_SPOTLIGHT) ? dialogControls.spotlightPanel : dialogControls.gridPanel;
             updateModeControls();
             dialogControls.coverScaleRow.setValue(settings.coverScale);
             dialogControls.farScaleRow.setValue(settings.farScale);
@@ -3516,7 +3578,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
          * @returns {void}
          */
         function centerGridHorizontally() {
-            if (getLayoutMode() !== MODE_GRID) return; /* 奥行きモードは中央に置くので不要 / depth mode is already centered */
+            if (currentLayoutMode !== MODE_GRID) return; /* スポットライトモードは中央に置くので不要 / spotlight mode is already centered */
             var itemSize = getReferenceItemSize();
             if (!itemSize) return;
             var itemCount = (previewState.items.length > 0) ? previewState.items.length : getTargetPages().length;
@@ -3537,8 +3599,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
             var resetSettingsValues = {};
             for (var settingKey in DEFAULT_SETTINGS) resetSettingsValues[settingKey] = DEFAULT_SETTINGS[settingKey];
             for (var overrideKey in RESET_OVERRIDES) resetSettingsValues[overrideKey] = RESET_OVERRIDES[overrideKey];
-            resetSettingsValues.layoutMode = getLayoutMode(); /* モードは戻さない / keep the mode */
+            resetSettingsValues.layoutMode = currentLayoutMode; /* モードは戻さない / keep the mode */
             applySettings(resetSettingsValues);
+            /* スポットライトのままなら、スポットライトの初期値を入れ直す / in Spotlight, reapply the spotlight values */
+            if (currentLayoutMode === MODE_SPOTLIGHT) {
+                applySpotlightValues();
+                updateBackgroundPreview(true);
+            }
             /* 中央寄せは読み込み直したあとのアイテムで測る / measure the centering on the reloaded items */
             if (previewState.items.length > 0 && previewNeedsReload()) loadPreview();
             centerGridHorizontally();
@@ -3600,7 +3667,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
                 return;
             }
             setSourceFile(chosenFile);
-            profileFlush("ファイルを選択"); /* 計測（一時） */
         };
         dialogControls.rangeInput.onChanging = syncCountToRange;
         dialogControls.countInput.onChanging = dialogControls.countStepOptions.onStep = function () {
@@ -3635,22 +3701,20 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
             };
         }
         dialogControls.evenPlusCheckbox.onClick = refreshPreview;
-        for (var k = 0; k < dialogControls.modeRadios.length; k++) {
-            dialogControls.modeRadios[k].onClick = function () {
-                previewState.depthSeed = 0; /* 奥行きを選び直したら配置も引き直す / reshuffle on every click */
-                if (getLayoutMode() === MODE_DEPTH) {
-                    /* 奥行きは回転・背景なし、マスクはアートボードぴったりで始める / depth starts unrotated, without background, mask flush with the artboard */
-                    dialogControls.rotateRow.setChecked(false);
-                    dialogControls.marginRow.setValue(0);
-                    dialogControls.maskRoundRow.setChecked(false);
-                    dialogControls.backgroundCheckbox.value = false;
-                    updateBackgroundControls();
-                    updateBackgroundPreview();
-                }
-                updateModeControls();
-                refreshPreview();
-            };
-        }
+        dialogControls.modeTabs.onChange = function () {
+            if (isApplyingSettings) return; /* applySettings() の selection 代入でも呼ばれる / also fired by applySettings() */
+            /* 閉じるときにも呼ばれ、selection が読めないことがある。グリッドと取り違えないよう無視する
+               Also fires on close with an unreadable selection; ignore it rather than mistaking it for Grid */
+            var newLayoutMode = readModeTab();
+            if (newLayoutMode === null || newLayoutMode === currentLayoutMode) return;
+            currentLayoutMode = newLayoutMode;
+            previewState.spotlightSeed = 0; /* スポットライトを選び直したら配置も引き直す / reshuffle on every switch */
+            if (currentLayoutMode === MODE_SPOTLIGHT) applySpotlightValues();
+            else applyGridModeValues();
+            updateBackgroundPreview(true); /* 直後の refreshPreview で再描画する / refreshPreview redraws right after */
+            updateModeControls();
+            refreshPreview();
+        };
 
         dialogControls.backgroundCheckbox.onClick = function () {
             updateBackgroundControls();
@@ -3681,13 +3745,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
 
         applySettings(DEFAULT_SETTINGS);
         dialogControls.cropDropdown.enabled = false;
-        var initStart = profileNow(); /* 計測（一時） */
         useSelectedPlacedFile();
-        profileAdd("選択中の配置画像から読み込みファイルを設定", initStart); /* 計測（一時） */
-        initStart = profileNow(); /* 計測（一時） */
         if (sourceFile) setDefaultEvenShift();
-        profileAdd("ずらし量の自動計算（仮配置で大きさを測る）", initStart); /* 計測（一時） */
-        profileFlush("ダイアログを開く"); /* 計測（一時） */
 
         prepareDialogWindow(dialogControls.dialog, SCRIPT_NAME);
         if (dialogControls.dialog.show() === 1) {

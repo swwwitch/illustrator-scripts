@@ -10,13 +10,19 @@
 
 ### Overview
 
-Lays out the artboards (or PDF pages) of the .ai / .pdf file you choose in a grid on the active document, building a portfolio-style thumbnail sheet. The size that fits the artboard is calculated automatically.
+Lays out the artboards (or PDF pages) of the .ai / .pdf file you choose on the active document, building a portfolio-style thumbnail sheet. The size that fits the artboard is calculated automatically.
+
+There are two layouts. Grid lines the items up in rows and columns; Spotlight puts the first item large in the center as the cover and scatters the rest in depth, dimmed.
+
+<img alt="The Slide Collage dialog (Spotlight tab)" src="../png/ss-1660-1648-144-20261013-155144-s.png" width="50%" />
 
 ### Features
 
-- Mode: Grid / Depth (the first item goes in the center on top as the cover; the rest are scattered in depth and dimmed); cover size, far size, scatter and dimming are adjustable
+- Mode: switch with the tabs in the right column
+  - Grid: lays the items out in rows and columns
+  - Spotlight: the first item goes in the center on top as the cover; the rest are scattered in depth and dimmed. Cover size, far size, scatter and dimming are adjustable
 - Load: set the Range (for example `1-20` or `1,3,5`) and the Total; when Total is larger than the range, the range repeats
-- Items: PDF crop box (Art / Crop / Trim / Bleed) and round corners
+- Items: Crop To (PDF only; Art / Crop / Trim / Bleed) and round corners
 - Spreads: landscape pages can be split into left and right halves and laid out at single-page size; the side for even pages (right / left) is set from the PDF binding direction
 - Grid: flow (horizontal / vertical / random), columns (1–30) and gap
 - Even columns: +1 Slot adds one slot to even columns; Shift moves even columns up or down (turning it on fills in half a cell automatically)
@@ -52,10 +58,11 @@ https://note.com/dtp_tranist/n/n9f8c7370f4e5
 
 ### Script info
 
-- Version: v1.8.0
+- Version: v1.8.1
 
 ### Update History
 
+- v1.8.1 (2026-10-13) The right column is now tabbed (Grid / Spotlight), and the selected tab sets the mode; renamed Depth to Spotlight, Cover to Cover Size, labeled the Crop To dropdown and changed its defaults (cover 190%, far size 50%, scatter 70%, dimming 80%); switching back to Grid restores Rotate, Margin, Round Mask Corners and Background to their opening values; fixed OK not committing the Spotlight layout; Artboard Background & Mask moved below Layout
 - v1.8.0 (2026-10-13) Added Mode, with a new Depth mode that centers the cover and scatters the rest in depth (with adjustable cover size, far size, scatter and dimming; choosing it turns Rotate, Artboard Background and Round Mask Corners off and sets the mask Margin to 0). Renamed the Artboard & Mask panel to Artboard Background & Mask, moved it to the left column and put Mask, Margin and Round Mask Corners on separate rows
 - v1.7.7 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.7.6 (2026-10-01): Added space below the button row to match Illustrator's own dialogs
