@@ -12,7 +12,7 @@
 
 - Script that distributes the objects in a document by artboard and organizes them into layers named "number_artboard name".
 - Each object is assigned to an artboard by its centroid.
-- Guides are collected on "_guide" and objects that belong to no artboard on "_pasteboard" (both created only when needed).
+- Guides are collected on "_guide" (or sent to the artboard layers) and objects that belong to no artboard on "_pasteboard" (both created only when needed).
 - Layer order is aligned with artboard order (1 -> 2 -> 3 ... from the top).
 
 <img alt="The Organize Layers by Artboard dialog" src="../png/ss-678-1154-144-20260925-054219.png" width="40%" />
@@ -27,11 +27,15 @@
   - The separator applies only when both the number and the name are included
   - The resulting name is previewed live in the dialog, e.g. "Example: 1_Cover"
   - Falls back to "Artboard" when the artboard name is empty
+- Guide Destination
+  - **_guide layer** (default): collects every guide on _guide
+  - **Each layer**: moves guides to the artboard layers like other objects, including those already on _guide
+  - Ruler guides are judged by position (vertical position for horizontal guides, horizontal position for vertical ones) rather than by centroid, and move only when exactly one artboard spans that position. Guides spanning several artboards or none stay on _guide
 - Exclude options
   - Locked: Layers / Objects / Guides, Hidden: Layers / Objects / Guides (on by default except Guides)
   - Whatever you turn off is temporarily unlocked / shown for the move, then restored to its original state
   - "Layer names" accepts comma-separated layer names to leave untouched (default: bg)
-  - Guides bypass the name-based exclusion and are still collected on _guide (locked / hidden ancestors and the Guides setting are respected)
+  - Guides bypass the name-based exclusion and are still moved (locked / hidden ancestors and the Guides setting are respected)
 - "After Organizing" toggle removes empty layers and sub-layers (on by default)
   - Sub-layers matching an exclusion rule are kept together with their contents
 - Legacy layers (named after the artboard only) are merged into the new layers and removed
@@ -60,6 +64,7 @@
 
 ### Update History
 
+- v1.5.0 (2026-10-13) Added "Guide Destination" so guides can go to the artboard layers instead of _guide (ruler guides are judged by position)
 - v1.4.7 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.4.6 (2026-10-01): Added space below the button row to match Illustrator's own dialogs
 - v1.4.5 (2026-10-01): The button row, previously always centered, is now centered in dialogs up to 200 px wide (inside the margins) and right-aligned in wider ones. Unified the window and panel margins and spacing with the shared layout part

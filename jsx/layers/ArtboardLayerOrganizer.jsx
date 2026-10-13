@@ -29,10 +29,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ArtboardLa
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ArtboardLayerOrganizer";       /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.4.7";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.5.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-04-04";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-13";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ArtboardLayerOrganizer.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ArtboardLayerOrganizer.md"; /* README (English) */
@@ -50,6 +50,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nadb8b8ba49fe"; /* 紹�
     /* システム管理レイヤー名（空でも削除しない） / System-managed layer names (never deleted) */
     var GUIDE_LAYER_NAME = "_guide";
     var PASTEBOARD_LAYER_NAME = "_pasteboard";
+
+    /* ルーラーガイドを線とみなす厚みの許容値（pt） / Thickness tolerance for treating a ruler guide as a line (pt) */
+    var BOUNDS_TOLERANCE = 0.001;
 
     /* 区切り文字ドロップダウンの選択位置と実際の文字 / Separator dropdown indexes and their characters */
     var SEPARATOR_UNDERSCORE = 0;
@@ -70,6 +73,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nadb8b8ba49fe"; /* 紹�
         ignoreHiddenObjects: true,
         ignoreLockedGuides: false,
         ignoreHiddenGuides: false,
+        collectGuidesToGuideLayer: true,   // false: ガイドも各アートボードのレイヤーへ / false: guides go to artboard layers too
         excludedLayerNames: "bg"    // , または 、 区切り / Comma-separated
     };
 
@@ -276,6 +280,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nadb8b8ba49fe"; /* 紹�
         panel: {
             targetArtboards: { ja: "対象のアートボード", en: "Target Artboards" },
             layerName: { ja: "レイヤー名の構成", en: "Layer Name Format" },
+            guideDestination: { ja: "ガイドの移動先", en: "Guide Destination" },
             exclusion: { ja: "対象外にする", en: "Exclude" },
             locked: { ja: "ロック中", en: "Locked" },
             hidden: { ja: "非表示", en: "Hidden" },
@@ -283,7 +288,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nadb8b8ba49fe"; /* 紹�
         },
         radio: {
             currentArtboardOnly: { ja: "現在のアートボード", en: "Current artboard" },
-            allArtboards: { ja: "すべて", en: "All" }
+            allArtboards: { ja: "すべて", en: "All" },
+            guideToGuideLayer: { ja: "_guide レイヤー", en: "_guide layer" },
+            guideToArtboardLayers: { ja: "各レイヤー", en: "Each layer" }
         },
         checkbox: {
             includeArtboardNumber: { ja: "番号を含める", en: "Include number" },
@@ -321,9 +328,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nadb8b8ba49fe"; /* 紹�
                 ja: "アートボード番号とアートボード名の間に入れる文字。「なし」を選ぶと直接つなぎます",
                 en: "Character inserted between the artboard number and the artboard name; \"None\" joins them directly"
             },
+            guideDestination: {
+                ja: "「_guide レイヤー」ではガイドをすべて _guide に集めます。「各レイヤー」ではほかのオブジェクトと同じく各アートボードのレイヤーへ移します（_guide にあるものも含む）。ルーラーから引いたガイドは、横位置（垂直ガイドは縦位置）が重なるアートボードが1つだけのときに移し、それ以外は _guide に残します",
+                en: "\"_guide layer\" collects every guide on the _guide layer. \"Each layer\" moves guides to the artboard layers like other objects, including those already on _guide. A ruler guide moves only when exactly one artboard spans its position; otherwise it stays on _guide"
+            },
             exclusionPanel: {
-                ja: "ガイドは「レイヤー名で指定」に関係なく _guide レイヤーに集めます（対象外にしたロック中／非表示のレイヤー内にあるものは除く）",
-                en: "Guides go to the _guide layer even inside layers listed in \"Layer names\" (except those inside excluded locked/hidden layers)"
+                ja: "ガイドは「レイヤー名で指定」に関係なく移動します（対象外にしたロック中／非表示のレイヤー内にあるものは除く）",
+                en: "Guides are moved even inside layers listed in \"Layer names\" (except those inside excluded locked/hidden layers)"
             },
             lockedExclusion: {
                 ja: "チェックしたものはロック中なら整理対象から除外します。外したものはロックを一時解除して移動し、処理後にロックし直します",
@@ -594,6 +605,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nadb8b8ba49fe"; /* 紹�
 
         var targetControls = buildTargetArtboardPanel(optionsDialog);
         var layerNameControls = buildLayerNamePanel(optionsDialog);
+        var guideDestinationControls = buildGuideDestinationPanel(optionsDialog);
         var exclusionControls = buildExclusionPanel(optionsDialog);
         var postProcessControls = buildPostProcessPanel(optionsDialog);
 
@@ -621,6 +633,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nadb8b8ba49fe"; /* 紹�
             ignoreHiddenObjects: exclusionControls.hiddenObjectCheckbox.value,
             ignoreLockedGuides: exclusionControls.lockedGuideCheckbox.value,
             ignoreHiddenGuides: exclusionControls.hiddenGuideCheckbox.value,
+            collectGuidesToGuideLayer: guideDestinationControls.guideLayerRadio.value,
             excludedLayerNames: parseExcludedLayerNames(exclusionControls.excludedNamesField.text)
         };
     }
@@ -647,6 +660,26 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nadb8b8ba49fe"; /* 紹�
         }
 
         return { currentArtboardOnlyRadio: currentArtboardOnlyRadio };
+    }
+
+    /**
+     * ガイドの移動先パネル（_guide レイヤー／各レイヤー）を構築する
+     * @param {Window} parentDialog - 追加先のダイアログ
+     * @returns {Object} ラジオボタン参照をまとめたオブジェクト
+     */
+    function buildGuideDestinationPanel(parentDialog) {
+        var guideDestinationPanel = parentDialog.add("panel", undefined, getLabel("panel.guideDestination"));
+        setupPanel(guideDestinationPanel, 6);
+
+        var guideDestinationRow = addRowGroup(guideDestinationPanel, "center");
+        var guideLayerRadio = guideDestinationRow.add("radiobutton", undefined, getLabel("radio.guideToGuideLayer"));
+        var artboardLayersRadio = guideDestinationRow.add("radiobutton", undefined, getLabel("radio.guideToArtboardLayers"));
+        setSharedHelpTip(getLabel("tooltip.guideDestination"), [guideDestinationPanel, guideLayerRadio, artboardLayersRadio]);
+
+        guideLayerRadio.value = DEFAULT_OPTIONS.collectGuidesToGuideLayer;
+        artboardLayersRadio.value = !DEFAULT_OPTIONS.collectGuidesToGuideLayer;
+
+        return { guideLayerRadio: guideLayerRadio };
     }
 
     /**
@@ -1169,15 +1202,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nadb8b8ba49fe"; /* 紹�
      * @param {PageItem[]} movableItems - 移動候補のオブジェクト配列
      * @param {boolean[]} handledFlags - 処理済みフラグ
      * @param {function(number):boolean} shouldMoveItem - 対象に含めるか判定する関数（null なら未処理すべて）
+     * @param {boolean} separateGuides - true のときガイドを _guide 行きに分ける。false なら通常オブジェクトと同じ扱い
      * @returns {{normal: Object[], guide: Object[]}} 通常オブジェクトとガイドの移動エントリ
      */
-    function collectMoveEntries(movableItems, handledFlags, shouldMoveItem) {
+    function collectMoveEntries(movableItems, handledFlags, shouldMoveItem, separateGuides) {
         var moveEntries = { normal: [], guide: [] };
         for (var i = 0; i < movableItems.length; i++) {
             if (handledFlags[i]) continue;
             if (shouldMoveItem && !shouldMoveItem(i)) continue;
             var moveEntry = { item: movableItems[i], index: i };
-            if (isGuideItem(movableItems[i])) moveEntries.guide.push(moveEntry);
+            if (separateGuides && isGuideItem(movableItems[i])) moveEntries.guide.push(moveEntry);
             else moveEntries.normal.push(moveEntry);
         }
         return moveEntries;
@@ -1241,6 +1275,70 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nadb8b8ba49fe"; /* 紹�
     }
 
     /**
+     * すべてのアートボードを囲む矩形を返す
+     * @returns {number[]} [left, top, right, bottom]
+     */
+    function getArtboardUnionRect() {
+        var unionRect = documentArtboards[0].artboardRect.slice(0);
+        for (var i = 1; i < documentArtboards.length; i++) {
+            var artboardRect = documentArtboards[i].artboardRect;
+            unionRect[0] = Math.min(unionRect[0], artboardRect[0]);
+            unionRect[1] = Math.max(unionRect[1], artboardRect[1]);
+            unionRect[2] = Math.max(unionRect[2], artboardRect[2]);
+            unionRect[3] = Math.min(unionRect[3], artboardRect[3]);
+        }
+        return unionRect;
+    }
+
+    /**
+     * ルーラーから引いたガイド（すべてのアートボードを貫く水平／垂直線）の所属アートボードを求める
+     * 重心はカンバスの中央付近になり当てにならないため、線の位置（水平なら y、垂直なら x）が
+     * 範囲に入るアートボードが1つだけのときにそのアートボードとする
+     * @param {number[]} itemBounds - ガイドの geometricBounds [left, top, right, bottom]
+     * @param {number[]} unionRect - すべてのアートボードを囲む矩形
+     * @returns {number} アートボードのインデックス。決まらなければ -1、ルーラーガイドでなければ null
+     */
+    function findRulerGuideArtboardIndex(itemBounds, unionRect) {
+        var isHorizontal = Math.abs(itemBounds[1] - itemBounds[3]) < BOUNDS_TOLERANCE &&
+            itemBounds[0] <= unionRect[0] && itemBounds[2] >= unionRect[2];
+        var isVertical = Math.abs(itemBounds[2] - itemBounds[0]) < BOUNDS_TOLERANCE &&
+            itemBounds[1] >= unionRect[1] && itemBounds[3] <= unionRect[3];
+        if (!isHorizontal && !isVertical) return null;
+
+        var matchedIndex = -1;
+        for (var i = 0; i < documentArtboards.length; i++) {
+            var artboardRect = documentArtboards[i].artboardRect;
+            var isInside = isHorizontal ?
+                (itemBounds[1] <= artboardRect[1] && itemBounds[1] >= artboardRect[3]) :
+                (itemBounds[0] >= artboardRect[0] && itemBounds[0] <= artboardRect[2]);
+            if (!isInside) continue;
+            if (matchedIndex >= 0) return -1;
+            matchedIndex = i;
+        }
+        return matchedIndex;
+    }
+
+    /**
+     * 各アートボードのレイヤーへ送るガイドのうち、ルーラーガイドの所属アートボードを先に求める
+     * @param {PageItem[]} movableItems - 移動候補のオブジェクト配列
+     * @returns {Array} インデックスごとのアートボード番号（-1 は決まらない、null はルーラーガイド以外）
+     */
+    function buildRulerGuideArtboardIndexes(movableItems) {
+        var rulerGuideIndexes = [];
+        var unionRect = getArtboardUnionRect();
+        for (var i = 0; i < movableItems.length; i++) {
+            rulerGuideIndexes.push(null);
+            if (!isGuideItem(movableItems[i])) continue;
+            try {
+                rulerGuideIndexes[i] = findRulerGuideArtboardIndex(movableItems[i].geometricBounds, unionRect);
+            } catch (e) {
+                // 座標を取れないものは重心判定に任せる
+            }
+        }
+        return rulerGuideIndexes;
+    }
+
+    /**
      * 重心がアートボード矩形に含まれるか判定する
      * @param {number[]} itemCentroid - [x, y]（取得できなかった場合は null）
      * @param {number[]} artboardRect - [left, top, right, bottom]
@@ -1257,13 +1355,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nadb8b8ba49fe"; /* 紹�
     }
 
     /**
-     * 指定アートボードに重心が入るかを判定するフィルター関数を作る
+     * 指定アートボードに属するかを判定するフィルター関数を作る
+     * ルーラーガイドは先に求めた所属アートボードで、それ以外は重心で判定する
      * @param {number[][]} itemCentroids - 重心座標の配列
-     * @param {number[]} artboardRect - [left, top, right, bottom]
+     * @param {Array} rulerGuideIndexes - ルーラーガイドの所属アートボード（null はルーラーガイド以外）
+     * @param {number} artboardIndex - 判定するアートボードのインデックス
      * @returns {function(number):boolean} インデックスを受け取る判定関数
      */
-    function buildCentroidFilter(itemCentroids, artboardRect) {
+    function buildArtboardFilter(itemCentroids, rulerGuideIndexes, artboardIndex) {
+        var artboardRect = documentArtboards[artboardIndex].artboardRect;
         return function (itemIndex) {
+            var rulerGuideIndex = rulerGuideIndexes[itemIndex];
+            if (typeof rulerGuideIndex === "number") return rulerGuideIndex === artboardIndex;
             return isCentroidInsideArtboard(itemCentroids[itemIndex], artboardRect);
         };
     }
@@ -1366,10 +1469,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nadb8b8ba49fe"; /* 紹�
      */
     function assignItemsToArtboardLayers(movableItems, itemCentroids, organizeOptions, handledFlags, artboardRange) {
         var failedMoveCount = 0;
+        var separateGuides = organizeOptions.collectGuidesToGuideLayer;
+        /* _guide に集めるときはガイドも重心で判定してよい（行き先は同じ） / Ruler-guide handling only matters when guides follow artboards */
+        var rulerGuideIndexes = separateGuides ? [] : buildRulerGuideArtboardIndexes(movableItems);
         for (var artboardIndex = artboardRange.start; artboardIndex < artboardRange.end; artboardIndex++) {
             var artboardLayer = getOrCreateTopLevelLayer(getArtboardLayerName(artboardIndex, organizeOptions));
-            var centroidFilter = buildCentroidFilter(itemCentroids, documentArtboards[artboardIndex].artboardRect);
-            var moveEntries = collectMoveEntries(movableItems, handledFlags, centroidFilter);
+            var artboardFilter = buildArtboardFilter(itemCentroids, rulerGuideIndexes, artboardIndex);
+            var moveEntries = collectMoveEntries(movableItems, handledFlags, artboardFilter, separateGuides);
             failedMoveCount += moveEntriesToTargets(moveEntries, artboardLayer, handledFlags);
         }
         return failedMoveCount;
@@ -1382,7 +1488,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nadb8b8ba49fe"; /* 紹�
      * @returns {number} 移動に失敗した件数
      */
     function assignLeftoverItems(movableItems, handledFlags) {
-        var moveEntries = collectMoveEntries(movableItems, handledFlags, null);
+        var moveEntries = collectMoveEntries(movableItems, handledFlags, null, true);
         if (moveEntries.normal.length === 0 && moveEntries.guide.length === 0) return 0;
         /* 通常オブジェクトが無いときは _pasteboard を作らない / Skip creating _pasteboard when only guides are left */
         var pasteboardLayer = (moveEntries.normal.length > 0) ? getOrCreateTopLevelLayer(PASTEBOARD_LAYER_NAME) : null;
