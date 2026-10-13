@@ -114,10 +114,11 @@ Arrow buttons:
 
 ### Script info
 
-- Version: v1.4.3
+- Version: v1.5.0
 
 ### Changelog
 
+- v1.5.0 (2026-10-13) Option-clicking one of the eight direction buttons now centres the selection inside the margin first, then steps it in that direction
 - v1.4.3 (2026-10-10) Fixed the palette operating on another Illustrator version when several versions are running
 - v1.4.2 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.4.1 (2026-10-03) Moved to the shared persistent engine `SwwwitchPalettes` so CloseAllPalettes can close it

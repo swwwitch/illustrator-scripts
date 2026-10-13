@@ -31,10 +31,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiAlignToA
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AiAlignToArtboardPalette";     /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.4.3";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.5.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-08-23";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-10";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-13";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiAlignToArtboardPalette.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiAlignToArtboardPalette.md"; /* README (English) */
@@ -1318,6 +1318,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
                 artboardEdge: {
                     ja: "アートボードの上下左右4辺にガイドを引く（伸張のぶんだけ外へ伸ばす）",
                     en: "Draw guides on the four edges of the artboard, reaching outside by the extension"
+                },
+                optionFromCenter: {
+                    ja: "Option＋クリックでマージンの内側の中央に移してから寄せる",
+                    en: "Option-click: centre inside the margin first, then step"
                 },
                 optionGlyphBounds: { ja: "Option＋クリックで字形の境界に整列", en: "Option-click to align to glyph bounds" },
                 optionArtboardCenter: {
@@ -3091,7 +3095,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
             /* 整列アイコンと同じ理由で iconbutton ではなく button を使う / Same reason as the align icons: button, not iconbutton */
             var moveButton = parentRow.add("button", undefined, "");
             fixControlSize(moveButton, ICON_SIZE, ICON_SIZE);
-            moveButton.helpTip = getLabel("direction." + directionKey) + "  —  " + getLabel("tooltip.moveToEdge");
+            moveButton.helpTip = getLabel("direction." + directionKey) + "  —  " + getLabel("tooltip.moveToEdge") +
+                "  —  " + getLabel("tooltip.optionFromCenter");
             moveButton.directionKey = directionKey;
             moveButton.isHover = false;
             moveButton.onDraw = function() { drawMoveButton(this); };
@@ -4073,12 +4078,19 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
                     artboardRect = doc.artboards[doc.artboards.getActiveArtboardIndex()].artboardRect;
                     deltaX = 0;
                     deltaY = 0;
+                    /* Option＋クリックは、いったんマージンの内側の中央へ移したものとして寄せ先を探す。
+                       中央への移動量を足しておき、境界も中央へずらしてから辺ごとの移動量を出す（動かすのは最後の1回だけ）*/
+                    if (workerOptions.fromCenter === true) {
+                        deltaX = btAlignDelta(bounds, artboardRect, "center", 0, workerOptions.centerOffsetX, 0, 2, 1);
+                        deltaY = btAlignDelta(bounds, artboardRect, "center", 0, workerOptions.centerOffsetY, 1, 3, -1);
+                        bounds = [bounds[0] + deltaX, bounds[1] + deltaY, bounds[2] + deltaX, bounds[3] + deltaY];
+                    }
                     /* 斜めは2辺ぶんの移動量を、どちらも動かす前の境界から出して1回で動かす
                        先に片方だけ動かすと、もう一方のガイド探しが動いたあとの位置で走ってしまう */
                     for (i = 0; i < workerOptions.sides.length; i++) {
                         side = workerOptions.sides[i];
                         delta = btEdgeDelta(doc, artboardRect, bounds, side, workerOptions);
-                        if (side === "left" || side === "right") { deltaX = delta; } else { deltaY = delta; }
+                        if (side === "left" || side === "right") { deltaX += delta; } else { deltaY += delta; }
                     }
                     if (needsGroup) {
                         app.executeMenuCommand("group");
@@ -5452,7 +5464,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
          */
         function buildMoveOptions(directionKey) {
             var sides = MOVE_SIDES_BY_DIRECTION[directionKey];
+            /* Option＋クリックは、中央揃えのボタンと同じマージンの内側の中央から寄せる
+               Option-click starts from the same centre-inside-the-margin as the centre button */
+            var fromCenter = isAltPressed();
+            var centerOffset = fromCenter ?
+                centerOffsetInMargin({ modeX: "center", modeY: "center" }, readMarginsPt()) : { x: 0, y: 0 };
             return {
+                fromCenter:     fromCenter,
+                centerOffsetX:  centerOffset.x,
+                centerOffsetY:  centerOffset.y,
                 sides:          sides,
                 bleedPt:        readBleedPt(),
                 perArtboard:    alignPerArtboardCheckbox !== null && alignPerArtboardCheckbox.value === true,
