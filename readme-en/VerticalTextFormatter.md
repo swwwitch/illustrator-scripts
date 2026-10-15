@@ -17,6 +17,11 @@
 
 ### Features
 
+- Simple and Detailed modes (switch at the left of the button row; Simple by default)
+  - **Simple**: shows only rotation, Tate-Chu-Yoko digits (2/3/4), fixed-width forms, separator conversion, and full-width single digits and letters
+  - **Detailed**: shows every option
+  - Options hidden in Simple mode keep the last values (or the preset's values)
+  - Switching reopens the dialog box around the same center
 - Presets
   - Built-in: **Standard** / **1 full-width / 2–3 TCY / 4+ kanji** / **Kanji with 十・百・千, era years** / **Rotation only**
   - Save the current settings under a name with the save icon, and delete a saved preset with the trash icon (built-ins cannot be deleted)
@@ -38,16 +43,15 @@
   - **Single letters to full-width**: a lone letter such as the A in Aランク
 - Numbers
   - **Single digits to full-width**: keeps a single digit upright
+  - **Units to squares**: turns mm, cm, km, m, mg, g, kg, t, ml, L right after digits into ㍉ ㌢ ㌖ ㍍ ㍉㌘ ㌘ ㌕ ㌧ ㍉㍑ ㍑ (10cm → 10㌢). Off by default because some fonts lack these glyphs
   - **Western years to Japanese era**: 2026年 → 令和8年. When the month and day follow, they decide which side of an era change the date falls on (2019年4月30日 → 平成31年, 2019年5月1日 → 令和元年); a bare year of an era change uses the new era. Year 1 is written 元年
   - **Convert to kanji numerals**: numbers within the digit range (4–20 by default)
     - **Digit by digit**: 2026 → 二〇二六, 3,000 → 三、〇〇〇
     - **With 十・百・千**: 2026 → 二千二十六, 2000 → 二千, 3,000 → 三千 (also 万・億・兆・京; decimals stay digit by digit)
-- Paragraph
-  - **Mojikumi: Solid (ベタ組み)** (on by default)
-  - **Kinsoku: Soft v2** (on by default)
-  - **Justify with last line top** (on by default)
-- **Convert horizontal text to vertical**: turns horizontal text vertical before processing (on by default)
-- **Vertical text only**: horizontal text in the selection is left unchanged (on by default; disabled while "Convert horizontal text to vertical" is on)
+    - **0 as 零**: uses 零 instead of 〇 (二〇〇六 → 二零零六)
+    - **千 as 一千**: with 十・百・千, writes 1000 as 一千 (1500 → 一千五百)
+- Paragraph (Detailed mode): choose the kinsoku set (None / Hard / Soft / Soft v2) and the mojikumi set (None and the seven built-ins) from dropdowns (Soft v2 and Solid by default). Justification is always justified with the last line at the top
+- Horizontal text is always turned vertical before processing
 - **Conversion Check**: lists what will change, such as "3,000 → 三千" or "10 [TCY] ×3", and updates whenever an option or digit range changes
 - A progress bar shows how far processing has gone
 - Settings are saved and restored the next time
@@ -61,7 +65,7 @@
 
 ### Order of processing
 
-1. Turn horizontal text vertical
+1. Turn horizontal text vertical (always)
 2. Paragraph settings (Solid mojikumi, Soft v2 kinsoku, justify with last line top)
 3. Apply rotation to all of the text (rewritten characters inherit the rotated formatting)
 4. Rewrite characters (full-width to half-width, separators, full-width digits, era years, kanji numerals)
@@ -76,6 +80,9 @@
 
 ### Update History
 
+- v1.10.0 (2026-10-15) Added Simple and Detailed modes (in Detailed mode, Character Conversion spans both columns with two columns inside) and "Units to squares". The check list is two rows taller. Removed "Convert horizontal text to vertical" and "Vertical text only" from the UI; horizontal text is now always turned vertical. Added the Paragraph panel (kinsoku and mojikumi) to Detailed mode, more tooltips, and cleaned up the code
+- v1.9.0 (2026-10-15) Removed the Paragraph panel; Solid mojikumi, Soft v2 kinsoku and last-line-top justification are now always applied
+- v1.8.0 (2026-10-15) Added "0 as 零" and "千 as 一千" to the kanji numerals
 - v1.7.1 (2026-10-15) Centered the preset row in the dialog box
 - v1.7.0 (2026-10-15) Added range marks to 〜, symbols to full-width, quotes to 〝〟, ! ? to full-width and single letters to full-width
 - v1.6.0 (2026-10-15) Added presets (four built-ins, plus saving and deleting your own)

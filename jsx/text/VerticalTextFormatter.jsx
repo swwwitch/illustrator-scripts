@@ -6,7 +6,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-選択した縦組みのテキストに、欧文回転・縦中横・数字の書き換え（全角・漢数字・和暦）・ベタ組み・禁則・行揃えなどをまとめて適用します。
+選択したテキストを縦組みにし、欧文回転・縦中横・数字の書き換え（全角・漢数字・和暦）・禁則・文字組みなどをまとめて適用します。
 ダイアログボックスで項目を選び、変換の結果を一覧で確かめてから実行できます。
 
 詳細は README を参照してください。
@@ -14,8 +14,8 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/VerticalTe
 
 ### Overview
 
-Applies vertical-text settings to the selected text in one go: rotated Roman characters, Tate-Chu-Yoko,
-and number rewriting (full-width digits, kanji numerals, Japanese era years).
+Turns the selected text vertical and applies vertical-text settings in one go: rotated Roman characters,
+Tate-Chu-Yoko, number rewriting (full-width digits, kanji numerals, Japanese era years), kinsoku and mojikumi.
 Choose the options in a dialog box and check the result list before running.
 
 See the README for details.
@@ -27,7 +27,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/VerticalTe
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "VerticalTextFormatter";        /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.7.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.10.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-15";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-15";                   /* 更新日 / last updated */
@@ -61,6 +61,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         kanjiMinDigits: 4,
         kanjiMaxDigits: 20,
         kanjiStyle: "digit",
+        kanjiZeroRei: false,
+        kanjiIchiSen: false,
         halfwidthAlnum: false,
         commaToTouten: true,
         periodToNakaguro: true,
@@ -69,15 +71,25 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         rangeToWave: true,
         exclamFullwidth: true,
         singleLetterFullwidth: false,
-        mojikumiBeta: true,
-        kinsokuSoftV2: true,
-        justifyLastLineTop: true,
-        convertToVertical: true,
-        verticalOnly: true
+        unitsKumimoji: false,
+        kinsokuType: "Soft_v2",
+        mojikumiIndex: 6,
+        dialogMode: "simple"
     };
 
-    var MOJIKUMI_BETA_INDEX = 6;       /* doc.mojikumiSet の「ベタ組み」の番号 / index of "ベタ組み" in doc.mojikumiSet */
-    var KINSOKU_SOFT_V2 = "Soft_v2";   /* 「弱い禁則v2」 / "Soft v2" kinsoku */
+    /* ダイアログの真偽値の項目（設定のキーとコントロール名が同じ） / Boolean dialog options (setting key = control name) */
+    var CHECKBOX_SETTING_KEYS = ["rotateRoman", "tcyNumbers", "tcyDigits2", "tcyDigits3", "tcyDigits4", "tcyExcludeAdjacent", "tcyCapitals",
+        "tcyExclamation", "tcyGlyphByLength", "singleDigitFullwidth", "japaneseEra", "kanji", "kanjiZeroRei", "kanjiIchiSen", "halfwidthAlnum",
+        "commaToTouten", "periodToNakaguro", "symbolsFullwidth", "quotesToChonchon", "rangeToWave", "exclamFullwidth", "singleLetterFullwidth",
+        "unitsKumimoji"];
+
+    var MODE_SWITCH_RESULT = 3;   /* モードを切り替えて開き直すときの show() の戻り値 / show() result for reopening in another mode */
+
+    /* 禁則の選択肢（paragraphAttributes.kinsoku の値） / Kinsoku choices (values of paragraphAttributes.kinsoku) */
+    var KINSOKU_TYPES = ["None", "Hard", "Soft", "Soft_v2"];
+    /* 文字組みアキ量設定の選択肢（doc.mojikumiSet の番号、-1 は「なし」）。名前は DOM から読めないので LABELS に持つ
+       Mojikumi choices (doc.mojikumiSet index, -1 = none); names are not readable from the DOM, so LABELS holds them */
+    var MOJIKUMI_INDEXES = [-1, 0, 1, 2, 3, 4, 5, 6];
 
     /* 組み込みのプリセット。書いていない項目は DEFAULT_SETTINGS の値 / Built-in presets; omitted items use DEFAULT_SETTINGS */
     var BUILTIN_PRESETS = [
@@ -94,8 +106,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             labelKey: "rotateOnly",
             data: {
                 tcyNumbers: false, tcyGlyphByLength: false, commaToTouten: false, periodToNakaguro: false,
-                symbolsFullwidth: false, quotesToChonchon: false, rangeToWave: false, exclamFullwidth: false,
-                mojikumiBeta: false, kinsokuSoftV2: false, justifyLastLineTop: false
+                symbolsFullwidth: false, quotesToChonchon: false, rangeToWave: false, exclamFullwidth: false
             }
         }
     ];
@@ -187,11 +198,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     var BUTTON_WIDTH        = 90;    /* OK／キャンセルの幅 / OK and Cancel width */
     var OPTION_INDENT       = 20;    /* 親のチェックボックスに従う項目の字下げ / indent for dependent options */
-    var PREVIEW_LIST_HEIGHT = 100;   /* 確認の一覧の高さ / height of the check list */
+    var PREVIEW_LIST_HEIGHT = 142;   /* 確認の一覧の高さ / height of the check list */
     var PROGRESS_WIDTH      = 300;   /* プログレスバーの幅 / progress bar width */
     var PRESET_ICON_SIZE    = [20, 18];   /* プリセットの保存・削除アイコンの大きさ / preset save and delete icon size */
     var PRESET_DROPDOWN_WIDTH = 220; /* プリセットのドロップダウンの幅 / preset dropdown width */
     var PRESET_NAME_CHARS   = 20;    /* プリセット名の入力欄の文字数 / preset name field width */
+    var PARAGRAPH_LABEL_WIDTH = 60;  /* 段落のドロップダウンの項目名の幅（右揃え） / paragraph dropdown label width (right-aligned) */
 
     // UI の明暗（再利用パーツ） / UI theme (reusable)
 
@@ -1055,25 +1067,45 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             singleLetterFullwidth: { ja: "1文字の英字を全角に", en: "Single letters to full-width" },
             singleDigitFullwidth: { ja: "1桁の数字を全角に", en: "Single digits to full-width" },
             japaneseEra: { ja: "西暦を和暦に", en: "Western years to Japanese era" },
-            kanji: { ja: "漢数字に変換", en: "Convert to kanji numerals" },
-            mojikumiBeta: { ja: "ベタ組み", en: "Solid mojikumi" },
-            kinsokuSoftV2: { ja: "弱い禁則v2", en: "Soft v2 kinsoku" },
-            justifyLastLineTop: { ja: "行頭行末揃え（最終行上）", en: "Justify, last line top" },
-            convertToVertical: { ja: "横組みを縦組みに", en: "Make horizontal text vertical" },
-            verticalOnly: { ja: "縦組みだけを処理", en: "Vertical text only" }
+            kanjiZeroRei: { ja: "0を「零」に", en: "0 as 零" },
+            kanjiIchiSen: { ja: "千を「一千」に", en: "千 as 一千" },
+            unitsKumimoji: { ja: "単位を組文字に（cm → ㌢）", en: "Units to squares (cm → ㌢)" },
+            kanji: { ja: "漢数字に変換", en: "Convert to kanji numerals" }
         },
         glyphShort: {
             half: { ja: "半角", en: "half" },
             third: { ja: "三分", en: "third" },
             quarter: { ja: "四分", en: "quarter" }
         },
+        dropdown: {
+            kinsoku: [
+                { ja: "なし", en: "None" },
+                { ja: "強い禁則", en: "Hard" },
+                { ja: "弱い禁則", en: "Soft" },
+                { ja: "弱い禁則v2", en: "Soft v2" }
+            ],
+            mojikumi: [
+                { ja: "なし", en: "None" },
+                { ja: "行末約物全角/半角", en: "Line-end punctuation full/half" },
+                { ja: "約物半角", en: "Half-width punctuation" },
+                { ja: "行末約物半角", en: "Line-end punctuation half" },
+                { ja: "行末約物全角", en: "Line-end punctuation full" },
+                { ja: "約物全角", en: "Full-width punctuation" },
+                { ja: "ツメ組み", en: "Tight" },
+                { ja: "ベタ組み", en: "Solid" }
+            ]
+        },
         radio: {
+            modeSimple: { ja: "簡易", en: "Simple" },
+            modeDetail: { ja: "詳細", en: "Detailed" },
             kanjiDigit: { ja: "二〇二六", en: "二〇二六" },
             kanjiPositional: { ja: "二千二十六", en: "二千二十六" }
         },
-        field: {
+        fieldLabel: {
             digits: { ja: "桁数", en: "Digits" },
-            rangeTo: { ja: "〜", en: "to" }
+            rangeTo: { ja: "〜", en: "to" },
+            kinsoku: { ja: "禁則", en: "Kinsoku" },
+            mojikumi: { ja: "文字組み", en: "Mojikumi" }
         },
         preview: {
             tcyMark: { ja: "［縦中横］", en: " [TCY]" },
@@ -1108,38 +1140,86 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         },
         alert: {
             noSelection: { ja: "テキストを選択してください。", en: "Select text first." },
-            noVerticalText: { ja: "縦組みのテキストがありません。", en: "No vertical text is selected." },
             presetSaveFailed: { ja: "プリセットを保存できませんでした。", en: "Could not save the preset." },
             presetNameTaken: { ja: "組み込みのプリセットと同じ名前は使えません。", en: "That name is used by a built-in preset." },
             actionFailed: { ja: "縦組み中の欧文回転・縦中横を適用できませんでした。", en: "Could not apply the vertical text settings." }
         },
         /* ステップボタン用（stepUp〜）と、項目の説明 / for the stepper (stepUp…) and option descriptions */
         tooltip: {
+            kinsoku: { ja: "段落の禁則処理を選びます", en: "Kinsoku set for the paragraphs" },
+            mojikumi: {
+                ja: "段落の文字組みアキ量設定を選びます（行揃えは常に行頭行末揃え（最終行上））",
+                en: "Mojikumi set for the paragraphs (justification is always justified, last line top)"
+            },
+            modeSimple: {
+                ja: "よく使う項目だけを表示します。表示していない項目は、前回の設定やプリセットの値で処理します",
+                en: "Shows only the common options; hidden options keep the last or preset values"
+            },
+            modeDetail: { ja: "すべての項目を表示します", en: "Shows all options" },
             preset: { ja: "組み込みのプリセットか、保存した設定を読み込みます。", en: "Loads a built-in preset or saved settings." },
             presetSave: { ja: "今の設定に名前を付けて保存します。", en: "Saves the current settings under a name." },
             presetDelete: { ja: "選んでいる保存したプリセットを削除します。", en: "Deletes the selected saved preset." },
-            presetName: { ja: "保存する設定の名前です。同じ名前は上書きします。", en: "Name the settings are saved under. The same name is overwritten." },
-            tcyGlyphByLength: { ja: "縦中横の文字を、2字は等幅半角・3字は等幅三分・4字は等幅四分の字形にします", en: "Uses half-width forms for 2 characters, third-width for 3 and quarter-width for 4" },
-            tcyExcludeAdjacent: { ja: "「3,000」の「000」や「12.5」の「12」を縦中横にしません", en: "Leaves \"000\" in \"3,000\" and \"12\" in \"12.5\" alone" },
-            tcyCapitals: { ja: "「PDF」「OK」など、すべて大文字の2〜3字の英字を縦中横にします", en: "Tate-Chu-Yoko for all-capital words of 2–3 letters such as PDF" },
-            tcyExclamation: { ja: "感嘆符・疑問符の2字の組を縦中横にします（全角は半角にそろえます）", en: "Tate-Chu-Yoko for pairs of ! and ? (full-width marks become half-width)" },
-            halfwidthAlnum: { ja: "「２０」「ＰＤＦ」なども縦中横・欧文回転の対象にします", en: "Makes full-width digits and letters targets for Tate-Chu-Yoko and rotation" },
-            commaToTouten: { ja: "桁区切りの「,」「，」を「、」にします（3,000 → 3、000）", en: "Replaces thousands separators \",\" \"，\" with \"、\"" },
+            presetName: {
+                ja: "保存する設定の名前です。同じ名前は上書きします。",
+                en: "Name the settings are saved under. The same name is overwritten."
+            },
+            tcyNumbers: { ja: "下で選んだ桁数の半角数字を縦中横にします", en: "Tate-Chu-Yoko for half-width numbers of the lengths checked below" },
+            kanji: {
+                ja: "桁数が範囲内の数字を漢数字にします。縦中横の桁数と重なるときは漢数字を優先します",
+                en: "Converts numbers within the digit range to kanji numerals; this wins over Tate-Chu-Yoko"
+            },
+            tcyGlyphByLength: {
+                ja: "縦中横の文字を、2字は等幅半角・3字は等幅三分・4字は等幅四分の字形にします",
+                en: "Uses half-width forms for 2 characters, third-width for 3 and quarter-width for 4"
+            },
+            tcyExcludeAdjacent: {
+                ja: "「3,000」の「000」や「12.5」の「12」を縦中横にしません",
+                en: "Leaves \"000\" in \"3,000\" and \"12\" in \"12.5\" alone"
+            },
+            tcyCapitals: {
+                ja: "「PDF」「OK」など、すべて大文字の2〜3字の英字を縦中横にします",
+                en: "Tate-Chu-Yoko for all-capital words of 2–3 letters such as PDF"
+            },
+            tcyExclamation: {
+                ja: "感嘆符・疑問符の2字の組を縦中横にします（全角は半角にそろえます）",
+                en: "Tate-Chu-Yoko for pairs of ! and ? (full-width marks become half-width)"
+            },
+            halfwidthAlnum: {
+                ja: "「２０」「ＰＤＦ」なども縦中横・欧文回転の対象にします",
+                en: "Makes full-width digits and letters targets for Tate-Chu-Yoko and rotation"
+            },
+            commaToTouten: {
+                ja: "桁区切りの「,」「，」を「、」にします（3,000 → 3、000）",
+                en: "Replaces thousands separators \",\" \"，\" with \"、\""
+            },
             periodToNakaguro: { ja: "小数点の「.」「．」を「・」にします（12.5 → 12・5）", en: "Replaces decimal points \".\" \"．\" with \"・\"" },
-            symbolsFullwidth: { ja: "半角の ( ) [ ] { } : ; / % & # @ * + = < > を全角にして正立させます", en: "Makes half-width ( ) [ ] { } : ; / % & # @ * + = < > full-width so they stand upright" },
+            symbolsFullwidth: {
+                ja: "半角の ( ) [ ] { } : ; / % & # @ * + = < > を全角にして正立させます",
+                en: "Makes half-width ( ) [ ] { } : ; / % & # @ * + = < > full-width so they stand upright"
+            },
             quotesToChonchon: { ja: "“ ” と \" \" をチョンチョン（〝 〟）にします", en: "Replaces “ ” and \" \" with 〝 〟" },
-            rangeToWave: { ja: "数字の間の「-」「~」「－」「～」を「〜」にします（10-20 → 10〜20）", en: "Replaces - ~ between digits with 〜 (10-20 → 10〜20)" },
+            rangeToWave: {
+                ja: "数字の間の「-」「~」「－」「～」を「〜」にします（10-20 → 10〜20）",
+                en: "Replaces - ~ between digits with 〜 (10-20 → 10〜20)"
+            },
             exclamFullwidth: { ja: "縦中横にしない「!」「?」を全角にして正立させます", en: "Makes ! and ? that are not in Tate-Chu-Yoko full-width" },
-            singleLetterFullwidth: { ja: "1字だけの英字（Aランクの A など）を全角にして正立させます", en: "Makes a lone letter (the A in Aランク) full-width" },
+            singleLetterFullwidth: {
+                ja: "1字だけの英字（Aランクの A など）を全角にして正立させます",
+                en: "Makes a lone letter (the A in Aランク) full-width"
+            },
             singleDigitFullwidth: { ja: "1桁の数字を全角にして正立させます", en: "Makes single digits full-width so they stand upright" },
-            japaneseEra: { ja: "「2026年」を「令和8年」にします。月日があれば改元の前後を月日で判定します", en: "2026年 → 令和8年; a following month and day decide the era at a change" },
+            japaneseEra: {
+                ja: "「2026年」を「令和8年」にします。月日があれば改元の前後を月日で判定します",
+                en: "2026年 → 令和8年; a following month and day decide the era at a change"
+            },
+            kanjiZeroRei: { ja: "0を「〇」ではなく「零」にします（二〇二六 → 二零二六）", en: "Writes 0 as 零 instead of 〇" },
+            kanjiIchiSen: { ja: "十・百・千を入れるとき、千を「一千」と書きます（1500 → 一千五百）", en: "Writes 1000 as 一千 when using 十・百・千" },
+            unitsKumimoji: {
+                ja: "数字の直後の mm・cm・km・m・mg・g・kg・t・ml・L を ㍉・㌢・㌖・㍍・㍉㌘・㌘・㌕・㌧・㍉㍑・㍑ にします。字形の無いフォントもあります",
+                en: "Turns mm, cm, km, m, mg, g, kg, t, ml, L after digits into katakana squares; some fonts lack these glyphs"
+            },
             kanjiDigit: { ja: "1字ずつ漢数字にします（2026 → 二〇二六）", en: "Digit by digit (2026 → 二〇二六)" },
             kanjiPositional: { ja: "十・百・千を入れます（2026 → 二千二十六、2000 → 二千）", en: "With 十・百・千 (2026 → 二千二十六)" },
-            mojikumiBeta: { ja: "文字組みアキ量設定を「ベタ組み」にします", en: "Sets the mojikumi set to Solid (ベタ組み)" },
-            kinsokuSoftV2: { ja: "禁則を「弱い禁則v2」にします", en: "Sets kinsoku to Soft v2" },
-            justifyLastLineTop: { ja: "行揃えを「行頭行末揃え（最終行上）」にします", en: "Justifies with the last line aligned to the top" },
-            convertToVertical: { ja: "横組みのテキストを縦組みにしてから処理します", en: "Turns horizontal text vertical before processing" },
-            verticalOnly: { ja: "横組みのテキストを一緒に選んでいても変えません", en: "Leaves horizontal text in the selection unchanged" },
             stepUp: {
                 ja: "値を増やす（shift＋クリックで10の倍数へ、option＋クリックで0.1ずつ）",
                 en: "Increase (Shift-click to snap to 10s, Option-click by 0.1)"
@@ -2157,7 +2237,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // =========================================
     // 一時アクション定義 / Action definition
     // =========================================
-    var ACTION_SET_NAME = "RotateRomanAndTateChuYoko";   /* アクションセット名 / action set name */
+    var ACTION_SET_NAME = "VerticalTextFormatter";       /* アクションセット名 / action set name */
     var ROTATE_ACTION_NAME = "rotateRoman";              /* 欧文回転のアクション名 / rotate action name */
     var TCY_ACTION_NAME = "tateChuYoko";                 /* 縦中横のアクション名 / Tate-Chu-Yoko action name */
 
@@ -2219,34 +2299,40 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     var KANJI_DIGITS = ["〇", "一", "二", "三", "四", "五", "六", "七", "八", "九"];
     var KANJI_SMALL_UNITS = ["", "十", "百", "千"];
     var KANJI_LARGE_UNITS = ["", "万", "億", "兆", "京"];
-    var FULLWIDTH_DIGIT_OFFSET = 0xFF10 - 0x30;   /* 半角数字→全角数字の差 / offset from ASCII digits to full-width digits */
 
     /**
      * 半角数字か
-     * @param {string} ch - 1文字
+     * @param {string} currentChar - 1文字
      * @returns {boolean} 0〜9 なら true
      */
-    function isDigitChar(ch) {
-        return ch >= "0" && ch <= "9";
+    function isDigitChar(currentChar) {
+        return currentChar >= "0" && currentChar <= "9";
     }
 
     /**
      * 半角英字か
-     * @param {string} ch - 1文字
+     * @param {string} currentChar - 1文字
      * @returns {boolean} A〜Z・a〜z なら true
      */
-    function isLatinLetter(ch) {
-        return (ch >= "A" && ch <= "Z") || (ch >= "a" && ch <= "z");
+    function isLatinLetter(currentChar) {
+        return (currentChar >= "A" && currentChar <= "Z") || (currentChar >= "a" && currentChar <= "z");
     }
 
     /**
      * 感嘆符・疑問符か（半角・全角）
-     * @param {string} ch - 1文字
+     * @param {string} currentChar - 1文字
      * @returns {boolean} ! ? ！ ？ なら true
      */
-    function isExclamOrQuestion(ch) {
-        return ch === "!" || ch === "?" || ch === "！" || ch === "？";
+    function isExclamOrQuestion(currentChar) {
+        return currentChar === "!" || currentChar === "?" || currentChar === "！" || currentChar === "？";
     }
+
+    /* ［単位を組文字に］の対応（数字の直後の英字だけ） / Units turned into katakana squares (only right after digits) */
+    var UNIT_KUMIMOJI = {
+        mm: "㍉", cm: "㌢", km: "㌖", m: "㍍",
+        mg: "㍉㌘", g: "㌘", kg: "㌕", t: "㌧",
+        ml: "㍉㍑", mL: "㍉㍑", l: "㍑", L: "㍑"
+    };
 
     var FULLWIDTH_SYMBOLS = "()[]{}:;/%&#@*+=<>";   /* ［記号を全角に］の対象 / symbols made full-width */
     var RANGE_MARKS = "-~－～";                      /* ［範囲の「-」「~」→「〜」］の対象 / range marks */
@@ -2267,37 +2353,37 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /**
      * 半角・全角の数字か
-     * @param {string} ch - 1文字
+     * @param {string} currentChar - 1文字
      * @returns {boolean} 0〜9・０〜９ なら true
      */
-    function isAnyDigitChar(ch) {
-        return isDigitChar(ch) || (ch >= "０" && ch <= "９");
+    function isAnyDigitChar(currentChar) {
+        return isDigitChar(currentChar) || (currentChar >= "０" && currentChar <= "９");
     }
 
     /**
      * 数字・英字・感嘆符以外の1文字を、記号・引用符・範囲の設定に合わせて置き換える
      * @param {string} text - 対象の文字列
      * @param {number} index - 文字の位置
-     * @param {Object} options - 変換の設定
+     * @param {Object} formatOptions - 変換の設定
      * @param {Object} quoteState - 半角の「"」の開き・閉じを数える状態（{ isOpen }）
      * @returns {string} 置き換えた文字
      */
-    function convertOtherChar(text, index, options, quoteState) {
-        var ch = text.charAt(index);
-        if (options.rangeToWave && RANGE_MARKS.indexOf(ch) >= 0 && isAnyDigitChar(text.charAt(index - 1)) && isAnyDigitChar(text.charAt(index + 1))) {
+    function convertOtherChar(text, index, formatOptions, quoteState) {
+        var currentChar = text.charAt(index);
+        if (formatOptions.rangeToWave && RANGE_MARKS.indexOf(currentChar) >= 0 && isAnyDigitChar(text.charAt(index - 1)) && isAnyDigitChar(text.charAt(index + 1))) {
             return "〜";
         }
-        if (options.quotesToChonchon) {
-            if (ch === "“") return "〝";
-            if (ch === "”") return "〟";
-            if (ch === "\"") {
+        if (formatOptions.quotesToChonchon) {
+            if (currentChar === "“") return "〝";
+            if (currentChar === "”") return "〟";
+            if (currentChar === "\"") {
                 /* 半角の「"」は開きと閉じを交互に / Straight quotes alternate between opening and closing */
                 quoteState.isOpen = !quoteState.isOpen;
                 return quoteState.isOpen ? "〝" : "〟";
             }
         }
-        if (options.symbolsFullwidth && FULLWIDTH_SYMBOLS.indexOf(ch) >= 0) return toFullwidthAscii(ch);
-        return ch;
+        if (formatOptions.symbolsFullwidth && FULLWIDTH_SYMBOLS.indexOf(currentChar) >= 0) return toFullwidthAscii(currentChar);
+        return currentChar;
     }
 
     /**
@@ -2316,41 +2402,40 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /**
-     * 半角数字を全角数字にする
-     * @param {string} digitText - 半角数字の文字列
-     * @returns {string} 全角数字の文字列
+     * 数字1字の漢数字を返す（0 は設定で「〇」か「零」）
+     * @param {number} digitValue - 0〜9
+     * @param {Object} formatOptions - 変換の設定
+     * @returns {string} 漢数字1字
      */
-    function toFullwidthDigits(digitText) {
-        var resultText = "";
-        for (var i = 0; i < digitText.length; i++) {
-            resultText += String.fromCharCode(digitText.charCodeAt(i) + FULLWIDTH_DIGIT_OFFSET);
-        }
-        return resultText;
+    function getKanjiDigit(digitValue, formatOptions) {
+        return (digitValue === 0 && formatOptions.kanjiZeroRei) ? "零" : KANJI_DIGITS[digitValue];
     }
 
     /**
      * 数字を1字ずつ漢数字にする（2026 → 二〇二六）
      * @param {string} digitText - 半角数字の文字列
+     * @param {Object} formatOptions - 変換の設定
      * @returns {string} 漢数字の文字列
      */
-    function toKanjiDigitByDigit(digitText) {
+    function toKanjiDigitByDigit(digitText, formatOptions) {
         var resultText = "";
         for (var i = 0; i < digitText.length; i++) {
-            resultText += KANJI_DIGITS[digitText.charCodeAt(i) - 48];
+            resultText += getKanjiDigit(digitText.charCodeAt(i) - 48, formatOptions);
         }
         return resultText;
     }
 
     /**
      * 整数を十・百・千と万・億…を入れた漢数字にする（2026 → 二千二十六、10000 → 一万）
-     * 十・百・千の前の「一」は省く。万の位を超える桁は1字ずつにする
+     * 十・百の前の「一」は省く。千の前は設定で「一千」にする。京の位を超える桁は1字ずつにする
      * @param {string} digitText - 半角数字の文字列
+     * @param {Object} formatOptions - 変換の設定
      * @returns {string} 漢数字の文字列
      */
-    function toKanjiPositional(digitText) {
+    function toKanjiPositional(digitText, formatOptions) {
         var trimmedText = digitText.replace(/^0+/, "");
-        if (trimmedText === "") return KANJI_DIGITS[0];
-        if (trimmedText.length > KANJI_LARGE_UNITS.length * 4) return toKanjiDigitByDigit(digitText);
+        if (trimmedText === "") return getKanjiDigit(0, formatOptions);
+        if (trimmedText.length > KANJI_LARGE_UNITS.length * 4) return toKanjiDigitByDigit(digitText, formatOptions);
         var resultText = "";
         var groupCount = Math.ceil(trimmedText.length / 4);
         for (var g = groupCount - 1; g >= 0; g--) {
@@ -2361,8 +2446,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 var digitValue = groupText.charCodeAt(i) - 48;
                 if (digitValue === 0) continue;
                 var place = groupText.length - 1 - i;
-                /* 十・百・千の前の「一」は書かない / Omit "one" before ten, hundred and thousand */
-                if (!(digitValue === 1 && place > 0)) groupKanji += KANJI_DIGITS[digitValue];
+                /* 十・百の前の「一」は書かない。千は設定次第（一千） / Omit "one" before ten and hundred; before thousand it depends on the setting */
+                var omitsOne = (digitValue === 1 && place > 0 && !(place === 3 && formatOptions.kanjiIchiSen));
+                if (!omitsOne) groupKanji += KANJI_DIGITS[digitValue];
                 groupKanji += KANJI_SMALL_UNITS[place];
             }
             if (groupKanji !== "") resultText += groupKanji + KANJI_LARGE_UNITS[g];
@@ -2416,24 +2502,24 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     /**
      * 桁区切り・小数点を設定に合わせて置き換える（置き換えないときは元の文字のまま）
      * @param {Object} part - readNumberToken の parts の要素（separator / decimal）
-     * @param {Object} options - 変換の設定
+     * @param {Object} formatOptions - 変換の設定
      * @returns {string} 置き換えた文字
      */
-    function convertNumberMark(part, options) {
-        if (part.type === "separator") return options.commaToTouten ? "、" : part.text;
-        return options.periodToNakaguro ? "・" : part.text;
+    function convertNumberMark(part, formatOptions) {
+        if (part.type === "separator") return formatOptions.commaToTouten ? "、" : part.text;
+        return formatOptions.periodToNakaguro ? "・" : part.text;
     }
 
     /**
      * 数字のまとまりを漢数字にする（小数部は書き方によらず1字ずつ）
      * @param {Object} numberToken - readNumberToken の戻り値
-     * @param {Object} options - 変換の設定
+     * @param {Object} formatOptions - 変換の設定
      * @returns {string} 漢数字の文字列
      */
-    function convertNumberToKanji(numberToken, options) {
+    function convertNumberToKanji(numberToken, formatOptions) {
         var parts = numberToken.parts;
         var resultText = "";
-        if (options.kanjiStyle === "positional") {
+        if (formatOptions.kanjiStyle === "positional") {
             /* 整数部は桁区切りを外して位取りで読む / Read the integer part positionally, without separators */
             var integerText = "";
             var partIndex = 0;
@@ -2441,14 +2527,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 if (parts[partIndex].type === "digits") integerText += parts[partIndex].text;
                 partIndex++;
             }
-            resultText = toKanjiPositional(integerText);
+            resultText = toKanjiPositional(integerText, formatOptions);
             if (partIndex < parts.length) {
-                resultText += convertNumberMark(parts[partIndex], options) + toKanjiDigitByDigit(parts[partIndex + 1].text);
+                resultText += convertNumberMark(parts[partIndex], formatOptions) + toKanjiDigitByDigit(parts[partIndex + 1].text, formatOptions);
             }
             return resultText;
         }
         for (var i = 0; i < parts.length; i++) {
-            resultText += (parts[i].type === "digits") ? toKanjiDigitByDigit(parts[i].text) : convertNumberMark(parts[i], options);
+            resultText += (parts[i].type === "digits") ? toKanjiDigitByDigit(parts[i].text, formatOptions) : convertNumberMark(parts[i], formatOptions);
         }
         return resultText;
     }
@@ -2456,16 +2542,16 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     /**
      * 数字だけの並び（1つの digits）を、縦中横・全角・そのままのどれかにして出力に足す
      * @param {string} digitText - 半角数字の文字列
-     * @param {Object} options - 変換の設定
+     * @param {Object} formatOptions - 変換の設定
      * @param {function(string, boolean): void} emit - 出力に足す関数（文字列、縦中横にするか）
      * @returns {void}
      */
-    function emitDigitRun(digitText, options, emit) {
+    function emitDigitRun(digitText, formatOptions, emit) {
         var digitCount = digitText.length;
-        if (options.tcyNumbers && options["tcyDigits" + digitCount] === true) {
+        if (formatOptions.tcyNumbers && formatOptions["tcyDigits" + digitCount] === true) {
             emit(digitText, true);
-        } else if (options.singleDigitFullwidth && digitCount === 1) {
-            emit(toFullwidthDigits(digitText), false);
+        } else if (formatOptions.singleDigitFullwidth && digitCount === 1) {
+            emit(toFullwidthAscii(digitText), false);
         } else {
             emit(digitText, false);
         }
@@ -2474,15 +2560,15 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     /**
      * 数字だけの並びを、範囲内なら漢数字、そうでなければ縦中横・全角・そのままにして出力に足す
      * @param {string} digitText - 半角数字の文字列
-     * @param {Object} options - 変換の設定
+     * @param {Object} formatOptions - 変換の設定
      * @param {function(string, boolean): void} emit - 出力に足す関数
      * @returns {void}
      */
-    function emitPlainDigits(digitText, options, emit) {
-        if (options.kanji && digitText.length >= options.kanjiMinDigits && digitText.length <= options.kanjiMaxDigits) {
-            emit(convertNumberToKanji({ parts: [{ type: "digits", text: digitText }] }, options), false);
+    function emitPlainDigits(digitText, formatOptions, emit) {
+        if (formatOptions.kanji && digitText.length >= formatOptions.kanjiMinDigits && digitText.length <= formatOptions.kanjiMaxDigits) {
+            emit(convertNumberToKanji({ parts: [{ type: "digits", text: digitText }] }, formatOptions), false);
         } else {
-            emitDigitRun(digitText, options, emit);
+            emitDigitRun(digitText, formatOptions, emit);
         }
     }
 
@@ -2520,13 +2606,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     /**
      * テキストの変換内容を決める。書き換え（後ろから順）と、書き換え後の縦中横の位置を返す
      * @param {string} sourceText - 元の文字列
-     * @param {Object} options - 変換の設定
+     * @param {Object} formatOptions - 変換の設定
      * @returns {{edits: Array<{start: number, length: number, text: string}>, tcySpans: Array<{start: number, length: number}>,
      *     changes: Array<{before: string, after: string, tcy: boolean, tcyLength: number}>, outputLength: number}}
      *     edits は後ろから順、changes は確認の一覧用（前から順）
      */
-    function planVerticalText(sourceText, options) {
-        var text = options.halfwidthAlnum ? toHalfwidthAlnum(sourceText) : sourceText;
+    function planVerticalText(sourceText, formatOptions) {
+        var text = formatOptions.halfwidthAlnum ? toHalfwidthAlnum(sourceText) : sourceText;
         var edits = [];
         var tcySpans = [];
         var changes = [];
@@ -2573,52 +2659,54 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         var i = 0;
         while (i < text.length) {
-            var ch = text.charAt(i);
+            var currentChar = text.charAt(i);
             var runStart = i;
-            var westernYear = (options.japaneseEra && isDigitChar(ch)) ? matchWesternYear(text, i) : null;
+            var westernYear = (formatOptions.japaneseEra && isDigitChar(currentChar)) ? matchWesternYear(text, i) : null;
             if (westernYear) {
                 emit(westernYear.eraName, false);
                 /* 1年は「元年」 / The first year is written 元 */
                 if (westernYear.eraYear === 1) emit("元", false);
-                else emitPlainDigits(String(westernYear.eraYear), options, emit);
+                else emitPlainDigits(String(westernYear.eraYear), formatOptions, emit);
                 i += 4;
-            } else if (isDigitChar(ch)) {
+            } else if (isDigitChar(currentChar)) {
                 var numberToken = readNumberToken(text, i);
-                if (options.kanji && numberToken.integerDigits >= options.kanjiMinDigits && numberToken.integerDigits <= options.kanjiMaxDigits) {
-                    emit(convertNumberToKanji(numberToken, options), false);
-                } else if (numberToken.hasSeparator && options.tcyExcludeAdjacent) {
+                if (formatOptions.kanji && numberToken.integerDigits >= formatOptions.kanjiMinDigits && numberToken.integerDigits <= formatOptions.kanjiMaxDigits) {
+                    emit(convertNumberToKanji(numberToken, formatOptions), false);
+                } else if (numberToken.hasSeparator && formatOptions.tcyExcludeAdjacent) {
                     /* 桁区切り・小数点の隣の数字は縦中横・全角にしない / Leave numbers next to separators as they are */
                     for (var p = 0; p < numberToken.parts.length; p++) {
                         var part = numberToken.parts[p];
-                        emit(part.type === "digits" ? part.text : convertNumberMark(part, options), false);
+                        emit(part.type === "digits" ? part.text : convertNumberMark(part, formatOptions), false);
                     }
                 } else {
                     for (var q = 0; q < numberToken.parts.length; q++) {
                         var numberPart = numberToken.parts[q];
-                        if (numberPart.type === "digits") emitDigitRun(numberPart.text, options, emit);
-                        else emit(convertNumberMark(numberPart, options), false);
+                        if (numberPart.type === "digits") emitDigitRun(numberPart.text, formatOptions, emit);
+                        else emit(convertNumberMark(numberPart, formatOptions), false);
                     }
                 }
                 i += numberToken.length;
-            } else if (isLatinLetter(ch)) {
+            } else if (isLatinLetter(currentChar)) {
                 while (i < text.length && isLatinLetter(text.charAt(i))) i++;
                 var letterText = text.substring(runStart, i);
-                var isCapsTcy = options.tcyCapitals && letterText.length >= 2 && letterText.length <= 3 && letterText === letterText.toUpperCase();
-                if (options.singleLetterFullwidth && letterText.length === 1) emit(toFullwidthAscii(letterText), false);
+                var isCapsTcy = formatOptions.tcyCapitals && letterText.length >= 2 && letterText.length <= 3 && letterText === letterText.toUpperCase();
+                var isAfterDigit = isAnyDigitChar(text.charAt(runStart - 1));
+                if (formatOptions.unitsKumimoji && isAfterDigit && UNIT_KUMIMOJI.hasOwnProperty(letterText)) emit(UNIT_KUMIMOJI[letterText], false);
+                else if (formatOptions.singleLetterFullwidth && letterText.length === 1) emit(toFullwidthAscii(letterText), false);
                 else emit(letterText, isCapsTcy);
-            } else if (isExclamOrQuestion(ch)) {
+            } else if (isExclamOrQuestion(currentChar)) {
                 while (i < text.length && isExclamOrQuestion(text.charAt(i))) i++;
                 var markText = text.substring(runStart, i);
-                if (options.tcyExclamation && markText.length === 2) {
+                if (formatOptions.tcyExclamation && markText.length === 2) {
                     /* 縦中横にする組は半角にそろえる / Use half-width marks for the Tate-Chu-Yoko pair */
                     emit(markText.replace(/！/g, "!").replace(/？/g, "?"), true);
-                } else if (options.exclamFullwidth) {
+                } else if (formatOptions.exclamFullwidth) {
                     emit(toFullwidthAscii(markText), false);
                 } else {
                     emit(markText, false);
                 }
             } else {
-                emit(convertOtherChar(text, i, options, quoteState), false);
+                emit(convertOtherChar(text, i, formatOptions, quoteState), false);
                 i++;
             }
             closeSegment(runStart, i - runStart);
@@ -2643,7 +2731,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     /**
      * 選択から処理の対象を集める。文字選択中はその範囲、オブジェクト選択ならテキストフレームごと
      * @param {Document} doc - 対象のドキュメント
-     * @returns {Array<Object>} { frame | range, ownerFrame（属するテキストフレーム）, offset（文字の番号のずれ）, text, isVertical }
+     * @returns {Array<Object>} { frame | range, ownerFrame（属するテキストフレーム）, offset（文字の番号のずれ）, text }
      */
     function collectTextTargets(doc) {
         var selection = doc.selection;
@@ -2655,32 +2743,16 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                     range: selection,
                     offset: selection.characterOffset - 1,
                     text: selection.contents,
-                    ownerFrame: resolveTextRangeFrame(selection),
-                    isVertical: isVerticalFrame(resolveTextRangeFrame(selection))
+                    ownerFrame: resolveTextRangeFrame(selection)
                 });
             }
             return textTargets;
         }
         var textFrames = collectSelectionTextFrames(selection, { skipLocked: true, skipHidden: true });
         for (var i = 0; i < textFrames.length; i++) {
-            textTargets.push({ frame: textFrames[i], ownerFrame: textFrames[i], offset: 0, text: textFrames[i].contents, isVertical: isVerticalFrame(textFrames[i]) });
+            textTargets.push({ frame: textFrames[i], ownerFrame: textFrames[i], offset: 0, text: textFrames[i].contents });
         }
         return textTargets;
-    }
-
-    /**
-     * 処理の対象に絞る。［縦組みのテキストだけを処理］のときは縦組みだけ（横組みを縦組みにするときは横組みも含める）
-     * @param {Array<Object>} textTargets - collectTextTargets() の戻り値
-     * @param {Object} options - 変換の設定
-     * @returns {Array<Object>} 対象
-     */
-    function filterTextTargets(textTargets, options) {
-        if (!options.verticalOnly || options.convertToVertical) return textTargets;
-        var filteredTargets = [];
-        for (var i = 0; i < textTargets.length; i++) {
-            if (textTargets[i].isVertical) filteredTargets.push(textTargets[i]);
-        }
-        return filteredTargets;
     }
 
     /**
@@ -2777,15 +2849,25 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /**
-     * 対象の段落に文字組みアキ量設定・禁則・行揃えを適用する
+     * 文字組みアキ量設定の番号から、段落に代入する値を返す
+     * @param {Document} doc - 対象のドキュメント
+     * @param {number} mojikumiIndex - doc.mojikumiSet の番号（-1 は「なし」）
+     * @returns {*} 代入する値（ドキュメントに無い番号なら null）
+     */
+    function resolveMojikumiValue(doc, mojikumiIndex) {
+        if (mojikumiIndex === -1) return "なし";
+        return (mojikumiIndex >= 0 && mojikumiIndex < doc.mojikumiSet.length) ? doc.mojikumiSet[mojikumiIndex] : null;
+    }
+
+    /**
+     * 対象の段落に、禁則・文字組みアキ量設定と行頭行末揃え（最終行上）を設定する
      * @param {Document} doc - 対象のドキュメント
      * @param {Object} textTarget - 対象
-     * @param {Object} options - 変換の設定
+     * @param {Object} formatOptions - 変換の設定（kinsokuType / mojikumiIndex）
      * @returns {void}
      */
-    function applyParagraphSettings(doc, textTarget, options) {
-        if (!options.mojikumiBeta && !options.kinsokuSoftV2 && !options.justifyLastLineTop) return;
-        var mojikumiBeta = (doc.mojikumiSet.length > MOJIKUMI_BETA_INDEX) ? doc.mojikumiSet[MOJIKUMI_BETA_INDEX] : null;
+    function applyParagraphSettings(doc, textTarget, formatOptions) {
+        var mojikumiValue = resolveMojikumiValue(doc, formatOptions.mojikumiIndex);
         var paragraphs = textTarget.frame ? textTarget.frame.paragraphs : textTarget.range.paragraphs;
         for (var i = 0; i < paragraphs.length; i++) {
             /* 末尾の空の段落は length に数えられるが取り出すと No such element になる / A trailing empty paragraph is counted but throws "No such element" */
@@ -2795,10 +2877,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             } catch (e) {
                 continue;
             }
-            if (options.mojikumiBeta && mojikumiBeta) paragraphAttributes.mojikumi = mojikumiBeta;
-            if (options.kinsokuSoftV2) paragraphAttributes.kinsoku = KINSOKU_SOFT_V2;
+            if (mojikumiValue !== null) paragraphAttributes.mojikumi = mojikumiValue;
+            paragraphAttributes.kinsoku = formatOptions.kinsokuType;
             /* 縦組みでは「最終行左揃え」が最終行上揃え / In vertical text, "last line left" means last line top */
-            if (options.justifyLastLineTop) paragraphAttributes.justification = Justification.FULLJUSTIFYLASTLINELEFT;
+            paragraphAttributes.justification = Justification.FULLJUSTIFYLASTLINELEFT;
         }
     }
 
@@ -2819,22 +2901,61 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /**
+     * 横組みのテキストフレームを縦組みにし、段落の設定をする（文字の書式には触れない）
+     * @param {Document} doc - 対象のドキュメント
+     * @param {Array<Object>} textTargets - 対象
+     * @param {Object} formatOptions - 変換の設定
+     * @returns {void}
+     */
+    function applyFrameSettings(doc, textTargets, formatOptions) {
+        for (var i = 0; i < textTargets.length; i++) {
+            var ownerFrame = textTargets[i].ownerFrame;
+            if (ownerFrame && !isVerticalFrame(ownerFrame)) ownerFrame.orientation = TextOrientation.VERTICAL;
+            applyParagraphSettings(doc, textTargets[i], formatOptions);
+        }
+    }
+
+    /**
+     * 縦中横の箇所を1つずつ選んで縦中横（と字数に合わせた等幅字形）を適用する
+     * @param {Document} doc - 対象のドキュメント
+     * @param {Array<Object>} textTargets - 対象
+     * @param {Array<Object>} plans - planVerticalText() の戻り値（対象と同じ順）
+     * @param {Object} formatOptions - 変換の設定
+     * @param {function(number): void} onSpanDone - 1か所終わるごとに呼ぶ（引数は終わった数）
+     * @returns {void}
+     */
+    function applyTcySpans(doc, textTargets, plans, formatOptions, onSpanDone) {
+        var tcyDone = 0;
+        for (var i = 0; i < textTargets.length; i++) {
+            var tcySpans = plans[i].tcySpans;
+            for (var j = 0; j < tcySpans.length; j++) {
+                var tcyRange = selectTargetSpan(doc, textTargets[i], tcySpans[j].start, tcySpans[j].length);
+                app.doScript(TCY_ACTION_NAME, ACTION_SET_NAME, false);
+                var glyphForm = formatOptions.tcyGlyphByLength ? getTcyGlyphForm(tcySpans[j].length) : null;
+                if (glyphForm !== null) applyGlyphForm(doc, tcyRange, glyphForm);
+                tcyDone++;
+                onSpanDone(tcyDone);
+            }
+        }
+    }
+
+    /**
      * 段落の設定・欧文回転・文字の書き換え・縦中横を順に適用する
      * （欧文回転は書き換えの前に全体へ掛け、書き換えた文字は前の文字の書式として回転を引き継ぐ）
      * @param {Document} doc - 対象のドキュメント
      * @param {Array<Object>} textTargets - 対象
-     * @param {Object} options - 変換の設定
+     * @param {Object} formatOptions - 変換の設定
      * @returns {string} 失敗したときの理由（成功は空文字）
      */
-    function runVerticalTextConversion(doc, textTargets, options) {
+    function runVerticalTextConversion(doc, textTargets, formatOptions) {
         var plans = [];
         var tcyTotal = 0;
         for (var i = 0; i < textTargets.length; i++) {
-            plans.push(planVerticalText(textTargets[i].text, options));
+            plans.push(planVerticalText(textTargets[i].text, formatOptions));
             tcyTotal += plans[i].tcySpans.length;
         }
-        var needsAction = options.rotateRoman || tcyTotal > 0;
-        var stepTotal = (options.rotateRoman ? 1 : 0) + textTargets.length + tcyTotal;
+        var needsAction = formatOptions.rotateRoman || tcyTotal > 0;
+        var stepTotal = (formatOptions.rotateRoman ? 1 : 0) + textTargets.length + tcyTotal;
         var stepDone = 0;
         var progress = createProgressWindow(getLabel("progress.title"));
 
@@ -2853,44 +2974,24 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             return "loadTemporaryActionSet";
         }
         try {
-            /* 横組みは先に縦組みへ / Turn horizontal text vertical first */
-            if (options.convertToVertical) {
-                for (var v = 0; v < textTargets.length; v++) {
-                    var ownerFrame = textTargets[v].ownerFrame;
-                    if (ownerFrame && !isVerticalFrame(ownerFrame)) ownerFrame.orientation = TextOrientation.VERTICAL;
-                }
-            }
-
-            /* 段落の設定（文字の書式には触れない） / Paragraph settings (character formatting is untouched) */
-            for (var p = 0; p < textTargets.length; p++) {
-                applyParagraphSettings(doc, textTargets[p], options);
-            }
+            applyFrameSettings(doc, textTargets, formatOptions);
 
             /* まず欧文回転を、書き換え前のテキスト全体に / Rotate first, over the whole text before any edits */
-            if (options.rotateRoman) {
+            if (formatOptions.rotateRoman) {
                 progress.set(0, getLabel("progress.rotate"));
                 selectTextTargets(doc, textTargets, textTargets[0].text.length);
                 app.doScript(ROTATE_ACTION_NAME, ACTION_SET_NAME, false);
                 advanceProgress(getLabel("progress.rotate"));
             }
 
-            for (var e = 0; e < textTargets.length; e++) {
-                applyTextEdits(textTargets[e], plans[e].edits);
-                advanceProgress(getLabel("progress.edit", { current: e + 1, total: textTargets.length }));
+            for (var j = 0; j < textTargets.length; j++) {
+                applyTextEdits(textTargets[j], plans[j].edits);
+                advanceProgress(getLabel("progress.edit", { current: j + 1, total: textTargets.length }));
             }
 
-            var tcyDone = 0;
-            for (var t = 0; t < textTargets.length; t++) {
-                var tcySpans = plans[t].tcySpans;
-                for (var s = 0; s < tcySpans.length; s++) {
-                    var tcyRange = selectTargetSpan(doc, textTargets[t], tcySpans[s].start, tcySpans[s].length);
-                    app.doScript(TCY_ACTION_NAME, ACTION_SET_NAME, false);
-                    var glyphForm = options.tcyGlyphByLength ? getTcyGlyphForm(tcySpans[s].length) : null;
-                    if (glyphForm !== null) applyGlyphForm(doc, tcyRange, glyphForm);
-                    tcyDone++;
-                    advanceProgress(getLabel("progress.tcy", { current: tcyDone, total: tcyTotal }));
-                }
-            }
+            applyTcySpans(doc, textTargets, plans, formatOptions, function (tcyDone) {
+                advanceProgress(getLabel("progress.tcy", { current: tcyDone, total: tcyTotal }));
+            });
             return "";
         } catch (e) {
             $.writeln("runVerticalTextConversion: " + e);
@@ -2950,18 +3051,18 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     /**
      * 確認の一覧に出す行を作る（同じ変換はまとめて件数を付ける）
      * @param {Array<Object>} textTargets - 対象
-     * @param {Object} options - 変換の設定
+     * @param {Object} formatOptions - 変換の設定
      * @returns {string[]} 一覧の行
      */
-    function buildPreviewLines(textTargets, options) {
+    function buildPreviewLines(textTargets, formatOptions) {
         var lineKeys = [];
         var lineCounts = {};
         for (var i = 0; i < textTargets.length; i++) {
-            var changes = planVerticalText(textTargets[i].text, options).changes;
+            var changes = planVerticalText(textTargets[i].text, formatOptions).changes;
             for (var c = 0; c < changes.length; c++) {
                 var change = changes[c];
                 var lineText = (change.before === change.after) ? change.before : change.before + " → " + change.after;
-                if (change.tcy) lineText += getTcyPreviewMark(options.tcyGlyphByLength, change.tcyLength);
+                if (change.tcy) lineText += getTcyPreviewMark(formatOptions.tcyGlyphByLength, change.tcyLength);
                 if (lineCounts.hasOwnProperty(lineText)) {
                     lineCounts[lineText]++;
                 } else {
@@ -3353,6 +3454,52 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /**
+     * 「項目名 : [ドロップダウン]」の行を追加する
+     * @param {Panel} parent - 追加先
+     * @param {string} labelPath - 項目名の LABELS のパス
+     * @param {Object[]} itemLabels - 選択肢の { ja, en } の配列
+     * @param {string} tooltipPath - ツールチップの LABELS のパス
+     * @returns {DropDownList} ドロップダウン
+     */
+    function addLabeledDropdown(parent, labelPath, itemLabels, tooltipPath) {
+        var dropdownRow = parent.add("group");
+        setupRow(dropdownRow, ["left", "center"], 8);
+        var rowLabel = dropdownRow.add("statictext", undefined, labelText(labelPath));
+        rowLabel.preferredSize.width = PARAGRAPH_LABEL_WIDTH;
+        rowLabel.justify = "right";
+        var optionDropdown = dropdownRow.add("dropdownlist", undefined, []);
+        for (var i = 0; i < itemLabels.length; i++) optionDropdown.add("item", getLabel(itemLabels[i]));
+        optionDropdown.helpTip = getLabel(tooltipPath);
+        return optionDropdown;
+    }
+
+    /**
+     * 配列の中で値が一致する位置を返す（ES3 に Array.indexOf は無い）
+     * @param {Array} values - 配列
+     * @param {*} targetValue - 探す値
+     * @returns {number} 位置（無ければ -1）
+     */
+    function indexOfValue(values, targetValue) {
+        for (var i = 0; i < values.length; i++) {
+            if (values[i] === targetValue) return i;
+        }
+        return -1;
+    }
+
+    /**
+     * パネルの中の1列分のグループを追加する
+     * @param {Panel} parent - 追加先のパネル
+     * @returns {Group} 列のグループ
+     */
+    function addOptionColumn(parent) {
+        var optionColumn = parent.add("group");
+        optionColumn.orientation = "column";
+        optionColumn.alignChildren = ["left", "top"];
+        optionColumn.spacing = 6;
+        return optionColumn;
+    }
+
+    /**
      * 「桁数 : [最小] 〜 [最大]」の行を追加する
      * @param {Group|Panel} parent - 追加先
      * @returns {{minInput: EditText, maxInput: EditText}} 入力欄
@@ -3360,120 +3507,209 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function addDigitRangeRow(parent) {
         var rangeRow = parent.add("group");
         setupRow(rangeRow, ["left", "center"], 4);
-        var minInput = addSteppedField(rangeRow, { label: labelText("field.digits"), text: "", characters: 3, step: 1, min: 1, max: 99, integer: true, onStep: notifyDigitStep });
-        var maxInput = addSteppedField(rangeRow, { label: getLabel("field.rangeTo"), text: "", characters: 3, step: 1, min: 1, max: 99, integer: true, onStep: notifyDigitStep });
+        var minInput = addSteppedField(rangeRow, { label: labelText("fieldLabel.digits"), text: "", characters: 3, step: 1, min: 1, max: 99, integer: true, onStep: notifyDigitStep });
+        var maxInput = addSteppedField(rangeRow, { label: getLabel("fieldLabel.rangeTo"), text: "", characters: 3, step: 1, min: 1, max: 99, integer: true, onStep: notifyDigitStep });
         return { minInput: minInput, maxInput: maxInput };
     }
 
     /**
-     * ダイアログを組み立てる
-     * @param {Object} settings - 初期値（DEFAULT_SETTINGS の形）
-     * @returns {Object} dialog と各コントロール
+     * 縦に並べる列のグループを追加する
+     * @param {Group|Window} parent - 追加先
+     * @returns {Group} 列のグループ
      */
-    function buildDialog(settings) {
-        var dialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
-        setupWindow(dialog);
-        var controls = { dialog: dialog };
+    function addLayoutColumn(parent) {
+        var layoutColumn = parent.add("group");
+        layoutColumn.orientation = "column";
+        layoutColumn.alignChildren = ["fill", "top"];
+        layoutColumn.spacing = WINDOW_SPACING;
+        return layoutColumn;
+    }
 
-        /* プリセット / Presets */
+    /**
+     * プリセットの行（ドロップダウン・保存・削除）を追加する
+     * @param {Window} dialog - ダイアログ
+     * @param {Object} dialogControls - コントロールを入れるオブジェクト
+     * @returns {void}
+     */
+    function buildPresetRow(dialog, dialogControls) {
         var presetRow = dialog.add("group");
         setupRow(presetRow, "center", 8); /* ダイアログボックスの左右中央に置く / centered in the dialog */
         presetRow.add("statictext", undefined, labelText("preset.label"));
-        controls.presetDropdown = presetRow.add("dropdownlist", undefined, []);
-        controls.presetDropdown.helpTip = getLabel("tooltip.preset");
-        controls.presetDropdown.preferredSize.width = PRESET_DROPDOWN_WIDTH;
-        controls.presetSaveIcon = addIconButton(presetRow, PRESET_ICON_SIZE, drawSaveIcon);
-        controls.presetSaveIcon.helpTip = getLabel("tooltip.presetSave");
-        controls.presetDeleteIcon = addIconButton(presetRow, PRESET_ICON_SIZE, drawTrashIcon);
-        controls.presetDeleteIcon.helpTip = getLabel("tooltip.presetDelete");
+        dialogControls.presetDropdown = presetRow.add("dropdownlist", undefined, []);
+        dialogControls.presetDropdown.helpTip = getLabel("tooltip.preset");
+        dialogControls.presetDropdown.preferredSize.width = PRESET_DROPDOWN_WIDTH;
+        dialogControls.presetSaveIcon = addIconButton(presetRow, PRESET_ICON_SIZE, drawSaveIcon);
+        dialogControls.presetSaveIcon.helpTip = getLabel("tooltip.presetSave");
+        dialogControls.presetDeleteIcon = addIconButton(presetRow, PRESET_ICON_SIZE, drawTrashIcon);
+        dialogControls.presetDeleteIcon.helpTip = getLabel("tooltip.presetDelete");
+    }
+
+    /**
+     * 「欧文回転・縦中横」パネルを追加する（簡易モードは数字の縦中横と等幅字形まで）
+     * @param {Group} parent - 追加先
+     * @param {Object} dialogControls - コントロールを入れるオブジェクト
+     * @param {Object} settings - 初期値
+     * @param {boolean} isDetail - 詳細モードか
+     * @returns {void}
+     */
+    function buildTcyPanel(parent, dialogControls, settings, isDetail) {
+        var tcyPanel = parent.add("panel", undefined, getLabel("panel.rotateTcy"));
+        setupPanel(tcyPanel, 6);
+        dialogControls.rotateRoman = addOptionCheckbox(tcyPanel, "checkbox.rotateRoman", settings.rotateRoman);
+        dialogControls.tcyNumbers = addOptionCheckbox(tcyPanel, "checkbox.tcyNumbers", settings.tcyNumbers);
+        /* 桁数は次の行に字下げして並べる / Digit counts go on the next, indented row */
+        var tcyNumberGroup = addIndentedGroup(tcyPanel);
+        var tcyDigitRow = tcyNumberGroup.add("group");
+        setupRow(tcyDigitRow, ["left", "center"], 8);
+        dialogControls.tcyDigits2 = addOptionCheckbox(tcyDigitRow, "checkbox.tcyDigits2", settings.tcyDigits2);
+        dialogControls.tcyDigits3 = addOptionCheckbox(tcyDigitRow, "checkbox.tcyDigits3", settings.tcyDigits3);
+        dialogControls.tcyDigits4 = addOptionCheckbox(tcyDigitRow, "checkbox.tcyDigits4", settings.tcyDigits4);
+        if (isDetail) {
+            dialogControls.tcyExcludeAdjacent = addOptionCheckbox(tcyNumberGroup, "checkbox.tcyExcludeAdjacent", settings.tcyExcludeAdjacent);
+            dialogControls.tcyCapitals = addOptionCheckbox(tcyPanel, "checkbox.tcyCapitals", settings.tcyCapitals);
+            dialogControls.tcyExclamation = addOptionCheckbox(tcyPanel, "checkbox.tcyExclamation", settings.tcyExclamation);
+        }
+        dialogControls.tcyGlyphByLength = addOptionCheckbox(tcyPanel, "checkbox.tcyGlyphByLength", settings.tcyGlyphByLength);
+    }
+
+    /**
+     * 「文字の変換」パネルを追加する。詳細モードは2列をまたぐ幅にして、パネルの中を2列に分ける。
+     * 簡易モードは桁区切り・小数点・1文字の英字・1桁の数字だけ（「数字」パネルを作らない）
+     * @param {Group|Window} parent - 追加先（詳細モードはダイアログ、簡易モードは列）
+     * @param {Object} dialogControls - コントロールを入れるオブジェクト
+     * @param {Object} settings - 初期値
+     * @param {boolean} isDetail - 詳細モードか
+     * @returns {void}
+     */
+    function buildReplacePanel(parent, dialogControls, settings, isDetail) {
+        var replacePanel = parent.add("panel", undefined, getLabel("panel.replace"));
+        setupPanel(replacePanel, 6);
+        var replaceLeftColumn = replacePanel;
+        var replaceRightColumn = replacePanel;
+        if (isDetail) {
+            replacePanel.orientation = "row";
+            replacePanel.alignChildren = ["fill", "top"];
+            replacePanel.spacing = COLUMN_SPACING;
+            replaceLeftColumn = addOptionColumn(replacePanel);
+            replaceRightColumn = addOptionColumn(replacePanel);
+        }
+        dialogControls.commaToTouten = addOptionCheckbox(replaceLeftColumn, "checkbox.commaToTouten", settings.commaToTouten);
+        dialogControls.periodToNakaguro = addOptionCheckbox(replaceLeftColumn, "checkbox.periodToNakaguro", settings.periodToNakaguro);
+        if (isDetail) {
+            dialogControls.rangeToWave = addOptionCheckbox(replaceLeftColumn, "checkbox.rangeToWave", settings.rangeToWave);
+            dialogControls.halfwidthAlnum = addOptionCheckbox(replaceLeftColumn, "checkbox.halfwidthAlnum", settings.halfwidthAlnum);
+            dialogControls.symbolsFullwidth = addOptionCheckbox(replaceRightColumn, "checkbox.symbolsFullwidth", settings.symbolsFullwidth);
+            dialogControls.quotesToChonchon = addOptionCheckbox(replaceRightColumn, "checkbox.quotesToChonchon", settings.quotesToChonchon);
+            dialogControls.exclamFullwidth = addOptionCheckbox(replaceRightColumn, "checkbox.exclamFullwidth", settings.exclamFullwidth);
+        }
+        dialogControls.singleLetterFullwidth = addOptionCheckbox(replaceRightColumn, "checkbox.singleLetterFullwidth", settings.singleLetterFullwidth);
+        /* 簡易モードは「数字」パネルを作らず、1桁の全角もここに入れる / The simple mode has no Numbers panel; single digits go here */
+        if (!isDetail) dialogControls.singleDigitFullwidth = addOptionCheckbox(replacePanel, "checkbox.singleDigitFullwidth", settings.singleDigitFullwidth);
+    }
+
+    /**
+     * 「数字」パネル（詳細モードだけ）を追加する
+     * @param {Group} parent - 追加先
+     * @param {Object} dialogControls - コントロールを入れるオブジェクト
+     * @param {Object} settings - 初期値
+     * @returns {void}
+     */
+    function buildNumberPanel(parent, dialogControls, settings) {
+        var numberPanel = parent.add("panel", undefined, getLabel("panel.numbers"));
+        setupPanel(numberPanel, 6);
+        dialogControls.singleDigitFullwidth = addOptionCheckbox(numberPanel, "checkbox.singleDigitFullwidth", settings.singleDigitFullwidth);
+        dialogControls.unitsKumimoji = addOptionCheckbox(numberPanel, "checkbox.unitsKumimoji", settings.unitsKumimoji);
+        dialogControls.japaneseEra = addOptionCheckbox(numberPanel, "checkbox.japaneseEra", settings.japaneseEra);
+        dialogControls.kanji = addOptionCheckbox(numberPanel, "checkbox.kanji", settings.kanji);
+        var kanjiGroup = addIndentedGroup(numberPanel);
+        var kanjiRange = addDigitRangeRow(kanjiGroup);
+        dialogControls.kanjiMinInput = kanjiRange.minInput;
+        dialogControls.kanjiMaxInput = kanjiRange.maxInput;
+        /* ラジオは同じ親の中だけ排他になるので、1つのグループに並べる / Radios are exclusive only within one parent */
+        var kanjiStyleRow = kanjiGroup.add("group");
+        setupRow(kanjiStyleRow, ["left", "center"], 8);
+        dialogControls.kanjiDigitRadio = kanjiStyleRow.add("radiobutton", undefined, getLabel("radio.kanjiDigit"));
+        dialogControls.kanjiPositionalRadio = kanjiStyleRow.add("radiobutton", undefined, getLabel("radio.kanjiPositional"));
+        dialogControls.kanjiDigitRadio.helpTip = getLabel("tooltip.kanjiDigit");
+        dialogControls.kanjiPositionalRadio.helpTip = getLabel("tooltip.kanjiPositional");
+        var kanjiDetailRow = kanjiGroup.add("group");
+        setupRow(kanjiDetailRow, ["left", "center"], 8);
+        dialogControls.kanjiZeroRei = addOptionCheckbox(kanjiDetailRow, "checkbox.kanjiZeroRei", settings.kanjiZeroRei);
+        dialogControls.kanjiIchiSen = addOptionCheckbox(kanjiDetailRow, "checkbox.kanjiIchiSen", settings.kanjiIchiSen);
+    }
+
+    /**
+     * 「段落」パネル（詳細モードだけ）を追加する
+     * @param {Group} parent - 追加先
+     * @param {Object} dialogControls - コントロールを入れるオブジェクト
+     * @param {Object} settings - 初期値
+     * @returns {void}
+     */
+    function buildParagraphPanel(parent, dialogControls, settings) {
+        var paragraphPanel = parent.add("panel", undefined, getLabel("panel.paragraph"));
+        setupPanel(paragraphPanel, 6);
+        dialogControls.kinsokuDropdown = addLabeledDropdown(paragraphPanel, "fieldLabel.kinsoku", LABELS.dropdown.kinsoku, "tooltip.kinsoku");
+        dialogControls.mojikumiDropdown = addLabeledDropdown(paragraphPanel, "fieldLabel.mojikumi", LABELS.dropdown.mojikumi, "tooltip.mojikumi");
+    }
+
+    /**
+     * ボタン行（左：モードの切り替え、右：キャンセル・OK）を追加する
+     * @param {Window} dialog - ダイアログ
+     * @param {Object} dialogControls - コントロールを入れるオブジェクト
+     * @param {boolean} isDetail - 詳細モードか
+     * @returns {void}
+     */
+    function buildButtonRow(dialog, dialogControls, isDetail) {
+        var buttonRow = addButtonRow(dialog);
+        dialogControls.modeSimpleRadio = buttonRow.leftGroup.add("radiobutton", undefined, getLabel("radio.modeSimple"));
+        dialogControls.modeDetailRadio = buttonRow.leftGroup.add("radiobutton", undefined, getLabel("radio.modeDetail"));
+        dialogControls.modeSimpleRadio.helpTip = getLabel("tooltip.modeSimple");
+        dialogControls.modeDetailRadio.helpTip = getLabel("tooltip.modeDetail");
+        dialogControls.modeSimpleRadio.value = !isDetail;
+        dialogControls.modeDetailRadio.value = isDetail;
+        dialogControls.btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+        dialogControls.btnOK = buttonRow.rightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+        alignRightOnlyButtonRow(buttonRow);
+        dialogControls.btnCancel.preferredSize.width = BUTTON_WIDTH;
+        dialogControls.btnOK.preferredSize.width = BUTTON_WIDTH;
+    }
+
+    /**
+     * ダイアログを組み立てる。簡易モードはよく使う項目だけを並べ、ほかの項目はコントロールを作らない
+     * @param {Object} settings - 初期値（DEFAULT_SETTINGS の形）
+     * @returns {Object} dialog と各コントロール（作らなかった項目は settings の値を baseSettings に持つ）
+     */
+    function buildDialog(settings) {
+        var isDetail = (settings.dialogMode === "detail");
+        var dialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
+        setupWindow(dialog);
+        var dialogControls = { dialog: dialog, baseSettings: mergePresetData(settings), dialogMode: isDetail ? "detail" : "simple" };
+
+        buildPresetRow(dialog, dialogControls);
 
         var columnsGroup = dialog.add("group");
         columnsGroup.orientation = "row";
         columnsGroup.alignChildren = ["fill", "top"];
         columnsGroup.spacing = COLUMN_SPACING;
-        var leftColumn = columnsGroup.add("group");
-        leftColumn.orientation = "column";
-        leftColumn.alignChildren = ["fill", "top"];
-        leftColumn.spacing = WINDOW_SPACING;
-        var rightColumn = columnsGroup.add("group");
-        rightColumn.orientation = "column";
-        rightColumn.alignChildren = ["fill", "top"];
-        rightColumn.spacing = WINDOW_SPACING;
-
-        /* 欧文回転・縦中横 / Rotation and Tate-Chu-Yoko */
-        var tcyPanel = leftColumn.add("panel", undefined, getLabel("panel.rotateTcy"));
-        setupPanel(tcyPanel, 6);
-        controls.rotateRoman = addOptionCheckbox(tcyPanel, "checkbox.rotateRoman", settings.rotateRoman);
-        var tcyDigitRow = tcyPanel.add("group");
-        setupRow(tcyDigitRow, ["left", "center"], 8);
-        controls.tcyNumbers = addOptionCheckbox(tcyDigitRow, "checkbox.tcyNumbers", settings.tcyNumbers);
-        var tcyNumberGroup = addIndentedGroup(tcyPanel);
-        controls.tcyDigits2 = addOptionCheckbox(tcyDigitRow, "checkbox.tcyDigits2", settings.tcyDigits2);
-        controls.tcyDigits3 = addOptionCheckbox(tcyDigitRow, "checkbox.tcyDigits3", settings.tcyDigits3);
-        controls.tcyDigits4 = addOptionCheckbox(tcyDigitRow, "checkbox.tcyDigits4", settings.tcyDigits4);
-        controls.tcyExcludeAdjacent = addOptionCheckbox(tcyNumberGroup, "checkbox.tcyExcludeAdjacent", settings.tcyExcludeAdjacent);
-        controls.tcyCapitals = addOptionCheckbox(tcyPanel, "checkbox.tcyCapitals", settings.tcyCapitals);
-        controls.tcyExclamation = addOptionCheckbox(tcyPanel, "checkbox.tcyExclamation", settings.tcyExclamation);
-        controls.tcyGlyphByLength = addOptionCheckbox(tcyPanel, "checkbox.tcyGlyphByLength", settings.tcyGlyphByLength);
-
-        /* 文字の変換 / Character conversion */
-        var replacePanel = leftColumn.add("panel", undefined, getLabel("panel.replace"));
-        setupPanel(replacePanel, 6);
-        controls.halfwidthAlnum = addOptionCheckbox(replacePanel, "checkbox.halfwidthAlnum", settings.halfwidthAlnum);
-        controls.commaToTouten = addOptionCheckbox(replacePanel, "checkbox.commaToTouten", settings.commaToTouten);
-        controls.periodToNakaguro = addOptionCheckbox(replacePanel, "checkbox.periodToNakaguro", settings.periodToNakaguro);
-        controls.rangeToWave = addOptionCheckbox(replacePanel, "checkbox.rangeToWave", settings.rangeToWave);
-        controls.symbolsFullwidth = addOptionCheckbox(replacePanel, "checkbox.symbolsFullwidth", settings.symbolsFullwidth);
-        controls.quotesToChonchon = addOptionCheckbox(replacePanel, "checkbox.quotesToChonchon", settings.quotesToChonchon);
-        controls.exclamFullwidth = addOptionCheckbox(replacePanel, "checkbox.exclamFullwidth", settings.exclamFullwidth);
-        controls.singleLetterFullwidth = addOptionCheckbox(replacePanel, "checkbox.singleLetterFullwidth", settings.singleLetterFullwidth);
-
-        /* 数字 / Numbers */
-        var numberPanel = rightColumn.add("panel", undefined, getLabel("panel.numbers"));
-        setupPanel(numberPanel, 6);
-        controls.singleDigitFullwidth = addOptionCheckbox(numberPanel, "checkbox.singleDigitFullwidth", settings.singleDigitFullwidth);
-        controls.japaneseEra = addOptionCheckbox(numberPanel, "checkbox.japaneseEra", settings.japaneseEra);
-        controls.kanji = addOptionCheckbox(numberPanel, "checkbox.kanji", settings.kanji);
-        var kanjiGroup = addIndentedGroup(numberPanel);
-        var kanjiRange = addDigitRangeRow(kanjiGroup);
-        controls.kanjiMinInput = kanjiRange.minInput;
-        controls.kanjiMaxInput = kanjiRange.maxInput;
-        /* ラジオは同じ親の中だけ排他になるので、1つのグループに並べる / Radios are exclusive only within one parent */
-        var kanjiStyleRow = kanjiGroup.add("group");
-        setupRow(kanjiStyleRow, ["left", "center"], 8);
-        controls.kanjiDigitRadio = kanjiStyleRow.add("radiobutton", undefined, getLabel("radio.kanjiDigit"));
-        controls.kanjiPositionalRadio = kanjiStyleRow.add("radiobutton", undefined, getLabel("radio.kanjiPositional"));
-        controls.kanjiDigitRadio.helpTip = getLabel("tooltip.kanjiDigit");
-        controls.kanjiPositionalRadio.helpTip = getLabel("tooltip.kanjiPositional");
-        controls.kanjiPositionalRadio.value = (settings.kanjiStyle === "positional");
-        controls.kanjiDigitRadio.value = !controls.kanjiPositionalRadio.value;
-
-        /* 段落 / Paragraph */
-        var paragraphPanel = rightColumn.add("panel", undefined, getLabel("panel.paragraph"));
-        setupPanel(paragraphPanel, 6);
-        controls.mojikumiBeta = addOptionCheckbox(paragraphPanel, "checkbox.mojikumiBeta", settings.mojikumiBeta);
-        controls.kinsokuSoftV2 = addOptionCheckbox(paragraphPanel, "checkbox.kinsokuSoftV2", settings.kinsokuSoftV2);
-        controls.justifyLastLineTop = addOptionCheckbox(paragraphPanel, "checkbox.justifyLastLineTop", settings.justifyLastLineTop);
-
-        controls.convertToVertical = addOptionCheckbox(rightColumn, "checkbox.convertToVertical", settings.convertToVertical);
-        controls.verticalOnly = addOptionCheckbox(rightColumn, "checkbox.verticalOnly", settings.verticalOnly);
-
-        controls.kanjiMinInput.text = String(settings.kanjiMinDigits);
-        controls.kanjiMaxInput.text = String(settings.kanjiMaxDigits);
+        var leftColumn = addLayoutColumn(columnsGroup);
+        buildTcyPanel(leftColumn, dialogControls, settings, isDetail);
+        if (isDetail) {
+            var rightColumn = addLayoutColumn(columnsGroup);
+            buildNumberPanel(rightColumn, dialogControls, settings);
+            buildParagraphPanel(rightColumn, dialogControls, settings);
+        }
+        buildReplacePanel(isDetail ? dialog : leftColumn, dialogControls, settings, isDetail);
 
         /* 変換の確認 / Conversion check */
         var previewPanel = dialog.add("panel", undefined, getLabel("panel.preview"));
         setupPanel(previewPanel);
-        controls.previewList = previewPanel.add("listbox", undefined, []);
-        controls.previewList.preferredSize.height = PREVIEW_LIST_HEIGHT;
+        dialogControls.previewList = previewPanel.add("listbox", undefined, []);
+        dialogControls.previewList.preferredSize.height = PREVIEW_LIST_HEIGHT;
 
-        var buttonRow = addButtonRow(dialog);
-        controls.btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
-        controls.btnOK = buttonRow.rightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
-        alignRightOnlyButtonRow(buttonRow);
-        controls.btnCancel.preferredSize.width = BUTTON_WIDTH;
-        controls.btnOK.preferredSize.width = BUTTON_WIDTH;
-        return controls;
+        buildButtonRow(dialog, dialogControls, isDetail);
+        /* 数値欄・ラジオ・ドロップダウンの初期値はまとめて入れる / Fill fields, radios and dropdowns in one place */
+        writeDialogSettings(dialogControls, settings);
+        return dialogControls;
     }
 
     /**
@@ -3488,85 +3724,88 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /**
-     * ダイアログの値を設定のオブジェクトにする（最小と最大が逆なら入れ替える）
-     * @param {Object} controls - buildDialog() の戻り値
+     * ダイアログの値を設定のオブジェクトにする（最小と最大が逆なら入れ替える。作らなかった項目は baseSettings の値）
+     * @param {Object} dialogControls - buildDialog() の戻り値
      * @returns {Object} DEFAULT_SETTINGS と同じ形
      */
-    function readDialogOptions(controls) {
-        var kanjiMin = readDigitInput(controls.kanjiMinInput, DEFAULT_SETTINGS.kanjiMinDigits);
-        var kanjiMax = readDigitInput(controls.kanjiMaxInput, DEFAULT_SETTINGS.kanjiMaxDigits);
-        return {
-            rotateRoman: controls.rotateRoman.value,
-            tcyNumbers: controls.tcyNumbers.value,
-            tcyDigits2: controls.tcyDigits2.value,
-            tcyDigits3: controls.tcyDigits3.value,
-            tcyDigits4: controls.tcyDigits4.value,
-            tcyExcludeAdjacent: controls.tcyExcludeAdjacent.value,
-            tcyCapitals: controls.tcyCapitals.value,
-            tcyExclamation: controls.tcyExclamation.value,
-            tcyGlyphByLength: controls.tcyGlyphByLength.value,
-            singleDigitFullwidth: controls.singleDigitFullwidth.value,
-            japaneseEra: controls.japaneseEra.value,
-            kanji: controls.kanji.value,
-            kanjiMinDigits: Math.min(kanjiMin, kanjiMax),
-            kanjiMaxDigits: Math.max(kanjiMin, kanjiMax),
-            kanjiStyle: controls.kanjiPositionalRadio.value ? "positional" : "digit",
-            halfwidthAlnum: controls.halfwidthAlnum.value,
-            commaToTouten: controls.commaToTouten.value,
-            periodToNakaguro: controls.periodToNakaguro.value,
-            symbolsFullwidth: controls.symbolsFullwidth.value,
-            quotesToChonchon: controls.quotesToChonchon.value,
-            rangeToWave: controls.rangeToWave.value,
-            exclamFullwidth: controls.exclamFullwidth.value,
-            singleLetterFullwidth: controls.singleLetterFullwidth.value,
-            mojikumiBeta: controls.mojikumiBeta.value,
-            kinsokuSoftV2: controls.kinsokuSoftV2.value,
-            justifyLastLineTop: controls.justifyLastLineTop.value,
-            convertToVertical: controls.convertToVertical.value,
-            verticalOnly: controls.verticalOnly.value
-        };
+    function readDialogOptions(dialogControls) {
+        var formatOptions = mergePresetData(dialogControls.baseSettings);
+        for (var i = 0; i < CHECKBOX_SETTING_KEYS.length; i++) {
+            var settingKey = CHECKBOX_SETTING_KEYS[i];
+            if (dialogControls[settingKey]) formatOptions[settingKey] = dialogControls[settingKey].value;
+        }
+        if (dialogControls.kanjiMinInput) {
+            var kanjiMin = readDigitInput(dialogControls.kanjiMinInput, DEFAULT_SETTINGS.kanjiMinDigits);
+            var kanjiMax = readDigitInput(dialogControls.kanjiMaxInput, DEFAULT_SETTINGS.kanjiMaxDigits);
+            formatOptions.kanjiMinDigits = Math.min(kanjiMin, kanjiMax);
+            formatOptions.kanjiMaxDigits = Math.max(kanjiMin, kanjiMax);
+        }
+        if (dialogControls.kanjiPositionalRadio) formatOptions.kanjiStyle = dialogControls.kanjiPositionalRadio.value ? "positional" : "digit";
+        if (dialogControls.kinsokuDropdown && dialogControls.kinsokuDropdown.selection) formatOptions.kinsokuType = KINSOKU_TYPES[dialogControls.kinsokuDropdown.selection.index];
+        if (dialogControls.mojikumiDropdown && dialogControls.mojikumiDropdown.selection) formatOptions.mojikumiIndex = MOJIKUMI_INDEXES[dialogControls.mojikumiDropdown.selection.index];
+        formatOptions.dialogMode = dialogControls.dialogMode;
+        return formatOptions;
     }
 
     /**
-     * 設定の値をダイアログの各項目に書き込む
-     * @param {Object} controls - buildDialog() の戻り値
+     * 設定の値をダイアログの各項目に書き込む（作っていない項目は baseSettings に持つ）
+     * @param {Object} dialogControls - buildDialog() の戻り値
      * @param {Object} settings - DEFAULT_SETTINGS と同じ形
      * @returns {void}
      */
-    function writeDialogSettings(controls, settings) {
-        var checkboxKeys = ["rotateRoman", "tcyNumbers", "tcyDigits2", "tcyDigits3", "tcyDigits4", "tcyExcludeAdjacent", "tcyCapitals",
-            "tcyExclamation", "tcyGlyphByLength", "singleDigitFullwidth", "japaneseEra", "kanji", "halfwidthAlnum", "commaToTouten",
-            "periodToNakaguro", "symbolsFullwidth", "quotesToChonchon", "rangeToWave", "exclamFullwidth", "singleLetterFullwidth", "mojikumiBeta", "kinsokuSoftV2", "justifyLastLineTop", "convertToVertical", "verticalOnly"];
-        for (var i = 0; i < checkboxKeys.length; i++) {
-            controls[checkboxKeys[i]].value = settings[checkboxKeys[i]];
+    function writeDialogSettings(dialogControls, settings) {
+        dialogControls.baseSettings = mergePresetData(settings);
+        for (var i = 0; i < CHECKBOX_SETTING_KEYS.length; i++) {
+            var settingKey = CHECKBOX_SETTING_KEYS[i];
+            if (dialogControls[settingKey]) dialogControls[settingKey].value = settings[settingKey];
         }
-        controls.kanjiMinInput.text = String(settings.kanjiMinDigits);
-        controls.kanjiMaxInput.text = String(settings.kanjiMaxDigits);
-        controls.kanjiPositionalRadio.value = (settings.kanjiStyle === "positional");
-        controls.kanjiDigitRadio.value = !controls.kanjiPositionalRadio.value;
+        if (dialogControls.kanjiMinInput) {
+            dialogControls.kanjiMinInput.text = String(settings.kanjiMinDigits);
+            dialogControls.kanjiMaxInput.text = String(settings.kanjiMaxDigits);
+        }
+        if (dialogControls.kanjiPositionalRadio) {
+            dialogControls.kanjiPositionalRadio.value = (settings.kanjiStyle === "positional");
+            dialogControls.kanjiDigitRadio.value = !dialogControls.kanjiPositionalRadio.value;
+        }
+        if (dialogControls.kinsokuDropdown) dialogControls.kinsokuDropdown.selection = Math.max(0, indexOfValue(KINSOKU_TYPES, settings.kinsokuType));
+        if (dialogControls.mojikumiDropdown) dialogControls.mojikumiDropdown.selection = Math.max(0, indexOfValue(MOJIKUMI_INDEXES, settings.mojikumiIndex));
     }
 
     /**
      * ダイアログのイベントをつなぐ（有効／無効の切り替えと確認の一覧の更新）
-     * @param {Object} controls - buildDialog() の戻り値
+     * @param {Object} dialogControls - buildDialog() の戻り値
      * @param {Array<Object>} textTargets - collectTextTargets() の戻り値
      * @returns {void}
      */
-    function bindDialogEvents(controls, textTargets) {
+    function bindDialogEvents(dialogControls, textTargets) {
         /**
          * 親のチェックボックスに合わせて子の項目を有効／無効にする
          * @returns {void}
          */
         function updateEnabledStates() {
-            controls.tcyDigits2.enabled = controls.tcyNumbers.value;
-            controls.tcyDigits3.enabled = controls.tcyNumbers.value;
-            controls.tcyDigits4.enabled = controls.tcyNumbers.value;
-            controls.tcyExcludeAdjacent.enabled = controls.tcyNumbers.value;
-            setSteppedFieldEnabled(controls.kanjiMinInput, controls.kanji.value);
-            setSteppedFieldEnabled(controls.kanjiMaxInput, controls.kanji.value);
-            controls.verticalOnly.enabled = !controls.convertToVertical.value;
-            controls.kanjiDigitRadio.enabled = controls.kanji.value;
-            controls.kanjiPositionalRadio.enabled = controls.kanji.value;
+            /**
+             * 作ってある項目だけ有効／無効を切り替える（簡易モードでは作らない項目がある）
+             * @param {string} controlName - dialogControls のキー
+             * @param {boolean} isEnabled - 有効にするか
+             * @returns {void}
+             */
+            function setEnabledIfExists(controlName, isEnabled) {
+                if (dialogControls[controlName]) dialogControls[controlName].enabled = isEnabled;
+            }
+            setEnabledIfExists("tcyDigits2", dialogControls.tcyNumbers.value);
+            setEnabledIfExists("tcyDigits3", dialogControls.tcyNumbers.value);
+            setEnabledIfExists("tcyDigits4", dialogControls.tcyNumbers.value);
+            setEnabledIfExists("tcyExcludeAdjacent", dialogControls.tcyNumbers.value);
+            /* 漢数字の項目は詳細モードだけ / Kanji options exist only in the detailed mode */
+            if (dialogControls.kanji) {
+                setSteppedFieldEnabled(dialogControls.kanjiMinInput, dialogControls.kanji.value);
+                setSteppedFieldEnabled(dialogControls.kanjiMaxInput, dialogControls.kanji.value);
+                setEnabledIfExists("kanjiDigitRadio", dialogControls.kanji.value);
+                setEnabledIfExists("kanjiPositionalRadio", dialogControls.kanji.value);
+                setEnabledIfExists("kanjiZeroRei", dialogControls.kanji.value);
+                /* 一千は十・百・千を入れるときだけ / 一千 applies only to the positional style */
+                setEnabledIfExists("kanjiIchiSen", dialogControls.kanji.value && dialogControls.kanjiPositionalRadio.value);
+            }
         }
 
         /**
@@ -3574,28 +3813,61 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
          * @returns {void}
          */
         function updatePreview() {
-            var options = readDialogOptions(controls);
-            var previewLines = buildPreviewLines(filterTextTargets(textTargets, options), options);
-            controls.previewList.removeAll();
+            var formatOptions = readDialogOptions(dialogControls);
+            var previewLines = buildPreviewLines(textTargets, formatOptions);
+            dialogControls.previewList.removeAll();
             if (previewLines.length === 0) previewLines.push(getLabel("preview.none"));
-            for (var i = 0; i < previewLines.length; i++) controls.previewList.add("item", previewLines[i]);
+            for (var i = 0; i < previewLines.length; i++) dialogControls.previewList.add("item", previewLines[i]);
         }
 
-        var checkboxNames = ["rotateRoman", "tcyNumbers", "tcyExcludeAdjacent", "tcyCapitals", "tcyExclamation", "tcyDigits2", "tcyDigits3", "tcyDigits4", "tcyGlyphByLength", "singleDigitFullwidth",
-            "japaneseEra", "kanji", "halfwidthAlnum", "commaToTouten", "periodToNakaguro", "symbolsFullwidth", "quotesToChonchon", "rangeToWave", "exclamFullwidth", "singleLetterFullwidth", "mojikumiBeta", "kinsokuSoftV2", "justifyLastLineTop", "convertToVertical", "verticalOnly", "kanjiDigitRadio", "kanjiPositionalRadio"];
-        for (var i = 0; i < checkboxNames.length; i++) {
-            controls[checkboxNames[i]].onClick = function () {
+        var clickControlNames = CHECKBOX_SETTING_KEYS.concat(["kanjiDigitRadio", "kanjiPositionalRadio"]);
+        for (var i = 0; i < clickControlNames.length; i++) {
+            if (!dialogControls[clickControlNames[i]]) continue;
+            dialogControls[clickControlNames[i]].onClick = function () {
                 updateEnabledStates();
                 updatePreview();
             };
         }
 
         digitStepHandler = updatePreview;
-        var digitInputs = [controls.kanjiMinInput, controls.kanjiMaxInput];
-        for (var d = 0; d < digitInputs.length; d++) {
-            wrapDigitInputUpdate(digitInputs[d], updatePreview);
+        if (dialogControls.kanjiMinInput) {
+            wrapDigitInputUpdate(dialogControls.kanjiMinInput, updatePreview);
+            wrapDigitInputUpdate(dialogControls.kanjiMaxInput, updatePreview);
         }
 
+        bindModeSwitch(dialogControls, dialogControls.modeSimpleRadio, "simple");
+        bindModeSwitch(dialogControls, dialogControls.modeDetailRadio, "detail");
+        bindPresetEvents(dialogControls, function () {
+            updateEnabledStates();
+            updatePreview();
+        });
+        updateEnabledStates();
+        updatePreview();
+    }
+
+    /**
+     * モードのラジオボタンを押したら、今の値のまま開き直す（作り直しは main で行う）
+     * @param {Object} dialogControls - buildDialog() の戻り値
+     * @param {RadioButton} modeRadio - モードのラジオボタン
+     * @param {string} dialogMode - "simple" または "detail"
+     * @returns {void}
+     */
+    function bindModeSwitch(dialogControls, modeRadio, dialogMode) {
+        modeRadio.onClick = function () {
+            if (dialogControls.dialogMode === dialogMode) return;
+            dialogControls.dialogMode = dialogMode;
+            dialogControls.switchCenter = getWindowCenter(dialogControls.dialog);
+            dialogControls.dialog.close(MODE_SWITCH_RESULT);
+        };
+    }
+
+    /**
+     * プリセットの行のイベントをつなぐ（選ぶと読み込み、保存・削除でドロップダウンを作り直す）
+     * @param {Object} dialogControls - buildDialog() の戻り値
+     * @param {function(): void} onPresetApplied - プリセットを読み込んだあとに呼ぶ
+     * @returns {void}
+     */
+    function bindPresetEvents(dialogControls, onPresetApplied) {
         /* プリセットの並び：--- / 組み込み / 区切り / 保存したもの / Preset list: placeholder, built-ins, separator, saved ones */
         var presetEntries = [];
         var isFillingPresets = false;
@@ -3607,7 +3879,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
          */
         function fillPresetDropdown(selectedName) {
             isFillingPresets = true;
-            var presetDropdown = controls.presetDropdown;
+            var presetDropdown = dialogControls.presetDropdown;
             presetDropdown.removeAll();
             presetEntries = [{ type: "none" }];
             presetDropdown.add("item", getLabel("preset.placeholder"));
@@ -3627,7 +3899,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 }
             }
             presetDropdown.selection = selectedIndex;
-            setIconButtonEnabled(controls.presetDeleteIcon, presetEntries[selectedIndex].type === "saved");
+            setIconButtonEnabled(dialogControls.presetDeleteIcon, presetEntries[selectedIndex].type === "saved");
             isFillingPresets = false;
         }
 
@@ -3636,36 +3908,60 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
          * @returns {Object} presetEntries の要素
          */
         function getSelectedPresetEntry() {
-            var presetSelection = controls.presetDropdown.selection;
+            var presetSelection = dialogControls.presetDropdown.selection;
             return presetSelection ? presetEntries[presetSelection.index] : presetEntries[0];
         }
 
-        controls.presetDropdown.onChange = function () {
+        dialogControls.presetDropdown.onChange = function () {
             if (isFillingPresets) return;
             var presetEntry = getSelectedPresetEntry();
-            setIconButtonEnabled(controls.presetDeleteIcon, presetEntry.type === "saved");
+            setIconButtonEnabled(dialogControls.presetDeleteIcon, presetEntry.type === "saved");
             var presetData = null;
             if (presetEntry.type === "builtin") presetData = presetEntry.data;
             else if (presetEntry.type === "saved") presetData = loadPresetMap()[presetEntry.name];
             if (!presetData) return;
-            writeDialogSettings(controls, mergePresetData(presetData));
-            updateEnabledStates();
-            updatePreview();
+            writeDialogSettings(dialogControls, mergePresetData(presetData));
+            onPresetApplied();
         };
-        controls.presetSaveIcon.onClick = function () {
+        dialogControls.presetSaveIcon.onClick = function () {
             var presetEntry = getSelectedPresetEntry();
-            var savedName = saveCurrentPreset(readDialogOptions(controls), presetEntry.type === "saved" ? presetEntry.name : "");
+            var savedName = saveCurrentPreset(readDialogOptions(dialogControls), presetEntry.type === "saved" ? presetEntry.name : "");
             if (savedName) fillPresetDropdown(savedName);
         };
-        controls.presetDeleteIcon.onClick = function () {
+        dialogControls.presetDeleteIcon.onClick = function () {
             var presetEntry = getSelectedPresetEntry();
             if (presetEntry.type !== "saved") return;
             if (deletePreset(presetEntry.name)) fillPresetDropdown(null);
         };
 
         fillPresetDropdown(null);
-        updateEnabledStates();
-        updatePreview();
+    }
+
+    /**
+     * ウィンドウの中心の座標を返す
+     * @param {Window} targetWindow - 対象のウィンドウ
+     * @returns {number[]} [x, y]
+     */
+    function getWindowCenter(targetWindow) {
+        var windowBounds = targetWindow.bounds;
+        return [(windowBounds.left + windowBounds.right) / 2, (windowBounds.top + windowBounds.bottom) / 2];
+    }
+
+    /**
+     * 表示したときに、ウィンドウの中心を指定の座標に合わせる（位置の復元のあとに動かす）
+     * @param {Window} targetWindow - 対象のウィンドウ
+     * @param {number[]} centerPoint - 中心の座標 [x, y]
+     * @returns {void}
+     */
+    function keepWindowCenterOnShow(targetWindow, centerPoint) {
+        var previousOnShow = targetWindow.onShow;
+        targetWindow.onShow = function () {
+            if (previousOnShow) previousOnShow.apply(this, arguments);
+            var windowBounds = targetWindow.bounds;
+            var windowWidth = windowBounds.right - windowBounds.left;
+            var windowHeight = windowBounds.bottom - windowBounds.top;
+            targetWindow.location = [Math.round(centerPoint[0] - windowWidth / 2), Math.round(centerPoint[1] - windowHeight / 2)];
+        };
     }
 
     /**
@@ -3704,19 +4000,27 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
 
         var settingsStore = createSettingsStore(SCRIPT_NAME, "persistent");
-        var controls = buildDialog(settingsStore.load(DEFAULT_SETTINGS));
-        bindDialogEvents(controls, textTargets);
-        prepareDialogWindow(controls.dialog, SCRIPT_NAME);
-        if (controls.dialog.show() !== 1) return;
+        var dialogSettings = settingsStore.load(DEFAULT_SETTINGS);
+        var dialogControls;
+        var dialogResult;
+        var switchCenter = null;
+        /* モードの切り替えは、値を引き継いで同じ中心の位置に作り直す / A mode switch rebuilds the dialog at the same center, keeping the values */
+        do {
+            dialogControls = buildDialog(dialogSettings);
+            bindDialogEvents(dialogControls, textTargets);
+            prepareDialogWindow(dialogControls.dialog, SCRIPT_NAME);
+            if (switchCenter) keepWindowCenterOnShow(dialogControls.dialog, switchCenter);
+            dialogResult = dialogControls.dialog.show();
+            if (dialogResult === MODE_SWITCH_RESULT) {
+                dialogSettings = readDialogOptions(dialogControls);
+                switchCenter = dialogControls.switchCenter;
+            }
+        } while (dialogResult === MODE_SWITCH_RESULT);
+        if (dialogResult !== 1) return;
 
-        var options = readDialogOptions(controls);
-        settingsStore.save(options);
-        var runTargets = filterTextTargets(textTargets, options);
-        if (runTargets.length === 0) {
-            alert(getLabel("alert.noVerticalText"));
-            return;
-        }
-        var failureReason = runVerticalTextConversion(doc, runTargets, options);
+        var formatOptions = readDialogOptions(dialogControls);
+        settingsStore.save(formatOptions);
+        var failureReason = runVerticalTextConversion(doc, textTargets, formatOptions);
         if (failureReason !== "") {
             alert(getLabel("alert.actionFailed") + "\n\n" + failureReason);
         }
