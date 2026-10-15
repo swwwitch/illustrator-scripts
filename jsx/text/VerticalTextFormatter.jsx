@@ -30,7 +30,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/VerticalTe
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "VerticalTextFormatter";        /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.13.0";                      /* バージョン / version */
+var SCRIPT_VERSION  = "v1.14.0";                      /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-15";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-15";                   /* 更新日 / last updated */
@@ -80,7 +80,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
         rotateSkipLongLatin: false,
         rotateSkipMinChars: 5,
         shortWordFullwidth: false,
-        shortWordMaxChars: 2,
+        shortWordMaxChars: 4,
         kinsokuType: "Soft_v2",
         mojikumiIndex: 6,
         dialogMode: "simple"
@@ -1180,11 +1180,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
                 en: "Name the settings are saved under. The same name is overwritten."
             },
             shortWordFullwidth: {
-                ja: "指定した文字数以下の英単語（英字だけの並び）を全角にして正立させます（OK → ＯＫ）",
-                en: "Makes words of at most this many letters full-width so they stand upright (OK → ＯＫ)"
+                ja: "指定した文字数以下の英単語（英字だけの並び）を全角にして正立させます（OK → ＯＫ）。文字数は［長い欧文は除く］の1つ下に連動します",
+                en: "Makes words of at most this many letters full-width so they stand upright (OK → ＯＫ); linked to one below \"Skip long Roman text\""
             },
             rotateSkipLongLatin: {
-                ja: "指定した文字数以上の欧文（スペースなどでつながった単語のまとまり）は回転せず、横倒しのままにします",
+                ja: "指定した文字数以上の欧文（スペースなどでつながった単語のまとまり）は回転せず、横倒しのままにします。［短い英単語を全角に］の文字数はこの1つ下に連動します",
                 en: "Leaves Roman text of at least this many characters (words joined by spaces etc.) sideways"
             },
             tcyNumbers: { ja: "下で選んだ桁数の半角数字を縦中横にします", en: "Tate-Chu-Yoko for half-width numbers of the lengths checked below" },
@@ -2774,7 +2774,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
     /**
      * 選択から処理の対象を集める。文字選択中はその範囲、オブジェクト選択ならテキストフレームごと
      * @param {Document} doc - 対象のドキュメント
-     * @returns {Array<Object>} { frame | range, ownerFrame（属するテキストフレーム）, offset（文字の番号のずれ）, text }
+     * @returns {Array<Object>} { frame | range, ownerFrames（属するテキストフレーム）, offset（ストーリーの文字の番号のずれ）, text, isTextSelection }
      */
     function collectTextTargets(doc) {
         var selection = doc.selection;
@@ -2786,16 +2786,39 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
                     range: selection,
                     offset: selection.characterOffset - 1,
                     text: selection.contents,
-                    ownerFrame: resolveTextRangeFrame(selection)
+                    ownerFrames: getStoryFrames(selection.story),
+                    isTextSelection: true
                 });
             }
             return textTargets;
         }
         var textFrames = collectSelectionTextFrames(selection, { skipLocked: true, skipHidden: true });
+        var storyHeadFrames = [];
         for (var i = 0; i < textFrames.length; i++) {
-            textTargets.push({ frame: textFrames[i], ownerFrame: textFrames[i], offset: 0, text: textFrames[i].contents });
+            var storyFrames = getStoryFrames(textFrames[i].story);
+            if (storyFrames.length <= 1) {
+                textTargets.push({ frame: textFrames[i], offset: 0, text: textFrames[i].contents, ownerFrames: [textFrames[i]], isTextSelection: false });
+                continue;
+            }
+            /* 連結テキストはストーリー全体を1つの対象にする（書き換えで文字が次のフレームへ流れても位置がずれない）
+               Threaded text is one target for the whole story, so reflow between frames does not shift positions */
+            if (indexOfValue(storyHeadFrames, storyFrames[0]) >= 0) continue;
+            storyHeadFrames.push(storyFrames[0]);
+            var storyRange = textFrames[i].story.textRange;
+            textTargets.push({ range: storyRange, offset: 0, text: storyRange.contents, ownerFrames: storyFrames, isTextSelection: false });
         }
         return textTargets;
+    }
+
+    /**
+     * ストーリーのテキストフレームを配列で返す
+     * @param {Story} textStory - ストーリー
+     * @returns {TextFrame[]} 連結しているテキストフレーム（連結していなければ1つ）
+     */
+    function getStoryFrames(textStory) {
+        var storyFrames = [];
+        for (var i = 0; i < textStory.textFrames.length; i++) storyFrames.push(textStory.textFrames[i]);
+        return storyFrames;
     }
 
     /**
@@ -3007,12 +3030,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
      * @returns {void}
      */
     function selectTextTargets(doc, textTargets, rangeLength) {
-        if (textTargets[0].range) {
+        if (textTargets[0].isTextSelection) {
             selectTargetSpan(doc, textTargets[0], 0, rangeLength);
             return;
         }
+        /* 連結テキストは連結しているフレームをすべて選ぶ / Select every frame of threaded text */
         doc.selection = null;
-        for (var i = 0; i < textTargets.length; i++) textTargets[i].frame.selected = true;
+        for (var i = 0; i < textTargets.length; i++) {
+            for (var j = 0; j < textTargets[i].ownerFrames.length; j++) textTargets[i].ownerFrames[j].selected = true;
+        }
     }
 
     /**
@@ -3024,8 +3050,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
      */
     function applyFrameSettings(doc, textTargets, formatOptions) {
         for (var i = 0; i < textTargets.length; i++) {
-            var ownerFrame = textTargets[i].ownerFrame;
-            if (ownerFrame && !isVerticalFrame(ownerFrame)) ownerFrame.orientation = TextOrientation.VERTICAL;
+            var ownerFrames = textTargets[i].ownerFrames;
+            for (var j = 0; j < ownerFrames.length; j++) {
+                if (!isVerticalFrame(ownerFrames[j])) ownerFrames[j].orientation = TextOrientation.VERTICAL;
+            }
             applyParagraphSettings(doc, textTargets[i], formatOptions);
         }
     }
@@ -3589,10 +3617,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
 
     /**
      * 数値欄の∧∨・↑↓で増減したことを知らせる
+     * @param {EditText} numberInput - 増減した入力欄
      * @returns {void}
      */
-    function notifyDigitStep() {
-        if (digitStepHandler) digitStepHandler();
+    function notifyDigitStep(numberInput) {
+        if (digitStepHandler) digitStepHandler(numberInput);
     }
 
     /**
@@ -3702,7 +3731,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
         var rotateSkipRow = addIndentedGroup(tcyPanel).add("group");
         setupRow(rotateSkipRow, ["left", "center"], 4);
         dialogControls.rotateSkipLongLatin = addOptionCheckbox(rotateSkipRow, "checkbox.rotateSkipLongLatin", settings.rotateSkipLongLatin);
-        dialogControls.rotateSkipMinInput = addSteppedField(rotateSkipRow, { label: "", text: "", characters: 3, step: 1, min: 1, max: 99, integer: true, onStep: notifyDigitStep });
+        dialogControls.rotateSkipMinInput = addSteppedField(rotateSkipRow, { label: "", text: "", characters: 3, step: 1, min: 2, max: 99, integer: true, onStep: notifyDigitStep });
         rotateSkipRow.add("statictext", undefined, getLabel("fieldLabel.charsOrMore"));
         dialogControls.tcyNumbers = addOptionCheckbox(tcyPanel, "checkbox.tcyNumbers", settings.tcyNumbers);
         /* 桁数は次の行に字下げして並べる / Digit counts go on the next, indented row */
@@ -3757,7 +3786,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
             var shortWordRow = replaceRightColumn.add("group");
             setupRow(shortWordRow, ["left", "center"], 4);
             dialogControls.shortWordFullwidth = addOptionCheckbox(shortWordRow, "checkbox.shortWordFullwidth", settings.shortWordFullwidth);
-            dialogControls.shortWordMaxInput = addSteppedField(shortWordRow, { label: "", text: "", characters: 3, step: 1, min: 1, max: 99, integer: true, onStep: notifyDigitStep });
+            dialogControls.shortWordMaxInput = addSteppedField(shortWordRow, { label: "", text: "", characters: 3, step: 1, min: 1, max: 98, integer: true, onStep: notifyDigitStep });
             shortWordRow.add("statictext", undefined, getLabel("fieldLabel.charsOrLess"));
         }
         /* 簡易モードは「数字」パネルを作らず、1桁の全角もここに入れる / The simple mode has no Numbers panel; single digits go here */
@@ -3897,8 +3926,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
             formatOptions.kanjiMinDigits = Math.min(kanjiMin, kanjiMax);
             formatOptions.kanjiMaxDigits = Math.max(kanjiMin, kanjiMax);
         }
-        formatOptions.rotateSkipMinChars = readDigitInput(dialogControls.rotateSkipMinInput, DEFAULT_SETTINGS.rotateSkipMinChars);
-        if (dialogControls.shortWordMaxInput) formatOptions.shortWordMaxChars = readDigitInput(dialogControls.shortWordMaxInput, DEFAULT_SETTINGS.shortWordMaxChars);
+        formatOptions.rotateSkipMinChars = Math.max(2, readDigitInput(dialogControls.rotateSkipMinInput, DEFAULT_SETTINGS.rotateSkipMinChars));
+        /* 短い英単語は「長い欧文は除く」の1つ下に連動 / Short words are linked to one below "Skip long Roman text" */
+        formatOptions.shortWordMaxChars = formatOptions.rotateSkipMinChars - 1;
         if (dialogControls.kanjiPositionalRadio) formatOptions.kanjiStyle = dialogControls.kanjiPositionalRadio.value ? "positional" : "digit";
         if (dialogControls.kinsokuDropdown && dialogControls.kinsokuDropdown.selection) formatOptions.kinsokuType = KINSOKU_TYPES[dialogControls.kinsokuDropdown.selection.index];
         if (dialogControls.mojikumiDropdown && dialogControls.mojikumiDropdown.selection) formatOptions.mojikumiIndex = MOJIKUMI_INDEXES[dialogControls.mojikumiDropdown.selection.index];
@@ -3940,7 +3970,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
             dialogControls.kanjiMaxInput.text = String(settings.kanjiMaxDigits);
         }
         dialogControls.rotateSkipMinInput.text = String(settings.rotateSkipMinChars);
-        if (dialogControls.shortWordMaxInput) dialogControls.shortWordMaxInput.text = String(settings.shortWordMaxChars);
+        if (dialogControls.shortWordMaxInput) dialogControls.shortWordMaxInput.text = String(settings.rotateSkipMinChars - 1);
         if (dialogControls.kanjiPositionalRadio) {
             dialogControls.kanjiPositionalRadio.value = (settings.kanjiStyle === "positional");
             dialogControls.kanjiDigitRadio.value = !dialogControls.kanjiPositionalRadio.value;
@@ -4010,9 +4040,19 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
             };
         }
 
-        digitStepHandler = updatePreview;
-        wrapDigitInputUpdate(dialogControls.rotateSkipMinInput, updatePreview);
-        if (dialogControls.shortWordMaxInput) wrapDigitInputUpdate(dialogControls.shortWordMaxInput, updatePreview);
+        /**
+         * 数値欄が変わったら、連動する欄をそろえてから確認の一覧を更新する
+         * @param {EditText} [changedInput] - 変わった入力欄
+         * @returns {void}
+         */
+        function onDigitInputChanged(changedInput) {
+            syncWordLengthFields(dialogControls, changedInput);
+            updatePreview();
+        }
+
+        digitStepHandler = onDigitInputChanged;
+        wrapDigitInputUpdate(dialogControls.rotateSkipMinInput, onDigitInputChanged);
+        if (dialogControls.shortWordMaxInput) wrapDigitInputUpdate(dialogControls.shortWordMaxInput, onDigitInputChanged);
         if (dialogControls.kanjiMinInput) {
             wrapDigitInputUpdate(dialogControls.kanjiMinInput, updatePreview);
             wrapDigitInputUpdate(dialogControls.kanjiMaxInput, updatePreview);
@@ -4151,15 +4191,32 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
      * 数値欄を直接入力したときも確認の一覧を更新する
      * （部品の onChange は値をそろえるだけなので、包んで後ろに足す）
      * @param {EditText} numberInput - addSteppedField() の入力欄
-     * @param {function(): void} onUpdate - 更新の処理
+     * @param {function(EditText): void} onUpdate - 更新の処理（引数は入力欄）
      * @returns {void}
      */
     function wrapDigitInputUpdate(numberInput, onUpdate) {
         var normalizeOnChange = numberInput.onChange;
         numberInput.onChange = function () {
             normalizeOnChange();
-            onUpdate();
+            onUpdate(numberInput);
         };
+    }
+
+    /**
+     * ［長い欧文は除く］と［短い英単語を全角に］の文字数をそろえる（全角は「除く」の1つ下）
+     * @param {Object} dialogControls - buildDialog() の戻り値
+     * @param {EditText} [changedInput] - 変わった入力欄
+     * @returns {void}
+     */
+    function syncWordLengthFields(dialogControls, changedInput) {
+        var shortWordInput = dialogControls.shortWordMaxInput;
+        if (!shortWordInput) return;
+        var rotateSkipInput = dialogControls.rotateSkipMinInput;
+        if (changedInput === shortWordInput) {
+            rotateSkipInput.text = String(Math.min(99, readDigitInput(shortWordInput, DEFAULT_SETTINGS.shortWordMaxChars) + 1));
+        } else if (changedInput === rotateSkipInput) {
+            shortWordInput.text = String(Math.max(1, readDigitInput(rotateSkipInput, DEFAULT_SETTINGS.rotateSkipMinChars) - 1));
+        }
     }
 
     // =========================================

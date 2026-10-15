@@ -42,7 +42,7 @@
   - **Quotes to 〝〟**: replaces “ ” and straight " " with 〝 〟 (on by default)
   - **"!" "?" to full-width**: ! and ? that are not in Tate-Chu-Yoko become full-width (on by default)
   - **Proportional metrics for full-width Latin** (Detailed mode): applies the OpenType Proportional Metrics feature to full-width letters (after the rewriting, on by default)
-  - **Short words to full-width** (Detailed mode): words of at most the given number of letters (2 by default) become full-width (OK → ＯＫ). Unit squares and capital Tate-Chu-Yoko take priority
+  - **Short words to full-width** (Detailed mode): words of at most the given number of letters become full-width (OK → ＯＫ). The length is linked to one below "Skip long Roman text" (5 and 4 by default). Unit squares and capital Tate-Chu-Yoko take priority
   - **Single letters to full-width**: a lone letter such as the A in Aランク
 - Numbers
   - **Single digits to full-width**: keeps a single digit upright
@@ -87,6 +87,8 @@ https://note.com/dtp_tranist/n/ndb55c5516fd6
 
 ### Update History
 
+- v1.14.0 (2026-10-15) The "Short words to full-width" length is now linked to one below "Skip long Roman text" (5 and 4 by default)
+- v1.13.1 (2026-10-15) Fixed shifted rewriting and Tate-Chu-Yoko positions in threaded text (the whole story is now one target). Every threaded frame is turned vertical
 - v1.13.0 (2026-10-15) Added "Short words to full-width" (N letters or fewer) to Character Conversion in Detailed mode
 - v1.12.0 (2026-10-15) Added "Skip long Roman text" (no rotation for runs of N characters or more). Simple mode now applies only the visible options
 - v1.11.0 (2026-10-15) Added "Proportional metrics for full-width Latin" to Character Conversion in Detailed mode
