@@ -27,7 +27,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/VerticalTe
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "VerticalTextFormatter";        /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.6.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.7.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-15";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-15";                   /* 更新日 / last updated */
@@ -64,6 +64,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         halfwidthAlnum: false,
         commaToTouten: true,
         periodToNakaguro: true,
+        symbolsFullwidth: true,
+        quotesToChonchon: true,
+        rangeToWave: true,
+        exclamFullwidth: true,
+        singleLetterFullwidth: false,
         mojikumiBeta: true,
         kinsokuSoftV2: true,
         justifyLastLineTop: true,
@@ -89,6 +94,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             labelKey: "rotateOnly",
             data: {
                 tcyNumbers: false, tcyGlyphByLength: false, commaToTouten: false, periodToNakaguro: false,
+                symbolsFullwidth: false, quotesToChonchon: false, rangeToWave: false, exclamFullwidth: false,
                 mojikumiBeta: false, kinsokuSoftV2: false, justifyLastLineTop: false
             }
         }
@@ -1042,6 +1048,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             halfwidthAlnum: { ja: "全角英数字を半角に", en: "Full-width alnum to half-width" },
             commaToTouten: { ja: "桁区切り「,」→「、」", en: "Thousands \",\" → \"、\"" },
             periodToNakaguro: { ja: "小数点「.」→「・」", en: "Decimal \".\" → \"・\"" },
+            symbolsFullwidth: { ja: "記号を全角に", en: "Symbols to full-width" },
+            quotesToChonchon: { ja: "引用符を〝〟に", en: "Quotes to 〝〟" },
+            rangeToWave: { ja: "範囲の「-」「~」→「〜」", en: "Range \"-\" \"~\" → \"〜\"" },
+            exclamFullwidth: { ja: "「!」「?」を全角に", en: "\"!\" \"?\" to full-width" },
+            singleLetterFullwidth: { ja: "1文字の英字を全角に", en: "Single letters to full-width" },
             singleDigitFullwidth: { ja: "1桁の数字を全角に", en: "Single digits to full-width" },
             japaneseEra: { ja: "西暦を和暦に", en: "Western years to Japanese era" },
             kanji: { ja: "漢数字に変換", en: "Convert to kanji numerals" },
@@ -1115,6 +1126,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             halfwidthAlnum: { ja: "「２０」「ＰＤＦ」なども縦中横・欧文回転の対象にします", en: "Makes full-width digits and letters targets for Tate-Chu-Yoko and rotation" },
             commaToTouten: { ja: "桁区切りの「,」「，」を「、」にします（3,000 → 3、000）", en: "Replaces thousands separators \",\" \"，\" with \"、\"" },
             periodToNakaguro: { ja: "小数点の「.」「．」を「・」にします（12.5 → 12・5）", en: "Replaces decimal points \".\" \"．\" with \"・\"" },
+            symbolsFullwidth: { ja: "半角の ( ) [ ] { } : ; / % & # @ * + = < > を全角にして正立させます", en: "Makes half-width ( ) [ ] { } : ; / % & # @ * + = < > full-width so they stand upright" },
+            quotesToChonchon: { ja: "“ ” と \" \" をチョンチョン（〝 〟）にします", en: "Replaces “ ” and \" \" with 〝 〟" },
+            rangeToWave: { ja: "数字の間の「-」「~」「－」「～」を「〜」にします（10-20 → 10〜20）", en: "Replaces - ~ between digits with 〜 (10-20 → 10〜20)" },
+            exclamFullwidth: { ja: "縦中横にしない「!」「?」を全角にして正立させます", en: "Makes ! and ? that are not in Tate-Chu-Yoko full-width" },
+            singleLetterFullwidth: { ja: "1字だけの英字（Aランクの A など）を全角にして正立させます", en: "Makes a lone letter (the A in Aランク) full-width" },
             singleDigitFullwidth: { ja: "1桁の数字を全角にして正立させます", en: "Makes single digits full-width so they stand upright" },
             japaneseEra: { ja: "「2026年」を「令和8年」にします。月日があれば改元の前後を月日で判定します", en: "2026年 → 令和8年; a following month and day decide the era at a change" },
             kanjiDigit: { ja: "1字ずつ漢数字にします（2026 → 二〇二六）", en: "Digit by digit (2026 → 二〇二六)" },
@@ -2232,6 +2248,58 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         return ch === "!" || ch === "?" || ch === "！" || ch === "？";
     }
 
+    var FULLWIDTH_SYMBOLS = "()[]{}:;/%&#@*+=<>";   /* ［記号を全角に］の対象 / symbols made full-width */
+    var RANGE_MARKS = "-~－～";                      /* ［範囲の「-」「~」→「〜」］の対象 / range marks */
+
+    /**
+     * 半角の英数字・記号（! 〜 ~）を全角にする
+     * @param {string} asciiText - 半角の文字列
+     * @returns {string} 全角の文字列
+     */
+    function toFullwidthAscii(asciiText) {
+        var resultText = "";
+        for (var i = 0; i < asciiText.length; i++) {
+            var charCode = asciiText.charCodeAt(i);
+            resultText += (charCode >= 0x21 && charCode <= 0x7E) ? String.fromCharCode(charCode + 0xFEE0) : asciiText.charAt(i);
+        }
+        return resultText;
+    }
+
+    /**
+     * 半角・全角の数字か
+     * @param {string} ch - 1文字
+     * @returns {boolean} 0〜9・０〜９ なら true
+     */
+    function isAnyDigitChar(ch) {
+        return isDigitChar(ch) || (ch >= "０" && ch <= "９");
+    }
+
+    /**
+     * 数字・英字・感嘆符以外の1文字を、記号・引用符・範囲の設定に合わせて置き換える
+     * @param {string} text - 対象の文字列
+     * @param {number} index - 文字の位置
+     * @param {Object} options - 変換の設定
+     * @param {Object} quoteState - 半角の「"」の開き・閉じを数える状態（{ isOpen }）
+     * @returns {string} 置き換えた文字
+     */
+    function convertOtherChar(text, index, options, quoteState) {
+        var ch = text.charAt(index);
+        if (options.rangeToWave && RANGE_MARKS.indexOf(ch) >= 0 && isAnyDigitChar(text.charAt(index - 1)) && isAnyDigitChar(text.charAt(index + 1))) {
+            return "〜";
+        }
+        if (options.quotesToChonchon) {
+            if (ch === "“") return "〝";
+            if (ch === "”") return "〟";
+            if (ch === "\"") {
+                /* 半角の「"」は開きと閉じを交互に / Straight quotes alternate between opening and closing */
+                quoteState.isOpen = !quoteState.isOpen;
+                return quoteState.isOpen ? "〝" : "〟";
+            }
+        }
+        if (options.symbolsFullwidth && FULLWIDTH_SYMBOLS.indexOf(ch) >= 0) return toFullwidthAscii(ch);
+        return ch;
+    }
+
     /**
      * 全角の英数字を半角にする（1文字ずつ置き換えるので文字数は変わらない）
      * @param {string} text - 対象の文字列
@@ -2466,6 +2534,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var segmentText = "";
         var segmentHasTcy = false;
         var segmentTcyLength = 0;
+        var quoteState = { isOpen: false };
 
         /**
          * 出力に文字列を足す（縦中横なら位置を控える）
@@ -2535,18 +2604,21 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 while (i < text.length && isLatinLetter(text.charAt(i))) i++;
                 var letterText = text.substring(runStart, i);
                 var isCapsTcy = options.tcyCapitals && letterText.length >= 2 && letterText.length <= 3 && letterText === letterText.toUpperCase();
-                emit(letterText, isCapsTcy);
+                if (options.singleLetterFullwidth && letterText.length === 1) emit(toFullwidthAscii(letterText), false);
+                else emit(letterText, isCapsTcy);
             } else if (isExclamOrQuestion(ch)) {
                 while (i < text.length && isExclamOrQuestion(text.charAt(i))) i++;
                 var markText = text.substring(runStart, i);
                 if (options.tcyExclamation && markText.length === 2) {
                     /* 縦中横にする組は半角にそろえる / Use half-width marks for the Tate-Chu-Yoko pair */
                     emit(markText.replace(/！/g, "!").replace(/？/g, "?"), true);
+                } else if (options.exclamFullwidth) {
+                    emit(toFullwidthAscii(markText), false);
                 } else {
                     emit(markText, false);
                 }
             } else {
-                emit(ch, false);
+                emit(convertOtherChar(text, i, options, quoteState), false);
                 i++;
             }
             closeSegment(runStart, i - runStart);
@@ -3305,7 +3377,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         /* プリセット / Presets */
         var presetRow = dialog.add("group");
-        setupRow(presetRow, ["left", "center"], 8);
+        setupRow(presetRow, "center", 8); /* ダイアログボックスの左右中央に置く / centered in the dialog */
         presetRow.add("statictext", undefined, labelText("preset.label"));
         controls.presetDropdown = presetRow.add("dropdownlist", undefined, []);
         controls.presetDropdown.helpTip = getLabel("tooltip.preset");
@@ -3350,6 +3422,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         controls.halfwidthAlnum = addOptionCheckbox(replacePanel, "checkbox.halfwidthAlnum", settings.halfwidthAlnum);
         controls.commaToTouten = addOptionCheckbox(replacePanel, "checkbox.commaToTouten", settings.commaToTouten);
         controls.periodToNakaguro = addOptionCheckbox(replacePanel, "checkbox.periodToNakaguro", settings.periodToNakaguro);
+        controls.rangeToWave = addOptionCheckbox(replacePanel, "checkbox.rangeToWave", settings.rangeToWave);
+        controls.symbolsFullwidth = addOptionCheckbox(replacePanel, "checkbox.symbolsFullwidth", settings.symbolsFullwidth);
+        controls.quotesToChonchon = addOptionCheckbox(replacePanel, "checkbox.quotesToChonchon", settings.quotesToChonchon);
+        controls.exclamFullwidth = addOptionCheckbox(replacePanel, "checkbox.exclamFullwidth", settings.exclamFullwidth);
+        controls.singleLetterFullwidth = addOptionCheckbox(replacePanel, "checkbox.singleLetterFullwidth", settings.singleLetterFullwidth);
 
         /* 数字 / Numbers */
         var numberPanel = rightColumn.add("panel", undefined, getLabel("panel.numbers"));
@@ -3437,6 +3514,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             halfwidthAlnum: controls.halfwidthAlnum.value,
             commaToTouten: controls.commaToTouten.value,
             periodToNakaguro: controls.periodToNakaguro.value,
+            symbolsFullwidth: controls.symbolsFullwidth.value,
+            quotesToChonchon: controls.quotesToChonchon.value,
+            rangeToWave: controls.rangeToWave.value,
+            exclamFullwidth: controls.exclamFullwidth.value,
+            singleLetterFullwidth: controls.singleLetterFullwidth.value,
             mojikumiBeta: controls.mojikumiBeta.value,
             kinsokuSoftV2: controls.kinsokuSoftV2.value,
             justifyLastLineTop: controls.justifyLastLineTop.value,
@@ -3454,7 +3536,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function writeDialogSettings(controls, settings) {
         var checkboxKeys = ["rotateRoman", "tcyNumbers", "tcyDigits2", "tcyDigits3", "tcyDigits4", "tcyExcludeAdjacent", "tcyCapitals",
             "tcyExclamation", "tcyGlyphByLength", "singleDigitFullwidth", "japaneseEra", "kanji", "halfwidthAlnum", "commaToTouten",
-            "periodToNakaguro", "mojikumiBeta", "kinsokuSoftV2", "justifyLastLineTop", "convertToVertical", "verticalOnly"];
+            "periodToNakaguro", "symbolsFullwidth", "quotesToChonchon", "rangeToWave", "exclamFullwidth", "singleLetterFullwidth", "mojikumiBeta", "kinsokuSoftV2", "justifyLastLineTop", "convertToVertical", "verticalOnly"];
         for (var i = 0; i < checkboxKeys.length; i++) {
             controls[checkboxKeys[i]].value = settings[checkboxKeys[i]];
         }
@@ -3500,7 +3582,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
 
         var checkboxNames = ["rotateRoman", "tcyNumbers", "tcyExcludeAdjacent", "tcyCapitals", "tcyExclamation", "tcyDigits2", "tcyDigits3", "tcyDigits4", "tcyGlyphByLength", "singleDigitFullwidth",
-            "japaneseEra", "kanji", "halfwidthAlnum", "commaToTouten", "periodToNakaguro", "mojikumiBeta", "kinsokuSoftV2", "justifyLastLineTop", "convertToVertical", "verticalOnly", "kanjiDigitRadio", "kanjiPositionalRadio"];
+            "japaneseEra", "kanji", "halfwidthAlnum", "commaToTouten", "periodToNakaguro", "symbolsFullwidth", "quotesToChonchon", "rangeToWave", "exclamFullwidth", "singleLetterFullwidth", "mojikumiBeta", "kinsokuSoftV2", "justifyLastLineTop", "convertToVertical", "verticalOnly", "kanjiDigitRadio", "kanjiPositionalRadio"];
         for (var i = 0; i < checkboxNames.length; i++) {
             controls[checkboxNames[i]].onClick = function () {
                 updateEnabledStates();

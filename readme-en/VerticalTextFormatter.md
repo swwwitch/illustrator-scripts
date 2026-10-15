@@ -31,6 +31,11 @@
   - **Full-width letters and digits to half-width**: makes "２０" or "ＰＤＦ" targets for Tate-Chu-Yoko and rotation
   - **Thousands "," / "，" to "、"**: 3,000 → 3、000 (on by default)
   - **Decimal "." / "．" to "・"**: 12.5 → 12・5 (on by default)
+  - **Range "-" "~" → "〜"**: replaces - ~ － ～ between digits with 〜 (10-20 → 10〜20, on by default)
+  - **Symbols to full-width**: makes half-width ( ) [ ] { } : ; / % & # @ * + = < > full-width so they stand upright (on by default)
+  - **Quotes to 〝〟**: replaces “ ” and straight " " with 〝 〟 (on by default)
+  - **"!" "?" to full-width**: ! and ? that are not in Tate-Chu-Yoko become full-width (on by default)
+  - **Single letters to full-width**: a lone letter such as the A in Aランク
 - Numbers
   - **Single digits to full-width**: keeps a single digit upright
   - **Western years to Japanese era**: 2026年 → 令和8年. When the month and day follow, they decide which side of an era change the date falls on (2019年4月30日 → 平成31年, 2019年5月1日 → 令和元年); a bare year of an era change uses the new era. Year 1 is written 元年
@@ -71,6 +76,8 @@
 
 ### Update History
 
+- v1.7.1 (2026-10-15) Centered the preset row in the dialog box
+- v1.7.0 (2026-10-15) Added range marks to 〜, symbols to full-width, quotes to 〝〟, ! ? to full-width and single letters to full-width
 - v1.6.0 (2026-10-15) Added presets (four built-ins, plus saving and deleting your own)
 - v1.5.1 (2026-10-15) Made the dialog box more compact (shorter labels with tooltips, digit checkboxes and kanji styles on one row, a shorter check list)
 - v1.5.0 (2026-10-15) Added "Convert horizontal text to vertical"
