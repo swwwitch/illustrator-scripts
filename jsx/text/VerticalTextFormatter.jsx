@@ -6,8 +6,11 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-選択した縦組みのテキストに、欧文回転・縦中横・数字の書き換え（全角・漢数字・和暦）などをまとめて適用します。
+選択した縦組みのテキストに、欧文回転・縦中横・数字の書き換え（全角・漢数字・和暦）・ベタ組み・禁則・行揃えなどをまとめて適用します。
 ダイアログボックスで項目を選び、変換の結果を一覧で確かめてから実行できます。
+
+詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/VerticalTextFormatter.md
 
 ### Overview
 
@@ -15,16 +18,22 @@ Applies vertical-text settings to the selected text in one go: rotated Roman cha
 and number rewriting (full-width digits, kanji numerals, Japanese era years).
 Choose the options in a dialog box and check the result list before running.
 
+See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/VerticalTextFormatter.md
+
 */
 
 // =========================================
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "VerticalTextFormatter";        /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.6.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-15";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-15";                   /* 更新日 / last updated */
+
+var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/VerticalTextFormatter.md"; /* README（日本語） */
+var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/VerticalTextFormatter.md"; /* README (English) */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
@@ -39,11 +48,13 @@ var SCRIPT_UPDATED  = "2026-10-15";                   /* 更新日 / last update
     var DEFAULT_SETTINGS = {
         rotateRoman: true,
         tcyNumbers: true,
-        tcyMinDigits: 2,
-        tcyMaxDigits: 3,
+        tcyDigits2: true,
+        tcyDigits3: true,
+        tcyDigits4: false,
         tcyExcludeAdjacent: true,
         tcyCapitals: false,
         tcyExclamation: false,
+        tcyGlyphByLength: true,
         singleDigitFullwidth: false,
         japaneseEra: false,
         kanji: false,
@@ -53,8 +64,35 @@ var SCRIPT_UPDATED  = "2026-10-15";                   /* 更新日 / last update
         halfwidthAlnum: false,
         commaToTouten: true,
         periodToNakaguro: true,
+        mojikumiBeta: true,
+        kinsokuSoftV2: true,
+        justifyLastLineTop: true,
+        convertToVertical: true,
         verticalOnly: true
     };
+
+    var MOJIKUMI_BETA_INDEX = 6;       /* doc.mojikumiSet の「ベタ組み」の番号 / index of "ベタ組み" in doc.mojikumiSet */
+    var KINSOKU_SOFT_V2 = "Soft_v2";   /* 「弱い禁則v2」 / "Soft v2" kinsoku */
+
+    /* 組み込みのプリセット。書いていない項目は DEFAULT_SETTINGS の値 / Built-in presets; omitted items use DEFAULT_SETTINGS */
+    var BUILTIN_PRESETS = [
+        { labelKey: "standard", data: {} },
+        {
+            labelKey: "digitsByLength",
+            data: { singleDigitFullwidth: true, tcyDigits2: true, tcyDigits3: true, tcyDigits4: false, kanji: true, kanjiMinDigits: 4, kanjiMaxDigits: 20, kanjiStyle: "digit" }
+        },
+        {
+            labelKey: "kanjiPositional",
+            data: { tcyNumbers: false, japaneseEra: true, kanji: true, kanjiMinDigits: 1, kanjiMaxDigits: 20, kanjiStyle: "positional" }
+        },
+        {
+            labelKey: "rotateOnly",
+            data: {
+                tcyNumbers: false, tcyGlyphByLength: false, commaToTouten: false, periodToNakaguro: false,
+                mojikumiBeta: false, kinsokuSoftV2: false, justifyLastLineTop: false
+            }
+        }
+    ];
 
     var PREVIEW_MAX_LINES = 300;   /* 確認の一覧に出す最大の行数 / max lines in the check list */
 
@@ -143,7 +181,11 @@ var SCRIPT_UPDATED  = "2026-10-15";                   /* 更新日 / last update
 
     var BUTTON_WIDTH        = 90;    /* OK／キャンセルの幅 / OK and Cancel width */
     var OPTION_INDENT       = 20;    /* 親のチェックボックスに従う項目の字下げ / indent for dependent options */
-    var PREVIEW_LIST_HEIGHT = 140;   /* 確認の一覧の高さ / height of the check list */
+    var PREVIEW_LIST_HEIGHT = 100;   /* 確認の一覧の高さ / height of the check list */
+    var PROGRESS_WIDTH      = 300;   /* プログレスバーの幅 / progress bar width */
+    var PRESET_ICON_SIZE    = [20, 18];   /* プリセットの保存・削除アイコンの大きさ / preset save and delete icon size */
+    var PRESET_DROPDOWN_WIDTH = 220; /* プリセットのドロップダウンの幅 / preset dropdown width */
+    var PRESET_NAME_CHARS   = 20;    /* プリセット名の入力欄の文字数 / preset name field width */
 
     // UI の明暗（再利用パーツ） / UI theme (reusable)
 
@@ -749,6 +791,150 @@ var SCRIPT_UPDATED  = "2026-10-15";                   /* 更新日 / last update
 
     // ステップボタン（再利用パーツ）ここまで / End of the reusable stepper
 
+    // アイコンのボタン（再利用パーツ） / Icon buttons (reusable)
+
+    var ICON_BUTTON_SIZE = [24, 22]; /* 既定の大きさ / default size */
+    var ICON_BUTTON_UI_DARK = isDarkUI();
+    var ICON_BUTTON_COLOR     = ICON_BUTTON_UI_DARK ? [1, 1, 1, 1]    : [0, 0, 0, 0.70]; /* 絵の色 / icon color */
+    var ICON_BUTTON_DIM_COLOR = ICON_BUTTON_UI_DARK ? [1, 1, 1, 0.20] : [0, 0, 0, 0.25]; /* 無効時の色 / color when disabled */
+
+    /**
+     * onDraw で絵を描くアイコンのボタンを追加する。押すと onClick を呼ぶ（無効の間は押せず、薄く描く）
+     * @param {Group} parent - 追加先
+     * @param {number[]} iconSize - [幅, 高さ]
+     * @param {Function} drawIcon - 絵を描く関数 (iconGraphics, iconWidth, iconHeight, iconColor)
+     * @returns {Group} アイコン
+     */
+    function addIconButton(parent, iconSize, drawIcon) {
+        var iconButton = parent.add("group");
+        iconButton.preferredSize = iconSize;
+        iconButton.minimumSize = iconSize;
+        iconButton.maximumSize = iconSize;
+        iconButton.onDraw = function () {
+            var iconColor = isIconButtonEnabledInTree(iconButton) ? ICON_BUTTON_COLOR : ICON_BUTTON_DIM_COLOR;
+            drawIcon(iconButton.graphics, iconSize[0], iconSize[1], iconColor);
+        };
+        iconButton.addEventListener("mousedown", function () {
+            if (!isIconButtonEnabledInTree(iconButton)) return;
+            if (typeof iconButton.onClick === "function") iconButton.onClick();
+        });
+        return iconButton;
+    }
+
+    /**
+     * アイコンのボタンの有効／無効を切り替えて描き直す（変わらないときは描き直さない）
+     * @param {Group} iconButton - addIconButton() で作ったアイコン
+     * @param {boolean} isEnabled - 有効にするなら true
+     * @returns {void}
+     */
+    function setIconButtonEnabled(iconButton, isEnabled) {
+        if (iconButton.enabled === isEnabled) return;
+        iconButton.enabled = isEnabled;
+        /* group には notify() が無いため、隠して再表示して描き直させる / groups have no notify(), so hide and show to repaint */
+        iconButton.hide();
+        iconButton.show();
+    }
+
+    /**
+     * コントロールと親がすべて有効かを判定する（親の無効化は子の enabled に出ないため、親もたどる）
+     * @param {Object} control - 判定するコントロール
+     * @returns {boolean} すべて有効なら true
+     */
+    function isIconButtonEnabledInTree(control) {
+        for (var node = control; node; node = node.parent) {
+            if (!node.enabled) return false;
+        }
+        return true;
+    }
+
+    /**
+     * 絵の座標の長方形の並びを、縦横比を保って中央に置いて塗る（ScriptUI は多角形を塗れないため、斜めも長方形の並びで描く）
+     * @param {ScriptUIGraphics} iconGraphics - 描画先
+     * @param {number} iconWidth - アイコンの幅
+     * @param {number} iconHeight - アイコンの高さ
+     * @param {number[]} designSize - 絵の [幅, 高さ]
+     * @param {number[][]} designRects - 長方形 [左, 上, 右, 下] の並び
+     * @param {number[]} iconColor - [r, g, b, a]
+     * @returns {void}
+     */
+    function fillIconButtonRects(iconGraphics, iconWidth, iconHeight, designSize, designRects, iconColor) {
+        var iconScale = Math.min(iconWidth / designSize[0], iconHeight / designSize[1]);
+        var originX = (iconWidth - designSize[0] * iconScale) / 2;
+        var originY = (iconHeight - designSize[1] * iconScale) / 2;
+        iconGraphics.newPath();
+        for (var i = 0; i < designRects.length; i++) {
+            var designRect = designRects[i];
+            if (designRect[2] <= designRect[0] || designRect[3] <= designRect[1]) continue;
+            iconGraphics.rectPath(originX + designRect[0] * iconScale, originY + designRect[1] * iconScale,
+                (designRect[2] - designRect[0]) * iconScale, (designRect[3] - designRect[1]) * iconScale);
+        }
+        iconGraphics.fillPath(iconGraphics.newBrush(iconGraphics.BrushType.SOLID_COLOR, iconColor));
+    }
+
+    /**
+     * 保存アイコン（トレイに下向きの矢印）を描く。1223×993 の絵。
+     * 矢じりとトレイの V 字の切り欠きは細い長方形を並べ、トレイの四角い穴は塗らずに残す
+     * @param {ScriptUIGraphics} iconGraphics - 描画先
+     * @param {number} iconWidth - アイコンの幅
+     * @param {number} iconHeight - アイコンの高さ
+     * @param {number[]} iconColor - [r, g, b, a]
+     * @returns {void}
+     */
+    function drawSaveIcon(iconGraphics, iconWidth, iconHeight, iconColor) {
+        var designWidth = 1223;
+        var trayHole = [78, 688, 230, 840]; /* トレイの四角い穴 [左, 上, 右, 下] / the tray's square hole */
+        var sliceCount = 16;
+        var designRects = [[535, 0, 688, 383]]; /* 矢印の軸 / arrow shaft */
+        var k;
+
+        /** 穴と重なる部分を除いて長方形を足す / add a rectangle minus the tray hole */
+        function addTrayRect(left, top, right, bottom) {
+            if (right <= trayHole[0] || left >= trayHole[2] || bottom <= trayHole[1] || top >= trayHole[3]) {
+                designRects.push([left, top, right, bottom]);
+                return;
+            }
+            designRects.push([left, top, right, trayHole[1]], [left, trayHole[3], right, bottom],
+                [left, Math.max(top, trayHole[1]), trayHole[0], Math.min(bottom, trayHole[3])],
+                [trayHole[2], Math.max(top, trayHole[1]), right, Math.min(bottom, trayHole[3])]);
+        }
+
+        /* 下向きの矢じり（上の付け根から先端へ細っていく）/ the downward head */
+        for (k = 0; k < sliceCount; k++) {
+            var headHalf = 251 * (1 - (k + 0.5) / sliceCount);
+            var headTop = 383 + (703 - 383) * k / sliceCount;
+            designRects.push([612 - headHalf, headTop, 612 + headHalf, headTop + (703 - 383) / sliceCount]);
+        }
+        /* トレイ：上辺に V 字の切り欠き（幅 458 から下へ細り、856 で閉じる）/ tray with a V notch along the top */
+        for (k = 0; k < sliceCount; k++) {
+            var notchTop = 612 + (856 - 612) * k / sliceCount;
+            var notchBottom = notchTop + (856 - 612) / sliceCount;
+            var notchHalf = 229 * (1 - (k + 0.5) / sliceCount);
+            addTrayRect(0, notchTop, 612 - notchHalf, notchBottom);
+            addTrayRect(612 + notchHalf, notchTop, designWidth, notchBottom);
+        }
+        addTrayRect(0, 856, designWidth, 993);
+        fillIconButtonRects(iconGraphics, iconWidth, iconHeight, [designWidth, 993], designRects, iconColor);
+    }
+
+    /**
+     * 削除アイコン（ゴミ箱）を描く。756×825 の絵
+     * @param {ScriptUIGraphics} iconGraphics - 描画先
+     * @param {number} iconWidth - アイコンの幅
+     * @param {number} iconHeight - アイコンの高さ
+     * @param {number[]} iconColor - [r, g, b, a]
+     * @returns {void}
+     */
+    function drawTrashIcon(iconGraphics, iconWidth, iconHeight, iconColor) {
+        fillIconButtonRects(iconGraphics, iconWidth, iconHeight, [756, 825], [
+            [206, 0, 550, 70], [206, 70, 275, 137], [481, 70, 550, 137],     /* 取っ手 / handle */
+            [0, 137, 756, 207],                                               /* ふた / lid */
+            [69, 207, 138, 825], [618, 207, 688, 825], [138, 756, 618, 825], /* 本体 / body */
+            [206, 275, 275, 687], [343, 275, 413, 687], [481, 275, 550, 687] /* 縦の線 / ribs */
+        ], iconColor);
+    }
+
+    // アイコンのボタン（再利用パーツ）ここまで / End of the reusable icon buttons
+
     // =========================================
     // ローカライズ / Localization
     // =========================================
@@ -840,25 +1026,39 @@ var SCRIPT_UPDATED  = "2026-10-15";                   /* 更新日 / last update
             rotateTcy: { ja: "欧文回転・縦中横", en: "Rotation and Tate-Chu-Yoko" },
             replace: { ja: "文字の変換", en: "Character Conversion" },
             numbers: { ja: "数字", en: "Numbers" },
+            paragraph: { ja: "段落", en: "Paragraph" },
             preview: { ja: "変換の確認", en: "Conversion Check" }
         },
         checkbox: {
             rotateRoman: { ja: "縦組み中の欧文回転", en: "Rotate Roman characters" },
-            tcyNumbers: { ja: "数字を縦中横", en: "Tate-Chu-Yoko for numbers" },
+            tcyNumbers: { ja: "数字を縦中横", en: "TCY numbers" },
+            tcyDigits2: { ja: "2桁", en: "2 digits" },
+            tcyDigits3: { ja: "3桁", en: "3 digits" },
+            tcyDigits4: { ja: "4桁", en: "4 digits" },
+            tcyGlyphByLength: { ja: "字数に合わせた等幅字形", en: "Fixed-width forms by length" },
             tcyExcludeAdjacent: { ja: "桁区切り・小数点の隣は除く", en: "Skip numbers next to separators" },
-            tcyCapitals: { ja: "大文字の英字（2〜3字）を縦中横", en: "Tate-Chu-Yoko for 2–3 capitals" },
-            tcyExclamation: { ja: "「!!」「!?」を縦中横", en: "Tate-Chu-Yoko for \"!!\" and \"!?\"" },
-            halfwidthAlnum: { ja: "全角英数字を半角に", en: "Full-width letters and digits to half-width" },
-            commaToTouten: { ja: "桁区切りの「,」「，」を「、」に", en: "Thousands \",\" to \"、\"" },
-            periodToNakaguro: { ja: "小数点の「.」「．」を「・」に", en: "Decimal \".\" to \"・\"" },
+            tcyCapitals: { ja: "大文字の英字（2〜3字）を縦中横", en: "TCY 2–3 capitals" },
+            tcyExclamation: { ja: "「!!」「!?」を縦中横", en: "TCY \"!!\" and \"!?\"" },
+            halfwidthAlnum: { ja: "全角英数字を半角に", en: "Full-width alnum to half-width" },
+            commaToTouten: { ja: "桁区切り「,」→「、」", en: "Thousands \",\" → \"、\"" },
+            periodToNakaguro: { ja: "小数点「.」→「・」", en: "Decimal \".\" → \"・\"" },
             singleDigitFullwidth: { ja: "1桁の数字を全角に", en: "Single digits to full-width" },
-            japaneseEra: { ja: "西暦を和暦に（2026年 → 令和8年）", en: "Western years to Japanese era" },
+            japaneseEra: { ja: "西暦を和暦に", en: "Western years to Japanese era" },
             kanji: { ja: "漢数字に変換", en: "Convert to kanji numerals" },
-            verticalOnly: { ja: "縦組みのテキストだけを処理", en: "Vertical text only" }
+            mojikumiBeta: { ja: "ベタ組み", en: "Solid mojikumi" },
+            kinsokuSoftV2: { ja: "弱い禁則v2", en: "Soft v2 kinsoku" },
+            justifyLastLineTop: { ja: "行頭行末揃え（最終行上）", en: "Justify, last line top" },
+            convertToVertical: { ja: "横組みを縦組みに", en: "Make horizontal text vertical" },
+            verticalOnly: { ja: "縦組みだけを処理", en: "Vertical text only" }
+        },
+        glyphShort: {
+            half: { ja: "半角", en: "half" },
+            third: { ja: "三分", en: "third" },
+            quarter: { ja: "四分", en: "quarter" }
         },
         radio: {
-            kanjiDigit: { ja: "1字ずつ（二〇二六）", en: "Digit by digit (二〇二六)" },
-            kanjiPositional: { ja: "十・百・千を入れる（二千二十六）", en: "With 十・百・千 (二千二十六)" }
+            kanjiDigit: { ja: "二〇二六", en: "二〇二六" },
+            kanjiPositional: { ja: "二千二十六", en: "二千二十六" }
         },
         field: {
             digits: { ja: "桁数", en: "Digits" },
@@ -866,19 +1066,64 @@ var SCRIPT_UPDATED  = "2026-10-15";                   /* 更新日 / last update
         },
         preview: {
             tcyMark: { ja: "［縦中横］", en: " [TCY]" },
+            tcyGlyphMark: { ja: "［縦中横・{glyph}］", en: " [TCY, {glyph}]" },
             none: { ja: "（変換する文字はありません）", en: "(Nothing to convert)" }
         },
         button: {
             ok: { ja: "OK", en: "OK" },
             cancel: { ja: "キャンセル", en: "Cancel" }
         },
+        preset: {
+            label: { ja: "プリセット", en: "Preset" },
+            placeholder: { ja: "---", en: "---" },
+            name: { ja: "プリセット名", en: "Preset name" },
+            saveTitle: { ja: "プリセットを保存", en: "Save Preset" },
+            builtin: {
+                standard: { ja: "標準", en: "Standard" },
+                digitsByLength: { ja: "1桁全角・2〜3桁縦中横・4桁以上漢数字", en: "1 full-width / 2–3 TCY / 4+ kanji" },
+                kanjiPositional: { ja: "漢数字（十・百・千）・和暦", en: "Kanji with 十・百・千, era years" },
+                rotateOnly: { ja: "欧文回転だけ", en: "Rotation only" }
+            }
+        },
+        confirm: {
+            presetOverwrite: { ja: "「{name}」を上書きしますか？", en: "Overwrite \"{name}\"?" },
+            presetDelete: { ja: "「{name}」を削除しますか？", en: "Delete \"{name}\"?" }
+        },
+        progress: {
+            title: { ja: "縦組みの整形", en: "Vertical Text Formatter" },
+            rotate: { ja: "欧文回転を適用中...", en: "Rotating Roman characters..." },
+            edit: { ja: "文字を変換中... {current}/{total}", en: "Converting text... {current}/{total}" },
+            tcy: { ja: "縦中横を適用中... {current}/{total}", en: "Applying Tate-Chu-Yoko... {current}/{total}" }
+        },
         alert: {
             noSelection: { ja: "テキストを選択してください。", en: "Select text first." },
             noVerticalText: { ja: "縦組みのテキストがありません。", en: "No vertical text is selected." },
+            presetSaveFailed: { ja: "プリセットを保存できませんでした。", en: "Could not save the preset." },
+            presetNameTaken: { ja: "組み込みのプリセットと同じ名前は使えません。", en: "That name is used by a built-in preset." },
             actionFailed: { ja: "縦組み中の欧文回転・縦中横を適用できませんでした。", en: "Could not apply the vertical text settings." }
         },
-        /* ステップボタン用 / for the stepper */
+        /* ステップボタン用（stepUp〜）と、項目の説明 / for the stepper (stepUp…) and option descriptions */
         tooltip: {
+            preset: { ja: "組み込みのプリセットか、保存した設定を読み込みます。", en: "Loads a built-in preset or saved settings." },
+            presetSave: { ja: "今の設定に名前を付けて保存します。", en: "Saves the current settings under a name." },
+            presetDelete: { ja: "選んでいる保存したプリセットを削除します。", en: "Deletes the selected saved preset." },
+            presetName: { ja: "保存する設定の名前です。同じ名前は上書きします。", en: "Name the settings are saved under. The same name is overwritten." },
+            tcyGlyphByLength: { ja: "縦中横の文字を、2字は等幅半角・3字は等幅三分・4字は等幅四分の字形にします", en: "Uses half-width forms for 2 characters, third-width for 3 and quarter-width for 4" },
+            tcyExcludeAdjacent: { ja: "「3,000」の「000」や「12.5」の「12」を縦中横にしません", en: "Leaves \"000\" in \"3,000\" and \"12\" in \"12.5\" alone" },
+            tcyCapitals: { ja: "「PDF」「OK」など、すべて大文字の2〜3字の英字を縦中横にします", en: "Tate-Chu-Yoko for all-capital words of 2–3 letters such as PDF" },
+            tcyExclamation: { ja: "感嘆符・疑問符の2字の組を縦中横にします（全角は半角にそろえます）", en: "Tate-Chu-Yoko for pairs of ! and ? (full-width marks become half-width)" },
+            halfwidthAlnum: { ja: "「２０」「ＰＤＦ」なども縦中横・欧文回転の対象にします", en: "Makes full-width digits and letters targets for Tate-Chu-Yoko and rotation" },
+            commaToTouten: { ja: "桁区切りの「,」「，」を「、」にします（3,000 → 3、000）", en: "Replaces thousands separators \",\" \"，\" with \"、\"" },
+            periodToNakaguro: { ja: "小数点の「.」「．」を「・」にします（12.5 → 12・5）", en: "Replaces decimal points \".\" \"．\" with \"・\"" },
+            singleDigitFullwidth: { ja: "1桁の数字を全角にして正立させます", en: "Makes single digits full-width so they stand upright" },
+            japaneseEra: { ja: "「2026年」を「令和8年」にします。月日があれば改元の前後を月日で判定します", en: "2026年 → 令和8年; a following month and day decide the era at a change" },
+            kanjiDigit: { ja: "1字ずつ漢数字にします（2026 → 二〇二六）", en: "Digit by digit (2026 → 二〇二六)" },
+            kanjiPositional: { ja: "十・百・千を入れます（2026 → 二千二十六、2000 → 二千）", en: "With 十・百・千 (2026 → 二千二十六)" },
+            mojikumiBeta: { ja: "文字組みアキ量設定を「ベタ組み」にします", en: "Sets the mojikumi set to Solid (ベタ組み)" },
+            kinsokuSoftV2: { ja: "禁則を「弱い禁則v2」にします", en: "Sets kinsoku to Soft v2" },
+            justifyLastLineTop: { ja: "行揃えを「行頭行末揃え（最終行上）」にします", en: "Justifies with the last line aligned to the top" },
+            convertToVertical: { ja: "横組みのテキストを縦組みにしてから処理します", en: "Turns horizontal text vertical before processing" },
+            verticalOnly: { ja: "横組みのテキストを一緒に選んでいても変えません", en: "Leaves horizontal text in the selection unchanged" },
             stepUp: {
                 ja: "値を増やす（shift＋クリックで10の倍数へ、option＋クリックで0.1ずつ）",
                 en: "Increase (Shift-click to snap to 10s, Option-click by 0.1)"
@@ -2149,7 +2394,7 @@ var SCRIPT_UPDATED  = "2026-10-15";                   /* 更新日 / last update
      */
     function emitDigitRun(digitText, options, emit) {
         var digitCount = digitText.length;
-        if (options.tcyNumbers && digitCount >= options.tcyMinDigits && digitCount <= options.tcyMaxDigits) {
+        if (options.tcyNumbers && options["tcyDigits" + digitCount] === true) {
             emit(digitText, true);
         } else if (options.singleDigitFullwidth && digitCount === 1) {
             emit(toFullwidthDigits(digitText), false);
@@ -2209,7 +2454,7 @@ var SCRIPT_UPDATED  = "2026-10-15";                   /* 更新日 / last update
      * @param {string} sourceText - 元の文字列
      * @param {Object} options - 変換の設定
      * @returns {{edits: Array<{start: number, length: number, text: string}>, tcySpans: Array<{start: number, length: number}>,
-     *     changes: Array<{before: string, after: string, tcy: boolean}>, outputLength: number}}
+     *     changes: Array<{before: string, after: string, tcy: boolean, tcyLength: number}>, outputLength: number}}
      *     edits は後ろから順、changes は確認の一覧用（前から順）
      */
     function planVerticalText(sourceText, options) {
@@ -2220,6 +2465,7 @@ var SCRIPT_UPDATED  = "2026-10-15";                   /* 更新日 / last update
         var outputLength = 0;
         var segmentText = "";
         var segmentHasTcy = false;
+        var segmentTcyLength = 0;
 
         /**
          * 出力に文字列を足す（縦中横なら位置を控える）
@@ -2231,6 +2477,7 @@ var SCRIPT_UPDATED  = "2026-10-15";                   /* 更新日 / last update
             if (isTcy) {
                 tcySpans.push({ start: outputLength, length: pieceText.length });
                 segmentHasTcy = true;
+                segmentTcyLength = pieceText.length;
             }
             outputLength += pieceText.length;
             segmentText += pieceText;
@@ -2248,10 +2495,11 @@ var SCRIPT_UPDATED  = "2026-10-15";                   /* 更新日 / last update
                 edits.push({ start: start, length: length, text: segmentText });
             }
             if (segmentText !== originalText || segmentHasTcy) {
-                changes.push({ before: originalText, after: segmentText, tcy: segmentHasTcy });
+                changes.push({ before: originalText, after: segmentText, tcy: segmentHasTcy, tcyLength: segmentTcyLength });
             }
             segmentText = "";
             segmentHasTcy = false;
+            segmentTcyLength = 0;
         }
 
         var i = 0;
@@ -2323,7 +2571,7 @@ var SCRIPT_UPDATED  = "2026-10-15";                   /* 更新日 / last update
     /**
      * 選択から処理の対象を集める。文字選択中はその範囲、オブジェクト選択ならテキストフレームごと
      * @param {Document} doc - 対象のドキュメント
-     * @returns {Array<Object>} { frame | range, offset（文字の番号のずれ）, text, isVertical }
+     * @returns {Array<Object>} { frame | range, ownerFrame（属するテキストフレーム）, offset（文字の番号のずれ）, text, isVertical }
      */
     function collectTextTargets(doc) {
         var selection = doc.selection;
@@ -2335,6 +2583,7 @@ var SCRIPT_UPDATED  = "2026-10-15";                   /* 更新日 / last update
                     range: selection,
                     offset: selection.characterOffset - 1,
                     text: selection.contents,
+                    ownerFrame: resolveTextRangeFrame(selection),
                     isVertical: isVerticalFrame(resolveTextRangeFrame(selection))
                 });
             }
@@ -2342,19 +2591,19 @@ var SCRIPT_UPDATED  = "2026-10-15";                   /* 更新日 / last update
         }
         var textFrames = collectSelectionTextFrames(selection, { skipLocked: true, skipHidden: true });
         for (var i = 0; i < textFrames.length; i++) {
-            textTargets.push({ frame: textFrames[i], offset: 0, text: textFrames[i].contents, isVertical: isVerticalFrame(textFrames[i]) });
+            textTargets.push({ frame: textFrames[i], ownerFrame: textFrames[i], offset: 0, text: textFrames[i].contents, isVertical: isVerticalFrame(textFrames[i]) });
         }
         return textTargets;
     }
 
     /**
-     * 縦組みだけに絞る（指定がなければそのまま）
+     * 処理の対象に絞る。［縦組みのテキストだけを処理］のときは縦組みだけ（横組みを縦組みにするときは横組みも含める）
      * @param {Array<Object>} textTargets - collectTextTargets() の戻り値
-     * @param {boolean} verticalOnly - 縦組みだけにするか
+     * @param {Object} options - 変換の設定
      * @returns {Array<Object>} 対象
      */
-    function filterTextTargets(textTargets, verticalOnly) {
-        if (!verticalOnly) return textTargets;
+    function filterTextTargets(textTargets, options) {
+        if (!options.verticalOnly || options.convertToVertical) return textTargets;
         var filteredTargets = [];
         for (var i = 0; i < textTargets.length; i++) {
             if (textTargets[i].isVertical) filteredTargets.push(textTargets[i]);
@@ -2399,7 +2648,7 @@ var SCRIPT_UPDATED  = "2026-10-15";                   /* 更新日 / last update
      * @param {Object} textTarget - 対象
      * @param {number} start - 範囲の先頭（対象の中の位置）
      * @param {number} length - 文字数
-     * @returns {void}
+     * @returns {TextRange} 選択した範囲
      */
     function selectTargetSpan(doc, textTarget, start, length) {
         /* select() は選択に足されるので、先に外す / select() adds to the selection, so clear it first */
@@ -2407,61 +2656,223 @@ var SCRIPT_UPDATED  = "2026-10-15";                   /* 更新日 / last update
         var spanRange = getTargetCharacters(textTarget)[textTarget.offset + start];
         spanRange.length = length;
         spanRange.select();
+        return spanRange;
+    }
+
+    /* 縦中横の字数ごとの等幅字形（確認の一覧の字形名のキーも兼ねる） / Fixed-width form per Tate-Chu-Yoko length (also the label key) */
+    var TCY_GLYPH_KEYS_BY_LENGTH = { 2: "half", 3: "third", 4: "quarter" };
+
+    /**
+     * 縦中横の字数に合わせた等幅字形を返す（2字は半角・3字は三分・4字は四分で、ほぼ全角1字分に収める）
+     * @param {number} charCount - 縦中横の字数
+     * @returns {AlternateGlyphsForm|null} 字形（2〜4字以外は null）
+     */
+    function getTcyGlyphForm(charCount) {
+        if (charCount === 2) return AlternateGlyphsForm.HALFWIDTH;
+        if (charCount === 3) return AlternateGlyphsForm.THIRDWIDTH;
+        if (charCount === 4) return AlternateGlyphsForm.QUARTERWIDTH;
+        return null;
     }
 
     /**
-     * 文字の書き換え・欧文回転・縦中横を順に適用する
+     * 範囲に等幅字形を適用する。直接の代入が効かなければ、一時的な文字スタイル経由で入れる
+     * （文字スタイルの方法は uske-s「Illustratorで字形を置換するスクリプト」による）
+     * @param {Document} doc - 対象のドキュメント
+     * @param {TextRange} spanRange - 対象の範囲
+     * @param {AlternateGlyphsForm} glyphForm - 字形
+     * @returns {void}
+     */
+    function applyGlyphForm(doc, spanRange, glyphForm) {
+        try {
+            spanRange.characterAttributes.alternateGlyphs = glyphForm;
+            if (spanRange.characterAttributes.alternateGlyphs === glyphForm) return;
+        } catch (e) {
+            $.writeln("applyGlyphForm (direct): " + e);
+        }
+        var tempStyle = null;
+        try {
+            tempStyle = doc.characterStyles.add(SCRIPT_NAME + "_" + new Date().getTime());
+            tempStyle.characterAttributes.alternateGlyphs = glyphForm;
+            /* false：手動の書式は残す / false keeps the local formatting */
+            tempStyle.applyTo(spanRange, false);
+        } catch (e) {
+            $.writeln("applyGlyphForm (style): " + e);
+        } finally {
+            if (tempStyle) {
+                try { tempStyle.remove(); } catch (removeError) { /* 消せなくても続ける / keep going */ }
+            }
+        }
+    }
+
+    /**
+     * 対象の段落に文字組みアキ量設定・禁則・行揃えを適用する
+     * @param {Document} doc - 対象のドキュメント
+     * @param {Object} textTarget - 対象
+     * @param {Object} options - 変換の設定
+     * @returns {void}
+     */
+    function applyParagraphSettings(doc, textTarget, options) {
+        if (!options.mojikumiBeta && !options.kinsokuSoftV2 && !options.justifyLastLineTop) return;
+        var mojikumiBeta = (doc.mojikumiSet.length > MOJIKUMI_BETA_INDEX) ? doc.mojikumiSet[MOJIKUMI_BETA_INDEX] : null;
+        var paragraphs = textTarget.frame ? textTarget.frame.paragraphs : textTarget.range.paragraphs;
+        for (var i = 0; i < paragraphs.length; i++) {
+            /* 末尾の空の段落は length に数えられるが取り出すと No such element になる / A trailing empty paragraph is counted but throws "No such element" */
+            var paragraphAttributes;
+            try {
+                paragraphAttributes = paragraphs[i].paragraphAttributes;
+            } catch (e) {
+                continue;
+            }
+            if (options.mojikumiBeta && mojikumiBeta) paragraphAttributes.mojikumi = mojikumiBeta;
+            if (options.kinsokuSoftV2) paragraphAttributes.kinsoku = KINSOKU_SOFT_V2;
+            /* 縦組みでは「最終行左揃え」が最終行上揃え / In vertical text, "last line left" means last line top */
+            if (options.justifyLastLineTop) paragraphAttributes.justification = Justification.FULLJUSTIFYLASTLINELEFT;
+        }
+    }
+
+    /**
+     * 処理の対象をまとめて選択する（文字選択はその範囲、オブジェクト選択はテキストフレーム）
+     * @param {Document} doc - 対象のドキュメント
+     * @param {Array<Object>} textTargets - 対象
+     * @param {number} rangeLength - 文字選択のときの範囲の文字数
+     * @returns {void}
+     */
+    function selectTextTargets(doc, textTargets, rangeLength) {
+        if (textTargets[0].range) {
+            selectTargetSpan(doc, textTargets[0], 0, rangeLength);
+            return;
+        }
+        doc.selection = null;
+        for (var i = 0; i < textTargets.length; i++) textTargets[i].frame.selected = true;
+    }
+
+    /**
+     * 段落の設定・欧文回転・文字の書き換え・縦中横を順に適用する
+     * （欧文回転は書き換えの前に全体へ掛け、書き換えた文字は前の文字の書式として回転を引き継ぐ）
      * @param {Document} doc - 対象のドキュメント
      * @param {Array<Object>} textTargets - 対象
      * @param {Object} options - 変換の設定
-     * @returns {boolean} アクションまで実行できたら true
+     * @returns {string} 失敗したときの理由（成功は空文字）
      */
     function runVerticalTextConversion(doc, textTargets, options) {
         var plans = [];
-        var needsAction = options.rotateRoman;
+        var tcyTotal = 0;
         for (var i = 0; i < textTargets.length; i++) {
             plans.push(planVerticalText(textTargets[i].text, options));
-            if (plans[i].tcySpans.length > 0) needsAction = true;
+            tcyTotal += plans[i].tcySpans.length;
         }
-        for (var e = 0; e < textTargets.length; e++) {
-            applyTextEdits(textTargets[e], plans[e].edits);
-        }
-        if (!needsAction) return true;
+        var needsAction = options.rotateRoman || tcyTotal > 0;
+        var stepTotal = (options.rotateRoman ? 1 : 0) + textTargets.length + tcyTotal;
+        var stepDone = 0;
+        var progress = createProgressWindow(getLabel("progress.title"));
 
-        if (!loadTemporaryActionSet(buildVerticalTextActions(), ACTION_SET_NAME)) return false;
+        /**
+         * 進み具合を1つ進めて表示する
+         * @param {string} message - 表示する文言
+         * @returns {void}
+         */
+        function advanceProgress(message) {
+            stepDone++;
+            progress.set(stepDone / stepTotal, message);
+        }
+
+        if (needsAction && !loadTemporaryActionSet(buildVerticalTextActions(), ACTION_SET_NAME)) {
+            progress.close();
+            return "loadTemporaryActionSet";
+        }
         try {
-            if (options.rotateRoman) {
-                if (textTargets[0].range) {
-                    selectTargetSpan(doc, textTargets[0], 0, plans[0].outputLength);
-                } else {
-                    doc.selection = null;
-                    for (var f = 0; f < textTargets.length; f++) textTargets[f].frame.selected = true;
+            /* 横組みは先に縦組みへ / Turn horizontal text vertical first */
+            if (options.convertToVertical) {
+                for (var v = 0; v < textTargets.length; v++) {
+                    var ownerFrame = textTargets[v].ownerFrame;
+                    if (ownerFrame && !isVerticalFrame(ownerFrame)) ownerFrame.orientation = TextOrientation.VERTICAL;
                 }
-                app.doScript(ROTATE_ACTION_NAME, ACTION_SET_NAME, false);
             }
+
+            /* 段落の設定（文字の書式には触れない） / Paragraph settings (character formatting is untouched) */
+            for (var p = 0; p < textTargets.length; p++) {
+                applyParagraphSettings(doc, textTargets[p], options);
+            }
+
+            /* まず欧文回転を、書き換え前のテキスト全体に / Rotate first, over the whole text before any edits */
+            if (options.rotateRoman) {
+                progress.set(0, getLabel("progress.rotate"));
+                selectTextTargets(doc, textTargets, textTargets[0].text.length);
+                app.doScript(ROTATE_ACTION_NAME, ACTION_SET_NAME, false);
+                advanceProgress(getLabel("progress.rotate"));
+            }
+
+            for (var e = 0; e < textTargets.length; e++) {
+                applyTextEdits(textTargets[e], plans[e].edits);
+                advanceProgress(getLabel("progress.edit", { current: e + 1, total: textTargets.length }));
+            }
+
+            var tcyDone = 0;
             for (var t = 0; t < textTargets.length; t++) {
                 var tcySpans = plans[t].tcySpans;
                 for (var s = 0; s < tcySpans.length; s++) {
-                    selectTargetSpan(doc, textTargets[t], tcySpans[s].start, tcySpans[s].length);
+                    var tcyRange = selectTargetSpan(doc, textTargets[t], tcySpans[s].start, tcySpans[s].length);
                     app.doScript(TCY_ACTION_NAME, ACTION_SET_NAME, false);
+                    var glyphForm = options.tcyGlyphByLength ? getTcyGlyphForm(tcySpans[s].length) : null;
+                    if (glyphForm !== null) applyGlyphForm(doc, tcyRange, glyphForm);
+                    tcyDone++;
+                    advanceProgress(getLabel("progress.tcy", { current: tcyDone, total: tcyTotal }));
                 }
             }
-            return true;
+            return "";
         } catch (e) {
             $.writeln("runVerticalTextConversion: " + e);
-            return false;
+            return e + " (line " + e.line + ")";
         } finally {
-            unloadTemporaryActionSet(ACTION_SET_NAME);
+            if (needsAction) unloadTemporaryActionSet(ACTION_SET_NAME);
+            progress.close();
             /* 元の選択に戻す / Restore the original selection */
             try {
-                if (textTargets[0].range) {
-                    selectTargetSpan(doc, textTargets[0], 0, plans[0].outputLength);
-                } else {
-                    doc.selection = null;
-                    for (var u = 0; u < textTargets.length; u++) textTargets[u].frame.selected = true;
-                }
+                selectTextTargets(doc, textTargets, plans[0].outputLength);
             } catch (restoreError) { /* 戻せなくても続ける / keep going */ }
         }
+    }
+
+    // =========================================
+    // プログレスバー / Progress bar
+    // =========================================
+
+    /**
+     * 進捗表示用のパレットウィンドウを生成して表示する（非モーダルなので処理中に更新できる）
+     * 戻り値の set(fraction 0..1, message) で進捗を更新、close() で閉じる
+     * @param {string} title - ウィンドウのタイトル
+     * @returns {{set: function, close: function}} 進捗の更新と終了の操作
+     */
+    function createProgressWindow(title) {
+        var progressWindow = new Window("palette", title);
+        setupWindow(progressWindow, 8);
+        var progressBar = progressWindow.add("progressbar", undefined, 0, 100);
+        progressBar.preferredSize = [PROGRESS_WIDTH, 8];
+        var progressLabel = progressWindow.add("statictext", undefined, "");
+        progressLabel.preferredSize.width = PROGRESS_WIDTH;
+        progressWindow.show();
+        progressWindow.update();
+        return {
+            set: function (fraction, message) {
+                var percent = Math.round(fraction * 100);
+                progressBar.value = (percent < 0) ? 0 : (percent > 100 ? 100 : percent);
+                if (message != null) { progressLabel.text = message; }
+                progressWindow.update(); /* 同期ループ中でも再描画させる / force a repaint even inside a synchronous loop */
+            },
+            close: function () { progressWindow.close(); }
+        };
+    }
+
+    /**
+     * 確認の一覧で縦中横の箇所に付ける印を返す（字形を変えるときは字形名も入れる）
+     * @param {boolean} glyphByLength - 字数に合わせた等幅字形にするか
+     * @param {number} charCount - 縦中横の字数
+     * @returns {string} 印
+     */
+    function getTcyPreviewMark(glyphByLength, charCount) {
+        var glyphLabelKey = glyphByLength ? TCY_GLYPH_KEYS_BY_LENGTH[charCount] : undefined;
+        if (glyphLabelKey === undefined) return getLabel("preview.tcyMark");
+        return getLabel("preview.tcyGlyphMark", { glyph: getLabel("glyphShort." + glyphLabelKey) });
     }
 
     /**
@@ -2478,7 +2889,7 @@ var SCRIPT_UPDATED  = "2026-10-15";                   /* 更新日 / last update
             for (var c = 0; c < changes.length; c++) {
                 var change = changes[c];
                 var lineText = (change.before === change.after) ? change.before : change.before + " → " + change.after;
-                if (change.tcy) lineText += getLabel("preview.tcyMark");
+                if (change.tcy) lineText += getTcyPreviewMark(options.tcyGlyphByLength, change.tcyLength);
                 if (lineCounts.hasOwnProperty(lineText)) {
                     lineCounts[lineText]++;
                 } else {
@@ -2704,6 +3115,127 @@ var SCRIPT_UPDATED  = "2026-10-15";                   /* 更新日 / last update
     // ボタン行（再利用パーツ）ここまで / End of the reusable button row
 
     // =========================================
+    // プリセット / Presets
+    // =========================================
+    var presetSettingsStore = createSettingsStore(SCRIPT_NAME + "Presets", "persistent");
+
+    /**
+     * 保存したプリセットを返す
+     * @returns {Object} プリセット名をキーにした設定の集まり（書き換えても保存されない）
+     */
+    function loadPresetMap() {
+        return presetSettingsStore.load({});
+    }
+
+    /**
+     * 保存したプリセットの名前を、名前順で返す
+     * @returns {string[]} プリセット名
+     */
+    function getPresetNames() {
+        var presetMap = loadPresetMap();
+        var presetNames = [];
+        for (var presetName in presetMap) {
+            if (presetMap.hasOwnProperty(presetName)) presetNames.push(presetName);
+        }
+        presetNames.sort();
+        return presetNames;
+    }
+
+    /**
+     * 名前が組み込みのプリセットと同じか
+     * @param {string} presetName - プリセット名
+     * @returns {boolean} 同じなら true
+     */
+    function isBuiltinPresetName(presetName) {
+        for (var i = 0; i < BUILTIN_PRESETS.length; i++) {
+            if (getLabel("preset.builtin." + BUILTIN_PRESETS[i].labelKey) === presetName) return true;
+        }
+        return false;
+    }
+
+    /**
+     * 既定値にプリセットの値を重ねた設定を返す
+     * @param {Object} presetData - プリセットの値（一部だけでもよい）
+     * @returns {Object} DEFAULT_SETTINGS と同じ形
+     */
+    function mergePresetData(presetData) {
+        var mergedSettings = {};
+        for (var settingKey in DEFAULT_SETTINGS) {
+            if (!DEFAULT_SETTINGS.hasOwnProperty(settingKey)) continue;
+            var hasValue = presetData.hasOwnProperty(settingKey) && typeof presetData[settingKey] === typeof DEFAULT_SETTINGS[settingKey];
+            mergedSettings[settingKey] = hasValue ? presetData[settingKey] : DEFAULT_SETTINGS[settingKey];
+        }
+        return mergedSettings;
+    }
+
+    /**
+     * プリセット名を尋ねる
+     * @param {string} initialName - 入力欄に入れておく名前
+     * @returns {string|null} プリセット名。キャンセルか空なら null
+     */
+    function showPresetNameDialog(initialName) {
+        var nameDialog = new Window("dialog", getLabel("preset.saveTitle"));
+        setupWindow(nameDialog);
+        var nameRow = nameDialog.add("group");
+        setupRow(nameRow, ["left", "center"], 8);
+        nameRow.add("statictext", undefined, labelText("preset.name"));
+        var nameInput = nameRow.add("edittext", undefined, initialName);
+        nameInput.helpTip = getLabel("tooltip.presetName");
+        nameInput.characters = PRESET_NAME_CHARS;
+        nameInput.active = true;
+        var buttonRow = addButtonRow(nameDialog);
+        var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+        var btnOK = buttonRow.rightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+        alignRightOnlyButtonRow(buttonRow);
+        btnCancel.preferredSize.width = BUTTON_WIDTH;
+        btnOK.preferredSize.width = BUTTON_WIDTH;
+        prepareDialogWindow(nameDialog, SCRIPT_NAME + "_presetName");
+        if (nameDialog.show() !== 1) return null;
+        var presetName = nameInput.text.replace(/^\s+|\s+$/g, "");
+        if (!presetName || presetName === getLabel("preset.placeholder")) return null;
+        if (isBuiltinPresetName(presetName)) {
+            alert(getLabel("alert.presetNameTaken"));
+            return null;
+        }
+        return presetName;
+    }
+
+    /**
+     * 今の設定を名前を付けて保存する（同じ名前は確認してから上書き）
+     * @param {Object} currentSettings - readDialogOptions() の戻り値
+     * @param {string} initialName - 入力欄に入れておく名前
+     * @returns {string|null} 保存したプリセット名。保存しなかったら null
+     */
+    function saveCurrentPreset(currentSettings, initialName) {
+        var presetName = showPresetNameDialog(initialName);
+        if (!presetName) return null;
+        var presetMap = loadPresetMap();
+        if (presetMap.hasOwnProperty(presetName) && !confirm(getLabel("confirm.presetOverwrite", { name: presetName }), true)) return null;
+        presetMap[presetName] = currentSettings;
+        if (!presetSettingsStore.save(presetMap)) {
+            alert(getLabel("alert.presetSaveFailed"));
+            return null;
+        }
+        return presetName;
+    }
+
+    /**
+     * 保存したプリセットを確認してから削除する
+     * @param {string} presetName - プリセット名
+     * @returns {boolean} 削除したら true
+     */
+    function deletePreset(presetName) {
+        if (!confirm(getLabel("confirm.presetDelete", { name: presetName }), true)) return false;
+        var presetMap = loadPresetMap();
+        delete presetMap[presetName];
+        if (!presetSettingsStore.save(presetMap)) {
+            alert(getLabel("alert.presetSaveFailed"));
+            return false;
+        }
+        return true;
+    }
+
+    // =========================================
     // ダイアログ / Dialog
     // =========================================
 
@@ -2717,6 +3249,9 @@ var SCRIPT_UPDATED  = "2026-10-15";                   /* 更新日 / last update
     function addOptionCheckbox(parent, labelPath, value) {
         var optionCheckbox = parent.add("checkbox", undefined, getLabel(labelPath));
         optionCheckbox.value = value;
+        /* 説明があればツールチップに / Show the description as a tooltip when there is one */
+        var tooltipEntry = LABELS.tooltip[labelPath.split(".")[1]];
+        if (tooltipEntry) optionCheckbox.helpTip = getLabel(tooltipEntry);
         return optionCheckbox;
     }
 
@@ -2768,6 +3303,18 @@ var SCRIPT_UPDATED  = "2026-10-15";                   /* 更新日 / last update
         setupWindow(dialog);
         var controls = { dialog: dialog };
 
+        /* プリセット / Presets */
+        var presetRow = dialog.add("group");
+        setupRow(presetRow, ["left", "center"], 8);
+        presetRow.add("statictext", undefined, labelText("preset.label"));
+        controls.presetDropdown = presetRow.add("dropdownlist", undefined, []);
+        controls.presetDropdown.helpTip = getLabel("tooltip.preset");
+        controls.presetDropdown.preferredSize.width = PRESET_DROPDOWN_WIDTH;
+        controls.presetSaveIcon = addIconButton(presetRow, PRESET_ICON_SIZE, drawSaveIcon);
+        controls.presetSaveIcon.helpTip = getLabel("tooltip.presetSave");
+        controls.presetDeleteIcon = addIconButton(presetRow, PRESET_ICON_SIZE, drawTrashIcon);
+        controls.presetDeleteIcon.helpTip = getLabel("tooltip.presetDelete");
+
         var columnsGroup = dialog.add("group");
         columnsGroup.orientation = "row";
         columnsGroup.alignChildren = ["fill", "top"];
@@ -2785,14 +3332,17 @@ var SCRIPT_UPDATED  = "2026-10-15";                   /* 更新日 / last update
         var tcyPanel = leftColumn.add("panel", undefined, getLabel("panel.rotateTcy"));
         setupPanel(tcyPanel, 6);
         controls.rotateRoman = addOptionCheckbox(tcyPanel, "checkbox.rotateRoman", settings.rotateRoman);
-        controls.tcyNumbers = addOptionCheckbox(tcyPanel, "checkbox.tcyNumbers", settings.tcyNumbers);
+        var tcyDigitRow = tcyPanel.add("group");
+        setupRow(tcyDigitRow, ["left", "center"], 8);
+        controls.tcyNumbers = addOptionCheckbox(tcyDigitRow, "checkbox.tcyNumbers", settings.tcyNumbers);
         var tcyNumberGroup = addIndentedGroup(tcyPanel);
-        var tcyRange = addDigitRangeRow(tcyNumberGroup);
-        controls.tcyMinInput = tcyRange.minInput;
-        controls.tcyMaxInput = tcyRange.maxInput;
+        controls.tcyDigits2 = addOptionCheckbox(tcyDigitRow, "checkbox.tcyDigits2", settings.tcyDigits2);
+        controls.tcyDigits3 = addOptionCheckbox(tcyDigitRow, "checkbox.tcyDigits3", settings.tcyDigits3);
+        controls.tcyDigits4 = addOptionCheckbox(tcyDigitRow, "checkbox.tcyDigits4", settings.tcyDigits4);
         controls.tcyExcludeAdjacent = addOptionCheckbox(tcyNumberGroup, "checkbox.tcyExcludeAdjacent", settings.tcyExcludeAdjacent);
         controls.tcyCapitals = addOptionCheckbox(tcyPanel, "checkbox.tcyCapitals", settings.tcyCapitals);
         controls.tcyExclamation = addOptionCheckbox(tcyPanel, "checkbox.tcyExclamation", settings.tcyExclamation);
+        controls.tcyGlyphByLength = addOptionCheckbox(tcyPanel, "checkbox.tcyGlyphByLength", settings.tcyGlyphByLength);
 
         /* 文字の変換 / Character conversion */
         var replacePanel = leftColumn.add("panel", undefined, getLabel("panel.replace"));
@@ -2811,15 +3361,26 @@ var SCRIPT_UPDATED  = "2026-10-15";                   /* 更新日 / last update
         var kanjiRange = addDigitRangeRow(kanjiGroup);
         controls.kanjiMinInput = kanjiRange.minInput;
         controls.kanjiMaxInput = kanjiRange.maxInput;
-        controls.kanjiDigitRadio = kanjiGroup.add("radiobutton", undefined, getLabel("radio.kanjiDigit"));
-        controls.kanjiPositionalRadio = kanjiGroup.add("radiobutton", undefined, getLabel("radio.kanjiPositional"));
+        /* ラジオは同じ親の中だけ排他になるので、1つのグループに並べる / Radios are exclusive only within one parent */
+        var kanjiStyleRow = kanjiGroup.add("group");
+        setupRow(kanjiStyleRow, ["left", "center"], 8);
+        controls.kanjiDigitRadio = kanjiStyleRow.add("radiobutton", undefined, getLabel("radio.kanjiDigit"));
+        controls.kanjiPositionalRadio = kanjiStyleRow.add("radiobutton", undefined, getLabel("radio.kanjiPositional"));
+        controls.kanjiDigitRadio.helpTip = getLabel("tooltip.kanjiDigit");
+        controls.kanjiPositionalRadio.helpTip = getLabel("tooltip.kanjiPositional");
         controls.kanjiPositionalRadio.value = (settings.kanjiStyle === "positional");
         controls.kanjiDigitRadio.value = !controls.kanjiPositionalRadio.value;
 
+        /* 段落 / Paragraph */
+        var paragraphPanel = rightColumn.add("panel", undefined, getLabel("panel.paragraph"));
+        setupPanel(paragraphPanel, 6);
+        controls.mojikumiBeta = addOptionCheckbox(paragraphPanel, "checkbox.mojikumiBeta", settings.mojikumiBeta);
+        controls.kinsokuSoftV2 = addOptionCheckbox(paragraphPanel, "checkbox.kinsokuSoftV2", settings.kinsokuSoftV2);
+        controls.justifyLastLineTop = addOptionCheckbox(paragraphPanel, "checkbox.justifyLastLineTop", settings.justifyLastLineTop);
+
+        controls.convertToVertical = addOptionCheckbox(rightColumn, "checkbox.convertToVertical", settings.convertToVertical);
         controls.verticalOnly = addOptionCheckbox(rightColumn, "checkbox.verticalOnly", settings.verticalOnly);
 
-        controls.tcyMinInput.text = String(settings.tcyMinDigits);
-        controls.tcyMaxInput.text = String(settings.tcyMaxDigits);
         controls.kanjiMinInput.text = String(settings.kanjiMinDigits);
         controls.kanjiMaxInput.text = String(settings.kanjiMaxDigits);
 
@@ -2855,18 +3416,18 @@ var SCRIPT_UPDATED  = "2026-10-15";                   /* 更新日 / last update
      * @returns {Object} DEFAULT_SETTINGS と同じ形
      */
     function readDialogOptions(controls) {
-        var tcyMin = readDigitInput(controls.tcyMinInput, DEFAULT_SETTINGS.tcyMinDigits);
-        var tcyMax = readDigitInput(controls.tcyMaxInput, DEFAULT_SETTINGS.tcyMaxDigits);
         var kanjiMin = readDigitInput(controls.kanjiMinInput, DEFAULT_SETTINGS.kanjiMinDigits);
         var kanjiMax = readDigitInput(controls.kanjiMaxInput, DEFAULT_SETTINGS.kanjiMaxDigits);
         return {
             rotateRoman: controls.rotateRoman.value,
             tcyNumbers: controls.tcyNumbers.value,
-            tcyMinDigits: Math.min(tcyMin, tcyMax),
-            tcyMaxDigits: Math.max(tcyMin, tcyMax),
+            tcyDigits2: controls.tcyDigits2.value,
+            tcyDigits3: controls.tcyDigits3.value,
+            tcyDigits4: controls.tcyDigits4.value,
             tcyExcludeAdjacent: controls.tcyExcludeAdjacent.value,
             tcyCapitals: controls.tcyCapitals.value,
             tcyExclamation: controls.tcyExclamation.value,
+            tcyGlyphByLength: controls.tcyGlyphByLength.value,
             singleDigitFullwidth: controls.singleDigitFullwidth.value,
             japaneseEra: controls.japaneseEra.value,
             kanji: controls.kanji.value,
@@ -2876,8 +3437,31 @@ var SCRIPT_UPDATED  = "2026-10-15";                   /* 更新日 / last update
             halfwidthAlnum: controls.halfwidthAlnum.value,
             commaToTouten: controls.commaToTouten.value,
             periodToNakaguro: controls.periodToNakaguro.value,
+            mojikumiBeta: controls.mojikumiBeta.value,
+            kinsokuSoftV2: controls.kinsokuSoftV2.value,
+            justifyLastLineTop: controls.justifyLastLineTop.value,
+            convertToVertical: controls.convertToVertical.value,
             verticalOnly: controls.verticalOnly.value
         };
+    }
+
+    /**
+     * 設定の値をダイアログの各項目に書き込む
+     * @param {Object} controls - buildDialog() の戻り値
+     * @param {Object} settings - DEFAULT_SETTINGS と同じ形
+     * @returns {void}
+     */
+    function writeDialogSettings(controls, settings) {
+        var checkboxKeys = ["rotateRoman", "tcyNumbers", "tcyDigits2", "tcyDigits3", "tcyDigits4", "tcyExcludeAdjacent", "tcyCapitals",
+            "tcyExclamation", "tcyGlyphByLength", "singleDigitFullwidth", "japaneseEra", "kanji", "halfwidthAlnum", "commaToTouten",
+            "periodToNakaguro", "mojikumiBeta", "kinsokuSoftV2", "justifyLastLineTop", "convertToVertical", "verticalOnly"];
+        for (var i = 0; i < checkboxKeys.length; i++) {
+            controls[checkboxKeys[i]].value = settings[checkboxKeys[i]];
+        }
+        controls.kanjiMinInput.text = String(settings.kanjiMinDigits);
+        controls.kanjiMaxInput.text = String(settings.kanjiMaxDigits);
+        controls.kanjiPositionalRadio.value = (settings.kanjiStyle === "positional");
+        controls.kanjiDigitRadio.value = !controls.kanjiPositionalRadio.value;
     }
 
     /**
@@ -2892,11 +3476,13 @@ var SCRIPT_UPDATED  = "2026-10-15";                   /* 更新日 / last update
          * @returns {void}
          */
         function updateEnabledStates() {
-            setSteppedFieldEnabled(controls.tcyMinInput, controls.tcyNumbers.value);
-            setSteppedFieldEnabled(controls.tcyMaxInput, controls.tcyNumbers.value);
+            controls.tcyDigits2.enabled = controls.tcyNumbers.value;
+            controls.tcyDigits3.enabled = controls.tcyNumbers.value;
+            controls.tcyDigits4.enabled = controls.tcyNumbers.value;
             controls.tcyExcludeAdjacent.enabled = controls.tcyNumbers.value;
             setSteppedFieldEnabled(controls.kanjiMinInput, controls.kanji.value);
             setSteppedFieldEnabled(controls.kanjiMaxInput, controls.kanji.value);
+            controls.verticalOnly.enabled = !controls.convertToVertical.value;
             controls.kanjiDigitRadio.enabled = controls.kanji.value;
             controls.kanjiPositionalRadio.enabled = controls.kanji.value;
         }
@@ -2907,14 +3493,14 @@ var SCRIPT_UPDATED  = "2026-10-15";                   /* 更新日 / last update
          */
         function updatePreview() {
             var options = readDialogOptions(controls);
-            var previewLines = buildPreviewLines(filterTextTargets(textTargets, options.verticalOnly), options);
+            var previewLines = buildPreviewLines(filterTextTargets(textTargets, options), options);
             controls.previewList.removeAll();
             if (previewLines.length === 0) previewLines.push(getLabel("preview.none"));
             for (var i = 0; i < previewLines.length; i++) controls.previewList.add("item", previewLines[i]);
         }
 
-        var checkboxNames = ["rotateRoman", "tcyNumbers", "tcyExcludeAdjacent", "tcyCapitals", "tcyExclamation", "singleDigitFullwidth",
-            "japaneseEra", "kanji", "halfwidthAlnum", "commaToTouten", "periodToNakaguro", "verticalOnly", "kanjiDigitRadio", "kanjiPositionalRadio"];
+        var checkboxNames = ["rotateRoman", "tcyNumbers", "tcyExcludeAdjacent", "tcyCapitals", "tcyExclamation", "tcyDigits2", "tcyDigits3", "tcyDigits4", "tcyGlyphByLength", "singleDigitFullwidth",
+            "japaneseEra", "kanji", "halfwidthAlnum", "commaToTouten", "periodToNakaguro", "mojikumiBeta", "kinsokuSoftV2", "justifyLastLineTop", "convertToVertical", "verticalOnly", "kanjiDigitRadio", "kanjiPositionalRadio"];
         for (var i = 0; i < checkboxNames.length; i++) {
             controls[checkboxNames[i]].onClick = function () {
                 updateEnabledStates();
@@ -2923,11 +3509,79 @@ var SCRIPT_UPDATED  = "2026-10-15";                   /* 更新日 / last update
         }
 
         digitStepHandler = updatePreview;
-        var digitInputs = [controls.tcyMinInput, controls.tcyMaxInput, controls.kanjiMinInput, controls.kanjiMaxInput];
+        var digitInputs = [controls.kanjiMinInput, controls.kanjiMaxInput];
         for (var d = 0; d < digitInputs.length; d++) {
             wrapDigitInputUpdate(digitInputs[d], updatePreview);
         }
 
+        /* プリセットの並び：--- / 組み込み / 区切り / 保存したもの / Preset list: placeholder, built-ins, separator, saved ones */
+        var presetEntries = [];
+        var isFillingPresets = false;
+
+        /**
+         * プリセットのドロップダウンを作り直す（作り直しでも onChange が来るので、その間は読まない）
+         * @param {string|null} selectedName - 選んでおく保存したプリセット名（null なら「---」）
+         * @returns {void}
+         */
+        function fillPresetDropdown(selectedName) {
+            isFillingPresets = true;
+            var presetDropdown = controls.presetDropdown;
+            presetDropdown.removeAll();
+            presetEntries = [{ type: "none" }];
+            presetDropdown.add("item", getLabel("preset.placeholder"));
+            for (var b = 0; b < BUILTIN_PRESETS.length; b++) {
+                presetEntries.push({ type: "builtin", data: BUILTIN_PRESETS[b].data });
+                presetDropdown.add("item", getLabel("preset.builtin." + BUILTIN_PRESETS[b].labelKey));
+            }
+            var savedNames = getPresetNames();
+            var selectedIndex = 0;
+            if (savedNames.length > 0) {
+                presetEntries.push({ type: "separator" });
+                presetDropdown.add("separator");
+                for (var n = 0; n < savedNames.length; n++) {
+                    if (savedNames[n] === selectedName) selectedIndex = presetEntries.length;
+                    presetEntries.push({ type: "saved", name: savedNames[n] });
+                    presetDropdown.add("item", savedNames[n]);
+                }
+            }
+            presetDropdown.selection = selectedIndex;
+            setIconButtonEnabled(controls.presetDeleteIcon, presetEntries[selectedIndex].type === "saved");
+            isFillingPresets = false;
+        }
+
+        /**
+         * 選んでいるプリセットの項目を返す
+         * @returns {Object} presetEntries の要素
+         */
+        function getSelectedPresetEntry() {
+            var presetSelection = controls.presetDropdown.selection;
+            return presetSelection ? presetEntries[presetSelection.index] : presetEntries[0];
+        }
+
+        controls.presetDropdown.onChange = function () {
+            if (isFillingPresets) return;
+            var presetEntry = getSelectedPresetEntry();
+            setIconButtonEnabled(controls.presetDeleteIcon, presetEntry.type === "saved");
+            var presetData = null;
+            if (presetEntry.type === "builtin") presetData = presetEntry.data;
+            else if (presetEntry.type === "saved") presetData = loadPresetMap()[presetEntry.name];
+            if (!presetData) return;
+            writeDialogSettings(controls, mergePresetData(presetData));
+            updateEnabledStates();
+            updatePreview();
+        };
+        controls.presetSaveIcon.onClick = function () {
+            var presetEntry = getSelectedPresetEntry();
+            var savedName = saveCurrentPreset(readDialogOptions(controls), presetEntry.type === "saved" ? presetEntry.name : "");
+            if (savedName) fillPresetDropdown(savedName);
+        };
+        controls.presetDeleteIcon.onClick = function () {
+            var presetEntry = getSelectedPresetEntry();
+            if (presetEntry.type !== "saved") return;
+            if (deletePreset(presetEntry.name)) fillPresetDropdown(null);
+        };
+
+        fillPresetDropdown(null);
         updateEnabledStates();
         updatePreview();
     }
@@ -2975,13 +3629,14 @@ var SCRIPT_UPDATED  = "2026-10-15";                   /* 更新日 / last update
 
         var options = readDialogOptions(controls);
         settingsStore.save(options);
-        var runTargets = filterTextTargets(textTargets, options.verticalOnly);
+        var runTargets = filterTextTargets(textTargets, options);
         if (runTargets.length === 0) {
             alert(getLabel("alert.noVerticalText"));
             return;
         }
-        if (!runVerticalTextConversion(doc, runTargets, options)) {
-            alert(getLabel("alert.actionFailed"));
+        var failureReason = runVerticalTextConversion(doc, runTargets, options);
+        if (failureReason !== "") {
+            alert(getLabel("alert.actionFailed") + "\n\n" + failureReason);
         }
     }
 
