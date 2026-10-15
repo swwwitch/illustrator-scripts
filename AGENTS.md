@@ -204,7 +204,7 @@ function getUnitInfo(prefKey) {
   `setupPanel()` sets `alignChildren` to fill, so give buttons inside a panel `alignment = "left"` so they do not stretch
 - Build the bottom button row with the ButtonRow part (`jsx/_templates/ButtonRow.jsx`) and call
   `alignRightOnlyButtonRow(buttonRow)` after the last button is added (before `show()`): a row with only
-  right-side buttons (Cancel / OK) is centered when the dialog's inner width (margins excluded) is 200 px or less
+  right-side buttons (Cancel / OK) is centered when the dialog's inner width (margins excluded) is 240 px or less
   (`BUTTON_ROW_CENTER_MAX_WIDTH`) and stays right-aligned in wider dialogs. The width is measured on the `show`
   event, so it works even when sizes are set after the call. A row with left-side buttons keeps the split layout
 - A 3×3 anchor / alignment picker is a custom widget drawn in a `button`'s `onDraw`, never nine radio buttons.

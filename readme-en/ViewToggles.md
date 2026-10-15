@@ -44,5 +44,6 @@ Menu commands such as View > Show ... simply flip the current state, so you have
 
 ### Update History
 
+- v1.1.1 (2026-10-16) Right-only button rows are now centered when the dialog's inner width is up to 240 px (was 200 px) (shared part update)
 - v1.1.0 (2026-10-09) Added the Tools panel to switch Pick Color From (Color Swatches / Artwork) of the Shape Builder tool
 - v1.0.0 (2026-10-09) Initial release

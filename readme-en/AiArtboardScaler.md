@@ -39,3 +39,4 @@ Scales artboards relative to their current size, with a live preview while the d
 - v1.1.7 (2026-10-01) Unified the window and panel margins and spacing with the shared layout part
 - v1.1.8 (2026-10-01) Added space below the button row to match Illustrator's own dialogs
 - v1.1.9 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
+- v1.1.10 (2026-10-16) Right-only button rows are now centered when the dialog's inner width is up to 240 px (was 200 px) (shared part update)

@@ -295,6 +295,7 @@ The ◀ ▶ artboard stepper draws its triangles as vectors on the button face r
 
 ## Changelog
 
+- v1.6.6 (2026-10-16) Right-only button rows are now centered when the dialog's inner width is up to 240 px (was 200 px) (shared part update)
 - v1.6.5 (2026-10-10) Fixed the palette operating on another Illustrator version when several versions are running
 - v1.6.4 (2026-10-06) Confirmation dialogs for deleting or overwriting now default to No (Enter cancels)
 - v1.6.3 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)

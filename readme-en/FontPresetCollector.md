@@ -72,6 +72,7 @@ Edit the values of a format in the list, or replace it with another format, and 
 
 ### Release Notes
 
+- v1.1.10 (2026-10-16) Right-only button rows are now centered when the dialog's inner width is up to 240 px (was 200 px) (shared part update)
 - v1.1.8 (2026-10-01) Added space below the button row to match Illustrator's own dialogs
 - v1.1.7 (2026-10-01) Unified the window and panel margins and spacing with the shared layout part
 - v1.1.6 (2026-10-01) Button rows with only right-side buttons are now centered in dialogs up to 200 px wide (inside the margins) and right-aligned in wider ones
@@ -87,4 +88,4 @@ Edit the values of a format in the list, or replace it with another format, and 
 
 ### Script Info
 
-- Version: v1.1.9
+- Version: v1.1.10

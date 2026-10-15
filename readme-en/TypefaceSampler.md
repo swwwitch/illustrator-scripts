@@ -122,3 +122,4 @@ If nothing is checked in a group, that filter is ignored. When both groups have 
 - v1.4.8 (2026-10-01): Unified the window and panel margins and spacing with the shared layout part
 - v1.4.9 (2026-10-01): Added space below the button row to match Illustrator's own dialogs
 - v1.4.10 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
+- v1.4.11 (2026-10-16) Right-only button rows are now centered when the dialog's inner width is up to 240 px (was 200 px) (shared part update)

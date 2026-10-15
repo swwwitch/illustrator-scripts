@@ -19,10 +19,10 @@ The same function also builds a centered row.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ButtonRow";                    /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.2.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.2.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-09-28";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-16";                   /* 更新日 / last updated */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
@@ -39,7 +39,7 @@ var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last update
     //      var btnOK = buttonRow.rightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
     //    左右中央に並べるときは addButtonRow(dialog, { centered: true }) にして、buttonRow.rowGroup に直接足す
     // 3. ボタンをすべて足したあと、show() の前に alignRightOnlyButtonRow(buttonRow) を呼ぶ。
-    //    左のグループにボタンが無い（キャンセル・OK だけの）ときは、ダイアログの内側の幅（余白を除く）が 200px 以内なら左右中央、
+    //    左のグループにボタンが無い（キャンセル・OK だけの）ときは、ダイアログの内側の幅（余白を除く）が 240px 以内なら左右中央、
     //    それより広ければ右揃えになる（判定は表示した時点）。左にボタンがあれば左右分割のまま
     //      alignRightOnlyButtonRow(buttonRow);
     //      prepareDialogWindow(dialog, SCRIPT_NAME);
@@ -51,7 +51,7 @@ var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last update
     var BUTTON_ROW_TOP_MARGIN = 5; /* ボタン行の上の余白 / top margin of the button row */
     var BUTTON_ROW_BOTTOM_MARGIN = 14; /* ボタン行の下の余白。ダイアログの下余白と合わせて約30px（Illustrator 標準のダイアログに合わせる） / bottom margin; with the dialog margin about 30px, like Illustrator's own dialogs */
     var BUTTON_ROW_SPACING = 10;   /* ボタンどうしの間隔 / spacing between buttons */
-    var BUTTON_ROW_CENTER_MAX_WIDTH = 200; /* 右のボタンだけの行を中央に置く、ダイアログの内側の最大幅（px、左右の余白を除く）。広いダイアログは右揃え / max inner dialog width (px, margins excluded) that centers a right-only row; wider dialogs keep it right-aligned */
+    var BUTTON_ROW_CENTER_MAX_WIDTH = 240; /* 右のボタンだけの行を中央に置く、ダイアログの内側の最大幅（px、左右の余白を除く）。広いダイアログは右揃え / max inner dialog width (px, margins excluded) that centers a right-only row; wider dialogs keep it right-aligned */
 
     /**
      * ダイアログ下部のボタン行を作る。
@@ -170,7 +170,7 @@ var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last update
         var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel(LABELS.button.cancel), { name: "cancel" });
         var btnOK = buttonRow.rightGroup.add("button", undefined, getLabel(LABELS.button.ok), { name: "ok" });
         btnPreferences.onClick = function () { alert(getLabel(LABELS.button.preferences)); };
-        /* 左に［設定…］があるので左右分割のまま。外すと、幅 200px 以内なら中央・広ければ右揃え / Stays split because of the left button; without it the row centers up to 200px wide, else stays right-aligned */
+        /* 左に［設定…］があるので左右分割のまま。外すと、幅 240px 以内なら中央・広ければ右揃え / Stays split because of the left button; without it the row centers up to 240px wide, else stays right-aligned */
         alignRightOnlyButtonRow(buttonRow);
 
         demoDialog.show();

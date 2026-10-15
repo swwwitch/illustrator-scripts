@@ -39,10 +39,11 @@
 
 ### Script info
 
-- Version: v1.2.0
+- Version: v1.2.1
 
 ### Update History
 
+- v1.2.1 (2026-10-16) The button row is back to the shared part's standard layout (centered when the dialog's inner width is up to 240 px)
 - v1.2.0 (2026-10-16) Added a base color (black by default) for characters that match none of the others. The buttons are now centered
 - v1.1.0 (2026-10-16) Added coloring characters set to fixed-width glyphs (full-, half-, third- and quarter-width) green. Changed the default half-width color to #0099ff (C100 M40 in CMYK)
 - v1.0.0 (2026-10-16) Initial release

@@ -34,3 +34,4 @@ Applies the Effect > Stylize > Feather live effect to the current selection.
 - v1.1.6 (2026-10-01) Button rows with only right-side buttons are now centered in dialogs up to 200 px wide (inside the margins) and right-aligned in wider ones
 - v1.1.7 (2026-10-01) Added space below the button row to match Illustrator's own dialogs
 - v1.1.8 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
+- v1.1.9 (2026-10-16) Right-only button rows are now centered when the dialog's inner width is up to 240 px (was 200 px) (shared part update)

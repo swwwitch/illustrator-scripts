@@ -51,3 +51,4 @@
 - v1.0.15 (2026-10-01): Added space below the button row to match Illustrator's own dialogs
 - v1.0.16 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.0.17 (2026-10-07): Fixed broken ordering for cells with commas (e.g. "Tokyo, Japan"), errors on rows with missing columns or empty text, and the header disappearing when the text starts with a blank line. Rows with an empty cell now stay at the end in both orders, and sorting was reworked so descending order and equal values stay stable. Column previews are truncated to 10 characters; the English column label and messages were corrected. Reworded the panel, checkbox and tooltip labels, and cleaned up the code
+- v1.0.18 (2026-10-16): Right-only button rows are now centered when the dialog's inner width is up to 240 px (was 200 px) (shared part update)

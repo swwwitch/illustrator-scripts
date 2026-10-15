@@ -43,3 +43,4 @@
 - v1.3.8 (2026-10-01): Added space below the button row to match Illustrator's own dialogs
 - v1.3.9 (2026-10-03): The number field now shows its unit inside the field; removed the unit from the field label
 - v1.3.10 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
+- v1.3.11 (2026-10-16) Right-only button rows are now centered when the dialog's inner width is up to 240 px (was 200 px) (shared part update)

@@ -66,3 +66,4 @@ How clipping groups are released, and whether the mask path gets a fill, can be 
 - v1.1.0 (20261004) : Blends, envelopes, Live Paint, image tracing, repeats, and Intertwine are now released too, along with text wrap. Renamed from ReleaseGroupsAndMasks to ReleaseEverything
 - v1.1.1 (20261004) : Fixed clipping groups inside groups not being released
 - v1.1.2 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
+- v1.1.3 (2026-10-16) Right-only button rows are now centered when the dialog's inner width is up to 240 px (was 200 px) (shared part update)

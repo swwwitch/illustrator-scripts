@@ -34,10 +34,11 @@ with a live preview that updates as you change the settings.
 
 ### Script info
 
-- Version: v1.4.6
+- Version: v1.4.7
 
 ### Update History
 
+- v1.4.7 (2026-10-16) Right-only button rows are now centered when the dialog's inner width is up to 240 px (was 200 px) (shared part update)
 - v1.4.6 (2026-10-10) Fixed the palette operating on another Illustrator version when several versions are running
 - v1.4.5 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.4.4 (2026-10-03) Moved to the shared persistent engine `SwwwitchPalettes` so CloseAllPalettes can close it

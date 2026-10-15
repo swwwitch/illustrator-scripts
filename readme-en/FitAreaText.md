@@ -58,6 +58,7 @@ https://note.com/dtp_tranist/n/n8c2e2568a6b7 (Japanese)
 
 ### Update History
 
+- v2.3.10 (2026-10-16) Right-only button rows are now centered when the dialog's inner width is up to 240 px (was 200 px) (shared part update)
 - v2.3.9 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v2.3.8 (2026-10-01) Added space below the button row to match Illustrator's own dialogs
 - v2.3.7 (2026-10-01) The button row, previously always centered, is now centered in dialogs up to 200 px wide (inside the margins) and right-aligned in wider ones. Unified the window and panel margins and spacing with the shared layout part

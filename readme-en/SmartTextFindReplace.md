@@ -154,3 +154,4 @@ To find and select
 - v1.5.3 (2026-10-01) Unified the window and panel margins and spacing with the shared layout part
 - v1.5.4 (2026-10-01) Added space below the button row to match Illustrator's own dialogs
 - v1.5.5 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
+- v1.5.6 (2026-10-16) Right-only button rows are now centered when the dialog's inner width is up to 240 px (was 200 px) (shared part update)

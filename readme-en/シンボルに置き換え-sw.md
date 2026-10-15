@@ -35,3 +35,4 @@ Picks a symbol from the ones registered in the document and replaces the selecte
 - v0.5.6 (2026-10-01) Added space below the button row to match Illustrator's own dialogs
 - v0.6.0 (2026-10-01) The dialog now has two columns, with a reference point (9-axis) picker on the right. The symbol is aligned with the original object at that point (previously always centered). Added English UI (title and messages). The script now explains and stops when no document is open or the document has no symbols, and reports "no objects selected" when characters are selected with the Type tool
 - v0.6.1 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
+- v0.6.2 (2026-10-16) Right-only button rows are now centered when the dialog's inner width is up to 240 px (was 200 px) (shared part update)

@@ -79,3 +79,4 @@ https://community.adobe.com/t5/illustrator-discussions/cut-multiple-jigsaw-shape
 - v1.6.6 (2026-10-01): Added space below the button row to match Illustrator's own dialogs
 - v1.6.7 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.7.0 (2026-10-07) Length fields now include the unit (as in "10 mm"); values typed in other units or as expressions are converted to the field's unit. Fixed the rows and columns not being recalculated after an expression in Pieces was committed. Updated the stepper part to the latest version. Code cleanup
+- v1.7.1 (2026-10-16) Right-only button rows are now centered when the dialog's inner width is up to 240 px (was 200 px) (shared part update)
