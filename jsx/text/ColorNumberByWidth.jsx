@@ -9,10 +9,16 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 選択したテキストのうち、全角の英数字と「！？」を赤、半角の英数字と「!?」を青に塗ります。
 色はダイアログボックスの色見本をクリックして、カラーピッカーで変えられます。
 
+詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ColorNumberByWidth.md
+
 ### Overview
 
 Colors full-width alphanumerics and "！？" red, and half-width alphanumerics and "!?" blue in the selected text.
 Click a swatch in the dialog to change the color with the color picker.
+
+See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ColorNumberByWidth.md
 
 */
 
@@ -24,6 +30,9 @@ var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / versi
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-16";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-16";                   /* 更新日 / last updated */
+
+var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ColorNumberByWidth.md"; /* README（日本語） */
+var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ColorNumberByWidth.md"; /* README (English) */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php

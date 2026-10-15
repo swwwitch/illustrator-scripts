@@ -105,6 +105,7 @@ After release, we continue to fix bugs and make adjustments through daily use.
 - [List the document's text, edit it and write it back](readme-en/TextScopeEdit.md)
 - [Select text frames by a combination of conditions](readme-en/TextSelector.md)
 - [Apply rotated Roman characters, Tate-Chu-Yoko and number rewriting to vertical text](readme-en/VerticalTextFormatter.md)
+- [Color full-width and half-width alphanumerics differently](readme-en/ColorNumberByWidth.md)
 - [Convert point text, path text or shape plus text into…](readme-en/TextWithShapeToAreaType.md)
 - [Register the selected text's formatting as a paragrap…](readme-en/%E6%AE%B5%E8%90%BD%E3%82%B9%E3%82%BF%E3%82%A4%E3%83%AB.md)
 

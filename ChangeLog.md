@@ -1,5 +1,11 @@
 # Change Log
 
+## 20261016
+
+### 新しいスクリプトを追加
+
+- [全角・半角の英数字を色で塗り分け](readme-ja/ColorNumberByWidth.md)
+
 ## 20261015
 
 ### 調整
