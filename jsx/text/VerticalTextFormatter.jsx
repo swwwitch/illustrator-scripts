@@ -12,6 +12,9 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 詳細は README を参照してください。
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/VerticalTextFormatter.md
 
+note記事も参照してください。
+https://note.com/dtp_tranist/n/ndb55c5516fd6
+
 ### Overview
 
 Turns the selected text vertical and applies vertical-text settings in one go: rotated Roman characters,
@@ -27,13 +30,14 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/VerticalTe
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "VerticalTextFormatter";        /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.11.0";                      /* バージョン / version */
+var SCRIPT_VERSION  = "v1.13.0";                      /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-15";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-15";                   /* 更新日 / last updated */
 
-var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/VerticalTextFormatter.md"; /* README（日本語） */
-var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/VerticalTextFormatter.md"; /* README (English) */
+var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/VerticalTextFormatter.md"; /* README（日本語） */
+var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/VerticalTextFormatter.md"; /* README (English) */
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹介記事 / article URL */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
@@ -73,6 +77,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         singleLetterFullwidth: false,
         unitsKumimoji: false,
         proportionalFullwidthLatin: true,
+        rotateSkipLongLatin: false,
+        rotateSkipMinChars: 5,
+        shortWordFullwidth: false,
+        shortWordMaxChars: 2,
         kinsokuType: "Soft_v2",
         mojikumiIndex: 6,
         dialogMode: "simple"
@@ -82,7 +90,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     var CHECKBOX_SETTING_KEYS = ["rotateRoman", "tcyNumbers", "tcyDigits2", "tcyDigits3", "tcyDigits4", "tcyExcludeAdjacent", "tcyCapitals",
         "tcyExclamation", "tcyGlyphByLength", "singleDigitFullwidth", "japaneseEra", "kanji", "kanjiZeroRei", "kanjiIchiSen", "halfwidthAlnum",
         "commaToTouten", "periodToNakaguro", "symbolsFullwidth", "quotesToChonchon", "rangeToWave", "exclamFullwidth", "singleLetterFullwidth",
-        "unitsKumimoji", "proportionalFullwidthLatin"];
+        "unitsKumimoji", "proportionalFullwidthLatin", "rotateSkipLongLatin", "shortWordFullwidth"];
 
     var MODE_SWITCH_RESULT = 3;   /* モードを切り替えて開き直すときの show() の戻り値 / show() result for reopening in another mode */
 
@@ -1051,6 +1059,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         },
         checkbox: {
             rotateRoman: { ja: "縦組み中の欧文回転", en: "Rotate Roman characters" },
+            rotateSkipLongLatin: { ja: "長い欧文は除く", en: "Skip long Roman text" },
+            shortWordFullwidth: { ja: "短い英単語を全角に", en: "Short words to full-width" },
             tcyNumbers: { ja: "数字を縦中横", en: "TCY numbers" },
             tcyDigits2: { ja: "2桁", en: "2 digits" },
             tcyDigits3: { ja: "3桁", en: "3 digits" },
@@ -1107,11 +1117,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         fieldLabel: {
             digits: { ja: "桁数", en: "Digits" },
             rangeTo: { ja: "〜", en: "to" },
+            charsOrMore: { ja: "文字以上", en: "or more characters" },
+            charsOrLess: { ja: "文字以下", en: "or fewer characters" },
             kinsoku: { ja: "禁則", en: "Kinsoku" },
             mojikumi: { ja: "文字組み", en: "Mojikumi" }
         },
         preview: {
             tcyMark: { ja: "［縦中横］", en: " [TCY]" },
+            noRotateMark: { ja: "［回転なし］", en: " [not rotated]" },
             tcyGlyphMark: { ja: "［縦中横・{glyph}］", en: " [TCY, {glyph}]" },
             none: { ja: "（変換する文字はありません）", en: "(Nothing to convert)" }
         },
@@ -1155,8 +1168,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 en: "Mojikumi set for the paragraphs (justification is always justified, last line top)"
             },
             modeSimple: {
-                ja: "よく使う項目だけを表示します。表示していない項目は、前回の設定やプリセットの値で処理します",
-                en: "Shows only the common options; hidden options keep the last or preset values"
+                ja: "よく使う項目だけを表示して処理します。表示していない項目はオフにし、禁則・文字組みは変えません",
+                en: "Shows and applies only the common options; hidden options are off and kinsoku / mojikumi stay unchanged"
             },
             modeDetail: { ja: "すべての項目を表示します", en: "Shows all options" },
             preset: { ja: "組み込みのプリセットか、保存した設定を読み込みます。", en: "Loads a built-in preset or saved settings." },
@@ -1165,6 +1178,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             presetName: {
                 ja: "保存する設定の名前です。同じ名前は上書きします。",
                 en: "Name the settings are saved under. The same name is overwritten."
+            },
+            shortWordFullwidth: {
+                ja: "指定した文字数以下の英単語（英字だけの並び）を全角にして正立させます（OK → ＯＫ）",
+                en: "Makes words of at most this many letters full-width so they stand upright (OK → ＯＫ)"
+            },
+            rotateSkipLongLatin: {
+                ja: "指定した文字数以上の欧文（スペースなどでつながった単語のまとまり）は回転せず、横倒しのままにします",
+                en: "Leaves Roman text of at least this many characters (words joined by spaces etc.) sideways"
             },
             tcyNumbers: { ja: "下で選んだ桁数の半角数字を縦中横にします", en: "Tate-Chu-Yoko for half-width numbers of the lengths checked below" },
             kanji: {
@@ -2247,16 +2268,18 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     var ACTION_SET_NAME = "VerticalTextFormatter";       /* アクションセット名 / action set name */
     var ROTATE_ACTION_NAME = "rotateRoman";              /* 欧文回転のアクション名 / rotate action name */
     var TCY_ACTION_NAME = "tateChuYoko";                 /* 縦中横のアクション名 / Tate-Chu-Yoko action name */
+    var ROTATE_OFF_ACTION_NAME = "rotateRomanOff";       /* 欧文回転を外すアクション名 / action name that turns rotation off */
 
     /**
-     * 文字パネルの真偽値の項目を1つだけオンにするアクション1件ぶんの行を返す
+     * 文字パネルの真偽値の項目を1つだけ設定するアクション1件ぶんの行を返す
      * （文字パネルのイベントは、書いたパラメーターだけを適用する）
      * @param {number} actionIndex - アクションの番号（1始まり）
      * @param {string} actionName - アクション名
      * @param {number} paramKey - パラメーターのキー
+     * @param {number} paramValue - 値（1 でオン、0 でオフ）
      * @returns {string[]} アクション定義の行
      */
-    function buildCharacterToggleActionLines(actionIndex, actionName, paramKey) {
+    function buildCharacterToggleActionLines(actionIndex, actionName, paramKey, paramValue) {
         return ["/action-" + actionIndex + " {"].concat(
             buildActionNameLines("\t", actionName),
             [
@@ -2278,7 +2301,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 "\t\t\t/key " + paramKey,
                 "\t\t\t/showInPalette 4294967295",
                 "\t\t\t/type (boolean)",
-                "\t\t\t/value 1",
+                "\t\t\t/value " + paramValue,
                 "\t\t}",
                 "\t}",
                 "}"
@@ -2293,9 +2316,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function buildVerticalTextActions() {
         return ["/version 3"].concat(
             buildActionNameLines("", ACTION_SET_NAME),
-            ["/isOpen 1", "/actionCount 2"],
-            buildCharacterToggleActionLines(1, ROTATE_ACTION_NAME, 1920100726),
-            buildCharacterToggleActionLines(2, TCY_ACTION_NAME, 1954112878),
+            ["/isOpen 1", "/actionCount 3"],
+            buildCharacterToggleActionLines(1, ROTATE_ACTION_NAME, 1920100726, 1),
+            buildCharacterToggleActionLines(2, TCY_ACTION_NAME, 1954112878, 1),
+            buildCharacterToggleActionLines(3, ROTATE_OFF_ACTION_NAME, 1920100726, 0),
             [""]
         ).join("\n");
     }
@@ -2391,6 +2415,17 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
         if (formatOptions.symbolsFullwidth && FULLWIDTH_SYMBOLS.indexOf(currentChar) >= 0) return toFullwidthAscii(currentChar);
         return currentChar;
+    }
+
+    /**
+     * 全角にする短い英単語か（［1文字の英字を全角に］［短い英単語を全角に］）
+     * @param {string} letterText - 英字だけの並び
+     * @param {Object} formatOptions - 変換の設定
+     * @returns {boolean} 全角にするなら true
+     */
+    function isShortWordForFullwidth(letterText, formatOptions) {
+        if (formatOptions.singleLetterFullwidth && letterText.length === 1) return true;
+        return formatOptions.shortWordFullwidth && letterText.length <= formatOptions.shortWordMaxChars;
     }
 
     /**
@@ -2699,8 +2734,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 var isCapsTcy = formatOptions.tcyCapitals && letterText.length >= 2 && letterText.length <= 3 && letterText === letterText.toUpperCase();
                 var isAfterDigit = isAnyDigitChar(text.charAt(runStart - 1));
                 if (formatOptions.unitsKumimoji && isAfterDigit && UNIT_KUMIMOJI.hasOwnProperty(letterText)) emit(UNIT_KUMIMOJI[letterText], false);
-                else if (formatOptions.singleLetterFullwidth && letterText.length === 1) emit(toFullwidthAscii(letterText), false);
-                else emit(letterText, isCapsTcy);
+                else if (isCapsTcy) emit(letterText, true);
+                else if (isShortWordForFullwidth(letterText, formatOptions)) emit(toFullwidthAscii(letterText), false);
+                else emit(letterText, false);
             } else if (isExclamOrQuestion(currentChar)) {
                 while (i < text.length && isExclamOrQuestion(text.charAt(i))) i++;
                 var markText = text.substring(runStart, i);
@@ -2823,6 +2859,33 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /**
+     * 回転させない長い欧文（英字で始まる単語が、スペースや . ' & - でつながったまとまり）を探す
+     * @param {string} targetText - 対象の文字列
+     * @param {number} minChars - この文字数以上を対象にする
+     * @returns {Array<{start: number, length: number}>} 見つかった位置
+     */
+    function findLongLatinRuns(targetText, minChars) {
+        var latinRuns = [];
+        var latinPattern = /[A-Za-z][A-Za-z0-9.'&\-]*(?: +[A-Za-z][A-Za-z0-9.'&\-]*)*/g;
+        var latinMatch;
+        while ((latinMatch = latinPattern.exec(targetText)) !== null) {
+            if (latinMatch[0].length >= minChars) latinRuns.push({ start: latinMatch.index, length: latinMatch[0].length });
+        }
+        return latinRuns;
+    }
+
+    /**
+     * 回転させない長い欧文の位置を、設定に合わせて返す（設定がオフなら空）
+     * @param {string} targetText - 対象の文字列（書き換え前）
+     * @param {Object} formatOptions - 変換の設定
+     * @returns {Array<{start: number, length: number}>} 見つかった位置
+     */
+    function getNoRotateRuns(targetText, formatOptions) {
+        if (!formatOptions.rotateRoman || !formatOptions.rotateSkipLongLatin) return [];
+        return findLongLatinRuns(targetText, formatOptions.rotateSkipMinChars);
+    }
+
+    /**
      * 書き換え後のテキストの全角の英字に、プロポーショナルメトリクスを適用する（選択はしない）
      * @param {Object} textTarget - 対象
      * @param {Object} plan - planVerticalText() の戻り値
@@ -2902,10 +2965,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     /**
      * 文字組みアキ量設定の番号から、段落に代入する値を返す
      * @param {Document} doc - 対象のドキュメント
-     * @param {number} mojikumiIndex - doc.mojikumiSet の番号（-1 は「なし」）
-     * @returns {*} 代入する値（ドキュメントに無い番号なら null）
+     * @param {number|null} mojikumiIndex - doc.mojikumiSet の番号（-1 は「なし」、null は変えない）
+     * @returns {*} 代入する値（変えないとき・ドキュメントに無い番号なら null）
      */
     function resolveMojikumiValue(doc, mojikumiIndex) {
+        if (mojikumiIndex === null) return null;
         if (mojikumiIndex === -1) return "なし";
         return (mojikumiIndex >= 0 && mojikumiIndex < doc.mojikumiSet.length) ? doc.mojikumiSet[mojikumiIndex] : null;
     }
@@ -2914,7 +2978,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * 対象の段落に、禁則・文字組みアキ量設定と行頭行末揃え（最終行上）を設定する
      * @param {Document} doc - 対象のドキュメント
      * @param {Object} textTarget - 対象
-     * @param {Object} formatOptions - 変換の設定（kinsokuType / mojikumiIndex）
+     * @param {Object} formatOptions - 変換の設定（kinsokuType / mojikumiIndex。null は変えない）
      * @returns {void}
      */
     function applyParagraphSettings(doc, textTarget, formatOptions) {
@@ -2929,7 +2993,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 continue;
             }
             if (mojikumiValue !== null) paragraphAttributes.mojikumi = mojikumiValue;
-            paragraphAttributes.kinsoku = formatOptions.kinsokuType;
+            if (formatOptions.kinsokuType !== null) paragraphAttributes.kinsoku = formatOptions.kinsokuType;
             /* 縦組みでは「最終行左揃え」が最終行上揃え / In vertical text, "last line left" means last line top */
             paragraphAttributes.justification = Justification.FULLJUSTIFYLASTLINELEFT;
         }
@@ -3005,6 +3069,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             plans.push(planVerticalText(textTargets[i].text, formatOptions));
             tcyTotal += plans[i].tcySpans.length;
         }
+        var noRotateRunsList = [];
+        for (var r = 0; r < textTargets.length; r++) {
+            noRotateRunsList.push(getNoRotateRuns(textTargets[r].text, formatOptions));
+        }
         var needsAction = formatOptions.rotateRoman || tcyTotal > 0;
         var stepTotal = (formatOptions.rotateRoman ? 1 : 0) + textTargets.length + tcyTotal;
         var stepDone = 0;
@@ -3032,6 +3100,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 progress.set(0, getLabel("progress.rotate"));
                 selectTextTargets(doc, textTargets, textTargets[0].text.length);
                 app.doScript(ROTATE_ACTION_NAME, ACTION_SET_NAME, false);
+                /* 長い欧文は回転を外す（書き換え前の位置で） / Turn rotation off for long Roman text (positions before edits) */
+                for (var k = 0; k < textTargets.length; k++) {
+                    var noRotateRuns = noRotateRunsList[k];
+                    for (var n = 0; n < noRotateRuns.length; n++) {
+                        selectTargetSpan(doc, textTargets[k], noRotateRuns[n].start, noRotateRuns[n].length);
+                        app.doScript(ROTATE_OFF_ACTION_NAME, ACTION_SET_NAME, false);
+                    }
+                }
                 advanceProgress(getLabel("progress.rotate"));
             }
 
@@ -3109,18 +3185,32 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function buildPreviewLines(textTargets, formatOptions) {
         var lineKeys = [];
         var lineCounts = {};
+
+        /**
+         * 一覧に1行足す（同じ行は件数を数える）
+         * @param {string} lineText - 行の文字列
+         * @returns {void}
+         */
+        function addPreviewLine(lineText) {
+            if (lineCounts.hasOwnProperty(lineText)) {
+                lineCounts[lineText]++;
+            } else {
+                lineCounts[lineText] = 1;
+                lineKeys.push(lineText);
+            }
+        }
+
         for (var i = 0; i < textTargets.length; i++) {
+            var noRotateRuns = getNoRotateRuns(textTargets[i].text, formatOptions);
+            for (var r = 0; r < noRotateRuns.length; r++) {
+                addPreviewLine(textTargets[i].text.substr(noRotateRuns[r].start, noRotateRuns[r].length) + getLabel("preview.noRotateMark"));
+            }
             var changes = planVerticalText(textTargets[i].text, formatOptions).changes;
             for (var c = 0; c < changes.length; c++) {
                 var change = changes[c];
                 var lineText = (change.before === change.after) ? change.before : change.before + " → " + change.after;
                 if (change.tcy) lineText += getTcyPreviewMark(formatOptions.tcyGlyphByLength, change.tcyLength);
-                if (lineCounts.hasOwnProperty(lineText)) {
-                    lineCounts[lineText]++;
-                } else {
-                    lineCounts[lineText] = 1;
-                    lineKeys.push(lineText);
-                }
+                addPreviewLine(lineText);
             }
         }
         var previewLines = [];
@@ -3608,6 +3698,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var tcyPanel = parent.add("panel", undefined, getLabel("panel.rotateTcy"));
         setupPanel(tcyPanel, 6);
         dialogControls.rotateRoman = addOptionCheckbox(tcyPanel, "checkbox.rotateRoman", settings.rotateRoman);
+        /* 長い欧文は除く ［5］文字以上 / Skip long Roman text [5] or more characters */
+        var rotateSkipRow = addIndentedGroup(tcyPanel).add("group");
+        setupRow(rotateSkipRow, ["left", "center"], 4);
+        dialogControls.rotateSkipLongLatin = addOptionCheckbox(rotateSkipRow, "checkbox.rotateSkipLongLatin", settings.rotateSkipLongLatin);
+        dialogControls.rotateSkipMinInput = addSteppedField(rotateSkipRow, { label: "", text: "", characters: 3, step: 1, min: 1, max: 99, integer: true, onStep: notifyDigitStep });
+        rotateSkipRow.add("statictext", undefined, getLabel("fieldLabel.charsOrMore"));
         dialogControls.tcyNumbers = addOptionCheckbox(tcyPanel, "checkbox.tcyNumbers", settings.tcyNumbers);
         /* 桁数は次の行に字下げして並べる / Digit counts go on the next, indented row */
         var tcyNumberGroup = addIndentedGroup(tcyPanel);
@@ -3656,6 +3752,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             dialogControls.exclamFullwidth = addOptionCheckbox(replaceRightColumn, "checkbox.exclamFullwidth", settings.exclamFullwidth);
         }
         dialogControls.singleLetterFullwidth = addOptionCheckbox(replaceRightColumn, "checkbox.singleLetterFullwidth", settings.singleLetterFullwidth);
+        if (isDetail) {
+            /* 短い英単語を全角に ［2］文字以下 / Short words to full-width [2] or fewer characters */
+            var shortWordRow = replaceRightColumn.add("group");
+            setupRow(shortWordRow, ["left", "center"], 4);
+            dialogControls.shortWordFullwidth = addOptionCheckbox(shortWordRow, "checkbox.shortWordFullwidth", settings.shortWordFullwidth);
+            dialogControls.shortWordMaxInput = addSteppedField(shortWordRow, { label: "", text: "", characters: 3, step: 1, min: 1, max: 99, integer: true, onStep: notifyDigitStep });
+            shortWordRow.add("statictext", undefined, getLabel("fieldLabel.charsOrLess"));
+        }
         /* 簡易モードは「数字」パネルを作らず、1桁の全角もここに入れる / The simple mode has no Numbers panel; single digits go here */
         if (!isDetail) dialogControls.singleDigitFullwidth = addOptionCheckbox(replacePanel, "checkbox.singleDigitFullwidth", settings.singleDigitFullwidth);
     }
@@ -3793,10 +3897,29 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             formatOptions.kanjiMinDigits = Math.min(kanjiMin, kanjiMax);
             formatOptions.kanjiMaxDigits = Math.max(kanjiMin, kanjiMax);
         }
+        formatOptions.rotateSkipMinChars = readDigitInput(dialogControls.rotateSkipMinInput, DEFAULT_SETTINGS.rotateSkipMinChars);
+        if (dialogControls.shortWordMaxInput) formatOptions.shortWordMaxChars = readDigitInput(dialogControls.shortWordMaxInput, DEFAULT_SETTINGS.shortWordMaxChars);
         if (dialogControls.kanjiPositionalRadio) formatOptions.kanjiStyle = dialogControls.kanjiPositionalRadio.value ? "positional" : "digit";
         if (dialogControls.kinsokuDropdown && dialogControls.kinsokuDropdown.selection) formatOptions.kinsokuType = KINSOKU_TYPES[dialogControls.kinsokuDropdown.selection.index];
         if (dialogControls.mojikumiDropdown && dialogControls.mojikumiDropdown.selection) formatOptions.mojikumiIndex = MOJIKUMI_INDEXES[dialogControls.mojikumiDropdown.selection.index];
         formatOptions.dialogMode = dialogControls.dialogMode;
+        return formatOptions;
+    }
+
+    /**
+     * 実行と確認の一覧に使う設定を返す。簡易モードでは、表示していない項目をオフにし、禁則・文字組みは変えない
+     * （保存する設定は readDialogOptions() のまま、詳細モードの値を残す）
+     * @param {Object} dialogControls - buildDialog() の戻り値
+     * @returns {Object} 実行に使う設定
+     */
+    function readEffectiveOptions(dialogControls) {
+        var formatOptions = readDialogOptions(dialogControls);
+        if (dialogControls.dialogMode !== "simple") return formatOptions;
+        for (var i = 0; i < CHECKBOX_SETTING_KEYS.length; i++) {
+            if (!dialogControls[CHECKBOX_SETTING_KEYS[i]]) formatOptions[CHECKBOX_SETTING_KEYS[i]] = false;
+        }
+        formatOptions.kinsokuType = null;
+        formatOptions.mojikumiIndex = null;
         return formatOptions;
     }
 
@@ -3816,6 +3939,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             dialogControls.kanjiMinInput.text = String(settings.kanjiMinDigits);
             dialogControls.kanjiMaxInput.text = String(settings.kanjiMaxDigits);
         }
+        dialogControls.rotateSkipMinInput.text = String(settings.rotateSkipMinChars);
+        if (dialogControls.shortWordMaxInput) dialogControls.shortWordMaxInput.text = String(settings.shortWordMaxChars);
         if (dialogControls.kanjiPositionalRadio) {
             dialogControls.kanjiPositionalRadio.value = (settings.kanjiStyle === "positional");
             dialogControls.kanjiDigitRadio.value = !dialogControls.kanjiPositionalRadio.value;
@@ -3845,6 +3970,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             function setEnabledIfExists(controlName, isEnabled) {
                 if (dialogControls[controlName]) dialogControls[controlName].enabled = isEnabled;
             }
+            setEnabledIfExists("rotateSkipLongLatin", dialogControls.rotateRoman.value);
+            setSteppedFieldEnabled(dialogControls.rotateSkipMinInput, dialogControls.rotateRoman.value && dialogControls.rotateSkipLongLatin.value);
+            if (dialogControls.shortWordMaxInput) setSteppedFieldEnabled(dialogControls.shortWordMaxInput, dialogControls.shortWordFullwidth.value);
             setEnabledIfExists("tcyDigits2", dialogControls.tcyNumbers.value);
             setEnabledIfExists("tcyDigits3", dialogControls.tcyNumbers.value);
             setEnabledIfExists("tcyDigits4", dialogControls.tcyNumbers.value);
@@ -3866,7 +3994,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
          * @returns {void}
          */
         function updatePreview() {
-            var formatOptions = readDialogOptions(dialogControls);
+            var formatOptions = readEffectiveOptions(dialogControls);
             var previewLines = buildPreviewLines(textTargets, formatOptions);
             dialogControls.previewList.removeAll();
             if (previewLines.length === 0) previewLines.push(getLabel("preview.none"));
@@ -3883,6 +4011,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
 
         digitStepHandler = updatePreview;
+        wrapDigitInputUpdate(dialogControls.rotateSkipMinInput, updatePreview);
+        if (dialogControls.shortWordMaxInput) wrapDigitInputUpdate(dialogControls.shortWordMaxInput, updatePreview);
         if (dialogControls.kanjiMinInput) {
             wrapDigitInputUpdate(dialogControls.kanjiMinInput, updatePreview);
             wrapDigitInputUpdate(dialogControls.kanjiMaxInput, updatePreview);
@@ -4071,9 +4201,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         } while (dialogResult === MODE_SWITCH_RESULT);
         if (dialogResult !== 1) return;
 
-        var formatOptions = readDialogOptions(dialogControls);
-        settingsStore.save(formatOptions);
-        var failureReason = runVerticalTextConversion(doc, textTargets, formatOptions);
+        settingsStore.save(readDialogOptions(dialogControls));
+        var failureReason = runVerticalTextConversion(doc, textTargets, readEffectiveOptions(dialogControls));
         if (failureReason !== "") {
             alert(getLabel("alert.actionFailed") + "\n\n" + failureReason);
         }

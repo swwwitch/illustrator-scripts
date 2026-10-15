@@ -20,13 +20,14 @@
 - Simple and Detailed modes (switch at the left of the button row; Simple by default)
   - **Simple**: shows only rotation, Tate-Chu-Yoko digits (2/3/4), fixed-width forms, separator conversion, and full-width single digits and letters
   - **Detailed**: shows every option
-  - Options hidden in Simple mode keep the last values (or the preset's values)
+  - Simple mode applies only the visible options (hidden options are off; kinsoku and mojikumi stay unchanged). Detailed-mode settings are kept
   - Switching reopens the dialog box around the same center
 - Presets
   - Built-in: **Standard** / **1 full-width / 2–3 TCY / 4+ kanji** / **Kanji with 十・百・千, era years** / **Rotation only**
   - Save the current settings under a name with the save icon, and delete a saved preset with the trash icon (built-ins cannot be deleted)
 - Rotation and Tate-Chu-Yoko
   - **Rotate Roman characters**: applied to all of the selected text (on by default)
+    - **Skip long Roman text**: Roman text of at least the given number of characters (5 by default) stays sideways. Words joined by spaces or . ' & - count as one run ("Adobe Illustrator" is 17)
   - **Tate-Chu-Yoko for numbers**: half-width numbers of the lengths checked in [2 digits] [3 digits] [4 digits] (on by default, with 2 and 3 checked)
     - **Skip numbers next to separators**: leaves "000" in "3,000" and "12" in "12.5" alone (on by default)
   - **Tate-Chu-Yoko for 2–3 capitals**: all-capital words such as "PDF" or "OK"
@@ -41,6 +42,7 @@
   - **Quotes to 〝〟**: replaces “ ” and straight " " with 〝 〟 (on by default)
   - **"!" "?" to full-width**: ! and ? that are not in Tate-Chu-Yoko become full-width (on by default)
   - **Proportional metrics for full-width Latin** (Detailed mode): applies the OpenType Proportional Metrics feature to full-width letters (after the rewriting, on by default)
+  - **Short words to full-width** (Detailed mode): words of at most the given number of letters (2 by default) become full-width (OK → ＯＫ). Unit squares and capital Tate-Chu-Yoko take priority
   - **Single letters to full-width**: a lone letter such as the A in Aランク
 - Numbers
   - **Single digits to full-width**: keeps a single digit upright
@@ -79,8 +81,14 @@
 - When a rewrite changes the number of characters (3,000 → 三千 etc.), the rewritten part takes the formatting of its first character
 - Locked or hidden text is skipped
 
+### Article
+
+https://note.com/dtp_tranist/n/ndb55c5516fd6
+
 ### Update History
 
+- v1.13.0 (2026-10-15) Added "Short words to full-width" (N letters or fewer) to Character Conversion in Detailed mode
+- v1.12.0 (2026-10-15) Added "Skip long Roman text" (no rotation for runs of N characters or more). Simple mode now applies only the visible options
 - v1.11.0 (2026-10-15) Added "Proportional metrics for full-width Latin" to Character Conversion in Detailed mode
 - v1.10.0 (2026-10-15) Added Simple and Detailed modes (in Detailed mode, Character Conversion spans both columns with two columns inside) and "Units to squares". The check list is two rows taller. Removed "Convert horizontal text to vertical" and "Vertical text only" from the UI; horizontal text is now always turned vertical. Added the Paragraph panel (kinsoku and mojikumi) to Detailed mode, more tooltips, and cleaned up the code
 - v1.9.0 (2026-10-15) Removed the Paragraph panel; Solid mojikumi, Soft v2 kinsoku and last-line-top justification are now always applied
