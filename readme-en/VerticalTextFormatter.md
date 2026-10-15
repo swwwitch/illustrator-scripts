@@ -40,6 +40,7 @@
   - **Symbols to full-width**: makes half-width ( ) [ ] { } : ; / % & # @ * + = < > full-width so they stand upright (on by default)
   - **Quotes to 〝〟**: replaces “ ” and straight " " with 〝 〟 (on by default)
   - **"!" "?" to full-width**: ! and ? that are not in Tate-Chu-Yoko become full-width (on by default)
+  - **Proportional metrics for full-width Latin** (Detailed mode): applies the OpenType Proportional Metrics feature to full-width letters (after the rewriting, on by default)
   - **Single letters to full-width**: a lone letter such as the A in Aランク
 - Numbers
   - **Single digits to full-width**: keeps a single digit upright
@@ -80,6 +81,7 @@
 
 ### Update History
 
+- v1.11.0 (2026-10-15) Added "Proportional metrics for full-width Latin" to Character Conversion in Detailed mode
 - v1.10.0 (2026-10-15) Added Simple and Detailed modes (in Detailed mode, Character Conversion spans both columns with two columns inside) and "Units to squares". The check list is two rows taller. Removed "Convert horizontal text to vertical" and "Vertical text only" from the UI; horizontal text is now always turned vertical. Added the Paragraph panel (kinsoku and mojikumi) to Detailed mode, more tooltips, and cleaned up the code
 - v1.9.0 (2026-10-15) Removed the Paragraph panel; Solid mojikumi, Soft v2 kinsoku and last-line-top justification are now always applied
 - v1.8.0 (2026-10-15) Added "0 as 零" and "千 as 一千" to the kanji numerals

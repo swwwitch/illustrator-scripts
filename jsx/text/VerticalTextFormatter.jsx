@@ -27,7 +27,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/VerticalTe
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "VerticalTextFormatter";        /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.10.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.11.0";                      /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-15";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-15";                   /* 更新日 / last updated */
@@ -72,6 +72,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         exclamFullwidth: true,
         singleLetterFullwidth: false,
         unitsKumimoji: false,
+        proportionalFullwidthLatin: true,
         kinsokuType: "Soft_v2",
         mojikumiIndex: 6,
         dialogMode: "simple"
@@ -81,7 +82,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     var CHECKBOX_SETTING_KEYS = ["rotateRoman", "tcyNumbers", "tcyDigits2", "tcyDigits3", "tcyDigits4", "tcyExcludeAdjacent", "tcyCapitals",
         "tcyExclamation", "tcyGlyphByLength", "singleDigitFullwidth", "japaneseEra", "kanji", "kanjiZeroRei", "kanjiIchiSen", "halfwidthAlnum",
         "commaToTouten", "periodToNakaguro", "symbolsFullwidth", "quotesToChonchon", "rangeToWave", "exclamFullwidth", "singleLetterFullwidth",
-        "unitsKumimoji"];
+        "unitsKumimoji", "proportionalFullwidthLatin"];
 
     var MODE_SWITCH_RESULT = 3;   /* モードを切り替えて開き直すときの show() の戻り値 / show() result for reopening in another mode */
 
@@ -106,7 +107,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             labelKey: "rotateOnly",
             data: {
                 tcyNumbers: false, tcyGlyphByLength: false, commaToTouten: false, periodToNakaguro: false,
-                symbolsFullwidth: false, quotesToChonchon: false, rangeToWave: false, exclamFullwidth: false
+                symbolsFullwidth: false, quotesToChonchon: false, rangeToWave: false, exclamFullwidth: false,
+                proportionalFullwidthLatin: false
             }
         }
     ];
@@ -1065,6 +1067,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             rangeToWave: { ja: "範囲の「-」「~」→「〜」", en: "Range \"-\" \"~\" → \"〜\"" },
             exclamFullwidth: { ja: "「!」「?」を全角に", en: "\"!\" \"?\" to full-width" },
             singleLetterFullwidth: { ja: "1文字の英字を全角に", en: "Single letters to full-width" },
+            proportionalFullwidthLatin: { ja: "全角の欧文にプロポーショナルメトリクス", en: "Proportional metrics for full-width Latin" },
             singleDigitFullwidth: { ja: "1桁の数字を全角に", en: "Single digits to full-width" },
             japaneseEra: { ja: "西暦を和暦に", en: "Western years to Japanese era" },
             kanjiZeroRei: { ja: "0を「零」に", en: "0 as 零" },
@@ -1203,6 +1206,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 en: "Replaces - ~ between digits with 〜 (10-20 → 10〜20)"
             },
             exclamFullwidth: { ja: "縦中横にしない「!」「?」を全角にして正立させます", en: "Makes ! and ? that are not in Tate-Chu-Yoko full-width" },
+            proportionalFullwidthLatin: {
+                ja: "全角の英字（Ａ〜Ｚ・ａ〜ｚ）に OpenType 機能の［プロポーショナルメトリクス］を適用します（文字の書き換えのあと）",
+                en: "Applies the OpenType Proportional Metrics feature to full-width letters (after the rewriting)"
+            },
             singleLetterFullwidth: {
                 ja: "1字だけの英字（Aランクの A など）を全角にして正立させます",
                 en: "Makes a lone letter (the A in Aランク) full-width"
@@ -2787,6 +2794,50 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /**
+     * 書き換えを元の文字列に当てて、書き換え後の文字列を返す
+     * @param {string} sourceText - 元の文字列
+     * @param {Array<Object>} edits - planVerticalText() の edits（後ろから順）
+     * @returns {string} 書き換え後の文字列
+     */
+    function buildEditedText(sourceText, edits) {
+        var editedText = sourceText;
+        for (var i = 0; i < edits.length; i++) {
+            editedText = editedText.substring(0, edits[i].start) + edits[i].text + editedText.substring(edits[i].start + edits[i].length);
+        }
+        return editedText;
+    }
+
+    /**
+     * 全角の英字（Ａ〜Ｚ・ａ〜ｚ）の並びを探す
+     * @param {string} targetText - 対象の文字列
+     * @returns {Array<{start: number, length: number}>} 見つかった位置
+     */
+    function findFullwidthLatinRuns(targetText) {
+        var latinRuns = [];
+        var latinPattern = /[Ａ-Ｚａ-ｚ]+/g;
+        var latinMatch;
+        while ((latinMatch = latinPattern.exec(targetText)) !== null) {
+            latinRuns.push({ start: latinMatch.index, length: latinMatch[0].length });
+        }
+        return latinRuns;
+    }
+
+    /**
+     * 書き換え後のテキストの全角の英字に、プロポーショナルメトリクスを適用する（選択はしない）
+     * @param {Object} textTarget - 対象
+     * @param {Object} plan - planVerticalText() の戻り値
+     * @returns {void}
+     */
+    function applyProportionalMetricsToFullwidthLatin(textTarget, plan) {
+        var latinRuns = findFullwidthLatinRuns(buildEditedText(textTarget.text, plan.edits));
+        for (var i = 0; i < latinRuns.length; i++) {
+            var latinRange = getTargetCharacters(textTarget)[textTarget.offset + latinRuns[i].start];
+            latinRange.length = latinRuns[i].length;
+            latinRange.characterAttributes.proportionalMetrics = true;
+        }
+    }
+
+    /**
      * 対象の中の範囲だけを選択する
      * @param {Document} doc - 対象のドキュメント
      * @param {Object} textTarget - 対象
@@ -2986,6 +3037,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
             for (var j = 0; j < textTargets.length; j++) {
                 applyTextEdits(textTargets[j], plans[j].edits);
+                if (formatOptions.proportionalFullwidthLatin) applyProportionalMetricsToFullwidthLatin(textTargets[j], plans[j]);
                 advanceProgress(getLabel("progress.edit", { current: j + 1, total: textTargets.length }));
             }
 
@@ -3598,6 +3650,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         if (isDetail) {
             dialogControls.rangeToWave = addOptionCheckbox(replaceLeftColumn, "checkbox.rangeToWave", settings.rangeToWave);
             dialogControls.halfwidthAlnum = addOptionCheckbox(replaceLeftColumn, "checkbox.halfwidthAlnum", settings.halfwidthAlnum);
+            dialogControls.proportionalFullwidthLatin = addOptionCheckbox(replaceLeftColumn, "checkbox.proportionalFullwidthLatin", settings.proportionalFullwidthLatin);
             dialogControls.symbolsFullwidth = addOptionCheckbox(replaceRightColumn, "checkbox.symbolsFullwidth", settings.symbolsFullwidth);
             dialogControls.quotesToChonchon = addOptionCheckbox(replaceRightColumn, "checkbox.quotesToChonchon", settings.quotesToChonchon);
             dialogControls.exclamFullwidth = addOptionCheckbox(replaceRightColumn, "checkbox.exclamFullwidth", settings.exclamFullwidth);
