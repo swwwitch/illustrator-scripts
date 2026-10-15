@@ -6,7 +6,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-選択したテキストのうち、全角の英数字と「！？」を赤、半角の英数字と「!?」を青に塗ります。
+選択したテキストのうち、全角の英数字と「！？」を赤、半角の英数字と「!?」を青、等幅字形の文字を緑に塗ります。
 色はダイアログボックスの色見本をクリックして、カラーピッカーで変えられます。
 
 詳細は README を参照してください。
@@ -14,7 +14,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ColorNumbe
 
 ### Overview
 
-Colors full-width alphanumerics and "！？" red, and half-width alphanumerics and "!?" blue in the selected text.
+Colors full-width alphanumerics and "！？" red, half-width alphanumerics and "!?" blue, and characters set to fixed-width glyphs green in the selected text.
 Click a swatch in the dialog to change the color with the color picker.
 
 See the README for details.
@@ -26,7 +26,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ColorNumbe
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ColorNumberByWidth";           /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-16";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-16";                   /* 更新日 / last updated */
@@ -47,8 +47,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     var FULL_WIDTH_CMYK = [0, 100, 100, 0];
 
     /* 半角の色の初期値 / initial color for half-width characters */
-    var HALF_WIDTH_RGB  = [0, 0, 255];
-    var HALF_WIDTH_CMYK = [100, 100, 0, 0];
+    var HALF_WIDTH_RGB  = [0, 153, 255];   /* #0099ff */
+    var HALF_WIDTH_CMYK = [100, 40, 0, 0];
+
+    /* 等幅字形の色の初期値 / initial color for fixed-width glyphs */
+    var GLYPH_WIDTH_RGB  = [0, 170, 0];
+    var GLYPH_WIDTH_CMYK = [80, 0, 100, 0];
 
     /* 全角：０-９ Ａ-Ｚ ａ-ｚ ！？、半角：0-9 A-Z a-z !? / full-width and half-width alphanumerics, ! and ? */
     var FULL_WIDTH_PATTERN = /[０-９Ａ-Ｚａ-ｚ！？]/;
@@ -57,8 +61,35 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // =========================================
     // レイアウト / Layout
     // =========================================
-    var COLOR_LABEL_WIDTH = 40;      /* 「全角」「半角」の項目名の幅 / width of the row labels */
     var COLOR_SWATCH_SIZE = [60, 20]; /* 色見本の大きさ / swatch size */
+
+    /**
+     * 複数のラベル（statictext）の幅を最長のものへ揃え、指定方向に揃えます。
+     * 実際の描画幅（preferredSize.width）を測るため、文言長やロケールに依存しません。
+     * @param {StaticText[]} labelControls - 幅を揃える statictext の配列。
+     * @param {string} [justify] - 揃え方向 "left" | "center" | "right"（省略時は "right"）。
+     * @returns {number} 揃えた後の共通ラベル幅（px）。
+     */
+    function alignLabelWidths(labelControls, justify) {
+        if (!labelControls || !labelControls.length) return 0;
+        justify = justify || 'right';
+
+        /* 1パス目：各ラベルの自然幅を測り、最大値を求める / Pass 1: find the widest natural width */
+        var maxLabelWidth = 0;
+        for (var i = 0; i < labelControls.length; i++) {
+            /* preferredSize を返さない環境では実サイズで代用する / fall back to the laid-out size */
+            var naturalWidth = labelControls[i].preferredSize.width || labelControls[i].size.width;
+            if (naturalWidth > maxLabelWidth) maxLabelWidth = naturalWidth;
+        }
+
+        /* 2パス目：全ラベルを最大幅に固定し、揃え方向を適用 / Pass 2: apply common width and justification */
+        for (var j = 0; j < labelControls.length; j++) {
+            labelControls[j].preferredSize.width = maxLabelWidth;
+            labelControls[j].justify = justify;
+        }
+
+        return maxLabelWidth;
+    }
 
     // UIレイアウト（再利用パーツ） / UI layout (reusable)
 
@@ -360,7 +391,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         },
         fieldLabel: {
             fullWidth: { ja: "全角", en: "Full-width" },
-            halfWidth: { ja: "半角", en: "Half-width" }
+            halfWidth: { ja: "半角", en: "Half-width" },
+            glyphWidth: { ja: "等幅字形", en: "Fixed-width glyphs" }
         },
         tooltip: {
             fullWidth: {
@@ -370,6 +402,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             halfWidth: {
                 ja: "半角の英数字と「!?」の色。クリックするとカラーピッカーが開きます。",
                 en: "Color for half-width alphanumerics and \"!?\". Click to open the color picker."
+            },
+            glyphWidth: {
+                ja: "等幅全角・半角・1/3・1/4字形にした文字の色（全角・半角より優先）。クリックするとカラーピッカーが開きます。",
+                en: "Color for characters set to full-, half-, third- or quarter-width glyphs (takes priority over full- and half-width). Click to open the color picker."
             }
         },
         button: {
@@ -547,13 +583,46 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // =========================================
 
     /**
-     * テキスト範囲の英数字と「!?」を全角・半角で塗り分ける
+     * 等幅字形（等幅全角・半角・1/3・1/4字形）の AlternateGlyphsForm を集める
+     * @returns {Array} AlternateGlyphsForm の値
+     */
+    function getFixedWidthGlyphForms() {
+        return [
+            AlternateGlyphsForm.FULLWIDTH,
+            AlternateGlyphsForm.HALFWIDTH,
+            AlternateGlyphsForm.THIRDWIDTH,
+            AlternateGlyphsForm.QUARTERWIDTH
+        ];
+    }
+
+    /**
+     * 文字が等幅字形になっているかを返す
+     * @param {TextRange} targetCharacter - 1文字の範囲
+     * @param {Array} glyphForms - getFixedWidthGlyphForms() の戻り値
+     * @returns {boolean} 等幅字形なら true
+     */
+    function isFixedWidthGlyph(targetCharacter, glyphForms) {
+        var glyphForm;
+        /* 字形を読めない文字は等幅字形ではないとみなす / treat characters whose glyph form cannot be read as not fixed-width */
+        try {
+            glyphForm = targetCharacter.characterAttributes.alternateGlyphs;
+        } catch (e) {
+            return false;
+        }
+        for (var i = 0; i < glyphForms.length; i++) {
+            if (glyphForm === glyphForms[i]) return true;
+        }
+        return false;
+    }
+
+    /**
+     * テキスト範囲を塗り分ける（等幅字形の文字を緑、英数字と「!?」を全角は赤・半角は青）
      * @param {TextRange} targetRange - 対象のテキスト範囲
-     * @param {Color} fullWidthColor - 全角の色
-     * @param {Color} halfWidthColor - 半角の色
+     * @param {{fullWidthColor: Color, halfWidthColor: Color, glyphWidthColor: Color}} chosenColors - 塗る色
+     * @param {Array} glyphForms - getFixedWidthGlyphForms() の戻り値
      * @returns {void}
      */
-    function colorCharactersInRange(targetRange, fullWidthColor, halfWidthColor) {
+    function colorCharactersInRange(targetRange, chosenColors, glyphForms) {
         var rangeCharacters = targetRange.characters;
         var characterCount = rangeCharacters.length;
         var rangeContents = targetRange.contents;
@@ -563,10 +632,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         for (var i = 0; i < characterCount; i++) {
             var characterText = useContents ? rangeContents.charAt(i) : rangeCharacters[i].contents;
             var characterColor = null;
-            if (FULL_WIDTH_PATTERN.test(characterText)) {
-                characterColor = fullWidthColor;
+            /* 等幅字形は全角・半角より優先する / fixed-width glyphs take priority over full- and half-width */
+            if (isFixedWidthGlyph(rangeCharacters[i], glyphForms)) {
+                characterColor = chosenColors.glyphWidthColor;
+            } else if (FULL_WIDTH_PATTERN.test(characterText)) {
+                characterColor = chosenColors.fullWidthColor;
             } else if (HALF_WIDTH_PATTERN.test(characterText)) {
-                characterColor = halfWidthColor;
+                characterColor = chosenColors.halfWidthColor;
             }
             if (!characterColor) continue;
             rangeCharacters[i].characterAttributes.fillColor = characterColor;
@@ -582,7 +654,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * @param {Panel} parentPanel - 追加先のパネル
      * @param {string} labelKey - LABELS.fieldLabel / LABELS.tooltip のキー
      * @param {Color} initialColor - 最初の色
-     * @returns {{getColor: Function}} 今の色を返す getColor を持つオブジェクト
+     * @returns {{label: StaticText, getColor: Function}} 項目名と、今の色を返す getColor を持つオブジェクト
      */
     function addColorSwatchRow(parentPanel, labelKey, initialColor) {
         var swatchColor = initialColor;
@@ -590,8 +662,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         setupRow(swatchRow, "left", 8);
 
         var rowLabel = swatchRow.add("statictext", undefined, labelText("fieldLabel." + labelKey));
-        rowLabel.preferredSize.width = COLOR_LABEL_WIDTH;
-        rowLabel.justify = "right";
 
         var colorSwatch = swatchRow.add("group");
         colorSwatch.preferredSize = COLOR_SWATCH_SIZE;
@@ -616,6 +686,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         });
 
         return {
+            label: rowLabel,
             getColor: function () { return swatchColor; }
         };
     }
@@ -623,7 +694,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     /**
      * 色を選ぶダイアログボックスを表示する
      * @param {Document} doc - 対象ドキュメント
-     * @returns {{fullWidthColor: Color, halfWidthColor: Color}|null} 選んだ色。キャンセルなら null
+     * @returns {{fullWidthColor: Color, halfWidthColor: Color, glyphWidthColor: Color}|null} 選んだ色。キャンセルなら null
      */
     function showColorDialog(doc) {
         var colorDialog = new Window("dialog", getLabel("dialog.title"));
@@ -633,6 +704,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         setupPanel(colorPanel, 8);
         var fullWidthRow = addColorSwatchRow(colorPanel, "fullWidth", createDocumentColor(doc, FULL_WIDTH_RGB, FULL_WIDTH_CMYK));
         var halfWidthRow = addColorSwatchRow(colorPanel, "halfWidth", createDocumentColor(doc, HALF_WIDTH_RGB, HALF_WIDTH_CMYK));
+        var glyphWidthRow = addColorSwatchRow(colorPanel, "glyphWidth", createDocumentColor(doc, GLYPH_WIDTH_RGB, GLYPH_WIDTH_CMYK));
+        alignLabelWidths([fullWidthRow.label, halfWidthRow.label, glyphWidthRow.label], "right");
 
         var buttonRow = addButtonRow(colorDialog);
         var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
@@ -641,7 +714,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         prepareDialogWindow(colorDialog, SCRIPT_NAME);
         if (colorDialog.show() !== 1) return null;
-        return { fullWidthColor: fullWidthRow.getColor(), halfWidthColor: halfWidthRow.getColor() };
+        return {
+            fullWidthColor: fullWidthRow.getColor(),
+            halfWidthColor: halfWidthRow.getColor(),
+            glyphWidthColor: glyphWidthRow.getColor()
+        };
     }
 
     // =========================================
@@ -658,7 +735,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     var chosenColors = showColorDialog(doc);
     if (!chosenColors) return;
 
+    var glyphForms = getFixedWidthGlyphForms();
     for (var i = 0; i < targetRanges.length; i++) {
-        colorCharactersInRange(targetRanges[i], chosenColors.fullWidthColor, chosenColors.halfWidthColor);
+        colorCharactersInRange(targetRanges[i], chosenColors, glyphForms);
     }
 })();
