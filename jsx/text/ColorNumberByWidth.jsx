@@ -6,7 +6,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-選択したテキストのうち、全角の英数字と「！？」を赤、半角の英数字と「!?」を青、等幅字形の文字を緑に塗ります。
+選択したテキストのうち、全角の英数字と「！？」を赤、半角の英数字と「!?」を青、等幅字形の文字を緑に塗ります。ほかの文字はベースの色（黒）にします。
 色はダイアログボックスの色見本をクリックして、カラーピッカーで変えられます。
 
 詳細は README を参照してください。
@@ -14,7 +14,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ColorNumbe
 
 ### Overview
 
-Colors full-width alphanumerics and "！？" red, half-width alphanumerics and "!?" blue, and characters set to fixed-width glyphs green in the selected text.
+Colors full-width alphanumerics and "！？" red, half-width alphanumerics and "!?" blue, and characters set to fixed-width glyphs green in the selected text. All other characters get the base color (black).
 Click a swatch in the dialog to change the color with the color picker.
 
 See the README for details.
@@ -26,7 +26,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ColorNumbe
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ColorNumberByWidth";           /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.2.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-16";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-16";                   /* 更新日 / last updated */
@@ -42,6 +42,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // =========================================
     // ユーザー設定 / User Settings
     // =========================================
+    /* ベースの色（ほかの文字）の初期値 / initial base color for all other characters */
+    var BASE_RGB  = [0, 0, 0];
+    var BASE_CMYK = [0, 0, 0, 100];
+
     /* 全角の色の初期値 / initial color for full-width characters */
     var FULL_WIDTH_RGB  = [255, 0, 0];
     var FULL_WIDTH_CMYK = [0, 100, 100, 0];
@@ -390,11 +394,16 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             color: { ja: "カラー", en: "Color" }
         },
         fieldLabel: {
+            base: { ja: "ベース", en: "Base" },
             fullWidth: { ja: "全角", en: "Full-width" },
             halfWidth: { ja: "半角", en: "Half-width" },
             glyphWidth: { ja: "等幅字形", en: "Fixed-width glyphs" }
         },
         tooltip: {
+            base: {
+                ja: "全角・半角・等幅字形のどれにも当たらない文字の色。クリックするとカラーピッカーが開きます。",
+                en: "Color for characters that are not full-width, half-width or fixed-width glyphs. Click to open the color picker."
+            },
             fullWidth: {
                 ja: "全角の英数字と「！？」の色。クリックするとカラーピッカーが開きます。",
                 en: "Color for full-width alphanumerics and \"！？\". Click to open the color picker."
@@ -616,9 +625,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /**
-     * テキスト範囲を塗り分ける（等幅字形の文字を緑、英数字と「!?」を全角は赤・半角は青）
+     * テキスト範囲を塗り分ける（全体をベースの色にし、等幅字形の文字を緑、英数字と「!?」を全角は赤・半角は青）
      * @param {TextRange} targetRange - 対象のテキスト範囲
-     * @param {{fullWidthColor: Color, halfWidthColor: Color, glyphWidthColor: Color}} chosenColors - 塗る色
+     * @param {{baseColor: Color, fullWidthColor: Color, halfWidthColor: Color, glyphWidthColor: Color}} chosenColors - 塗る色
      * @param {Array} glyphForms - getFixedWidthGlyphForms() の戻り値
      * @returns {void}
      */
@@ -628,6 +637,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var rangeContents = targetRange.contents;
         /* contents と文字の番号がずれるときは1文字ずつ読む / read each character when the indices do not line up */
         var useContents = (rangeContents.length === characterCount);
+
+        /* 先に全体をベースの色にし、当たる文字だけ塗り直す / paint the whole range with the base color first, then recolor matches */
+        targetRange.characterAttributes.fillColor = chosenColors.baseColor;
 
         for (var i = 0; i < characterCount; i++) {
             var characterText = useContents ? rangeContents.charAt(i) : rangeCharacters[i].contents;
@@ -694,7 +706,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     /**
      * 色を選ぶダイアログボックスを表示する
      * @param {Document} doc - 対象ドキュメント
-     * @returns {{fullWidthColor: Color, halfWidthColor: Color, glyphWidthColor: Color}|null} 選んだ色。キャンセルなら null
+     * @returns {{baseColor: Color, fullWidthColor: Color, halfWidthColor: Color, glyphWidthColor: Color}|null} 選んだ色。キャンセルなら null
      */
     function showColorDialog(doc) {
         var colorDialog = new Window("dialog", getLabel("dialog.title"));
@@ -702,19 +714,21 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         var colorPanel = colorDialog.add("panel", undefined, getLabel("panel.color"));
         setupPanel(colorPanel, 8);
+        var baseRow = addColorSwatchRow(colorPanel, "base", createDocumentColor(doc, BASE_RGB, BASE_CMYK));
         var fullWidthRow = addColorSwatchRow(colorPanel, "fullWidth", createDocumentColor(doc, FULL_WIDTH_RGB, FULL_WIDTH_CMYK));
         var halfWidthRow = addColorSwatchRow(colorPanel, "halfWidth", createDocumentColor(doc, HALF_WIDTH_RGB, HALF_WIDTH_CMYK));
         var glyphWidthRow = addColorSwatchRow(colorPanel, "glyphWidth", createDocumentColor(doc, GLYPH_WIDTH_RGB, GLYPH_WIDTH_CMYK));
-        alignLabelWidths([fullWidthRow.label, halfWidthRow.label, glyphWidthRow.label], "right");
+        alignLabelWidths([baseRow.label, fullWidthRow.label, halfWidthRow.label, glyphWidthRow.label], "right");
 
-        var buttonRow = addButtonRow(colorDialog);
-        var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
-        var btnOK = buttonRow.rightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
-        alignRightOnlyButtonRow(buttonRow);
+        /* ボタン行はダイアログの幅にかかわらず左右中央に置く / keep the button row centered regardless of the dialog width */
+        var buttonRow = addButtonRow(colorDialog, { centered: true });
+        var btnCancel = buttonRow.rowGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+        var btnOK = buttonRow.rowGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
 
         prepareDialogWindow(colorDialog, SCRIPT_NAME);
         if (colorDialog.show() !== 1) return null;
         return {
+            baseColor: baseRow.getColor(),
             fullWidthColor: fullWidthRow.getColor(),
             halfWidthColor: halfWidthRow.getColor(),
             glyphWidthColor: glyphWidthRow.getColor()
