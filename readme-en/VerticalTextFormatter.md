@@ -105,6 +105,7 @@ https://note.com/dtp_tranist/n/ndb55c5516fd6
 
 ### Update History
 
+- v1.17.2 (2026-10-16) Fixed runs of words (such as Design Week) being split word by word in Illustrator, which rotated "Week" or made it full-width. Words joined by no-break or thin spaces are now treated as one run too
 - v1.17.1 (2026-10-16) Runs of words that include full-width alphanumerics, spaces or ＆ are now treated as one run too: not rotated, and made half-width (Design Ｗｅｅｋ → Design Week). Fixed a "there is no document" error after turning horizontal text vertical (frames recreated by the change are re-taken from the selection)
 - v1.17.0 (2026-10-16) Added "Auto-size area type" to the Character and Paragraph panel. "Number hyphens" now uses ‐ (hyphen) instead of full-width －, which stayed horizontal in vertical text. Added "Leading" (auto-leading percentage, 175% by default) to the Character and Paragraph panel. The "magazines, ads" preset now uses TCY for numbers only (no capital abbreviations or !?). Removed "Include units"; numbers and units are no longer combined in Tate-Chu-Yoko. Leading is always set to Auto at the end (in Simple mode too). Runs of two or more words (Type & Layout) are no longer rotated, made full-width or changed
 - v1.16.0 (2026-10-16) Added Check Coloring to Detailed mode (ported from ColorNumberByWidth)

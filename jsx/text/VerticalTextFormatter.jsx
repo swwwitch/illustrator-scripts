@@ -30,7 +30,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/VerticalTe
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "VerticalTextFormatter";        /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.17.1";                      /* バージョン / version */
+var SCRIPT_VERSION  = "v1.17.2";                      /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-15";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-16";                   /* 更新日 / last updated */
@@ -2517,11 +2517,43 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
         ml: "㍉㍑", mL: "㍉㍑", l: "㍑", L: "㍑"
     };
 
-    /* 欧文のまとまり：英字で始まる単語（. ' - を含む。全角の英数字も可）が、スペースまたは「&」（全角も可）でつながったもの
-       A Roman run: words starting with a letter (may contain . ' -; full-width alphanumerics allowed) joined by spaces or & (full-width too) */
-    var LATIN_WORD_SOURCE = "[A-Za-zＡ-Ｚａ-ｚ][A-Za-z0-9Ａ-Ｚａ-ｚ０-９.'\\-]*";
-    var LATIN_PHRASE_SOURCE = LATIN_WORD_SOURCE + "(?:(?:[ \u3000]*[&＆][ \u3000]*|[ \u3000]+)" + LATIN_WORD_SOURCE + ")*";
-    var LATIN_PHRASE_JOINER = /[ \u3000&＆]/;   /* 2語以上のまとまりか / whether a run has two or more words */
+    /* 欧文のまとまり：英字で始まる単語（. ' - を含む。全角の英数字も可）が、スペースまたは「&」（全角も可）でつながったもの。
+       スペースは半角・全角のほか、ノーブレークスペースや細いスペースなども含める。
+       ExtendScript の正規表現は、入れ子の量指定と選択を含むパターンを誤って評価する（Design Week の「Week」が外れる）ので、1文字ずつ走査する
+       A Roman run: words starting with a letter (may contain . ' -; full-width alphanumerics allowed) joined by spaces or & (full-width too).
+       ExtendScript's regex engine mis-evaluates nested quantifiers with alternation (dropping "Week" from Design Week), so scan by hand */
+    var LATIN_WORD_START_PATTERN = /[A-Za-zＡ-Ｚａ-ｚ]/;
+    var LATIN_WORD_PART_PATTERN = /[A-Za-z0-9Ａ-Ｚａ-ｚ０-９.'\-]/;
+    var LATIN_SPACE_PATTERN = /[ \u00A0\u2000-\u200A\u202F\u205F\u3000]/;
+    var LATIN_AMPERSAND_PATTERN = /[&＆]/;
+
+    /**
+     * その位置から始まる欧文のまとまりの終わりと語数を返す
+     * @param {string} text - 対象の文字列
+     * @param {number} startIndex - 調べる位置
+     * @returns {{end: number, wordCount: number}|null} 終わり（含まない）と語数。英字で始まらなければ null
+     */
+    function scanLatinRun(text, startIndex) {
+        if (!LATIN_WORD_START_PATTERN.test(text.charAt(startIndex))) return null;
+        var wordEnd = startIndex + 1;
+        while (wordEnd < text.length && LATIN_WORD_PART_PATTERN.test(text.charAt(wordEnd))) wordEnd++;
+        var wordCount = 1;
+        while (true) {
+            /* つなぎ：スペースの並び、または前後にスペースを挟んでよい「&」 / joiner: spaces, or & with optional spaces around it */
+            var nextIndex = wordEnd;
+            while (nextIndex < text.length && LATIN_SPACE_PATTERN.test(text.charAt(nextIndex))) nextIndex++;
+            var hasAmpersand = LATIN_AMPERSAND_PATTERN.test(text.charAt(nextIndex));
+            if (hasAmpersand) {
+                nextIndex++;
+                while (nextIndex < text.length && LATIN_SPACE_PATTERN.test(text.charAt(nextIndex))) nextIndex++;
+            }
+            if (nextIndex === wordEnd || !LATIN_WORD_START_PATTERN.test(text.charAt(nextIndex))) break;
+            wordEnd = nextIndex + 1;
+            while (wordEnd < text.length && LATIN_WORD_PART_PATTERN.test(text.charAt(wordEnd))) wordEnd++;
+            wordCount++;
+        }
+        return { end: wordEnd, wordCount: wordCount };
+    }
 
     var FULLWIDTH_SYMBOLS = "()[]{}:;/%&#@*+=<>";   /* ［記号を全角に］の対象 / symbols made full-width */
     var RANGE_MARKS = "-~－～";                      /* ［範囲の「-」「~」→「〜」］の対象 / range marks */
@@ -2582,9 +2614,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
      * @returns {string|null} まとまりの文字列（1語だけなら null）
      */
     function matchLatinPhrase(text, startIndex) {
-        if (!isLatinLetter(text.charAt(startIndex)) && !/[Ａ-Ｚａ-ｚ]/.test(text.charAt(startIndex))) return null;
-        var phraseMatch = new RegExp("^" + LATIN_PHRASE_SOURCE).exec(text.substr(startIndex));
-        return (phraseMatch && LATIN_PHRASE_JOINER.test(phraseMatch[0])) ? phraseMatch[0] : null;
+        var latinRun = scanLatinRun(text, startIndex);
+        return (latinRun && latinRun.wordCount >= 2) ? text.substring(startIndex, latinRun.end) : null;
     }
 
     /**
@@ -3141,11 +3172,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
      */
     function findNoRotateLatinRuns(targetText, minChars) {
         var latinRuns = [];
-        var latinPattern = new RegExp(LATIN_PHRASE_SOURCE, "g");
-        var latinMatch;
-        while ((latinMatch = latinPattern.exec(targetText)) !== null) {
-            var isPhrase = LATIN_PHRASE_JOINER.test(latinMatch[0]);
-            if (isPhrase || (minChars > 0 && latinMatch[0].length >= minChars)) latinRuns.push({ start: latinMatch.index, length: latinMatch[0].length });
+        var i = 0;
+        while (i < targetText.length) {
+            var latinRun = scanLatinRun(targetText, i);
+            if (!latinRun) {
+                i++;
+                continue;
+            }
+            var runLength = latinRun.end - i;
+            if (latinRun.wordCount >= 2 || (minChars > 0 && runLength >= minChars)) latinRuns.push({ start: i, length: runLength });
+            i = latinRun.end;
         }
         return latinRuns;
     }
