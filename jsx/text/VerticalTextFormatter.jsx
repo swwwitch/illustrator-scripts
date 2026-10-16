@@ -30,7 +30,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/VerticalTe
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "VerticalTextFormatter";        /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.17.0";                      /* バージョン / version */
+var SCRIPT_VERSION  = "v1.17.1";                      /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-15";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-16";                   /* 更新日 / last updated */
@@ -2517,11 +2517,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
         ml: "㍉㍑", mL: "㍉㍑", l: "㍑", L: "㍑"
     };
 
-    /* 欧文のまとまり：英字で始まる単語（. ' - を含む）が、スペースまたは「&」でつながったもの
-       A Roman run: words starting with a letter (may contain . ' -) joined by spaces or & */
-    var LATIN_WORD_SOURCE = "[A-Za-z][A-Za-z0-9.'\\-]*";
-    var LATIN_PHRASE_SOURCE = LATIN_WORD_SOURCE + "(?:(?: *& *| +)" + LATIN_WORD_SOURCE + ")*";
-    var LATIN_PHRASE_JOINER = /[ &]/;   /* 2語以上のまとまりか / whether a run has two or more words */
+    /* 欧文のまとまり：英字で始まる単語（. ' - を含む。全角の英数字も可）が、スペースまたは「&」（全角も可）でつながったもの
+       A Roman run: words starting with a letter (may contain . ' -; full-width alphanumerics allowed) joined by spaces or & (full-width too) */
+    var LATIN_WORD_SOURCE = "[A-Za-zＡ-Ｚａ-ｚ][A-Za-z0-9Ａ-Ｚａ-ｚ０-９.'\\-]*";
+    var LATIN_PHRASE_SOURCE = LATIN_WORD_SOURCE + "(?:(?:[ \u3000]*[&＆][ \u3000]*|[ \u3000]+)" + LATIN_WORD_SOURCE + ")*";
+    var LATIN_PHRASE_JOINER = /[ \u3000&＆]/;   /* 2語以上のまとまりか / whether a run has two or more words */
 
     var FULLWIDTH_SYMBOLS = "()[]{}:;/%&#@*+=<>";   /* ［記号を全角に］の対象 / symbols made full-width */
     var RANGE_MARKS = "-~－～";                      /* ［範囲の「-」「~」→「〜」］の対象 / range marks */
@@ -2582,6 +2582,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
      * @returns {string|null} まとまりの文字列（1語だけなら null）
      */
     function matchLatinPhrase(text, startIndex) {
+        if (!isLatinLetter(text.charAt(startIndex)) && !/[Ａ-Ｚａ-ｚ]/.test(text.charAt(startIndex))) return null;
         var phraseMatch = new RegExp("^" + LATIN_PHRASE_SOURCE).exec(text.substr(startIndex));
         return (phraseMatch && LATIN_PHRASE_JOINER.test(phraseMatch[0])) ? phraseMatch[0] : null;
     }
@@ -2973,11 +2974,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
                     }
                 }
                 i = tokenEnd;
-            } else if (isLatinLetter(currentChar) && matchLatinPhrase(text, i)) {
-                /* 英単語の連続（2語以上）は、全角にも記号の置き換えにもせずそのまま残す（回転もしない）
-                   A run of two or more words stays as is: no full-width, no symbol changes (and no rotation) */
+            } else if (matchLatinPhrase(text, i)) {
+                /* 英単語の連続（2語以上）は横倒しの欧文として残す（回転しない）。中の全角英数字・全角スペース・「＆」は半角に戻す
+                   A run of two or more words stays sideways (not rotated); full-width alphanumerics, spaces and ＆ inside become half-width */
                 var phraseText = matchLatinPhrase(text, i);
-                emit(phraseText, false);
+                emit(toHalfwidthAlnum(phraseText).replace(/\u3000/g, " ").replace(/＆/g, "&"), false);
                 i += phraseText.length;
             } else if (isLatinLetter(currentChar)) {
                 while (i < text.length && isLatinLetter(text.charAt(i))) i++;
@@ -3025,7 +3026,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
     /**
      * 選択から処理の対象を集める。文字選択中はその範囲、オブジェクト選択ならテキストフレームごと
      * @param {Document} doc - 対象のドキュメント
-     * @returns {Array<Object>} { frame | range, ownerFrames（属するテキストフレーム）, offset（ストーリーの文字の番号のずれ）, text, isTextSelection }
+     * @returns {Array<Object>} { frame（連結していないフレーム）, story, ownerFrames（属するテキストフレーム）, offset（ストーリーの文字の番号のずれ）, text, isTextSelection }
      */
     function collectTextTargets(doc) {
         var selection = doc.selection;
@@ -3034,7 +3035,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
         if (selection && selection.typename === "TextRange") {
             if (selection.length > 0) {
                 textTargets.push({
-                    range: selection,
+                    story: selection.story,
                     offset: selection.characterOffset - 1,
                     text: selection.contents,
                     ownerFrames: getStoryFrames(selection.story),
@@ -3048,15 +3049,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
         for (var i = 0; i < textFrames.length; i++) {
             var storyFrames = getStoryFrames(textFrames[i].story);
             if (storyFrames.length <= 1) {
-                textTargets.push({ frame: textFrames[i], offset: 0, text: textFrames[i].contents, ownerFrames: [textFrames[i]], isTextSelection: false });
+                textTargets.push({ frame: textFrames[i], story: textFrames[i].story, offset: 0, text: textFrames[i].contents, ownerFrames: [textFrames[i]], isTextSelection: false });
                 continue;
             }
             /* 連結テキストはストーリー全体を1つの対象にする（書き換えで文字が次のフレームへ流れても位置がずれない）
                Threaded text is one target for the whole story, so reflow between frames does not shift positions */
             if (indexOfValue(storyHeadFrames, storyFrames[0]) >= 0) continue;
             storyHeadFrames.push(storyFrames[0]);
-            var storyRange = textFrames[i].story.textRange;
-            textTargets.push({ range: storyRange, offset: 0, text: storyRange.contents, ownerFrames: storyFrames, isTextSelection: false });
+            textTargets.push({ story: textFrames[i].story, offset: 0, text: textFrames[i].story.textRange.contents, ownerFrames: storyFrames, isTextSelection: false });
         }
         return textTargets;
     }
@@ -3078,7 +3078,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
      * @returns {Characters} 文字のコレクション
      */
     function getTargetCharacters(textTarget) {
-        return textTarget.frame ? textTarget.frame.characters : textTarget.range.story.characters;
+        return textTarget.frame ? textTarget.frame.characters : textTarget.story.characters;
     }
 
     /**
@@ -3259,7 +3259,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
      */
     function applyParagraphSettings(doc, textTarget, formatOptions) {
         var mojikumiValue = resolveMojikumiValue(doc, formatOptions.mojikumiIndex);
-        var paragraphs = textTarget.frame ? textTarget.frame.paragraphs : textTarget.range.paragraphs;
+        var paragraphs;
+        if (textTarget.frame) {
+            paragraphs = textTarget.frame.paragraphs;
+        } else if (!textTarget.isTextSelection) {
+            paragraphs = textTarget.story.textRange.paragraphs;
+        } else {
+            /* 文字選択は、いまのストーリーから範囲を取り直す / Re-take a text selection from the current story */
+            var selectionRange = textTarget.story.characters[textTarget.offset];
+            selectionRange.length = textTarget.text.length;
+            paragraphs = selectionRange.paragraphs;
+        }
         for (var i = 0; i < paragraphs.length; i++) {
             /* 末尾の空の段落は length に数えられるが取り出すと No such element になる / A trailing empty paragraph is counted but throws "No such element" */
             var paragraphAttributes;
@@ -3312,20 +3322,85 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
     }
 
     /**
-     * 横組みのテキストフレームを縦組みにし、段落の設定をする（文字の書式には触れない）
+     * 処理のあと、選択を元の対象に戻す。自動サイズ調整したフレームは、アクションのあとに取り直したものを使う
+     * @param {Document} doc - 対象のドキュメント
+     * @param {Array<Object>} textTargets - 対象
+     * @param {number} rangeLength - 文字選択のときの範囲の文字数
+     * @param {TextFrame[]|null} autoSizedFrames - applyAreaAutoSize() の戻り値
+     * @returns {void}
+     */
+    function restoreFinalSelection(doc, textTargets, rangeLength, autoSizedFrames) {
+        if (textTargets[0].isTextSelection) {
+            if (autoSizedFrames && autoSizedFrames.length > 0) textTargets[0].story = autoSizedFrames[0].story;
+            selectTargetSpan(doc, textTargets[0], 0, rangeLength);
+            return;
+        }
+        doc.selection = null;
+        if (autoSizedFrames) {
+            for (var i = 0; i < autoSizedFrames.length; i++) autoSizedFrames[i].selected = true;
+        }
+        for (var j = 0; j < textTargets.length; j++) {
+            if (textTargets[j].isAutoSized) continue;
+            for (var k = 0; k < textTargets[j].ownerFrames.length; k++) textTargets[j].ownerFrames[k].selected = true;
+        }
+    }
+
+    /**
+     * 対象の段落の設定をする（文字の書式には触れない。縦組みへの変換は convertTargetsToVertical() で先に行う）
      * @param {Document} doc - 対象のドキュメント
      * @param {Array<Object>} textTargets - 対象
      * @param {Object} formatOptions - 変換の設定
      * @returns {void}
      */
     function applyFrameSettings(doc, textTargets, formatOptions) {
-        for (var i = 0; i < textTargets.length; i++) {
-            var ownerFrames = textTargets[i].ownerFrames;
-            for (var j = 0; j < ownerFrames.length; j++) {
-                if (!isVerticalFrame(ownerFrames[j])) ownerFrames[j].orientation = TextOrientation.VERTICAL;
+        for (var i = 0; i < textTargets.length; i++) applyParagraphSettings(doc, textTargets[i], formatOptions);
+    }
+
+    /**
+     * 横組みのテキストフレームを縦組みにし、選択から対象を集め直す。
+     * 向きを変えるとテキストフレームが作り直され、変える前の参照は使えなくなる（there is no document）
+     * @param {Document} doc - 対象のドキュメント
+     * @param {Array<Object>} textTargets - collectTextTargets() の戻り値
+     * @returns {Array<Object>} 集め直した対象（横組みが無ければ渡したまま）
+     */
+    function convertTargetsToVertical(doc, textTargets) {
+        var hasHorizontal = false;
+        for (var i = 0; i < textTargets.length && !hasHorizontal; i++) {
+            for (var j = 0; j < textTargets[i].ownerFrames.length; j++) {
+                if (!isVerticalFrame(textTargets[i].ownerFrames[j])) hasHorizontal = true;
             }
-            applyParagraphSettings(doc, textTargets[i], formatOptions);
         }
+        if (!hasHorizontal) return textTargets;
+
+        var textSelectionTarget = textTargets[0].isTextSelection ? textTargets[0] : null;
+        doc.selection = null;
+        for (var k = 0; k < textTargets.length; k++) {
+            for (var m = 0; m < textTargets[k].ownerFrames.length; m++) textTargets[k].ownerFrames[m].selected = true;
+        }
+        /* 向きを変えるたびに選択を読み直し、横組みが残っていれば1つずつ変える（作り直されたフレームの参照を使わない）
+           Re-read the selection after each change and convert one horizontal frame at a time (never reuse a recreated frame) */
+        var frameCount = collectSelectionTextFrames(doc.selection, { skipLocked: true, skipHidden: true }).length;
+        for (var guard = 0; guard < frameCount; guard++) {
+            var currentFrames = collectSelectionTextFrames(doc.selection, { skipLocked: true, skipHidden: true });
+            var horizontalFrame = null;
+            for (var n = 0; n < currentFrames.length && !horizontalFrame; n++) {
+                if (!isVerticalFrame(currentFrames[n])) horizontalFrame = currentFrames[n];
+            }
+            if (!horizontalFrame) break;
+            horizontalFrame.orientation = TextOrientation.VERTICAL;
+        }
+
+        if (!textSelectionTarget) return collectTextTargets(doc);
+        /* 文字選択は、作り直したフレームのストーリーで同じ位置を指す / A text selection points at the same offset in the new story */
+        var newFrames = collectSelectionTextFrames(doc.selection, { skipLocked: true, skipHidden: true });
+        var newStory = newFrames[0].story;
+        return [{
+            story: newStory,
+            offset: textSelectionTarget.offset,
+            text: textSelectionTarget.text,
+            ownerFrames: getStoryFrames(newStory),
+            isTextSelection: true
+        }];
     }
 
     /**
@@ -3376,9 +3451,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
 
     /**
      * 対象のうち、連結していないエリア内文字に自動サイズ調整を適用する（連結したテキストでは使えない）
+     * 適用した対象には isAutoSized を付ける
      * @param {Document} doc - 対象のドキュメント
      * @param {Array<Object>} textTargets - 対象
-     * @returns {void}
+     * @returns {TextFrame[]|null} アクションのあとに選択から取り直したフレーム（適用しなかったら null）
      */
     function applyAreaAutoSize(doc, textTargets) {
         var areaFrames = [];
@@ -3386,10 +3462,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
             var ownerFrames = textTargets[i].ownerFrames;
             if (ownerFrames.length === 1 && ownerFrames[0].kind === TextType.AREATEXT && ownerFrames[0].editable) areaFrames.push(ownerFrames[0]);
         }
-        if (areaFrames.length === 0) return;
+        if (areaFrames.length === 0) return null;
+        for (var t = 0; t < textTargets.length; t++) {
+            if (indexOfValue(areaFrames, textTargets[t].ownerFrames[0]) >= 0) textTargets[t].isAutoSized = true;
+        }
         doc.selection = null;
         for (var j = 0; j < areaFrames.length; j++) areaFrames[j].selected = true;
         app.doScript(AREA_AUTO_SIZE_ACTION_NAME, ACTION_SET_NAME, false);
+        /* アクションのあとのフレームは選択から取り直す / Re-take the frames from the selection after the action */
+        return collectSelectionTextFrames(doc.selection, { skipLocked: true, skipHidden: true });
     }
 
     /**
@@ -3401,6 +3482,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
      * @returns {string} 失敗したときの理由（成功は空文字）
      */
     function runVerticalTextConversion(doc, textTargets, formatOptions) {
+        /* 縦組みにするとフレームが作り直されるので、最初に変えて対象を集め直す / Converting recreates frames, so do it first and re-collect */
+        try {
+            textTargets = convertTargetsToVertical(doc, textTargets);
+        } catch (convertError) {
+            return convertError + " (line " + convertError.line + ")";
+        }
         var plans = [];
         var tcyTotal = 0;
         for (var i = 0; i < textTargets.length; i++) {
@@ -3412,6 +3499,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
             noRotateRunsList.push(getNoRotateRuns(textTargets[r].text, formatOptions));
         }
         var needsAction = formatOptions.rotateRoman || tcyTotal > 0 || formatOptions.areaAutoSize;
+        var autoSizedFrames = null;
         var stepTotal = (formatOptions.rotateRoman ? 1 : 0) + textTargets.length + tcyTotal + (formatOptions.areaAutoSize ? 1 : 0);
         var stepDone = 0;
         var progress = createProgressWindow(getLabel("progress.title"));
@@ -3467,7 +3555,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
 
             /* 文字数が変わったあとの大きさに合わせる / Fit the frames after the text has changed */
             if (formatOptions.areaAutoSize) {
-                applyAreaAutoSize(doc, textTargets);
+                autoSizedFrames = applyAreaAutoSize(doc, textTargets);
                 advanceProgress(getLabel("progress.autoSize"));
             }
 
@@ -3480,7 +3568,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
             progress.close();
             /* 元の選択に戻す / Restore the original selection */
             try {
-                selectTextTargets(doc, textTargets, plans[0].outputLength);
+                restoreFinalSelection(doc, textTargets, plans[0].outputLength, autoSizedFrames);
             } catch (restoreError) { /* 戻せなくても続ける / keep going */ }
         }
     }

@@ -34,7 +34,7 @@
     - In the kanji presets too, years stay digit by digit (二〇二六年) and phone / postal numbers stay Arabic
   - Save the current settings under a name with the save icon, and delete a saved preset with the trash icon (built-ins cannot be deleted)
 - Rotation and Tate-Chu-Yoko
-  - **Rotate Roman characters**: applied to all of the selected text (on by default). Runs of two or more words joined by spaces or & (Type & Layout, Adobe Illustrator) always stay sideways and are not made full-width or changed. The "magazines, ads" preset now turns on "Units to squares". Added "Height to a multiple of the type size" (on by default, always applied in Simple mode too)
+  - **Rotate Roman characters**: applied to all of the selected text (on by default). Runs of two or more words joined by spaces or & (Type & Layout, Adobe Illustrator, or longer) always stay sideways and are not made full-width or changed. Full-width alphanumerics, spaces and ＆ inside such runs count too and become half-width (Design Ｗｅｅｋ → Design Week). The "magazines, ads" preset now turns on "Units to squares". Added "Height to a multiple of the type size" (on by default, always applied in Simple mode too)
     - **Skip long Roman text**: Roman text of at least the given number of characters (5 by default) stays sideways. Words joined by spaces or . ' & - count as one run ("Adobe Illustrator" is 17)
   - **Tate-Chu-Yoko for numbers**: half-width numbers of the lengths checked in [2 digits] [3 digits] [4 digits] (on by default, with 2 and 3 checked)
     - **Skip numbers next to separators**: leaves "000" in "3,000" and "12" in "12.5" alone (on by default)
@@ -105,6 +105,7 @@ https://note.com/dtp_tranist/n/ndb55c5516fd6
 
 ### Update History
 
+- v1.17.1 (2026-10-16) Runs of words that include full-width alphanumerics, spaces or ＆ are now treated as one run too: not rotated, and made half-width (Design Ｗｅｅｋ → Design Week). Fixed a "there is no document" error after turning horizontal text vertical (frames recreated by the change are re-taken from the selection)
 - v1.17.0 (2026-10-16) Added "Auto-size area type" to the Character and Paragraph panel. "Number hyphens" now uses ‐ (hyphen) instead of full-width －, which stayed horizontal in vertical text. Added "Leading" (auto-leading percentage, 175% by default) to the Character and Paragraph panel. The "magazines, ads" preset now uses TCY for numbers only (no capital abbreviations or !?). Removed "Include units"; numbers and units are no longer combined in Tate-Chu-Yoko. Leading is always set to Auto at the end (in Simple mode too). Runs of two or more words (Type & Layout) are no longer rotated, made full-width or changed
 - v1.16.0 (2026-10-16) Added Check Coloring to Detailed mode (ported from ColorNumberByWidth)
 - v1.15.0 (2026-10-16) Phone and postal numbers are no longer turned into ranges; added "Number hyphens". "Separators" is now a dropdown (、 / remove / keep). Added "Include units" for Tate-Chu-Yoko and the "Only 万・億・兆" kanji style. Years are always digit by digit. Rebuilt the built-in presets (seven)
