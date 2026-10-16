@@ -26,7 +26,7 @@
   - Built-in (based on common rules for numbers in vertical text)
     - **Standard**: TCY for 2–3 digits (fixed-width forms), 、 for separators, ・ for decimals
     - **Arabic, TCY for 2 digits only**: 2 digits in TCY, single digits full-width, 3+ digits upright one by one
-    - **Arabic, TCY for 2–3 digits (magazines, ads)**: single digits full-width, units included in TCY (10cm), capital abbreviations and !? in TCY, long Roman text sideways, short words full-width
+    - **Arabic, TCY for 2–3 digits (magazines, ads)**: single digits full-width, unit squares (10cm → 10㌢), long Roman text sideways, short words full-width (TCY for numbers only)
     - **Kanji, 万・億・兆 only (newspapers, books)**: 25000 → 二万五〇〇〇, separators removed
     - **Kanji with 十・百・千 (literature)**: 25000 → 二万五千
     - **Kanji digit by digit with 、**: 3,000 → 三、〇〇〇
@@ -34,10 +34,9 @@
     - In the kanji presets too, years stay digit by digit (二〇二六年) and phone / postal numbers stay Arabic
   - Save the current settings under a name with the save icon, and delete a saved preset with the trash icon (built-ins cannot be deleted)
 - Rotation and Tate-Chu-Yoko
-  - **Rotate Roman characters**: applied to all of the selected text (on by default)
+  - **Rotate Roman characters**: applied to all of the selected text (on by default). Runs of two or more words joined by spaces or & (Type & Layout, Adobe Illustrator) always stay sideways and are not made full-width or changed. The "magazines, ads" preset now turns on "Units to squares". Added "Height to a multiple of the type size" (on by default, always applied in Simple mode too)
     - **Skip long Roman text**: Roman text of at least the given number of characters (5 by default) stays sideways. Words joined by spaces or . ' & - count as one run ("Adobe Illustrator" is 17)
   - **Tate-Chu-Yoko for numbers**: half-width numbers of the lengths checked in [2 digits] [3 digits] [4 digits] (on by default, with 2 and 3 checked)
-    - **Include units** (Detailed mode): when a unit (cm, kg, % …) follows a Tate-Chu-Yoko number and the total is 4 characters or fewer, the unit goes into the Tate-Chu-Yoko too (10cm, 50%)
     - **Skip numbers next to separators**: leaves "000" in "3,000" and "12" in "12.5" alone (on by default)
   - **Tate-Chu-Yoko for 2–3 capitals**: all-capital words such as "PDF" or "OK"
   - **Tate-Chu-Yoko for "!!" and "!?"**: two-character pairs of exclamation and question marks (full-width marks become half-width first)
@@ -63,10 +62,14 @@
     - A year followed by 年 is always digit by digit (2026年 → 二〇二六年)
     - **0 as 零**: uses 零 instead of 〇 (二〇〇六 → 二零零六)
     - **千 as 一千**: with 十・百・千, writes 1000 as 一千 (1500 → 一千五百)
-- **Number hyphens** (Detailed mode): hyphens in phone and postal numbers (digits-digits-digits, 3-4 digits) become full-width － (default) / ー / stay. These numbers are never ranges, Tate-Chu-Yoko or kanji
+- **Number hyphens** (Detailed mode): hyphens in phone and postal numbers (digits-digits-digits, 3-4 digits) become ‐ (hyphen, default) / ー (long vowel mark) / stay. These numbers are never ranges, Tate-Chu-Yoko or kanji
 - Character and Paragraph (Detailed mode)
+  - Choose the kinsoku set (None / Hard / Soft / Soft v2) and the mojikumi set (None and the seven built-ins) from dropdowns (Soft v2 and Solid by default)
+  - **Leading**: set as an auto-leading percentage (175% by default, 50–500%). In both modes, leading is always set to Auto at the end so it follows the type size
+  - Justification is always justified with the last line at the top
   - **Proportional metrics for full-width Latin**: applies the OpenType Proportional Metrics feature to full-width letters (after the rewriting, on by default)
-  - Choose the kinsoku set (None / Hard / Soft / Soft v2) and the mojikumi set (None and the seven built-ins) from dropdowns (Soft v2 and Solid by default). Justification is always justified with the last line at the top
+  - **Height to a multiple of the type size**: sets the area-type frame height (the line length in vertical text) to the nearest whole multiple of the type size, inset excluded (on by default; always applied, in Simple mode too)
+  - **Auto-size area type**: after processing, turns on Auto Size in Area Type Options so the frame fits the text (on by default and in every built-in preset; threaded text is skipped)
 - Check Coloring (Detailed mode)
   - **Color characters after processing**: full-width alphanumerics and ！？ red, half-width blue, fixed-width glyphs (such as third- and quarter-width TCY) green, and the rest in the base color (black). Off by default. Click a swatch to change the color with the color picker. For checking only; the original colors are not restored (ported from ColorNumberByWidth)
 - Horizontal text is always turned vertical before processing
@@ -102,6 +105,7 @@ https://note.com/dtp_tranist/n/ndb55c5516fd6
 
 ### Update History
 
+- v1.17.0 (2026-10-16) Added "Auto-size area type" to the Character and Paragraph panel. "Number hyphens" now uses ‐ (hyphen) instead of full-width －, which stayed horizontal in vertical text. Added "Leading" (auto-leading percentage, 175% by default) to the Character and Paragraph panel. The "magazines, ads" preset now uses TCY for numbers only (no capital abbreviations or !?). Removed "Include units"; numbers and units are no longer combined in Tate-Chu-Yoko. Leading is always set to Auto at the end (in Simple mode too). Runs of two or more words (Type & Layout) are no longer rotated, made full-width or changed
 - v1.16.0 (2026-10-16) Added Check Coloring to Detailed mode (ported from ColorNumberByWidth)
 - v1.15.0 (2026-10-16) Phone and postal numbers are no longer turned into ranges; added "Number hyphens". "Separators" is now a dropdown (、 / remove / keep). Added "Include units" for Tate-Chu-Yoko and the "Only 万・億・兆" kanji style. Years are always digit by digit. Rebuilt the built-in presets (seven)
 - v1.14.1 (2026-10-15) Moved "Proportional metrics for full-width Latin" from Character Conversion to the Character and Paragraph panel (formerly Paragraph)
