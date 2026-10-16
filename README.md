@@ -106,6 +106,7 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 - [テキストを一覧で編集してドキュメントに書き戻す](readme-ja/TextScopeEdit.md)
 - [複数の条件でテキストフレームを一括選択](readme-ja/TextSelector.md)
 - [縦組みの欧文回転・縦中横・数字の書き換えをまとめて適用](readme-ja/VerticalTextFormatter.md)
+- [縦組み用のテキストを横組み用に戻す](readme-ja/HorizontalTextFormatter.md)
 - [全角・半角の英数字と等幅字形を色で塗り分け](readme-ja/ColorNumberByWidth.md)
 - [選択したテキストの体裁を段落スタイルとして登録](readme-ja/%E6%AE%B5%E8%90%BD%E3%82%B9%E3%82%BF%E3%82%A4%E3%83%AB.md)
 
