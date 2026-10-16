@@ -7,6 +7,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 ### 概要
 
 選択したテキストのうち、全角の英数字と「！？」を赤、半角の英数字と「!?」を青、等幅字形の文字を緑に塗ります。ほかの文字はベースの色（黒）にします。
+半角・全角のスペースは塗れないので、専用のレイヤーに色付きの長方形を描きます。
 色はダイアログボックスの色見本をクリックして、カラーピッカーで変えられます。
 
 詳細は README を参照してください。
@@ -15,6 +16,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ColorNumbe
 ### Overview
 
 Colors full-width alphanumerics and "！？" red, half-width alphanumerics and "!?" blue, and characters set to fixed-width glyphs green in the selected text. All other characters get the base color (black).
+Half-width and full-width spaces cannot be colored, so colored rectangles are drawn on a dedicated layer.
 Click a swatch in the dialog to change the color with the color picker.
 
 See the README for details.
@@ -26,7 +28,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ColorNumbe
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ColorNumberByWidth";           /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.2.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.3.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-16";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-16";                   /* 更新日 / last updated */
@@ -57,6 +59,31 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     /* 等幅字形の色の初期値 / initial color for fixed-width glyphs */
     var GLYPH_WIDTH_RGB  = [0, 170, 0];
     var GLYPH_WIDTH_CMYK = [80, 0, 100, 0];
+
+    /* 半角スペースの長方形の色の初期値 / initial color for half-width space rectangles */
+    var HALF_SPACE_RGB  = [0, 0, 0];
+    var HALF_SPACE_CMYK = [0, 0, 0, 100];
+
+    /* 全角スペースの長方形の色の初期値 / initial color for full-width space rectangles */
+    var FULL_SPACE_RGB  = [0, 0, 0];
+    var FULL_SPACE_CMYK = [0, 0, 0, 100];
+
+    /* スペースの長方形を描くレイヤーの名前。実行のたびに中身を描き直す / layer for space rectangles, redrawn on every run */
+    var SPACE_LAYER_NAME = "ColorNumberByWidth Spaces";
+    /* スペースの長方形の不透明度（%） / opacity of space rectangles (%) */
+    var SPACE_RECT_OPACITY = 50;
+    /* ［スペースの長方形をグループ化］の初期値 / initial state of "Group space rectangles" */
+    var GROUP_SPACE_RECTS = true;
+
+    /* 各設定のチェックボックスの初期値。オフにした種類は塗らない・描かない / initial state of each setting's checkbox; unchecked kinds are left alone */
+    var ENABLED_DEFAULTS = {
+        base: true,
+        fullWidth: true,
+        halfWidth: true,
+        glyphWidth: true,
+        halfSpace: true,
+        fullSpace: true
+    };
 
     /* 全角：０-９ Ａ-Ｚ ａ-ｚ ！？、半角：0-9 A-Z a-z !? / full-width and half-width alphanumerics, ! and ? */
     var FULL_WIDTH_PATTERN = /[０-９Ａ-Ｚａ-ｚ！？]/;
@@ -391,13 +418,19 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             title: { ja: "全角・半角の英数字を塗り分け", en: "Color Alphanumerics by Width" }
         },
         panel: {
-            color: { ja: "カラー", en: "Color" }
+            characterType: { ja: "文字種", en: "Character Types" },
+            space: { ja: "スペース", en: "Spaces" }
         },
         fieldLabel: {
             base: { ja: "ベース", en: "Base" },
             fullWidth: { ja: "全角", en: "Full-width" },
             halfWidth: { ja: "半角", en: "Half-width" },
-            glyphWidth: { ja: "等幅字形", en: "Fixed-width glyphs" }
+            glyphWidth: { ja: "等幅字形", en: "Fixed-width glyphs" },
+            halfSpace: { ja: "半角スペース", en: "Half-width space" },
+            fullSpace: { ja: "全角スペース", en: "Full-width space" }
+        },
+        checkbox: {
+            groupSpaceRects: { ja: "スペースの長方形をグループ化", en: "Group space rectangles" }
         },
         tooltip: {
             base: {
@@ -415,6 +448,18 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             glyphWidth: {
                 ja: "等幅全角・半角・1/3・1/4字形にした文字の色（全角・半角より優先）。クリックするとカラーピッカーが開きます。",
                 en: "Color for characters set to full-, half-, third- or quarter-width glyphs (takes priority over full- and half-width). Click to open the color picker."
+            },
+            halfSpace: {
+                ja: "半角スペースに重ねる長方形の色（専用レイヤーに描きます）。クリックするとカラーピッカーが開きます。",
+                en: "Color for the rectangles over half-width spaces (drawn on a dedicated layer). Click to open the color picker."
+            },
+            fullSpace: {
+                ja: "全角スペースに重ねる長方形の色（専用レイヤーに描きます）。クリックするとカラーピッカーが開きます。",
+                en: "Color for the rectangles over full-width spaces (drawn on a dedicated layer). Click to open the color picker."
+            },
+            groupSpaceRects: {
+                ja: "スペースに重ねた長方形を1つのグループにまとめます。",
+                en: "Puts the rectangles over spaces into one group."
             }
         },
         button: {
@@ -571,6 +616,34 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /**
+     * 選択から、スペースを測るテキストフレームと文字の範囲を集める。
+     * スレッドでつないだテキストは対象にしない
+     * @param {Object} currentSelection - doc.selection
+     * @returns {{textFrame: TextFrame, startIndex: number, endIndex: number, isVertical: boolean}[]} フレームと、その中の文字の範囲（終わりは含まない）、縦組みか
+     */
+    function collectSpaceTargets(currentSelection) {
+        var spaceTargets = [];
+        if (currentSelection.typename === "TextRange") {
+            var rangeStory = currentSelection.story;
+            if (rangeStory.textFrames.length !== 1) return spaceTargets;
+            /* characterOffset は1始まり / characterOffset is 1-based */
+            var startIndex = currentSelection.characterOffset - 1;
+            spaceTargets.push({ textFrame: rangeStory.textFrames[0], startIndex: startIndex, endIndex: startIndex + currentSelection.length });
+        } else {
+            var textFrames = [];
+            collectTextFrames(currentSelection, textFrames);
+            for (var i = 0; i < textFrames.length; i++) {
+                if (textFrames[i].story.textFrames.length !== 1) continue;
+                spaceTargets.push({ textFrame: textFrames[i], startIndex: 0, endIndex: textFrames[i].contents.length });
+            }
+        }
+        for (var j = 0; j < spaceTargets.length; j++) {
+            spaceTargets[j].isVertical = (spaceTargets[j].textFrame.orientation === TextOrientation.VERTICAL);
+        }
+        return spaceTargets;
+    }
+
+    /**
      * 選択から塗り分けるテキスト範囲を集める
      * @param {Object} currentSelection - doc.selection
      * @returns {TextRange[]} テキスト範囲
@@ -625,9 +698,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /**
-     * テキスト範囲を塗り分ける（全体をベースの色にし、等幅字形の文字を緑、英数字と「!?」を全角は赤・半角は青）
+     * テキスト範囲を塗り分ける（全体をベースの色にし、等幅字形の文字を緑、英数字と「!?」を全角は赤・半角は青）。
+     * 色が null の種類は塗らない。等幅字形が null なら、その文字も全角・半角で判定する
      * @param {TextRange} targetRange - 対象のテキスト範囲
-     * @param {{baseColor: Color, fullWidthColor: Color, halfWidthColor: Color, glyphWidthColor: Color}} chosenColors - 塗る色
+     * @param {{baseColor: Color|null, fullWidthColor: Color|null, halfWidthColor: Color|null, glyphWidthColor: Color|null}} chosenColors - 塗る色（オフにした種類は null）
      * @param {Array} glyphForms - getFixedWidthGlyphForms() の戻り値
      * @returns {void}
      */
@@ -639,13 +713,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var useContents = (rangeContents.length === characterCount);
 
         /* 先に全体をベースの色にし、当たる文字だけ塗り直す / paint the whole range with the base color first, then recolor matches */
-        targetRange.characterAttributes.fillColor = chosenColors.baseColor;
+        if (chosenColors.baseColor) targetRange.characterAttributes.fillColor = chosenColors.baseColor;
+        if (!chosenColors.fullWidthColor && !chosenColors.halfWidthColor && !chosenColors.glyphWidthColor) return;
 
         for (var i = 0; i < characterCount; i++) {
             var characterText = useContents ? rangeContents.charAt(i) : rangeCharacters[i].contents;
             var characterColor = null;
             /* 等幅字形は全角・半角より優先する / fixed-width glyphs take priority over full- and half-width */
-            if (isFixedWidthGlyph(rangeCharacters[i], glyphForms)) {
+            if (chosenColors.glyphWidthColor && isFixedWidthGlyph(rangeCharacters[i], glyphForms)) {
                 characterColor = chosenColors.glyphWidthColor;
             } else if (FULL_WIDTH_PATTERN.test(characterText)) {
                 characterColor = chosenColors.fullWidthColor;
@@ -658,22 +733,316 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     // =========================================
+    // スペースの長方形 / Space rectangles
+    // =========================================
+    /* スペースは字形が無く、アウトライン化しても何も残らない。測る用の複製のスペースに下線を付けてアウトライン化し、
+       下線のパスから位置を取る。下線の色は文字の色と合わないので、半角・全角は読み順でスペースと対応させて見分ける。
+       続いたスペースの下線は1本につながるので、偶数番目と奇数番目で複製を分け、2つのアウトラインの差を下線とみなす
+       Spaces have no glyphs, so outlining leaves nothing. Underline the spaces in a measuring duplicate and read their
+       positions from the underline paths. Underline colors do not follow the text color, so half/full width is told by
+       matching underlines to spaces in reading order. Adjacent underlines merge, so even and odd spaces are outlined in
+       separate duplicates and the paths found in only one of the two outlines are the underlines.
+       縦組みの下線は字の枠の右辺を中心に、縦にスペースの送り幅ぶん引かれる（実測）
+       In vertical text the underline is centered on the right edge of the em box and runs down the advance (measured) */
+
+    var HALF_WIDTH_SPACE = " ";
+    var FULL_WIDTH_SPACE = "\u3000";
+    var UNDERLINE_THICKNESS_PER_EM = 0.05; /* 下線の太さは文字サイズの 1/20（実測） / underline thickness is 1/20 em (measured) */
+    var COORDINATE_KEY_OFFSET = 100000;    /* 並べ替えキーを正の数にするためのずらし / keeps sort keys positive */
+
+    /**
+     * フレームの文字の範囲からスペースを集める
+     * @param {TextFrame} textFrame - 対象のテキストフレーム
+     * @param {number} startIndex - 範囲の始まり（0始まり）
+     * @param {number} endIndex - 範囲の終わり（含まない）
+     * @param {boolean} includeHalfWidth - 半角スペースを集めるか
+     * @param {boolean} includeFullWidth - 全角スペースを集めるか
+     * @param {boolean} isVertical - 縦組みか（字の枠の大きさに効く比率が変わる）
+     * @returns {{index: number, isFullWidth: boolean, emSize: number}[]} スペースの位置・全角か・字の枠の大きさ（横組みは高さ、縦組みは幅）
+     */
+    function findSpaces(textFrame, startIndex, endIndex, includeHalfWidth, includeFullWidth, isVertical) {
+        var frameText = textFrame.contents;
+        var frameCharacters = textFrame.textRange.characters;
+        var lastIndex = Math.min(endIndex, frameText.length);
+        var spaces = [];
+        for (var i = startIndex; i < lastIndex; i++) {
+            var characterText = frameText.charAt(i);
+            if (!(includeHalfWidth && characterText === HALF_WIDTH_SPACE) && !(includeFullWidth && characterText === FULL_WIDTH_SPACE)) continue;
+            var spaceAttributes = frameCharacters[i].characterAttributes;
+            spaces.push({
+                index: i,
+                isFullWidth: characterText === FULL_WIDTH_SPACE,
+                emSize: spaceAttributes.size * (isVertical ? spaceAttributes.horizontalScale : spaceAttributes.verticalScale) / 100
+            });
+        }
+        return spaces;
+    }
+
+    /**
+     * グループの中まで、パスの geometricBounds を集める
+     * @param {PageItem} outlineItem - アウトラインのグループまたはパス
+     * @param {number[][]} boundsList - 集めた geometricBounds の格納先
+     * @returns {void}
+     */
+    function collectLeafBounds(outlineItem, boundsList) {
+        if (outlineItem.typename !== "GroupItem") {
+            boundsList.push(outlineItem.geometricBounds);
+            return;
+        }
+        for (var i = 0; i < outlineItem.pageItems.length; i++) {
+            collectLeafBounds(outlineItem.pageItems[i], boundsList);
+        }
+    }
+
+    /**
+     * 複製のスペースのうち、偶数番目か奇数番目だけに下線を付けてアウトライン化し、パスの範囲を返す
+     * @param {TextFrame} textFrame - 元のテキストフレーム（変更しない）
+     * @param {{index: number}[]} spaces - findSpaces() の戻り値
+     * @param {number} parity - 0 なら偶数番目、1 なら奇数番目
+     * @param {Layer} workLayer - 複製を置くレイヤー
+     * @returns {number[][]} アウトラインの各パスの geometricBounds
+     */
+    function outlineWithSpaceUnderlines(textFrame, spaces, parity, workLayer) {
+        var measureFrame = textFrame.duplicate(workLayer, ElementPlacement.PLACEATEND);
+        /* 元の下線は外し、対象のスペースだけに付ける / clear existing underlines, then underline only the target spaces */
+        measureFrame.textRange.characterAttributes.underline = false;
+        var measureCharacters = measureFrame.textRange.characters;
+        for (var k = parity; k < spaces.length; k += 2) {
+            measureCharacters[spaces[k].index].characterAttributes.underline = true;
+        }
+        var outlineGroup = measureFrame.createOutline();
+        var boundsList = [];
+        collectLeafBounds(outlineGroup, boundsList);
+        outlineGroup.remove();
+        return boundsList;
+    }
+
+    /**
+     * 範囲を比べるための文字列キーを返す
+     * @param {number[]} itemBounds - geometricBounds
+     * @returns {string} キー
+     */
+    function boundsKey(itemBounds) {
+        return [itemBounds[0].toFixed(3), itemBounds[1].toFixed(3), itemBounds[2].toFixed(3), itemBounds[3].toFixed(3)].join(",");
+    }
+
+    /**
+     * 片方のアウトラインにだけあるパス（＝下線）の範囲を返す
+     * @param {number[][]} boundsList - 調べる側の範囲
+     * @param {number[][]} otherBoundsList - 比べる側の範囲
+     * @returns {number[][]} boundsList にだけある範囲
+     */
+    function findBoundsOnlyIn(boundsList, otherBoundsList) {
+        var otherKeys = {};
+        for (var i = 0; i < otherBoundsList.length; i++) {
+            otherKeys[boundsKey(otherBoundsList[i])] = true;
+        }
+        var uniqueBounds = [];
+        for (var j = 0; j < boundsList.length; j++) {
+            if (!otherKeys[boundsKey(boundsList[j])]) uniqueBounds.push(boundsList[j]);
+        }
+        return uniqueBounds;
+    }
+
+    /**
+     * 数値を、並べ替え用の桁をそろえた文字列にする
+     * @param {number} sortValue - 0 以上の数値
+     * @returns {string} 12桁の文字列
+     */
+    function padSortKey(sortValue) {
+        var keyText = String(Math.round(sortValue * 1000));
+        while (keyText.length < 12) keyText = "0" + keyText;
+        return keyText;
+    }
+
+    /**
+     * 範囲を指定したキーの昇順に並べる（比較関数つき sort() は遅く並びも狂うので、文字列キーで並べる）
+     * @param {number[][]} boundsList - geometricBounds の配列
+     * @param {Function} getSortValue - 範囲から 0 以上の数値を返す関数
+     * @returns {number[][]} 並べ替えた配列
+     */
+    function sortBoundsBy(boundsList, getSortValue) {
+        var sortKeys = [];
+        for (var i = 0; i < boundsList.length; i++) {
+            sortKeys.push(padSortKey(getSortValue(boundsList[i])) + "|" + i);
+        }
+        sortKeys.sort();
+        var sortedBounds = [];
+        for (var j = 0; j < sortKeys.length; j++) {
+            sortedBounds.push(boundsList[Number(sortKeys[j].split("|")[1])]);
+        }
+        return sortedBounds;
+    }
+
+    /**
+     * 下線の範囲を読み順に並べる（横組みは上の行から・行の中は左から、縦組みは右の行から・行の中は上から）
+     * @param {number[][]} underlineBounds - 下線の geometricBounds
+     * @param {boolean} isVertical - 縦組みか
+     * @returns {number[][]} 読み順に並べた配列
+     */
+    function sortInReadingOrder(underlineBounds, isVertical) {
+        /* 行を並べる座標（横組みは上端、縦組みは右端）と、行の中を並べるキー / line coordinate (top or right edge) and in-line sort key */
+        var lineEdgeIndex = isVertical ? 2 : 1;
+        var getLineKey = function (itemBounds) { return COORDINATE_KEY_OFFSET - itemBounds[lineEdgeIndex]; };
+        var getInLineKey = isVertical
+            ? function (itemBounds) { return COORDINATE_KEY_OFFSET - itemBounds[1]; }
+            : function (itemBounds) { return COORDINATE_KEY_OFFSET + itemBounds[0]; };
+        var byLine = sortBoundsBy(underlineBounds, getLineKey);
+        var orderedBounds = [];
+        var lineBounds = [];
+        var lineEdge = null;
+        for (var i = 0; i <= byLine.length; i++) {
+            /* 下線の位置が字の枠の半分以上離れたら次の行 / a new line starts when the underline moves by half an em or more */
+            var isNewLine = (i === byLine.length) || (lineEdge !== null && Math.abs(byLine[i][lineEdgeIndex] - lineEdge) >= estimateEmSize(byLine[i], isVertical) / 2);
+            if (isNewLine) {
+                orderedBounds = orderedBounds.concat(sortBoundsBy(lineBounds, getInLineKey));
+                lineBounds = [];
+            }
+            if (i === byLine.length) break;
+            if (lineBounds.length === 0) lineEdge = byLine[i][lineEdgeIndex];
+            lineBounds.push(byLine[i]);
+        }
+        return orderedBounds;
+    }
+
+    /**
+     * 下線の太さから字の枠の大きさを見積もる（スペースと対応できなかったときに使う）
+     * @param {number[]} underlineBounds - 下線の geometricBounds
+     * @param {boolean} isVertical - 縦組みか（下線の太さが横幅になる）
+     * @returns {number} 字の枠の大きさ（pt）
+     */
+    function estimateEmSize(underlineBounds, isVertical) {
+        var thickness = isVertical ? (underlineBounds[2] - underlineBounds[0]) : (underlineBounds[1] - underlineBounds[3]);
+        return thickness / UNDERLINE_THICKNESS_PER_EM;
+    }
+
+    /**
+     * 下線の位置にスペースの長方形を描く。横組みは下線の上端を字面の下端とみなし、字の高さぶん上へ伸ばす。
+     * 縦組みは下線の中心を字の枠の右辺とみなし、字の枠の幅ぶん左へ伸ばす
+     * @param {Layer|GroupItem} spaceContainer - 描く先のレイヤーまたはグループ
+     * @param {number[][]} underlineBounds - 読み順に並べた下線の範囲
+     * @param {{isFullWidth: boolean, emSize: number}[]} underlinedSpaces - 下線を付けたスペース（文字順）
+     * @param {{halfSpaceColor: Color|null, fullSpaceColor: Color|null}} chosenColors - 塗る色（オフにした種類は null）
+     * @param {boolean} isVertical - 縦組みか
+     * @returns {void}
+     */
+    function drawSpaceRectangles(spaceContainer, underlineBounds, underlinedSpaces, chosenColors, isVertical) {
+        /* 数が合えば文字順と読み順で対応させる。合わなければ下線の幅と太さから見分ける
+           When the counts match, pair them in order; otherwise tell the width from the underline itself */
+        var isMatched = (underlineBounds.length === underlinedSpaces.length);
+        for (var i = 0; i < underlineBounds.length; i++) {
+            var itemBounds = underlineBounds[i];
+            /* 送り幅は下線の長さ（横組みは幅、縦組みは高さ） / the advance is the underline length */
+            var advance = isVertical ? (itemBounds[1] - itemBounds[3]) : (itemBounds[2] - itemBounds[0]);
+            var emSize = isMatched ? underlinedSpaces[i].emSize : estimateEmSize(itemBounds, isVertical);
+            var isFullWidth = isMatched ? underlinedSpaces[i].isFullWidth : (advance >= emSize * 0.75);
+            var spaceColor = isFullWidth ? chosenColors.fullSpaceColor : chosenColors.halfSpaceColor;
+            /* 見分けた種類がオフなら描かない / skip when the kind told from the underline is turned off */
+            if (!spaceColor) continue;
+            var spaceRect;
+            if (isVertical) {
+                var emBoxRight = (itemBounds[0] + itemBounds[2]) / 2;
+                spaceRect = spaceContainer.pathItems.rectangle(itemBounds[1], emBoxRight - emSize, emSize, advance);
+            } else {
+                spaceRect = spaceContainer.pathItems.rectangle(itemBounds[1] + emSize, itemBounds[0], advance, emSize);
+            }
+            spaceRect.stroked = false;
+            spaceRect.filled = true;
+            spaceRect.fillColor = spaceColor;
+            spaceRect.opacity = SPACE_RECT_OPACITY;
+        }
+    }
+
+    /**
+     * スペースの長方形を描くレイヤーを用意する。あれば中身を消し、無ければ作って最前面に置く
+     * @param {Document} doc - 対象ドキュメント
+     * @param {boolean} shouldCreate - 無いときに作るか
+     * @returns {Layer|null} レイヤー。無くて作らないときは null
+     */
+    function prepareSpaceLayer(doc, shouldCreate) {
+        var spaceLayer = null;
+        /* getByName は見つからないと例外になる / getByName throws when the layer is missing */
+        try {
+            spaceLayer = doc.layers.getByName(SPACE_LAYER_NAME);
+        } catch (e) {
+            spaceLayer = null;
+        }
+        if (spaceLayer) {
+            spaceLayer.locked = false;
+            spaceLayer.visible = true;
+            while (spaceLayer.pageItems.length > 0) spaceLayer.pageItems[0].remove();
+        } else {
+            if (!shouldCreate) return null;
+            var previousActiveLayer = doc.activeLayer;
+            spaceLayer = doc.layers.add();
+            spaceLayer.name = SPACE_LAYER_NAME;
+            doc.activeLayer = previousActiveLayer; /* layers.add() で作業中のレイヤーが変わるので戻す / restore the active layer */
+        }
+        spaceLayer.zOrder(ZOrderMethod.BRINGTOFRONT);
+        return spaceLayer;
+    }
+
+    /**
+     * 対象のスペースに長方形を描く。スペースが無いときは前回の長方形を消すだけ
+     * @param {Document} doc - 対象ドキュメント
+     * @param {{textFrame: TextFrame, startIndex: number, endIndex: number, isVertical: boolean}[]} spaceTargets - collectSpaceTargets() の戻り値
+     * @param {{halfSpaceColor: Color|null, fullSpaceColor: Color|null}} chosenColors - 塗る色（オフにした種類は null で、長方形を描かない）
+     * @param {boolean} shouldGroup - 描いた長方形を1つのグループにまとめるか
+     * @returns {void}
+     */
+    function markSpaces(doc, spaceTargets, chosenColors, shouldGroup) {
+        var spacesByTarget = [];
+        var hasSpaces = false;
+        var includeHalfWidth = !!chosenColors.halfSpaceColor;
+        var includeFullWidth = !!chosenColors.fullSpaceColor;
+        for (var i = 0; i < spaceTargets.length; i++) {
+            var targetSpaces = findSpaces(spaceTargets[i].textFrame, spaceTargets[i].startIndex, spaceTargets[i].endIndex, includeHalfWidth, includeFullWidth, spaceTargets[i].isVertical);
+            spacesByTarget.push(targetSpaces);
+            if (targetSpaces.length > 0) hasSpaces = true;
+        }
+        var spaceLayer = prepareSpaceLayer(doc, hasSpaces);
+        if (!spaceLayer) return;
+        if (!hasSpaces) {
+            spaceLayer.remove();
+            return;
+        }
+
+        /* グループの中に直接描く。測る用の複製はレイヤーに置く / draw straight into the group; measuring duplicates stay on the layer */
+        var spaceContainer = shouldGroup ? spaceLayer.groupItems.add() : spaceLayer;
+        for (var j = 0; j < spaceTargets.length; j++) {
+            var spaces = spacesByTarget[j];
+            if (spaces.length === 0) continue;
+            var evenBounds = outlineWithSpaceUnderlines(spaceTargets[j].textFrame, spaces, 0, spaceLayer);
+            var oddBounds = outlineWithSpaceUnderlines(spaceTargets[j].textFrame, spaces, 1, spaceLayer);
+            for (var parity = 0; parity < 2; parity++) {
+                var underlinedSpaces = [];
+                for (var k = parity; k < spaces.length; k += 2) underlinedSpaces.push(spaces[k]);
+                var underlineBounds = (parity === 0) ? findBoundsOnlyIn(evenBounds, oddBounds) : findBoundsOnlyIn(oddBounds, evenBounds);
+                drawSpaceRectangles(spaceContainer, sortInReadingOrder(underlineBounds, spaceTargets[j].isVertical), underlinedSpaces, chosenColors, spaceTargets[j].isVertical);
+            }
+        }
+    }
+
+    // =========================================
     // ダイアログ / Dialog
     // =========================================
 
     /**
-     * 項目名と、クリックでカラーピッカーを開く色見本の1行を作る
+     * オンオフのチェックボックス（項目名つき）と、クリックでカラーピッカーを開く色見本の1行を作る
      * @param {Panel} parentPanel - 追加先のパネル
-     * @param {string} labelKey - LABELS.fieldLabel / LABELS.tooltip のキー
+     * @param {string} labelKey - LABELS.fieldLabel / LABELS.tooltip / ENABLED_DEFAULTS のキー
      * @param {Color} initialColor - 最初の色
-     * @returns {{label: StaticText, getColor: Function}} 項目名と、今の色を返す getColor を持つオブジェクト
+     * @returns {{label: Checkbox, isEnabled: Function, getColor: Function}} 項目名のチェックボックスと、オンオフを返す isEnabled、今の色（オフなら null）を返す getColor を持つオブジェクト
      */
     function addColorSwatchRow(parentPanel, labelKey, initialColor) {
         var swatchColor = initialColor;
         var swatchRow = parentPanel.add("group");
         setupRow(swatchRow, "left", 8);
 
-        var rowLabel = swatchRow.add("statictext", undefined, labelText("fieldLabel." + labelKey));
+        /* show() 前に代入した value は読み戻せないので、オンオフは変数で持つ / value set before show() cannot be read back, so keep the state in a variable */
+        var isEnabled = ENABLED_DEFAULTS[labelKey];
+        var enabledCheckbox = swatchRow.add("checkbox", undefined, labelText("fieldLabel." + labelKey));
+        enabledCheckbox.value = isEnabled;
 
         var colorSwatch = swatchRow.add("group");
         colorSwatch.preferredSize = COLOR_SWATCH_SIZE;
@@ -682,43 +1051,74 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             var swatchGraphics = colorSwatch.graphics;
             var swatchWidth = colorSwatch.size[0];
             var swatchHeight = colorSwatch.size[1];
+            /* オフの行は色見本を薄く描く（自作描画は enabled で淡色にならない） / draw faintly when off; custom drawing does not dim itself */
+            var swatchAlpha = isEnabled ? 1 : 0.25;
             swatchGraphics.newPath();
             swatchGraphics.rectPath(0, 0, swatchWidth, swatchHeight);
-            swatchGraphics.fillPath(swatchGraphics.newBrush(swatchGraphics.BrushType.SOLID_COLOR, colorToScreenRgb(swatchColor)));
+            swatchGraphics.fillPath(swatchGraphics.newBrush(swatchGraphics.BrushType.SOLID_COLOR, colorToScreenRgb(swatchColor).concat(swatchAlpha)));
             swatchGraphics.newPath();
             swatchGraphics.rectPath(0.5, 0.5, swatchWidth - 1, swatchHeight - 1);
-            swatchGraphics.strokePath(swatchGraphics.newPen(swatchGraphics.PenType.SOLID_COLOR, [0.5, 0.5, 0.5, 1], 1));
+            swatchGraphics.strokePath(swatchGraphics.newPen(swatchGraphics.PenType.SOLID_COLOR, [0.5, 0.5, 0.5, swatchAlpha], 1));
         };
+        /* group には notify() が無いので、隠して再表示して描き直す。オフならディム / group has no notify(), so hide and show to redraw; dimmed when off */
+        function redrawSwatch() {
+            colorSwatch.enabled = isEnabled;
+            colorSwatch.hide();
+            colorSwatch.show();
+        }
         /* クリックで標準のカラーピッカーを開く。キャンセルは渡した色が返る
            Clicking opens the standard color picker; Cancel returns the color passed in */
         colorSwatch.addEventListener("click", function () {
+            if (!isEnabled) return;
             swatchColor = app.showColorPicker(swatchColor);
-            colorSwatch.hide(); /* group には notify() が無いので、隠して再表示して描き直す / redraw the group */
-            colorSwatch.show();
+            redrawSwatch();
         });
+        enabledCheckbox.addEventListener("click", function () {
+            isEnabled = enabledCheckbox.value;
+            redrawSwatch();
+        });
+        colorSwatch.enabled = isEnabled;
 
         return {
-            label: rowLabel,
-            getColor: function () { return swatchColor; }
+            label: enabledCheckbox,
+            isEnabled: function () { return isEnabled; },
+            getColor: function () { return isEnabled ? swatchColor : null; }
         };
     }
 
     /**
      * 色を選ぶダイアログボックスを表示する
      * @param {Document} doc - 対象ドキュメント
-     * @returns {{baseColor: Color, fullWidthColor: Color, halfWidthColor: Color, glyphWidthColor: Color}|null} 選んだ色。キャンセルなら null
+     * @returns {{baseColor: Color|null, fullWidthColor: Color|null, halfWidthColor: Color|null, glyphWidthColor: Color|null, halfSpaceColor: Color|null, fullSpaceColor: Color|null, groupSpaceRects: boolean}|null} 選んだ色（オフにした種類は null）とグループ化の指定。キャンセルなら null
      */
     function showColorDialog(doc) {
         var colorDialog = new Window("dialog", getLabel("dialog.title"));
         setupWindow(colorDialog);
 
-        var colorPanel = colorDialog.add("panel", undefined, getLabel("panel.color"));
-        setupPanel(colorPanel, 8);
-        var baseRow = addColorSwatchRow(colorPanel, "base", createDocumentColor(doc, BASE_RGB, BASE_CMYK));
-        var fullWidthRow = addColorSwatchRow(colorPanel, "fullWidth", createDocumentColor(doc, FULL_WIDTH_RGB, FULL_WIDTH_CMYK));
-        var halfWidthRow = addColorSwatchRow(colorPanel, "halfWidth", createDocumentColor(doc, HALF_WIDTH_RGB, HALF_WIDTH_CMYK));
-        var glyphWidthRow = addColorSwatchRow(colorPanel, "glyphWidth", createDocumentColor(doc, GLYPH_WIDTH_RGB, GLYPH_WIDTH_CMYK));
-        alignLabelWidths([baseRow.label, fullWidthRow.label, halfWidthRow.label, glyphWidthRow.label], "right");
+        var characterTypePanel = colorDialog.add("panel", undefined, getLabel("panel.characterType"));
+        setupPanel(characterTypePanel, 8);
+        var baseRow = addColorSwatchRow(characterTypePanel, "base", createDocumentColor(doc, BASE_RGB, BASE_CMYK));
+        var fullWidthRow = addColorSwatchRow(characterTypePanel, "fullWidth", createDocumentColor(doc, FULL_WIDTH_RGB, FULL_WIDTH_CMYK));
+        var halfWidthRow = addColorSwatchRow(characterTypePanel, "halfWidth", createDocumentColor(doc, HALF_WIDTH_RGB, HALF_WIDTH_CMYK));
+        var glyphWidthRow = addColorSwatchRow(characterTypePanel, "glyphWidth", createDocumentColor(doc, GLYPH_WIDTH_RGB, GLYPH_WIDTH_CMYK));
+
+        var spacePanel = colorDialog.add("panel", undefined, getLabel("panel.space"));
+        setupPanel(spacePanel, 8);
+        var halfSpaceRow = addColorSwatchRow(spacePanel, "halfSpace", createDocumentColor(doc, HALF_SPACE_RGB, HALF_SPACE_CMYK));
+        var fullSpaceRow = addColorSwatchRow(spacePanel, "fullSpace", createDocumentColor(doc, FULL_SPACE_RGB, FULL_SPACE_CMYK));
+        /* 2つのパネルで色見本の位置をそろえる / line up the swatches across both panels */
+        alignLabelWidths([baseRow.label, fullWidthRow.label, halfWidthRow.label, glyphWidthRow.label, halfSpaceRow.label, fullSpaceRow.label], "left");
+
+        var groupSpaceRectsCheckbox = spacePanel.add("checkbox", undefined, getLabel("checkbox.groupSpaceRects"));
+        groupSpaceRectsCheckbox.value = GROUP_SPACE_RECTS;
+        groupSpaceRectsCheckbox.helpTip = getLabel("tooltip.groupSpaceRects");
+        /* スペースの長方形をどちらも描かないときはグループ化を選べなくする / disable grouping when neither space kind is drawn */
+        function updateGroupSpaceRectsEnabled() {
+            groupSpaceRectsCheckbox.enabled = halfSpaceRow.isEnabled() || fullSpaceRow.isEnabled();
+        }
+        halfSpaceRow.label.addEventListener("click", updateGroupSpaceRectsEnabled);
+        fullSpaceRow.label.addEventListener("click", updateGroupSpaceRectsEnabled);
+        updateGroupSpaceRectsEnabled();
 
         var buttonRow = addButtonRow(colorDialog);
         var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
@@ -731,7 +1131,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             baseColor: baseRow.getColor(),
             fullWidthColor: fullWidthRow.getColor(),
             halfWidthColor: halfWidthRow.getColor(),
-            glyphWidthColor: glyphWidthRow.getColor()
+            glyphWidthColor: glyphWidthRow.getColor(),
+            halfSpaceColor: halfSpaceRow.getColor(),
+            fullSpaceColor: fullSpaceRow.getColor(),
+            groupSpaceRects: groupSpaceRectsCheckbox.value
         };
     }
 
@@ -745,6 +1148,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     var targetRanges = collectTargetRanges(currentSelection);
     if (targetRanges.length === 0) return;
+    /* 選択は描画で変わることがあるので先に集める / collect before drawing, which may change the selection */
+    var spaceTargets = collectSpaceTargets(currentSelection);
 
     var chosenColors = showColorDialog(doc);
     if (!chosenColors) return;
@@ -753,4 +1158,5 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     for (var i = 0; i < targetRanges.length; i++) {
         colorCharactersInRange(targetRanges[i], chosenColors, glyphForms);
     }
+    markSpaces(doc, spaceTargets, chosenColors, chosenColors.groupSpaceRects);
 })();
