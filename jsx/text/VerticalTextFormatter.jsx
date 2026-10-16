@@ -30,7 +30,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/VerticalTe
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "VerticalTextFormatter";        /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.24.5";                      /* バージョン / version */
+var SCRIPT_VERSION  = "v1.25.2";                      /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-15";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-16";                   /* 更新日 / last updated */
@@ -90,7 +90,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
         mojikumiIndex: 6,
         mojikumiCustomName: "",
         leadingPercent: 175,
-        dialogMode: "simple"
+        dialogMode: "simple",   /* "simple" / "detail" / "wizard" */
+        /* ウィザードでチェックしたやりたいこと（WIZARD_GOALS の key） / Goals checked in the wizard (keys of WIZARD_GOALS) */
+        wizardGoals: { rotate: true, uprightWords: false, tcyNumbers: true, fullwidthDigits: false, kanji: false, era: false,
+            tcyOthers: false, units: false, marks: true, paragraph: true, fitFrame: true, colorCheck: false }
     };
 
     /* ダイアログの真偽値の項目（設定のキーとコントロール名が同じ） / Boolean dialog options (setting key = control name) */
@@ -101,6 +104,24 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
 
     /* 簡易モードで表示していなくてもオフにしない項目（常にかける） / Options kept on even when hidden in the simple mode (always applied) */
     var ALWAYS_APPLIED_KEYS = ["areaHeightToSize"];
+
+    /* ウィザードのやりたいこと。チェックしたものの data を順に重ねる（チェックしていない項目はオフ、禁則・文字組み・行送りは変えない）
+       Wizard goals; the data of each checked goal is layered in order (unchecked options are off; kinsoku, mojikumi and leading stay) */
+    var WIZARD_GOALS = [
+        { key: "rotate", data: { rotateRoman: true, rotateSkipLongLatin: true } },
+        { key: "uprightWords", data: { shortWordFullwidth: true, singleLetterFullwidth: true } },
+        { key: "tcyNumbers", data: { tcyNumbers: true, tcyDigits2: true, tcyDigits3: true, tcyDigits4: false, tcyExcludeAdjacent: true, tcyGlyphByLength: true } },
+        { key: "fullwidthDigits", data: { nonTcyDigitsFullwidth: true, singleDigitFullwidth: true } },
+        { key: "kanji", data: { kanji: true, kanjiMinDigits: 1, kanjiMaxDigits: 20 } },
+        { key: "era", data: { japaneseEra: true } },
+        { key: "tcyOthers", data: { tcyCapitals: true, tcyExclamation: true, tcyGlyphByLength: true } },
+        { key: "units", data: { unitsKumimoji: true } },
+        { key: "marks", data: { commaStyle: "touten", periodToNakaguro: true, rangeToWave: true, symbolsFullwidth: true, quotesToChonchon: true,
+            exclamFullwidth: true, phoneHyphenStyle: "hyphen" } },
+        { key: "paragraph", data: { kinsokuType: "Soft_v2", mojikumiIndex: 6, mojikumiCustomName: "", leadingPercent: 175, proportionalFullwidthLatin: true } },
+        { key: "fitFrame", data: { areaAutoSize: true } },
+        { key: "colorCheck", data: { colorCheck: true } }
+    ];
 
     var MODE_SWITCH_RESULT = 3;   /* モードを切り替えて開き直すときの show() の戻り値 / show() result for reopening in another mode */
 
@@ -1115,7 +1136,58 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
         dialog: {
             title: { ja: "縦組みの整形", en: "Vertical Text Formatter" }
         },
+        wizard: {
+            rotate: {
+                label: { ja: "英単語を横倒しにする", en: "Turn Roman text sideways" },
+                tip: { ja: "欧文回転をかけます（5文字以上の欧文はそのまま横倒し）", en: "Rotates Roman characters (runs of 5 or more characters stay sideways)" }
+            },
+            uprightWords: {
+                label: { ja: "短い英単語と1文字の英字を正立させる", en: "Stand short words and single letters upright" },
+                tip: { ja: "4文字以下の英単語と1文字の英字を全角にします（OK → ＯＫ）", en: "Makes words of 4 or fewer letters and single letters full-width (OK → ＯＫ)" }
+            },
+            tcyNumbers: {
+                label: { ja: "2〜3桁の数字を縦中横にする", en: "Tate-Chu-Yoko for 2–3 digit numbers" },
+                tip: { ja: "2・3桁の数字を縦中横にし、字数に合わせた等幅字形にします（桁区切り・小数点の隣は除く）", en: "Tate-Chu-Yoko for 2 and 3 digit numbers with fixed-width forms by length (not next to separators)" }
+            },
+            fullwidthDigits: {
+                label: { ja: "縦中横にしない数字を全角で正立させる", en: "Stand other digits upright in full-width" },
+                tip: { ja: "縦中横にしない数字（1桁・4桁以上・桁区切りの隣など）を全角にします", en: "Makes digits not in Tate-Chu-Yoko full-width (single digits, 4+ digits, next to separators)" }
+            },
+            kanji: {
+                label: { ja: "数字を漢数字にする", en: "Convert numbers to kanji" },
+                tip: { ja: "すべての桁の数字を漢数字にします（書き方は詳細モードの設定）", en: "Converts numbers of any length to kanji numerals (style from the Detailed mode)" }
+            },
+            era: {
+                label: { ja: "西暦を和暦にする", en: "Western years to Japanese eras" },
+                tip: { ja: "「2026年」を「令和8年」にします", en: "Turns 2026年 into 令和8年" }
+            },
+            tcyOthers: {
+                label: { ja: "略称と「!?」を縦中横にする", en: "Tate-Chu-Yoko for abbreviations and !?" },
+                tip: { ja: "大文字2〜3字（NHK など）と「!?」「!!」を縦中横にします", en: "Tate-Chu-Yoko for 2–3 capitals (NHK etc.) and !? !!" }
+            },
+            units: {
+                label: { ja: "単位を組文字にする", en: "Turn units into squares" },
+                tip: { ja: "数字の直後の cm・kg・ml などを ㌢・㌕・㍉㍑ などにします", en: "Turns cm, kg, ml etc. after digits into ㌢ ㌕ ㍉㍑ etc." }
+            },
+            marks: {
+                label: { ja: "記号を縦組み用にする", en: "Use vertical-friendly marks" },
+                tip: { ja: "桁区切りを「、」、小数点を「・」、範囲を「〜」にし、記号・「!?」を全角、引用符を〝〟、番号のハイフンを「‐」にします", en: "Separators to 、, decimal points to ・, ranges to 〜, symbols and !? full-width, quotes to 〝〟, number hyphens to ‐" }
+            },
+            paragraph: {
+                label: { ja: "段落を縦組み用に整える", en: "Set up paragraphs for vertical text" },
+                tip: { ja: "弱い禁則v2・行末約物半角・行送り175%にし、全角英数字にプロポーショナルメトリクスをかけます", en: "Soft v2 kinsoku, half-width line-end punctuation, 175% leading, proportional metrics for full-width alphanumerics" }
+            },
+            fitFrame: {
+                label: { ja: "エリア内文字の枠を文字に合わせる", en: "Fit area type frames to the text" },
+                tip: { ja: "処理のあと、エリア内文字を自動サイズ調整にします（連結したテキストは除く）", en: "Turns on Auto Size for area type after processing (not threaded text)" }
+            },
+            colorCheck: {
+                label: { ja: "処理のあとに色分けして確かめる", en: "Color characters afterwards to check" },
+                tip: { ja: "全角を赤、半角を青、等幅字形を緑で塗ります（元の色には戻りません）", en: "Colors full-width red, half-width blue and fixed-width glyphs green (the original colors are not restored)" }
+            }
+        },
         panel: {
+            wizard: { ja: "やりたいこと", en: "What to do" },
             rotateTcy: { ja: "欧文回転・縦中横", en: "Rotation and Tate-Chu-Yoko" },
             replace: { ja: "文字の変換", en: "Character Conversion" },
             numbers: { ja: "数字", en: "Numbers" },
@@ -1190,6 +1262,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
         radio: {
             modeSimple: { ja: "簡易", en: "Simple" },
             modeDetail: { ja: "詳細", en: "Detailed" },
+            modeWizard: { ja: "ウィザード", en: "Wizard" },
             kanjiDigit: { ja: "二〇二六", en: "二〇二六" },
             kanjiPositional: { ja: "二千二十六", en: "二千二十六" },
             kanjiLargeUnits: { ja: "二万五〇〇〇", en: "二万五〇〇〇" }
@@ -1265,6 +1338,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
                 en: "Shows and applies only the common options; hidden options are off and kinsoku / mojikumi stay unchanged"
             },
             modeDetail: { ja: "すべての項目を表示します", en: "Shows all options" },
+            modeWizard: { ja: "やりたいことを選ぶだけで、詳細の項目をまとめて設定して処理します（詳細モードの設定は変わりません）。option キーを押しながらクリックすると、すべてオン（すべてオンのときは、クリックしたものだけオン）", en: "Choose what you want to do; the matching detailed options are set for you (the Detailed mode settings are kept). Option-click to turn all on (when all are on, only the clicked one stays on)" },
             preview: { ja: "今の設定で変わる箇所を、別のダイアログボックスで一覧にします", en: "Lists what the current settings change, in a separate dialog box" },
             preset: { ja: "組み込みのプリセットか、保存した設定を読み込みます。", en: "Loads a built-in preset or saved settings." },
             presetSave: { ja: "今の設定に名前を付けて保存します。", en: "Saves the current settings under a name." },
@@ -4742,13 +4816,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
     }
 
     /**
-     * 最上部の行を追加する（左：簡易／詳細、右：プリセットのドロップダウン・保存・削除）
+     * 最上部の行を追加する（左：簡易／詳細／ウィザード、右：プリセットのドロップダウン・保存・削除）
      * @param {Window} dialog - ダイアログ
      * @param {Object} dialogControls - コントロールを入れるオブジェクト
-     * @param {boolean} isDetail - 詳細モードか
+     * @param {string} dialogMode - "simple" / "detail" / "wizard"
      * @returns {void}
      */
-    function buildTopRow(dialog, dialogControls, isDetail) {
+    function buildTopRow(dialog, dialogControls, dialogMode) {
         var topRow = dialog.add("group");
         topRow.orientation = "row";
         topRow.alignment = ["fill", "top"];
@@ -4758,10 +4832,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
         setupRow(modeGroup, ["left", "center"], 8);
         dialogControls.modeSimpleRadio = modeGroup.add("radiobutton", undefined, getLabel("radio.modeSimple"));
         dialogControls.modeDetailRadio = modeGroup.add("radiobutton", undefined, getLabel("radio.modeDetail"));
+        dialogControls.modeWizardRadio = modeGroup.add("radiobutton", undefined, getLabel("radio.modeWizard"));
         dialogControls.modeSimpleRadio.helpTip = getLabel("tooltip.modeSimple");
         dialogControls.modeDetailRadio.helpTip = getLabel("tooltip.modeDetail");
-        dialogControls.modeSimpleRadio.value = !isDetail;
-        dialogControls.modeDetailRadio.value = isDetail;
+        dialogControls.modeWizardRadio.helpTip = getLabel("tooltip.modeWizard");
+        dialogControls.modeSimpleRadio.value = (dialogMode === "simple");
+        dialogControls.modeDetailRadio.value = (dialogMode === "detail");
+        dialogControls.modeWizardRadio.value = (dialogMode === "wizard");
 
         /* 余りの幅を吸って、プリセットを右端に寄せる / Absorbs the extra width so the presets sit at the right edge */
         var spacer = topRow.add("group");
@@ -4935,6 +5012,88 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
     }
 
     /**
+     * ウィザードの「やりたいこと」パネルを追加する（WIZARD_GOALS の順にチェックボックスを縦に並べる）
+     * @param {Window} dialog - ダイアログ
+     * @param {Object} dialogControls - コントロールを入れるオブジェクト
+     * @param {Object} settings - 初期値（wizardGoals を見る）
+     * @returns {void}
+     */
+    function buildWizardPanel(dialog, dialogControls, settings) {
+        var wizardPanel = dialog.add("panel", undefined, getLabel("panel.wizard"));
+        setupPanel(wizardPanel, 6);
+        var savedGoals = settings.wizardGoals || DEFAULT_SETTINGS.wizardGoals;
+        dialogControls.wizardGoalChecks = {};
+        for (var i = 0; i < WIZARD_GOALS.length; i++) {
+            var goalKey = WIZARD_GOALS[i].key;
+            var goalCheckbox = wizardPanel.add("checkbox", undefined, getLabel("wizard." + goalKey + ".label"));
+            goalCheckbox.helpTip = getLabel("wizard." + goalKey + ".tip");
+            goalCheckbox.value = (savedGoals[goalKey] === true);
+            goalCheckbox.onClick = setAllWizardGoalsOnOption;
+            dialogControls.wizardGoalChecks[goalKey] = goalCheckbox;
+        }
+
+        /**
+         * option（Alt）を押しながらクリックしたら、すべてオンにする。すべてオンのときは、クリックしたものだけを残してほかをオフにする
+         * （クリックで値はもう反転しているので、クリック前の状態は反転して見る）
+         * @returns {void}
+         */
+        function setAllWizardGoalsOnOption() {
+            if (!ScriptUI.environment.keyboardState.altKey) return;
+            var clickedCheckbox = this;
+            var wasAllOn = !clickedCheckbox.value;
+            var goalKey;
+            for (goalKey in dialogControls.wizardGoalChecks) {
+                if (dialogControls.wizardGoalChecks.hasOwnProperty(goalKey) && dialogControls.wizardGoalChecks[goalKey] !== clickedCheckbox &&
+                        !dialogControls.wizardGoalChecks[goalKey].value) wasAllOn = false;
+            }
+            for (goalKey in dialogControls.wizardGoalChecks) {
+                if (!dialogControls.wizardGoalChecks.hasOwnProperty(goalKey)) continue;
+                dialogControls.wizardGoalChecks[goalKey].value = wasAllOn ? (dialogControls.wizardGoalChecks[goalKey] === clickedCheckbox) : true;
+            }
+        }
+        /* プリセットは詳細の項目に読み込むものなので、ウィザードでは使わない / Presets fill the detailed options, so they are off in the wizard */
+        dialogControls.presetDropdown.enabled = false;
+        setIconButtonEnabled(dialogControls.presetSaveIcon, false);
+        setIconButtonEnabled(dialogControls.presetDeleteIcon, false);
+    }
+
+    /**
+     * ウィザードのチェックを { key: boolean } で返す
+     * @param {Object} dialogControls - buildDialog() の戻り値
+     * @returns {Object} WIZARD_GOALS の key ごとのチェック
+     */
+    function readWizardGoals(dialogControls) {
+        var wizardGoals = {};
+        for (var i = 0; i < WIZARD_GOALS.length; i++) wizardGoals[WIZARD_GOALS[i].key] = dialogControls.wizardGoalChecks[WIZARD_GOALS[i].key].value;
+        return wizardGoals;
+    }
+
+    /**
+     * ウィザードのチェックから実行に使う設定を作る。真偽値の項目はいったんすべてオフ（常にかける項目は除く）、
+     * 禁則・文字組み・行送り・桁区切り・番号のハイフンは変えない設定にしてから、チェックしたものの data を順に重ねる
+     * @param {Object} baseSettings - 元の設定（数値・漢数字の書き方などはここから引き継ぐ）
+     * @param {Object} wizardGoals - readWizardGoals() の戻り値
+     * @returns {Object} 実行に使う設定
+     */
+    function buildWizardOptions(baseSettings, wizardGoals) {
+        var formatOptions = mergePresetData(baseSettings);
+        for (var i = 0; i < CHECKBOX_SETTING_KEYS.length; i++) {
+            if (indexOfValue(ALWAYS_APPLIED_KEYS, CHECKBOX_SETTING_KEYS[i]) < 0) formatOptions[CHECKBOX_SETTING_KEYS[i]] = false;
+        }
+        formatOptions.rotateSkipMinChars = DEFAULT_SETTINGS.rotateSkipMinChars;
+        formatOptions.shortWordMaxChars = DEFAULT_SETTINGS.rotateSkipMinChars - 1;
+        formatOptions.commaStyle = "keep";
+        formatOptions.phoneHyphenStyle = "keep";
+        formatOptions.kinsokuType = null;
+        formatOptions.leadingPercent = null;
+        formatOptions.mojikumiIndex = null;
+        for (var j = 0; j < WIZARD_GOALS.length; j++) {
+            if (wizardGoals[WIZARD_GOALS[j].key]) formatOptions = mergeObjects(formatOptions, WIZARD_GOALS[j].data);
+        }
+        return formatOptions;
+    }
+
+    /**
      * ボタン行（左：変換の確認、右：キャンセル・OK）を追加する
      * @param {Window} dialog - ダイアログ
      * @param {Object} dialogControls - コントロールを入れるオブジェクト
@@ -4958,12 +5117,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
      * @returns {Object} dialog と各コントロール（作らなかった項目は settings の値を baseSettings に持つ）
      */
     function buildDialog(settings) {
-        var isDetail = (settings.dialogMode === "detail");
+        var dialogMode = (settings.dialogMode === "detail" || settings.dialogMode === "wizard") ? settings.dialogMode : "simple";
+        var isDetail = (dialogMode === "detail");
         var dialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
         setupWindow(dialog);
-        var dialogControls = { dialog: dialog, baseSettings: mergePresetData(settings), dialogMode: isDetail ? "detail" : "simple" };
+        var dialogControls = { dialog: dialog, baseSettings: mergePresetData(settings), dialogMode: dialogMode };
 
-        buildTopRow(dialog, dialogControls, isDetail);
+        buildTopRow(dialog, dialogControls, dialogMode);
+        if (dialogMode === "wizard") {
+            buildWizardPanel(dialog, dialogControls, settings);
+            buildButtonRow(dialog, dialogControls);
+            return dialogControls;
+        }
 
         var columnsGroup = dialog.add("group");
         columnsGroup.orientation = "row";
@@ -5009,6 +5174,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
      */
     function readDialogOptions(dialogControls) {
         var formatOptions = mergePresetData(dialogControls.baseSettings);
+        /* ウィザードはチェックだけを控え、詳細の設定はそのまま残す。モードの切り替えでは dialogMode が先に変わるので、コントロールで見分ける
+           The wizard keeps only its checks; the detailed settings stay. A mode switch changes dialogMode first, so check the controls */
+        if (dialogControls.wizardGoalChecks) {
+            formatOptions.wizardGoals = readWizardGoals(dialogControls);
+            formatOptions.dialogMode = dialogControls.dialogMode;
+            return formatOptions;
+        }
         for (var i = 0; i < CHECKBOX_SETTING_KEYS.length; i++) {
             var settingKey = CHECKBOX_SETTING_KEYS[i];
             if (dialogControls[settingKey]) formatOptions[settingKey] = dialogControls[settingKey].value;
@@ -5055,12 +5227,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
     }
 
     /**
-     * 実行と確認の一覧に使う設定を返す。簡易モードでは、表示していない項目をオフにし、禁則・文字組みは変えない
+     * 実行と確認の一覧に使う設定を返す。簡易モードでは、表示していない項目をオフにし、禁則・文字組みは変えない。
+     * ウィザードはチェックしたやりたいことから作る
      * （保存する設定は readDialogOptions() のまま、詳細モードの値を残す）
      * @param {Object} dialogControls - buildDialog() の戻り値
      * @returns {Object} 実行に使う設定
      */
     function readEffectiveOptions(dialogControls) {
+        if (dialogControls.wizardGoalChecks) return buildWizardOptions(dialogControls.baseSettings, readWizardGoals(dialogControls));
         var formatOptions = readDialogOptions(dialogControls);
         if (dialogControls.dialogMode !== "simple") return formatOptions;
         for (var i = 0; i < CHECKBOX_SETTING_KEYS.length; i++) {
@@ -5117,6 +5291,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
      * @returns {void}
      */
     function bindDialogEvents(dialogControls, textTargets) {
+        dialogControls.btnPreview.onClick = function () {
+            showPreviewDialog(buildPreviewLines(textTargets, readEffectiveOptions(dialogControls)));
+        };
+        bindModeSwitch(dialogControls, dialogControls.modeSimpleRadio, "simple");
+        bindModeSwitch(dialogControls, dialogControls.modeDetailRadio, "detail");
+        bindModeSwitch(dialogControls, dialogControls.modeWizardRadio, "wizard");
+        /* ウィザードはチェックボックスだけで、連動する項目もプリセットも無い / The wizard has only checkboxes, no dependent options or presets */
+        if (dialogControls.wizardGoalChecks) return;
+
         /**
          * 親のチェックボックスに合わせて子の項目を有効／無効にする
          * @returns {void}
@@ -5173,12 +5356,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
         wrapDigitInputUpdate(dialogControls.rotateSkipMinInput, onDigitInputChanged);
         if (dialogControls.shortWordMaxInput) wrapDigitInputUpdate(dialogControls.shortWordMaxInput, onDigitInputChanged);
 
-        dialogControls.btnPreview.onClick = function () {
-            showPreviewDialog(buildPreviewLines(textTargets, readEffectiveOptions(dialogControls)));
-        };
-
-        bindModeSwitch(dialogControls, dialogControls.modeSimpleRadio, "simple");
-        bindModeSwitch(dialogControls, dialogControls.modeDetailRadio, "detail");
         bindPresetEvents(dialogControls, updateEnabledStates);
         updateEnabledStates();
     }
@@ -5206,7 +5383,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
      * モードのラジオボタンを押したら、今の値のまま開き直す（作り直しは main で行う）
      * @param {Object} dialogControls - buildDialog() の戻り値
      * @param {RadioButton} modeRadio - モードのラジオボタン
-     * @param {string} dialogMode - "simple" または "detail"
+     * @param {string} dialogMode - "simple" / "detail" / "wizard"
      * @returns {void}
      */
     function bindModeSwitch(dialogControls, modeRadio, dialogMode) {

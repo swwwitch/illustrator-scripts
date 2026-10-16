@@ -17,9 +17,22 @@
 
 ### Features
 
-- Simple and Detailed modes (switch at the top left of the dialog box; Simple by default)
+- Simple, Detailed and Wizard modes (switch at the top left of the dialog box; Simple by default)
   - **Simple**: shows only rotation, Tate-Chu-Yoko digits (2/3/4), fixed-width forms, separator conversion, and full-width single digits, non-TCY digits and letters
   - **Detailed**: shows every option
+  - **Wizard**: choose what you want to do with checkboxes, and the matching detailed options are set for you (Detailed-mode settings are kept; unchecked options are off; presets are unavailable). Option-click a checkbox to turn all on (when all are on, only the clicked one stays on)
+    - Turn Roman text sideways (runs of 5 or more characters stay sideways)
+    - Stand short words and single letters upright (4 or fewer letters become full-width)
+    - Tate-Chu-Yoko for 2–3 digit numbers (fixed-width forms by length)
+    - Stand other digits upright in full-width
+    - Convert numbers to kanji (style from the Detailed mode)
+    - Western years to Japanese eras
+    - Tate-Chu-Yoko for abbreviations and !?
+    - Turn units into squares
+    - Use vertical-friendly marks (、 separators, ・ decimal points, 〜, full-width symbols, 〝〟, number hyphens)
+    - Set up paragraphs for vertical text (Soft v2 kinsoku, half-width line-end punctuation, 175% leading, proportional metrics)
+    - Fit area type frames to the text
+    - Color characters afterwards to check
   - Simple mode applies only the visible options (hidden options are off; kinsoku and mojikumi stay unchanged). Detailed-mode settings are kept
   - Switching reopens the dialog box around the same center
 - Presets
@@ -108,6 +121,9 @@ https://note.com/dtp_tranist/n/ndb55c5516fd6
 
 ### Update History
 
+- v1.25.2 (2026-10-16) Option-clicking in the Wizard now turns all on, and a second option-click keeps only the clicked one on
+- v1.25.1 (2026-10-16) Option-clicking a Wizard checkbox turns all of them on or off
+- v1.25.0 (2026-10-16) Added the Wizard mode: choose what you want to do (12 goals such as turning Roman text sideways, Tate-Chu-Yoko for 2–3 digits, vertical-friendly marks) and the matching detailed options are set for you
 - v1.24.5 (2026-10-16) Made the preset dropdown narrower (220 → 150 px)
 - v1.24.4 (2026-10-16) Moved the Simple/Detailed switch to the top left and the presets to the top right. Moved [Conversion Check...] to the left of the button row
 - v1.24.3 (2026-10-16) The kanji style radio buttons (二〇二六 / 二千二十六 / 二万五〇〇〇) are now stacked vertically
