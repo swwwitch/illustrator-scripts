@@ -12,12 +12,12 @@
 
 - Applies "Rotate Standard Roman Characters in Vertical Text" and Tate-Chu-Yoko to the selected vertical text in one go.
 - It can also rewrite numbers as full-width digits, kanji numerals or Japanese era years, and turn separators into marks for vertical text.
-- Choose the options in a dialog box and check the result in the "Conversion Check" list before running.
+- Choose the options in a dialog box and check the result in the [Conversion Check...] list before running.
 - Rotation and Tate-Chu-Yoko cannot be set through the DOM, so a temporary (dynamic) action applies just those Character panel items. Font, size and other formatting stay as they are.
 
 ### Features
 
-- Simple and Detailed modes (switch at the left of the button row; Simple by default)
+- Simple and Detailed modes (switch at the top left of the dialog box; Simple by default)
   - **Simple**: shows only rotation, Tate-Chu-Yoko digits (2/3/4), fixed-width forms, separator conversion, and full-width single digits, non-TCY digits and letters
   - **Detailed**: shows every option
   - Simple mode applies only the visible options (hidden options are off; kinsoku and mojikumi stay unchanged). Detailed-mode settings are kept
@@ -35,7 +35,7 @@
   - Save the current settings under a name with the save icon, and delete a saved preset with the trash icon (built-ins cannot be deleted)
 - Rotation and Tate-Chu-Yoko
   - **Rotate Roman characters**: applied to all of the selected text (on by default). Runs of two or more words joined by spaces or & (Type & Layout, Adobe Illustrator, or longer) always stay sideways and are not made full-width or changed. Full-width alphanumerics, spaces and ＆ inside such runs count too and become half-width (Design Ｗｅｅｋ → Design Week). The "magazines, ads" preset now turns on "Units to squares". Added "Height to a multiple of the type size" (on by default, always applied in Simple mode too)
-    - **Skip long Roman text**: Roman text of at least the given number of characters (5 by default) stays sideways. Words joined by spaces or . ' & - count as one run ("Adobe Illustrator" is 17)
+    - **Skip Roman text of [N] or more characters**: Roman text of at least the given number of characters (5 by default) stays sideways. Words joined by spaces or . ' & - count as one run ("Adobe Illustrator" is 17)
   - **Tate-Chu-Yoko for numbers**: half-width numbers of the lengths checked in [2 digits] [3 digits] [4 digits] (on by default, with 2 and 3 checked)
     - **Skip numbers next to separators**: leaves "000" in "3,000" and "12" in "12.5" alone (on by default)
   - **Tate-Chu-Yoko for 2–3 capitals**: all-capital words such as "PDF" or "OK"
@@ -43,18 +43,18 @@
   - **Fixed-width forms by length**: sets Tate-Chu-Yoko text to half-width forms for 2 characters, third-width for 3 and quarter-width for 4, so it fits in about one em (on by default). Nothing changes if the font has no such forms
 - Character Conversion
   - **Full-width letters and digits to half-width**: makes "２０" or "ＰＤＦ" targets for Tate-Chu-Yoko and rotation
-  - **Separators** (radio buttons): "," "，" become 、 (3,000 → 3、000, default) / are removed (3,000 → 3000; the joined digits count as one number) / stay
+  - **Separators**: "," "，" become 、 (3,000 → 3、000, default) / are removed (3,000 → 3000; the joined digits count as one number) / stay
   - **Decimal "." / "．" to "・"**: 12.5 → 12・5 (on by default)
   - **Range "-" "~" → "〜"**: replaces - ~ － ～ between digits with 〜 (10-20 → 10〜20, on by default). Phone and postal numbers are excluded
   - **Symbols to full-width**: makes half-width ( ) [ ] { } : ; / % & # @ * + = < > full-width so they stand upright (on by default)
   - **Quotes to 〝〟**: replaces “ ” and straight " " with 〝 〟 (on by default)
   - **"!" "?" to full-width**: ! and ? that are not in Tate-Chu-Yoko become full-width (on by default)
-  - **Short words to full-width** (Detailed mode): words of at most the given number of letters become full-width (OK → ＯＫ). The length is linked to one below "Skip long Roman text" (5 and 4 by default). Unit squares and capital Tate-Chu-Yoko take priority
+  - **Full-width for words of [N] or fewer letters** (Detailed mode): words of at most the given number of letters become full-width (OK → ＯＫ). The length is linked to one below "Skip Roman text of [N] or more characters" (5 and 4 by default). Unit squares and capital Tate-Chu-Yoko take priority
   - **Single letters to full-width**: a lone letter such as the A in Aランク
 - Numbers
   - **Single digits to full-width**: keeps a single digit upright
   - **Non-TCY digits to full-width**: makes every digit not in Tate-Chu-Yoko full-width so it stands upright, including digits next to separators and in phone numbers, but not those made kanji (off by default; dims "Single digits to full-width" when on)
-  - **Units to squares**: turns mm, cm, km, m, mg, g, kg, t, ml, L right after digits into ㍉ ㌢ ㌖ ㍍ ㍉㌘ ㌘ ㌕ ㌧ ㍉㍑ ㍑ (10cm → 10㌢). Off by default because some fonts lack these glyphs
+  - **Units to squares**: turns mm, cm, km, m, mg, g, kg, t, ml, dL, kL, L, cal, kcal, cc right after digits into ㍉ ㌢ ㌖ ㍍ ㍉㌘ ㌘ ㌕ ㌧ ㍉㍑ ㌥㍑ ㌔㍑ ㍑ ㌍ ㌔㌍ ㏄ (10cm → 10㌢), and m2, cm3, m² etc. into ㎡ ㎤. A space between the digits and the unit is removed (5 mm → 5㍉), and full-width units count too. Units followed by letters or / (km/h, mmHg) are left. Off by default because some fonts lack these glyphs
   - **Western years to Japanese era**: 2026年 → 令和8年. When the month and day follow, they decide which side of an era change the date falls on (2019年4月30日 → 平成31年, 2019年5月1日 → 令和元年); a bare year of an era change uses the new era. Year 1 is written 元年
   - **Convert to kanji numerals**: numbers within the digit range (4–20 by default)
     - **Digit by digit**: 2026 → 二〇二六, 3,000 → 三、〇〇〇
@@ -66,7 +66,7 @@
 - **Number hyphens** (Detailed mode): hyphens in phone and postal numbers (digits-digits-digits, 3-4 digits) become ‐ (hyphen, default) / ー (long vowel mark) / stay. These numbers are never ranges, Tate-Chu-Yoko or kanji
 - Character and Paragraph (Detailed mode)
   - Choose the kinsoku set (None / Hard / Soft / Soft v2) and the mojikumi set (None, the seven built-ins and the document's custom sets) from dropdowns (Soft v2 and Solid by default)
-  - **Leading**: set as an auto-leading percentage (175% by default, 50–500%). In both modes, leading is always set to Auto at the end so it follows the type size
+  - **Leading**: set as an auto-leading percentage (175% by default, 50–500%). In both modes, leading is always set to Auto at the end so it follows the type size, and auto kerning is always set to 0
   - Justification is always justified with the last line at the top
   - **Proportional metrics for full-width alphanumerics**: applies the OpenType Proportional Metrics feature to full-width letters and digits (after the rewriting, on by default)
   - **Height to a multiple of the type size**: sets the area-type frame height (the line length in vertical text) to the nearest whole multiple of the type size, inset excluded (on by default; always applied, in Simple mode too)
@@ -74,7 +74,7 @@
 - Check Coloring (Detailed mode)
   - **Color characters after processing**: full-width alphanumerics and ！？ red, half-width blue, fixed-width glyphs (such as third- and quarter-width TCY) green, and the rest in the base color (black). Off by default. The colors are set in the CHECK_* variables at the top of the script. For checking only; the original colors are not restored (ported from ColorCharactersByWidth)
 - Horizontal text is always turned vertical before processing
-- **Conversion Check**: lists what will change, such as "3,000 → 三千" or "10 [TCY] ×3", and updates whenever an option or digit range changes
+- **Conversion Check...**: lists what the current settings will change, such as "3,000 → 三千" or "10 [TCY] ×3", in a separate dialog box
 - A progress bar shows how far processing has gone
 - Settings are saved and restored the next time
 - Japanese / English UI switches automatically
@@ -83,18 +83,20 @@
 
 1. Select vertical text objects (or a range of text with the Type tool)
 2. Run the script and choose the options in the dialog box
-3. Check the result in "Conversion Check" and click OK
+3. Check the list of changes with [Conversion Check...] and click OK
 
 ### Order of processing
 
-1. Turn horizontal text vertical (always)
-2. Paragraph settings (Solid mojikumi, Soft v2 kinsoku, justify with last line top)
-3. Apply rotation to all of the text (rewritten characters inherit the rotated formatting)
-4. Rewrite characters (full-width to half-width, separators, full-width digits, era years, kanji numerals)
-5. Apply Tate-Chu-Yoko to each target
+1. Return text that is already vertical to horizontal form (rotation and Tate-Chu-Yoko off; full-width alphanumerics, 、 separators, ・ decimal points, symbols, 〝〟, number hyphens and unit squares reverted; fixed-width glyphs reset — the same as HorizontalTextFormatter's defaults; range 〜 is kept, and kanji numerals and eras are reverted only in frames last processed with them on). Text that was already formatted can be run again with different settings
+2. Turn horizontal text vertical (always)
+3. Paragraph settings (Solid mojikumi, Soft v2 kinsoku, justify with last line top)
+4. Apply rotation to all of the text (rewritten characters inherit the rotated formatting)
+5. Rewrite characters (full-width to half-width, separators, full-width digits, era years, kanji numerals)
+6. Apply Tate-Chu-Yoko to each target
 
 ### Notes
 
+- For text that is already vertical, "Conversion Check" lists changes from the text after it is returned to horizontal form (a line appears even when the result is the same as before, such as ５ → 5 → ５)
 - When the kanji and Tate-Chu-Yoko digit ranges overlap, kanji numerals win
 - Without the era conversion, the four digits of a year such as 2026年 also get Tate-Chu-Yoko when [4 digits] is checked
 - When a rewrite changes the number of characters (3,000 → 三千 etc.), the rewritten part takes the formatting of its first character
@@ -106,6 +108,17 @@ https://note.com/dtp_tranist/n/ndb55c5516fd6
 
 ### Update History
 
+- v1.24.5 (2026-10-16) Made the preset dropdown narrower (220 → 150 px)
+- v1.24.4 (2026-10-16) Moved the Simple/Detailed switch to the top left and the presets to the top right. Moved [Conversion Check...] to the left of the button row
+- v1.24.3 (2026-10-16) The kanji style radio buttons (二〇二六 / 二千二十六 / 二万五〇〇〇) are now stacked vertically
+- v1.24.2 (2026-10-16) "Short words to full-width" now reads "Full-width for words of [N] or fewer letters" (clicking the text after the field also toggles it)
+- v1.24.1 (2026-10-16) Swapped the columns in Detailed mode (left: Numbers and Character Conversion; right: rotation and Tate-Chu-Yoko, Character and Paragraph, Check Coloring)
+- v1.24.0 (2026-10-16) "Conversion Check" is now a [Conversion Check...] button that opens the list in a separate dialog box. "Skip long Roman text" now reads "Skip Roman text of [N] or more characters"
+- v1.23.0 (2026-10-16) When run again, kanji numerals and Japanese eras are also returned to Arabic numerals and Western years first (二〇二六 → 2026, 二千二十六 → 2026, 令和八年 → 2026年, 一月七日 → 1月7日). To keep phrases such as 数十万 and 四十七士 in the original text intact, processed text frames are tagged with the options, and only frames processed with kanji or eras on are reverted (frames processed with v1.22.0 or earlier have no tag and are not reverted)
+- v1.22.0 (2026-10-16) Improved "Units to squares": a space between digits and the unit is removed (5 mm → 5㍉), full-width units (５ｍｍ) are included, dL, kL, cal, kcal and cc were added, and m2, cm3, m² become ㎡, ㎤. Units followed by letters or / (km/h, mmHg) are left as they are (60km/h used to become 60㌖／h). A slash between letters is no longer made full-width
+- v1.21.1 (2026-10-16) "Separators" is a pop-up menu again
+- v1.21.0 (2026-10-16) The script can now be run again on text that is already vertical. Vertical text is first returned to horizontal form, as with HorizontalTextFormatter's default conversions (rotation and Tate-Chu-Yoko off; full-width alphanumerics, 、 separators, ・ decimal points, symbols, 〝〟, number hyphens and unit squares reverted; fixed-width glyphs reset), and then formatted with the current settings. Era years, kanji numerals and range 〜 are not reverted
+- v1.20.0 (2026-10-16) Auto kerning is now always set to 0 at the end (both modes; no option in the dialog box; manual kerning values are kept)
 - v1.19.0 (2026-10-16) Added "Non-TCY digits to full-width" (also digits next to separators and in phone numbers; not those made kanji). "Separators" is now a vertical set of radio buttons. Check coloring no longer has swatches; the colors are set in the CHECK_* variables at the top of the script (the dialog box only turns it on or off)
 - v1.18.1 (2026-10-16) Renamed "Proportional metrics for full-width Latin" to "Proportional metrics for full-width alphanumerics" and included full-width digits (０–９)
 - v1.18.0 (2026-10-16) The [Mojikumi] list now includes the document's custom mojikumi sets (kept by name, so the same set is picked next time in documents that have it). Improved detection of word runs: digits with units (5mm and 10cm) stay eligible for [Units to squares]; with [Tate-Chu-Yoko for 2–3 capitals] on, all-capital runs such as NHK BS get Tate-Chu-Yoko word by word; words starting with digits such as 3D Printing are included; a capitalized word after a sentence-ending period starts a new run; wide spaces such as em spaces become half-width
@@ -115,7 +128,7 @@ https://note.com/dtp_tranist/n/ndb55c5516fd6
 - v1.16.0 (2026-10-16) Added Check Coloring to Detailed mode (ported from ColorNumberByWidth)
 - v1.15.0 (2026-10-16) Phone and postal numbers are no longer turned into ranges; added "Number hyphens". "Separators" is now a dropdown (、 / remove / keep). Added "Include units" for Tate-Chu-Yoko and the "Only 万・億・兆" kanji style. Years are always digit by digit. Rebuilt the built-in presets (seven)
 - v1.14.1 (2026-10-15) Moved "Proportional metrics for full-width Latin" from Character Conversion to the Character and Paragraph panel (formerly Paragraph)
-- v1.14.0 (2026-10-15) The "Short words to full-width" length is now linked to one below "Skip long Roman text" (5 and 4 by default)
+- v1.14.0 (2026-10-15) The "Short words to full-width" length is now linked to one below "Skip Roman text of [N] or more characters" (5 and 4 by default)
 - v1.13.1 (2026-10-15) Fixed shifted rewriting and Tate-Chu-Yoko positions in threaded text (the whole story is now one target). Every threaded frame is turned vertical
 - v1.13.0 (2026-10-15) Added "Short words to full-width" (N letters or fewer) to Character Conversion in Detailed mode
 - v1.12.0 (2026-10-15) Added "Skip long Roman text" (no rotation for runs of N characters or more). Simple mode now applies only the visible options

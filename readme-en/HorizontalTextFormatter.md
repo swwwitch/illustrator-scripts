@@ -29,7 +29,7 @@
   - **Symbols to half-width**: ％ ＆ ＃ ＠ ＊ ＋ ＝ ＜ ＞ ／; brackets, ： and ； stay full-width (on by default)
   - **Quotes 〝〟 → “”** (on by default)
   - **Number hyphens to -**: ‐ ー － in phone and postal numbers become - (on by default)
-  - **Unit squares to letters**: ㍉ ㌢ ㌖ ㍍ ㍉㌘ ㌘ ㌕ ㌧ ㍉㍑ ㍑ → mm cm km m mg g kg t ml L (on by default)
+  - **Unit squares to letters**: ㍉ ㌢ ㌖ ㍍ ㍉㌘ ㌘ ㌕ ㌧ ㍉㍑ ㌥㍑ ㌔㍑ ㍑ ㌍ ㌔㌍ ㏄ → mm cm km m mg g kg t ml dL kL L cal kcal cc, ㎟ ㎠ ㎡ ㎢ ㎣ ㎤ ㎥ ㎦ → mm² cm² m² km² mm³ cm³ m³ km³ (on by default)
   - **Range 〜 → -**: 10〜20 → 10-20 (off by default)
   - **Japanese era to Western year**: 令和8年 → 2026年, 令和元年 → 2019年 (off by default)
   - **Kanji numerals to Arabic**: runs of two or more kanji numerals (二〇二六 → 2026, 二千二十六 → 2026, 二万五〇〇〇 → 25000, 三、〇〇〇 → 3,000, 一二・五 → 12.5); single characters such as 一 are left (off by default)
@@ -60,4 +60,5 @@
 
 ### Update History
 
+- v1.1.0 (2026-10-16) "Unit squares to letters" now also covers ㌥㍑ ㌔㍑ ㌍ ㌔㌍ ㏄ and ㎟ ㎠ ㎡ ㎢ ㎣ ㎤ ㎥ ㎦ (to match VerticalTextFormatter v1.22.0)
 - v1.0.0 (2026-10-16) Initial release

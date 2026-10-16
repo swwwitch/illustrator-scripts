@@ -30,7 +30,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/VerticalTe
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "VerticalTextFormatter";        /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.19.0";                      /* バージョン / version */
+var SCRIPT_VERSION  = "v1.24.5";                      /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-15";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-16";                   /* 更新日 / last updated */
@@ -272,10 +272,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
 
     var BUTTON_WIDTH        = 90;    /* OK／キャンセルの幅 / OK and Cancel width */
     var OPTION_INDENT       = 20;    /* 親のチェックボックスに従う項目の字下げ / indent for dependent options */
-    var PREVIEW_LIST_HEIGHT = 142;   /* 確認の一覧の高さ / height of the check list */
+    var PREVIEW_LIST_SIZE   = [420, 320];   /* 「変換の確認」ダイアログボックスの一覧の大きさ / size of the list in the Conversion Check dialog box */
     var PROGRESS_WIDTH      = 300;   /* プログレスバーの幅 / progress bar width */
     var PRESET_ICON_SIZE    = [20, 18];   /* プリセットの保存・削除アイコンの大きさ / preset save and delete icon size */
-    var PRESET_DROPDOWN_WIDTH = 220; /* プリセットのドロップダウンの幅 / preset dropdown width */
+    var PRESET_DROPDOWN_WIDTH = 150; /* プリセットのドロップダウンの幅（長い名前は選択中の表示だけ切れる） / preset dropdown width (long names are cut only in the closed menu) */
     var PRESET_NAME_CHARS   = 20;    /* プリセット名の入力欄の文字数 / preset name field width */
     var PARAGRAPH_LABEL_WIDTH = 60;
     var PARAGRAPH_OPTION_TOP_MARGIN = 5;   /* 「文字・段落」のチェックボックスの上の余白 / gap above the checkboxes in Character and Paragraph */  /* 段落のドロップダウンの項目名の幅（右揃え） / paragraph dropdown label width (right-aligned) */
@@ -1125,8 +1125,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
         },
         checkbox: {
             rotateRoman: { ja: "縦組み中の欧文回転", en: "Rotate Roman characters" },
-            rotateSkipLongLatin: { ja: "長い欧文は除く", en: "Skip long Roman text" },
-            shortWordFullwidth: { ja: "短い英単語を全角に", en: "Short words to full-width" },
+            rotateSkipLongLatin: { ja: "", en: "Skip Roman text of" },   /* 日本語は数値欄のあとの文言で読ませる / Japanese reads from the text after the field */
+            shortWordFullwidth: { ja: "", en: "Full-width for words of" },   /* 日本語は数値欄のあとの文言で読ませる / Japanese reads from the text after the field */
             tcyNumbers: { ja: "数字を縦中横", en: "TCY numbers" },
             tcyDigits2: { ja: "2桁", en: "2 digits" },
             tcyDigits3: { ja: "3桁", en: "3 digits" },
@@ -1166,6 +1166,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
                 { ja: "弱い禁則", en: "Soft" },
                 { ja: "弱い禁則v2", en: "Soft v2" }
             ],
+            comma: [
+                { ja: "「、」にする", en: "Use 、" },
+                { ja: "取る", en: "Remove" },
+                { ja: "そのまま", en: "Keep" }
+            ],
             phoneHyphen: [
                 { ja: "「‐」（ハイフン）", en: "‐ (hyphen)" },
                 { ja: "「ー」（音引き）", en: "ー (long vowel mark)" },
@@ -1187,18 +1192,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
             modeDetail: { ja: "詳細", en: "Detailed" },
             kanjiDigit: { ja: "二〇二六", en: "二〇二六" },
             kanjiPositional: { ja: "二千二十六", en: "二千二十六" },
-            kanjiLargeUnits: { ja: "二万五〇〇〇", en: "二万五〇〇〇" },
-            comma: [
-                { ja: "「、」にする", en: "Use 、" },
-                { ja: "取る", en: "Remove" },
-                { ja: "そのまま", en: "Keep" }
-            ]
+            kanjiLargeUnits: { ja: "二万五〇〇〇", en: "二万五〇〇〇" }
         },
         fieldLabel: {
             digits: { ja: "桁数", en: "Digits" },
             rangeTo: { ja: "〜", en: "to" },
-            charsOrMore: { ja: "文字以上", en: "or more characters" },
-            charsOrLess: { ja: "文字以下", en: "or fewer characters" },
+            rotateSkipSuffix: { ja: "文字以上の欧文は除く", en: "or more characters" },
+            shortWordSuffix: { ja: "文字以下の英単語を全角に", en: "or fewer letters" },
             kinsoku: { ja: "禁則", en: "Kinsoku" },
             comma: { ja: "桁区切り", en: "Separators" },
             phoneHyphen: { ja: "番号のハイフン", en: "Number hyphens" },
@@ -1213,7 +1213,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
         },
         button: {
             ok: { ja: "OK", en: "OK" },
-            cancel: { ja: "キャンセル", en: "Cancel" }
+            cancel: { ja: "キャンセル", en: "Cancel" },
+            preview: { ja: "変換の確認...", en: "Conversion Check..." },
+            close: { ja: "閉じる", en: "Close" }
         },
         preset: {
             label: { ja: "プリセット", en: "Preset" },
@@ -1263,6 +1265,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
                 en: "Shows and applies only the common options; hidden options are off and kinsoku / mojikumi stay unchanged"
             },
             modeDetail: { ja: "すべての項目を表示します", en: "Shows all options" },
+            preview: { ja: "今の設定で変わる箇所を、別のダイアログボックスで一覧にします", en: "Lists what the current settings change, in a separate dialog box" },
             preset: { ja: "組み込みのプリセットか、保存した設定を読み込みます。", en: "Loads a built-in preset or saved settings." },
             presetSave: { ja: "今の設定に名前を付けて保存します。", en: "Saves the current settings under a name." },
             presetDelete: { ja: "選んでいる保存したプリセットを削除します。", en: "Deletes the selected saved preset." },
@@ -1271,11 +1274,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
                 en: "Name the settings are saved under. The same name is overwritten."
             },
             shortWordFullwidth: {
-                ja: "指定した文字数以下の英単語（英字だけの並び）を全角にして正立させます（OK → ＯＫ）。文字数は［長い欧文は除く］の1つ下に連動します",
-                en: "Makes words of at most this many letters full-width so they stand upright (OK → ＯＫ); linked to one below \"Skip long Roman text\""
+                ja: "指定した文字数以下の英単語（英字だけの並び）を全角にして正立させます（OK → ＯＫ）。文字数は［○文字以上の欧文は除く］の1つ下に連動します",
+                en: "Makes words of at most this many letters full-width so they stand upright (OK → ＯＫ); linked to one below \"Skip Roman text of ... or more characters\""
             },
             rotateSkipLongLatin: {
-                ja: "指定した文字数以上の欧文（スペースなどでつながった単語のまとまり）は回転せず、横倒しのままにします。［短い英単語を全角に］の文字数はこの1つ下に連動します",
+                ja: "指定した文字数以上の欧文（スペースなどでつながった単語のまとまり）は回転せず、横倒しのままにします。［○文字以下の英単語を全角に］の文字数はこの1つ下に連動します",
                 en: "Leaves Roman text of at least this many characters (words joined by spaces etc.) sideways"
             },
             tcyNumbers: { ja: "下で選んだ桁数の半角数字を縦中横にします", en: "Tate-Chu-Yoko for half-width numbers of the lengths checked below" },
@@ -1354,8 +1357,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
             kanjiZeroRei: { ja: "0を「〇」ではなく「零」にします（二〇二六 → 二零二六）", en: "Writes 0 as 零 instead of 〇" },
             kanjiIchiSen: { ja: "十・百・千を入れるとき、千を「一千」と書きます（1500 → 一千五百）", en: "Writes 1000 as 一千 when using 十・百・千" },
             unitsKumimoji: {
-                ja: "数字の直後の mm・cm・km・m・mg・g・kg・t・ml・L を ㍉・㌢・㌖・㍍・㍉㌘・㌘・㌕・㌧・㍉㍑・㍑ にします。字形の無いフォントもあります",
-                en: "Turns mm, cm, km, m, mg, g, kg, t, ml, L after digits into katakana squares; some fonts lack these glyphs"
+                ja: "数字の直後（間の半角スペースは詰める）の mm・cm・km・m・mg・g・kg・t・ml・dL・kL・L・cal・kcal・cc を ㍉・㌢・㌖・㍍・㍉㌘・㌘・㌕・㌧・㍉㍑・㌥㍑・㌔㍑・㍑・㌍・㌔㌍・㏄ に、m2・cm3・m² などを ㎡・㎤ にします。km/h・mmHg のように後ろに英字や「/」が続くものは変えません。字形の無いフォントもあります",
+                en: "Turns units right after digits (a space between is removed), such as mm, cm, kg, ml, kcal and cc, into squares, and m2, cm3, m² into ㎡, ㎤. Units followed by letters or / (km/h, mmHg) are left. Some fonts lack these glyphs"
             },
             kanjiDigit: { ja: "1字ずつ漢数字にします（2026 → 二〇二六）", en: "Digit by digit (2026 → 二〇二六)" },
             kanjiPositional: { ja: "十・百・千を入れます（2000 → 二千）。直後が「年」の西暦は1字ずつ", en: "With 十・百・千 (2000 → 二千); years followed by 年 stay digit by digit" },
@@ -2384,6 +2387,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
     var ROTATE_ACTION_NAME = "rotateRoman";              /* 欧文回転のアクション名 / rotate action name */
     var TCY_ACTION_NAME = "tateChuYoko";                 /* 縦中横のアクション名 / Tate-Chu-Yoko action name */
     var ROTATE_OFF_ACTION_NAME = "rotateRomanOff";       /* 欧文回転を外すアクション名 / action name that turns rotation off */
+    var TCY_OFF_ACTION_NAME = "tateChuYokoOff";          /* 縦中横を外すアクション名 / action name that turns Tate-Chu-Yoko off */
     var AREA_AUTO_SIZE_ACTION_NAME = "areaAutoSize";     /* エリア内文字の自動サイズ調整のアクション名 / area-type auto-size action name */
 
     /**
@@ -2462,17 +2466,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
     }
 
     /**
-     * 欧文回転（'rriv' オン・オフ）・縦中横（'tyen'）・エリア内文字の自動サイズ調整の4件を持つアクション定義を返す
+     * 欧文回転（'rriv' オン・オフ）・縦中横（'tyen' オン・オフ）・エリア内文字の自動サイズ調整の5件を持つアクション定義を返す
      * @returns {string} アクション定義のテキスト
      */
     function buildVerticalTextActions() {
         return ["/version 3"].concat(
             buildActionNameLines("", ACTION_SET_NAME),
-            ["/isOpen 1", "/actionCount 4"],
+            ["/isOpen 1", "/actionCount 5"],
             buildCharacterToggleActionLines(1, ROTATE_ACTION_NAME, 1920100726, 1),
             buildCharacterToggleActionLines(2, TCY_ACTION_NAME, 1954112878, 1),
             buildCharacterToggleActionLines(3, ROTATE_OFF_ACTION_NAME, 1920100726, 0),
             buildAreaAutoSizeActionLines(4, AREA_AUTO_SIZE_ACTION_NAME),
+            buildCharacterToggleActionLines(5, TCY_OFF_ACTION_NAME, 1954112878, 0),
             [""]
         ).join("\n");
     }
@@ -2515,8 +2520,50 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
     var UNIT_KUMIMOJI = {
         mm: "㍉", cm: "㌢", km: "㌖", m: "㍍",
         mg: "㍉㌘", g: "㌘", kg: "㌕", t: "㌧",
-        ml: "㍉㍑", mL: "㍉㍑", l: "㍑", L: "㍑"
+        ml: "㍉㍑", mL: "㍉㍑", dl: "㌥㍑", dL: "㌥㍑", kl: "㌔㍑", kL: "㌔㍑", l: "㍑", L: "㍑",
+        cal: "㌍", kcal: "㌔㌍", cc: "㏄"
     };
+    /* 面積・体積（m2・m²・cm3 など）の組文字 / Squares for area and volume (m2, m², cm3 ...) */
+    var UNIT_POWER_KUMIMOJI = {
+        mm2: "㎟", cm2: "㎠", m2: "㎡", km2: "㎢",
+        mm3: "㎣", cm3: "㎤", m3: "㎥", km3: "㎦"
+    };
+
+    /**
+     * その位置から始まる単位（全角の英字も可）を組文字にした文字列と、元の文字数を返す。
+     * 2・3・²・³ が続けば面積・体積の組文字に。後ろに英字・数字・「/」が続くもの（km/h、mmHg、5m20）は単位とみなさない
+     * @param {string} text - 対象の文字列
+     * @param {number} startIndex - 単位の先頭の位置
+     * @returns {{length: number, text: string}|null} 単位でなければ null
+     */
+    function matchUnitKumimoji(text, startIndex) {
+        var letterEnd = startIndex;
+        while (letterEnd < text.length && isAnyLatinLetter(text.charAt(letterEnd))) letterEnd++;
+        if (letterEnd === startIndex) return null;
+        var unitText = toHalfwidthAlnum(text.substring(startIndex, letterEnd));
+        var powerText = toHalfwidthAlnum(text.charAt(letterEnd)).replace("²", "2").replace("³", "3");
+        var squareText = null;
+        var unitLength = letterEnd - startIndex;
+        if ((powerText === "2" || powerText === "3") && UNIT_POWER_KUMIMOJI.hasOwnProperty(unitText + powerText)) {
+            squareText = UNIT_POWER_KUMIMOJI[unitText + powerText];
+            unitLength++;
+        } else if (UNIT_KUMIMOJI.hasOwnProperty(unitText)) {
+            squareText = UNIT_KUMIMOJI[unitText];
+        }
+        if (!squareText) return null;
+        var nextChar = text.charAt(startIndex + unitLength);
+        if (isAnyLatinLetter(nextChar) || isAnyDigitChar(nextChar) || nextChar === "/" || nextChar === "／") return null;
+        return { length: unitLength, text: squareText };
+    }
+
+    /**
+     * 数字と単位の間に入れてよいスペースか（半角・ノーブレーク・細いスペース類。全角スペースは除く）
+     * @param {string} currentChar - 1文字
+     * @returns {boolean} 該当すれば true
+     */
+    function isUnitGapSpace(currentChar) {
+        return currentChar === " " || currentChar === "\u00A0" || (currentChar >= "\u2000" && currentChar <= "\u200A") || currentChar === "\u202F";
+    }
 
     /* 欧文のまとまり：単語（英字で始まるか、数字のあとに英字が続くもの。. ' - を含む。全角の英数字も可）が、スペースまたは「&」（全角も可）でつながったもの。
        スペースは半角・全角のほか、ノーブレークスペースや細いスペースなども含める。
@@ -2571,7 +2618,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
         while (wordEnd < text.length && isLatinWordPart(text.charAt(wordEnd))) wordEnd++;
         var wordText = text.substring(startIndex, wordEnd);
         /* 数字のあとが単位だけなら、数字と単位として扱う / Digits followed only by a unit stay a number and a unit */
-        if (letterStart > startIndex && UNIT_KUMIMOJI.hasOwnProperty(text.substring(letterStart, wordEnd))) return null;
+        var unitMatch = (letterStart > startIndex) ? matchUnitKumimoji(text, letterStart) : null;
+        if (unitMatch && letterStart + unitMatch.length === wordEnd) return null;
         /* 文末：4字以上の語がピリオドで終わる（Mr. や U.S. などの略語は除く） / Sentence end: a word of 4+ chars ending in a period (not Mr. or U.S.) */
         var coreText = wordText.replace(/\.+$/, "");
         var isSentenceEnd = coreText !== wordText && coreText.length >= 4 && coreText.indexOf(".") < 0;
@@ -2666,6 +2714,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
                 return quoteState.isOpen ? "〝" : "〟";
             }
         }
+        /* 英字の間の「/」（km/h、and/or）は欧文のまま / A slash between letters (km/h, and/or) stays half-width */
+        if (currentChar === "/" && isAnyLatinLetter(text.charAt(index - 1)) && isAnyLatinLetter(text.charAt(index + 1))) return currentChar;
         if (formatOptions.symbolsFullwidth && FULLWIDTH_SYMBOLS.indexOf(currentChar) >= 0) return toFullwidthAscii(currentChar);
         return currentChar;
     }
@@ -2683,7 +2733,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
     }
 
     /**
-     * 全角にする短い英単語か（［1文字の英字を全角に］［短い英単語を全角に］）
+     * 全角にする短い英単語か（［1文字の英字を全角に］［○文字以下の英単語を全角に］）
      * @param {string} letterText - 英字だけの並び
      * @param {Object} formatOptions - 変換の設定
      * @returns {boolean} 全角にするなら true
@@ -3042,6 +3092,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
             var runStart = i;
             var westernYear = (formatOptions.japaneseEra && isDigitChar(currentChar)) ? matchWesternYear(text, i) : null;
             var phraseText = westernYear ? null : matchLatinPhrase(text, i, formatOptions);
+            /* 数字の直後の単位。数字との間の半角スペースは詰める / A unit right after digits; a space between them is removed */
+            var unitGap = (isUnitGapSpace(currentChar) && isAnyDigitChar(text.charAt(i - 1))) ? 1 : 0;
+            var unitMatch = (!phraseText && formatOptions.unitsKumimoji && isAnyDigitChar(text.charAt(i - 1))) ? matchUnitKumimoji(text, i + unitGap) : null;
             if (westernYear) {
                 emit(westernYear.eraName, false);
                 /* 1年は「元年」 / The first year is written 元 */
@@ -3055,6 +3108,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
                    full-width alphanumerics, wide spaces and ＆ inside become half-width */
                 emit(toHalfwidthAlnum(phraseText).replace(/[\u2000-\u2003\u3000]/g, " ").replace(/＆/g, "&"), false);
                 i += phraseText.length;
+            } else if (unitMatch) {
+                emit(unitMatch.text, false);
+                i += unitGap + unitMatch.length;
             } else if (isDigitChar(currentChar) && matchPhoneNumber(text, i)) {
                 /* 電話番号・郵便番号は範囲の「〜」にも縦中横・漢数字にもしない / Phone and postal numbers are not ranges, TCY or kanji */
                 var phoneText = matchPhoneNumber(text, i);
@@ -3093,9 +3149,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
                 while (i < text.length && isLatinLetter(text.charAt(i))) i++;
                 var letterText = text.substring(runStart, i);
                 var isCapsTcy = formatOptions.tcyCapitals && letterText.length >= 2 && letterText.length <= 3 && letterText === letterText.toUpperCase();
-                var isAfterDigit = isAnyDigitChar(text.charAt(runStart - 1));
-                if (formatOptions.unitsKumimoji && isAfterDigit && UNIT_KUMIMOJI.hasOwnProperty(letterText)) emit(UNIT_KUMIMOJI[letterText], false);
-                else if (isCapsTcy) emit(letterText, true);
+                if (isCapsTcy) emit(letterText, true);
                 else if (isShortWordForFullwidth(letterText, formatOptions)) emit(toFullwidthAscii(letterText), false);
                 else emit(letterText, false);
             } else if (isExclamOrQuestion(currentChar)) {
@@ -3117,6 +3171,301 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
         }
         edits.reverse();
         return { edits: edits, tcySpans: tcySpans, changes: changes, outputLength: outputLength };
+    }
+
+    // =========================================
+    // 縦組み用の書き換えを戻す / Undo the vertical rewriting
+    // =========================================
+
+    /* すでに縦組みのテキストは、HorizontalTextFormatter の既定の変換で横組み用に戻してから適用する（再実行できるように）。
+       漢数字・和暦は、このスクリプトがそれらをオンで処理した記録（タグ）のあるフレームだけ戻す（原稿の「数十万」などを壊さない）。範囲の「〜」は戻さない
+       Text that is already vertical is first returned to horizontal form with HorizontalTextFormatter's default conversions,
+       so the script can be run again. Kanji numerals and eras are reverted only in frames tagged as processed with them on
+       (so 数十万 in the original text is safe); range 〜 is left as it is */
+    var APPLIED_TAG_NAME = "VerticalTextFormatter";   /* 処理した設定を残すタグの名前 / name of the tag that records the applied options */
+    var RESET_KANJI_DIGITS = "〇一二三四五六七八九";
+    var RESET_KANJI_SMALL_UNITS = { "十": 10, "百": 100, "千": 1000 };
+    var RESET_KANJI_LARGE_UNITS = { "万": 10000, "億": 100000000, "兆": 1000000000000 };
+    var RESET_KUMIMOJI_PAIRS = [["㍉㌘", "mg"], ["㍉㍑", "ml"], ["㌥㍑", "dL"], ["㌔㍑", "kL"], ["㌔㌍", "kcal"]];   /* 2字の組み合わせを先に / two-character pairs first */
+    var RESET_KUMIMOJI_UNITS = {
+        "㍉": "mm", "㌢": "cm", "㌖": "km", "㍍": "m", "㌘": "g", "㌕": "kg", "㌧": "t", "㍑": "L", "㌍": "cal", "㏄": "cc",
+        "㎟": "mm²", "㎠": "cm²", "㎡": "m²", "㎢": "km²", "㎣": "mm³", "㎤": "cm³", "㎥": "m³", "㎦": "km³"
+    };
+    var RESET_HALFWIDTH_SYMBOLS = "％＆＃＠＊＋＝＜＞／";   /* 半角に戻す記号（括弧・「：」「；」は除く） / symbols made half-width (not brackets, ： ；) */
+    var RESET_PHONE_HYPHEN_SOURCE = "[-‐ー－−]";          /* 番号のハイフンとみなす文字 / hyphens in phone and postal numbers */
+
+    /**
+     * 1文字を横組み用に戻した文字を返す（全角英数字・「！？」・数字の間の「、」「・」・記号・〝〟）
+     * @param {string} sourceText - 元の文字列
+     * @param {number} index - 文字の位置
+     * @returns {string} 戻した文字（変えないときは元の文字）
+     */
+    function resetVerticalChar(sourceText, index) {
+        var currentChar = sourceText.charAt(index);
+        var previousChar = sourceText.charAt(index - 1);
+        var charCode = currentChar.charCodeAt(0);
+        if ((charCode >= 0xFF10 && charCode <= 0xFF19) || (charCode >= 0xFF21 && charCode <= 0xFF3A) || (charCode >= 0xFF41 && charCode <= 0xFF5A) ||
+                currentChar === "！" || currentChar === "？") {
+            return String.fromCharCode(charCode - 0xFEE0);
+        }
+        /* 数字の間で、後ろがちょうど3桁なら桁区切り / A separator when exactly three digits follow */
+        if (currentChar === "、" && isAnyDigitChar(previousChar) && /^[0-9０-９]{3}(?![0-9０-９])/.test(sourceText.substr(index + 1, 4))) return ",";
+        if (currentChar === "・" && isAnyDigitChar(previousChar) && isAnyDigitChar(sourceText.charAt(index + 1))) return ".";
+        if (RESET_HALFWIDTH_SYMBOLS.indexOf(currentChar) >= 0) return String.fromCharCode(charCode - 0xFEE0);
+        if (currentChar === "〝") return "“";
+        if (currentChar === "〟") return "”";
+        return currentChar;
+    }
+
+    /**
+     * 漢数字の並びを算用数字の文字列にする（二〇二六 → "2026"、二千二十六 → "2026"、二万五〇〇〇 → "25000"）。
+     * 単位語（十・百・千・万…）が無ければ1字ずつ置き換えて桁を残す（HorizontalTextFormatter と同じ）
+     * @param {string} kanjiText - 漢数字の並び（「零」も可）
+     * @returns {string|null} 算用数字（読めなければ null）
+     */
+    function parseKanjiNumber(kanjiText) {
+        kanjiText = kanjiText.replace(/零/g, "〇");
+        if (!/[十百千万億兆]/.test(kanjiText)) {
+            var digitText = "";
+            for (var i = 0; i < kanjiText.length; i++) digitText += RESET_KANJI_DIGITS.indexOf(kanjiText.charAt(i));
+            return digitText;
+        }
+        var total = 0;
+        var section = 0;
+        var pendingDigits = "";
+        for (var j = 0; j < kanjiText.length; j++) {
+            var kanjiChar = kanjiText.charAt(j);
+            var digitIndex = RESET_KANJI_DIGITS.indexOf(kanjiChar);
+            if (digitIndex >= 0) {
+                pendingDigits += digitIndex;
+            } else if (RESET_KANJI_SMALL_UNITS[kanjiChar]) {
+                section += (pendingDigits === "" ? 1 : parseInt(pendingDigits, 10)) * RESET_KANJI_SMALL_UNITS[kanjiChar];
+                pendingDigits = "";
+            } else if (RESET_KANJI_LARGE_UNITS[kanjiChar]) {
+                section += (pendingDigits === "" ? 0 : parseInt(pendingDigits, 10));
+                if (section === 0) section = 1;
+                total += section * RESET_KANJI_LARGE_UNITS[kanjiChar];
+                section = 0;
+                pendingDigits = "";
+            } else {
+                return null;
+            }
+        }
+        return String(total + section + (pendingDigits === "" ? 0 : parseInt(pendingDigits, 10)));
+    }
+
+    /**
+     * 1字の漢数字が日付・時刻の数か（一月・七日・三時・五秒、「五分」は後ろに数字か「秒」が続くか末尾のときだけ。「十分」「一緒」は除く）
+     * ExtendScript は選択を含む先読みを誤評価することがあるので、文字で調べる
+     * @param {string} sourceText - 対象の文字列
+     * @param {number} index - 漢数字の位置
+     * @returns {boolean} 該当すれば true
+     */
+    function isSingleKanjiTimeUnit(sourceText, index) {
+        if ("〇零一二三四五六七八九十".indexOf(sourceText.charAt(index)) < 0) return false;
+        var unitChar = sourceText.charAt(index + 1);
+        if ("月日時秒".indexOf(unitChar) >= 0) return true;
+        if (unitChar !== "分") return false;
+        var afterChar = sourceText.charAt(index + 2);
+        /* 「九分九厘」は除く / Not 九分九厘 */
+        if (sourceText.charAt(index + 3) === "厘") return false;
+        return afterChar === "" || afterChar === "秒" || isAnyDigitChar(afterChar) || RESET_KANJI_DIGITS.indexOf(afterChar) >= 0;
+    }
+
+    /**
+     * 元号の開始年（西暦）を返す
+     * @param {string} eraName - 元号
+     * @returns {number} 開始年（見つからなければ 0）
+     */
+    function getEraStartYear(eraName) {
+        for (var i = 0; i < JAPANESE_ERAS.length; i++) {
+            if (JAPANESE_ERAS[i].name === eraName) return Math.floor(JAPANESE_ERAS[i].start / 10000);
+        }
+        return 0;
+    }
+
+    /**
+     * 縦組み用の書き換えを戻す書き換えを決める（HorizontalTextFormatter の planHorizontalText() の既定の変換と同じ。
+     * 漢数字・和暦は resetOptions で指定したときだけ戻す）
+     * @param {string} sourceText - 元の文字列
+     * @param {{kanji: boolean, era: boolean}} resetOptions - 漢数字・和暦も戻すか
+     * @returns {Array<{start: number, length: number, text: string}>} 書き換え（後ろから順）
+     */
+    function planVerticalReset(sourceText, resetOptions) {
+        var edits = [];
+        var i = 0;
+
+        /**
+         * 元の [start, start+length) を replacementText にする（同じなら控えない）
+         * @param {number} length - 元の文字数
+         * @param {string} replacementText - 置き換える文字列
+         * @returns {void}
+         */
+        function addSegment(length, replacementText) {
+            if (replacementText !== sourceText.substr(i, length)) edits.push({ start: i, length: length, text: replacementText });
+            i += length;
+        }
+
+        while (i < sourceText.length) {
+            var restText = sourceText.substr(i, 40);
+            var currentChar = sourceText.charAt(i);
+            var matched = null;
+            /* 和暦 → 西暦（令和8年・令和八年 → 2026年） / Japanese era → Western year */
+            if (resetOptions.era && (matched = /^(令和|平成|昭和|大正|明治)(元|[0-9０-９]+|[〇零一二三四五六七八九十百]+)年/.exec(restText))) {
+                var eraYear = 1;
+                if (matched[2] !== "元") eraYear = parseInt(/[0-9０-９]/.test(matched[2]) ? toHalfwidthAlnum(matched[2]) : parseKanjiNumber(matched[2]), 10);
+                addSegment(matched[0].length, (getEraStartYear(matched[1]) + eraYear - 1) + "年");
+                continue;
+            }
+            /* 「数十万」「何百」などの概数は戻さない / Leave approximate numbers such as 数十万 and 何百 */
+            var previousChar = sourceText.charAt(i - 1);
+            if (resetOptions.kanji && (previousChar === "" || "数何幾".indexOf(previousChar) < 0)) {
+                /* 読点で3桁ずつ区切った漢数字（三、〇〇〇） / Kanji digits grouped by 、 every three */
+                if ((matched = /^[〇零一二三四五六七八九]+(?:、[〇零一二三四五六七八九]{3})+(?![〇零一二三四五六七八九])/.exec(restText))) {
+                    var groupedDigits = matched[0].split("、");
+                    for (var g = 0; g < groupedDigits.length; g++) groupedDigits[g] = parseKanjiNumber(groupedDigits[g]);
+                    addSegment(matched[0].length, groupedDigits.join(","));
+                    continue;
+                }
+                /* 漢数字の小数（一二・五） / Kanji decimals */
+                if ((matched = /^[〇零一二三四五六七八九十百千万億兆]+・[〇零一二三四五六七八九]+/.exec(restText))) {
+                    var decimalParts = matched[0].split("・");
+                    addSegment(matched[0].length, parseKanjiNumber(decimalParts[0]) + "." + parseKanjiNumber(decimalParts[1]));
+                    continue;
+                }
+                /* 2字以上の漢数字の並び。1字は月・日・時・分・秒の前だけ（「一緒」「十分」は変えない）
+                   Runs of two or more kanji numerals; a single one only before 月 日 時 分 秒 (一緒 stays) */
+                matched = /^[〇零一二三四五六七八九十百千万億兆]{2,}/.exec(restText);
+                if (!matched && isSingleKanjiTimeUnit(sourceText, i)) matched = [currentChar];
+                if (matched) {
+                    var kanjiValue = parseKanjiNumber(matched[0]);
+                    if (kanjiValue !== null && kanjiValue !== "NaN") {
+                        addSegment(matched[0].length, kanjiValue);
+                        continue;
+                    }
+                }
+            }
+            /* 電話番号・郵便番号のハイフン → 「-」、数字は半角に / Phone and postal hyphens → "-", digits half-width */
+            if (isAnyDigitChar(currentChar) && !isAnyDigitChar(sourceText.charAt(i - 1))) {
+                var phoneMatch = new RegExp("^[0-9０-９]+(?:" + RESET_PHONE_HYPHEN_SOURCE + "[0-9０-９]+){2,}").exec(restText) ||
+                    new RegExp("^[0-9０-９]{3}" + RESET_PHONE_HYPHEN_SOURCE + "[0-9０-９]{4}(?![0-9０-９])").exec(restText);
+                if (phoneMatch) {
+                    addSegment(phoneMatch[0].length, toHalfwidthAlnum(phoneMatch[0].replace(new RegExp(RESET_PHONE_HYPHEN_SOURCE, "g"), "-")));
+                    continue;
+                }
+            }
+            /* 組文字の単位 → 英字 / Unit squares → letters */
+            var pairText = sourceText.substr(i, 2);
+            var pairReplacement = null;
+            for (var p = 0; p < RESET_KUMIMOJI_PAIRS.length; p++) {
+                if (RESET_KUMIMOJI_PAIRS[p][0] === pairText) pairReplacement = RESET_KUMIMOJI_PAIRS[p][1];
+            }
+            if (pairReplacement) {
+                addSegment(2, pairReplacement);
+            } else if (RESET_KUMIMOJI_UNITS.hasOwnProperty(currentChar)) {
+                addSegment(1, RESET_KUMIMOJI_UNITS[currentChar]);
+            } else {
+                addSegment(1, resetVerticalChar(sourceText, i));
+            }
+        }
+        edits.reverse();
+        return edits;
+    }
+
+    /**
+     * すでに縦組みの対象に、戻す書き換えを用意する。対象の text は戻したあとの文字列にする（確認の一覧と変換の計画はこれを使う）
+     * @param {Array<Object>} textTargets - collectTextTargets() の戻り値
+     * @returns {void}
+     */
+    function prepareVerticalResets(textTargets) {
+        for (var i = 0; i < textTargets.length; i++) {
+            if (!isVerticalFrame(textTargets[i].ownerFrames[0])) continue;
+            textTargets[i].resetEdits = planVerticalReset(textTargets[i].text, readAppliedOptions(textTargets[i].ownerFrames[0]));
+            textTargets[i].sourceLength = textTargets[i].text.length;
+            textTargets[i].text = buildEditedText(textTargets[i].text, textTargets[i].resetEdits);
+        }
+    }
+
+    /**
+     * フレームのタグから、前に処理したときの漢数字・和暦の設定を読む（タグが無ければどちらも false）
+     * @param {TextFrame} textFrame - テキストフレーム
+     * @returns {{kanji: boolean, era: boolean}} 漢数字・和暦をオンで処理したか
+     */
+    function readAppliedOptions(textFrame) {
+        var appliedValue = "";
+        try {
+            for (var i = 0; i < textFrame.tags.length; i++) {
+                if (textFrame.tags[i].name === APPLIED_TAG_NAME) appliedValue = textFrame.tags[i].value;
+            }
+        } catch (e) { /* タグを読めなければ戻さない / leave kanji and eras when the tags cannot be read */ }
+        return { kanji: /(^|,)kanji(,|$)/.test(appliedValue), era: /(^|,)era(,|$)/.test(appliedValue) };
+    }
+
+    /**
+     * 処理を終えた選択のテキストフレームに、漢数字・和暦の設定をタグで残す（次に再実行したとき、オンなら戻す）
+     * @param {Document} doc - 対象のドキュメント
+     * @param {Object} formatOptions - 変換の設定
+     * @returns {void}
+     */
+    function recordAppliedOptions(doc, formatOptions) {
+        var appliedValue = "applied" + (formatOptions.kanji ? ",kanji" : "") + (formatOptions.japaneseEra ? ",era" : "");
+        var currentSelection = doc.selection;
+        var textFrames = (currentSelection && currentSelection.typename === "TextRange")
+            ? getStoryFrames(currentSelection.story)
+            : collectSelectionTextFrames(currentSelection, { skipLocked: true, skipHidden: true });
+        for (var i = 0; i < textFrames.length; i++) {
+            try {
+                var appliedTag = null;
+                for (var j = 0; j < textFrames[i].tags.length; j++) {
+                    if (textFrames[i].tags[j].name === APPLIED_TAG_NAME) appliedTag = textFrames[i].tags[j];
+                }
+                if (!appliedTag) {
+                    appliedTag = textFrames[i].tags.add();
+                    appliedTag.name = APPLIED_TAG_NAME;
+                }
+                appliedTag.value = appliedValue;
+            } catch (e) {
+                $.writeln("recordAppliedOptions: " + e);
+            }
+        }
+    }
+
+    /**
+     * 横組み用に戻す対象があるか
+     * @param {Array<Object>} textTargets - prepareVerticalResets() を通した対象
+     * @returns {boolean} あれば true
+     */
+    function hasVerticalResets(textTargets) {
+        for (var i = 0; i < textTargets.length; i++) {
+            if (textTargets[i].resetEdits) return true;
+        }
+        return false;
+    }
+
+    /**
+     * すでに縦組みの対象を横組み用に戻す：欧文回転・縦中横を外し、書き換えを戻し、等幅字形を標準にする（縦組みのまま）
+     * アクションセットは読み込んでから呼ぶ
+     * @param {Document} doc - 対象のドキュメント
+     * @param {Array<Object>} textTargets - prepareVerticalResets() を通した対象
+     * @returns {boolean} 戻した対象があれば true
+     */
+    function resetVerticalTargets(doc, textTargets) {
+        var resetTargets = [];
+        for (var i = 0; i < textTargets.length; i++) {
+            if (textTargets[i].resetEdits) resetTargets.push(textTargets[i]);
+        }
+        if (resetTargets.length === 0) return false;
+        selectTextTargets(doc, resetTargets, resetTargets[0].sourceLength);
+        app.doScript(ROTATE_OFF_ACTION_NAME, ACTION_SET_NAME, false);
+        app.doScript(TCY_OFF_ACTION_NAME, ACTION_SET_NAME, false);
+        for (var j = 0; j < resetTargets.length; j++) {
+            applyTextEdits(resetTargets[j], resetTargets[j].resetEdits);
+            if (resetTargets[j].text.length === 0) continue;
+            var resetRange = getTargetCharacters(resetTargets[j])[resetTargets[j].offset];
+            resetRange.length = resetTargets[j].text.length;
+            resetRange.characterAttributes.alternateGlyphs = AlternateGlyphsForm.DEFAULTFORM;
+        }
+        return true;
     }
 
     // =========================================
@@ -3414,24 +3763,26 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
             if (formatOptions.kinsokuType !== null) paragraphAttributes.kinsoku = formatOptions.kinsokuType;
             /* 縦組みでは「最終行左揃え」が最終行上揃え / In vertical text, "last line left" means last line top */
             paragraphAttributes.justification = Justification.FULLJUSTIFYLASTLINELEFT;
-            /* 行送りの％は段落の属性。文字の自動行送りは処理の最後に applyAutoLeadingToTarget() でかける
-               The leading percentage is a paragraph attribute; characters get auto leading at the end (applyAutoLeadingToTarget) */
+            /* 行送りの％は段落の属性。文字の自動行送りは処理の最後に applyFinalCharacterAttributes() でかける
+               The leading percentage is a paragraph attribute; characters get auto leading at the end (applyFinalCharacterAttributes) */
             if (formatOptions.leadingPercent !== null) paragraphAttributes.autoLeadingAmount = formatOptions.leadingPercent;
         }
     }
 
     /**
-     * 処理したテキスト全体の文字を自動行送りにする（行送りが常に「自動」になり、文字サイズに追従する。UnifiedTypePalette と同じ考え方）
-     * 書き換え・縦中横・字形の変更のあとにかけるので、途中で書式が変わった文字も自動になる
+     * 処理したテキスト全体の文字を自動行送りにし、自動カーニングを「0」にする
+     * （行送りが常に「自動」になり、文字サイズに追従する。UnifiedTypePalette と同じ考え方。手動のカーニング値は変わらない）
+     * 書き換え・縦中横・字形の変更のあとにかけるので、途中で書式が変わった文字もそろう
      * @param {Object} textTarget - 対象
      * @param {Object} plan - planVerticalText() の戻り値
      * @returns {void}
      */
-    function applyAutoLeadingToTarget(textTarget, plan) {
+    function applyFinalCharacterAttributes(textTarget, plan) {
         if (plan.outputLength === 0) return;
         var outputRange = getTargetCharacters(textTarget)[textTarget.offset];
         outputRange.length = plan.outputLength;
         outputRange.characterAttributes.autoLeading = true;
+        outputRange.characterAttributes.kerningMethod = AutoKernType.NOAUTOKERN;
     }
 
     /**
@@ -3614,10 +3965,27 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
      * @returns {string} 失敗したときの理由（成功は空文字）
      */
     function runVerticalTextConversion(doc, textTargets, formatOptions) {
-        /* 縦組みにするとフレームが作り直されるので、最初に変えて対象を集め直す / Converting recreates frames, so do it first and re-collect */
+        var actionsLoaded = false;
+
+        /**
+         * 一時アクションセットを読み込む（読み込み済みなら何もしない）
+         * @returns {boolean} 読み込めていれば true
+         */
+        function ensureActionsLoaded() {
+            if (!actionsLoaded) actionsLoaded = loadTemporaryActionSet(buildVerticalTextActions(), ACTION_SET_NAME);
+            return actionsLoaded;
+        }
+
+        /* すでに縦組みの対象を横組み用に戻してから、縦組みにしてフレームが作り直された対象を集め直す
+           Undo the vertical rewriting of targets that are already vertical, then convert (which recreates frames) and re-collect */
         try {
+            if (hasVerticalResets(textTargets)) {
+                if (!ensureActionsLoaded()) return "loadTemporaryActionSet";
+                resetVerticalTargets(doc, textTargets);
+            }
             textTargets = convertTargetsToVertical(doc, textTargets);
         } catch (convertError) {
+            if (actionsLoaded) unloadTemporaryActionSet(ACTION_SET_NAME);
             return convertError + " (line " + convertError.line + ")";
         }
         var plans = [];
@@ -3646,7 +4014,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
             progress.set(stepDone / stepTotal, message);
         }
 
-        if (needsAction && !loadTemporaryActionSet(buildVerticalTextActions(), ACTION_SET_NAME)) {
+        if (needsAction && !ensureActionsLoaded()) {
             progress.close();
             return "loadTemporaryActionSet";
         }
@@ -3679,8 +4047,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
                 advanceProgress(getLabel("progress.tcy", { current: tcyDone, total: tcyTotal }));
             });
 
-            /* 行送りは常に自動に（簡易・詳細とも） / Leading is always auto (both modes) */
-            for (var a = 0; a < textTargets.length; a++) applyAutoLeadingToTarget(textTargets[a], plans[a]);
+            /* 行送りは常に自動、自動カーニングは常に「0」に（簡易・詳細とも） / Leading always auto, auto kerning always 0 (both modes) */
+            for (var a = 0; a < textTargets.length; a++) applyFinalCharacterAttributes(textTargets[a], plans[a]);
 
             /* 枠の高さ（1行の長さ）を文字サイズの整数倍に。自動サイズ調整より前に / Height to a multiple of the type size, before auto size */
             if (formatOptions.areaHeightToSize) adjustAreaHeightToTextSize(textTargets);
@@ -3696,7 +4064,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
             $.writeln("runVerticalTextConversion: " + e);
             return e + " (line " + e.line + ")";
         } finally {
-            if (needsAction) unloadTemporaryActionSet(ACTION_SET_NAME);
+            if (actionsLoaded) unloadTemporaryActionSet(ACTION_SET_NAME);
             progress.close();
             /* 元の選択に戻す / Restore the original selection */
             try {
@@ -4252,6 +4620,24 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
     // =========================================
 
     /**
+     * 「☑［数値］文言」の行で、数値欄のあとに置く文言を追加する（クリックでもチェックボックスを切り替える）
+     * @param {Group} row - 追加先の行
+     * @param {string} labelPath - 文言の LABELS のパス
+     * @param {Checkbox} ownerCheckbox - 対応するチェックボックス
+     * @returns {StaticText} 文言
+     */
+    function addCheckboxSuffix(row, labelPath, ownerCheckbox) {
+        var suffixText = row.add("statictext", undefined, getLabel(labelPath));
+        suffixText.helpTip = ownerCheckbox.helpTip;
+        suffixText.addEventListener("click", function () {
+            if (!ownerCheckbox.enabled) return;
+            ownerCheckbox.value = !ownerCheckbox.value;
+            if (ownerCheckbox.onClick) ownerCheckbox.onClick();
+        });
+        return suffixText;
+    }
+
+    /**
      * チェックボックスを追加する
      * @param {Group|Panel} parent - 追加先
      * @param {string} labelPath - LABELS のパス
@@ -4317,24 +4703,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
     }
 
     /**
-     * 「桁区切り :」と、その下に縦に並べたラジオボタンを追加する
-     * @param {Panel} parent - 追加先
-     * @returns {RadioButton[]} COMMA_STYLES と同じ並びのラジオボタン
-     */
-    function addCommaRadios(parent) {
-        var commaLabel = parent.add("statictext", undefined, labelText("fieldLabel.comma"));
-        commaLabel.helpTip = getLabel("tooltip.comma");
-        /* ラジオは同じ親の中だけ排他になるので、1つのグループに並べる / Radios are exclusive only within one parent */
-        var radioGroup = addIndentedGroup(parent);
-        var commaRadios = [];
-        for (var i = 0; i < LABELS.radio.comma.length; i++) {
-            commaRadios.push(radioGroup.add("radiobutton", undefined, getLabel(LABELS.radio.comma[i])));
-            commaRadios[i].helpTip = getLabel("tooltip.comma");
-        }
-        return commaRadios;
-    }
-
-    /**
      * 配列の中で値が一致する位置を返す（ES3 に Array.indexOf は無い）
      * @param {Array} values - 配列
      * @param {*} targetValue - 探す値
@@ -4374,14 +4742,34 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
     }
 
     /**
-     * プリセットの行（ドロップダウン・保存・削除）を追加する
+     * 最上部の行を追加する（左：簡易／詳細、右：プリセットのドロップダウン・保存・削除）
      * @param {Window} dialog - ダイアログ
      * @param {Object} dialogControls - コントロールを入れるオブジェクト
+     * @param {boolean} isDetail - 詳細モードか
      * @returns {void}
      */
-    function buildPresetRow(dialog, dialogControls) {
-        var presetRow = dialog.add("group");
-        setupRow(presetRow, "center", 8); /* ダイアログボックスの左右中央に置く / centered in the dialog */
+    function buildTopRow(dialog, dialogControls, isDetail) {
+        var topRow = dialog.add("group");
+        topRow.orientation = "row";
+        topRow.alignment = ["fill", "top"];
+        topRow.spacing = 8;
+
+        var modeGroup = topRow.add("group");
+        setupRow(modeGroup, ["left", "center"], 8);
+        dialogControls.modeSimpleRadio = modeGroup.add("radiobutton", undefined, getLabel("radio.modeSimple"));
+        dialogControls.modeDetailRadio = modeGroup.add("radiobutton", undefined, getLabel("radio.modeDetail"));
+        dialogControls.modeSimpleRadio.helpTip = getLabel("tooltip.modeSimple");
+        dialogControls.modeDetailRadio.helpTip = getLabel("tooltip.modeDetail");
+        dialogControls.modeSimpleRadio.value = !isDetail;
+        dialogControls.modeDetailRadio.value = isDetail;
+
+        /* 余りの幅を吸って、プリセットを右端に寄せる / Absorbs the extra width so the presets sit at the right edge */
+        var spacer = topRow.add("group");
+        spacer.alignment = ["fill", "fill"];
+        spacer.minimumSize.width = 0;
+
+        var presetRow = topRow.add("group");
+        setupRow(presetRow, ["right", "center"], 8);
         presetRow.add("statictext", undefined, labelText("preset.label"));
         dialogControls.presetDropdown = presetRow.add("dropdownlist", undefined, []);
         dialogControls.presetDropdown.helpTip = getLabel("tooltip.preset");
@@ -4404,12 +4792,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
         var tcyPanel = parent.add("panel", undefined, getLabel("panel.rotateTcy"));
         setupPanel(tcyPanel, 6);
         dialogControls.rotateRoman = addOptionCheckbox(tcyPanel, "checkbox.rotateRoman", settings.rotateRoman);
-        /* 長い欧文は除く ［5］文字以上 / Skip long Roman text [5] or more characters */
+        /* ☑［5］文字以上の欧文は除く / Skip Roman text of [5] or more characters */
         var rotateSkipRow = addIndentedGroup(tcyPanel).add("group");
         setupRow(rotateSkipRow, ["left", "center"], 4);
         dialogControls.rotateSkipLongLatin = addOptionCheckbox(rotateSkipRow, "checkbox.rotateSkipLongLatin", settings.rotateSkipLongLatin);
         dialogControls.rotateSkipMinInput = addSteppedField(rotateSkipRow, { label: "", text: "", characters: 3, step: 1, min: 2, max: 99, integer: true, onStep: notifyDigitStep });
-        rotateSkipRow.add("statictext", undefined, getLabel("fieldLabel.charsOrMore"));
+        dialogControls.rotateSkipSuffix = addCheckboxSuffix(rotateSkipRow, "fieldLabel.rotateSkipSuffix", dialogControls.rotateSkipLongLatin);
         dialogControls.tcyNumbers = addOptionCheckbox(tcyPanel, "checkbox.tcyNumbers", settings.tcyNumbers);
         /* 桁数は次の行に字下げして並べる / Digit counts go on the next, indented row */
         var tcyNumberGroup = addIndentedGroup(tcyPanel);
@@ -4438,7 +4826,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
     function buildReplacePanel(parent, dialogControls, settings, isDetail) {
         var replacePanel = parent.add("panel", undefined, getLabel("panel.replace"));
         setupPanel(replacePanel, 6);
-        dialogControls.commaRadios = addCommaRadios(replacePanel);
+        dialogControls.commaDropdown = addLabeledDropdown(replacePanel, "fieldLabel.comma", LABELS.dropdown.comma, "tooltip.comma");
         dialogControls.periodToNakaguro = addOptionCheckbox(replacePanel, "checkbox.periodToNakaguro", settings.periodToNakaguro);
         if (isDetail) {
             dialogControls.rangeToWave = addOptionCheckbox(replacePanel, "checkbox.rangeToWave", settings.rangeToWave);
@@ -4449,12 +4837,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
         }
         dialogControls.singleLetterFullwidth = addOptionCheckbox(replacePanel, "checkbox.singleLetterFullwidth", settings.singleLetterFullwidth);
         if (isDetail) {
-            /* 短い英単語を全角に ［2］文字以下 / Short words to full-width [2] or fewer characters */
+            /* ☑［4］文字以下の英単語を全角に / Full-width for words of [4] or fewer letters */
             var shortWordRow = replacePanel.add("group");
             setupRow(shortWordRow, ["left", "center"], 4);
             dialogControls.shortWordFullwidth = addOptionCheckbox(shortWordRow, "checkbox.shortWordFullwidth", settings.shortWordFullwidth);
             dialogControls.shortWordMaxInput = addSteppedField(shortWordRow, { label: "", text: "", characters: 3, step: 1, min: 1, max: 98, integer: true, onStep: notifyDigitStep });
-            shortWordRow.add("statictext", undefined, getLabel("fieldLabel.charsOrLess"));
+            addCheckboxSuffix(shortWordRow, "fieldLabel.shortWordSuffix", dialogControls.shortWordFullwidth);
         }
         /* 簡易モードは「数字」パネルを作らず、1桁の全角もここに入れる / The simple mode has no Numbers panel; single digits go here */
         if (!isDetail) {
@@ -4482,14 +4870,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
         var kanjiRange = addDigitRangeRow(kanjiGroup);
         dialogControls.kanjiMinInput = kanjiRange.minInput;
         dialogControls.kanjiMaxInput = kanjiRange.maxInput;
-        /* ラジオは同じ親の中だけ排他になるので、1つのグループに並べる / Radios are exclusive only within one parent */
-        var kanjiStyleRow = kanjiGroup.add("group");
-        setupRow(kanjiStyleRow, ["left", "center"], 8);
-        dialogControls.kanjiDigitRadio = kanjiStyleRow.add("radiobutton", undefined, getLabel("radio.kanjiDigit"));
-        dialogControls.kanjiPositionalRadio = kanjiStyleRow.add("radiobutton", undefined, getLabel("radio.kanjiPositional"));
+        /* ラジオは同じ親の中だけ排他になるので、1つのグループに縦に並べる / Radios are exclusive only within one parent; stack them vertically */
+        var kanjiStyleGroup = kanjiGroup.add("group");
+        kanjiStyleGroup.orientation = "column";
+        kanjiStyleGroup.alignChildren = ["left", "top"];
+        kanjiStyleGroup.spacing = 6;
+        dialogControls.kanjiDigitRadio = kanjiStyleGroup.add("radiobutton", undefined, getLabel("radio.kanjiDigit"));
+        dialogControls.kanjiPositionalRadio = kanjiStyleGroup.add("radiobutton", undefined, getLabel("radio.kanjiPositional"));
         dialogControls.kanjiDigitRadio.helpTip = getLabel("tooltip.kanjiDigit");
         dialogControls.kanjiPositionalRadio.helpTip = getLabel("tooltip.kanjiPositional");
-        dialogControls.kanjiLargeUnitsRadio = kanjiStyleRow.add("radiobutton", undefined, getLabel("radio.kanjiLargeUnits"));
+        dialogControls.kanjiLargeUnitsRadio = kanjiStyleGroup.add("radiobutton", undefined, getLabel("radio.kanjiLargeUnits"));
         dialogControls.kanjiLargeUnitsRadio.helpTip = getLabel("tooltip.kanjiLargeUnits");
         var kanjiDetailRow = kanjiGroup.add("group");
         setupRow(kanjiDetailRow, ["left", "center"], 8);
@@ -4545,20 +4935,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
     }
 
     /**
-     * ボタン行（左：モードの切り替え、右：キャンセル・OK）を追加する
+     * ボタン行（左：変換の確認、右：キャンセル・OK）を追加する
      * @param {Window} dialog - ダイアログ
      * @param {Object} dialogControls - コントロールを入れるオブジェクト
-     * @param {boolean} isDetail - 詳細モードか
      * @returns {void}
      */
-    function buildButtonRow(dialog, dialogControls, isDetail) {
+    function buildButtonRow(dialog, dialogControls) {
         var buttonRow = addButtonRow(dialog);
-        dialogControls.modeSimpleRadio = buttonRow.leftGroup.add("radiobutton", undefined, getLabel("radio.modeSimple"));
-        dialogControls.modeDetailRadio = buttonRow.leftGroup.add("radiobutton", undefined, getLabel("radio.modeDetail"));
-        dialogControls.modeSimpleRadio.helpTip = getLabel("tooltip.modeSimple");
-        dialogControls.modeDetailRadio.helpTip = getLabel("tooltip.modeDetail");
-        dialogControls.modeSimpleRadio.value = !isDetail;
-        dialogControls.modeDetailRadio.value = isDetail;
+        /* 変換の確認は別のダイアログボックスで開く / Conversion Check opens in a separate dialog box */
+        dialogControls.btnPreview = buttonRow.leftGroup.add("button", undefined, getLabel("button.preview"));
+        dialogControls.btnPreview.helpTip = getLabel("tooltip.preview");
         dialogControls.btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
         dialogControls.btnOK = buttonRow.rightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
         alignRightOnlyButtonRow(buttonRow);
@@ -4577,33 +4963,29 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
         setupWindow(dialog);
         var dialogControls = { dialog: dialog, baseSettings: mergePresetData(settings), dialogMode: isDetail ? "detail" : "simple" };
 
-        buildPresetRow(dialog, dialogControls);
+        buildTopRow(dialog, dialogControls, isDetail);
 
         var columnsGroup = dialog.add("group");
         columnsGroup.orientation = "row";
         columnsGroup.alignChildren = ["fill", "top"];
         columnsGroup.spacing = COLUMN_SPACING;
         var leftColumn = addLayoutColumn(columnsGroup);
-        buildTcyPanel(leftColumn, dialogControls, settings, isDetail);
         if (isDetail) {
-            /* 左：欧文回転・縦中横、文字・段落、確認用の色分け／右：数字、文字の変換
-               Left: rotation, TCY, character & paragraph, check coloring; right: numbers, character conversion */
-            buildParagraphPanel(leftColumn, dialogControls, settings);
-            buildColorCheckPanel(leftColumn, dialogControls, settings);
+            /* 左：数字、文字の変換／右：欧文回転・縦中横、文字・段落、確認用の色分け
+               Left: numbers, character conversion; right: rotation, TCY, character & paragraph, check coloring */
+            buildNumberPanel(leftColumn, dialogControls, settings);
+            buildReplacePanel(leftColumn, dialogControls, settings, isDetail);
             var rightColumn = addLayoutColumn(columnsGroup);
-            buildNumberPanel(rightColumn, dialogControls, settings);
-            buildReplacePanel(rightColumn, dialogControls, settings, isDetail);
+            buildTcyPanel(rightColumn, dialogControls, settings, isDetail);
+            buildParagraphPanel(rightColumn, dialogControls, settings);
+            buildColorCheckPanel(rightColumn, dialogControls, settings);
         } else {
+            buildTcyPanel(leftColumn, dialogControls, settings, isDetail);
             buildReplacePanel(leftColumn, dialogControls, settings, isDetail);
         }
 
-        /* 変換の確認 / Conversion check */
-        var previewPanel = dialog.add("panel", undefined, getLabel("panel.preview"));
-        setupPanel(previewPanel);
-        dialogControls.previewList = previewPanel.add("listbox", undefined, []);
-        dialogControls.previewList.preferredSize.height = PREVIEW_LIST_HEIGHT;
 
-        buildButtonRow(dialog, dialogControls, isDetail);
+        buildButtonRow(dialog, dialogControls);
         /* 数値欄・ラジオ・ドロップダウンの初期値はまとめて入れる / Fill fields, radios and dropdowns in one place */
         writeDialogSettings(dialogControls, settings);
         return dialogControls;
@@ -4638,12 +5020,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
             formatOptions.kanjiMaxDigits = Math.max(kanjiMin, kanjiMax);
         }
         formatOptions.rotateSkipMinChars = Math.max(2, readDigitInput(dialogControls.rotateSkipMinInput, DEFAULT_SETTINGS.rotateSkipMinChars));
-        /* 短い英単語は「長い欧文は除く」の1つ下に連動 / Short words are linked to one below "Skip long Roman text" */
+        /* 短い英単語は「○文字以上の欧文は除く」の1つ下に連動 / Short words are linked to one below "Skip Roman text of ... or more characters" */
         formatOptions.shortWordMaxChars = formatOptions.rotateSkipMinChars - 1;
         if (dialogControls.kanjiPositionalRadio) formatOptions.kanjiStyle = readKanjiStyle(dialogControls);
-        for (var c = 0; c < dialogControls.commaRadios.length; c++) {
-            if (dialogControls.commaRadios[c].value) formatOptions.commaStyle = COMMA_STYLES[c];
-        }
+        if (dialogControls.commaDropdown.selection) formatOptions.commaStyle = COMMA_STYLES[dialogControls.commaDropdown.selection.index];
         if (dialogControls.phoneHyphenDropdown && dialogControls.phoneHyphenDropdown.selection) formatOptions.phoneHyphenStyle = PHONE_HYPHEN_STYLES[dialogControls.phoneHyphenDropdown.selection.index];
         if (dialogControls.kinsokuDropdown && dialogControls.kinsokuDropdown.selection) formatOptions.kinsokuType = KINSOKU_TYPES[dialogControls.kinsokuDropdown.selection.index];
         if (dialogControls.leadingInput) formatOptions.leadingPercent = Math.min(500, Math.max(50, readDigitInput(dialogControls.leadingInput, DEFAULT_SETTINGS.leadingPercent)));
@@ -4718,8 +5098,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
             dialogControls.kanjiLargeUnitsRadio.value = (settings.kanjiStyle === "largeUnits");
             dialogControls.kanjiDigitRadio.value = !dialogControls.kanjiPositionalRadio.value && !dialogControls.kanjiLargeUnitsRadio.value;
         }
-        var commaIndex = Math.max(0, indexOfValue(COMMA_STYLES, settings.commaStyle));
-        for (var c = 0; c < dialogControls.commaRadios.length; c++) dialogControls.commaRadios[c].value = (c === commaIndex);
+        dialogControls.commaDropdown.selection = Math.max(0, indexOfValue(COMMA_STYLES, settings.commaStyle));
         if (dialogControls.phoneHyphenDropdown) dialogControls.phoneHyphenDropdown.selection = Math.max(0, indexOfValue(PHONE_HYPHEN_STYLES, settings.phoneHyphenStyle));
         if (dialogControls.leadingInput) dialogControls.leadingInput.text = settings.leadingPercent + "%";
         if (dialogControls.kinsokuDropdown) dialogControls.kinsokuDropdown.selection = Math.max(0, indexOfValue(KINSOKU_TYPES, settings.kinsokuType));
@@ -4753,6 +5132,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
                 if (dialogControls[controlName]) dialogControls[controlName].enabled = isEnabled;
             }
             setEnabledIfExists("rotateSkipLongLatin", dialogControls.rotateRoman.value);
+            setEnabledIfExists("rotateSkipSuffix", dialogControls.rotateRoman.value);
             setSteppedFieldEnabled(dialogControls.rotateSkipMinInput, dialogControls.rotateRoman.value && dialogControls.rotateSkipLongLatin.value);
             if (dialogControls.shortWordMaxInput) setSteppedFieldEnabled(dialogControls.shortWordMaxInput, dialogControls.shortWordFullwidth.value);
             setEnabledIfExists("tcyDigits2", dialogControls.tcyNumbers.value);
@@ -4774,57 +5154,52 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
             }
         }
 
-        /**
-         * 確認の一覧を今の設定で作り直す
-         * @returns {void}
-         */
-        function updatePreview() {
-            var formatOptions = readEffectiveOptions(dialogControls);
-            var previewLines = buildPreviewLines(textTargets, formatOptions);
-            dialogControls.previewList.removeAll();
-            if (previewLines.length === 0) previewLines.push(getLabel("preview.none"));
-            for (var i = 0; i < previewLines.length; i++) dialogControls.previewList.add("item", previewLines[i]);
-        }
-
         var clickControlNames = CHECKBOX_SETTING_KEYS.concat(["kanjiDigitRadio", "kanjiPositionalRadio", "kanjiLargeUnitsRadio"]);
         for (var i = 0; i < clickControlNames.length; i++) {
             if (!dialogControls[clickControlNames[i]]) continue;
-            dialogControls[clickControlNames[i]].onClick = function () {
-                updateEnabledStates();
-                updatePreview();
-            };
+            dialogControls[clickControlNames[i]].onClick = updateEnabledStates;
         }
 
         /**
-         * 数値欄が変わったら、連動する欄をそろえてから確認の一覧を更新する
+         * 数値欄が変わったら、連動する欄をそろえる
          * @param {EditText} [changedInput] - 変わった入力欄
          * @returns {void}
          */
         function onDigitInputChanged(changedInput) {
             syncWordLengthFields(dialogControls, changedInput);
-            updatePreview();
         }
-
-        /* 確認の一覧に効くドロップダウン / Dropdowns that change the check list */
-        for (var c = 0; c < dialogControls.commaRadios.length; c++) dialogControls.commaRadios[c].onClick = updatePreview;
-        if (dialogControls.phoneHyphenDropdown) dialogControls.phoneHyphenDropdown.onChange = updatePreview;
 
         digitStepHandler = onDigitInputChanged;
         wrapDigitInputUpdate(dialogControls.rotateSkipMinInput, onDigitInputChanged);
         if (dialogControls.shortWordMaxInput) wrapDigitInputUpdate(dialogControls.shortWordMaxInput, onDigitInputChanged);
-        if (dialogControls.kanjiMinInput) {
-            wrapDigitInputUpdate(dialogControls.kanjiMinInput, updatePreview);
-            wrapDigitInputUpdate(dialogControls.kanjiMaxInput, updatePreview);
-        }
+
+        dialogControls.btnPreview.onClick = function () {
+            showPreviewDialog(buildPreviewLines(textTargets, readEffectiveOptions(dialogControls)));
+        };
 
         bindModeSwitch(dialogControls, dialogControls.modeSimpleRadio, "simple");
         bindModeSwitch(dialogControls, dialogControls.modeDetailRadio, "detail");
-        bindPresetEvents(dialogControls, function () {
-            updateEnabledStates();
-            updatePreview();
-        });
+        bindPresetEvents(dialogControls, updateEnabledStates);
         updateEnabledStates();
-        updatePreview();
+    }
+
+    /**
+     * 「変換の確認」のダイアログボックスを開く（一覧と［閉じる］だけ）
+     * @param {string[]} previewLines - buildPreviewLines() の戻り値
+     * @returns {void}
+     */
+    function showPreviewDialog(previewLines) {
+        var previewDialog = new Window("dialog", getLabel("panel.preview"));
+        setupWindow(previewDialog);
+        var previewList = previewDialog.add("listbox", undefined, []);
+        previewList.preferredSize = PREVIEW_LIST_SIZE;
+        if (previewLines.length === 0) previewLines.push(getLabel("preview.none"));
+        for (var i = 0; i < previewLines.length; i++) previewList.add("item", previewLines[i]);
+        var buttonRow = addButtonRow(previewDialog);
+        var btnClose = buttonRow.rightGroup.add("button", undefined, getLabel("button.close"), { name: "ok" });
+        btnClose.preferredSize.width = BUTTON_WIDTH;
+        alignRightOnlyButtonRow(buttonRow);
+        previewDialog.show();
     }
 
     /**
@@ -4962,7 +5337,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
     }
 
     /**
-     * ［長い欧文は除く］と［短い英単語を全角に］の文字数をそろえる（全角は「除く」の1つ下）
+     * ［○文字以上の欧文は除く］と［○文字以下の英単語を全角に］の文字数をそろえる（全角は「除く」の1つ下）
      * @param {Object} dialogControls - buildDialog() の戻り値
      * @param {EditText} [changedInput] - 変わった入力欄
      * @returns {void}
@@ -4997,6 +5372,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
             alert(getLabel("alert.noSelection"));
             return;
         }
+        prepareVerticalResets(textTargets);
 
         var settingsStore = createSettingsStore(SCRIPT_NAME, "persistent");
         var dialogSettings = settingsStore.load(DEFAULT_SETTINGS);
@@ -5024,6 +5400,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
             alert(getLabel("alert.actionFailed") + "\n\n" + failureReason);
             return;
         }
+        recordAppliedOptions(doc, formatOptions);
         /* 確認用の色分けは、処理を終えて選択を戻したあとに、選択から集め直して塗る / Check coloring runs after processing, on ranges re-collected from the restored selection */
         if (formatOptions.colorCheck) colorCheckSelection(doc);
     }

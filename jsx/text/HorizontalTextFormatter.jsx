@@ -26,7 +26,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/Horizontal
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "HorizontalTextFormatter";      /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-16";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-16";                   /* 更新日 / last updated */
@@ -299,7 +299,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 ja: "電話番号・郵便番号（数字-数字-数字、3桁-4桁）の「‐」「ー」「－」を「-」にします",
                 en: "Turns ‐ ー － in phone and postal numbers into -"
             },
-            kumimojiToLetters: { ja: "㍉ ㌢ ㌖ ㍍ ㍉㌘ ㌘ ㌕ ㌧ ㍉㍑ ㍑ を mm cm km m mg g kg t ml L にします", en: "Turns unit squares back into mm, cm, km, m, mg, g, kg, t, ml and L" },
+            kumimojiToLetters: { ja: "㍉ ㌢ ㌖ ㍍ ㍉㌘ ㌘ ㌕ ㌧ ㍉㍑ ㌥㍑ ㌔㍑ ㍑ ㌍ ㌔㌍ ㏄ ㎡ ㎤ などを mm cm km m mg g kg t ml dL kL L cal kcal cc m² cm³ などにします", en: "Turns unit squares back into letters (mm, cm, kg, ml, kcal, cc, m², cm³ and so on)" },
             waveToHyphen: { ja: "数字の間の「〜」「～」を「-」にします（10〜20 → 10-20）", en: "Turns 〜 between digits into - (10〜20 → 10-20)" },
             eraToWestern: { ja: "「令和8年」を「2026年」にします（元年・漢数字の年も）", en: "Turns 令和8年 into 2026年 (元年 and kanji years too)" },
             kanjiToArabic: {
@@ -1315,8 +1315,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // =========================================
 
     /* 組文字の単位を英字に戻す対応（2字の組み合わせを先に） / Unit squares back to letters (two-character pairs first) */
-    var KUMIMOJI_UNIT_PAIRS = [["㍉㌘", "mg"], ["㍉㍑", "ml"]];
-    var KUMIMOJI_UNITS = { "㍉": "mm", "㌢": "cm", "㌖": "km", "㍍": "m", "㌘": "g", "㌕": "kg", "㌧": "t", "㍑": "L" };
+    var KUMIMOJI_UNIT_PAIRS = [["㍉㌘", "mg"], ["㍉㍑", "ml"], ["㌥㍑", "dL"], ["㌔㍑", "kL"], ["㌔㌍", "kcal"]];
+    var KUMIMOJI_UNITS = {
+        "㍉": "mm", "㌢": "cm", "㌖": "km", "㍍": "m", "㌘": "g", "㌕": "kg", "㌧": "t", "㍑": "L", "㌍": "cal", "㏄": "cc",
+        "㎟": "mm²", "㎠": "cm²", "㎡": "m²", "㎢": "km²", "㎣": "mm³", "㎤": "cm³", "㎥": "m³", "㎦": "km³"
+    };
 
     /* 半角にする全角の記号（括弧・「：」「；」は横組みでも全角が普通なので除く）
        Full-width symbols made half-width (brackets, ： and ； usually stay full-width in horizontal text too) */
