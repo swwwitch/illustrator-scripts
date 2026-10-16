@@ -1071,7 +1071,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         };
         /* group には notify() が無いので、隠して再表示して描き直す。オフならディム / group has no notify(), so hide and show to redraw; dimmed when off */
         function redrawSwatch() {
-            colorSwatch.enabled = isEnabled;
+            colorSwatch.enabled = isEnabled && isRowActive;
             colorSwatch.hide();
             colorSwatch.show();
         }
@@ -1092,11 +1092,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             label: enabledCheckbox,
             isEnabled: function () { return isEnabled; },
             getColor: function () { return isEnabled ? swatchColor : null; },
-            /* 親の enabled は子の enabled に出ないので、色見本の描画とクリックは isRowActive で判定する
-               a parent's enabled does not show in its children's enabled, so the swatch checks isRowActive */
+            /* 親を無効にしても子はディムされないことがあるので、チェックボックスと色見本を直接無効にする
+               disabling the parent may not dim the children, so disable the checkbox and swatch directly */
             setActive: function (isActive) {
                 isRowActive = isActive;
-                swatchRow.enabled = isActive;
+                enabledCheckbox.enabled = isActive;
                 redrawSwatch();
             }
         };
@@ -1145,10 +1145,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
         halfSpaceRow.label.addEventListener("click", updateGroupSpaceRectsEnabled);
         fullSpaceRow.label.addEventListener("click", updateGroupSpaceRectsEnabled);
-        drawSpacesCheckbox.addEventListener("click", function () {
+        /* onClick は value が切り替わったあとに呼ばれる / onClick runs after the value has toggled */
+        drawSpacesCheckbox.onClick = function () {
             isDrawSpaces = drawSpacesCheckbox.value;
             updateSpaceRowsActive();
-        });
+        };
         if (!isDrawSpaces) updateSpaceRowsActive();
         else updateGroupSpaceRectsEnabled();
 
