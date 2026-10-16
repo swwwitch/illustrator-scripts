@@ -29,10 +29,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/UnifiedTyp
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "UnifiedTypePalette";           /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.4.5";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.5.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-03-24";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-10";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-16";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/UnifiedTypePalette.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/UnifiedTypePalette.md"; /* README (English) */
@@ -697,6 +697,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
     /* 行頭で参照する文字数 / Number of leading characters to sample per line */
     var LINE_FONT_SIZE_SAMPLE_COUNT = 5;
 
+    /* 組み込みの文字組みアキ量設定の数（mojikumiSet のインデックス7以降はカスタム）/ Built-in mojikumi sets (index 7 and later are custom) */
+    var MOJIKUMI_BUILTIN_COUNT = 7;
+
     /* 行から先頭数文字のフォントサイズを採取 / Sample font sizes from the first few characters of a line */
     function getLineSampleFontSizes(line, sampleCount) {
         var fontSizes = [];
@@ -850,15 +853,28 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
         for (var i = 0; i < itemList.length; i++) applyMojikumiToItem(itemList[i], mojikumiValue);
     }
 
-    /* mojikumiSet 名からインデックスを引く（見つからなければ -2＝不明）/ Look up a mojikumiSet index by name (-2 = unknown) */
+    /* mojikumiSet の要素（文字列）からインデックスを引く（見つからなければ -2＝不明）
+       要素は文字列で、組み込みは内部 ID（BetaGumi など）、カスタムは名前そのもの。.name は undefined
+       Look up a mojikumiSet index by its element string (-2 = unknown); built-ins are internal IDs, custom sets are their names */
     function matchMojikumiName(name) {
         try {
             var mojikumiSets = app.activeDocument.mojikumiSet;
             for (var i = 0; i < mojikumiSets.length; i++) {
-                if (mojikumiSets[i].name === name) return i;
+                if (String(mojikumiSets[i]) === name) return i;
             }
         } catch (e) { }
         return -2;
+    }
+
+    /* カスタムの文字組みアキ量設定の名前（mojikumiSet のインデックス7以降）を改行区切りで返す
+       Names of the custom mojikumi sets (mojikumiSet index 7 and later), joined by line feeds */
+    function readCustomMojikumiNames() {
+        var names = [];
+        try {
+            var mojikumiSets = app.activeDocument.mojikumiSet;
+            for (var i = MOJIKUMI_BUILTIN_COUNT; i < mojikumiSets.length; i++) names.push(String(mojikumiSets[i]));
+        } catch (e) { }
+        return names.join("\n");
     }
 
     /* 段落の文字組みアキ量設定を ID へ変換 / Resolve a paragraph's mojikumi to an id
@@ -934,7 +950,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
 
     /* 選択の行送り状態を読み取り、初期表示用にエンコード / Read the selection's leading state for initial reflection
        戻り値: count|isAuto|leadingPt|baseFontSizePt|autoAmount|leadingTypeId|
-               paragraphCount|alignmentId|fontFamily(enc)|fontStyle(enc)|fontSizePt|kernId|justifyId|hScale|mojikumiId|kinsokuId
+               paragraphCount|alignmentId|fontFamily(enc)|fontStyle(enc)|fontSizePt|kernId|justifyId|hScale|mojikumiId|kinsokuId|
+               customMojikumiNames(enc)
 
        注意: 値系（フォント・サイズ・行送り・カーニング・揃え・禁則など）は「最初のフレームの
        先頭文字／先頭段落」だけを代表値として読む簡略化。複数フレームを選択したり、1フレーム内で
@@ -981,7 +998,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
         }
         return [count, isAuto, leadingPt, baseFontSizePt, autoAmount, leadingTypeId,
             paragraphCount, alignmentId, encodeURIComponent(fontFamily), encodeURIComponent(fontStyle),
-            fontSizePt, kernId, justifyId, hScale, mojikumiId, kinsokuId].join("|");
+            fontSizePt, kernId, justifyId, hScale, mojikumiId, kinsokuId, encodeURIComponent(readCustomMojikumiNames())].join("|");
     }
 
     // =========================================
@@ -1202,7 +1219,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
         getProcessableTextFrame, collectLeadingFrames, collectLeadingFramesFromItem, addLeadingFrame,
         resolveLeadingType, leadingTypeToId,
         applyLeadingBasisToFrames, applyAutoLeadingToParagraphs, applyHyphenationToRanges, applyAlignmentToSelection,
-        applyMojikumiToTextFrame, applyMojikumiToItem, applyMojikumiToSelection, matchMojikumiName, mojikumiToId,
+        applyMojikumiToTextFrame, applyMojikumiToItem, applyMojikumiToSelection, matchMojikumiName, readCustomMojikumiNames, mojikumiToId,
         applyKinsokuToTextFrame, applyKinsokuToItem, applyKinsokuToSelection, kinsokuToId,
         readLeadingState,
         formatNumber, getFontDisplayName, readComboFromCharacter, comboKey,
@@ -1215,6 +1232,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
        Only function bodies are shipped, so constants they reference are declared up front */
     function buildWorkerLibSource() {
         var src = "var LINE_FONT_SIZE_SAMPLE_COUNT=" + LINE_FONT_SIZE_SAMPLE_COUNT + ";\n";
+        src += "var MOJIKUMI_BUILTIN_COUNT=" + MOJIKUMI_BUILTIN_COUNT + ";\n";
         for (var i = 0; i < WORKER_FUNCS.length; i++) src += WORKER_FUNCS[i].toString() + "\n";
         return src;
     }
@@ -3639,7 +3657,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
             leadingPercentInput: paragraphColumnUI.leadingPercentInput,
             leadingBasisRadios: paragraphColumnUI.leadingBasisRadios,
             mojikumiDropdown: paragraphColumnUI.mojikumiDropdown,
-            mojikumiChoices: MOJIKUMI_CHOICES,
+            mojikumiChoices: MOJIKUMI_CHOICES.slice(0), /* カスタムのセットを後ろに足すので複製 / Copied because custom sets are appended */
             kinsokuDropdown: paragraphColumnUI.kinsokuDropdown,
             kinsokuChoices: KINSOKU_CHOICES
         };
@@ -3657,7 +3675,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
     }
 
     /* "count|isAuto|leadingPt|basePt|autoAmount|leadingTypeId|paraCount|alignmentId|
-        fontFamily|fontStyle|fontSizePt|kernId|justifyId|hScale|mojikumiId|kinsokuId" を分解
+        fontFamily|fontStyle|fontSizePt|kernId|justifyId|hScale|mojikumiId|kinsokuId|customMojikumiNames" を分解
        Parse the encoded leading state string */
     function parseLeadingState(rest) {
         var fields = String(rest || "").split("|");
@@ -3678,7 +3696,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
             justifyId: fields[12] || "",
             hScale: toNumber(fields[13]),
             mojikumiId: isNaN(parseInt(fields[14], 10)) ? -2 : parseInt(fields[14], 10),
-            kinsokuId: fields[15] || "None"
+            kinsokuId: fields[15] || "None",
+            customMojikumiNames: fields[16] ? decodeURIComponent(fields[16]).split("\n") : []
         };
     }
 
@@ -4289,11 +4308,33 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
             runApply("applyKinsoku", { kinsoku: ui.kinsokuChoices[this.selection.index].id });
         };
 
+        /* ドキュメントのカスタムの文字組みアキ量設定を、組み込みのあとに並べ直す（変わったときだけ）
+           Re-list the document's custom mojikumi sets after the built-ins (only when they changed) */
+        var customMojikumiKey = "";
+        function syncCustomMojikumiChoices(customNames) {
+            var nextKey = customNames.join("\n");
+            if (nextKey === customMojikumiKey) return;
+            customMojikumiKey = nextKey;
+            var builtinCount = MOJIKUMI_CHOICES.length;
+            var selectedIndex = ui.mojikumiDropdown.selection ? ui.mojikumiDropdown.selection.index : 0;
+            suppressUiEvents = true;
+            while (ui.mojikumiDropdown.items.length > builtinCount) ui.mojikumiDropdown.remove(ui.mojikumiDropdown.items.length - 1);
+            ui.mojikumiChoices.length = builtinCount;
+            for (var i = 0; i < customNames.length; i++) {
+                ui.mojikumiChoices.push({ index: MOJIKUMI_BUILTIN_COUNT + i, label: customNames[i] });
+                ui.mojikumiDropdown.add("item", customNames[i]);
+            }
+            /* 選んでいたカスタムが消えたら先頭に戻す / Fall back to the first item when the selected custom set is gone */
+            ui.mojikumiDropdown.selection = (selectedIndex < ui.mojikumiDropdown.items.length) ? selectedIndex : 0;
+            suppressUiEvents = false;
+        }
+
         /* 選択状態を読み取って UI に反映 / Read the selection state and reflect it into the UI */
         function refreshState() {
             runWorker("getState", null, function (status, payload) {
                 if (status !== "ok") return;
                 var state = parseLeadingState(payload);
+                syncCustomMojikumiChoices(state.customMojikumiNames);
                 if (state.count <= 0) return;
                 // フォントサイズ・比率・見かけ / Font size, scale, apparent
                 syncFontSizeText(isNaN(state.fontSizePt) ? "" : String(Math.round((state.fontSizePt / textUnit.pointsPerUnit) * 10) / 10), null);

@@ -29,10 +29,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiTextOutl
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AiTextOutlineRestorePalette";  /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v2.0.10";                      /* バージョン / version */
+var SCRIPT_VERSION  = "v2.0.11";                      /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2024-07-23";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-10";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-16";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiTextOutlineRestorePalette.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiTextOutlineRestorePalette.md"; /* README (English) */
@@ -650,6 +650,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc476be8ad43c"; /* 紹�
         if (preset) { return preset.labelText; }
         var byCollection = workerMojikumiLabelFromApplied(value);
         if (byCollection != null) { return byCollection; }
+        if (workerFindMojikumiSetIndex(value) >= 7) { return value; }
         /* コレクションでも引けない環境向け：内部ローマ字名を前方一致（長い key を先に、zenkaku が zenkakuhankaku を食わないよう） */
         var romajiMap = [
             { key: "gyomatsuyakumonozenkakuhankaku", name: "行末約物全角/半角" },
@@ -1153,6 +1154,25 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc476be8ad43c"; /* 紹�
         return null;
     }
 
+    /* --- doc.mojikumiSet から名前の一致する要素の位置を引く（無ければ -1）/ Find a mojikumi set index by name --- */
+    /* 要素は文字列（組み込みは内部ID、index 7 以降のカスタムは表示名）で .name は無い。完全一致 → 正規化一致の順 */
+    function workerFindMojikumiSetIndex(name) {
+        if (name == null || name === "") { return -1; }
+        var sets = null;
+        try { sets = app.activeDocument.mojikumiSet; } catch (eSets) { sets = null; }
+        if (sets == null) { return -1; }
+        var target = String(name);
+        var normalizedTarget = workerNormalizeMojikumiName(target);
+        var setIndex;
+        for (setIndex = 0; setIndex < sets.length; setIndex++) {
+            if (String(sets[setIndex]) === target) { return setIndex; }
+        }
+        for (setIndex = 0; setIndex < sets.length; setIndex++) {
+            if (workerNormalizeMojikumiName(String(sets[setIndex])) === normalizedTarget) { return setIndex; }
+        }
+        return -1;
+    }
+
     /* --- 適用中の文字組み（オブジェクト or 内部名）を doc.mojikumiSet の位置で日本語ラベルへ / Resolve applied mojikumi to preset label --- */
     /* 同一オブジェクト参照 → 正規化した内部名の順で突き合わせ、見つかった index のラベルを返す。引けなければ null */
     function workerMojikumiLabelFromApplied(applied) {
@@ -1170,7 +1190,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc476be8ad43c"; /* 紹�
             var matched = false;
             try { if (sets[idx] === applied) { matched = true; } } catch (eId) {}
             if (!matched && normApplied != null) {
-                try { if (workerNormalizeMojikumiName(sets[idx].name) === normApplied) { matched = true; } } catch (eNm) {}
+                try { if (workerNormalizeMojikumiName(String(sets[idx])) === normApplied) { matched = true; } } catch (eNm) {}
             }
             if (matched) { return presets[i].labelText; }
         }
@@ -1200,7 +1220,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc476be8ad43c"; /* 紹�
 
     /* --- 復元：文字組みアキ量設定を適用 / Restore: apply mojikumi --- */
     /* 「なし」は代入可。日本語ラベル → その index の doc.mojikumiSet を適用（ApplyMojikumi と同方式）。
-       旧 note の内部名は doc.mojikumiSet 名との正規化一致でフォールバック */
+       それ以外（カスタムセット名・旧 note の内部ID）は doc.mojikumiSet の文字列と突き合わせ、
+       旧 note のローマ字名は表示用ラベル経由でプリセットへ。どれにも当たらなければ変更しない */
     function workerApplyMojikumi(textRange, mojikumiText) {
         if (mojikumiText == null || mojikumiText === "") { return; }
         try {
@@ -1209,18 +1230,19 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc476be8ad43c"; /* 紹�
                 return;
             }
             var sets = app.activeDocument.mojikumiSet;
-            var normalizedText = workerNormalizeMojikumiName(mojikumiText);
             var preset = workerFindMojikumiPreset(mojikumiText);
             if (preset && preset.mojikumiIndex >= 0 && preset.mojikumiIndex < sets.length) {
                 textRange.paragraphAttributes.mojikumi = sets[preset.mojikumiIndex];
                 return;
             }
-            var setIndex;
-            for (setIndex = 0; setIndex < sets.length; setIndex++) {
-                if (workerNormalizeMojikumiName(sets[setIndex].name) === normalizedText) {
-                    textRange.paragraphAttributes.mojikumi = sets[setIndex];
-                    return;
-                }
+            var setIndex = workerFindMojikumiSetIndex(mojikumiText);
+            if (setIndex >= 0) {
+                textRange.paragraphAttributes.mojikumi = sets[setIndex];
+                return;
+            }
+            var legacyPreset = workerFindMojikumiPreset(workerMojikumiToDisplay(mojikumiText));
+            if (legacyPreset && legacyPreset.mojikumiIndex >= 0 && legacyPreset.mojikumiIndex < sets.length) {
+                textRange.paragraphAttributes.mojikumi = sets[legacyPreset.mojikumiIndex];
             }
         } catch (e) {
         }
@@ -1432,6 +1454,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc476be8ad43c"; /* 紹�
         workerNormalizeMojikumiName,
         workerMojikumiPresets,
         workerFindMojikumiPreset,
+        workerFindMojikumiSetIndex,
         workerMojikumiLabelFromApplied,
         workerMojikumiToText,
         workerApplyMojikumi,
@@ -1455,6 +1478,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc476be8ad43c"; /* 紹�
         workerNormalizeMojikumiName,
         workerMojikumiPresets,
         workerFindMojikumiPreset,
+        workerFindMojikumiSetIndex,
         workerMojikumiLabelFromApplied,
         workerMojikumiToDisplay,
         workerFormatDisplayValue,

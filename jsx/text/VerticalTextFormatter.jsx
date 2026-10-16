@@ -30,7 +30,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/VerticalTe
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "VerticalTextFormatter";        /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.17.2";                      /* バージョン / version */
+var SCRIPT_VERSION  = "v1.18.0";                      /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-15";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-16";                   /* 更新日 / last updated */
@@ -87,6 +87,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
         shortWordMaxChars: 4,
         kinsokuType: "Soft_v2",
         mojikumiIndex: 6,
+        mojikumiCustomName: "",
         leadingPercent: 175,
         dialogMode: "simple"
     };
@@ -104,9 +105,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
 
     /* 禁則の選択肢（paragraphAttributes.kinsoku の値） / Kinsoku choices (values of paragraphAttributes.kinsoku) */
     var KINSOKU_TYPES = ["None", "Hard", "Soft", "Soft_v2"];
-    /* 文字組みアキ量設定の選択肢（doc.mojikumiSet の番号、-1 は「なし」）。名前は DOM から読めないので LABELS に持つ
-       Mojikumi choices (doc.mojikumiSet index, -1 = none); names are not readable from the DOM, so LABELS holds them */
+    /* 組み込みの文字組みアキ量設定の選択肢（doc.mojikumiSet の番号、-1 は「なし」）。組み込みの要素は内部 ID の文字列なので、表示名は LABELS に持つ。
+       8番目（番号7）以降はカスタムのセットで、要素の文字列がそのまま名前（mojikumiCustomName に控える）
+       Built-in mojikumi choices (doc.mojikumiSet index, -1 = none). Built-in entries are internal ID strings, so LABELS holds the names;
+       entries from index 7 on are custom sets whose string is the name (kept in mojikumiCustomName) */
     var MOJIKUMI_INDEXES = [-1, 0, 1, 2, 3, 4, 5, 6];
+    var MOJIKUMI_BUILTIN_COUNT = 7;
     /* 桁区切りの選択肢 / Thousands separator choices */
     var COMMA_STYLES = ["touten", "remove", "keep"];
     /* 番号のハイフンの選択肢 / Phone hyphen choices */
@@ -2517,41 +2521,103 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
         ml: "㍉㍑", mL: "㍉㍑", l: "㍑", L: "㍑"
     };
 
-    /* 欧文のまとまり：英字で始まる単語（. ' - を含む。全角の英数字も可）が、スペースまたは「&」（全角も可）でつながったもの。
+    /* 欧文のまとまり：単語（英字で始まるか、数字のあとに英字が続くもの。. ' - を含む。全角の英数字も可）が、スペースまたは「&」（全角も可）でつながったもの。
        スペースは半角・全角のほか、ノーブレークスペースや細いスペースなども含める。
        ExtendScript の正規表現は、入れ子の量指定と選択を含むパターンを誤って評価する（Design Week の「Week」が外れる）ので、1文字ずつ走査する
-       A Roman run: words starting with a letter (may contain . ' -; full-width alphanumerics allowed) joined by spaces or & (full-width too).
+       A Roman run: words (starting with a letter, or digits followed by a letter; may contain . ' -; full-width alphanumerics allowed) joined by spaces or & (full-width too).
        ExtendScript's regex engine mis-evaluates nested quantifiers with alternation (dropping "Week" from Design Week), so scan by hand */
-    var LATIN_WORD_START_PATTERN = /[A-Za-zＡ-Ｚａ-ｚ]/;
-    var LATIN_WORD_PART_PATTERN = /[A-Za-z0-9Ａ-Ｚａ-ｚ０-９.'\-]/;
-    var LATIN_SPACE_PATTERN = /[ \u00A0\u2000-\u200A\u202F\u205F\u3000]/;
-    var LATIN_AMPERSAND_PATTERN = /[&＆]/;
+    var LATIN_SPACES = "               　";
+    var LATIN_AMPERSANDS = "&＆";
+
+    /**
+     * 半角・全角の英字か（欧文のまとまりの判定用。1語ずつの変換は半角の isLatinLetter だけを見る）
+     * @param {string} currentChar - 1文字
+     * @returns {boolean} A〜Z・a〜z・Ａ〜Ｚ・ａ〜ｚ なら true
+     */
+    function isAnyLatinLetter(currentChar) {
+        return isLatinLetter(currentChar) || (currentChar >= "Ａ" && currentChar <= "Ｚ") || (currentChar >= "ａ" && currentChar <= "ｚ");
+    }
+
+    /**
+     * 単語を構成する文字か（英数字と . ' -）
+     * @param {string} currentChar - 1文字
+     * @returns {boolean} 単語の文字なら true
+     */
+    function isLatinWordPart(currentChar) {
+        return currentChar !== "" && (isAnyLatinLetter(currentChar) || isAnyDigitChar(currentChar) || ".'-".indexOf(currentChar) >= 0);
+    }
+
+    /**
+     * 欧文のまとまりのつなぎに使うスペースか
+     * @param {string} currentChar - 1文字
+     * @returns {boolean} スペースなら true
+     */
+    function isLatinSpace(currentChar) {
+        return currentChar !== "" && LATIN_SPACES.indexOf(currentChar) >= 0;
+    }
+
+    /**
+     * その位置から始まる1語を読む。単語の途中・数字＋単位（5mm など。［単位を組文字に］の対象）は語として扱わない
+     * @param {string} text - 対象の文字列
+     * @param {number} startIndex - 調べる位置
+     * @returns {{end: number, isSentenceEnd: boolean, isCapsTcy: boolean}|null} 終わり（含まない）、文末のピリオドで終わるか、
+     *     縦中横にする大文字（半角2〜3字）か。語でなければ null
+     */
+    function readLatinWord(text, startIndex) {
+        var previousChar = text.charAt(startIndex - 1);
+        if (startIndex > 0 && (isAnyLatinLetter(previousChar) || isAnyDigitChar(previousChar))) return null;
+        var index = startIndex;
+        while (index < text.length && isAnyDigitChar(text.charAt(index))) index++;
+        var letterStart = index;
+        if (!isAnyLatinLetter(text.charAt(letterStart))) return null;
+        var wordEnd = letterStart + 1;
+        while (wordEnd < text.length && isLatinWordPart(text.charAt(wordEnd))) wordEnd++;
+        var wordText = text.substring(startIndex, wordEnd);
+        /* 数字のあとが単位だけなら、数字と単位として扱う / Digits followed only by a unit stay a number and a unit */
+        if (letterStart > startIndex && UNIT_KUMIMOJI.hasOwnProperty(text.substring(letterStart, wordEnd))) return null;
+        /* 文末：4字以上の語がピリオドで終わる（Mr. や U.S. などの略語は除く） / Sentence end: a word of 4+ chars ending in a period (not Mr. or U.S.) */
+        var coreText = wordText.replace(/\.+$/, "");
+        var isSentenceEnd = coreText !== wordText && coreText.length >= 4 && coreText.indexOf(".") < 0;
+        var isCapsTcy = /^[A-Z]{2,3}$/.test(wordText);
+        return { end: wordEnd, isSentenceEnd: isSentenceEnd, isCapsTcy: isCapsTcy };
+    }
 
     /**
      * その位置から始まる欧文のまとまりの終わりと語数を返す
+     * ［大文字を縦中横に］がオンで、全部の語が縦中横にする大文字（NHK BS など）なら、最初の1語だけを返す
      * @param {string} text - 対象の文字列
-     * @param {number} startIndex - 調べる位置
-     * @returns {{end: number, wordCount: number}|null} 終わり（含まない）と語数。英字で始まらなければ null
+     * @param {number} startIndex - 調べる位置（どこでもよい）
+     * @param {Object} formatOptions - 変換の設定（tcyCapitals を見る）
+     * @returns {{end: number, wordCount: number}|null} 終わり（含まない）と語数。語で始まらなければ null
      */
-    function scanLatinRun(text, startIndex) {
-        if (!LATIN_WORD_START_PATTERN.test(text.charAt(startIndex))) return null;
-        var wordEnd = startIndex + 1;
-        while (wordEnd < text.length && LATIN_WORD_PART_PATTERN.test(text.charAt(wordEnd))) wordEnd++;
+    function scanLatinRun(text, startIndex, formatOptions) {
+        var word = readLatinWord(text, startIndex);
+        if (!word) return null;
+        var firstWordEnd = word.end;
+        var wordEnd = word.end;
         var wordCount = 1;
+        var isAllCapsTcy = word.isCapsTcy;
         while (true) {
             /* つなぎ：スペースの並び、または前後にスペースを挟んでよい「&」 / joiner: spaces, or & with optional spaces around it */
             var nextIndex = wordEnd;
-            while (nextIndex < text.length && LATIN_SPACE_PATTERN.test(text.charAt(nextIndex))) nextIndex++;
-            var hasAmpersand = LATIN_AMPERSAND_PATTERN.test(text.charAt(nextIndex));
-            if (hasAmpersand) {
+            while (nextIndex < text.length && isLatinSpace(text.charAt(nextIndex))) nextIndex++;
+            var joinerChar = text.charAt(nextIndex);
+            if (joinerChar !== "" && LATIN_AMPERSANDS.indexOf(joinerChar) >= 0) {
                 nextIndex++;
-                while (nextIndex < text.length && LATIN_SPACE_PATTERN.test(text.charAt(nextIndex))) nextIndex++;
+                while (nextIndex < text.length && isLatinSpace(text.charAt(nextIndex))) nextIndex++;
             }
-            if (nextIndex === wordEnd || !LATIN_WORD_START_PATTERN.test(text.charAt(nextIndex))) break;
-            wordEnd = nextIndex + 1;
-            while (wordEnd < text.length && LATIN_WORD_PART_PATTERN.test(text.charAt(wordEnd))) wordEnd++;
+            if (nextIndex === wordEnd) break;
+            var nextWord = readLatinWord(text, nextIndex);
+            if (!nextWord) break;
+            /* 文末のピリオドのあと、大文字で始まる語は別の文 / After a sentence-ending period, a capitalized word starts a new sentence */
+            var nextChar = text.charAt(nextIndex);
+            if (word.isSentenceEnd && ((nextChar >= "A" && nextChar <= "Z") || (nextChar >= "Ａ" && nextChar <= "Ｚ"))) break;
+            word = nextWord;
+            wordEnd = word.end;
             wordCount++;
+            if (!word.isCapsTcy) isAllCapsTcy = false;
         }
+        if (wordCount >= 2 && isAllCapsTcy && formatOptions && formatOptions.tcyCapitals) return { end: firstWordEnd, wordCount: 1 };
         return { end: wordEnd, wordCount: wordCount };
     }
 
@@ -2610,11 +2676,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
     /**
      * その位置から始まる英単語の連続（スペースや「&」でつながった2語以上）を返す
      * @param {string} text - 対象の文字列
-     * @param {number} startIndex - 英字で始まる位置
-     * @returns {string|null} まとまりの文字列（1語だけなら null）
+     * @param {number} startIndex - 調べる位置（どこでもよい。語で始まらなければ null）
+     * @param {Object} formatOptions - 変換の設定
+     * @returns {string|null} まとまりの文字列（語で始まらない・1語だけなら null）
      */
-    function matchLatinPhrase(text, startIndex) {
-        var latinRun = scanLatinRun(text, startIndex);
+    function matchLatinPhrase(text, startIndex, formatOptions) {
+        var latinRun = scanLatinRun(text, startIndex, formatOptions);
         return (latinRun && latinRun.wordCount >= 2) ? text.substring(startIndex, latinRun.end) : null;
     }
 
@@ -2863,11 +2930,19 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
      * @returns {{eraName: string, eraYear: number}|null} 西暦の年でなければ null
      */
     function matchWesternYear(text, startIndex) {
-        var yearMatch = /^(\d{4})年(?:(\d{1,2})月(?:(\d{1,2})日)?)?/.exec(text.substr(startIndex, 12));
+        /* 入れ子の量指定の正規表現は ExtendScript で誤評価されるので、年・月・日を順に読む
+           Nested quantified groups mis-evaluate in ExtendScript, so read year, month and day in turn */
+        var yearMatch = /^(\d{4})年/.exec(text.substr(startIndex, 5));
         if (!yearMatch) return null;
         var year = parseInt(yearMatch[1], 10);
-        var month = yearMatch[2] ? parseInt(yearMatch[2], 10) : 12;
-        var day = yearMatch[3] ? parseInt(yearMatch[3], 10) : 31;
+        var month = 12;
+        var day = 31;
+        var monthMatch = /^(\d{1,2})月/.exec(text.substr(startIndex + 5, 3));
+        if (monthMatch) {
+            month = parseInt(monthMatch[1], 10);
+            var dayMatch = /^(\d{1,2})日/.exec(text.substr(startIndex + 5 + monthMatch[0].length, 3));
+            if (dayMatch) day = parseInt(dayMatch[1], 10);
+        }
         var dateKey = year * 10000 + month * 100 + day;
         for (var i = 0; i < JAPANESE_ERAS.length; i++) {
             if (dateKey >= JAPANESE_ERAS[i].start) {
@@ -2969,12 +3044,20 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
             var currentChar = text.charAt(i);
             var runStart = i;
             var westernYear = (formatOptions.japaneseEra && isDigitChar(currentChar)) ? matchWesternYear(text, i) : null;
+            var phraseText = westernYear ? null : matchLatinPhrase(text, i, formatOptions);
             if (westernYear) {
                 emit(westernYear.eraName, false);
                 /* 1年は「元年」 / The first year is written 元 */
                 if (westernYear.eraYear === 1) emit("元", false);
                 else emitPlainDigits(String(westernYear.eraYear), formatOptions, emit);
                 i += 4;
+            } else if (phraseText) {
+                /* 英単語の連続（2語以上。3D Printing のように数字で始まる語も）は横倒しの欧文として残す（回転しない）。
+                   中の全角英数字・幅の広いスペース・「＆」は半角に戻す
+                   A run of two or more words (including ones like 3D Printing) stays sideways (not rotated);
+                   full-width alphanumerics, wide spaces and ＆ inside become half-width */
+                emit(toHalfwidthAlnum(phraseText).replace(/[\u2000-\u2003\u3000]/g, " ").replace(/＆/g, "&"), false);
+                i += phraseText.length;
             } else if (isDigitChar(currentChar) && matchPhoneNumber(text, i)) {
                 /* 電話番号・郵便番号は範囲の「〜」にも縦中横・漢数字にもしない / Phone and postal numbers are not ranges, TCY or kanji */
                 var phoneText = matchPhoneNumber(text, i);
@@ -3005,13 +3088,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
                     }
                 }
                 i = tokenEnd;
-            } else if (matchLatinPhrase(text, i)) {
-                /* 英単語の連続（2語以上）は横倒しの欧文として残す（回転しない）。中の全角英数字・全角スペース・「＆」は半角に戻す
-                   A run of two or more words stays sideways (not rotated); full-width alphanumerics, spaces and ＆ inside become half-width */
-                var phraseText = matchLatinPhrase(text, i);
-                emit(toHalfwidthAlnum(phraseText).replace(/\u3000/g, " ").replace(/＆/g, "&"), false);
-                i += phraseText.length;
             } else if (isLatinLetter(currentChar)) {
+                /* 1語は半角だけを変換する（全角の英字はそのままでよい） / Single words: only half-width letters need converting */
                 while (i < text.length && isLatinLetter(text.charAt(i))) i++;
                 var letterText = text.substring(runStart, i);
                 var isCapsTcy = formatOptions.tcyCapitals && letterText.length >= 2 && letterText.length <= 3 && letterText === letterText.toUpperCase();
@@ -3168,13 +3246,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
      * 1語は minChars 文字以上のとき（minChars が 0 なら1語は対象外）
      * @param {string} targetText - 対象の文字列
      * @param {number} minChars - 1語を対象にする文字数（0 で対象にしない）
+     * @param {Object} formatOptions - 変換の設定
      * @returns {Array<{start: number, length: number}>} 見つかった位置
      */
-    function findNoRotateLatinRuns(targetText, minChars) {
+    function findNoRotateLatinRuns(targetText, minChars, formatOptions) {
         var latinRuns = [];
         var i = 0;
         while (i < targetText.length) {
-            var latinRun = scanLatinRun(targetText, i);
+            var latinRun = scanLatinRun(targetText, i, formatOptions);
             if (!latinRun) {
                 i++;
                 continue;
@@ -3194,7 +3273,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
      */
     function getNoRotateRuns(targetText, formatOptions) {
         if (!formatOptions.rotateRoman) return [];
-        return findNoRotateLatinRuns(targetText, formatOptions.rotateSkipLongLatin ? formatOptions.rotateSkipMinChars : 0);
+        return findNoRotateLatinRuns(targetText, formatOptions.rotateSkipLongLatin ? formatOptions.rotateSkipMinChars : 0, formatOptions);
     }
 
     /**
@@ -3275,13 +3354,30 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
     }
 
     /**
-     * 文字組みアキ量設定の番号から、段落に代入する値を返す
+     * ドキュメントにあるカスタムの文字組みアキ量設定の名前を返す
      * @param {Document} doc - 対象のドキュメント
-     * @param {number|null} mojikumiIndex - doc.mojikumiSet の番号（-1 は「なし」、null は変えない）
-     * @returns {*} 代入する値（変えないとき・ドキュメントに無い番号なら null）
+     * @returns {Array<string>} 名前（doc.mojikumiSet の番号7以降の順）
      */
-    function resolveMojikumiValue(doc, mojikumiIndex) {
+    function listCustomMojikumiNames(doc) {
+        var customNames = [];
+        var mojikumiSets = doc.mojikumiSet;
+        for (var i = MOJIKUMI_BUILTIN_COUNT; i < mojikumiSets.length; i++) customNames.push(String(mojikumiSets[i]));
+        return customNames;
+    }
+
+    /**
+     * 文字組みアキ量設定の設定から、段落に代入する値を返す。カスタムの名前がドキュメントにあればそれを、無ければ組み込みの番号を使う
+     * @param {Document} doc - 対象のドキュメント
+     * @param {Object} formatOptions - 変換の設定（mojikumiIndex：-1 は「なし」、null は変えない／mojikumiCustomName）
+     * @returns {*} 代入する値（変えないとき・ドキュメントに無いときは null）
+     */
+    function resolveMojikumiValue(doc, formatOptions) {
+        var mojikumiIndex = formatOptions.mojikumiIndex;
         if (mojikumiIndex === null) return null;
+        if (formatOptions.mojikumiCustomName) {
+            var customIndex = indexOfValue(listCustomMojikumiNames(doc), formatOptions.mojikumiCustomName);
+            if (customIndex >= 0) return doc.mojikumiSet[MOJIKUMI_BUILTIN_COUNT + customIndex];
+        }
         if (mojikumiIndex === -1) return "なし";
         return (mojikumiIndex >= 0 && mojikumiIndex < doc.mojikumiSet.length) ? doc.mojikumiSet[mojikumiIndex] : null;
     }
@@ -3290,11 +3386,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
      * 対象の段落に、禁則・文字組みアキ量設定・行送り（自動行送りの％）と行頭行末揃え（最終行上）を設定する
      * @param {Document} doc - 対象のドキュメント
      * @param {Object} textTarget - 対象
-     * @param {Object} formatOptions - 変換の設定（kinsokuType / mojikumiIndex / leadingPercent。null は変えない）
+     * @param {Object} formatOptions - 変換の設定（kinsokuType / mojikumiIndex（mojikumiCustomName） / leadingPercent。null は変えない）
      * @returns {void}
      */
     function applyParagraphSettings(doc, textTarget, formatOptions) {
-        var mojikumiValue = resolveMojikumiValue(doc, formatOptions.mojikumiIndex);
+        var mojikumiValue = resolveMojikumiValue(doc, formatOptions);
         var paragraphs;
         if (textTarget.frame) {
             paragraphs = textTarget.frame.paragraphs;
@@ -4462,6 +4558,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
         setupPanel(paragraphPanel, 6);
         dialogControls.kinsokuDropdown = addLabeledDropdown(paragraphPanel, "fieldLabel.kinsoku", LABELS.dropdown.kinsoku, "tooltip.kinsoku", PARAGRAPH_LABEL_WIDTH);
         dialogControls.mojikumiDropdown = addLabeledDropdown(paragraphPanel, "fieldLabel.mojikumi", LABELS.dropdown.mojikumi, "tooltip.mojikumi", PARAGRAPH_LABEL_WIDTH);
+        /* 組み込みのあとにドキュメントのカスタムのセットを並べる / Custom sets of the document follow the built-in ones */
+        dialogControls.customMojikumiNames = listCustomMojikumiNames(app.activeDocument);
+        for (var m = 0; m < dialogControls.customMojikumiNames.length; m++) dialogControls.mojikumiDropdown.add("item", dialogControls.customMojikumiNames[m]);
         /* 行送り : [150%]（自動行送りの％） / Leading: [150%] (auto-leading percentage) */
         dialogControls.leadingInput = addSteppedField(paragraphPanel, {
             label: labelText("fieldLabel.leading"), labelWidth: PARAGRAPH_LABEL_WIDTH,
@@ -4620,7 +4719,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
         if (dialogControls.phoneHyphenDropdown && dialogControls.phoneHyphenDropdown.selection) formatOptions.phoneHyphenStyle = PHONE_HYPHEN_STYLES[dialogControls.phoneHyphenDropdown.selection.index];
         if (dialogControls.kinsokuDropdown && dialogControls.kinsokuDropdown.selection) formatOptions.kinsokuType = KINSOKU_TYPES[dialogControls.kinsokuDropdown.selection.index];
         if (dialogControls.leadingInput) formatOptions.leadingPercent = Math.min(500, Math.max(50, readDigitInput(dialogControls.leadingInput, DEFAULT_SETTINGS.leadingPercent)));
-        if (dialogControls.mojikumiDropdown && dialogControls.mojikumiDropdown.selection) formatOptions.mojikumiIndex = MOJIKUMI_INDEXES[dialogControls.mojikumiDropdown.selection.index];
+        if (dialogControls.mojikumiDropdown && dialogControls.mojikumiDropdown.selection) {
+            var mojikumiItemIndex = dialogControls.mojikumiDropdown.selection.index;
+            if (mojikumiItemIndex < MOJIKUMI_INDEXES.length) {
+                formatOptions.mojikumiIndex = MOJIKUMI_INDEXES[mojikumiItemIndex];
+                formatOptions.mojikumiCustomName = "";
+            } else {
+                /* カスタムは名前で控える（番号はドキュメントごとに異なる）。番号には組み込みの既定を残す
+                   Custom sets are kept by name (indexes differ per document); the index keeps the built-in default */
+                formatOptions.mojikumiIndex = DEFAULT_SETTINGS.mojikumiIndex;
+                formatOptions.mojikumiCustomName = dialogControls.customMojikumiNames[mojikumiItemIndex - MOJIKUMI_INDEXES.length];
+            }
+        }
         formatOptions.dialogMode = dialogControls.dialogMode;
         return formatOptions;
     }
@@ -4684,7 +4794,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
         if (dialogControls.phoneHyphenDropdown) dialogControls.phoneHyphenDropdown.selection = Math.max(0, indexOfValue(PHONE_HYPHEN_STYLES, settings.phoneHyphenStyle));
         if (dialogControls.leadingInput) dialogControls.leadingInput.text = settings.leadingPercent + "%";
         if (dialogControls.kinsokuDropdown) dialogControls.kinsokuDropdown.selection = Math.max(0, indexOfValue(KINSOKU_TYPES, settings.kinsokuType));
-        if (dialogControls.mojikumiDropdown) dialogControls.mojikumiDropdown.selection = Math.max(0, indexOfValue(MOJIKUMI_INDEXES, settings.mojikumiIndex));
+        if (dialogControls.mojikumiDropdown) {
+            var customItemIndex = settings.mojikumiCustomName ? indexOfValue(dialogControls.customMojikumiNames, settings.mojikumiCustomName) : -1;
+            dialogControls.mojikumiDropdown.selection = (customItemIndex >= 0)
+                ? MOJIKUMI_INDEXES.length + customItemIndex
+                : Math.max(0, indexOfValue(MOJIKUMI_INDEXES, settings.mojikumiIndex));
+        }
     }
 
     /**

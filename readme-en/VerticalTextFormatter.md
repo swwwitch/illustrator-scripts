@@ -64,7 +64,7 @@
     - **千 as 一千**: with 十・百・千, writes 1000 as 一千 (1500 → 一千五百)
 - **Number hyphens** (Detailed mode): hyphens in phone and postal numbers (digits-digits-digits, 3-4 digits) become ‐ (hyphen, default) / ー (long vowel mark) / stay. These numbers are never ranges, Tate-Chu-Yoko or kanji
 - Character and Paragraph (Detailed mode)
-  - Choose the kinsoku set (None / Hard / Soft / Soft v2) and the mojikumi set (None and the seven built-ins) from dropdowns (Soft v2 and Solid by default)
+  - Choose the kinsoku set (None / Hard / Soft / Soft v2) and the mojikumi set (None, the seven built-ins and the document's custom sets) from dropdowns (Soft v2 and Solid by default)
   - **Leading**: set as an auto-leading percentage (175% by default, 50–500%). In both modes, leading is always set to Auto at the end so it follows the type size
   - Justification is always justified with the last line at the top
   - **Proportional metrics for full-width Latin**: applies the OpenType Proportional Metrics feature to full-width letters (after the rewriting, on by default)
@@ -105,6 +105,7 @@ https://note.com/dtp_tranist/n/ndb55c5516fd6
 
 ### Update History
 
+- v1.18.0 (2026-10-16) The [Mojikumi] list now includes the document's custom mojikumi sets (kept by name, so the same set is picked next time in documents that have it). Improved detection of word runs: digits with units (5mm and 10cm) stay eligible for [Units to squares]; with [Tate-Chu-Yoko for 2–3 capitals] on, all-capital runs such as NHK BS get Tate-Chu-Yoko word by word; words starting with digits such as 3D Printing are included; a capitalized word after a sentence-ending period starts a new run; wide spaces such as em spaces become half-width
 - v1.17.2 (2026-10-16) Fixed runs of words (such as Design Week) being split word by word in Illustrator, which rotated "Week" or made it full-width. Words joined by no-break or thin spaces are now treated as one run too
 - v1.17.1 (2026-10-16) Runs of words that include full-width alphanumerics, spaces or ＆ are now treated as one run too: not rotated, and made half-width (Design Ｗｅｅｋ → Design Week). Fixed a "there is no document" error after turning horizontal text vertical (frames recreated by the change are re-taken from the selection)
 - v1.17.0 (2026-10-16) Added "Auto-size area type" to the Character and Paragraph panel. "Number hyphens" now uses ‐ (hyphen) instead of full-width －, which stayed horizontal in vertical text. Added "Leading" (auto-leading percentage, 175% by default) to the Character and Paragraph panel. The "magazines, ads" preset now uses TCY for numbers only (no capital abbreviations or !?). Removed "Include units"; numbers and units are no longer combined in Tate-Chu-Yoko. Leading is always set to Auto at the end (in Simple mode too). Runs of two or more words (Type & Layout) are no longer rotated, made full-width or changed

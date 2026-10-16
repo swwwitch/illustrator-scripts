@@ -108,7 +108,7 @@ Changing the justification can shift the visual position of the text frame. This
 
 ### Japanese composition
 
-Kinsoku and Mojikumi Settings are collected in a single panel, each chosen from a popup.
+Kinsoku and Mojikumi Settings are collected in a single panel, each chosen from a popup. The Mojikumi popup also lists the document's custom sets after the built-in ones.
 
 | Kinsoku | Mojikumi |
 | --- | --- |
@@ -235,6 +235,7 @@ The two lists on each tab (Font only / Details) are stacked at the same position
 
 ### Update History
 
+- v1.5.0 (2026-10-16) The Mojikumi popup now lists the document's custom mojikumi sets (and reflects a custom set used by the selected text)
 - v1.4.5 (2026-10-10) Fixed the palette operating on another Illustrator version when several versions are running
 - v1.4.4 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.4.4 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)

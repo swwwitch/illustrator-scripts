@@ -31,10 +31,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FontPreset
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "FontPresetPickerPalette";      /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.6";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.2.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-09-17";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-10";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-16";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/FontPresetPickerPalette.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FontPresetPickerPalette.md"; /* README (English) */
@@ -371,9 +371,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3d7f8b58ef88"; /* 紹�
        id は paragraphAttributes.mojikumi が読み取りで返す内部 ID。
        doc.mojikumiSet[i].name は undefined で名前では引けないため、この表が唯一の橋渡しになる。
        「行末約物半角」は読み取ると「約物半角」と同じ ID になり区別できないので id は持たせない。
+       カスタムの設定（インデックス 7 以降）は要素の文字列が名前なので、表に載せず名前（mojikumiName）で扱う。
        index applies via doc.mojikumiSet (-1 = None); id is what the paragraph attribute returns.
        mojikumiSet[i].name is undefined, so this table is the only way across; "line-end punct half"
-       reads back as "half-width punctuation", so it carries no id. */
+       reads back as "half-width punctuation", so it carries no id. Custom sets (index 7 and up)
+       stringify to their names, so they are handled by name (mojikumiName) instead of this table. */
     var MOJIKUMI_OPTIONS = [
         { index: -1, id: "None", label: LABELS.mojikumi.none },
         { index: 0, id: "GyomatsuYakumonoZenkakuOrHankaku", label: LABELS.mojikumi.lineEndFullHalf },
@@ -611,6 +613,25 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3d7f8b58ef88"; /* 紹�
         forEachParagraph(ranges, function (paragraph) { paragraph.paragraphAttributes.mojikumi = mojikumiValue; });
     }
 
+    /* カスタムの文字組みアキ量設定は名前で引く。mojikumiSet の 7 以降はユーザー定義で、要素の文字列がそのまま名前。
+       適用先のドキュメントに同名の設定が無ければ何もしない（文字組みはそのまま残る）
+       Custom mojikumi sets are looked up by name: entries from index 7 on are user-defined and their
+       string is the name itself. If the document has no set by that name, mojikumi is left unchanged */
+    function applyCustomMojikumiToRanges(ranges, mojikumiName) {
+        var mojikumiSets;
+        try {
+            mojikumiSets = app.activeDocument.mojikumiSet;
+        } catch (eSet) {
+            return;
+        }
+        for (var i = 7; i < mojikumiSets.length; i++) {
+            if (String(mojikumiSets[i]) === mojikumiName) {
+                applyMojikumiToRanges(ranges, i);
+                return;
+            }
+        }
+    }
+
     /* ［クリア］でチェックされた文字属性を標準値へ戻す。定番には持たせず、適用のたびに初期化する
        文字前後のアキの「自動」は -1（2026-09-17 実測。0 は「アキなし」で別物）。
        左右を1回の取得でまとめて書くと片方が効かないことがあるため、別々に流す
@@ -650,7 +671,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3d7f8b58ef88"; /* 紹�
         if (preset.align) applyAlignmentToRanges(ranges, resolveAlignment(preset.align));
         if (preset.justify) applyJustificationToRanges(ranges, resolveJustification(preset.justify));
         if (preset.kinsoku) applyKinsokuToRanges(ranges, preset.kinsoku);
-        if (preset.mojikumi !== undefined && preset.mojikumi !== null) applyMojikumiToRanges(ranges, preset.mojikumi);
+        if (preset.mojikumiName) {
+            applyCustomMojikumiToRanges(ranges, preset.mojikumiName);
+        } else if (preset.mojikumi !== undefined && preset.mojikumi !== null) {
+            applyMojikumiToRanges(ranges, preset.mojikumi);
+        }
     }
 
     /* 行送りは「自動」前提で％として読む。自動なら段落の自動行送り量、固定値なら
@@ -716,19 +741,32 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3d7f8b58ef88"; /* 紹�
     }
 
     /* 文字組みアキ量設定を内部 ID へ。getter は "TsumeGumi" のような ID 文字列を返し、
-       「なし」の段落は例外（the requested attribute is undefined）になるので "None" を返す
-       Mojikumi to its internal id; the getter returns a string like "TsumeGumi",
-       and a paragraph set to None throws, which we report as "None" */
+       「なし」の段落は例外（the requested attribute is undefined）になるので "None" を返す。
+       カスタムの設定は名前が返るので、mojikumiSet の 7 以降と一致したら "Custom:" を前に付けて区別する
+       （0〜6 は要素の文字列が内部 ID なので、組み込みの ID はそちらに先に当たる）
+       Mojikumi to its internal id; the getter returns a string like "TsumeGumi", and a paragraph set
+       to None throws, which we report as "None". A custom set reads back as its name, so a match at
+       index 7 or later is prefixed with "Custom:" (built-in ids match indexes 0-6 first) */
     function readMojikumiId(range) {
+        var mojikumiText;
         try {
             var paragraphs = range.paragraphs;
             if (!paragraphs.length) return "None";
             var mojikumiAttr = paragraphs[0].paragraphAttributes.mojikumi;
             if (mojikumiAttr === undefined || mojikumiAttr === null || mojikumiAttr === "") return "None";
-            return String(mojikumiAttr);
+            mojikumiText = String(mojikumiAttr);
         } catch (e) {
             return "None";
         }
+        try {
+            var mojikumiSets = app.activeDocument.mojikumiSet;
+            for (var i = 0; i < mojikumiSets.length; i++) {
+                if (String(mojikumiSets[i]) !== mojikumiText) continue;
+                if (i >= 7) return "Custom:" + mojikumiText;
+                return mojikumiText;
+            }
+        } catch (eSet) { }
+        return mojikumiText;
     }
 
     /* 先頭の範囲を代表値として現在の設定を読む / The first range represents the current settings */
@@ -829,7 +867,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3d7f8b58ef88"; /* 紹�
         applyFontToRanges, applySizeToRanges, applyLeadingToRanges, applyLeadingTypeToRanges, applyParagraphSpaceToRanges,
         applyKerningToRanges,
         applyTsumeToRanges, applyTrackingToRanges, applyAlignmentToRanges, applyJustificationToRanges,
-        applyKinsokuToRanges, applyMojikumiToRanges, clearRangeAttributes, applyPresetToRanges,
+        applyKinsokuToRanges, applyMojikumiToRanges, applyCustomMojikumiToRanges, clearRangeAttributes, applyPresetToRanges,
         readLeadingPercent, readLeadingTypeId, readParagraphSpace, readJustifyId, readKinsokuId, readMojikumiId, readPresetFromRanges,
         dispatch
     ];
@@ -910,6 +948,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3d7f8b58ef88"; /* 紹�
     }
 
     /**
+     * readMojikumiId が返した値からカスタムの文字組みアキ量設定の名前を取り出す
+     * @param {string} mojikumiId - "Custom:" で始まればカスタムの設定
+     * @returns {string} カスタムの設定の名前。組み込み・なしは空文字
+     */
+    function customMojikumiNameOfId(mojikumiId) {
+        var prefix = "Custom:";
+        if (!mojikumiId || mojikumiId.indexOf(prefix) !== 0) return "";
+        return mojikumiId.substring(prefix.length);
+    }
+
+    /**
      * readPreset の payload をプリセットへ復元する
      * @param {string} payload - dispatch が返したタブ区切りの payload
      * @returns {Object|null} プリセット。読み取れていない場合は null
@@ -932,9 +981,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3d7f8b58ef88"; /* 紹�
             justify: fields[8],
             kinsoku: fields[9] || "None"
         };
-        /* 文字組みは内部 ID で返るので、適用に使うインデックスへ直す / Mojikumi comes back as an internal id; map it to the index used to apply it */
-        var mojikumiIndex = mojikumiIndexOfId(fields[10]);
-        if (!isNaN(mojikumiIndex)) restored.mojikumi = mojikumiIndex;
+        /* 文字組みは内部 ID で返るので、適用に使うインデックスへ直す。カスタムの設定は
+           ドキュメントごとに番号が変わるので、インデックスではなく名前で持たせる
+           Mojikumi comes back as an internal id; map it to the index used to apply it.
+           Custom sets are numbered per document, so they are kept by name instead */
+        var customName = customMojikumiNameOfId(fields[10]);
+        if (customName) {
+            restored.mojikumiName = customName;
+        } else {
+            var mojikumiIndex = mojikumiIndexOfId(fields[10]);
+            if (!isNaN(mojikumiIndex)) restored.mojikumi = mojikumiIndex;
+        }
         /* 段落前後のアキは読めなかったほうだけ持たせない / Leave out whichever paragraph space could not be read */
         var spaceBefore = parseFloat(fields[11]), spaceAfter = parseFloat(fields[12]);
         if (!isNaN(spaceBefore)) restored.spaceBefore = spaceBefore;
@@ -1014,7 +1071,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3d7f8b58ef88"; /* 紹�
         pushStringField(fields, "align", preset.align);
         pushStringField(fields, "justify", preset.justify);
         pushStringField(fields, "kinsoku", preset.kinsoku);
-        pushNumberField(fields, "mojikumi", preset.mojikumi);
+        /* カスタムの設定は名前、組み込みはインデックスで保存 / Custom sets are saved by name, built-ins by index */
+        if (preset.mojikumiName) {
+            pushStringField(fields, "mojikumiName", preset.mojikumiName);
+        } else {
+            pushNumberField(fields, "mojikumi", preset.mojikumi);
+        }
         return "{" + fields.join(", ") + "}";
     }
 
@@ -1251,11 +1313,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3d7f8b58ef88"; /* 紹�
     }
 
     /**
-     * 文字組みアキ量設定のインデックスを表示ラベルへ変換する
+     * 文字組みアキ量設定を表示ラベルへ変換する（カスタムの設定は名前をそのまま出す）
      * @param {number} mojikumiIndex - -1＝なし、0以上は mojikumiSet のインデックス
+     * @param {string} [mojikumiName] - カスタムの設定の名前（あればインデックスより優先）
      * @returns {string} 表示ラベル。未設定・判定不能は "—"
      */
-    function mojikumiLabel(mojikumiIndex) {
+    function mojikumiLabel(mojikumiIndex, mojikumiName) {
+        if (mojikumiName) return mojikumiName;
         for (var i = 0; i < MOJIKUMI_OPTIONS.length; i++) {
             if (MOJIKUMI_OPTIONS[i].index === mojikumiIndex) return getLabel(MOJIKUMI_OPTIONS[i].label);
         }
@@ -1366,7 +1430,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3d7f8b58ef88"; /* 紹�
         addDetailRow(detailList, LABELS.field.align, optionLabel(LABELS.align, preset.align), appliedGroups.japanese);
         addDetailRow(detailList, LABELS.field.justify, optionLabel(LABELS.justify, preset.justify), appliedGroups.japanese);
         addDetailRow(detailList, LABELS.field.kinsoku, kinsokuLabel(preset.kinsoku), appliedGroups.japanese);
-        addDetailRow(detailList, LABELS.field.mojikumi, mojikumiLabel(preset.mojikumi), appliedGroups.japanese);
+        addDetailRow(detailList, LABELS.field.mojikumi, mojikumiLabel(preset.mojikumi, preset.mojikumiName), appliedGroups.japanese);
     }
 
     // =========================================
@@ -1684,6 +1748,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3d7f8b58ef88"; /* 紹�
                 picked.justify = preset.justify;
                 picked.kinsoku = preset.kinsoku;
                 picked.mojikumi = preset.mojikumi;
+                picked.mojikumiName = preset.mojikumiName;
             }
             return picked;
         }

@@ -27,10 +27,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AreaTypeTo
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AreaTypeToolkit";              /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.6.2";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.7.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-03-03";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-12";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-16";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AreaTypeToolkit.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AreaTypeToolkit.md"; /* README (English) */
@@ -1900,14 +1900,43 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
         { index: 6, labelKey: "dropdown.mojikumiSolid" }
     ];
 
+    /* mojikumiSet のうち組み込みの数（これ以降がドキュメントのカスタム設定）
+       Number of built-in mojikumi sets (later indexes are the document's custom sets) */
+    var MOJIKUMI_BUILTIN_COUNT = 7;
+    var customMojikumiAppended = false;
+
+    /**
+     * 作業中のドキュメントのカスタム文字組みアキ量設定を選択肢の末尾に足す（1回だけ）
+     * mojikumiSet の要素は文字列で、カスタム設定ではそれが表示名になる
+     * @returns {void}
+     */
+    function appendCustomMojikumiChoices() {
+        if (customMojikumiAppended) return;
+        customMojikumiAppended = true;
+        try {
+            var mojikumiSets = app.activeDocument.mojikumiSet;
+            for (var i = MOJIKUMI_BUILTIN_COUNT; i < mojikumiSets.length; i++) {
+                var customName = String(mojikumiSets[i]);
+                if (customName !== "") { MOJIKUMI_CHOICES.push({ index: i, label: customName }); }
+            }
+        } catch (e) { }
+    }
+
     /**
      * 選択肢テーブルからドロップダウン用のラベル配列を作る
-     * @param {Object[]} choices - 選択肢テーブル（labelKey を持つ）
+     * @param {Object[]} choices - 選択肢テーブル（labelKey、またはそのまま表示する label を持つ）
      * @returns {string[]} 表示言語のラベル
      */
     function buildChoiceLabels(choices) {
         var choiceLabels = [];
-        for (var i = 0; i < choices.length; i++) { choiceLabels.push(getLabel(choices[i].labelKey)); }
+        for (var i = 0; i < choices.length; i++) {
+            /* カスタム文字組みは設定名をそのまま出す / Custom mojikumi sets show their own name */
+            if (choices[i].label !== undefined) {
+                choiceLabels.push(choices[i].label);
+            } else {
+                choiceLabels.push(getLabel(choices[i].labelKey));
+            }
+        }
         return choiceLabels;
     }
 
@@ -1958,14 +1987,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
 
     /**
      * 文字組み設定名から mojikumiSet の添字を引く
-     * @param {string} mojikumiName - 文字組み設定名
+     * 要素は文字列（組み込みは内部 ID、カスタムは表示名）で .name は無い。
+     * 「行末約物半角」(2) は「約物半角」(1) と同じ ID で読み戻るため、先に一致する 1 になる
+     * @param {string} mojikumiName - 文字組み設定名（内部 ID またはカスタム設定名）
      * @returns {number} mojikumiSet の添字（見つからなければ -2）
      */
     function findMojikumiIndexByName(mojikumiName) {
         try {
             var mojikumiSets = app.activeDocument.mojikumiSet;
             for (var i = 0; i < mojikumiSets.length; i++) {
-                if (mojikumiSets[i].name === mojikumiName) return i;
+                if (String(mojikumiSets[i]) === mojikumiName) return i;
             }
         } catch (e) { }
         return -2;
@@ -1987,8 +2018,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
             return (mojikumiAttr === "" || isMojikumiNoneName(mojikumiAttr)) ? -1 : findMojikumiIndexByName(mojikumiAttr);
         }
         var mojikumiName;
-        /* 文字組みアキ量設定の name は読めないことがある / The name of a mojikumi set can be unreadable */
-        try { mojikumiName = (mojikumiAttr.name === undefined || mojikumiAttr.name === null) ? "" : mojikumiAttr.name; } catch (e0) { return -2; }
+        /* 文字列以外で返ったときも文字列にして名前として扱う / A non-string value is converted to a string and treated as the name */
+        try { mojikumiName = String(mojikumiAttr); } catch (e0) { return -2; }
         if (mojikumiName === "") return -2;
         if (isMojikumiNoneName(mojikumiName)) return -1;
         return findMojikumiIndexByName(mojikumiName);
@@ -4384,6 +4415,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
         setupRow(compositionRow, "left", COLUMN_SPACING);
         dialogControls.kinsokuDropdown = addInlineDropdown(compositionRow, "fieldLabel.kinsoku", KINSOKU_CHOICES, "tooltip.kinsoku");
         selectChoiceByValue(dialogControls.kinsokuDropdown, KINSOKU_CHOICES, "id", DEFAULT_KINSOKU);
+        appendCustomMojikumiChoices();
         dialogControls.mojikumiDropdown = addInlineDropdown(compositionRow, "fieldLabel.mojikumi", MOJIKUMI_CHOICES, "tooltip.mojikumi");
         selectChoiceByValue(dialogControls.mojikumiDropdown, MOJIKUMI_CHOICES, "index", DEFAULT_MOJIKUMI_INDEX);
     }

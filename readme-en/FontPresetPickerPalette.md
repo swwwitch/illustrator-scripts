@@ -74,7 +74,7 @@ The palette stays open, so you can keep changing the selection and applying pres
 - Justification, kinsoku, mojikumi and paragraph spacing are paragraph settings. Applying a preset to part of a line still changes the whole paragraph.
 - Presets saved with v1.0.0 hold no paragraph spacing, so applying them leaves the target's space before/after as it is (the detail rows stay blank). **Overwrite** them to store it.
 - Kinsoku "None" cannot be set from a script (an Illustrator limitation), so a preset set to None leaves the text's kinsoku untouched.
-- Mojikumi is looked up in the document's `mojikumiSet`. In a document with custom sets, a preset may land on a different set than expected.
+- Mojikumi is looked up in the document's `mojikumiSet`. Custom sets are saved by name; if the target document has no set with that name, mojikumi is left unchanged.
 - The "line-end punct half" mojikumi set reads back as the same value as "half-width punctuation", so the two cannot be told apart. **Add** on such text records it as "half-width punctuation".
 - **Clear**'s "Aki Before & After" restores Auto (`-1` in the DOM). It never sets `0`, which is the distinct state meaning no aki.
 - Changing the justification moves point text on the canvas, because its anchor changes.
@@ -89,6 +89,7 @@ https://note.com/dtp_tranist/n/n3d7f8b58ef88
 
 ### Release Notes
 
+- v1.2.0 (2026-10-16) Added support for the document's custom mojikumi sets: they are saved by name and, on apply, matched by name in the target document (mojikumi is left unchanged when no set has that name)
 - v1.1.4 (2026-10-03) Moved to the shared persistent engine `SwwwitchPalettes` so CloseAllPalettes can close it
 - v1.1.3 (2026-10-01) Added space below the button row to match Illustrator's own dialogs
 - v1.1.2 (2026-10-01) Unified the window and panel margins and spacing with the shared layout part

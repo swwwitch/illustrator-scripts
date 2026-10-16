@@ -207,6 +207,7 @@ TextFrame (point / path / area text), PathItem and CompoundPathItem (closed path
 
 ## Change log
 
+- v1.7.0 (2026-10-16) Added the document's custom mojikumi sets to the Mojikumi menu (a custom set on the selected text is now reflected). Fixed the mojikumi read-back not recognizing built-in sets
 - v1.6.2 (2026-10-12) Fixed Separate Text shifting centered and right-aligned Roman text left by the space left at each wrap (that space is now replaced by the return). Fixed point text landing far from the frame when the whole text was overset
 - v1.6.1 (2026-10-12) Added Remove returns and line breaks to the text handling in Separate Text
 - v1.6.0 (2026-10-12) Renamed the "Japanese composition" panel to "Kerning and composition" and added Auto kerning (Metrics / Metrics - Roman Only / Optical) above Kinsoku. Metrics turns Proportional Metrics on, the others turn it off. Role presets now set auto kerning (Body: Metrics - Roman Only; Heading, Menu, Button: Metrics). Separate text now keeps auto kerning and Proportional Metrics per character. Reviewed the UI wording (such as Clear overset) and cleaned up the code
