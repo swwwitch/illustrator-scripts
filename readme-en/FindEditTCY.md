@@ -45,7 +45,7 @@
 
 ### Article
 
-https://note.com/dtp_tranist/n/n1144206e9fda
+- [DTP Transit 別館 (Japanese)](https://note.com/dtp_tranist/n/n1144206e9fda)
 
 ### Update History
 

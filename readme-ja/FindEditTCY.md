@@ -45,7 +45,7 @@
 
 ### 紹介記事
 
-https://note.com/dtp_tranist/n/n1144206e9fda
+- [【Illustrator】選択しにくい縦中横を探して字形やトラッキングを調整するスクリプト｜DTP Transit 別館](https://note.com/dtp_tranist/n/n1144206e9fda)
 
 ### 更新履歴
 
