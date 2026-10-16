@@ -30,7 +30,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/VerticalTe
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "VerticalTextFormatter";        /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.18.0";                      /* バージョン / version */
+var SCRIPT_VERSION  = "v1.19.0";                      /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-15";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-16";                   /* 更新日 / last updated */
@@ -60,6 +60,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
         tcyExclamation: false,
         tcyGlyphByLength: true,
         singleDigitFullwidth: false,
+        nonTcyDigitsFullwidth: false,
         japaneseEra: false,
         kanji: false,
         kanjiMinDigits: 4,
@@ -94,7 +95,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
 
     /* ダイアログの真偽値の項目（設定のキーとコントロール名が同じ） / Boolean dialog options (setting key = control name) */
     var CHECKBOX_SETTING_KEYS = ["rotateRoman", "tcyNumbers", "tcyDigits2", "tcyDigits3", "tcyDigits4", "tcyExcludeAdjacent", "tcyCapitals",
-        "tcyExclamation", "tcyGlyphByLength", "singleDigitFullwidth", "japaneseEra", "kanji", "kanjiZeroRei", "kanjiIchiSen", "halfwidthAlnum",
+        "tcyExclamation", "tcyGlyphByLength", "singleDigitFullwidth", "nonTcyDigitsFullwidth", "japaneseEra", "kanji", "kanjiZeroRei", "kanjiIchiSen", "halfwidthAlnum",
         "colorCheck", "areaAutoSize", "areaHeightToSize", "periodToNakaguro", "symbolsFullwidth", "quotesToChonchon", "rangeToWave", "exclamFullwidth", "singleLetterFullwidth",
         "unitsKumimoji", "proportionalFullwidthLatin", "rotateSkipLongLatin", "shortWordFullwidth"];
 
@@ -171,7 +172,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
 
     var PREVIEW_MAX_LINES = 300;   /* 確認の一覧に出す最大の行数 / max lines in the check list */
 
-    /* 確認用の色分けの初期色（ColorCharactersByWidth から移植） / Initial colors for the check coloring (ported from ColorCharactersByWidth) */
+    /* 確認用の色分けの色（ColorCharactersByWidth から移植）。ドキュメントのカラーモードに合わせてどちらかを使う
+       Check-coloring colors (ported from ColorCharactersByWidth); one set is used to match the document color mode */
     var CHECK_BASE_RGB         = [0, 0, 0];         /* ベース（ほかの文字） / base (other characters) */
     var CHECK_BASE_CMYK        = [0, 0, 0, 100];
     var CHECK_FULL_WIDTH_RGB   = [255, 0, 0];       /* 全角 / full-width */
@@ -275,8 +277,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
     var PRESET_ICON_SIZE    = [20, 18];   /* プリセットの保存・削除アイコンの大きさ / preset save and delete icon size */
     var PRESET_DROPDOWN_WIDTH = 220; /* プリセットのドロップダウンの幅 / preset dropdown width */
     var PRESET_NAME_CHARS   = 20;    /* プリセット名の入力欄の文字数 / preset name field width */
-    var COLOR_LABEL_WIDTH   = 60;         /* 確認用の色分けの項目名の幅（右揃え） / check-coloring label width (right-aligned) */
-    var COLOR_SWATCH_SIZE   = [40, 18];   /* 確認用の色分けの色見本の大きさ / check-coloring swatch size */
     var PARAGRAPH_LABEL_WIDTH = 60;
     var PARAGRAPH_OPTION_TOP_MARGIN = 5;   /* 「文字・段落」のチェックボックスの上の余白 / gap above the checkboxes in Character and Paragraph */  /* 段落のドロップダウンの項目名の幅（右揃え） / paragraph dropdown label width (right-aligned) */
 
@@ -1145,8 +1145,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
             rangeToWave: { ja: "範囲の「-」「~」→「〜」", en: "Range \"-\" \"~\" → \"〜\"" },
             exclamFullwidth: { ja: "「!」「?」を全角に", en: "\"!\" \"?\" to full-width" },
             singleLetterFullwidth: { ja: "1文字の英字を全角に", en: "Single letters to full-width" },
-            proportionalFullwidthLatin: { ja: "全角の欧文にプロポーショナルメトリクス", en: "Proportional metrics for full-width Latin" },
+            proportionalFullwidthLatin: { ja: "全角英数字にプロポーショナルメトリクス", en: "Proportional metrics for full-width alphanumerics" },
             singleDigitFullwidth: { ja: "1桁の数字を全角に", en: "Single digits to full-width" },
+            nonTcyDigitsFullwidth: { ja: "縦中横以外の数字を全角に", en: "Non-TCY digits to full-width" },
             japaneseEra: { ja: "西暦を和暦に", en: "Western years to Japanese era" },
             kanjiZeroRei: { ja: "0を「零」に", en: "0 as 零" },
             kanjiIchiSen: { ja: "千を「一千」に", en: "千 as 一千" },
@@ -1164,11 +1165,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
                 { ja: "強い禁則", en: "Hard" },
                 { ja: "弱い禁則", en: "Soft" },
                 { ja: "弱い禁則v2", en: "Soft v2" }
-            ],
-            comma: [
-                { ja: "「、」にする", en: "Use 、" },
-                { ja: "取る", en: "Remove" },
-                { ja: "そのまま", en: "Keep" }
             ],
             phoneHyphen: [
                 { ja: "「‐」（ハイフン）", en: "‐ (hyphen)" },
@@ -1191,7 +1187,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
             modeDetail: { ja: "詳細", en: "Detailed" },
             kanjiDigit: { ja: "二〇二六", en: "二〇二六" },
             kanjiPositional: { ja: "二千二十六", en: "二千二十六" },
-            kanjiLargeUnits: { ja: "二万五〇〇〇", en: "二万五〇〇〇" }
+            kanjiLargeUnits: { ja: "二万五〇〇〇", en: "二万五〇〇〇" },
+            comma: [
+                { ja: "「、」にする", en: "Use 、" },
+                { ja: "取る", en: "Remove" },
+                { ja: "そのまま", en: "Keep" }
+            ]
         },
         fieldLabel: {
             digits: { ja: "桁数", en: "Digits" },
@@ -1200,10 +1201,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
             charsOrLess: { ja: "文字以下", en: "or fewer characters" },
             kinsoku: { ja: "禁則", en: "Kinsoku" },
             comma: { ja: "桁区切り", en: "Separators" },
-            colorBase: { ja: "ベース", en: "Base" },
-            colorFullWidth: { ja: "全角", en: "Full-width" },
-            colorHalfWidth: { ja: "半角", en: "Half-width" },
-            colorGlyphWidth: { ja: "等幅字形", en: "Fixed-width" },
             phoneHyphen: { ja: "番号のハイフン", en: "Number hyphens" },
             mojikumi: { ja: "文字組み", en: "Mojikumi" },
             leading: { ja: "行送り", en: "Leading" }
@@ -1318,10 +1315,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
                 ja: "処理のあと、全角の英数字と「！？」を赤、半角を青、等幅字形の文字を緑、ほかをベースの色で塗ります（仕上がりの確認用。元の色には戻りません）",
                 en: "After processing, colors full-width alphanumerics and ！？ red, half-width blue, fixed-width glyphs green and the rest in the base color (for checking; the original colors are not restored)"
             },
-            colorBase: { ja: "全角・半角・等幅字形のどれにも当たらない文字の色。クリックでカラーピッカーを開きます", en: "Color for all other characters. Click to open the color picker" },
-            colorFullWidth: { ja: "全角の英数字と「！？」の色。クリックでカラーピッカーを開きます", en: "Color for full-width alphanumerics and ！？. Click to open the color picker" },
-            colorHalfWidth: { ja: "半角の英数字と「!?」の色。クリックでカラーピッカーを開きます", en: "Color for half-width alphanumerics and !?. Click to open the color picker" },
-            colorGlyphWidth: { ja: "等幅全角・半角・三分・四分字形の文字の色（全角・半角より優先）。クリックでカラーピッカーを開きます", en: "Color for fixed-width glyphs (takes priority). Click to open the color picker" },
             comma: {
                 ja: "桁区切りの「,」「，」の扱いです（「、」にする：3,000 → 3、000／取る：3,000 → 3000）",
                 en: "How to handle thousands separators (Use 、: 3,000 → 3、000 / Remove: 3,000 → 3000)"
@@ -1342,14 +1335,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
             },
             exclamFullwidth: { ja: "縦中横にしない「!」「?」を全角にして正立させます", en: "Makes ! and ? that are not in Tate-Chu-Yoko full-width" },
             proportionalFullwidthLatin: {
-                ja: "全角の英字（Ａ〜Ｚ・ａ〜ｚ）に OpenType 機能の［プロポーショナルメトリクス］を適用します（文字の書き換えのあと）",
-                en: "Applies the OpenType Proportional Metrics feature to full-width letters (after the rewriting)"
+                ja: "全角の英数字（Ａ〜Ｚ・ａ〜ｚ・０〜９）に OpenType 機能の［プロポーショナルメトリクス］を適用します（文字の書き換えのあと）",
+                en: "Applies the OpenType Proportional Metrics feature to full-width letters and digits (after the rewriting)"
             },
             singleLetterFullwidth: {
                 ja: "1字だけの英字（Aランクの A など）を全角にして正立させます",
                 en: "Makes a lone letter (the A in Aランク) full-width"
             },
             singleDigitFullwidth: { ja: "1桁の数字を全角にして正立させます", en: "Makes single digits full-width so they stand upright" },
+            nonTcyDigitsFullwidth: {
+                ja: "縦中横にしない数字をすべて全角にして正立させます（桁区切り・小数点の隣や電話番号の数字も。漢数字にする数字は除く）",
+                en: "Makes all digits not in Tate-Chu-Yoko full-width so they stand upright (including those next to separators and in phone numbers; not those made kanji)"
+            },
             japaneseEra: {
                 ja: "「2026年」を「令和8年」にします。月日があれば改元の前後を月日で判定します",
                 en: "2026年 → 令和8年; a following month and day decide the era at a change"
@@ -2891,7 +2888,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
         var digitCount = digitText.length;
         if (formatOptions.tcyNumbers && formatOptions["tcyDigits" + digitCount] === true) {
             emit(digitText, true);
-        } else if (formatOptions.singleDigitFullwidth && digitCount === 1) {
+        } else if (formatOptions.nonTcyDigitsFullwidth || (formatOptions.singleDigitFullwidth && digitCount === 1)) {
             emit(toFullwidthAscii(digitText), false);
         } else {
             emit(digitText, false);
@@ -3061,7 +3058,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
             } else if (isDigitChar(currentChar) && matchPhoneNumber(text, i)) {
                 /* 電話番号・郵便番号は範囲の「〜」にも縦中横・漢数字にもしない / Phone and postal numbers are not ranges, TCY or kanji */
                 var phoneText = matchPhoneNumber(text, i);
-                emit(convertPhoneHyphens(phoneText, formatOptions), false);
+                var phoneOutput = convertPhoneHyphens(phoneText, formatOptions);
+                emit(formatOptions.nonTcyDigitsFullwidth ? phoneOutput.replace(/[0-9]+/g, toFullwidthAscii) : phoneOutput, false);
                 i += phoneText.length;
             } else if (isDigitChar(currentChar)) {
                 var numberToken = readNumberToken(text, i);
@@ -3075,10 +3073,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
                     var plainDigits = numberToken.hasSeparator ? text.substring(i, tokenEnd).replace(/[,，]/g, "") : text.substring(i, tokenEnd);
                     emitDigitRun(plainDigits, formatOptions, emit);
                 } else if (formatOptions.tcyExcludeAdjacent) {
-                    /* 桁区切り・小数点の隣の数字は縦中横・全角にしない / Leave numbers next to separators as they are */
+                    /* 桁区切り・小数点の隣の数字は縦中横にしない（全角は［縦中横以外の数字を全角に］のときだけ）
+                       Numbers next to separators get no TCY (full-width only with "Non-TCY digits to full-width") */
                     for (var p = 0; p < numberToken.parts.length; p++) {
                         var part = numberToken.parts[p];
-                        emit(part.type === "digits" ? part.text : convertNumberMark(part, formatOptions), false);
+                        if (part.type !== "digits") emit(convertNumberMark(part, formatOptions), false);
+                        else emit(formatOptions.nonTcyDigitsFullwidth ? toFullwidthAscii(part.text) : part.text, false);
                     }
                 } else {
                     for (var q = 0; q < numberToken.parts.length; q++) {
@@ -3227,18 +3227,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
     }
 
     /**
-     * 全角の英字（Ａ〜Ｚ・ａ〜ｚ）の並びを探す
+     * 全角の英数字（Ａ〜Ｚ・ａ〜ｚ・０〜９）の並びを探す
      * @param {string} targetText - 対象の文字列
      * @returns {Array<{start: number, length: number}>} 見つかった位置
      */
-    function findFullwidthLatinRuns(targetText) {
-        var latinRuns = [];
-        var latinPattern = /[Ａ-Ｚａ-ｚ]+/g;
-        var latinMatch;
-        while ((latinMatch = latinPattern.exec(targetText)) !== null) {
-            latinRuns.push({ start: latinMatch.index, length: latinMatch[0].length });
+    function findFullwidthAlnumRuns(targetText) {
+        var alnumRuns = [];
+        var alnumPattern = /[０-９Ａ-Ｚａ-ｚ]+/g;
+        var alnumMatch;
+        while ((alnumMatch = alnumPattern.exec(targetText)) !== null) {
+            alnumRuns.push({ start: alnumMatch.index, length: alnumMatch[0].length });
         }
-        return latinRuns;
+        return alnumRuns;
     }
 
     /**
@@ -3277,17 +3277,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
     }
 
     /**
-     * 書き換え後のテキストの全角の英字に、プロポーショナルメトリクスを適用する（選択はしない）
+     * 書き換え後のテキストの全角の英数字に、プロポーショナルメトリクスを適用する（選択はしない）
      * @param {Object} textTarget - 対象
      * @param {Object} plan - planVerticalText() の戻り値
      * @returns {void}
      */
-    function applyProportionalMetricsToFullwidthLatin(textTarget, plan) {
-        var latinRuns = findFullwidthLatinRuns(buildEditedText(textTarget.text, plan.edits));
-        for (var i = 0; i < latinRuns.length; i++) {
-            var latinRange = getTargetCharacters(textTarget)[textTarget.offset + latinRuns[i].start];
-            latinRange.length = latinRuns[i].length;
-            latinRange.characterAttributes.proportionalMetrics = true;
+    function applyProportionalMetricsToFullwidthAlnum(textTarget, plan) {
+        var alnumRuns = findFullwidthAlnumRuns(buildEditedText(textTarget.text, plan.edits));
+        for (var i = 0; i < alnumRuns.length; i++) {
+            var alnumRange = getTargetCharacters(textTarget)[textTarget.offset + alnumRuns[i].start];
+            alnumRange.length = alnumRuns[i].length;
+            alnumRange.characterAttributes.proportionalMetrics = true;
         }
     }
 
@@ -3671,7 +3671,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
 
             for (var j = 0; j < textTargets.length; j++) {
                 applyTextEdits(textTargets[j], plans[j].edits);
-                if (formatOptions.proportionalFullwidthLatin) applyProportionalMetricsToFullwidthLatin(textTargets[j], plans[j]);
+                if (formatOptions.proportionalFullwidthLatin) applyProportionalMetricsToFullwidthAlnum(textTargets[j], plans[j]);
                 advanceProgress(getLabel("progress.edit", { current: j + 1, total: textTargets.length }));
             }
 
@@ -3709,24 +3709,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
     // 確認用の色分け（ColorCharactersByWidth から移植） / Check coloring (ported from ColorCharactersByWidth)
     // =========================================
 
-    /* このダイアログで選んだ色（モードを切り替えて作り直しても引き継ぐ） / Colors chosen in this run (kept across mode switches) */
-    var checkColors = null;
-
     /**
-     * 確認用の色分けの色を用意する（まだ無ければ初期色で作る）
+     * 確認用の色分けの色を、CHECK_* の値からドキュメントのカラーモードに合わせて作る
      * @param {Document} doc - 対象ドキュメント
      * @returns {{baseColor: Color, fullWidthColor: Color, halfWidthColor: Color, glyphWidthColor: Color}} 色
      */
-    function ensureCheckColors(doc) {
-        if (!checkColors) {
-            checkColors = {
-                baseColor: createDocumentColor(doc, CHECK_BASE_RGB, CHECK_BASE_CMYK),
-                fullWidthColor: createDocumentColor(doc, CHECK_FULL_WIDTH_RGB, CHECK_FULL_WIDTH_CMYK),
-                halfWidthColor: createDocumentColor(doc, CHECK_HALF_WIDTH_RGB, CHECK_HALF_WIDTH_CMYK),
-                glyphWidthColor: createDocumentColor(doc, CHECK_GLYPH_WIDTH_RGB, CHECK_GLYPH_WIDTH_CMYK)
-            };
-        }
-        return checkColors;
+    function createCheckColors(doc) {
+        return {
+            baseColor: createDocumentColor(doc, CHECK_BASE_RGB, CHECK_BASE_CMYK),
+            fullWidthColor: createDocumentColor(doc, CHECK_FULL_WIDTH_RGB, CHECK_FULL_WIDTH_CMYK),
+            halfWidthColor: createDocumentColor(doc, CHECK_HALF_WIDTH_RGB, CHECK_HALF_WIDTH_CMYK),
+            glyphWidthColor: createDocumentColor(doc, CHECK_GLYPH_WIDTH_RGB, CHECK_GLYPH_WIDTH_CMYK)
+        };
     }
 
     /**
@@ -3750,26 +3744,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
         rgbColor.green = rgbValues[1];
         rgbColor.blue = rgbValues[2];
         return rgbColor;
-    }
-
-    /**
-     * 色を色見本に描くための RGB（0〜1）にする（CMYK・グレーは簡易換算）
-     * @param {Color} swatchColor - 色
-     * @returns {number[]} [r, g, b]（0〜1）
-     */
-    function colorToScreenRgb(swatchColor) {
-        if (swatchColor.typename === "RGBColor") return [swatchColor.red / 255, swatchColor.green / 255, swatchColor.blue / 255];
-        if (swatchColor.typename === "GrayColor") return [1 - swatchColor.gray / 100, 1 - swatchColor.gray / 100, 1 - swatchColor.gray / 100];
-        if (swatchColor.typename === "CMYKColor") {
-            var blackRatio = 1 - swatchColor.black / 100;
-            return [
-                (1 - swatchColor.cyan / 100) * blackRatio,
-                (1 - swatchColor.magenta / 100) * blackRatio,
-                (1 - swatchColor.yellow / 100) * blackRatio
-            ];
-        }
-        /* スポットカラーなどは灰色で示す / show other color types in gray */
-        return [0.5, 0.5, 0.5];
     }
 
     /**
@@ -3844,7 +3818,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
      */
     function colorCheckSelection(doc) {
         app.redraw();
-        ensureCheckColors(doc);
+        var checkColors = createCheckColors(doc);
         var glyphForms = getFixedWidthGlyphForms();
         var currentSelection = doc.selection;
         var targetRanges = [];
@@ -3855,50 +3829,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
             for (var i = 0; i < textFrames.length; i++) targetRanges.push(textFrames[i].textRange);
         }
         for (var j = 0; j < targetRanges.length; j++) colorCharactersInRange(targetRanges[j], checkColors, glyphForms);
-    }
-
-    /**
-     * 項目名と、クリックでカラーピッカーを開く色見本の1行を作る
-     * @param {Panel} parentPanel - 追加先のパネル
-     * @param {string} labelKey - LABELS.fieldLabel / LABELS.tooltip のキー
-     * @param {Color} initialColor - 最初の色
-     * @param {function(Color): void} [onColorChange] - 色を変えたときに呼ぶ
-     * @returns {{label: StaticText, getColor: Function}} 項目名と、今の色を返す getColor を持つオブジェクト
-     */
-    function addColorSwatchRow(parentPanel, labelKey, initialColor, onColorChange) {
-        var swatchColor = initialColor;
-        var swatchRow = parentPanel.add("group");
-        setupRow(swatchRow, "left", 8);
-
-        var rowLabel = swatchRow.add("statictext", undefined, labelText("fieldLabel." + labelKey));
-
-        var colorSwatch = swatchRow.add("group");
-        colorSwatch.preferredSize = COLOR_SWATCH_SIZE;
-        colorSwatch.helpTip = getLabel("tooltip." + labelKey);
-        colorSwatch.onDraw = function () {
-            var swatchGraphics = colorSwatch.graphics;
-            var swatchWidth = colorSwatch.size[0];
-            var swatchHeight = colorSwatch.size[1];
-            swatchGraphics.newPath();
-            swatchGraphics.rectPath(0, 0, swatchWidth, swatchHeight);
-            swatchGraphics.fillPath(swatchGraphics.newBrush(swatchGraphics.BrushType.SOLID_COLOR, colorToScreenRgb(swatchColor)));
-            swatchGraphics.newPath();
-            swatchGraphics.rectPath(0.5, 0.5, swatchWidth - 1, swatchHeight - 1);
-            swatchGraphics.strokePath(swatchGraphics.newPen(swatchGraphics.PenType.SOLID_COLOR, [0.5, 0.5, 0.5, 1], 1));
-        };
-        /* クリックで標準のカラーピッカーを開く。キャンセルは渡した色が返る
-           Clicking opens the standard color picker; Cancel returns the color passed in */
-        colorSwatch.addEventListener("click", function () {
-            swatchColor = app.showColorPicker(swatchColor);
-            if (onColorChange) onColorChange(swatchColor);
-            colorSwatch.hide(); /* group には notify() が無いので、隠して再表示して描き直す / redraw the group */
-            colorSwatch.show();
-        });
-
-        return {
-            label: rowLabel,
-            getColor: function () { return swatchColor; }
-        };
     }
 
     // =========================================
@@ -4387,6 +4317,24 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
     }
 
     /**
+     * 「桁区切り :」と、その下に縦に並べたラジオボタンを追加する
+     * @param {Panel} parent - 追加先
+     * @returns {RadioButton[]} COMMA_STYLES と同じ並びのラジオボタン
+     */
+    function addCommaRadios(parent) {
+        var commaLabel = parent.add("statictext", undefined, labelText("fieldLabel.comma"));
+        commaLabel.helpTip = getLabel("tooltip.comma");
+        /* ラジオは同じ親の中だけ排他になるので、1つのグループに並べる / Radios are exclusive only within one parent */
+        var radioGroup = addIndentedGroup(parent);
+        var commaRadios = [];
+        for (var i = 0; i < LABELS.radio.comma.length; i++) {
+            commaRadios.push(radioGroup.add("radiobutton", undefined, getLabel(LABELS.radio.comma[i])));
+            commaRadios[i].helpTip = getLabel("tooltip.comma");
+        }
+        return commaRadios;
+    }
+
+    /**
      * 配列の中で値が一致する位置を返す（ES3 に Array.indexOf は無い）
      * @param {Array} values - 配列
      * @param {*} targetValue - 探す値
@@ -4490,7 +4438,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
     function buildReplacePanel(parent, dialogControls, settings, isDetail) {
         var replacePanel = parent.add("panel", undefined, getLabel("panel.replace"));
         setupPanel(replacePanel, 6);
-        dialogControls.commaDropdown = addLabeledDropdown(replacePanel, "fieldLabel.comma", LABELS.dropdown.comma, "tooltip.comma");
+        dialogControls.commaRadios = addCommaRadios(replacePanel);
         dialogControls.periodToNakaguro = addOptionCheckbox(replacePanel, "checkbox.periodToNakaguro", settings.periodToNakaguro);
         if (isDetail) {
             dialogControls.rangeToWave = addOptionCheckbox(replacePanel, "checkbox.rangeToWave", settings.rangeToWave);
@@ -4509,7 +4457,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
             shortWordRow.add("statictext", undefined, getLabel("fieldLabel.charsOrLess"));
         }
         /* 簡易モードは「数字」パネルを作らず、1桁の全角もここに入れる / The simple mode has no Numbers panel; single digits go here */
-        if (!isDetail) dialogControls.singleDigitFullwidth = addOptionCheckbox(replacePanel, "checkbox.singleDigitFullwidth", settings.singleDigitFullwidth);
+        if (!isDetail) {
+            dialogControls.singleDigitFullwidth = addOptionCheckbox(replacePanel, "checkbox.singleDigitFullwidth", settings.singleDigitFullwidth);
+            dialogControls.nonTcyDigitsFullwidth = addOptionCheckbox(replacePanel, "checkbox.nonTcyDigitsFullwidth", settings.nonTcyDigitsFullwidth);
+        }
     }
 
     /**
@@ -4523,6 +4474,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
         var numberPanel = parent.add("panel", undefined, getLabel("panel.numbers"));
         setupPanel(numberPanel, 6);
         dialogControls.singleDigitFullwidth = addOptionCheckbox(numberPanel, "checkbox.singleDigitFullwidth", settings.singleDigitFullwidth);
+        dialogControls.nonTcyDigitsFullwidth = addOptionCheckbox(numberPanel, "checkbox.nonTcyDigitsFullwidth", settings.nonTcyDigitsFullwidth);
         dialogControls.unitsKumimoji = addOptionCheckbox(numberPanel, "checkbox.unitsKumimoji", settings.unitsKumimoji);
         dialogControls.japaneseEra = addOptionCheckbox(numberPanel, "checkbox.japaneseEra", settings.japaneseEra);
         dialogControls.kanji = addOptionCheckbox(numberPanel, "checkbox.kanji", settings.kanji);
@@ -4580,7 +4532,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
     }
 
     /**
-     * 「確認用の色分け」パネル（詳細モードだけ）を追加する。色見本は2段組（2つずつ2行）、項目名は右揃え
+     * 「確認用の色分け」パネル（詳細モードだけ）を追加する。色は CHECK_* の変数で決め、ここでは ON/OFF だけ
      * @param {Group} parent - 追加先の列
      * @param {Object} dialogControls - コントロールを入れるオブジェクト
      * @param {Object} settings - 初期値
@@ -4590,32 +4542,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
         var colorCheckPanel = parent.add("panel", undefined, getLabel("panel.colorCheck"));
         setupPanel(colorCheckPanel, 6);
         dialogControls.colorCheck = addOptionCheckbox(colorCheckPanel, "checkbox.colorCheck", settings.colorCheck);
-        var chosenColors = ensureCheckColors(app.activeDocument);
-        var swatchSpecs = [
-            ["colorBase", "baseColor"], ["colorFullWidth", "fullWidthColor"],
-            ["colorHalfWidth", "halfWidthColor"], ["colorGlyphWidth", "glyphWidthColor"]
-        ];
-        /* 2段組：2つずつ2行に並べ、項目名は右揃え / Two columns: two swatches per row, labels right-aligned */
-        for (var i = 0; i < swatchSpecs.length; i += 2) {
-            var swatchPairRow = colorCheckPanel.add("group");
-            setupRow(swatchPairRow, ["left", "center"], 12);
-            for (var j = i; j < i + 2; j++) {
-                var swatchRowParts = addColorSwatchRow(swatchPairRow, swatchSpecs[j][0], chosenColors[swatchSpecs[j][1]], createColorSetter(swatchSpecs[j][1]));
-                swatchRowParts.label.preferredSize.width = COLOR_LABEL_WIDTH;
-                swatchRowParts.label.justify = "right";
-            }
-        }
-    }
-
-    /**
-     * 色見本で選んだ色を checkColors に書き込む関数を返す
-     * @param {string} colorKey - checkColors のキー
-     * @returns {function(Color): void} 書き込む関数
-     */
-    function createColorSetter(colorKey) {
-        return function (chosenColor) {
-            checkColors[colorKey] = chosenColor;
-        };
     }
 
     /**
@@ -4715,7 +4641,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
         /* 短い英単語は「長い欧文は除く」の1つ下に連動 / Short words are linked to one below "Skip long Roman text" */
         formatOptions.shortWordMaxChars = formatOptions.rotateSkipMinChars - 1;
         if (dialogControls.kanjiPositionalRadio) formatOptions.kanjiStyle = readKanjiStyle(dialogControls);
-        if (dialogControls.commaDropdown.selection) formatOptions.commaStyle = COMMA_STYLES[dialogControls.commaDropdown.selection.index];
+        for (var c = 0; c < dialogControls.commaRadios.length; c++) {
+            if (dialogControls.commaRadios[c].value) formatOptions.commaStyle = COMMA_STYLES[c];
+        }
         if (dialogControls.phoneHyphenDropdown && dialogControls.phoneHyphenDropdown.selection) formatOptions.phoneHyphenStyle = PHONE_HYPHEN_STYLES[dialogControls.phoneHyphenDropdown.selection.index];
         if (dialogControls.kinsokuDropdown && dialogControls.kinsokuDropdown.selection) formatOptions.kinsokuType = KINSOKU_TYPES[dialogControls.kinsokuDropdown.selection.index];
         if (dialogControls.leadingInput) formatOptions.leadingPercent = Math.min(500, Math.max(50, readDigitInput(dialogControls.leadingInput, DEFAULT_SETTINGS.leadingPercent)));
@@ -4790,7 +4718,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
             dialogControls.kanjiLargeUnitsRadio.value = (settings.kanjiStyle === "largeUnits");
             dialogControls.kanjiDigitRadio.value = !dialogControls.kanjiPositionalRadio.value && !dialogControls.kanjiLargeUnitsRadio.value;
         }
-        dialogControls.commaDropdown.selection = Math.max(0, indexOfValue(COMMA_STYLES, settings.commaStyle));
+        var commaIndex = Math.max(0, indexOfValue(COMMA_STYLES, settings.commaStyle));
+        for (var c = 0; c < dialogControls.commaRadios.length; c++) dialogControls.commaRadios[c].value = (c === commaIndex);
         if (dialogControls.phoneHyphenDropdown) dialogControls.phoneHyphenDropdown.selection = Math.max(0, indexOfValue(PHONE_HYPHEN_STYLES, settings.phoneHyphenStyle));
         if (dialogControls.leadingInput) dialogControls.leadingInput.text = settings.leadingPercent + "%";
         if (dialogControls.kinsokuDropdown) dialogControls.kinsokuDropdown.selection = Math.max(0, indexOfValue(KINSOKU_TYPES, settings.kinsokuType));
@@ -4830,6 +4759,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
             setEnabledIfExists("tcyDigits3", dialogControls.tcyNumbers.value);
             setEnabledIfExists("tcyDigits4", dialogControls.tcyNumbers.value);
             setEnabledIfExists("tcyExcludeAdjacent", dialogControls.tcyNumbers.value);
+            /* 全角にする数字に1桁も含まれる / Non-TCY digits already include single digits */
+            setEnabledIfExists("singleDigitFullwidth", !dialogControls.nonTcyDigitsFullwidth.value);
             /* 漢数字の項目は詳細モードだけ / Kanji options exist only in the detailed mode */
             if (dialogControls.kanji) {
                 setSteppedFieldEnabled(dialogControls.kanjiMinInput, dialogControls.kanji.value);
@@ -4875,7 +4806,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
         }
 
         /* 確認の一覧に効くドロップダウン / Dropdowns that change the check list */
-        dialogControls.commaDropdown.onChange = updatePreview;
+        for (var c = 0; c < dialogControls.commaRadios.length; c++) dialogControls.commaRadios[c].onClick = updatePreview;
         if (dialogControls.phoneHyphenDropdown) dialogControls.phoneHyphenDropdown.onChange = updatePreview;
 
         digitStepHandler = onDigitInputChanged;

@@ -18,7 +18,7 @@
 ### Features
 
 - Simple and Detailed modes (switch at the left of the button row; Simple by default)
-  - **Simple**: shows only rotation, Tate-Chu-Yoko digits (2/3/4), fixed-width forms, separator conversion, and full-width single digits and letters
+  - **Simple**: shows only rotation, Tate-Chu-Yoko digits (2/3/4), fixed-width forms, separator conversion, and full-width single digits, non-TCY digits and letters
   - **Detailed**: shows every option
   - Simple mode applies only the visible options (hidden options are off; kinsoku and mojikumi stay unchanged). Detailed-mode settings are kept
   - Switching reopens the dialog box around the same center
@@ -43,7 +43,7 @@
   - **Fixed-width forms by length**: sets Tate-Chu-Yoko text to half-width forms for 2 characters, third-width for 3 and quarter-width for 4, so it fits in about one em (on by default). Nothing changes if the font has no such forms
 - Character Conversion
   - **Full-width letters and digits to half-width**: makes "２０" or "ＰＤＦ" targets for Tate-Chu-Yoko and rotation
-  - **Separators**: "," "，" become 、 (3,000 → 3、000, default) / are removed (3,000 → 3000; the joined digits count as one number) / stay
+  - **Separators** (radio buttons): "," "，" become 、 (3,000 → 3、000, default) / are removed (3,000 → 3000; the joined digits count as one number) / stay
   - **Decimal "." / "．" to "・"**: 12.5 → 12・5 (on by default)
   - **Range "-" "~" → "〜"**: replaces - ~ － ～ between digits with 〜 (10-20 → 10〜20, on by default). Phone and postal numbers are excluded
   - **Symbols to full-width**: makes half-width ( ) [ ] { } : ; / % & # @ * + = < > full-width so they stand upright (on by default)
@@ -53,6 +53,7 @@
   - **Single letters to full-width**: a lone letter such as the A in Aランク
 - Numbers
   - **Single digits to full-width**: keeps a single digit upright
+  - **Non-TCY digits to full-width**: makes every digit not in Tate-Chu-Yoko full-width so it stands upright, including digits next to separators and in phone numbers, but not those made kanji (off by default; dims "Single digits to full-width" when on)
   - **Units to squares**: turns mm, cm, km, m, mg, g, kg, t, ml, L right after digits into ㍉ ㌢ ㌖ ㍍ ㍉㌘ ㌘ ㌕ ㌧ ㍉㍑ ㍑ (10cm → 10㌢). Off by default because some fonts lack these glyphs
   - **Western years to Japanese era**: 2026年 → 令和8年. When the month and day follow, they decide which side of an era change the date falls on (2019年4月30日 → 平成31年, 2019年5月1日 → 令和元年); a bare year of an era change uses the new era. Year 1 is written 元年
   - **Convert to kanji numerals**: numbers within the digit range (4–20 by default)
@@ -67,11 +68,11 @@
   - Choose the kinsoku set (None / Hard / Soft / Soft v2) and the mojikumi set (None, the seven built-ins and the document's custom sets) from dropdowns (Soft v2 and Solid by default)
   - **Leading**: set as an auto-leading percentage (175% by default, 50–500%). In both modes, leading is always set to Auto at the end so it follows the type size
   - Justification is always justified with the last line at the top
-  - **Proportional metrics for full-width Latin**: applies the OpenType Proportional Metrics feature to full-width letters (after the rewriting, on by default)
+  - **Proportional metrics for full-width alphanumerics**: applies the OpenType Proportional Metrics feature to full-width letters and digits (after the rewriting, on by default)
   - **Height to a multiple of the type size**: sets the area-type frame height (the line length in vertical text) to the nearest whole multiple of the type size, inset excluded (on by default; always applied, in Simple mode too)
   - **Auto-size area type**: after processing, turns on Auto Size in Area Type Options so the frame fits the text (on by default and in every built-in preset; threaded text is skipped)
 - Check Coloring (Detailed mode)
-  - **Color characters after processing**: full-width alphanumerics and ！？ red, half-width blue, fixed-width glyphs (such as third- and quarter-width TCY) green, and the rest in the base color (black). Off by default. Click a swatch to change the color with the color picker. For checking only; the original colors are not restored (ported from ColorCharactersByWidth)
+  - **Color characters after processing**: full-width alphanumerics and ！？ red, half-width blue, fixed-width glyphs (such as third- and quarter-width TCY) green, and the rest in the base color (black). Off by default. The colors are set in the CHECK_* variables at the top of the script. For checking only; the original colors are not restored (ported from ColorCharactersByWidth)
 - Horizontal text is always turned vertical before processing
 - **Conversion Check**: lists what will change, such as "3,000 → 三千" or "10 [TCY] ×3", and updates whenever an option or digit range changes
 - A progress bar shows how far processing has gone
@@ -105,6 +106,8 @@ https://note.com/dtp_tranist/n/ndb55c5516fd6
 
 ### Update History
 
+- v1.19.0 (2026-10-16) Added "Non-TCY digits to full-width" (also digits next to separators and in phone numbers; not those made kanji). "Separators" is now a vertical set of radio buttons. Check coloring no longer has swatches; the colors are set in the CHECK_* variables at the top of the script (the dialog box only turns it on or off)
+- v1.18.1 (2026-10-16) Renamed "Proportional metrics for full-width Latin" to "Proportional metrics for full-width alphanumerics" and included full-width digits (０–９)
 - v1.18.0 (2026-10-16) The [Mojikumi] list now includes the document's custom mojikumi sets (kept by name, so the same set is picked next time in documents that have it). Improved detection of word runs: digits with units (5mm and 10cm) stay eligible for [Units to squares]; with [Tate-Chu-Yoko for 2–3 capitals] on, all-capital runs such as NHK BS get Tate-Chu-Yoko word by word; words starting with digits such as 3D Printing are included; a capitalized word after a sentence-ending period starts a new run; wide spaces such as em spaces become half-width
 - v1.17.2 (2026-10-16) Fixed runs of words (such as Design Week) being split word by word in Illustrator, which rotated "Week" or made it full-width. Words joined by no-break or thin spaces are now treated as one run too
 - v1.17.1 (2026-10-16) Runs of words that include full-width alphanumerics, spaces or ＆ are now treated as one run too: not rotated, and made half-width (Design Ｗｅｅｋ → Design Week). Fixed a "there is no document" error after turning horizontal text vertical (frames recreated by the change are re-taken from the selection)
