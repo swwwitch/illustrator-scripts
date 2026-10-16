@@ -6,13 +6,20 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-選択しているテキストから、縦中横が適用されている文字だけを集めて、ダイアログボックスに一覧で表示します。
-一覧で選んだ箇所はドキュメント上で選択され、文字列の書き換え、字形の幅（標準字形・等幅全角・半角・三分・四分）とトラッキングの変更ができます。
+選択しているテキストから縦中横の箇所を集めてダイアログボックスに一覧で表示し、文字列の書き換え、字形の幅、トラッキングを調整します。
+
+詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/FindEditTCY.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n1144206e9fda
 
 ### Overview
 
-Collects only the Tate-Chu-Yoko characters in the selected text and lists them in a dialog box.
-Selecting a line selects that place in the document, and its string, glyph width (default, full, half, third, quarter) and tracking can be changed.
+Lists the Tate-Chu-Yoko places in the selected text in a dialog box and lets you rewrite their strings and adjust glyph width and tracking.
+
+See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FindEditTCY.md
 
 */
 
@@ -24,6 +31,10 @@ var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / versi
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-16";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-16";                   /* 更新日 / last updated */
+
+var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/FindEditTCY.md"; /* README（日本語） */
+var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FindEditTCY.md"; /* README (English) */
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1144206e9fda"; /* 紹介記事 / article URL */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
