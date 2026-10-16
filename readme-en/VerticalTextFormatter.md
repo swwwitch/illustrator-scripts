@@ -20,12 +20,12 @@
 - Simple, Detailed and Wizard modes (switch at the top left of the dialog box; Simple by default)
   - **Simple**: shows only rotation, Tate-Chu-Yoko digits (2/3/4), fixed-width forms, separator conversion, and full-width single digits, non-TCY digits and letters
   - **Detailed**: shows every option
-  - **Wizard**: choose what you want to do with checkboxes, and the matching detailed options are set for you (Detailed-mode settings are kept; unchecked options are off; presets are unavailable). Option-click a checkbox to turn all on (when all are on, only the clicked one stays on)
-    - Turn Roman text sideways (runs of 5 or more characters stay sideways)
-    - Stand short words and single letters upright (4 or fewer letters become full-width)
-    - Tate-Chu-Yoko for 2–3 digit numbers (fixed-width forms by length)
-    - Stand other digits upright in full-width
-    - Convert numbers to kanji (style from the Detailed mode)
+  - **Wizard**: choose what you want to do with checkboxes, and the matching detailed options are set for you (Detailed-mode settings are kept; unchecked options are off; presets are unavailable). Option-click a checkbox to turn all on (when all are on, only the clicked one stays on). OK is unavailable until at least one usable goal is checked
+    - Rotate Roman text upright (runs of 5 or more characters stay sideways)
+    - Stand short words and single letters upright (4 or fewer letters become full-width; takes priority over rotation)
+    - Tate-Chu-Yoko for 2–3 digit numbers (fixed-width forms by length; unavailable with kanji numerals)
+    - Stand other digits upright in full-width (unavailable with kanji numerals)
+    - Convert numbers to kanji (style from the Detailed mode, including 零 and 一千)
     - Western years to Japanese eras
     - Tate-Chu-Yoko for abbreviations and !?
     - Turn units into squares
@@ -121,6 +121,7 @@ https://note.com/dtp_tranist/n/ndb55c5516fd6
 
 ### Update History
 
+- v1.25.3 (2026-10-16) Wizard fixes: loading a preset in the Detailed mode no longer resets the wizard checks, and 零 / 一千 now follow the Detailed-mode settings. Renamed "Turn Roman text sideways" to "Rotate Roman text upright". Turning on kanji numerals dims the Tate-Chu-Yoko and full-width digit goals, and OK is unavailable when no usable goal is checked
 - v1.25.2 (2026-10-16) Option-clicking in the Wizard now turns all on, and a second option-click keeps only the clicked one on
 - v1.25.1 (2026-10-16) Option-clicking a Wizard checkbox turns all of them on or off
 - v1.25.0 (2026-10-16) Added the Wizard mode: choose what you want to do (12 goals such as turning Roman text sideways, Tate-Chu-Yoko for 2–3 digits, vertical-friendly marks) and the matching detailed options are set for you

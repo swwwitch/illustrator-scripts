@@ -30,7 +30,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/VerticalTe
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "VerticalTextFormatter";        /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.25.2";                      /* バージョン / version */
+var SCRIPT_VERSION  = "v1.25.3";                      /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-15";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-16";                   /* 更新日 / last updated */
@@ -105,13 +105,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
     /* 簡易モードで表示していなくてもオフにしない項目（常にかける） / Options kept on even when hidden in the simple mode (always applied) */
     var ALWAYS_APPLIED_KEYS = ["areaHeightToSize"];
 
-    /* ウィザードのやりたいこと。チェックしたものの data を順に重ねる（チェックしていない項目はオフ、禁則・文字組み・行送りは変えない）
-       Wizard goals; the data of each checked goal is layered in order (unchecked options are off; kinsoku, mojikumi and leading stay) */
+    /* ウィザードのやりたいこと。チェックしたものの data を順に重ねる（チェックしていない項目はオフ、禁則・文字組み・行送りは変えない）。
+       overriddenBy のやりたいことがオンのときは、チェックしていても使わない（ダイアログボックスでは無効にする）
+       Wizard goals; the data of each checked goal is layered in order (unchecked options are off; kinsoku, mojikumi and leading stay).
+       A goal is skipped (and dimmed in the dialog box) while its overriddenBy goal is on */
     var WIZARD_GOALS = [
         { key: "rotate", data: { rotateRoman: true, rotateSkipLongLatin: true } },
         { key: "uprightWords", data: { shortWordFullwidth: true, singleLetterFullwidth: true } },
-        { key: "tcyNumbers", data: { tcyNumbers: true, tcyDigits2: true, tcyDigits3: true, tcyDigits4: false, tcyExcludeAdjacent: true, tcyGlyphByLength: true } },
-        { key: "fullwidthDigits", data: { nonTcyDigitsFullwidth: true, singleDigitFullwidth: true } },
+        { key: "tcyNumbers", overriddenBy: "kanji", data: { tcyNumbers: true, tcyDigits2: true, tcyDigits3: true, tcyDigits4: false, tcyExcludeAdjacent: true, tcyGlyphByLength: true } },
+        { key: "fullwidthDigits", overriddenBy: "kanji", data: { nonTcyDigitsFullwidth: true, singleDigitFullwidth: true } },
         { key: "kanji", data: { kanji: true, kanjiMinDigits: 1, kanjiMaxDigits: 20 } },
         { key: "era", data: { japaneseEra: true } },
         { key: "tcyOthers", data: { tcyCapitals: true, tcyExclamation: true, tcyGlyphByLength: true } },
@@ -1138,20 +1140,20 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
         },
         wizard: {
             rotate: {
-                label: { ja: "英単語を横倒しにする", en: "Turn Roman text sideways" },
-                tip: { ja: "欧文回転をかけます（5文字以上の欧文はそのまま横倒し）", en: "Rotates Roman characters (runs of 5 or more characters stay sideways)" }
+                label: { ja: "英単語を回転して立てる", en: "Rotate Roman text upright" },
+                tip: { ja: "欧文回転をかけて英字を立てます（5文字以上の欧文は回転せず横倒しのまま）", en: "Rotates Roman characters upright (runs of 5 or more characters stay sideways)" }
             },
             uprightWords: {
                 label: { ja: "短い英単語と1文字の英字を正立させる", en: "Stand short words and single letters upright" },
-                tip: { ja: "4文字以下の英単語と1文字の英字を全角にします（OK → ＯＫ）", en: "Makes words of 4 or fewer letters and single letters full-width (OK → ＯＫ)" }
+                tip: { ja: "4文字以下の英単語と1文字の英字を全角にします（OK → ＯＫ）。［英単語を回転して立てる］と両方オンのときは、こちらが優先", en: "Makes words of 4 or fewer letters and single letters full-width (OK → ＯＫ); takes priority over Rotate Roman text upright" }
             },
             tcyNumbers: {
                 label: { ja: "2〜3桁の数字を縦中横にする", en: "Tate-Chu-Yoko for 2–3 digit numbers" },
-                tip: { ja: "2・3桁の数字を縦中横にし、字数に合わせた等幅字形にします（桁区切り・小数点の隣は除く）", en: "Tate-Chu-Yoko for 2 and 3 digit numbers with fixed-width forms by length (not next to separators)" }
+                tip: { ja: "2・3桁の数字を縦中横にし、字数に合わせた等幅字形にします（桁区切り・小数点の隣は除く）。漢数字にするときは使えません", en: "Tate-Chu-Yoko for 2 and 3 digit numbers with fixed-width forms by length (not next to separators); unavailable with kanji numerals" }
             },
             fullwidthDigits: {
                 label: { ja: "縦中横にしない数字を全角で正立させる", en: "Stand other digits upright in full-width" },
-                tip: { ja: "縦中横にしない数字（1桁・4桁以上・桁区切りの隣など）を全角にします", en: "Makes digits not in Tate-Chu-Yoko full-width (single digits, 4+ digits, next to separators)" }
+                tip: { ja: "縦中横にしない数字（1桁・4桁以上・桁区切りの隣など）を全角にします。漢数字にするときは使えません", en: "Makes digits not in Tate-Chu-Yoko full-width (single digits, 4+ digits, next to separators); unavailable with kanji numerals" }
             },
             kanji: {
                 label: { ja: "数字を漢数字にする", en: "Convert numbers to kanji" },
@@ -5028,18 +5030,51 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
             var goalCheckbox = wizardPanel.add("checkbox", undefined, getLabel("wizard." + goalKey + ".label"));
             goalCheckbox.helpTip = getLabel("wizard." + goalKey + ".tip");
             goalCheckbox.value = (savedGoals[goalKey] === true);
-            goalCheckbox.onClick = setAllWizardGoalsOnOption;
             dialogControls.wizardGoalChecks[goalKey] = goalCheckbox;
+        }
+        /* プリセットは詳細の項目に読み込むものなので、ウィザードでは使わない / Presets fill the detailed options, so they are off in the wizard */
+        dialogControls.presetDropdown.enabled = false;
+        setIconButtonEnabled(dialogControls.presetSaveIcon, false);
+        setIconButtonEnabled(dialogControls.presetDeleteIcon, false);
+    }
+
+    /**
+     * ウィザードのイベントをつなぐ（option＋クリックでまとめて切り替え、漢数字で縦中横・全角の数字を無効に、何も使わないときは OK と確認を無効に）
+     * @param {Object} dialogControls - buildDialog() の戻り値
+     * @returns {void}
+     */
+    function bindWizardEvents(dialogControls) {
+        for (var i = 0; i < WIZARD_GOALS.length; i++) {
+            dialogControls.wizardGoalChecks[WIZARD_GOALS[i].key].onClick = function () {
+                setAllWizardGoalsOnOption(this);
+                updateWizardEnabledStates();
+            };
+        }
+        updateWizardEnabledStates();
+
+        /**
+         * overriddenBy のやりたいことがオンなら無効にし、使えるものが無ければ OK と［変換の確認...］を無効にする
+         * @returns {void}
+         */
+        function updateWizardEnabledStates() {
+            var wizardGoals = readWizardGoals(dialogControls);
+            for (var j = 0; j < WIZARD_GOALS.length; j++) {
+                var overriddenBy = WIZARD_GOALS[j].overriddenBy;
+                dialogControls.wizardGoalChecks[WIZARD_GOALS[j].key].enabled = !(overriddenBy && wizardGoals[overriddenBy]);
+            }
+            var canRun = hasActiveWizardGoal(wizardGoals);
+            dialogControls.btnOK.enabled = canRun;
+            dialogControls.btnPreview.enabled = canRun;
         }
 
         /**
          * option（Alt）を押しながらクリックしたら、すべてオンにする。すべてオンのときは、クリックしたものだけを残してほかをオフにする
          * （クリックで値はもう反転しているので、クリック前の状態は反転して見る）
+         * @param {Checkbox} clickedCheckbox - クリックしたチェックボックス
          * @returns {void}
          */
-        function setAllWizardGoalsOnOption() {
+        function setAllWizardGoalsOnOption(clickedCheckbox) {
             if (!ScriptUI.environment.keyboardState.altKey) return;
-            var clickedCheckbox = this;
             var wasAllOn = !clickedCheckbox.value;
             var goalKey;
             for (goalKey in dialogControls.wizardGoalChecks) {
@@ -5051,10 +5086,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
                 dialogControls.wizardGoalChecks[goalKey].value = wasAllOn ? (dialogControls.wizardGoalChecks[goalKey] === clickedCheckbox) : true;
             }
         }
-        /* プリセットは詳細の項目に読み込むものなので、ウィザードでは使わない / Presets fill the detailed options, so they are off in the wizard */
-        dialogControls.presetDropdown.enabled = false;
-        setIconButtonEnabled(dialogControls.presetSaveIcon, false);
-        setIconButtonEnabled(dialogControls.presetDeleteIcon, false);
     }
 
     /**
@@ -5069,7 +5100,30 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
     }
 
     /**
-     * ウィザードのチェックから実行に使う設定を作る。真偽値の項目はいったんすべてオフ（常にかける項目は除く）、
+     * やりたいことを実行に使うか（チェックしていて、overriddenBy のやりたいことがオフ）
+     * @param {Object} wizardGoal - WIZARD_GOALS の要素
+     * @param {Object} wizardGoals - readWizardGoals() の戻り値
+     * @returns {boolean} 使うなら true
+     */
+    function isWizardGoalActive(wizardGoal, wizardGoals) {
+        if (!wizardGoals[wizardGoal.key]) return false;
+        return !(wizardGoal.overriddenBy && wizardGoals[wizardGoal.overriddenBy]);
+    }
+
+    /**
+     * 使えるやりたいことが1つでもあるか
+     * @param {Object} wizardGoals - readWizardGoals() の戻り値
+     * @returns {boolean} あれば true
+     */
+    function hasActiveWizardGoal(wizardGoals) {
+        for (var i = 0; i < WIZARD_GOALS.length; i++) {
+            if (isWizardGoalActive(WIZARD_GOALS[i], wizardGoals)) return true;
+        }
+        return false;
+    }
+
+    /**
+     * ウィザードのチェックから実行に使う設定を作る。真偽値の項目はいったんすべてオフ（常にかける項目と漢数字の書き方は除く）、
      * 禁則・文字組み・行送り・桁区切り・番号のハイフンは変えない設定にしてから、チェックしたものの data を順に重ねる
      * @param {Object} baseSettings - 元の設定（数値・漢数字の書き方などはここから引き継ぐ）
      * @param {Object} wizardGoals - readWizardGoals() の戻り値
@@ -5077,8 +5131,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
      */
     function buildWizardOptions(baseSettings, wizardGoals) {
         var formatOptions = mergePresetData(baseSettings);
+        /* 漢数字の書き方（零・一千）は詳細モードの設定を使う / The kanji style (零, 一千) comes from the Detailed mode */
+        var keptKeys = ALWAYS_APPLIED_KEYS.concat(["kanjiZeroRei", "kanjiIchiSen"]);
         for (var i = 0; i < CHECKBOX_SETTING_KEYS.length; i++) {
-            if (indexOfValue(ALWAYS_APPLIED_KEYS, CHECKBOX_SETTING_KEYS[i]) < 0) formatOptions[CHECKBOX_SETTING_KEYS[i]] = false;
+            if (indexOfValue(keptKeys, CHECKBOX_SETTING_KEYS[i]) < 0) formatOptions[CHECKBOX_SETTING_KEYS[i]] = false;
         }
         formatOptions.rotateSkipMinChars = DEFAULT_SETTINGS.rotateSkipMinChars;
         formatOptions.shortWordMaxChars = DEFAULT_SETTINGS.rotateSkipMinChars - 1;
@@ -5088,7 +5144,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
         formatOptions.leadingPercent = null;
         formatOptions.mojikumiIndex = null;
         for (var j = 0; j < WIZARD_GOALS.length; j++) {
-            if (wizardGoals[WIZARD_GOALS[j].key]) formatOptions = mergeObjects(formatOptions, WIZARD_GOALS[j].data);
+            if (isWizardGoalActive(WIZARD_GOALS[j], wizardGoals)) formatOptions = mergeObjects(formatOptions, WIZARD_GOALS[j].data);
         }
         return formatOptions;
     }
@@ -5297,8 +5353,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
         bindModeSwitch(dialogControls, dialogControls.modeSimpleRadio, "simple");
         bindModeSwitch(dialogControls, dialogControls.modeDetailRadio, "detail");
         bindModeSwitch(dialogControls, dialogControls.modeWizardRadio, "wizard");
-        /* ウィザードはチェックボックスだけで、連動する項目もプリセットも無い / The wizard has only checkboxes, no dependent options or presets */
-        if (dialogControls.wizardGoalChecks) return;
+        /* ウィザードはチェックボックスだけで、プリセットも無い / The wizard has only checkboxes and no presets */
+        if (dialogControls.wizardGoalChecks) {
+            bindWizardEvents(dialogControls);
+            return;
+        }
 
         /**
          * 親のチェックボックスに合わせて子の項目を有効／無効にする
@@ -5454,7 +5513,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
             if (presetEntry.type === "builtin") presetData = presetEntry.data;
             else if (presetEntry.type === "saved") presetData = loadPresetMap()[presetEntry.name];
             if (!presetData) return;
-            writeDialogSettings(dialogControls, mergePresetData(presetData));
+            /* ウィザードのチェックとモードはプリセットで変えない / Presets do not change the wizard checks or the mode */
+            var presetSettings = mergePresetData(presetData);
+            presetSettings.wizardGoals = dialogControls.baseSettings.wizardGoals;
+            presetSettings.dialogMode = dialogControls.dialogMode;
+            writeDialogSettings(dialogControls, presetSettings);
             onPresetApplied();
         };
         dialogControls.presetSaveIcon.onClick = function () {
