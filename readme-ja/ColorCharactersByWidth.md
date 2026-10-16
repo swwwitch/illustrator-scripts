@@ -1,8 +1,8 @@
 # 全角・半角の英数字と等幅字形を色で塗り分け
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-ColorNumberByWidth.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/ColorNumberByWidth.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-ColorCharactersByWidth.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/ColorCharactersByWidth.jsx)
 
-[![English](https://img.shields.io/badge/README-English-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ColorNumberByWidth.md)
+[![English](https://img.shields.io/badge/README-English-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ColorCharactersByWidth.md)
 
 [![Direct](https://img.shields.io/badge/Back%20to%20home-All%20scripts-cccccc.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/README.md)
 
@@ -23,6 +23,7 @@
 - 等幅字形は全角・半角より優先します。
 - どれにも当たらない文字はベースの色で塗ります。
 - スペース（初期値は半角・全角とも黒）は、最前面のレイヤー「ColorNumberByWidth Spaces」に不透明度 50% の長方形を重ねます。実行のたびに、このレイヤーの長方形を消してから描き直します。
+- ［スペースを描画する］をOFFにすると、スペースの長方形は描かず、レイヤー「ColorNumberByWidth Spaces」にも手を付けません（前回の長方形は残ります）。OFFのあいだ、スペースパネルのほかの設定はディム表示になります（初期値はON）。
 - ［スペースの長方形をグループ化］をONにすると、描いた長方形を1つのグループにまとめます（初期値はON）。
 - 各設定のチェックボックスをOFFにすると、その種類は塗りません（スペースは長方形を描きません）。［ベース］がOFFなら、どれにも当たらない文字の色はそのままです。［等幅字形］がOFFなら、等幅字形の文字も全角・半角で判定します。
 - 色はダイアログボックスの色見本をクリックし、Illustrator 標準のカラーピッカーで指定できます。
@@ -45,10 +46,11 @@
 
 ### スクリプト情報
 
-- バージョン: v1.3.0
+- バージョン: v1.4.0
 
 ### 更新履歴
 
+- v1.4.0（2026-10-16）ColorNumberByWidth から改名。スペースパネルに［スペースを描画する］を追加。OFFにするとスペースの長方形を描かず、パネルのほかの設定をディム表示にする
 - v1.3.0（2026-10-16）半角・全角のスペースに、専用レイヤーで色付きの長方形を重ねる機能を追加。［スペースの長方形をグループ化］でまとめられる。各設定にチェックボックスを追加し、オフにした種類は塗らない・描かないようにした
 - v1.2.1（2026-10-16）ボタン行を共通部品の標準の配置に戻した（ダイアログの内側の幅 240px 以内なら左右中央）
 - v1.2.0（2026-10-16）ベースの色（初期値は黒）を追加し、どれにも当たらない文字をその色で塗るようにした。ボタンを左右中央に配置

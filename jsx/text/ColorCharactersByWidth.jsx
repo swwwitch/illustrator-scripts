@@ -11,7 +11,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 色はダイアログボックスの色見本をクリックして、カラーピッカーで変えられます。
 
 詳細は README を参照してください。
-https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ColorNumberByWidth.md
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ColorCharactersByWidth.md
 
 ### Overview
 
@@ -20,21 +20,21 @@ Half-width and full-width spaces cannot be colored, so colored rectangles are dr
 Click a swatch in the dialog to change the color with the color picker.
 
 See the README for details.
-https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ColorNumberByWidth.md
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ColorCharactersByWidth.md
 
 */
 
 // =========================================
 // 基本情報 / Basic info
 // =========================================
-var SCRIPT_NAME     = "ColorNumberByWidth";           /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.3.0";                       /* バージョン / version */
+var SCRIPT_NAME     = "ColorCharactersByWidth";       /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.4.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-16";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-16";                   /* 更新日 / last updated */
 
-var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ColorNumberByWidth.md"; /* README（日本語） */
-var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ColorNumberByWidth.md"; /* README (English) */
+var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ColorCharactersByWidth.md"; /* README（日本語） */
+var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ColorCharactersByWidth.md"; /* README (English) */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
@@ -72,6 +72,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     var SPACE_LAYER_NAME = "ColorNumberByWidth Spaces";
     /* スペースの長方形の不透明度（%） / opacity of space rectangles (%) */
     var SPACE_RECT_OPACITY = 50;
+    /* ［スペースを描画する］の初期値。オフならスペースのレイヤーには触れない / initial state of "Draw spaces"; when off, the space layer is left untouched */
+    var DRAW_SPACES = true;
     /* ［スペースの長方形をグループ化］の初期値 / initial state of "Group space rectangles" */
     var GROUP_SPACE_RECTS = true;
 
@@ -430,6 +432,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             fullSpace: { ja: "全角スペース", en: "Full-width space" }
         },
         checkbox: {
+            drawSpaces: { ja: "スペースを描画する", en: "Draw spaces" },
             groupSpaceRects: { ja: "スペースの長方形をグループ化", en: "Group space rectangles" }
         },
         tooltip: {
@@ -456,6 +459,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             fullSpace: {
                 ja: "全角スペースに重ねる長方形の色（専用レイヤーに描きます）。クリックするとカラーピッカーが開きます。",
                 en: "Color for the rectangles over full-width spaces (drawn on a dedicated layer). Click to open the color picker."
+            },
+            drawSpaces: {
+                ja: "半角・全角のスペースに長方形を描きます。オフにすると、スペースのレイヤーには手を付けません。",
+                en: "Draws rectangles over half-width and full-width spaces. When off, the space layer is left as is."
             },
             groupSpaceRects: {
                 ja: "スペースに重ねた長方形を1つのグループにまとめます。",
@@ -1032,7 +1039,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * @param {Panel} parentPanel - 追加先のパネル
      * @param {string} labelKey - LABELS.fieldLabel / LABELS.tooltip / ENABLED_DEFAULTS のキー
      * @param {Color} initialColor - 最初の色
-     * @returns {{label: Checkbox, isEnabled: Function, getColor: Function}} 項目名のチェックボックスと、オンオフを返す isEnabled、今の色（オフなら null）を返す getColor を持つオブジェクト
+     * @returns {{label: Checkbox, isEnabled: Function, getColor: Function, setActive: Function}} 項目名のチェックボックスと、オンオフを返す isEnabled、今の色（オフなら null）を返す getColor、行全体をディムする setActive を持つオブジェクト
      */
     function addColorSwatchRow(parentPanel, labelKey, initialColor) {
         var swatchColor = initialColor;
@@ -1043,6 +1050,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var isEnabled = ENABLED_DEFAULTS[labelKey];
         var enabledCheckbox = swatchRow.add("checkbox", undefined, labelText("fieldLabel." + labelKey));
         enabledCheckbox.value = isEnabled;
+        /* 行全体を使えるか（パネル側のスイッチでディムする） / whether the whole row is usable (dimmed by a panel-level switch) */
+        var isRowActive = true;
 
         var colorSwatch = swatchRow.add("group");
         colorSwatch.preferredSize = COLOR_SWATCH_SIZE;
@@ -1052,7 +1061,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             var swatchWidth = colorSwatch.size[0];
             var swatchHeight = colorSwatch.size[1];
             /* オフの行は色見本を薄く描く（自作描画は enabled で淡色にならない） / draw faintly when off; custom drawing does not dim itself */
-            var swatchAlpha = isEnabled ? 1 : 0.25;
+            var swatchAlpha = (isEnabled && isRowActive) ? 1 : 0.25;
             swatchGraphics.newPath();
             swatchGraphics.rectPath(0, 0, swatchWidth, swatchHeight);
             swatchGraphics.fillPath(swatchGraphics.newBrush(swatchGraphics.BrushType.SOLID_COLOR, colorToScreenRgb(swatchColor).concat(swatchAlpha)));
@@ -1069,7 +1078,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         /* クリックで標準のカラーピッカーを開く。キャンセルは渡した色が返る
            Clicking opens the standard color picker; Cancel returns the color passed in */
         colorSwatch.addEventListener("click", function () {
-            if (!isEnabled) return;
+            if (!isEnabled || !isRowActive) return;
             swatchColor = app.showColorPicker(swatchColor);
             redrawSwatch();
         });
@@ -1082,14 +1091,21 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         return {
             label: enabledCheckbox,
             isEnabled: function () { return isEnabled; },
-            getColor: function () { return isEnabled ? swatchColor : null; }
+            getColor: function () { return isEnabled ? swatchColor : null; },
+            /* 親の enabled は子の enabled に出ないので、色見本の描画とクリックは isRowActive で判定する
+               a parent's enabled does not show in its children's enabled, so the swatch checks isRowActive */
+            setActive: function (isActive) {
+                isRowActive = isActive;
+                swatchRow.enabled = isActive;
+                redrawSwatch();
+            }
         };
     }
 
     /**
      * 色を選ぶダイアログボックスを表示する
      * @param {Document} doc - 対象ドキュメント
-     * @returns {{baseColor: Color|null, fullWidthColor: Color|null, halfWidthColor: Color|null, glyphWidthColor: Color|null, halfSpaceColor: Color|null, fullSpaceColor: Color|null, groupSpaceRects: boolean}|null} 選んだ色（オフにした種類は null）とグループ化の指定。キャンセルなら null
+     * @returns {{baseColor: Color|null, fullWidthColor: Color|null, halfWidthColor: Color|null, glyphWidthColor: Color|null, halfSpaceColor: Color|null, fullSpaceColor: Color|null, drawSpaces: boolean, groupSpaceRects: boolean}|null} 選んだ色（オフにした種類は null）と、スペースを描くか・グループ化の指定。キャンセルなら null
      */
     function showColorDialog(doc) {
         var colorDialog = new Window("dialog", getLabel("dialog.title"));
@@ -1104,6 +1120,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         var spacePanel = colorDialog.add("panel", undefined, getLabel("panel.space"));
         setupPanel(spacePanel, 8);
+        /* show() 前に代入した value は読み戻せないので、オンオフは変数で持つ / value set before show() cannot be read back, so keep the state in a variable */
+        var isDrawSpaces = DRAW_SPACES;
+        var drawSpacesCheckbox = spacePanel.add("checkbox", undefined, getLabel("checkbox.drawSpaces"));
+        drawSpacesCheckbox.value = isDrawSpaces;
+        drawSpacesCheckbox.helpTip = getLabel("tooltip.drawSpaces");
         var halfSpaceRow = addColorSwatchRow(spacePanel, "halfSpace", createDocumentColor(doc, HALF_SPACE_RGB, HALF_SPACE_CMYK));
         var fullSpaceRow = addColorSwatchRow(spacePanel, "fullSpace", createDocumentColor(doc, FULL_SPACE_RGB, FULL_SPACE_CMYK));
         /* 2つのパネルで色見本の位置をそろえる / line up the swatches across both panels */
@@ -1114,11 +1135,22 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         groupSpaceRectsCheckbox.helpTip = getLabel("tooltip.groupSpaceRects");
         /* スペースの長方形をどちらも描かないときはグループ化を選べなくする / disable grouping when neither space kind is drawn */
         function updateGroupSpaceRectsEnabled() {
-            groupSpaceRectsCheckbox.enabled = halfSpaceRow.isEnabled() || fullSpaceRow.isEnabled();
+            groupSpaceRectsCheckbox.enabled = isDrawSpaces && (halfSpaceRow.isEnabled() || fullSpaceRow.isEnabled());
+        }
+        /* ［スペースを描画する］がオフなら、パネルの残りをすべてディム / dim the rest of the panel when "Draw spaces" is off */
+        function updateSpaceRowsActive() {
+            halfSpaceRow.setActive(isDrawSpaces);
+            fullSpaceRow.setActive(isDrawSpaces);
+            updateGroupSpaceRectsEnabled();
         }
         halfSpaceRow.label.addEventListener("click", updateGroupSpaceRectsEnabled);
         fullSpaceRow.label.addEventListener("click", updateGroupSpaceRectsEnabled);
-        updateGroupSpaceRectsEnabled();
+        drawSpacesCheckbox.addEventListener("click", function () {
+            isDrawSpaces = drawSpacesCheckbox.value;
+            updateSpaceRowsActive();
+        });
+        if (!isDrawSpaces) updateSpaceRowsActive();
+        else updateGroupSpaceRectsEnabled();
 
         var buttonRow = addButtonRow(colorDialog);
         var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
@@ -1134,6 +1166,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             glyphWidthColor: glyphWidthRow.getColor(),
             halfSpaceColor: halfSpaceRow.getColor(),
             fullSpaceColor: fullSpaceRow.getColor(),
+            drawSpaces: isDrawSpaces,
             groupSpaceRects: groupSpaceRectsCheckbox.value
         };
     }
@@ -1158,5 +1191,5 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     for (var i = 0; i < targetRanges.length; i++) {
         colorCharactersInRange(targetRanges[i], chosenColors, glyphForms);
     }
-    markSpaces(doc, spaceTargets, chosenColors, chosenColors.groupSpaceRects);
+    if (chosenColors.drawSpaces) markSpaces(doc, spaceTargets, chosenColors, chosenColors.groupSpaceRects);
 })();

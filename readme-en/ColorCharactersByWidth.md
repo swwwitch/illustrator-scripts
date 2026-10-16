@@ -1,8 +1,8 @@
 # Color full-width and half-width alphanumerics and fixed-width glyphs differently
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-ColorNumberByWidth.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/ColorNumberByWidth.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-ColorCharactersByWidth.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/ColorCharactersByWidth.jsx)
 
-[![Japanese](https://img.shields.io/badge/README-Japanese-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ColorNumberByWidth.md)
+[![Japanese](https://img.shields.io/badge/README-Japanese-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ColorCharactersByWidth.md)
 
 [![Direct](https://img.shields.io/badge/Back%20to%20home-All%20scripts-cccccc.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/README.md)
 
@@ -23,6 +23,7 @@
 - Fixed-width glyphs take priority over full-width and half-width.
 - Characters that match none of these get the base color.
 - Spaces (black for both half-width and full-width by default) get rectangles at 50% opacity on the frontmost layer "ColorNumberByWidth Spaces". Each run clears the rectangles on this layer and draws them again.
+- Turn off Draw Spaces to skip the space rectangles and leave the "ColorNumberByWidth Spaces" layer untouched (earlier rectangles stay). While it is off, the other settings in the Spaces panel are dimmed (on by default).
 - Turn on Group Space Rectangles to put the rectangles into one group (on by default).
 - Turn off a setting's checkbox to leave that kind uncolored (no rectangles for spaces). With Base off, characters that match nothing keep their color. With Fixed-width Glyphs off, those characters are judged as full- or half-width.
 - Click a swatch in the dialog to choose the color with Illustrator's standard color picker.
@@ -45,10 +46,11 @@
 
 ### Script info
 
-- Version: v1.3.0
+- Version: v1.4.0
 
 ### Update History
 
+- v1.4.0 (2026-10-16) Renamed from ColorNumberByWidth. Added Draw Spaces to the Spaces panel. When off, no space rectangles are drawn and the panel's other settings are dimmed
 - v1.3.0 (2026-10-16) Added colored rectangles over half-width and full-width spaces, drawn on a dedicated layer, with an option to group them. Each setting has a checkbox; unchecked kinds are not colored or drawn
 - v1.2.1 (2026-10-16) The button row is back to the shared part's standard layout (centered when the dialog's inner width is up to 240 px)
 - v1.2.0 (2026-10-16) Added a base color (black by default) for characters that match none of the others. The buttons are now centered

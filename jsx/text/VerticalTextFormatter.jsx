@@ -171,7 +171,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
 
     var PREVIEW_MAX_LINES = 300;   /* 確認の一覧に出す最大の行数 / max lines in the check list */
 
-    /* 確認用の色分けの初期色（ColorNumberByWidth から移植） / Initial colors for the check coloring (ported from ColorNumberByWidth) */
+    /* 確認用の色分けの初期色（ColorCharactersByWidth から移植） / Initial colors for the check coloring (ported from ColorCharactersByWidth) */
     var CHECK_BASE_RGB         = [0, 0, 0];         /* ベース（ほかの文字） / base (other characters) */
     var CHECK_BASE_CMYK        = [0, 0, 0, 100];
     var CHECK_FULL_WIDTH_RGB   = [255, 0, 0];       /* 全角 / full-width */
@@ -3706,7 +3706,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
     }
 
     // =========================================
-    // 確認用の色分け（ColorNumberByWidth から移植） / Check coloring (ported from ColorNumberByWidth)
+    // 確認用の色分け（ColorCharactersByWidth から移植） / Check coloring (ported from ColorCharactersByWidth)
     // =========================================
 
     /* このダイアログで選んだ色（モードを切り替えて作り直しても引き継ぐ） / Colors chosen in this run (kept across mode switches) */
@@ -3837,7 +3837,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
     }
 
     /**
-     * 処理が終わって元に戻した選択から、テキストを集め直して色分けする（ColorNumberByWidth と同じ手順）
+     * 処理が終わって元に戻した選択から、テキストを集め直して色分けする（ColorCharactersByWidth と同じ手順）
      * 処理中のフレームの参照は、一時アクションのあとで古い内容を返すことがあるので使わない
      * @param {Document} doc - 対象のドキュメント
      * @returns {void}

@@ -71,7 +71,7 @@
   - **Height to a multiple of the type size**: sets the area-type frame height (the line length in vertical text) to the nearest whole multiple of the type size, inset excluded (on by default; always applied, in Simple mode too)
   - **Auto-size area type**: after processing, turns on Auto Size in Area Type Options so the frame fits the text (on by default and in every built-in preset; threaded text is skipped)
 - Check Coloring (Detailed mode)
-  - **Color characters after processing**: full-width alphanumerics and ！？ red, half-width blue, fixed-width glyphs (such as third- and quarter-width TCY) green, and the rest in the base color (black). Off by default. Click a swatch to change the color with the color picker. For checking only; the original colors are not restored (ported from ColorNumberByWidth)
+  - **Color characters after processing**: full-width alphanumerics and ！？ red, half-width blue, fixed-width glyphs (such as third- and quarter-width TCY) green, and the rest in the base color (black). Off by default. Click a swatch to change the color with the color picker. For checking only; the original colors are not restored (ported from ColorCharactersByWidth)
 - Horizontal text is always turned vertical before processing
 - **Conversion Check**: lists what will change, such as "3,000 → 三千" or "10 [TCY] ×3", and updates whenever an option or digit range changes
 - A progress bar shows how far processing has gone
