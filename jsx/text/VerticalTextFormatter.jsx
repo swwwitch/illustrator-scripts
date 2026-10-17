@@ -1813,7 +1813,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
         }
 
         /**
-         * 配列を読む
+         * 配列を読む 
          * @param {number} depth - 入れ子の深さ
          * @returns {Array} 配列
          */
