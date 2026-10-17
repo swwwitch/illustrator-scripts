@@ -29,7 +29,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RectangleT
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "RectangleToArrow";             /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.5.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.6.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-10";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-17";                   /* 更新日 / last updated */
@@ -52,7 +52,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
     var DEFAULT_TIP_ANGLE = 45;     /* 塗り・ホームベースの先端の角度の初期値（度。軸に対する斜辺の角度で、45° で直角の先端） / initial tip angle of the fill and pentagon types (degrees between the axis and a slanted side; 45 gives a right-angled tip) */
     var LINE_SIDE_RATIO = 1 / 4;    /* 罫線（直線）を矢印にするときの短辺（線の長さに対する比率） / short side used for a rule (relative to its length) */
     var HEAD_RATIO = 1 / 2;         /* 矢じりの長さ（短辺に対する比率。1/2 で直角の矢じり） / head length relative to the short side (1/2 gives a right-angled head) */
-    var EXPAND_TRIM_RATIO = 1 / 10; /* 拡張時向けの補正で、軸の矢じり側の端を縮める量（線幅に対する比率） / how far the expand fix pulls the shaft back from each head (relative to the stroke width) */
+    var LINE_LENGTH_RATIO = 2;      /* 分割後の整理で、方向線のないセグメントを直線とみなす長さ（曲線のセグメントの長さの中央値に対する倍率） / after expanding, length ratio over the median curve segment at which a straight segment counts as a line */
+    var SHORT_LINE_RATIO = 0.5;     /* 分割後の整理で、円弧に接する直線のうち半径に対してこの倍率より短いものは円弧に取り込む（SimplifyArcPoints は 0.3） / after expanding, lines touching an arc shorter than this ratio of its radius join the arc (0.3 in SimplifyArcPoints) */
+    var STRAIGHT_TOLERANCE_RATIO = 1e-3; /* 分割後の整理で、方向線が弦からこの比率（弦の長さに対する）以内なら直線とみなす（SimplifyArcPoints は 1e-4） / after expanding, handles within this ratio of the chord count as straight (1e-4 in SimplifyArcPoints) */
+    var ARC_SPLIT_ALLOWANCE = 0.05; /* 分割後の整理で、円弧を90°ごとに分けるときに許す超過（90°に対する比率。約4.5°。SimplifyArcPoints は 0.02） / overshoot allowed before an arc gets one more 90° piece (ratio of 90°, about 4.5°; 0.02 in SimplifyArcPoints) */
+    var TIP_ADJUST_RATIO = 1 / 10;  /* 先端補正で、軸の矢じり側の端を縮める量（線幅に対する比率） / how far the tip adjustment pulls the shaft back from each head (relative to the stroke width) */
 
     var TOLERANCE = 0.001;          /* 座標比較の許容値（pt） / tolerance for coordinate comparison (pt) */
 
@@ -181,15 +185,25 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
         dialog: {
             title: { ja: "長方形を矢印に", en: "Rectangle to Arrow" }
         },
-        fieldLabel: {
+        panel: {
             arrowType: { ja: "種類", en: "Type" },
+            options: { ja: "オプション", en: "Options" }
+        },
+        radio: {
+            squareAxis: {
+                horizontal: { ja: "水平", en: "Horizontal" },
+                vertical: { ja: "垂直", en: "Vertical" }
+            }
+        },
+        checkbox: {
+            tipAdjust: { ja: "先端補正", en: "Adjust Tips" },
+            expandAppearance: { ja: "分割・拡張", en: "Expand Appearance" }
+        },
+        fieldLabel: {
             thickness: { ja: "太さ", en: "Thickness" },
             height: { ja: "高さ", en: "Height" },
             tipAngle: { ja: "角度", en: "Angle" },
             squareAxis: { ja: "方向", en: "Direction" }
-        },
-        checkbox: {
-            expandFix: { ja: "拡張時向けの補正", en: "Adjust for Expand" }
         },
         button: {
             arrowType: {
@@ -197,10 +211,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
                 pentagon: { ja: "ホームベース", en: "Pentagon" },
                 line: { ja: "線（線端なし）", en: "Stroke (Butt Cap)" },
                 roundLine: { ja: "線（丸型線端）", en: "Stroke (Round Cap)" }
-            },
-            squareAxis: {
-                horizontal: { ja: "水平", en: "Horizontal" },
-                vertical: { ja: "垂直", en: "Vertical" }
             },
             ok: { ja: "OK", en: "OK" },
             cancel: { ja: "キャンセル", en: "Cancel" }
@@ -253,9 +263,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
                 ja: "正方形を水平・垂直のどちらの矢印にするかを選びます。長方形は長辺、罫線は線の向きで決まるので変わりません。正方形が選択されていないときは使えません。",
                 en: "Choose whether squares become horizontal or vertical arrows. Rectangles follow their long side and rules their own direction, so they are unaffected. Not available when no square is selected."
             },
-            expandFix: {
+            tipAdjust: {
                 ja: "軸の矢じり側の端を線幅の1/10だけ短くし、矢じりの線と重ならないようにします（［アピアランスを分割］で余分なアンカーポイントができにくくなります）。線の2種類で使います。",
                 en: "Pulls the shaft back from each arrowhead by 1/10 of the stroke width so it does not overlap the head's stroke (fewer stray anchor points after Expand Appearance). Used by the stroke types."
+            },
+            expandAppearance: {
+                ja: "確定時に［アピアランスを分割］し、効果のない1つのパスにします。曲線の部分は90°以下の円弧に置き換えて、アンカーポイントを減らします。プレビューには反映しません。線の2種類で使います。",
+                en: "Expands the appearance on OK, leaving a single path with no effects. Curved parts are rebuilt as arcs of 90° or less to reduce anchor points. Not shown in the preview. Used by the stroke types."
             },
             stepUp: {
                 ja: "値を増やす（shift＋クリックで10の倍数へ、option＋クリックで0.1ずつ）",
@@ -285,6 +299,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
     var TYPE_ICON_SIZE = [96, 32];       /* 種類のボタンの大きさ / arrow type button size */
     var TYPE_ICON_INSET = 5;             /* 種類のボタンの枠と絵の間（px） / gap between a type button's frame and its drawing */
     var TYPE_ICON_SPACING = 6;           /* 種類のボタンどうしの縦の間隔 / vertical spacing between type buttons */
+    var SQUARE_AXIS_RADIO_SPACING = 4;   /* 方向のラジオボタンどうしの縦の間隔 / vertical spacing between the square axis radios */
     var DIRECTION_TOGGLE_SIZE = [30, 30]; /* 両矢印・反転のアイコンの大きさ / double-headed and reverse icon size */
     var LINK_CHAIN_RATIO = 0.8;          /* リンクアイコンの鎖の大きさ（枠に対する比率） / chain size relative to the link icon */
 
@@ -1299,10 +1314,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
      * @param {boolean} isBothEnds - 両矢印なら true
      * @param {number} strokeWidth - 線幅（pt）
      * @param {boolean} isRound - 丸型線端・ラウンド結合なら true
-     * @param {boolean} isExpandFix - 拡張時向けに軸の矢じり側の端を縮めるなら true
+     * @param {boolean} isTipAdjust - 先端補正で軸の矢じり側の端を縮めるなら true
      * @returns {Array} 折れ線の配列 [[[x, y], …], …]
      */
-    function buildStrokedArrowLines(arrowFrame, isBothEnds, strokeWidth, isRound, isExpandFix) {
+    function buildStrokedArrowLines(arrowFrame, isBothEnds, strokeWidth, isRound, isTipAdjust) {
         var halfWidth = strokeWidth / 2;
         var halfSide = arrowFrame.headWidth / 2;
         /* 詰めすぎて頂点が重ならないよう、最小でもこの長さは残す / keep at least this much so vertices never collapse */
@@ -1328,7 +1343,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
         }
         var neck = tipU - headLength;
         /* 補正では軸の端を矢じりの頂点から少し離す（矢じりより短くは詰めない） / the fix pulls the shaft ends back from the head vertices (never past the neck) */
-        var shaftTrim = isExpandFix ? Math.min(strokeWidth * EXPAND_TRIM_RATIO, headLength) : 0;
+        var shaftTrim = isTipAdjust ? Math.min(strokeWidth * TIP_ADJUST_RATIO, headLength) : 0;
         var arrowLines = [
             /* 軸は先端近くまで通す。合体するので継ぎ目は残らない / the shaft runs (nearly) to the tip; uniting hides the joint */
             [arrowFrame.toPoint(tailU + (isBothEnds ? shaftTrim : 0), 0), arrowFrame.toPoint(tipU - shaftTrim, 0)],
@@ -1440,14 +1455,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
      * 線ごとに［パスのアウトライン］効果を掛けてグループにし、グループに［パスファインダー（合体）］効果を掛ける。
      * 線幅のぶんを内側へ詰め、線端・角も含めて長方形の範囲に収める。元のパスの効果は引き継がない
      * @param {PathItem} rectanglePath - 長方形のパス（グループに置き換えて削除する）
-     * @param {Object} arrowOptions - strokeWidth（線幅。pt）、heightRatio、isReversed、isBothEnds、isSquareVertical、isExpandFix
+     * @param {Object} arrowOptions - strokeWidth（線幅。pt）、heightRatio、isReversed、isBothEnds、isSquareVertical、isTipAdjust
      * @param {boolean} isRound - 丸型線端・ラウンド結合にするなら true
      * @returns {PageItem} できた矢印（グループ）
      */
     function convertToStrokedArrow(rectanglePath, arrowOptions, isRound) {
         var arrowFrame = getArrowFrame(rectanglePath, arrowOptions.isReversed, arrowOptions.heightRatio, arrowOptions.isSquareVertical);
         var arrowColor = getArrowColor(rectanglePath);
-        var arrowLines = buildStrokedArrowLines(arrowFrame, arrowOptions.isBothEnds, arrowOptions.strokeWidth, isRound, arrowOptions.isExpandFix);
+        var arrowLines = buildStrokedArrowLines(arrowFrame, arrowOptions.isBothEnds, arrowOptions.strokeWidth, isRound, arrowOptions.isTipAdjust);
 
         /* 入れ子のグループで効果のメニューコマンドを実行すると一番外側のグループに付くので、
            部品はレイヤー直下で作って効果を掛け、最後に元の位置へ移す
@@ -1494,13 +1509,22 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
     /**
      * 種類に応じて長方形を矢印にする
      * @param {PathItem} rectanglePath - 長方形のパス
-     * @param {Object} arrowOptions - arrowType（"fill" / "pentagon" / "line" / "roundLine"）、shaftRatio（塗り）または strokeWidth（線）、heightRatio、tipAngle（塗り・ホームベース）、isReversed、isBothEnds、isSquareVertical、isExpandFix（線）
+     * @param {Object} arrowOptions - arrowType（"fill" / "pentagon" / "line" / "roundLine"）、shaftRatio（塗り）または strokeWidth（線）、heightRatio、tipAngle（塗り・ホームベース）、isReversed、isBothEnds、isSquareVertical、isTipAdjust（線）
      * @returns {PageItem} できた矢印
      */
     function convertToArrow(rectanglePath, arrowOptions) {
         if (arrowOptions.arrowType === "fill") return convertToFilledArrow(rectanglePath, arrowOptions);
         if (arrowOptions.arrowType === "pentagon") return convertToPentagonArrow(rectanglePath, arrowOptions);
         return convertToStrokedArrow(rectanglePath, arrowOptions, arrowOptions.arrowType === "roundLine");
+    }
+
+    /**
+     * 線の矢印（線端なし・丸型線端）の種類かを返す
+     * @param {string} arrowType - 種類（"fill" / "pentagon" / "line" / "roundLine"）
+     * @returns {boolean} 線の種類なら true
+     */
+    function isStrokeArrowType(arrowType) {
+        return arrowType === "line" || arrowType === "roundLine";
     }
 
     // =========================================
@@ -2449,6 +2473,63 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
     }
 
     /**
+     * 線の矢印の線幅の初期値を、線の単位で返す。罫線ならその線幅、それ以外は短辺の DEFAULT_LINE_PERCENT ％
+     * （入力欄は小数2桁まで。インチなど大きい単位でも 0 に丸まらないよう下限で止める）
+     * @param {PathItem} firstTarget - 1つ目の対象
+     * @param {{pointsPerUnit: number}} strokeUnit - 線の単位（getUnitInfo("strokeUnits")）
+     * @returns {number} 線幅（線の単位）
+     */
+    function getDefaultLineWidth(firstTarget, strokeUnit) {
+        var isRuleWithStroke = !firstTarget.closed && firstTarget.stroked && firstTarget.strokeWidth > 0;
+        var widthInPoints = isRuleWithStroke ? firstTarget.strokeWidth : getArrowAxis(firstTarget).thickness * DEFAULT_LINE_PERCENT / 100;
+        return Math.max(0.01, Math.round(widthInPoints / strokeUnit.pointsPerUnit * 100) / 100);
+    }
+
+    /**
+     * 正方形の方向（水平／垂直）のラジオボタンを、項目名の右に縦に並べる。
+     * ラジオは同じ親の中だけ排他なので、2つを1つのグループに入れる
+     * @param {Panel} parent - 追加先
+     * @param {function(): void} onSwitch - 切り替えたときに呼ぶ
+     * @returns {{row: Group, horizontalRadio: RadioButton, verticalRadio: RadioButton}} 行とラジオボタン
+     */
+    function addSquareAxisRadios(parent, onSwitch) {
+        var squareAxisRow = parent.add("group");
+        setupRow(squareAxisRow, "left", STEPPER_FIELD_SPACING);
+        squareAxisRow.alignChildren = ["left", "top"];
+        var squareAxisLabel = squareAxisRow.add("statictext", undefined, labelText("fieldLabel.squareAxis"));
+        squareAxisLabel.preferredSize.width = LABEL_WIDTH;
+        squareAxisLabel.justify = "right";
+        var radioColumn = squareAxisRow.add("group");
+        radioColumn.orientation = "column";
+        radioColumn.alignChildren = ["left", "top"];
+        radioColumn.spacing = SQUARE_AXIS_RADIO_SPACING;
+        var horizontalRadio = radioColumn.add("radiobutton", undefined, getLabel("radio.squareAxis.horizontal"));
+        var verticalRadio = radioColumn.add("radiobutton", undefined, getLabel("radio.squareAxis.vertical"));
+        horizontalRadio.value = true;
+        horizontalRadio.onClick = verticalRadio.onClick = onSwitch;
+        squareAxisRow.helpTip = horizontalRadio.helpTip = verticalRadio.helpTip = getLabel("tooltip.squareAxis");
+        return { row: squareAxisRow, horizontalRadio: horizontalRadio, verticalRadio: verticalRadio };
+    }
+
+    /**
+     * 項目名の列の幅だけ字下げしたチェックボックスを足す（入力欄の左端にそろえる）
+     * @param {Panel} parent - 追加先
+     * @param {string} labelKey - 文言の LABELS のパス
+     * @param {string} tooltipKey - ツールチップの LABELS のパス
+     * @param {boolean} initialValue - 初期値
+     * @returns {Checkbox} チェックボックス
+     */
+    function addIndentedCheckbox(parent, labelKey, tooltipKey, initialValue) {
+        var checkboxRow = parent.add("group");
+        setupRow(checkboxRow, "left", STEPPER_FIELD_SPACING);
+        checkboxRow.add("statictext", undefined, "").preferredSize.width = LABEL_WIDTH;
+        var indentedCheckbox = checkboxRow.add("checkbox", undefined, getLabel(labelKey));
+        indentedCheckbox.value = initialValue;
+        indentedCheckbox.helpTip = getLabel(tooltipKey);
+        return indentedCheckbox;
+    }
+
+    /**
      * 矢印の種類・太さ・高さ・角度・方向を指定するダイアログボックスを表示する
      * @param {Array} rectangles - 対象の長方形（プレビューに使う）
      * @returns {Object|null} arrowType・shaftRatio（塗り）・strokeWidth（線）・heightRatio・tipAngle（塗り・ホームベース）・isReversed・isBothEnds・isSquareVertical。キャンセルなら null
@@ -2457,34 +2538,31 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
         var arrowPreview = createArrowPreview(rectangles);
         /* 線幅は環境設定の線の単位で入力する / stroke widths use the stroke units from Preferences */
         var strokeUnit = getUnitInfo("strokeUnits");
-        var firstShortSide = getArrowAxis(rectangles[0]).thickness;
-        /* 入力欄は小数2桁まで。インチなど大きい単位でも 0 に丸まらないよう下限で止める / the field keeps 2 decimals; keep large units from rounding to 0 */
-        var defaultLineWidth = Math.max(0.01, Math.round(firstShortSide * DEFAULT_LINE_PERCENT / 100 / strokeUnit.pointsPerUnit * 100) / 100);
-        /* 1つ目が罫線なら、線の矢印（矢印2）で始め、線幅はその罫線のものを引き継ぐ / for a rule, start with the stroked arrow and keep the rule's stroke width */
-        var isFirstRule = !rectangles[0].closed;
-        if (isFirstRule && rectangles[0].stroked && rectangles[0].strokeWidth > 0) {
-            defaultLineWidth = Math.max(0.01, Math.round(rectangles[0].strokeWidth / strokeUnit.pointsPerUnit * 100) / 100);
-        }
         /* 塗りと線で太さを別々に覚え、切り替えたら戻す（塗りは％、線は線の単位。線の2種類は線幅を共有）
            remember the thickness for fill and stroke separately (% for fill, stroke units shared by both stroke types) */
-        var thicknessByKind = { fill: DEFAULT_FILL_PERCENT, stroke: defaultLineWidth };
+        var thicknessByKind = { fill: DEFAULT_FILL_PERCENT, stroke: getDefaultLineWidth(rectangles[0], strokeUnit) };
         var thicknessFormats = {
             percent: { step: 1, unit: "%", min: 1, max: 100 },
             /* cm・インチなど 1 単位が大きいときは 0.1 刻み / step by 0.1 when one unit is large (cm, in) */
             strokeWidth: { step: strokeUnit.pointsPerUnit >= 2 ? 0.1 : 1, unit: " " + strokeUnit.label, min: 0.01, max: 1000 / strokeUnit.pointsPerUnit }
         };
-        var currentType = isFirstRule ? "line" : "fill";
+        /* 1つ目が罫線なら、線の矢印で始める / for a rule, start with the stroked arrow */
+        var currentType = rectangles[0].closed ? "fill" : "line";
 
         var arrowDialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
         setupWindow(arrowDialog);
 
-        var typeRow = arrowDialog.add("group");
-        setupRow(typeRow);
-        var typeLabel = typeRow.add("statictext", undefined, labelText("fieldLabel.arrowType"));
-        typeLabel.preferredSize.width = LABEL_WIDTH;
-        typeLabel.justify = "right";
-        typeLabel.alignment = ["left", "top"]; /* 縦に並んだボタンの先頭にそろえる / align with the first button */
-        var typeIcons = addArrowTypeIcons(typeRow, currentType, switchType);
+        /* 左に［種類］パネル、右に［オプション］パネル / Type panel on the left, Options panel on the right */
+        var columnsRow = arrowDialog.add("group");
+        columnsRow.orientation = "row";
+        columnsRow.alignChildren = ["left", "top"];
+        columnsRow.spacing = COLUMN_SPACING;
+
+        /* 種類のボタンと両矢印・反転のアイコン / the type buttons and direction toggles */
+        var typePanel = columnsRow.add("panel", undefined, getLabel("panel.arrowType"));
+        setupPanel(typePanel);
+        typePanel.alignChildren = ["left", "top"];
+        var typeIcons = addArrowTypeIcons(typePanel, currentType, switchType);
         var typeState = typeIcons[0].typeState;
 
         /* 両矢印・反転のアイコンは種類のボタンの下に並べる / double-headed and reverse toggles under the type buttons */
@@ -2503,63 +2581,56 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
         }, DIRECTION_TOGGLE_SIZE);
         reverseToggle.helpTip = getLabel("tooltip.reverseToggle");
 
-        /* 正方形の方向。ラジオは同じ親の中だけ排他なので1つの行に並べる / radios are exclusive only within one parent */
-        var squareAxisRow = arrowDialog.add("group");
-        setupRow(squareAxisRow);
-        var squareAxisLabel = squareAxisRow.add("statictext", undefined, labelText("fieldLabel.squareAxis"));
-        squareAxisLabel.preferredSize.width = LABEL_WIDTH;
-        squareAxisLabel.justify = "right";
-        var horizontalRadio = squareAxisRow.add("radiobutton", undefined, getLabel("button.squareAxis.horizontal"));
-        var verticalRadio = squareAxisRow.add("radiobutton", undefined, getLabel("button.squareAxis.vertical"));
-        horizontalRadio.value = true;
-        horizontalRadio.onClick = verticalRadio.onClick = function () { refreshPreview(); };
-        squareAxisRow.helpTip = horizontalRadio.helpTip = verticalRadio.helpTip = getLabel("tooltip.squareAxis");
-        squareAxisRow.enabled = hasSquare(rectangles);
+        /* 方向・太さ・高さ・角度・先端補正・分割・拡張 / square axis, thickness, height, angle, tip adjustment and expand */
+        var optionsPanel = columnsRow.add("panel", undefined, getLabel("panel.options"));
+        setupPanel(optionsPanel);
+        optionsPanel.alignChildren = ["left", "top"];
 
-        var thicknessInput = addSteppedField(arrowDialog, {
-            label: labelText("fieldLabel.thickness"), labelWidth: LABEL_WIDTH,
-            text: thicknessByKind.fill + thicknessFormats.percent.unit, characters: FIELD_CHARACTERS,
+        var squareAxisRadios = addSquareAxisRadios(optionsPanel, refreshPreview);
+        squareAxisRadios.row.enabled = hasSquare(rectangles);
+
+        var thicknessInput = addPreviewField("fieldLabel.thickness", "tooltip.thickness", {
+            text: thicknessByKind.fill + thicknessFormats.percent.unit,
             step: thicknessFormats.percent.step, min: thicknessFormats.percent.min,
-            max: thicknessFormats.percent.max, unit: thicknessFormats.percent.unit,
-            onStep: function () { refreshPreview(); }
+            max: thicknessFormats.percent.max, unit: thicknessFormats.percent.unit
         });
-        thicknessInput.helpTip = getLabel("tooltip.thickness");
-
-        redrawPreviewOnChange(thicknessInput);
         applyThicknessFormat();
-
-        var heightInput = addSteppedField(arrowDialog, {
-            label: labelText("fieldLabel.height"), labelWidth: LABEL_WIDTH,
-            text: DEFAULT_HEIGHT_PERCENT + "%", characters: FIELD_CHARACTERS,
-            step: 1, min: 1, max: 500, unit: "%",
-            onStep: function () { refreshPreview(); }
+        var heightInput = addPreviewField("fieldLabel.height", "tooltip.height", {
+            text: DEFAULT_HEIGHT_PERCENT + "%", step: 1, min: 1, max: 500, unit: "%"
         });
-        heightInput.helpTip = getLabel("tooltip.height");
-        redrawPreviewOnChange(heightInput);
-
-        var tipAngleInput = addSteppedField(arrowDialog, {
-            label: labelText("fieldLabel.tipAngle"), labelWidth: LABEL_WIDTH,
-            text: DEFAULT_TIP_ANGLE + "°", characters: FIELD_CHARACTERS,
-            step: 1, min: 1, max: 89, unit: "°",
-            onStep: function () { refreshPreview(); }
+        var tipAngleInput = addPreviewField("fieldLabel.tipAngle", "tooltip.tipAngle", {
+            text: DEFAULT_TIP_ANGLE + "°", step: 1, min: 1, max: 89, unit: "°"
         });
-        tipAngleInput.helpTip = getLabel("tooltip.tipAngle");
-        redrawPreviewOnChange(tipAngleInput);
 
-        /* 項目名の列の幅だけ字下げして、入力欄の左端にそろえる / indent by the label column to line up with the fields */
-        var expandFixRow = arrowDialog.add("group");
-        setupRow(expandFixRow);
-        expandFixRow.add("statictext", undefined, "").preferredSize.width = LABEL_WIDTH;
-        var expandFixCheckbox = expandFixRow.add("checkbox", undefined, getLabel("checkbox.expandFix"));
-        expandFixCheckbox.value = true;
-        expandFixCheckbox.helpTip = getLabel("tooltip.expandFix");
-        expandFixCheckbox.onClick = function () { refreshPreview(); };
+        var tipAdjustCheckbox = addIndentedCheckbox(optionsPanel, "checkbox.tipAdjust", "tooltip.tipAdjust", true);
+        tipAdjustCheckbox.onClick = refreshPreview;
+        /* 分割・拡張は確定時だけ行うので、プレビューは描き直さない / expanding happens only on OK, so the preview stays as is */
+        var expandAppearanceCheckbox = addIndentedCheckbox(optionsPanel, "checkbox.expandAppearance", "tooltip.expandAppearance", false);
         syncFieldStates();
 
-        /* ボタン行は左右中央に置く / center the button row */
-        var buttonRow = addButtonRow(arrowDialog, { centered: true });
-        buttonRow.rowGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
-        buttonRow.rowGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+        var buttonRow = addButtonRow(arrowDialog);
+        buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+        buttonRow.rightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+        /* 2カラムで幅が広いので、ボタンは右寄せのまま / the two-column dialog is wide, so the buttons stay right-aligned */
+        alignRightOnlyButtonRow(buttonRow);
+
+        /**
+         * ［オプション］パネルに、値を変えるとプレビューを描き直す数値欄を足す
+         * @param {string} labelKey - 項目名の LABELS のパス
+         * @param {string} tooltipKey - ツールチップの LABELS のパス
+         * @param {Object} fieldOptions - text・step・min・max・unit（addSteppedField() と同じ）
+         * @returns {EditText} 入力欄
+         */
+        function addPreviewField(labelKey, tooltipKey, fieldOptions) {
+            fieldOptions.label = labelText(labelKey);
+            fieldOptions.labelWidth = LABEL_WIDTH;
+            fieldOptions.characters = FIELD_CHARACTERS;
+            fieldOptions.onStep = refreshPreview;
+            var numberInput = addSteppedField(optionsPanel, fieldOptions);
+            numberInput.helpTip = getLabel(tooltipKey);
+            redrawPreviewOnChange(numberInput);
+            return numberInput;
+        }
 
         /**
          * 両矢印・反転のアイコンと種類のボタンの絵を、今の向きに合わせて描き直す（両矢印のときは反転をディム）
@@ -2604,7 +2675,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
         }
 
         /**
-         * 今の種類で使う欄だけを有効にする（塗りは太さ・高さ・角度、ホームベースは角度だけ、線は太さ・高さ・拡張時向けの補正）
+         * 今の種類で使う欄だけを有効にする（塗りは太さ・高さ・角度、ホームベースは角度だけ、線は太さ・高さ・先端補正・分割・拡張）
          * @returns {void}
          */
         function syncFieldStates() {
@@ -2612,7 +2683,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
             setSteppedFieldEnabled(thicknessInput, !isPentagon);
             setSteppedFieldEnabled(heightInput, !isPentagon);
             setSteppedFieldEnabled(tipAngleInput, isPentagon || currentType === "fill");
-            expandFixCheckbox.enabled = (getThicknessKind(currentType) === "stroke");
+            tipAdjustCheckbox.enabled = expandAppearanceCheckbox.enabled = isStrokeArrowType(currentType);
         }
 
         /**
@@ -2621,7 +2692,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
          * @returns {string} "fill" または "stroke"
          */
         function getThicknessKind(arrowType) {
-            return (arrowType === "fill" || arrowType === "pentagon") ? "fill" : "stroke";
+            return isStrokeArrowType(arrowType) ? "stroke" : "fill";
         }
 
         /**
@@ -2641,7 +2712,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
 
         /**
          * 今の指定を返す
-         * @returns {Object} arrowType・shaftRatio（塗り。短辺に対する比率）・strokeWidth（線。pt）・heightRatio（短辺に対する比率）・tipAngle（塗り・ホームベース。度）・isReversed・isBothEnds・isSquareVertical・isExpandFix（線）
+         * @returns {Object} arrowType・shaftRatio（塗り。短辺に対する比率）・strokeWidth（線。pt）・heightRatio（短辺に対する比率）・tipAngle（塗り・ホームベース。度）・isReversed・isBothEnds・isSquareVertical・isTipAdjust（線）・isExpandAppearance（線）
          */
         function getArrowOptions() {
             var thicknessValue = parseFloat(thicknessInput.text);
@@ -2653,8 +2724,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
                 tipAngle: parseFloat(tipAngleInput.text),
                 isReversed: typeState.isReversed,
                 isBothEnds: typeState.isBothEnds,
-                isSquareVertical: verticalRadio.value,
-                isExpandFix: expandFixCheckbox.value
+                isSquareVertical: squareAxisRadios.verticalRadio.value,
+                isTipAdjust: expandFixCheckbox.value,
+                isExpandAppearance: expandAppearanceCheckbox.value
             };
         }
 
@@ -2680,6 +2752,506 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
     }
 
     // =========================================
+    // 分割後のアンカーポイントの整理（SimplifyArcPoints から移植） / Anchor cleanup after expanding (ported from SimplifyArcPoints)
+    // =========================================
+
+    // パスの読み書き / Path data
+
+    /**
+     * 選択からパスを集める（グループ・複合パスの中も含む）
+     * @param {Array} pageItems - 対象のページアイテム
+     * @param {PathItem[]} foundPaths - 集めたパスの格納先
+     * @returns {void}
+     */
+    function collectPaths(pageItems, foundPaths) {
+        for (var i = 0; i < pageItems.length; i++) {
+            var pageItem = pageItems[i];
+            if (pageItem.typename === "PathItem") {
+                foundPaths.push(pageItem);
+            } else if (pageItem.typename === "GroupItem") {
+                collectPaths(pageItem.pageItems, foundPaths);
+            } else if (pageItem.typename === "CompoundPathItem") {
+                collectPaths(pageItem.pathItems, foundPaths);
+            }
+        }
+    }
+
+    /**
+     * パスのポイントを読み取る
+     * @param {PathItem} pathItem - 対象のパス
+     * @returns {Object[]} ポイント情報 {anchor, leftDirection, rightDirection, pointType} の配列
+     */
+    function readPathNodes(pathItem) {
+        var pathPoints = pathItem.pathPoints;
+        var pathNodes = [];
+        for (var i = 0; i < pathPoints.length; i++) {
+            pathNodes.push({
+                anchor: pathPoints[i].anchor,
+                leftDirection: pathPoints[i].leftDirection,
+                rightDirection: pathPoints[i].rightDirection,
+                pointType: pathPoints[i].pointType
+            });
+        }
+        return pathNodes;
+    }
+
+    /**
+     * ポイント情報でパスを作り直す
+     * @param {PathItem} pathItem - 対象のパス
+     * @param {Object[]} pathNodes - ポイント情報の配列（readPathNodes() と同じ形）
+     * @returns {void}
+     */
+    function writePathNodes(pathItem, pathNodes) {
+        var anchors = [];
+        for (var i = 0; i < pathNodes.length; i++) anchors.push(pathNodes[i].anchor);
+        pathItem.setEntirePath(anchors);
+        var pathPoints = pathItem.pathPoints;
+        for (var j = 0; j < pathNodes.length; j++) {
+            pathPoints[j].pointType = pathNodes[j].pointType;
+            pathPoints[j].leftDirection = pathNodes[j].leftDirection;
+            pathPoints[j].rightDirection = pathNodes[j].rightDirection;
+        }
+    }
+
+    /**
+     * ポイント情報を複製する
+     * @param {Object} pathNode - ポイント情報
+     * @returns {Object} 複製
+     */
+    function copyPathNode(pathNode) {
+        return { anchor: pathNode.anchor, leftDirection: pathNode.leftDirection, rightDirection: pathNode.rightDirection, pointType: pathNode.pointType };
+    }
+
+    /**
+     * パスの円弧の部分を90°以下の円弧に置き換え、アンカーポイントが減るときだけ書き換える
+     * @param {PathItem} pathItem - 対象のパス
+     * @returns {void}
+     */
+    function simplifyArcPoints(pathItem) {
+        var simplifiedNodes = computeSimplifiedNodes(readPathNodes(pathItem), pathItem.closed);
+        if (simplifiedNodes) writePathNodes(pathItem, simplifiedNodes);
+    }
+
+    // 円弧への置き換え / Arc simplification
+
+    /**
+     * 直線以外の区間を円弧とみなして置き換えたポイント列を求める
+     * @param {Object[]} pathNodes - 元のポイント情報
+     * @param {boolean} isClosed - クローズパスなら true
+     * @returns {Object[]|null} 置き換え後のポイント情報。アンカーが減らなければ null
+     */
+    function computeSimplifiedNodes(pathNodes, isClosed) {
+        var nodeCount = pathNodes.length;
+        if (nodeCount < 3) return null;
+
+        /* 直線部分を除いた全体がひとつの円になるクローズパス / closed path with no straight lines: a full circle */
+        var lineFlags = findLineSegments(pathNodes, isClosed);
+        if (isClosed && !hasTrue(lineFlags)) {
+            var circleNodes = buildFullCircleNodes(pathNodes);
+            return (circleNodes && circleNodes.length < nodeCount) ? circleNodes : null;
+        }
+
+        /* クローズパスは直線のセグメントが最後（先頭へ戻る区間）に来るよう始点をずらし、円弧が始点をまたがないようにする
+           For closed paths, rotate so a line closes the path and no arc straddles the start point */
+        var workNodes = pathNodes;
+        var workFlags = lineFlags;
+        if (isClosed) {
+            var firstLineIndex = 0;
+            while (!lineFlags[firstLineIndex]) firstLineIndex++;
+            workNodes = rotateArray(pathNodes, firstLineIndex + 1);
+            workFlags = rotateArray(lineFlags, firstLineIndex + 1);
+        }
+        absorbShortLines(workNodes, workFlags);
+
+        var resultNodes = [copyPathNode(workNodes[0])];
+        var runStart = 0;
+        var isChanged = false;
+        while (runStart < nodeCount - 1) {
+            if (workFlags[runStart]) {
+                resultNodes.push(copyPathNode(workNodes[runStart + 1]));
+                runStart++;
+                continue;
+            }
+            /* 次の直線まで（またはパスの終わりまで）を1つの円弧とみなす / treat everything up to the next line as one arc */
+            var runEnd = runStart + 1;
+            while (runEnd < nodeCount - 1 && !workFlags[runEnd]) runEnd++;
+            var fittedArc = (runEnd - runStart >= 2) ? fitArc(workNodes, runStart, runEnd) : null;
+            var arcNodes = fittedArc ? buildArcNodes(fittedArc, workNodes[runStart], workNodes[runEnd]) : null;
+            if (arcNodes && arcNodes.length - 1 < runEnd - runStart) {
+                resultNodes[resultNodes.length - 1].rightDirection = arcNodes[0].rightDirection;
+                for (var j = 1; j < arcNodes.length; j++) resultNodes.push(arcNodes[j]);
+                isChanged = true;
+            } else {
+                for (var k = runStart + 1; k <= runEnd; k++) resultNodes.push(copyPathNode(workNodes[k]));
+            }
+            runStart = runEnd;
+        }
+        return isChanged ? resultNodes : null;
+    }
+
+    /**
+     * 円弧に接する短い直線を円弧の側に取り込む（つなぎ目の半端なセグメント）
+     * @param {Object[]} pathNodes - ポイント情報
+     * @param {boolean[]} lineFlags - セグメントごとの直線判定（書き換える）
+     * @returns {void}
+     */
+    function absorbShortLines(pathNodes, lineFlags) {
+        var lastSegment = pathNodes.length - 2; /* 扱うのはアンカー0〜n-1の間のセグメント / segments between anchors 0..n-1 */
+        var isChanged = true;
+        while (isChanged) {
+            isChanged = false;
+            for (var i = 0; i <= lastSegment; i++) {
+                if (!lineFlags[i]) continue;
+                var lineLength = getPointDistance(pathNodes[i].anchor, pathNodes[i + 1].anchor);
+                var neighborSegments = [i - 1, i + 1];
+                for (var k = 0; k < neighborSegments.length; k++) {
+                    var neighbor = neighborSegments[k];
+                    if (neighbor < 0 || neighbor > lastSegment || lineFlags[neighbor]) continue;
+                    var runStart = neighbor;
+                    var runEnd = neighbor;
+                    while (runStart > 0 && !lineFlags[runStart - 1]) runStart--;
+                    while (runEnd < lastSegment && !lineFlags[runEnd + 1]) runEnd++;
+                    var fittedArc = fitArc(pathNodes, runStart, runEnd + 1);
+                    if (fittedArc && lineLength < fittedArc.radius * SHORT_LINE_RATIO) {
+                        lineFlags[i] = false;
+                        isChanged = true;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * 配列の先頭をずらす
+     * @param {Array} items - 元の配列
+     * @param {number} offset - 先頭にする位置
+     * @returns {Array} ずらした配列
+     */
+    function rotateArray(items, offset) {
+        return items.slice(offset).concat(items.slice(0, offset));
+    }
+
+    /**
+     * 配列に true が含まれるか
+     * @param {boolean[]} flags - 判定する配列
+     * @returns {boolean} 含まれれば true
+     */
+    function hasTrue(flags) {
+        for (var i = 0; i < flags.length; i++) {
+            if (flags[i]) return true;
+        }
+        return false;
+    }
+
+    /**
+     * 直線部分のセグメントを判定する
+     * 方向線のない（または弦と同じ向きの）セグメントのうち、曲線のセグメントより十分長いものを直線とみなす。
+     * 円弧を細かい直線でなぞったパスでは、弦は短いので円弧の側に入る
+     * @param {Object[]} pathNodes - ポイント情報
+     * @param {boolean} isClosed - クローズパスなら true
+     * @returns {boolean[]} セグメントごとの判定（i は アンカー i → i+1）
+     */
+    function findLineSegments(pathNodes, isClosed) {
+        var nodeCount = pathNodes.length;
+        var segmentCount = isClosed ? nodeCount : nodeCount - 1;
+        var segmentLengths = [];
+        var straightFlags = [];
+        var curveLengths = [];
+        for (var i = 0; i < segmentCount; i++) {
+            var startNode = pathNodes[i];
+            var endNode = pathNodes[(i + 1) % nodeCount];
+            var segmentLength = getPointDistance(startNode.anchor, endNode.anchor);
+            var isStraight = isStraightSegment(startNode, endNode);
+            segmentLengths.push(segmentLength);
+            straightFlags.push(isStraight);
+            if (!isStraight) curveLengths.push(segmentLength);
+        }
+        /* 曲線のセグメントがあればその長さ、なければ全体の長さの中央値を基準にする / reference: median of curve lengths, else of all */
+        var referenceLength = getMedian(curveLengths.length > 0 ? curveLengths : segmentLengths);
+        var lineFlags = [];
+        for (var j = 0; j < segmentCount; j++) {
+            lineFlags.push(straightFlags[j] && segmentLengths[j] > referenceLength * LINE_LENGTH_RATIO);
+        }
+        return lineFlags;
+    }
+
+    /**
+     * セグメントが直線か（方向線が無いか、弦の上にあるか）
+     * @param {Object} startNode - 始点側のポイント
+     * @param {Object} endNode - 終点側のポイント
+     * @returns {boolean} 直線なら true
+     */
+    function isStraightSegment(startNode, endNode) {
+        var chordLength = getPointDistance(startNode.anchor, endNode.anchor);
+        if (chordLength < 1e-9) return true;
+        return getDistanceToLine(startNode.rightDirection, startNode.anchor, endNode.anchor) < chordLength * STRAIGHT_TOLERANCE_RATIO
+            && getDistanceToLine(endNode.leftDirection, startNode.anchor, endNode.anchor) < chordLength * STRAIGHT_TOLERANCE_RATIO;
+    }
+
+    /**
+     * 2点間の距離
+     * @param {number[]} firstPoint - [x, y]
+     * @param {number[]} secondPoint - [x, y]
+     * @returns {number} 距離
+     */
+    function getPointDistance(firstPoint, secondPoint) {
+        return getVectorLength(getEdgeVector(firstPoint, secondPoint));
+    }
+
+    /**
+     * 点から直線（2点を通る）までの距離
+     * @param {number[]} point - [x, y]
+     * @param {number[]} lineStart - 直線上の点
+     * @param {number[]} lineEnd - 直線上の点
+     * @returns {number} 距離
+     */
+    function getDistanceToLine(point, lineStart, lineEnd) {
+        var lineLength = getPointDistance(lineStart, lineEnd);
+        return Math.abs((lineEnd[0] - lineStart[0]) * (lineStart[1] - point[1]) - (lineStart[0] - point[0]) * (lineEnd[1] - lineStart[1])) / lineLength;
+    }
+
+    /**
+     * 中央値
+     * @param {number[]} values - 数値の配列
+     * @returns {number} 中央値（空なら 0）
+     */
+    function getMedian(values) {
+        if (values.length === 0) return 0;
+        var sortedValues = values.slice(0).sort(function (x, y) { return x - y; });
+        var middleIndex = Math.floor(sortedValues.length / 2);
+        return (sortedValues.length % 2) ? sortedValues[middleIndex] : (sortedValues[middleIndex - 1] + sortedValues[middleIndex]) / 2;
+    }
+
+    /**
+     * セグメント上の点を求める（3次ベジェ）
+     * @param {Object} startNode - 始点側のポイント
+     * @param {Object} endNode - 終点側のポイント
+     * @param {number} t - 0〜1
+     * @returns {number[]} [x, y]
+     */
+    function getBezierPoint(startNode, endNode, t) {
+        var u = 1 - t;
+        var weights = [u * u * u, 3 * u * u * t, 3 * u * t * t, t * t * t];
+        var controlPoints = [startNode.anchor, startNode.rightDirection, endNode.leftDirection, endNode.anchor];
+        var point = [0, 0];
+        for (var i = 0; i < 4; i++) {
+            point[0] += weights[i] * controlPoints[i][0];
+            point[1] += weights[i] * controlPoints[i][1];
+        }
+        return point;
+    }
+
+    /**
+     * アンカー startIndex〜endIndex の区間に円を当てはめ、円弧として求める
+     * @param {Object[]} pathNodes - ポイント情報
+     * @param {number} startIndex - 開始インデックス
+     * @param {number} endIndex - 終了インデックス
+     * @returns {Object|null} {centerX, centerY, radius, startAngle, sweep}。円を求められなければ null
+     */
+    function fitArc(pathNodes, startIndex, endIndex) {
+        var samplePoints = collectArcSamples(pathNodes, startIndex, endIndex, false);
+        var fittedCircle = fitCircle(samplePoints);
+        if (!fittedCircle) return null;
+
+        /* 標本を順にたどって、回った角度を足し合わせる / accumulate the angle swept along the samples */
+        var sweep = 0;
+        var previousAngle = getAngleFromCenter(samplePoints[0], fittedCircle);
+        for (var k = 1; k < samplePoints.length; k++) {
+            var currentAngle = getAngleFromCenter(samplePoints[k], fittedCircle);
+            var angleStep = currentAngle - previousAngle;
+            while (angleStep > Math.PI) angleStep -= 2 * Math.PI;
+            while (angleStep < -Math.PI) angleStep += 2 * Math.PI;
+            sweep += angleStep;
+            previousAngle = currentAngle;
+        }
+        if (Math.abs(sweep) < 1e-6 || Math.abs(sweep) > 2 * Math.PI - 1e-3) return null;
+
+        return {
+            centerX: fittedCircle.centerX,
+            centerY: fittedCircle.centerY,
+            radius: fittedCircle.radius,
+            startAngle: getAngleFromCenter(pathNodes[startIndex].anchor, fittedCircle),
+            sweep: sweep
+        };
+    }
+
+    /**
+     * 区間のアンカーとセグメント途中の点を標本として集める
+     * @param {Object[]} pathNodes - ポイント情報
+     * @param {number} startIndex - 開始インデックス
+     * @param {number} endIndex - 終了インデックス（isClosed ならポイント数で先頭に戻る）
+     * @param {boolean} isClosed - 最後のアンカーから先頭へ戻るなら true
+     * @returns {Array} [[x, y], ...]
+     */
+    function collectArcSamples(pathNodes, startIndex, endIndex, isClosed) {
+        var nodeCount = pathNodes.length;
+        var samplePoints = [];
+        for (var i = startIndex; i < endIndex; i++) {
+            var startNode = pathNodes[i % nodeCount];
+            var endNode = pathNodes[(i + 1) % nodeCount];
+            samplePoints.push(startNode.anchor);
+            for (var quarter = 1; quarter <= 3; quarter++) samplePoints.push(getBezierPoint(startNode, endNode, quarter / 4));
+        }
+        if (!isClosed) samplePoints.push(pathNodes[endIndex].anchor);
+        return samplePoints;
+    }
+
+    /**
+     * 円上の角度の位置に、接線方向の方向線を持つスムーズポイントを作る
+     * @param {Object} circle - {centerX, centerY, radius}
+     * @param {number} angle - 角度（ラジアン）
+     * @param {number} handleLength - 方向線の長さ（符号で向きが変わる）
+     * @param {number[]} [anchor] - アンカーの位置（省略時は円上の点）
+     * @returns {Object} ポイント情報
+     */
+    function buildCircleNode(circle, angle, handleLength, anchor) {
+        var dx = -Math.sin(angle) * handleLength;
+        var dy = Math.cos(angle) * handleLength;
+        var anchorPoint = anchor || [circle.centerX + circle.radius * Math.cos(angle), circle.centerY + circle.radius * Math.sin(angle)];
+        return {
+            anchor: anchorPoint,
+            leftDirection: [anchorPoint[0] - dx, anchorPoint[1] - dy],
+            rightDirection: [anchorPoint[0] + dx, anchorPoint[1] + dy],
+            pointType: PointType.SMOOTH
+        };
+    }
+
+    /**
+     * クローズパス全体を円とみなし、4つのアンカーの円にする
+     * @param {Object[]} pathNodes - ポイント情報
+     * @returns {Object[]|null} ポイント情報。円を求められなければ null
+     */
+    function buildFullCircleNodes(pathNodes) {
+        var samplePoints = collectArcSamples(pathNodes, 0, pathNodes.length, true);
+        var fittedCircle = fitCircle(samplePoints);
+        if (!fittedCircle) return null;
+        /* パスの向き（時計回りか）を面積の符号で決める / direction from the signed area */
+        var signedArea = 0;
+        for (var i = 0; i < samplePoints.length; i++) {
+            var currentPoint = samplePoints[i];
+            var nextPoint = samplePoints[(i + 1) % samplePoints.length];
+            signedArea += currentPoint[0] * nextPoint[1] - nextPoint[0] * currentPoint[1];
+        }
+        var angleStep = (signedArea >= 0 ? 1 : -1) * Math.PI / 2;
+        var startAngle = getAngleFromCenter(pathNodes[0].anchor, fittedCircle);
+        var handleLength = 4 / 3 * Math.tan(angleStep / 4) * fittedCircle.radius;
+        var circleNodes = [];
+        for (var k = 0; k < 4; k++) circleNodes.push(buildCircleNode(fittedCircle, startAngle + angleStep * k, handleLength));
+        return circleNodes;
+    }
+
+    /**
+     * 中心から見た点の角度
+     * @param {number[]} point - [x, y]
+     * @param {Object} circle - {centerX, centerY}
+     * @returns {number} ラジアン
+     */
+    function getAngleFromCenter(point, circle) {
+        return Math.atan2(point[1] - circle.centerY, point[0] - circle.centerX);
+    }
+
+    /**
+     * 点群に円を当てはめる（最小二乗法）
+     * @param {Array} samplePoints - [[x, y], ...]
+     * @returns {Object|null} {centerX, centerY, radius}
+     */
+    function fitCircle(samplePoints) {
+        var sampleCount = samplePoints.length;
+        var meanX = 0, meanY = 0;
+        for (var i = 0; i < sampleCount; i++) {
+            meanX += samplePoints[i][0];
+            meanY += samplePoints[i][1];
+        }
+        meanX /= sampleCount;
+        meanY /= sampleCount;
+
+        /* 平均を原点にして x²+y²+Dx+Ey+F=0 を解く（sxx は Σx² などの和） / solve x²+y²+Dx+Ey+F=0 about the mean (sxx = Σx², …) */
+        var sxx = 0, sxy = 0, syy = 0, sx = 0, sy = 0, sxz = 0, syz = 0, sz = 0;
+        for (var j = 0; j < sampleCount; j++) {
+            var x = samplePoints[j][0] - meanX;
+            var y = samplePoints[j][1] - meanY;
+            var z = x * x + y * y;
+            sxx += x * x; sxy += x * y; syy += y * y;
+            sx += x; sy += y;
+            sxz += x * z; syz += y * z; sz += z;
+        }
+        var normalMatrix = [[sxx, sxy, sx], [sxy, syy, sy], [sx, sy, sampleCount]];
+        var rightHandSide = [-sxz, -syz, -sz];
+        var determinant = getDeterminant3(normalMatrix);
+        if (Math.abs(determinant) < 1e-12) return null;
+
+        /* クラメルの公式で D, E, F を求める / solve D, E, F by Cramer's rule */
+        var solution = [];
+        for (var column = 0; column < 3; column++) {
+            var replacedMatrix = [normalMatrix[0].slice(0), normalMatrix[1].slice(0), normalMatrix[2].slice(0)];
+            for (var row = 0; row < 3; row++) replacedMatrix[row][column] = rightHandSide[row];
+            solution.push(getDeterminant3(replacedMatrix) / determinant);
+        }
+        var centerX = -solution[0] / 2;
+        var centerY = -solution[1] / 2;
+        var radiusSquared = centerX * centerX + centerY * centerY - solution[2];
+        if (radiusSquared <= 0) return null;
+        var radius = Math.sqrt(radiusSquared);
+        if (radius > 1e5) return null; /* ほぼ直線 / nearly straight */
+        return { centerX: centerX + meanX, centerY: centerY + meanY, radius: radius };
+    }
+
+    /**
+     * 3×3行列の行列式
+     * @param {Array} matrix - 3×3の配列
+     * @returns {number} 行列式
+     */
+    function getDeterminant3(matrix) {
+        return matrix[0][0] * (matrix[1][1] * matrix[2][2] - matrix[1][2] * matrix[2][1])
+            - matrix[0][1] * (matrix[1][0] * matrix[2][2] - matrix[1][2] * matrix[2][0])
+            + matrix[0][2] * (matrix[1][0] * matrix[2][1] - matrix[1][1] * matrix[2][0]);
+    }
+
+    /**
+     * 円弧を90°以下に分けたポイント列を作る
+     * 両端は元のアンカー位置を使い、方向線だけ円の接線に合わせる
+     * @param {Object} fittedArc - {centerX, centerY, radius, startAngle, sweep}
+     * @param {Object} startNode - 開始ポイント
+     * @param {Object} endNode - 終了ポイント
+     * @returns {Array} ポイント情報の配列（先頭は開始、末尾は終了）
+     */
+    function buildArcNodes(fittedArc, startNode, endNode) {
+        /* 当てはめの誤差で180°がわずかに超えても3分割にならないよう、少しの超過は許す / allow a little overshoot so fitting error doesn't force an extra piece */
+        var pieceCount = Math.max(1, Math.ceil(Math.abs(fittedArc.sweep) / (Math.PI / 2) - ARC_SPLIT_ALLOWANCE));
+        var angleStep = fittedArc.sweep / pieceCount;
+        var handleLength = 4 / 3 * Math.tan(angleStep / 4) * fittedArc.radius;
+        var arcNodes = [];
+        for (var i = 0; i <= pieceCount; i++) {
+            var anchor = (i === 0) ? startNode.anchor : (i === pieceCount) ? endNode.anchor : undefined;
+            arcNodes.push(buildCircleNode(fittedArc, fittedArc.startAngle + angleStep * i, handleLength, anchor));
+        }
+        arcNodes[pieceCount].rightDirection = endNode.rightDirection;
+        arcNodes[pieceCount].pointType = endNode.pointType;
+        return arcNodes;
+    }
+
+    /**
+     * 線の矢印を1つずつ［アピアランスを分割］し、曲線の部分を90°以下の円弧に置き換えてアンカーポイントを減らす
+     * （効果を掛けた直後は画面を更新してから実行する）
+     * @param {PageItem[]} arrows - convertToArrow() でできた矢印
+     * @returns {PageItem[]} 分割後のオブジェクト
+     */
+    function expandArrows(arrows) {
+        var expandedItems = [];
+        for (var i = 0; i < arrows.length; i++) {
+            selectOnly([arrows[i]]);
+            app.executeMenuCommand("expandStyle");
+            var resultItems = app.activeDocument.selection;
+            for (var j = 0; j < resultItems.length; j++) expandedItems.push(resultItems[j]);
+        }
+        var expandedPaths = [];
+        collectPaths(expandedItems, expandedPaths);
+        for (var k = 0; k < expandedPaths.length; k++) simplifyArcPoints(expandedPaths[k]);
+        return expandedItems;
+    }
+
+    // =========================================
     // メイン / Main
     // =========================================
 
@@ -2702,6 +3274,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
         var arrows = [];
         for (var i = 0; i < rectangles.length; i++) {
             arrows.push(convertToArrow(rectangles[i], arrowOptions));
+        }
+        if (arrowOptions.isExpandAppearance && isStrokeArrowType(arrowOptions.arrowType)) {
+            arrows = expandArrows(arrows);
         }
         app.activeDocument.selection = arrows;
     })();
