@@ -52,6 +52,11 @@
 - The tip angle of the filled arrowhead and the pentagon, measured between the axis and a slanted side (1–89°, starting at 45°). 45° gives a right-angled tip; smaller values make it sharper. Shared by Fill and Pentagon; not used for the stroke types
 - When the rectangle is too short for the angle, the point is capped at the full length (single) or half the length (both ends), so the tip gets blunter
 
+#### Adjust for Expand
+
+- For the stroke types, pulls the shaft back from the arrowhead by 1/10 of the stroke width; double-headed arrows are trimmed at both ends (on by default)
+- Because the shaft end no longer overlaps the head's stroke, Expand Appearance leaves fewer stray anchor points
+
 #### Rules
 
 - Besides rectangles, straight open paths (two points) are converted too. Since their short side is 0, a quarter of the line's length is used as the short side. Slanted lines get an arrow along the line
@@ -88,6 +93,7 @@ https://note.com/dtp_tranist/n/n789072361c12
 
 ### Update History
 
+- v1.5.0 (2026-10-17) Added Adjust for Expand to the stroke types (pulls the shaft back from each head by 1/10 of the stroke width; on by default)
 - v1.4.0 (2026-10-17) Fill arrows now take their head angle from Angle too (shared with Pentagon)
 - v1.3.0 (2026-10-12) Added Direction (Horizontal / Vertical) so squares can become vertical arrows. Fixed the tip and head ends of stroked arrows (butt and round cap) sticking out of the rectangle by the stroke weight
 - v1.2.2 (2026-10-12) Pentagon's Angle is now the angle between the axis and a slanted side instead of the full tip angle (a right-angled tip is now 45° instead of 90°). The shapes are unchanged
@@ -99,6 +105,6 @@ https://note.com/dtp_tranist/n/n789072361c12
 
 ### Script info
 
-- Version: v1.4.0
+- Version: v1.5.0
 - First release: 2026-10-10
 - Last updated: 2026-10-17
