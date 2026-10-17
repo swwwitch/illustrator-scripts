@@ -24,6 +24,7 @@
   - When the selection contains characters with registered variants, the candidates are listed as "髙  U+9AD9". Clicking one replaces every occurrence of that character in the selection right away
   - With several such characters, each line carries the original, as in "高 → 髙  U+9AD9"
   - The original character is among the candidates, so choosing it again restores it
+  - Show IVS: looks up the IVS glyphs of the selected characters (first 10) and adds them to the list; clicking one replaces the character with that IVS. The list uses the UI font (Hiragino), so shapes may differ from the document's font
 - Create List
   - Closes the dialog box and makes a list on the layer "// glyphs" (created on top if missing): two rows (Horizontal and Vertical) per selected character, showing only the distinct shapes among the 11 glyph forms and the registered variants in large type with code points and form names (forms the font lacks look like the default and are left out). The 11 forms plus Proportional Widths are tried on the registered variants too, and the vertical-setting forms are listed as well (such as the vertical prolonged sound mark). It then tries the source character and each variant with variation selectors (U+E0100 onward; IVS are registered per code point, so starting from 辺 still reaches the IVS of 邉) and adds the IVS glyphs, which covers many of the alternates in the Glyphs panel (the note shows the selector's code point), to the right of the source text. Sample glyphs inherit the source character's font and size; code points and form names use Hiragino Kaku Gothic W3
   - Puts a black rectangle (30% opacity) behind the list
@@ -70,6 +71,7 @@ Edit the User Settings at the top of the script.
 
 ### Update History
 
+- v1.2.0 (2026-10-17) Added Show IVS to Variant Characters: looks up IVS glyphs, adds them to the list, and replaces the character on click
 - v1.1.1 (2026-10-17) Added space below "Selected" at the top of the dialog box
 - v1.1.0 (2026-10-17) Create List improved: distinct shapes among the glyph forms, variants, IVS and vertical forms are laid out in Horizontal and Vertical rows, five per line, with code points and form names (Hiragino Kaku Gothic W3). Samples inherit the source font and size, sit on a 30% black backdrop, and are selected and zoomed to about 65% of the window. Added the List panel (create on the layer / delete it first). Forms the font lacks are dimmed, and the selected characters' code points appear at the top of the dialog box
 - v1.0.0 (2026-10-17) Initial release

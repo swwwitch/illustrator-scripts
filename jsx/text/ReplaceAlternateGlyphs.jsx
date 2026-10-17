@@ -24,7 +24,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ReplaceAlt
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ReplaceAlternateGlyphs";       /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.2.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-17";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-17";                   /* 更新日 / last updated */
@@ -315,6 +315,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         },
         button: {
             createList: { ja: "一覧を作成", en: "Create List" },
+            showIvs: { ja: "IVSを表示", en: "Show IVS" },
             cancel: { ja: "キャンセル", en: "Cancel" },
             ok: { ja: "OK", en: "OK" }
         },
@@ -336,6 +337,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 ja: "ダイアログボックスを閉じて、選択した文字の字形と異体字のうち形の異なるものを、符号位置・字形の名前とともにレイヤー「{layer}」に並べ、選択して表示します（字形・異体字の切り換えは残ります）",
                 en: "Closes the dialog box, lays out the distinct glyph forms and variants of the selected characters with code points and form names on the layer \"{layer}\", then selects and shows them (glyph and variant changes are kept)"
             },
+            showIvs: {
+                ja: "選択した文字の IVS（異体字セレクタで呼び出す異体字）を調べて、上の一覧に足します。一覧の字は UI のフォントで表示されるので、ドキュメントのフォントの形とは異なることがあります",
+                en: "Looks up the IVS glyphs (variants called with variation selectors) of the selected characters and adds them to the list above. The list uses the UI font, so shapes may differ from the document's font"
+            },
             variants: {
                 ja: "クリックした異体字（別の文字）に、選択している同じ文字をすべてすぐに置き換えます（キャンセルで元に戻ります）",
                 en: "Replaces every selected occurrence of that character with the clicked variant right away (Cancel restores them)"
@@ -343,7 +348,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         },
         alert: {
             noSelection: { ja: "テキストを選択してください。", en: "Please select text." },
-            notFound: { ja: "選択に文字がありません。", en: "The selection contains no characters." }
+            notFound: { ja: "選択に文字がありません。", en: "The selection contains no characters." },
+            noIvs: { ja: "このフォントでは IVS の異体字が見つかりませんでした。", en: "No IVS variants were found in this font." }
         }
     };
 
@@ -847,6 +853,26 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /**
+     * 文字列の符号位置を「U+9089 U+E0102」のように1文字ずつ並べて返す（IVS は2つになる）
+     * @param {string} text - 文字列
+     * @returns {string} 符号位置の表記
+     */
+    function formatCodePoints(text) {
+        var codePoints = splitCodePoints(text);
+        for (var i = 0; i < codePoints.length; i++) codePoints[i] = formatCodePoint(codePoints[i]);
+        return codePoints.join(" ");
+    }
+
+    /**
+     * 文字列から異体字セレクタ（U+FE00〜U+FE0F・U+E0100〜U+E01EF）を取り除く
+     * @param {string} text - 文字列
+     * @returns {string} セレクタを除いた文字列
+     */
+    function stripVariationSelectors(text) {
+        return text.replace(/\uDB40[\uDD00-\uDDEF]|[\uFE00-\uFE0F]/g, "");
+    }
+
+    /**
      * 対象にする文字か（空白・改行・タブ以外）
      * @param {string} codePoint - 1文字（サロゲートペア可）
      * @returns {boolean} 対象なら true
@@ -1198,6 +1224,58 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /**
+     * ダイアログボックスの［IVS を表示］用に、選択した文字（先頭の GLYPH_FORM_CHECK_MAX 文字）の IVS を一時レイヤーで調べる。
+     * 異体字の組の標準字形と、すでに見つけた IVS と形が異なるものだけを返す
+     * @param {Document} doc - 対象のドキュメント
+     * @param {Array<Object>} characterEntries - 文字のまとまり
+     * @returns {Array<{entry: Object, variant: string, selector: string}>} まとまり・IVS の文字列・セレクタ
+     */
+    function discoverIvsVariants(doc, characterEntries) {
+        var ivsChoices = [];
+        var savedActiveLayer = doc.activeLayer;
+        var checkLayer = doc.layers.add();
+        /* 途中で失敗しても一時レイヤーは必ず消す / Always remove the temporary layer */
+        try {
+            var checkCount = Math.min(characterEntries.length, GLYPH_FORM_CHECK_MAX);
+            for (var i = 0; i < checkCount; i++) {
+                var characterEntry = characterEntries[i];
+                var sourceStyle = readSourceTextStyle(characterEntry);
+                var groupMembers = listGroupMembers(characterEntry);
+                var keptShapes = [];
+
+                /**
+                 * 1文字を一時レイヤーに描いて形を測り、すぐ消す
+                 * @param {string} character - 文字（IVS 可）
+                 * @returns {{shape: string, glyphCount: number}|null} measureGlyphShape() の結果
+                 */
+                var measureCharacter = function (character) {
+                    var checkFrame = addPointLabel(checkLayer, character, [0, 0], sourceStyle.textFont, sourceStyle.size);
+                    var measuredShape = measureGlyphShape(checkFrame);
+                    checkFrame.remove();
+                    return measuredShape;
+                };
+
+                for (var j = 0; j < groupMembers.length; j++) {
+                    var memberShape = measureCharacter(groupMembers[j]);
+                    if (memberShape) keptShapes.push(memberShape.shape);
+                }
+                placeIvsCells(groupMembers, function (ivsCell) {
+                    var measuredShape = measureCharacter(ivsCell.character);
+                    if (measuredShape === null || measuredShape.glyphCount !== 1) return "invalid";
+                    if (indexOfItem(keptShapes, measuredShape.shape) >= 0) return "duplicate";
+                    keptShapes.push(measuredShape.shape);
+                    ivsChoices.push({ entry: characterEntry, variant: ivsCell.character, selector: ivsCell.selector });
+                    return "kept";
+                });
+            }
+        } finally {
+            checkLayer.remove();
+            doc.activeLayer = savedActiveLayer;
+        }
+        return ivsChoices;
+    }
+
+    /**
      * フォントが持っている字形を調べる。先頭の GLYPH_FORM_CHECK_MAX 文字について、各字形の形を一時レイヤーで描いて
      * 標準字形と比べ、どれか1文字でも形が変わる字形を「対応している」とする（測れなかったときも対応扱い）
      * @param {Document} doc - 対象のドキュメント
@@ -1318,14 +1396,15 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /**
-     * 一覧の1行で試す文字を返す（今の文字を先頭に、登録された異体字を続ける）
+     * 一覧の1行で試す文字を返す（今の文字を先頭に、登録された異体字を続ける。異体字セレクタは除く）
      * @param {Object} characterEntry - 文字のまとまり
      * @returns {string[]} 試す文字
      */
     function listGroupMembers(characterEntry) {
-        var groupMembers = [characterEntry.current];
+        var baseCharacter = stripVariationSelectors(characterEntry.current); /* IVS に置き換えたあとは元の文字で試す / use the base after an IVS replacement */
+        var groupMembers = [baseCharacter];
         for (var i = 0; i < characterEntry.variants.length; i++) {
-            if (characterEntry.variants[i] !== characterEntry.current) groupMembers.push(characterEntry.variants[i]);
+            if (characterEntry.variants[i] !== baseCharacter) groupMembers.push(characterEntry.variants[i]);
         }
         return groupMembers;
     }
@@ -1369,11 +1448,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * 文字に異体字セレクタ（U+E0100 から数えて selectorIndex 番目）を付けた IVS の見本を返す
      * @param {string} baseCharacter - 元の文字
      * @param {number} selectorIndex - 0 始まりの番号（0 で U+E0100）
-     * @returns {{character: string, form: null, isVertical: boolean, codeText: string, noteText: string}} 並べる字・符号位置・添え書き（セレクタの符号位置）
+     * @returns {{character: string, selector: string, form: null, isVertical: boolean, codeText: string, noteText: string}} 並べる字・セレクタ・符号位置・添え書き（セレクタの符号位置）
      */
     function makeIvsCell(baseCharacter, selectorIndex) {
         var selector = String.fromCharCode(0xDB40, 0xDD00 + selectorIndex); /* U+E0100 + selectorIndex */
-        return { character: baseCharacter + selector, form: null, isVertical: false, codeText: formatCodePoint(baseCharacter), noteText: formatCodePoint(selector) };
+        return { character: baseCharacter + selector, selector: selector, form: null, isVertical: false, codeText: formatCodePoint(baseCharacter), noteText: formatCodePoint(selector) };
     }
 
     /**
@@ -2124,7 +2203,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var codeParts = [];
         var shownCount = Math.min(characterEntries.length, SELECTION_CODES_MAX);
         for (var i = 0; i < shownCount; i++) {
-            codeParts.push(characterEntries[i].current + " " + formatCodePoint(characterEntries[i].current));
+            codeParts.push(characterEntries[i].current + " " + formatCodePoints(characterEntries[i].current));
         }
         var codesText = codeParts.join("   ");
         if (characterEntries.length > shownCount) {
@@ -2174,7 +2253,19 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /**
-     * 右カラム：異体字（別の文字）の一覧。異体字のある文字が1つなら異体字だけ、
+     * 異体字の一覧の1行を作る（異体字のある文字が複数なら「元の文字 → 」を前に付ける）
+     * @param {Object} characterEntry - 文字のまとまり
+     * @param {string} variant - 異体字（IVS 可）
+     * @param {boolean} hasPrefix - 元の文字を前に付けるなら true
+     * @returns {string} 一覧の行
+     */
+    function formatVariantLine(characterEntry, variant, hasPrefix) {
+        var linePrefix = hasPrefix ? characterEntry.original + " → " : "";
+        return linePrefix + variant + "  " + formatCodePoints(variant);
+    }
+
+    /**
+     * 右カラム：異体字（別の文字）の一覧と［IVS を表示］。異体字のある文字が1つなら異体字だけ、
      * 複数なら「元の文字 → 異体字」の形で並べる
      * @param {Group} parentGroup - 追加先
      * @param {Array<Object>} characterEntries - 文字のまとまり
@@ -2186,22 +2277,16 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         setupPanel(variantPanel);
 
         var variantEntries = filterVariantEntries(characterEntries);
-        if (variantEntries.length === 0) {
-            variantPanel.add("statictext", undefined, getLabel("status.noVariants"));
-            dialogControls.variantList = null;
-            return;
-        }
-
         var variantChoices = []; /* 一覧の行ごとの { entry, variant } / { entry, variant } per list line */
         var variantLines = [];
         for (var j = 0; j < variantEntries.length; j++) {
             for (var k = 0; k < variantEntries[j].variants.length; k++) {
-                var variant = variantEntries[j].variants[k];
-                var linePrefix = (variantEntries.length > 1) ? variantEntries[j].original + " → " : "";
-                variantChoices.push({ entry: variantEntries[j], variant: variant });
-                variantLines.push(linePrefix + variant + "  " + formatCodePoint(variant));
+                variantChoices.push({ entry: variantEntries[j], variant: variantEntries[j].variants[k] });
+                variantLines.push(formatVariantLine(variantEntries[j], variantEntries[j].variants[k], variantEntries.length > 1));
             }
         }
+        /* IVS を足せるよう、異体字が無くても一覧は作る / the list exists even without variants, so IVS can be added */
+        if (variantEntries.length === 0) dialogControls.noVariantsText = variantPanel.add("statictext", undefined, getLabel("status.noVariants"));
         var variantList = variantPanel.add("listbox", undefined, variantLines);
         variantList.preferredSize = VARIANT_LIST_SIZE;
         variantList.alignment = ["fill", "fill"];
@@ -2209,8 +2294,36 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         enlargeListFont(variantList);
         /* 異体字のある文字が1つなら、今の文字を選んだ状態にする / with a single character, select its current form */
         if (variantEntries.length === 1) variantList.selection = indexOfItem(variantEntries[0].variants, variantEntries[0].current);
+
+        var btnShowIvs = variantPanel.add("button", undefined, getLabel("button.showIvs"));
+        btnShowIvs.alignment = "left";
+        btnShowIvs.helpTip = getLabel("tooltip.showIvs");
+
         dialogControls.variantList = variantList;
         dialogControls.variantChoices = variantChoices;
+        dialogControls.btnShowIvs = btnShowIvs;
+    }
+
+    /**
+     * ［IVS を表示］：IVS を調べて異体字の一覧に足す（1回だけ。見つからなければ知らせる）
+     * @param {Document} doc - 対象のドキュメント
+     * @param {Array<Object>} characterEntries - 文字のまとまり
+     * @param {Object} dialogControls - ダイアログのコントロール
+     * @returns {void}
+     */
+    function appendIvsToVariantList(doc, characterEntries, dialogControls) {
+        dialogControls.btnShowIvs.enabled = false;
+        var ivsChoices = discoverIvsVariants(doc, characterEntries);
+        if (ivsChoices.length === 0) {
+            alert(getLabel("alert.noIvs"));
+            return;
+        }
+        var hasPrefix = (characterEntries.length > 1);
+        for (var i = 0; i < ivsChoices.length; i++) {
+            dialogControls.variantList.add("item", formatVariantLine(ivsChoices[i].entry, ivsChoices[i].variant, hasPrefix));
+            dialogControls.variantChoices.push({ entry: ivsChoices[i].entry, variant: ivsChoices[i].variant });
+        }
+        if (dialogControls.noVariantsText) dialogControls.noVariantsText.visible = false;
     }
 
     /**
@@ -2237,12 +2350,17 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /**
-     * ラジオボタン・異体字の一覧・［一覧を作成］の動きを付ける
+     * ラジオボタン・異体字の一覧・［IVS を表示］・［一覧を作成］の動きを付ける
+     * @param {Document} doc - 対象のドキュメント
      * @param {Object} collectedCharacters - 文字のまとまりと箇所
      * @param {Object} dialogControls - ダイアログのコントロール
      * @returns {void}
      */
-    function bindDialogEvents(collectedCharacters, dialogControls) {
+    function bindDialogEvents(doc, collectedCharacters, dialogControls) {
+        /* IVS は押したときだけ調べる（開くのが遅くならないように） / look up IVS only on demand, to keep opening fast */
+        dialogControls.btnShowIvs.onClick = function () {
+            appendIvsToVariantList(doc, collectedCharacters.entries, dialogControls);
+        };
         /* 閉じてから一覧を作る（作るのは main） / Close first; main creates the list */
         dialogControls.btnCreateList.onClick = function () {
             this.window.close(DIALOG_RESULT_CREATE_LIST);
@@ -2256,7 +2374,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
         /* 異体字はクリックしたらすぐに置き換える / Replace with the variant as soon as it is clicked */
         var variantList = dialogControls.variantList;
-        if (!variantList) return;
         variantList.onChange = function () {
             if (!variantList.selection) return;
             var variantChoice = dialogControls.variantChoices[variantList.selection.index];
@@ -2268,11 +2385,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /**
      * 字形（左）と異体字（右）の2カラムのダイアログを作る
+     * @param {Document} doc - 対象のドキュメント
      * @param {Object} collectedCharacters - 文字のまとまりと箇所
      * @param {boolean[]} supportedForms - detectSupportedGlyphForms() の結果
      * @returns {Window} ダイアログ
      */
-    function buildDialog(collectedCharacters, supportedForms) {
+    function buildDialog(doc, collectedCharacters, supportedForms) {
         var dialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
         setupWindow(dialog);
 
@@ -2296,7 +2414,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         buildGlyphPanel(columnGroup, collectedCharacters.entries, supportedForms, dialogControls);
         buildVariantPanel(columnGroup, collectedCharacters.entries, dialogControls);
         buildListPanel(dialog, dialogControls);
-        bindDialogEvents(collectedCharacters, dialogControls);
+        bindDialogEvents(doc, collectedCharacters, dialogControls);
 
         var buttonRow = addButtonRow(dialog);
 
@@ -2336,7 +2454,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
         var savedSelection = saveSelection(doc);
         var supportedForms = detectSupportedGlyphForms(doc, collectedCharacters.entries);
-        var dialog = buildDialog(collectedCharacters, supportedForms);
+        var dialog = buildDialog(doc, collectedCharacters, supportedForms);
         prepareDialogWindow(dialog, SCRIPT_NAME);
         var dialogResult = dialog.show();
         var shouldDeleteListLayer = dialog.replaceLayerRadio.value;
