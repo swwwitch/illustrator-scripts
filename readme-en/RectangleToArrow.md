@@ -21,7 +21,7 @@
 #### Type
 
 - Pick the type with four stacked buttons that show the arrow shape. The selected one has a gray background and a darker frame
-  - Fill: a single closed path. The original path is rewritten, so its effects and stacking order stay
+  - Fill: a single closed path. Set the tip angle with Angle. The original path is rewritten, so its effects and stacking order stay
   - Pentagon: points one end of the rectangle across its full short side. Set the tip angle with Angle. Like Fill, it rewrites the original path
   - Stroke (Butt Cap): a straight shaft and a chevron head stroked with butt caps and miter joins
   - Stroke (Round Cap): the same with round caps and round joins
@@ -45,11 +45,11 @@
 
 - The arrow height (head width) as a percentage of the rectangle's short side (1–500%, starting at 100%). Shared by the fill and stroke types; not used for Pentagon
 - The shaft thickness and stroke weight do not change. On filled arrows, the shaft is capped at the height when the height is smaller
-- The head length follows the height, keeping the head right-angled
+- The head length follows the height, keeping the Angle (fill) or a right angle (stroke)
 
 #### Angle
 
-- The tip angle of the pentagon, measured between the axis and a slanted side (1–89°, starting at 45°). 45° gives a right-angled tip; smaller values make it sharper. Available only for Pentagon
+- The tip angle of the filled arrowhead and the pentagon, measured between the axis and a slanted side (1–89°, starting at 45°). 45° gives a right-angled tip; smaller values make it sharper. Shared by Fill and Pentagon; not used for the stroke types
 - When the rectangle is too short for the angle, the point is capped at the full length (single) or half the length (both ends), so the tip gets blunter
 
 #### Rules
@@ -70,7 +70,7 @@
 ### How to use
 
 1. Select the rectangles or rules to turn into arrows (items inside groups count; several at once is fine)
-2. Run the script and set the type, thickness and height (angle for Pentagon) in the dialog
+2. Run the script and set the type, thickness, height and angle in the dialog (only the angle for Pentagon, no angle for the stroke types)
 3. Click OK to replace them
 
 ### Notes
@@ -88,6 +88,7 @@ https://note.com/dtp_tranist/n/n789072361c12
 
 ### Update History
 
+- v1.4.0 (2026-10-17) Fill arrows now take their head angle from Angle too (shared with Pentagon)
 - v1.3.0 (2026-10-12) Added Direction (Horizontal / Vertical) so squares can become vertical arrows. Fixed the tip and head ends of stroked arrows (butt and round cap) sticking out of the rectangle by the stroke weight
 - v1.2.2 (2026-10-12) Pentagon's Angle is now the angle between the axis and a slanted side instead of the full tip angle (a right-angled tip is now 45° instead of 90°). The shapes are unchanged
 - v1.2.1 (2026-10-12) Fixed squares rotated 45° pointing different ways depending on their anchor order (they now point up-right). The Pentagon button drawing is now easier to tell apart from Fill
@@ -98,6 +99,6 @@ https://note.com/dtp_tranist/n/n789072361c12
 
 ### Script info
 
-- Version: v1.3.0
+- Version: v1.4.0
 - First release: 2026-10-10
-- Last updated: 2026-10-12
+- Last updated: 2026-10-17

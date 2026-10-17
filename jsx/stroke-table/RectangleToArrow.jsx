@@ -29,10 +29,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RectangleT
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "RectangleToArrow";             /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.3.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.4.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-10";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-12";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-17";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/RectangleToArrow.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RectangleToArrow.md"; /* README (English) */
@@ -49,7 +49,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
     var DEFAULT_FILL_PERCENT = 45;  /* 塗りの矢印の軸の太さの初期値（短辺に対する％） / initial shaft thickness of the filled arrow (% of the short side) */
     var DEFAULT_LINE_PERCENT = 15;  /* 線の矢印の線幅の初期値（1つ目の対象の短辺に対する％を線の単位に換算） / initial stroke width of the stroked arrow (% of the first target's short side, in stroke units) */
     var DEFAULT_HEIGHT_PERCENT = 100; /* 矢印の高さ（矢じりの幅）の初期値（短辺に対する％） / initial arrow height, i.e. head width (% of the short side) */
-    var DEFAULT_TIP_ANGLE = 45;     /* ホームベースの先端の角度の初期値（度。軸に対する斜辺の角度で、45° で直角の先端） / initial tip angle of the pentagon (degrees between the axis and a slanted side; 45 gives a right-angled tip) */
+    var DEFAULT_TIP_ANGLE = 45;     /* 塗り・ホームベースの先端の角度の初期値（度。軸に対する斜辺の角度で、45° で直角の先端） / initial tip angle of the fill and pentagon types (degrees between the axis and a slanted side; 45 gives a right-angled tip) */
     var LINE_SIDE_RATIO = 1 / 4;    /* 罫線（直線）を矢印にするときの短辺（線の長さに対する比率） / short side used for a rule (relative to its length) */
     var HEAD_RATIO = 1 / 2;         /* 矢じりの長さ（短辺に対する比率。1/2 で直角の矢じり） / head length relative to the short side (1/2 gives a right-angled head) */
 
@@ -203,7 +203,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
         },
         tooltip: {
             arrowType: {
-                fill: { ja: "塗りの矢印にします。", en: "Makes a filled arrow." },
+                fill: { ja: "塗りの矢印にします。先端の角度は［角度］で指定します。", en: "Makes a filled arrow. Set the tip angle with Angle." },
                 pentagon: {
                     ja: "長方形の一端をとがらせた、塗りのホームベース型にします。先端の角度は［角度］で指定します。",
                     en: "Makes a filled pentagon by pointing one end of the rectangle. Set the tip angle with Angle."
@@ -242,8 +242,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
                 en: "Arrow height (head width) as a percentage of the rectangle's short side. The shaft thickness and stroke width stay the same (a filled shaft is never wider than the height). Shared by the fill and stroke types; not used for the pentagon."
             },
             tipAngle: {
-                ja: "ホームベースの先端の角度を、軸に対する斜辺の角度で指定します（1〜89°。45° で直角の先端）。長方形が短くて収まらないときは、先端が鈍くなります。",
-                en: "Tip angle of the pentagon, measured between the axis and a slanted side (1–89°; 45° gives a right-angled tip). When the rectangle is too short for it, the tip becomes blunter."
+                ja: "塗りの矢じりとホームベースの先端の角度を、軸に対する斜辺の角度で指定します（1〜89°。45° で直角の先端）。塗りとホームベースで共通で、線では使いません。長方形が短くて収まらないときは、先端が鈍くなります。",
+                en: "Tip angle of the filled arrowhead and the pentagon, measured between the axis and a slanted side (1–89°; 45° gives a right-angled tip). Shared by the fill and pentagon types; not used for strokes. When the rectangle is too short for it, the tip becomes blunter."
             },
             squareAxis: {
                 ja: "正方形を水平・垂直のどちらの矢印にするかを選びます。長方形は長辺、罫線は線の向きで決まるので変わりません。正方形が選択されていないときは使えません。",
@@ -1233,8 +1233,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
      * @returns {Array} 頂点 [[x, y], …] 片側は 5 点、両側は 6 点
      */
     function buildPentagonPoints(arrowFrame, tipAngle, isBothEnds) {
-        var tipLength = (arrowFrame.headWidth / 2) / Math.tan(tipAngle * Math.PI / 180);
-        return buildFilledArrowPoints(arrowFrame, 1, isBothEnds, tipLength);
+        return buildFilledArrowPoints(arrowFrame, 1, isBothEnds, getTipLength(arrowFrame, tipAngle));
+    }
+
+    /**
+     * 斜辺が軸に対して tipAngle の角度になる矢じりの長さを返す（45° で直角の先端）
+     * @param {Object} arrowFrame - getArrowFrame() の戻り値
+     * @param {number} tipAngle - 先端の角度（度。軸に対する斜辺の角度）
+     * @returns {number} 矢じりの長さ（長方形の長さで止める前の値）
+     */
+    function getTipLength(arrowFrame, tipAngle) {
+        return (arrowFrame.headWidth / 2) / Math.tan(tipAngle * Math.PI / 180);
     }
 
     /**
@@ -1384,7 +1393,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
      */
     function convertToFilledArrow(rectanglePath, arrowOptions) {
         var arrowFrame = getArrowFrame(rectanglePath, arrowOptions.isReversed, arrowOptions.heightRatio, arrowOptions.isSquareVertical);
-        return fillArrowPath(rectanglePath, buildFilledArrowPoints(arrowFrame, arrowOptions.shaftRatio, arrowOptions.isBothEnds));
+        var tipLength = getTipLength(arrowFrame, arrowOptions.tipAngle);
+        return fillArrowPath(rectanglePath, buildFilledArrowPoints(arrowFrame, arrowOptions.shaftRatio, arrowOptions.isBothEnds, tipLength));
     }
 
     /**
@@ -1473,7 +1483,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
     /**
      * 種類に応じて長方形を矢印にする
      * @param {PathItem} rectanglePath - 長方形のパス
-     * @param {Object} arrowOptions - arrowType（"fill" / "pentagon" / "line" / "roundLine"）、shaftRatio（塗り）または strokeWidth（線）、heightRatio、tipAngle（ホームベース）、isReversed、isBothEnds、isSquareVertical
+     * @param {Object} arrowOptions - arrowType（"fill" / "pentagon" / "line" / "roundLine"）、shaftRatio（塗り）または strokeWidth（線）、heightRatio、tipAngle（塗り・ホームベース）、isReversed、isBothEnds、isSquareVertical
      * @returns {PageItem} できた矢印
      */
     function convertToArrow(rectanglePath, arrowOptions) {
@@ -2430,7 +2440,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
     /**
      * 矢印の種類・太さ・高さ・角度・方向を指定するダイアログボックスを表示する
      * @param {Array} rectangles - 対象の長方形（プレビューに使う）
-     * @returns {Object|null} arrowType・shaftRatio（塗り）・strokeWidth（線）・heightRatio・tipAngle（ホームベース）・isReversed・isBothEnds・isSquareVertical。キャンセルなら null
+     * @returns {Object|null} arrowType・shaftRatio（塗り）・strokeWidth（線）・heightRatio・tipAngle（塗り・ホームベース）・isReversed・isBothEnds・isSquareVertical。キャンセルなら null
      */
     function showArrowDialog(rectangles) {
         var arrowPreview = createArrowPreview(rectangles);
@@ -2574,14 +2584,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
         }
 
         /**
-         * 今の種類で使う欄だけを有効にする（ホームベースは角度だけ、ほかは太さと高さ）
+         * 今の種類で使う欄だけを有効にする（塗りは太さ・高さ・角度、ホームベースは角度だけ、線は太さと高さ）
          * @returns {void}
          */
         function syncFieldStates() {
             var isPentagon = (currentType === "pentagon");
             setSteppedFieldEnabled(thicknessInput, !isPentagon);
             setSteppedFieldEnabled(heightInput, !isPentagon);
-            setSteppedFieldEnabled(tipAngleInput, isPentagon);
+            setSteppedFieldEnabled(tipAngleInput, isPentagon || currentType === "fill");
         }
 
         /**
@@ -2610,7 +2620,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
 
         /**
          * 今の指定を返す
-         * @returns {Object} arrowType・shaftRatio（塗り。短辺に対する比率）・strokeWidth（線。pt）・heightRatio（短辺に対する比率）・tipAngle（ホームベース。度）・isReversed・isBothEnds・isSquareVertical
+         * @returns {Object} arrowType・shaftRatio（塗り。短辺に対する比率）・strokeWidth（線。pt）・heightRatio（短辺に対する比率）・tipAngle（塗り・ホームベース。度）・isReversed・isBothEnds・isSquareVertical
          */
         function getArrowOptions() {
             var thicknessValue = parseFloat(thicknessInput.text);
