@@ -24,7 +24,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ReplaceAlt
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ReplaceAlternateGlyphs";       /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-17";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-17";                   /* 更新日 / last updated */
@@ -191,6 +191,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     var BUTTON_WIDTH              = 90;          /* ボタンの幅 / button width */
     var VARIANT_LIST_SIZE         = [170, 240];  /* 異体字の一覧の大きさ [幅, 高さ] / variant list size */
     var LIST_FONT_SIZE            = 18;          /* 一覧の文字の大きさ（細部の違いを見分けやすく） / list font size, large enough to tell variants apart */
+    var SELECTION_CODES_MARGIN    = 5;           /* 上段の符号位置の下に足す余白 / extra space below the code points at the top */
     var SELECTION_CODES_MAX       = 5;           /* ダイアログボックスの上に符号位置を出す文字の数 / characters whose code points are shown at the top */
     var ROW_LABEL_WIDTH_EM        = 6;           /* 一覧の行の見出しの幅（符号位置の大きさの何倍か） / width of the list's row headings, in code point sizes */
     var DIALOG_RESULT_CREATE_LIST = 3;           /* ［一覧を作成］で閉じたときの show() の戻り値 / show() result when closed by Create List */
@@ -2277,7 +2278,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         var dialogControls = {};
         /* 選択した文字の符号位置（異体字に置き換えると書き直す） / code points of the selection, rewritten after a variant replacement */
-        var selectionCodesText = dialog.add("statictext", undefined, formatSelectionCodes(collectedCharacters.entries));
+        /* 下に余白を足すため group で包む / wrapped in a group to add space below */
+        var selectionCodesGroup = dialog.add("group");
+        selectionCodesGroup.alignment = ["fill", "top"];
+        selectionCodesGroup.margins = [0, 0, 0, SELECTION_CODES_MARGIN];
+        var selectionCodesText = selectionCodesGroup.add("statictext", undefined, formatSelectionCodes(collectedCharacters.entries));
         selectionCodesText.alignment = ["fill", "top"];
         selectionCodesText.justify = "center"; /* 幅いっぱいの中で左右中央 / centered across the full width */
         selectionCodesText.helpTip = getLabel("tooltip.selectionCodes");

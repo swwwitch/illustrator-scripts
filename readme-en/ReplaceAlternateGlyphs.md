@@ -70,5 +70,6 @@ Edit the User Settings at the top of the script.
 
 ### Update History
 
+- v1.1.1 (2026-10-17) Added space below "Selected" at the top of the dialog box
 - v1.1.0 (2026-10-17) Create List improved: distinct shapes among the glyph forms, variants, IVS and vertical forms are laid out in Horizontal and Vertical rows, five per line, with code points and form names (Hiragino Kaku Gothic W3). Samples inherit the source font and size, sit on a 30% black backdrop, and are selected and zoomed to about 65% of the window. Added the List panel (create on the layer / delete it first). Forms the font lacks are dimmed, and the selected characters' code points appear at the top of the dialog box
 - v1.0.0 (2026-10-17) Initial release
