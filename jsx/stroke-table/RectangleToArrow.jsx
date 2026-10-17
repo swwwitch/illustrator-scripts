@@ -29,7 +29,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RectangleT
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "RectangleToArrow";             /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.6.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.7.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-10";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-17";                   /* 更新日 / last updated */
@@ -55,7 +55,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
     var LINE_LENGTH_RATIO = 2;      /* 分割後の整理で、方向線のないセグメントを直線とみなす長さ（曲線のセグメントの長さの中央値に対する倍率） / after expanding, length ratio over the median curve segment at which a straight segment counts as a line */
     var SHORT_LINE_RATIO = 0.5;     /* 分割後の整理で、円弧に接する直線のうち半径に対してこの倍率より短いものは円弧に取り込む（SimplifyArcPoints は 0.3） / after expanding, lines touching an arc shorter than this ratio of its radius join the arc (0.3 in SimplifyArcPoints) */
     var STRAIGHT_TOLERANCE_RATIO = 1e-3; /* 分割後の整理で、方向線が弦からこの比率（弦の長さに対する）以内なら直線とみなす（SimplifyArcPoints は 1e-4） / after expanding, handles within this ratio of the chord count as straight (1e-4 in SimplifyArcPoints) */
+    var ENABLE_PATH_CLEANUP = false; /* 分割後のパス整形（線端の円弧の作り直し・円弧への置き換え）を行うか（検証のため一時的にオフ） / whether to clean up paths after expanding (temporarily off for testing) */
+    var ARC_FIT_TOLERANCE_RATIO = 0.01; /* 分割後の整理で、当てはめた円から標本がこの比率（半径に対する）より離れていれば円弧に置き換えない / after expanding, an arc is not replaced when a sample strays from the fitted circle by more than this ratio of the radius */
     var ARC_SPLIT_ALLOWANCE = 0.05; /* 分割後の整理で、円弧を90°ごとに分けるときに許す超過（90°に対する比率。約4.5°。SimplifyArcPoints は 0.02） / overshoot allowed before an arc gets one more 90° piece (ratio of 90°, about 4.5°; 0.02 in SimplifyArcPoints) */
+    var WHITE_EDGE_RATIO = 1 / 10;  /* 塗りの白フチのオフセットの初期値（1つ目の対象の短辺に対する比率。線は線幅の1/2） / initial white outline offset for the fill types (ratio of the first target's short side; half the stroke width for strokes) */
+    var WHITE_EDGE_JOIN_TYPES = ["miter", "round", "bevel"]; /* 白フチの角の形状の並び（ドロップダウンの順） / white outline joins in dropdown order */
+    var DEFAULT_WHITE_EDGE_JOIN = "round"; /* 白フチの角の形状の初期値（"miter" / "round" / "bevel"） / initial white outline join */
     var TIP_ADJUST_RATIO = 1 / 10;  /* 先端補正で、軸の矢じり側の端を縮める量（線幅に対する比率） / how far the tip adjustment pulls the shaft back from each head (relative to the stroke width) */
 
     var TOLERANCE = 0.001;          /* 座標比較の許容値（pt） / tolerance for coordinate comparison (pt) */
@@ -187,7 +192,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
         },
         panel: {
             arrowType: { ja: "種類", en: "Type" },
-            options: { ja: "オプション", en: "Options" }
+            options: { ja: "オプション", en: "Options" },
+            whiteEdge: { ja: "白フチ", en: "White Outline" }
         },
         radio: {
             squareAxis: {
@@ -196,6 +202,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
             }
         },
         checkbox: {
+            whiteEdge: { ja: "白フチ", en: "White Outline" },
             tipAdjust: { ja: "先端補正", en: "Adjust Tips" },
             expandAppearance: { ja: "分割・拡張", en: "Expand Appearance" }
         },
@@ -203,7 +210,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
             thickness: { ja: "太さ", en: "Thickness" },
             height: { ja: "高さ", en: "Height" },
             tipAngle: { ja: "角度", en: "Angle" },
-            squareAxis: { ja: "方向", en: "Direction" }
+            squareAxis: { ja: "方向", en: "Direction" },
+            whiteEdgeOffset: { ja: "オフセット", en: "Offset" },
+            whiteEdgeJoin: { ja: "角の形状", en: "Joins" }
+        },
+        dropdown: {
+            whiteEdgeJoin: {
+                miter: { ja: "マイター", en: "Miter" },
+                round: { ja: "ラウンド", en: "Round" },
+                bevel: { ja: "ベベル", en: "Bevel" }
+            }
         },
         button: {
             arrowType: {
@@ -263,6 +279,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
                 ja: "正方形を水平・垂直のどちらの矢印にするかを選びます。長方形は長辺、罫線は線の向きで決まるので変わりません。正方形が選択されていないときは使えません。",
                 en: "Choose whether squares become horizontal or vertical arrows. Rectangles follow their long side and rules their own direction, so they are unaffected. Not available when no square is selected."
             },
+            whiteEdge: {
+                ja: "矢印の背面に白い複製を置き、［パスのオフセット］効果で白いフチにします。線の2種類では、分割・拡張したパスに付けるので［先端補正］と［分割・拡張］もオンになります。",
+                en: "Places a white copy behind the arrow and turns it into a white outline with the Offset Path effect. For the stroke types it goes on the expanded path, so Adjust Tips and Expand Appearance are turned on too."
+            },
+            whiteEdgeOffset: {
+                ja: "白フチの幅（［パスのオフセット］の値）を定規の単位で指定します。初期値は、線の2種類では線幅の1/2、塗りとホームベースでは1つ目の対象の短辺の1/10です。",
+                en: "White outline width (the Offset Path amount) in ruler units. Starts at half the stroke width for the stroke types, or 1/10 of the first target's short side for Fill and Pentagon."
+            },
+            whiteEdgeJoin: { ja: "白フチの角の形状（［パスのオフセット］の角の形状）を選びます。", en: "Corner shape of the white outline (the Offset Path joins)." },
             tipAdjust: {
                 ja: "軸の矢じり側の端を線幅の1/10だけ短くし、矢じりの線と重ならないようにします（［アピアランスを分割］で余分なアンカーポイントができにくくなります）。線の2種類で使います。",
                 en: "Pulls the shaft back from each arrowhead by 1/10 of the stroke width so it does not overlap the head's stroke (fewer stray anchor points after Expand Appearance). Used by the stroke types."
@@ -296,10 +321,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
     // =========================================
     var FIELD_CHARACTERS = 5;            /* 太さの入力欄の幅（文字数） / width of the thickness field (characters) */
     var LABEL_WIDTH = 40;                /* 項目名の幅（右揃え） / label width (right-aligned) */
+    var WHITE_EDGE_LABEL_WIDTH = 70;     /* ［白フチ］パネルの項目名の幅（右揃え） / label width in the White Outline panel (right-aligned) */
     var TYPE_ICON_SIZE = [96, 32];       /* 種類のボタンの大きさ / arrow type button size */
     var TYPE_ICON_INSET = 5;             /* 種類のボタンの枠と絵の間（px） / gap between a type button's frame and its drawing */
     var TYPE_ICON_SPACING = 6;           /* 種類のボタンどうしの縦の間隔 / vertical spacing between type buttons */
-    var SQUARE_AXIS_RADIO_SPACING = 4;   /* 方向のラジオボタンどうしの縦の間隔 / vertical spacing between the square axis radios */
+    var SQUARE_AXIS_RADIO_SPACING = 10;  /* 方向のラジオボタンどうしの間隔 / spacing between the square axis radios */
     var DIRECTION_TOGGLE_SIZE = [30, 30]; /* 両矢印・反転のアイコンの大きさ / double-headed and reverse icon size */
     var LINK_CHAIN_RATIO = 0.8;          /* リンクアイコンの鎖の大きさ（枠に対する比率） / chain size relative to the link icon */
 
@@ -1453,7 +1479,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
     /**
      * 長方形を、軸の直線とくの字の矢じりを線で組んだ矢印に置き換える。
      * 線ごとに［パスのアウトライン］効果を掛けてグループにし、グループに［パスファインダー（合体）］効果を掛ける。
-     * 線幅のぶんを内側へ詰め、線端・角も含めて長方形の範囲に収める。元のパスの効果は引き継がない
+     * 線幅のぶんを内側へ詰め、線端・角も含めて長方形の範囲に収める。元のパスの効果は引き継がない。
+     * 白フチはここでは付けない（確定時は分割・拡張のあと、プレビューでは addWhiteEdgeBehind() で付ける）
      * @param {PathItem} rectanglePath - 長方形のパス（グループに置き換えて削除する）
      * @param {Object} arrowOptions - strokeWidth（線幅。pt）、heightRatio、isReversed、isBothEnds、isSquareVertical、isTipAdjust
      * @param {boolean} isRound - 丸型線端・ラウンド結合にするなら true
@@ -1484,11 +1511,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
 
         var arrowGroup = targetLayer.groupItems.add();
         for (var j = 0; j < linePaths.length; j++) linePaths[j].move(arrowGroup, ElementPlacement.PLACEATEND);
-        selectOnly([arrowGroup]);
-        app.executeMenuCommand("Live Pathfinder Add");
         /* 新しいパスで作ったので、元の不透明度・描画モードはグループに移す / carry over the source's opacity and blending mode */
         arrowGroup.opacity = rectanglePath.opacity;
         arrowGroup.blendingMode = rectanglePath.blendingMode;
+        selectOnly([arrowGroup]);
+        app.executeMenuCommand("Live Pathfinder Add");
 
         arrowGroup.move(rectanglePath, ElementPlacement.PLACEBEFORE);
         rectanglePath.remove();
@@ -1513,9 +1540,112 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
      * @returns {PageItem} できた矢印
      */
     function convertToArrow(rectanglePath, arrowOptions) {
-        if (arrowOptions.arrowType === "fill") return convertToFilledArrow(rectanglePath, arrowOptions);
-        if (arrowOptions.arrowType === "pentagon") return convertToPentagonArrow(rectanglePath, arrowOptions);
-        return convertToStrokedArrow(rectanglePath, arrowOptions, arrowOptions.arrowType === "roundLine");
+        if (isStrokeArrowType(arrowOptions.arrowType)) {
+            return convertToStrokedArrow(rectanglePath, arrowOptions, arrowOptions.arrowType === "roundLine");
+        }
+        var filledArrow = (arrowOptions.arrowType === "fill")
+            ? convertToFilledArrow(rectanglePath, arrowOptions)
+            : convertToPentagonArrow(rectanglePath, arrowOptions);
+        return arrowOptions.isWhiteEdge ? groupWithWhiteEdge(filledArrow, arrowOptions.whiteEdgeStyle) : filledArrow;
+    }
+
+    /**
+     * 塗りの矢印（パス1本）に白フチを付ける。
+     * 入れ子のグループでは効果のメニューコマンドが一番外側に付くので、レイヤー直下で組んでから元の位置へ戻す
+     * @param {PathItem} filledArrow - 塗りの矢印（ホームベースも）
+     * @param {{offset: number, joinType: string}} edgeStyle - 白フチのオフセット（pt）と角の形状
+     * @returns {GroupItem} 矢印と白フチのグループ
+     */
+    function groupWithWhiteEdge(filledArrow, edgeStyle) {
+        /* 元の重ね順の位置を目印で控える / mark the original stacking position */
+        var positionMarker = filledArrow.parent.pathItems.add();
+        positionMarker.move(filledArrow, ElementPlacement.PLACEBEFORE);
+        filledArrow.move(filledArrow.layer, ElementPlacement.PLACEATBEGINNING);
+        var edgeGroup = wrapWithWhiteEdge(filledArrow, edgeStyle);
+        edgeGroup.move(positionMarker, ElementPlacement.PLACEBEFORE);
+        positionMarker.remove();
+        return edgeGroup;
+    }
+
+    /**
+     * レイヤー直下にある塗りの矢印の背面に白い複製を置き、［合体］と［パスのオフセット］効果で白フチにする。
+     * 矢印と白フチをグループにし、グループに［分割］効果を掛ける（分割・拡張すると白フチが矢印と重ならない形で分かれる）
+     * @param {PathItem} arrowItem - レイヤー直下にある塗りの矢印（ホームベースも）
+     * @param {{offset: number, joinType: string}} edgeStyle - 白フチのオフセット（pt）と角の形状
+     * @returns {GroupItem} 矢印と白フチのグループ（レイヤー直下）
+     */
+    function wrapWithWhiteEdge(arrowItem, edgeStyle) {
+        var whiteEdge = arrowItem.duplicate();
+        paintWhite(whiteEdge);
+        selectOnly([whiteEdge]);
+        app.executeMenuCommand("Live Pathfinder Add");
+        applyOffsetPath(whiteEdge, edgeStyle);
+
+        var edgeGroup = arrowItem.layer.groupItems.add();
+        /* 後から PLACEATEND で入れたほうが背面になる / the later PLACEATEND item ends up behind */
+        arrowItem.move(edgeGroup, ElementPlacement.PLACEATEND);
+        whiteEdge.move(edgeGroup, ElementPlacement.PLACEATEND);
+        selectOnly([edgeGroup]);
+        app.executeMenuCommand("Live Pathfinder Divide");
+        return edgeGroup;
+    }
+
+    /**
+     * 線の矢印の背面に白い複製を置き、［パスのオフセット］効果で白フチにする。矢印と白フチはグループにする。
+     * 分割・拡張したパスにも、プレビューの効果付きのグループにも使う（効果は XML で掛けるので入れ子でもよい）
+     * @param {PageItem[]} arrowItems - 1つの矢印をなすオブジェクト（重ね順で連続していること）
+     * @param {{offset: number, joinType: string}} edgeStyle - 白フチのオフセット（pt）と角の形状
+     * @returns {GroupItem} 矢印と白フチのグループ
+     */
+    function addWhiteEdgeBehind(arrowItems, edgeStyle) {
+        var edgeGroup = arrowItems[0].parent.groupItems.add();
+        edgeGroup.move(arrowItems[0], ElementPlacement.PLACEBEFORE);
+        for (var i = 0; i < arrowItems.length; i++) arrowItems[i].move(edgeGroup, ElementPlacement.PLACEATEND);
+        /* 矢印をすべて入れてから複製を末尾（背面）へ足す / add the copies at the end (behind) after all arrow parts */
+        for (var j = 0; j < arrowItems.length; j++) {
+            var whiteEdge = arrowItems[j].duplicate(edgeGroup, ElementPlacement.PLACEATEND);
+            paintWhite(whiteEdge);
+            applyOffsetPath(whiteEdge, edgeStyle);
+        }
+        return edgeGroup;
+    }
+
+    /* ［パスのオフセット］の角の形状の値（jntp） / Offset Path join codes (jntp) */
+    var OFFSET_PATH_JOIN_CODES = { round: 0, bevel: 1, miter: 2 };
+
+    /**
+     * ［パスのオフセット］効果を掛ける
+     * @param {PageItem} pageItem - 対象
+     * @param {{offset: number, joinType: string}} edgeStyle - オフセットの量（pt）と角の形状（"miter" / "round" / "bevel"）
+     * @returns {void}
+     */
+    function applyOffsetPath(pageItem, edgeStyle) {
+        pageItem.applyEffect('<LiveEffect name="Adobe Offset Path"><Dict data="R mlim 4 R ofst ' + edgeStyle.offset
+            + ' I jntp ' + OFFSET_PATH_JOIN_CODES[edgeStyle.joinType] + ' "/><\/LiveEffect>');
+    }
+
+    /**
+     * 矢印の中のパスを白にする（塗りのあるパスは塗り、線のあるパスは線）
+     * @param {PageItem} arrowItem - 矢印（パス・複合パス・グループ）
+     * @returns {void}
+     */
+    function paintWhite(arrowItem) {
+        var arrowPaths = [];
+        collectPaths([arrowItem], arrowPaths);
+        for (var i = 0; i < arrowPaths.length; i++) {
+            if (arrowPaths[i].filled) arrowPaths[i].fillColor = createWhiteColor();
+            if (arrowPaths[i].stroked) arrowPaths[i].strokeColor = createWhiteColor();
+        }
+    }
+
+    /**
+     * 白（グレー 0%）を返す
+     * @returns {GrayColor} 白
+     */
+    function createWhiteColor() {
+        var whiteColor = new GrayColor();
+        whiteColor.gray = 0;
+        return whiteColor;
     }
 
     /**
@@ -1550,7 +1680,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
             clear();
             for (var i = 0; i < rectangles.length; i++) {
                 /* 複製は hidden を引き継ぐので、元を隠す前に作る / duplicates inherit hidden, so duplicate before hiding */
-                previewItems.push(convertToArrow(rectangles[i].duplicate(), arrowOptions));
+                var previewArrow = convertToArrow(rectangles[i].duplicate(), arrowOptions);
+                /* 確定時は分割・拡張のあとに付ける白フチを、効果付きのまま付けて見せる / the outline added after expanding on OK is shown on the live arrow */
+                if (arrowOptions.isWhiteEdge && isStrokeArrowType(arrowOptions.arrowType)) {
+                    previewArrow = addWhiteEdgeBehind([previewArrow], arrowOptions.whiteEdgeStyle);
+                }
+                previewItems.push(previewArrow);
                 rectangles[i].hidden = true;
             }
         }
@@ -2496,9 +2631,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
         var squareAxisRow = parent.add("group");
         setupRow(squareAxisRow, "left", STEPPER_FIELD_SPACING);
         squareAxisRow.alignChildren = ["left", "top"];
-        var squareAxisLabel = squareAxisRow.add("statictext", undefined, labelText("fieldLabel.squareAxis"));
-        squareAxisLabel.preferredSize.width = LABEL_WIDTH;
-        squareAxisLabel.justify = "right";
+        squareAxisRow.add("statictext", undefined, labelText("fieldLabel.squareAxis"));
         var radioColumn = squareAxisRow.add("group");
         radioColumn.orientation = "column";
         radioColumn.alignChildren = ["left", "top"];
@@ -2538,6 +2671,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
         var arrowPreview = createArrowPreview(rectangles);
         /* 線幅は環境設定の線の単位で入力する / stroke widths use the stroke units from Preferences */
         var strokeUnit = getUnitInfo("strokeUnits");
+        /* 白フチのオフセットは定規の単位で入力する / the white outline offset uses ruler units */
+        var rulerUnit = getUnitInfo();
         /* 塗りと線で太さを別々に覚え、切り替えたら戻す（塗りは％、線は線の単位。線の2種類は線幅を共有）
            remember the thickness for fill and stroke separately (% for fill, stroke units shared by both stroke types) */
         var thicknessByKind = { fill: DEFAULT_FILL_PERCENT, stroke: getDefaultLineWidth(rectangles[0], strokeUnit) };
@@ -2581,13 +2716,21 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
         }, DIRECTION_TOGGLE_SIZE);
         reverseToggle.helpTip = getLabel("tooltip.reverseToggle");
 
-        /* 方向・太さ・高さ・角度・先端補正・分割・拡張 / square axis, thickness, height, angle, tip adjustment and expand */
-        var optionsPanel = columnsRow.add("panel", undefined, getLabel("panel.options"));
+        /* 正方形の方向は［種類］パネルの一番下 / the square axis goes at the bottom of the Type panel */
+        var squareAxisRadios = addSquareAxisRadios(typePanel, refreshPreview);
+        squareAxisRadios.row.enabled = hasSquare(rectangles);
+
+        /* 右のカラムに［オプション］と［白フチ］のパネルを縦に積む / the right column stacks the Options and White Outline panels */
+        var rightColumn = columnsRow.add("group");
+        rightColumn.orientation = "column";
+        rightColumn.alignChildren = ["fill", "top"];
+        rightColumn.spacing = COLUMN_SPACING;
+        rightColumn.margins = 0;
+
+        /* 太さ・高さ・角度・先端補正・分割・拡張 / thickness, height, angle, tip adjustment and expand */
+        var optionsPanel = rightColumn.add("panel", undefined, getLabel("panel.options"));
         setupPanel(optionsPanel);
         optionsPanel.alignChildren = ["left", "top"];
-
-        var squareAxisRadios = addSquareAxisRadios(optionsPanel, refreshPreview);
-        squareAxisRadios.row.enabled = hasSquare(rectangles);
 
         var thicknessInput = addPreviewField("fieldLabel.thickness", "tooltip.thickness", {
             text: thicknessByKind.fill + thicknessFormats.percent.unit,
@@ -2606,13 +2749,27 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
         tipAdjustCheckbox.onClick = refreshPreview;
         /* 分割・拡張は確定時だけ行うので、プレビューは描き直さない / expanding happens only on OK, so the preview stays as is */
         var expandAppearanceCheckbox = addIndentedCheckbox(optionsPanel, "checkbox.expandAppearance", "tooltip.expandAppearance", false);
+
+        /* 白フチ・オフセット・角の形状 / white outline, offset and joins */
+        var whiteEdgePanel = rightColumn.add("panel", undefined, getLabel("panel.whiteEdge"));
+        setupPanel(whiteEdgePanel);
+        whiteEdgePanel.alignChildren = ["left", "top"];
+        var whiteEdgeControls = addWhiteEdgeControls(whiteEdgePanel);
+        var whiteEdgeCheckbox = whiteEdgeControls.checkbox;
+        /* 線の白フチは分割・拡張したパスに付けるので、オンにしたら先端補正と分割・拡張もオンにする
+           the stroked arrows' outline goes on the expanded path, so turning it on also turns on Adjust Tips and Expand Appearance */
+        whiteEdgeCheckbox.onClick = function () {
+            if (whiteEdgeCheckbox.value) tipAdjustCheckbox.value = expandAppearanceCheckbox.value = true;
+            syncFieldStates();
+            refreshPreview();
+        };
+        whiteEdgeControls.joinDropdown.onChange = refreshPreview;
         syncFieldStates();
 
         var buttonRow = addButtonRow(arrowDialog);
         buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
         buttonRow.rightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
-        /* 2カラムで幅が広いので、ボタンは右寄せのまま / the two-column dialog is wide, so the buttons stay right-aligned */
-        alignRightOnlyButtonRow(buttonRow);
+        /* 幅にかかわらず右寄せにするので alignRightOnlyButtonRow は呼ばない / always right-aligned, so alignRightOnlyButtonRow is not called */
 
         /**
          * ［オプション］パネルに、値を変えるとプレビューを描き直す数値欄を足す
@@ -2630,6 +2787,45 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
             numberInput.helpTip = getLabel(tooltipKey);
             redrawPreviewOnChange(numberInput);
             return numberInput;
+        }
+
+        /**
+         * ［白フチ］パネルの中身（白フチのチェックボックス・オフセット・角の形状）を足す。
+         * オフセットは定規の単位で、初めの種類に合わせた値（線は線幅の1/2、塗りは短辺の1/10）で始める
+         * @param {Panel} parent - ［白フチ］パネル
+         * @returns {{checkbox: Checkbox, offsetInput: EditText, joinDropdown: DropDownList}} 作った部品
+         */
+        function addWhiteEdgeControls(parent) {
+            var checkboxRow = parent.add("group");
+            setupRow(checkboxRow, "left", STEPPER_FIELD_SPACING);
+            checkboxRow.add("statictext", undefined, "").preferredSize.width = WHITE_EDGE_LABEL_WIDTH;
+            var edgeCheckbox = checkboxRow.add("checkbox", undefined, getLabel("checkbox.whiteEdge"));
+            edgeCheckbox.helpTip = getLabel("tooltip.whiteEdge");
+
+            var initialOffset = isStrokeArrowType(currentType)
+                ? thicknessByKind.stroke * strokeUnit.pointsPerUnit / 2
+                : getArrowAxis(rectangles[0]).thickness * WHITE_EDGE_RATIO;
+            var offsetInput = addSteppedField(parent, {
+                label: labelText("fieldLabel.whiteEdgeOffset"), labelWidth: WHITE_EDGE_LABEL_WIDTH,
+                characters: FIELD_CHARACTERS, onStep: refreshPreview,
+                text: formatStepperNumber(Math.round(initialOffset / rulerUnit.pointsPerUnit * 100) / 100) + " " + rulerUnit.label,
+                step: rulerUnit.pointsPerUnit >= 2 ? 0.1 : 1, min: 0, max: 1000 / rulerUnit.pointsPerUnit, unit: " " + rulerUnit.label
+            });
+            offsetInput.helpTip = getLabel("tooltip.whiteEdgeOffset");
+            redrawPreviewOnChange(offsetInput);
+
+            var joinRow = parent.add("group");
+            setupRow(joinRow, "left", STEPPER_FIELD_SPACING);
+            var joinLabel = joinRow.add("statictext", undefined, labelText("fieldLabel.whiteEdgeJoin"));
+            joinLabel.preferredSize.width = WHITE_EDGE_LABEL_WIDTH;
+            joinLabel.justify = "right";
+            var joinDropdown = joinRow.add("dropdownlist");
+            for (var i = 0; i < WHITE_EDGE_JOIN_TYPES.length; i++) {
+                joinDropdown.add("item", getLabel("dropdown.whiteEdgeJoin." + WHITE_EDGE_JOIN_TYPES[i]));
+                if (WHITE_EDGE_JOIN_TYPES[i] === DEFAULT_WHITE_EDGE_JOIN) joinDropdown.selection = i;
+            }
+            joinRow.helpTip = joinDropdown.helpTip = getLabel("tooltip.whiteEdgeJoin");
+            return { checkbox: edgeCheckbox, offsetInput: offsetInput, joinDropdown: joinDropdown, joinLabel: joinLabel };
         }
 
         /**
@@ -2675,7 +2871,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
         }
 
         /**
-         * 今の種類で使う欄だけを有効にする（塗りは太さ・高さ・角度、ホームベースは角度だけ、線は太さ・高さ・先端補正・分割・拡張）
+         * 今の種類で使う欄だけを有効にする（塗りは太さ・高さ・角度、ホームベースは角度だけ、線は太さ・高さ・先端補正・分割・拡張）。
+         * 白フチがオンのあいだ、分割・拡張はオンのままディムする。白フチのオフセット・角の形状は白フチがオンのときだけ使う
          * @returns {void}
          */
         function syncFieldStates() {
@@ -2683,7 +2880,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
             setSteppedFieldEnabled(thicknessInput, !isPentagon);
             setSteppedFieldEnabled(heightInput, !isPentagon);
             setSteppedFieldEnabled(tipAngleInput, isPentagon || currentType === "fill");
-            tipAdjustCheckbox.enabled = expandAppearanceCheckbox.enabled = isStrokeArrowType(currentType);
+            tipAdjustCheckbox.enabled = isStrokeArrowType(currentType);
+            expandAppearanceCheckbox.enabled = isStrokeArrowType(currentType) && !whiteEdgeCheckbox.value;
+            setSteppedFieldEnabled(whiteEdgeControls.offsetInput, whiteEdgeCheckbox.value);
+            whiteEdgeControls.joinDropdown.enabled = whiteEdgeControls.joinLabel.enabled = whiteEdgeCheckbox.value;
         }
 
         /**
@@ -2712,7 +2912,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
 
         /**
          * 今の指定を返す
-         * @returns {Object} arrowType・shaftRatio（塗り。短辺に対する比率）・strokeWidth（線。pt）・heightRatio（短辺に対する比率）・tipAngle（塗り・ホームベース。度）・isReversed・isBothEnds・isSquareVertical・isTipAdjust（線）・isExpandAppearance（線）
+         * @returns {Object} arrowType・shaftRatio（塗り。短辺に対する比率）・strokeWidth（線。pt）・heightRatio（短辺に対する比率）・tipAngle（塗り・ホームベース。度）・isReversed・isBothEnds・isSquareVertical・isWhiteEdge・whiteEdgeStyle（offset（pt）・joinType）・isTipAdjust（線）・isExpandAppearance（線）
          */
         function getArrowOptions() {
             var thicknessValue = parseFloat(thicknessInput.text);
@@ -2725,9 +2925,34 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
                 isReversed: typeState.isReversed,
                 isBothEnds: typeState.isBothEnds,
                 isSquareVertical: squareAxisRadios.verticalRadio.value,
-                isTipAdjust: expandFixCheckbox.value,
-                isExpandAppearance: expandAppearanceCheckbox.value
+                isWhiteEdge: whiteEdgeCheckbox.value,
+                whiteEdgeStyle: {
+                    offset: parseFloat(whiteEdgeControls.offsetInput.text) * rulerUnit.pointsPerUnit,
+                    joinType: WHITE_EDGE_JOIN_TYPES[whiteEdgeControls.joinDropdown.selection.index]
+                },
+                isTipAdjust: tipAdjustCheckbox.value,
+                /* 線の白フチは分割・拡張が前提 / the stroked outline requires expanding */
+                isExpandAppearance: expandAppearanceCheckbox.value || whiteEdgeCheckbox.value
             };
+        }
+
+        /**
+         * ↑↓キーで種類を1つ前・次に切り替える（両端で止まる）。数値欄にカーソルがあるときは、その欄の増減に任せる
+         * @param {KeyboardEvent} keyEvent - キーボードイベント
+         * @returns {void}
+         */
+        function switchTypeByArrowKey(keyEvent) {
+            if (keyEvent.keyName !== "Up" && keyEvent.keyName !== "Down") return;
+            if (keyEvent.target && keyEvent.target.type === "edittext") return;
+            var currentIndex = 0;
+            for (var i = 0; i < typeIcons.length; i++) {
+                if (typeIcons[i].value) currentIndex = i;
+            }
+            var nextIndex = Math.max(0, Math.min(typeIcons.length - 1, currentIndex + (keyEvent.keyName === "Down" ? 1 : -1)));
+            keyEvent.preventDefault();
+            if (nextIndex === currentIndex) return;
+            for (var j = 0; j < typeIcons.length; j++) typeIcons[j].value = (j === nextIndex);
+            switchType();
         }
 
         /**
@@ -2740,7 +2965,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
         }
 
         refreshPreview();
-        thicknessInput.active = true;
+        /* 開いた直後は数値欄にカーソルを置かず、↑↓で種類を切り替えられるようにする / no field is focused at first, so ↑↓ switch the type */
+        arrowDialog.addEventListener("keydown", switchTypeByArrowKey);
 
         prepareDialogWindow(arrowDialog, SCRIPT_NAME);
         var dialogResult = arrowDialog.show();
@@ -3047,12 +3273,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
      * @param {Object[]} pathNodes - ポイント情報
      * @param {number} startIndex - 開始インデックス
      * @param {number} endIndex - 終了インデックス
-     * @returns {Object|null} {centerX, centerY, radius, startAngle, sweep}。円を求められなければ null
+     * @returns {Object|null} {centerX, centerY, radius, startAngle, sweep}。円を求められないか、区間が円に沿わなければ null
      */
     function fitArc(pathNodes, startIndex, endIndex) {
         var samplePoints = collectArcSamples(pathNodes, startIndex, endIndex, false);
         var fittedCircle = fitCircle(samplePoints);
-        if (!fittedCircle) return null;
+        if (!fittedCircle || !isOnCircle(samplePoints, fittedCircle)) return null;
 
         /* 標本を順にたどって、回った角度を足し合わせる / accumulate the angle swept along the samples */
         var sweep = 0;
@@ -3125,7 +3351,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
     function buildFullCircleNodes(pathNodes) {
         var samplePoints = collectArcSamples(pathNodes, 0, pathNodes.length, true);
         var fittedCircle = fitCircle(samplePoints);
-        if (!fittedCircle) return null;
+        if (!fittedCircle || !isOnCircle(samplePoints, fittedCircle)) return null;
         /* パスの向き（時計回りか）を面積の符号で決める / direction from the signed area */
         var signedArea = 0;
         for (var i = 0; i < samplePoints.length; i++) {
@@ -3139,6 +3365,22 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
         var circleNodes = [];
         for (var k = 0; k < 4; k++) circleNodes.push(buildCircleNode(fittedCircle, startAngle + angleStep * k, handleLength));
         return circleNodes;
+    }
+
+    /**
+     * 標本がすべて円の上にあるか（半径との差が ARC_FIT_TOLERANCE_RATIO 以内）。
+     * 線端の半円と結合の円弧のように別々の曲線をまとめて当てはめた円は、どちらにも沿わないので外す
+     * @param {Array} samplePoints - [[x, y], ...]
+     * @param {Object} circle - {centerX, centerY, radius}
+     * @returns {boolean} 円の上にあれば true
+     */
+    function isOnCircle(samplePoints, circle) {
+        var allowance = circle.radius * ARC_FIT_TOLERANCE_RATIO;
+        for (var i = 0; i < samplePoints.length; i++) {
+            var distance = getPointDistance(samplePoints[i], [circle.centerX, circle.centerY]);
+            if (Math.abs(distance - circle.radius) > allowance) return false;
+        }
+        return true;
     }
 
     /**
@@ -3232,22 +3474,104 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
     }
 
     /**
-     * 線の矢印を1つずつ［アピアランスを分割］し、曲線の部分を90°以下の円弧に置き換えてアンカーポイントを減らす
-     * （効果を掛けた直後は画面を更新してから実行する）
-     * @param {PageItem[]} arrows - convertToArrow() でできた矢印
-     * @returns {PageItem[]} 分割後のオブジェクト
+     * 線の矢印（分割前のグループ）の中の線の頂点を集める
+     * @param {GroupItem} arrowGroup - 線の矢印
+     * @returns {Array} 頂点 [[x, y], …]
      */
-    function expandArrows(arrows) {
+    function collectLineVertices(arrowGroup) {
+        var linePaths = [];
+        collectPaths([arrowGroup], linePaths);
+        var vertices = [];
+        for (var i = 0; i < linePaths.length; i++) {
+            for (var j = 0; j < linePaths[i].pathPoints.length; j++) vertices.push(linePaths[i].pathPoints[j].anchor);
+        }
+        return vertices;
+    }
+
+    /**
+     * 分割・拡張で崩れた丸型線端・ラウンド結合の円弧を作り直す。
+     * 両端のアンカーが同じ頂点から半径の距離にある曲線のセグメントを、その頂点を中心とする円弧（短いほう）にする。
+     * Illustrator の分割・拡張は線端の方向線を壊すことがある（矢印の内側にへこむ）
+     * @param {PathItem} pathItem - 分割後のパス
+     * @param {Array} arcCenters - 円弧の中心の候補（線の頂点） [[x, y], …]
+     * @param {number} arcRadius - 円弧の半径（pt）
+     * @returns {void}
+     */
+    function repairRoundArcs(pathItem, arcCenters, arcRadius) {
+        var pathNodes = readPathNodes(pathItem);
+        var nodeCount = pathNodes.length;
+        var segmentCount = pathItem.closed ? nodeCount : nodeCount - 1;
+        var allowance = arcRadius * ARC_FIT_TOLERANCE_RATIO;
+        var isChanged = false;
+        for (var i = 0; i < segmentCount; i++) {
+            var startNode = pathNodes[i];
+            var endNode = pathNodes[(i + 1) % nodeCount];
+            if (isStraightSegment(startNode, endNode)) continue;
+            var center = findArcCenter(startNode.anchor, endNode.anchor, arcCenters, arcRadius, allowance);
+            if (!center) continue;
+            var circle = { centerX: center[0], centerY: center[1], radius: arcRadius };
+            var startAngle = getAngleFromCenter(startNode.anchor, circle);
+            var sweep = getAngleFromCenter(endNode.anchor, circle) - startAngle;
+            while (sweep > Math.PI) sweep -= 2 * Math.PI;
+            while (sweep < -Math.PI) sweep += 2 * Math.PI;
+            /* 半円ちょうどだと向きが決まらないので触らない / a half circle has no defined side, so leave it */
+            if (Math.abs(sweep) > Math.PI * 0.9) continue;
+            var handleLength = 4 / 3 * Math.tan(sweep / 4) * arcRadius;
+            startNode.rightDirection = buildCircleNode(circle, startAngle, handleLength, startNode.anchor).rightDirection;
+            endNode.leftDirection = buildCircleNode(circle, startAngle + sweep, handleLength, endNode.anchor).leftDirection;
+            isChanged = true;
+        }
+        if (isChanged) writePathNodes(pathItem, pathNodes);
+    }
+
+    /**
+     * 2つのアンカーがどちらも半径の距離にある頂点を探す
+     * @param {number[]} firstAnchor - [x, y]
+     * @param {number[]} secondAnchor - [x, y]
+     * @param {Array} arcCenters - 頂点 [[x, y], …]
+     * @param {number} arcRadius - 半径（pt）
+     * @param {number} allowance - 許容差（pt）
+     * @returns {number[]|null} 見つかった頂点。なければ null
+     */
+    function findArcCenter(firstAnchor, secondAnchor, arcCenters, arcRadius, allowance) {
+        for (var i = 0; i < arcCenters.length; i++) {
+            if (Math.abs(getPointDistance(firstAnchor, arcCenters[i]) - arcRadius) > allowance) continue;
+            if (Math.abs(getPointDistance(secondAnchor, arcCenters[i]) - arcRadius) > allowance) continue;
+            return arcCenters[i];
+        }
+        return null;
+    }
+
+    /**
+     * 線の矢印を1つずつ［アピアランスを分割］し、曲線の部分を90°以下の円弧に置き換えてアンカーポイントを減らす。
+     * 白フチの指定を渡すと、分割後のパスの背面に白フチを付ける（効果を掛けた直後は画面を更新してから実行する）
+     * @param {PageItem[]} arrows - convertToArrow() でできた矢印
+     * @param {number} roundRadius - 丸型線端・ラウンド結合の円弧の半径（線幅の1/2。pt）。線端なしなら 0
+     * @param {{offset: number, joinType: string}|null} edgeStyle - 白フチのオフセット（pt）と角の形状。null なら付けない
+     * @returns {PageItem[]} 分割後のオブジェクト（白フチ付きなら矢印ごとのグループ）
+     */
+    function expandArrows(arrows, roundRadius, edgeStyle) {
         var expandedItems = [];
         for (var i = 0; i < arrows.length; i++) {
+            /* 線端・結合の円弧の中心は分割前の線の頂点 / the cap and join arcs are centered on the lines' vertices */
+            var arcCenters = roundRadius > 0 ? collectLineVertices(arrows[i]) : [];
             selectOnly([arrows[i]]);
             app.executeMenuCommand("expandStyle");
-            var resultItems = app.activeDocument.selection;
-            for (var j = 0; j < resultItems.length; j++) expandedItems.push(resultItems[j]);
+            var resultItems = [];
+            for (var j = 0; j < app.activeDocument.selection.length; j++) resultItems.push(app.activeDocument.selection[j]);
+            /* 白フチは整理したパスから複製する / the outline is copied from the simplified paths */
+            var expandedPaths = [];
+            collectPaths(resultItems, expandedPaths);
+            for (var k = 0; ENABLE_PATH_CLEANUP && k < expandedPaths.length; k++) {
+                if (roundRadius > 0) repairRoundArcs(expandedPaths[k], arcCenters, roundRadius);
+                simplifyArcPoints(expandedPaths[k]);
+            }
+            if (edgeStyle) {
+                expandedItems.push(addWhiteEdgeBehind(resultItems, edgeStyle));
+            } else {
+                for (var m = 0; m < resultItems.length; m++) expandedItems.push(resultItems[m]);
+            }
         }
-        var expandedPaths = [];
-        collectPaths(expandedItems, expandedPaths);
-        for (var k = 0; k < expandedPaths.length; k++) simplifyArcPoints(expandedPaths[k]);
         return expandedItems;
     }
 
@@ -3261,14 +3585,23 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
             return;
         }
 
-        var rectangles = collectRectangles(app.activeDocument.selection, []);
+        /* プレビューは選択を入れ替え・元を隠すので、キャンセル時に戻せるよう選択を控える
+           the preview changes the selection and hides the sources, so keep the selection to restore on Cancel */
+        var originalSelection = [];
+        var selectedItems = app.activeDocument.selection;
+        for (var j = 0; j < selectedItems.length; j++) originalSelection.push(selectedItems[j]);
+
+        var rectangles = collectRectangles(originalSelection, []);
         if (rectangles.length === 0) {
             alert(getLabel("alert.noRectangle"));
             return;
         }
 
         var arrowOptions = showArrowDialog(rectangles);
-        if (arrowOptions === null) return;
+        if (arrowOptions === null) {
+            app.activeDocument.selection = originalSelection;
+            return;
+        }
 
         /* 確定は元の長方形をそのまま使う / commit on the original rectangles */
         var arrows = [];
@@ -3276,7 +3609,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
             arrows.push(convertToArrow(rectangles[i], arrowOptions));
         }
         if (arrowOptions.isExpandAppearance && isStrokeArrowType(arrowOptions.arrowType)) {
-            arrows = expandArrows(arrows);
+            var roundRadius = (arrowOptions.arrowType === "roundLine") ? arrowOptions.strokeWidth / 2 : 0;
+            arrows = expandArrows(arrows, roundRadius, arrowOptions.isWhiteEdge ? arrowOptions.whiteEdgeStyle : null);
         }
         app.activeDocument.selection = arrows;
     })();

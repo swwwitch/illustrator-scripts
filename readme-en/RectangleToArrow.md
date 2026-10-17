@@ -25,6 +25,7 @@
   - Pentagon: points one end of the rectangle across its full short side. Set the tip angle with Angle. Like Fill, it rewrites the original path
   - Stroke (Butt Cap): a straight shaft and a chevron head stroked with butt caps and miter joins
   - Stroke (Round Cap): the same with round caps and round joins
+- The Up and Down arrow keys also switch the type. No number field has focus right after opening, so they work straight away; once you click a number field, they step that field instead
 - The two stroke types apply the Outline Stroke effect to each line, group the lines, and apply the Pathfinder (Add) effect to the group. They stay live, so you can still edit the stroke weight and so on
 - Direction: the arrow runs along the long side (or the rule itself), pointing right when mostly horizontal and up when mostly vertical. Unrotated wide rectangles point right, tall ones up. Squares follow the more horizontal side and point up-right at 45°
   - For squares, choose Horizontal or Vertical under Direction (Horizontal by default; Vertical points up). Rectangles and rules are unaffected, and the option is dimmed when no square is selected
@@ -51,6 +52,15 @@
 
 - The tip angle of the filled arrowhead and the pentagon, measured between the axis and a slanted side (1–89°, starting at 45°). 45° gives a right-angled tip; smaller values make it sharper. Shared by Fill and Pentagon; not used for the stroke types
 - When the rectangle is too short for the angle, the point is capped at the full length (single) or half the length (both ends), so the tip gets blunter
+
+#### White Outline
+
+- Turned on in the White Outline panel, it places a white copy behind the arrow and turns it into a white outline with the Offset Path effect (off by default). Works with all four types
+- Offset: the outline width (the Offset Path amount) in ruler units. Starts at half the stroke width for the stroke types, or 1/10 of the first target's short side for Fill and Pentagon
+- Joins: Miter, Round or Bevel (Round by default)
+- For Fill and Pentagon, the white copy gets the Add and Offset Path effects. The arrow and the outline are grouped, and the group gets the Divide effect, so expanding it splits the outline from the arrow without overlap
+- For the stroke types, turning it on also turns on Adjust Tips and Expand Appearance (Expand Appearance stays on while White Outline is on). The expanded path is copied in white, placed behind, and given the Offset Path effect. The arrow and the outline are grouped
+- The outline is a copy, so it does not follow later edits to the arrow
 
 #### Adjust Tips
 
@@ -98,6 +108,7 @@ https://note.com/dtp_tranist/n/n789072361c12
 
 ### Update History
 
+- v1.7.0 (2026-10-17) Added the White Outline panel (Offset and Joins). Fixed round caps that could come out notched after Expand Appearance. The Up and Down arrow keys now switch the type (right after opening, or when no number field has focus). Moved Direction to the bottom of the Type panel, and kept the buttons right-aligned. Cancel now restores the original selection. Fixed an error (expandFixCheckbox is undefined) that v1.6.0 raised when opening the dialog box
 - v1.6.0 (2026-10-17) Renamed Adjust for Expand to Adjust Tips and added Expand Appearance (expands the appearance on OK and rebuilds curves as clean arcs) for the stroke types. The dialog box now has two columns with right-aligned buttons (a Type panel with the type buttons and direction toggles on the left; an Options panel with Direction, Thickness, Height, Angle, Adjust Tips and Expand Appearance on the right)
 - v1.5.0 (2026-10-17) Added Adjust for Expand to the stroke types (pulls the shaft back from each head by 1/10 of the stroke width; on by default)
 - v1.4.0 (2026-10-17) Fill arrows now take their head angle from Angle too (shared with Pentagon)
@@ -111,6 +122,6 @@ https://note.com/dtp_tranist/n/n789072361c12
 
 ### Script info
 
-- Version: v1.6.0
+- Version: v1.7.0
 - First release: 2026-10-10
 - Last updated: 2026-10-17
