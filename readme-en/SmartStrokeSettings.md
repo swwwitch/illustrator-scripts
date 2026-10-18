@@ -74,7 +74,8 @@ The dialog has the presets at the top, **Stroke** and **Arrowheads** in the left
 - With **White Outline** on, a white copy is placed behind the stroke and turned into a white outline with the Outline Stroke and Offset Path effects (arrowheads and dashes are outlined too). The stroke and its outline are grouped
 - Offset: width of the outline (pt). It starts at half the weight and follows the weight when it changes
 - Joins (Miter / Round): the Offset Path joins. They follow the stroke's corner (Round for Round, Miter otherwise)
-- Running again with White Outline on removes the old outline and rebuilds it
+- Running again with White Outline on removes the old outline and rebuilds it; running with it off removes the outline and ungroups the stroke
+- Clipping paths get no white outline
 - The white outline settings are saved in presets
 
 #### Preview and buttons
@@ -104,6 +105,7 @@ https://note.com/dtp_tranist/n/n1726fc0f8dc9
 
 ### Update History
 
+- v1.3.1 (2026-10-18) Fixed clipping masks breaking when a clipping path got a white outline. Re-running with White Outline off now removes an existing outline. Fixed the cap icons resetting the white outline joins. Fixed a doubled outline in the preview when only the stroke inside a white outline group is selected. Fixed half-built outlines being left behind when the preview fails
 - v1.3.0 (2026-10-18) Added White Outline (ported from RectangleToArrow; set the offset and joins, also saved in presets)
 - v1.2.3 (2026-10-06) Confirmation dialogs for deleting or overwriting now default to No (Enter cancels)
 - v1.0.0 (2026-10-03) Initial release

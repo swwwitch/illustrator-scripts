@@ -29,7 +29,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartStrok
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SmartStrokeSettings";          /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.3.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.3.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-03";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-18";                   /* 更新日 / last updated */
@@ -1743,8 +1743,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1726fc0f8dc9"; /* 紹�
                 en: "On an open path, distributes the dashes so both ends finish with a dash (unused for closed paths)."
             },
             whiteEdge: {
-                ja: "線の背面に白い複製を置き、［パスのアウトライン］と［パスのオフセット］の効果で白いフチにします。線と白フチはグループにまとめます。白フチを付けた線にもう一度オンで実行すると、白フチを作り直します。",
-                en: "Places a white copy behind the stroke and turns it into a white outline with the Outline Stroke and Offset Path effects. The stroke and its outline are grouped. Running again with this on rebuilds an existing outline."
+                ja: "線の背面に白い複製を置き、［パスのアウトライン］と［パスのオフセット］の効果で白いフチにします。線と白フチはグループにまとめます。白フチを付けた線にもう一度オンで実行すると白フチを作り直し、オフで実行すると白フチを外します。",
+                en: "Places a white copy behind the stroke and turns it into a white outline with the Outline Stroke and Offset Path effects. The stroke and its outline are grouped. Running again with this on rebuilds an existing outline; running with it off removes it."
             },
             whiteEdgeOffset: {
                 ja: "白フチの幅（［パスのオフセット］の値）です。線幅を変えると、線幅の1/2に合わせます。",
@@ -2824,7 +2824,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1726fc0f8dc9"; /* 紹�
     }
 
     /**
-     * 白フチを付ける対象（パス・複合パス）を、グループの中までたどって集める。複合パスは中に入らず1つとして扱い、白フチの複製は除く
+     * 白フチを付ける対象（パス・複合パス）を、グループの中までたどって集める。複合パスは中に入らず1つとして扱い、白フチの複製とクリッピングパスは除く
      * @param {Array} pageItems - 選択やグループの中身
      * @returns {PageItem[]} 対象のパス・複合パス
      */
@@ -2834,7 +2834,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1726fc0f8dc9"; /* 紹�
             var pageItem = pageItems[i];
             if (isWhiteEdgeCopy(pageItem)) continue;
             if (pageItem.typename === "PathItem" || pageItem.typename === "CompoundPathItem") {
-                targetItems.push(pageItem);
+                /* クリッピングパスをグループに入れるとマスクが外れるので触らない / moving a clipping path into a group breaks the mask */
+                if (!isClippingPath(pageItem)) targetItems.push(pageItem);
             } else if (pageItem.typename === "GroupItem") {
                 targetItems = targetItems.concat(collectWhiteEdgeTargets(pageItem.pageItems));
             }
@@ -2843,47 +2844,105 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1726fc0f8dc9"; /* 紹�
     }
 
     /**
-     * 選択していたオブジェクトの中のパス・複合パスに白フチを付け、付けたあとのオブジェクトを選択する
-     * @param {PageItem[]} topItems - 選択していたオブジェクト
-     * @param {{offset: number, joinType: string}} edgeStyle - 白フチのオフセット（pt）と角の形状
-     * @returns {PageItem[]} 付けたあとのオブジェクト（グループに入れた対象は、そのグループに置き換える）
+     * クリッピングパス（複合パスなら中のパスがクリッピングパス）かを返す
+     * @param {PathItem|CompoundPathItem} pageItem - 調べるパス・複合パス
+     * @returns {boolean} クリッピングパスなら true
      */
-    function applyWhiteEdges(topItems, edgeStyle) {
-        var targetItems = collectWhiteEdgeTargets(topItems);
-        var resultItems = [];
-        for (var i = 0; i < topItems.length; i++) resultItems.push(topItems[i]);
-        for (var j = 0; j < targetItems.length; j++) {
-            var edgeGroup = addWhiteEdge(targetItems[j], edgeStyle);
-            for (var k = 0; k < resultItems.length; k++) {
-                if (resultItems[k] === targetItems[j]) resultItems[k] = edgeGroup;
-            }
-        }
-        app.activeDocument.selection = resultItems;
-        return resultItems;
+    function isClippingPath(pageItem) {
+        if (pageItem.typename === "CompoundPathItem") return pageItem.pathItems.length > 0 && pageItem.pathItems[0].clipping;
+        return pageItem.clipping;
     }
 
     /**
-     * パス・複合パスの背面に白い複製を置き、［パスのアウトライン］と［パスのオフセット］の効果で白フチにする。対象と白フチはグループにする
-     * @param {PathItem|CompoundPathItem} targetItem - 対象（線の設定を適用したあと）
+     * 選択していたオブジェクトの中のパス・複合パスに白フチを付け、付けたあとのオブジェクトを選択する。
+     * グループに入れた対象は topItems の中でそのグループに置き換える（途中で例外が出ても、それまでの置き換えは残る）
+     * @param {PageItem[]} topItems - 選択していたオブジェクト（中身を書き換える）
      * @param {{offset: number, joinType: string}} edgeStyle - 白フチのオフセット（pt）と角の形状
-     * @returns {GroupItem} 対象と白フチのグループ
+     * @returns {void}
      */
-    function addWhiteEdge(targetItem, edgeStyle) {
-        var edgeGroup = prepareWhiteEdgeGroup(targetItem);
+    function applyWhiteEdges(topItems, edgeStyle) {
+        var targetItems = collectWhiteEdgeTargets(topItems);
+        for (var i = 0; i < targetItems.length; i++) {
+            var edgeGroup = prepareWhiteEdgeGroup(targetItems[i]);
+            /* 白フチを作る前に置き換え、失敗しても後片付けで消せるようにする / swap first so a failure can still be cleaned up */
+            replaceInArray(topItems, targetItems[i], edgeGroup);
+            addWhiteEdgeCopy(targetItems[i], edgeGroup, edgeStyle);
+        }
+        app.activeDocument.selection = topItems;
+    }
+
+    /**
+     * 選択していたオブジェクトの中の白フチを外す（白フチの複製を消してグループを解き、対象を元の位置に戻す）。
+     * 白フチのグループは topItems の中で対象に置き換える
+     * @param {PageItem[]} topItems - 選択していたオブジェクト（中身を書き換える）
+     * @returns {void}
+     */
+    function removeWhiteEdges(topItems) {
+        var targetItems = collectWhiteEdgeTargets(topItems);
+        for (var i = 0; i < targetItems.length; i++) {
+            var edgeGroup = targetItems[i].parent;
+            if (edgeGroup.typename !== "GroupItem" || !isWhiteEdgeGroupOf(edgeGroup, targetItems[i])) continue;
+            targetItems[i].move(edgeGroup, ElementPlacement.PLACEBEFORE);
+            edgeGroup.remove();
+            replaceInArray(topItems, edgeGroup, targetItems[i]);
+        }
+        app.activeDocument.selection = topItems;
+    }
+
+    /**
+     * 白フチがオンなら付け直し、オフなら既存の白フチを外す
+     * @param {PageItem[]} topItems - 選択していたオブジェクト（中身を書き換える）
+     * @param {{offset: number, joinType: string}|null} edgeStyle - 白フチの指定。null ならオフ
+     * @returns {void}
+     */
+    function applyOrRemoveWhiteEdges(topItems, edgeStyle) {
+        if (edgeStyle) {
+            applyWhiteEdges(topItems, edgeStyle);
+        } else {
+            removeWhiteEdges(topItems);
+        }
+    }
+
+    /**
+     * 配列の中の要素を置き換える（DOM の参照は === で同じものと判定できる）
+     * @param {Array} items - 配列（中身を書き換える）
+     * @param {Object} oldItem - 置き換える要素
+     * @param {Object} newItem - 新しい要素
+     * @returns {void}
+     */
+    function replaceInArray(items, oldItem, newItem) {
+        for (var i = 0; i < items.length; i++) {
+            if (items[i] === oldItem) items[i] = newItem;
+        }
+    }
+
+    /**
+     * 対象の白い複製を作り、［パスのアウトライン］と［パスのオフセット］の効果で白フチにして、グループの背面に入れる。
+     * 途中で例外が出たら、作りかけの複製を消してから投げ直す
+     * @param {PathItem|CompoundPathItem} targetItem - 対象（線の設定を適用したあと）
+     * @param {GroupItem} edgeGroup - prepareWhiteEdgeGroup() で用意したグループ
+     * @param {{offset: number, joinType: string}} edgeStyle - 白フチのオフセット（pt）と角の形状
+     * @returns {void}
+     */
+    function addWhiteEdgeCopy(targetItem, edgeGroup, edgeStyle) {
         var whiteEdge = targetItem.duplicate();
-        whiteEdge.name = WHITE_EDGE_ITEM_NAME;
-        paintWhite(whiteEdge);
-        /* 入れ子のグループで効果のメニューコマンドを実行すると一番外側のグループに付くので、レイヤー直下で掛けてから戻す
-           Effect menu commands inside nested groups land on the outermost group, so apply at the layer's top level and move back */
-        whiteEdge.move(targetItem.layer, ElementPlacement.PLACEATBEGINNING);
-        /* ［パスのアウトライン］は XML（applyEffect）では付かないので、メニューコマンドで掛ける（矢印・破線も形になる）
-           Outline Stroke does not apply through XML, so use the menu command (arrowheads and dashes become shapes too) */
-        selectOnly([whiteEdge]);
-        app.executeMenuCommand("Live Outline Stroke");
-        applyOffsetPath(whiteEdge, edgeStyle);
-        /* 後から PLACEATEND で入れたほうが背面になる / the later PLACEATEND item ends up behind */
-        whiteEdge.move(edgeGroup, ElementPlacement.PLACEATEND);
-        return edgeGroup;
+        try {
+            whiteEdge.name = WHITE_EDGE_ITEM_NAME;
+            paintWhite(whiteEdge);
+            /* 入れ子のグループで効果のメニューコマンドを実行すると一番外側のグループに付くので、レイヤー直下で掛けてから戻す
+               Effect menu commands inside nested groups land on the outermost group, so apply at the layer's top level and move back */
+            whiteEdge.move(targetItem.layer, ElementPlacement.PLACEATBEGINNING);
+            /* ［パスのアウトライン］は XML（applyEffect）では付かないので、メニューコマンドで掛ける（矢印・破線も形になる）
+               Outline Stroke does not apply through XML, so use the menu command (arrowheads and dashes become shapes too) */
+            selectOnly([whiteEdge]);
+            app.executeMenuCommand("Live Outline Stroke");
+            applyOffsetPath(whiteEdge, edgeStyle);
+            /* 後から PLACEATEND で入れたほうが背面になる / the later PLACEATEND item ends up behind */
+            whiteEdge.move(edgeGroup, ElementPlacement.PLACEATEND);
+        } catch (e) {
+            whiteEdge.remove();
+            throw e;
+        }
     }
 
     /**
@@ -2904,6 +2963,23 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1726fc0f8dc9"; /* 紹�
         edgeGroup.move(targetItem, ElementPlacement.PLACEBEFORE);
         targetItem.move(edgeGroup, ElementPlacement.PLACEATBEGINNING);
         return edgeGroup;
+    }
+
+    /**
+     * 白フチのグループの中のパスだけを選んでいるとき、そのグループの白フチの複製を集める（プレビューの間だけ隠すため）
+     * @param {PageItem[]} sourceItems - 選択していたオブジェクト
+     * @returns {PageItem[]} 白フチの複製
+     */
+    function collectSiblingWhiteEdges(sourceItems) {
+        var siblingEdges = [];
+        for (var i = 0; i < sourceItems.length; i++) {
+            var parentItem = sourceItems[i].parent;
+            if (isWhiteEdgeCopy(sourceItems[i]) || parentItem.typename !== "GroupItem" || !isWhiteEdgeGroupOf(parentItem, sourceItems[i])) continue;
+            for (var j = 0; j < parentItem.pageItems.length; j++) {
+                if (isWhiteEdgeCopy(parentItem.pageItems[j])) siblingEdges.push(parentItem.pageItems[j]);
+            }
+        }
+        return siblingEdges;
     }
 
     /**
@@ -2933,7 +3009,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1726fc0f8dc9"; /* 紹�
      * @returns {void}
      */
     function applyOffsetPath(pageItem, edgeStyle) {
-        pageItem.applyEffect('<LiveEffect name="Adobe Offset Path"><Dict data="R mlim 4 R ofst ' + edgeStyle.offset
+        /* 小さな値が指数表記（1e-7 など）にならないよう固定小数にする / fixed notation, so tiny values are not written as 1e-7 */
+        pageItem.applyEffect('<LiveEffect name="Adobe Offset Path"><Dict data="R mlim 4 R ofst ' + edgeStyle.offset.toFixed(4)
             + ' I jntp ' + OFFSET_PATH_JOIN_CODES[edgeStyle.joinType] + ' "/><\/LiveEffect>');
     }
 
@@ -2987,11 +3064,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1726fc0f8dc9"; /* 紹�
         var originalStates = [];
         var previewItems = [];
         var isActionErrorShown = false;
+        var siblingWhiteEdges = [];
 
         /* 元の選択と線設定を控える / Capture the selection and its stroke state */
         var selectedItems = targetDocument.selection;
         for (var i = 0; i < selectedItems.length; i++) sourceItems.push(selectedItems[i]);
         strokePaths = collectStrokePaths(sourceItems);
+        /* 白フチのグループの中のパスだけを選んでいるときは、元の白フチもプレビューの間だけ隠す
+           when only the path inside a white outline group is selected, hide its old outline during the preview too */
+        siblingWhiteEdges = collectSiblingWhiteEdges(sourceItems);
         for (i = 0; i < strokePaths.length; i++) {
             var strokePath = strokePaths[i];
             originalStates.push({
@@ -3023,6 +3104,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1726fc0f8dc9"; /* 紹�
             for (var i = 0; i < previewItems.length; i++) previewItems[i].remove();
             previewItems = [];
             for (i = 0; i < sourceItems.length; i++) sourceItems[i].hidden = false;
+            for (i = 0; i < siblingWhiteEdges.length; i++) siblingWhiteEdges[i].hidden = false;
             targetDocument.selection = sourceItems;
         }
 
@@ -3033,6 +3115,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1726fc0f8dc9"; /* 紹�
                 previewItems.push(sourceItems[i].duplicate());
                 sourceItems[i].hidden = true;
             }
+            for (i = 0; i < siblingWhiteEdges.length; i++) siblingWhiteEdges[i].hidden = true;
             targetDocument.selection = previewItems;
         }
 
@@ -3055,8 +3138,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1726fc0f8dc9"; /* 紹�
                 createPreviewItems();
                 try {
                     applyStrokeSettings(collectStrokePaths(previewItems), strokeSettings);
-                    /* 白フチでグループに入った複製は、消すときのためにグループに置き換える / track the groups that now hold the copies */
-                    if (strokeSettings.whiteEdgeStyle) previewItems = applyWhiteEdges(previewItems, strokeSettings.whiteEdgeStyle);
+                    /* previewItems の中で、白フチのグループに入った複製はグループに、外した複製は対象に置き換わる
+                       previewItems is updated in place: wrapped copies become their groups, unwrapped ones their targets */
+                    applyOrRemoveWhiteEdges(previewItems, strokeSettings.whiteEdgeStyle);
                 } catch (e) {
                     /* 入力のたびに出さないよう、知らせるのは1回だけ / tell only once, not on every edit */
                     if (!isActionErrorShown) alert(e.message);
@@ -4122,7 +4206,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1726fc0f8dc9"; /* 紹�
         whiteEdgeCheckbox.helpTip = getLabel("tooltip.whiteEdge");
         whiteEdgeCheckbox.alignment = "left";
         var offsetInput = addNumberField(whiteEdgePanel, {
-            labelKey: "fieldLabel.whiteEdgeOffset", text: String(getDefaultStrokeWidth() * WHITE_EDGE_OFFSET_RATIO),
+            /* 値は showSettingsDialog() で線幅から入れる / filled from the weight in showSettingsDialog() */
+            labelKey: "fieldLabel.whiteEdgeOffset", text: "0",
             min: 0, unitKey: "unit.point", unitInField: true, tooltipKey: "tooltip.whiteEdgeOffset"
         });
 
@@ -4865,10 +4950,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1726fc0f8dc9"; /* 紹�
             setNumberFieldValue(strokeControls.strokeWidthInput, pickedWidth);
             strokeControls.strokeWidthInput.onChange();
         };
-        var strokeOptionIcons = strokeControls.strokeCapIcons.concat(strokeControls.cornerJoinIcons);
-        /* 角の形状を変えたら、白フチの角の形状も合わせる / the white outline join follows the corner */
-        for (var i = 0; i < strokeOptionIcons.length; i++) {
-            strokeOptionIcons[i].onClick = function () {
+        var i;
+        for (i = 0; i < strokeControls.strokeCapIcons.length; i++) {
+            strokeControls.strokeCapIcons[i].onClick = function () { updatePreview(dialogSession); };
+        }
+        /* 角の形状を変えたら、白フチの角の形状も合わせる（線端では変えない）/ the white outline join follows the corner, not the cap */
+        for (i = 0; i < strokeControls.cornerJoinIcons.length; i++) {
+            strokeControls.cornerJoinIcons[i].onClick = function () {
                 followCornerJoinWithWhiteEdgeJoin(dialogSession.controls);
                 updatePreview(dialogSession);
             };
@@ -4876,8 +4964,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1726fc0f8dc9"; /* 紹�
         /* 丸型線端を option＋クリックすると、角の形状もラウンドにする / Option-clicking Round Cap also sets Round Join */
         var roundCapIcon = strokeControls.strokeCapIcons[findOptionIndexByKey(strokeControls.strokeCapIcons, "round")];
         roundCapIcon.onClick = function () {
-            if (ScriptUI.environment.keyboardState.altKey) checkOptionByKey(strokeControls.cornerJoinIcons, "round");
-            followCornerJoinWithWhiteEdgeJoin(dialogSession.controls);
+            if (ScriptUI.environment.keyboardState.altKey) {
+                checkOptionByKey(strokeControls.cornerJoinIcons, "round");
+                followCornerJoinWithWhiteEdgeJoin(dialogSession.controls);
+            }
             updatePreview(dialogSession);
         };
     }
@@ -5344,7 +5434,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1726fc0f8dc9"; /* 紹�
         for (var i = 0; i < targetDocument.selection.length; i++) targetItems.push(targetDocument.selection[i]);
         try {
             applyStrokeSettings(collectStrokePaths(targetItems), strokeSettings);
-            if (strokeSettings.whiteEdgeStyle) applyWhiteEdges(targetItems, strokeSettings.whiteEdgeStyle);
+            applyOrRemoveWhiteEdges(targetItems, strokeSettings.whiteEdgeStyle);
         } catch (e) {
             alert(e.message);
         }
