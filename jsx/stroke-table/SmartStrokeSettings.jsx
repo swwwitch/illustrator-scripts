@@ -6,7 +6,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-選択したパスに、よく使う矢印と線の設定（線幅・線端・角の形状・カラー・破線）をまとめて適用します。
+選択したパスに、よく使う矢印と線の設定（線幅・線端・角の形状・カラー・破線・白フチ）をまとめて適用します。
 矢印はDOMから操作できないため、一時アクションを生成して実行します。
 
 詳細は README を参照してください。
@@ -17,7 +17,7 @@ https://note.com/dtp_tranist/n/n1726fc0f8dc9
 
 ### Overview
 
-Applies a favorite arrowhead together with the stroke settings — weight, cap, corner, color and dashes — to the selected paths.
+Applies a favorite arrowhead together with the stroke settings — weight, cap, corner, color, dashes and a white outline — to the selected paths.
 Arrowheads cannot be reached from the DOM, so a temporary action is generated and played instead.
 
 See the README for details.
@@ -29,10 +29,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartStrok
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SmartStrokeSettings";          /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.2.3";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.3.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-03";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-06";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-18";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartStrokeSettings.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartStrokeSettings.md"; /* README (English) */
@@ -87,6 +87,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1726fc0f8dc9"; /* 紹�
         dotted: { dash: 0, gap: 2 }          /* ドット点線 / dotted */
     };
     var DOT_GAP_PRECISION = 1000;            /* 両端を調整したドット点線の間隔の切り捨て単位（1/1000 pt）/ truncation unit for adjusted dotted gaps */
+
+    /* 白フチ。オフセットの初期値は線幅の1/2、角の形状は線の角の形状に合わせる（ラウンドならラウンド、ほかはマイター）
+       White outline; the offset starts at half the weight, and the join follows the corner (Round for Round, Miter otherwise) */
+    var WHITE_EDGE_OFFSET_RATIO = 1 / 2;     /* 白フチのオフセットの初期値（線幅に対する比率）/ initial white outline offset relative to the weight */
+    var WHITE_EDGE_JOIN_TYPES = ["miter", "round"]; /* 白フチの角の形状の並び（ラジオボタンの順）/ white outline joins in radio button order */
+    var WHITE_EDGE_ITEM_NAME = "WhiteEdge";  /* 白フチの複製に付ける名前（再実行で作り直すときの目印）/ name of the white copy, used to rebuild it on a re-run */
 
     // =========================================
     // 一時アクション / Temporary action
@@ -224,6 +230,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1726fc0f8dc9"; /* 紹�
     var SUB_PANEL_TOP_MARGIN = 10;           /* 入れ子のパネル（計算方法）の上の余白 / space above nested panels */
     var PRESET_DROPDOWN_WIDTH = 160;         /* プリセットのドロップダウンの幅 / preset dropdown width */
     var PRESET_NAME_CHARS  = 20;             /* プリセット名の入力欄の文字数 / preset name field width */
+    var WHITE_EDGE_JOIN_RADIO_SPACING = 4;   /* 白フチの角の形状のラジオボタンどうしの縦の間隔 / vertical spacing between the white outline join radios */
 
     // ダイアログの位置と不透明度（再利用パーツ） / Dialog position and opacity (reusable)
 
@@ -1640,7 +1647,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1726fc0f8dc9"; /* 紹�
             stroke: { ja: "線", en: "Stroke" },
             arrowhead: { ja: "矢印", en: "Arrowheads" },
             dash: { ja: "破線", en: "Dashed Line" },
-            calcMethod: { ja: "計算方法", en: "Calculation" }
+            calcMethod: { ja: "計算方法", en: "Calculation" },
+            whiteEdge: { ja: "白フチ", en: "White Outline" }
+        },
+        checkbox: {
+            whiteEdge: { ja: "白フチ", en: "White Outline" }
         },
         fieldLabel: {
             preset: { ja: "プリセット", en: "Preset" },
@@ -1652,7 +1663,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1726fc0f8dc9"; /* 紹�
             arrowScale: { ja: "倍率", en: "Scale" },
             segments: { ja: "分割数", en: "Segments" },
             gap: { ja: "間隔", en: "Gap" },
-            dash: { ja: "線分", en: "Dash" }
+            dash: { ja: "線分", en: "Dash" },
+            whiteEdgeOffset: { ja: "オフセット", en: "Offset" },
+            whiteEdgeJoin: { ja: "角の形状", en: "Joins" }
         },
         unit: {
             point: { ja: "pt", en: "pt" },
@@ -1667,7 +1680,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1726fc0f8dc9"; /* 紹�
             tipAtEnd: { ja: "パスの終点に配置", en: "At end of path" },
             tipBeyondEnd: { ja: "パスの終点から配置", en: "Beyond end of path" },
             keepDashLength: { ja: "線分の長さを保持", en: "Keep dash lengths" },
-            adjustDashEnds: { ja: "両端を調整", en: "Adjust ends" }
+            adjustDashEnds: { ja: "両端を調整", en: "Adjust ends" },
+            whiteEdgeJoin: {
+                miter: { ja: "マイター", en: "Miter" },
+                round: { ja: "ラウンド", en: "Round" }
+            }
         },
         button: {
             cancel: { ja: "キャンセル", en: "Cancel" },
@@ -1724,6 +1741,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1726fc0f8dc9"; /* 紹�
             adjustDashEnds: {
                 ja: "オープンパスで、両端が線分で終わるように配分します（クローズパスでは使いません）。",
                 en: "On an open path, distributes the dashes so both ends finish with a dash (unused for closed paths)."
+            },
+            whiteEdge: {
+                ja: "線の背面に白い複製を置き、［パスのアウトライン］と［パスのオフセット］の効果で白いフチにします。線と白フチはグループにまとめます。白フチを付けた線にもう一度オンで実行すると、白フチを作り直します。",
+                en: "Places a white copy behind the stroke and turns it into a white outline with the Outline Stroke and Offset Path effects. The stroke and its outline are grouped. Running again with this on rebuilds an existing outline."
+            },
+            whiteEdgeOffset: {
+                ja: "白フチの幅（［パスのオフセット］の値）です。線幅を変えると、線幅の1/2に合わせます。",
+                en: "White outline width (the Offset Path amount). Changing the weight resets it to half the weight."
+            },
+            whiteEdgeJoin: {
+                ja: "白フチの角の形状（［パスのオフセット］の角の形状）です。線の角の形状を変えると、それに合わせます。",
+                en: "Corner shape of the white outline (the Offset Path joins). It follows the stroke's corner when that changes."
             },
             stepUp: {
                 ja: "値を増やす（shift＋クリックで10の倍数へ、option＋クリックで0.1ずつ）",
@@ -2551,7 +2580,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1726fc0f8dc9"; /* 紹�
     // =========================================
 
     /**
-     * 線を持てるパスを、グループ・複合パスの中までたどって集める
+     * 線を持てるパスを、グループ・複合パスの中までたどって集める（白フチの複製は除く）
      * @param {Array} pageItems - 選択やグループの中身
      * @returns {PathItem[]} 集めたパス
      */
@@ -2559,6 +2588,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1726fc0f8dc9"; /* 紹�
         var strokePaths = [];
         for (var i = 0; i < pageItems.length; i++) {
             var pageItem = pageItems[i];
+            /* 白フチの複製には線の設定を掛けない（白フチを付けるときに作り直す）/ leave white copies alone; they are rebuilt with the outline */
+            if (isWhiteEdgeCopy(pageItem)) continue;
             if (pageItem.typename === "PathItem") {
                 strokePaths.push(pageItem);
             } else if (pageItem.typename === "CompoundPathItem") {
@@ -2777,6 +2808,170 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1726fc0f8dc9"; /* 紹�
     }
 
     // =========================================
+    // 白フチ / White outline
+    // =========================================
+
+    /* ［パスのオフセット］の角の形状の値（jntp） / Offset Path join codes (jntp) */
+    var OFFSET_PATH_JOIN_CODES = { round: 0, miter: 2 };
+
+    /**
+     * 白フチの複製かを返す（名前で見分ける）
+     * @param {PageItem} pageItem - 調べるオブジェクト
+     * @returns {boolean} 白フチの複製なら true
+     */
+    function isWhiteEdgeCopy(pageItem) {
+        return pageItem.name === WHITE_EDGE_ITEM_NAME;
+    }
+
+    /**
+     * 白フチを付ける対象（パス・複合パス）を、グループの中までたどって集める。複合パスは中に入らず1つとして扱い、白フチの複製は除く
+     * @param {Array} pageItems - 選択やグループの中身
+     * @returns {PageItem[]} 対象のパス・複合パス
+     */
+    function collectWhiteEdgeTargets(pageItems) {
+        var targetItems = [];
+        for (var i = 0; i < pageItems.length; i++) {
+            var pageItem = pageItems[i];
+            if (isWhiteEdgeCopy(pageItem)) continue;
+            if (pageItem.typename === "PathItem" || pageItem.typename === "CompoundPathItem") {
+                targetItems.push(pageItem);
+            } else if (pageItem.typename === "GroupItem") {
+                targetItems = targetItems.concat(collectWhiteEdgeTargets(pageItem.pageItems));
+            }
+        }
+        return targetItems;
+    }
+
+    /**
+     * 選択していたオブジェクトの中のパス・複合パスに白フチを付け、付けたあとのオブジェクトを選択する
+     * @param {PageItem[]} topItems - 選択していたオブジェクト
+     * @param {{offset: number, joinType: string}} edgeStyle - 白フチのオフセット（pt）と角の形状
+     * @returns {PageItem[]} 付けたあとのオブジェクト（グループに入れた対象は、そのグループに置き換える）
+     */
+    function applyWhiteEdges(topItems, edgeStyle) {
+        var targetItems = collectWhiteEdgeTargets(topItems);
+        var resultItems = [];
+        for (var i = 0; i < topItems.length; i++) resultItems.push(topItems[i]);
+        for (var j = 0; j < targetItems.length; j++) {
+            var edgeGroup = addWhiteEdge(targetItems[j], edgeStyle);
+            for (var k = 0; k < resultItems.length; k++) {
+                if (resultItems[k] === targetItems[j]) resultItems[k] = edgeGroup;
+            }
+        }
+        app.activeDocument.selection = resultItems;
+        return resultItems;
+    }
+
+    /**
+     * パス・複合パスの背面に白い複製を置き、［パスのアウトライン］と［パスのオフセット］の効果で白フチにする。対象と白フチはグループにする
+     * @param {PathItem|CompoundPathItem} targetItem - 対象（線の設定を適用したあと）
+     * @param {{offset: number, joinType: string}} edgeStyle - 白フチのオフセット（pt）と角の形状
+     * @returns {GroupItem} 対象と白フチのグループ
+     */
+    function addWhiteEdge(targetItem, edgeStyle) {
+        var edgeGroup = prepareWhiteEdgeGroup(targetItem);
+        var whiteEdge = targetItem.duplicate();
+        whiteEdge.name = WHITE_EDGE_ITEM_NAME;
+        paintWhite(whiteEdge);
+        /* 入れ子のグループで効果のメニューコマンドを実行すると一番外側のグループに付くので、レイヤー直下で掛けてから戻す
+           Effect menu commands inside nested groups land on the outermost group, so apply at the layer's top level and move back */
+        whiteEdge.move(targetItem.layer, ElementPlacement.PLACEATBEGINNING);
+        /* ［パスのアウトライン］は XML（applyEffect）では付かないので、メニューコマンドで掛ける（矢印・破線も形になる）
+           Outline Stroke does not apply through XML, so use the menu command (arrowheads and dashes become shapes too) */
+        selectOnly([whiteEdge]);
+        app.executeMenuCommand("Live Outline Stroke");
+        applyOffsetPath(whiteEdge, edgeStyle);
+        /* 後から PLACEATEND で入れたほうが背面になる / the later PLACEATEND item ends up behind */
+        whiteEdge.move(edgeGroup, ElementPlacement.PLACEATEND);
+        return edgeGroup;
+    }
+
+    /**
+     * 白フチを入れるグループを用意する。すでに白フチのグループに入っていれば古い白フチを消してそのグループを使い、
+     * そうでなければ対象の位置にグループを作って対象を入れる
+     * @param {PathItem|CompoundPathItem} targetItem - 対象
+     * @returns {GroupItem} 対象の入ったグループ
+     */
+    function prepareWhiteEdgeGroup(targetItem) {
+        var parentItem = targetItem.parent;
+        if (parentItem.typename === "GroupItem" && isWhiteEdgeGroupOf(parentItem, targetItem)) {
+            for (var i = parentItem.pageItems.length - 1; i >= 0; i--) {
+                if (isWhiteEdgeCopy(parentItem.pageItems[i])) parentItem.pageItems[i].remove();
+            }
+            return parentItem;
+        }
+        var edgeGroup = parentItem.groupItems.add();
+        edgeGroup.move(targetItem, ElementPlacement.PLACEBEFORE);
+        targetItem.move(edgeGroup, ElementPlacement.PLACEATBEGINNING);
+        return edgeGroup;
+    }
+
+    /**
+     * グループが、対象と白フチの複製だけでできた白フチのグループかを返す
+     * （プレビューの複製は元と同じグループに入るので、元の白フチを消さないよう、ほかのものがあれば別扱いにする）
+     * @param {GroupItem} groupItem - 調べるグループ
+     * @param {PageItem} targetItem - 対象
+     * @returns {boolean} 対象の白フチのグループなら true
+     */
+    function isWhiteEdgeGroupOf(groupItem, targetItem) {
+        var hasWhiteEdge = false;
+        for (var i = 0; i < groupItem.pageItems.length; i++) {
+            var memberItem = groupItem.pageItems[i];
+            if (isWhiteEdgeCopy(memberItem)) {
+                hasWhiteEdge = true;
+            } else if (memberItem !== targetItem) {
+                return false;
+            }
+        }
+        return hasWhiteEdge;
+    }
+
+    /**
+     * ［パスのオフセット］効果を掛ける
+     * @param {PageItem} pageItem - 対象
+     * @param {{offset: number, joinType: string}} edgeStyle - オフセットの量（pt）と角の形状（"miter" / "round"）
+     * @returns {void}
+     */
+    function applyOffsetPath(pageItem, edgeStyle) {
+        pageItem.applyEffect('<LiveEffect name="Adobe Offset Path"><Dict data="R mlim 4 R ofst ' + edgeStyle.offset
+            + ' I jntp ' + OFFSET_PATH_JOIN_CODES[edgeStyle.joinType] + ' "/><\/LiveEffect>');
+    }
+
+    /**
+     * パス・複合パスを白にする（塗りのあるパスは塗り、線のあるパスは線）
+     * @param {PathItem|CompoundPathItem} pageItem - 対象
+     * @returns {void}
+     */
+    function paintWhite(pageItem) {
+        var whitePaths = (pageItem.typename === "CompoundPathItem") ? pageItem.pathItems : [pageItem];
+        for (var i = 0; i < whitePaths.length; i++) {
+            if (whitePaths[i].filled) whitePaths[i].fillColor = createWhiteColor();
+            if (whitePaths[i].stroked) whitePaths[i].strokeColor = createWhiteColor();
+        }
+    }
+
+    /**
+     * 白（グレー 0%）を返す
+     * @returns {GrayColor} 白
+     */
+    function createWhiteColor() {
+        var whiteColor = new GrayColor();
+        whiteColor.gray = 0;
+        return whiteColor;
+    }
+
+    /**
+     * 指定したオブジェクトだけを選択し、画面を更新する（効果のメニューコマンドの前に呼ぶ）
+     * @param {PageItem[]} pageItems - 選択するオブジェクト
+     * @returns {void}
+     */
+    function selectOnly(pageItems) {
+        app.activeDocument.selection = null;
+        for (var i = 0; i < pageItems.length; i++) pageItems[i].selected = true;
+        app.redraw();
+    }
+
+    // =========================================
     // プレビュー / Preview
     // =========================================
 
@@ -2860,6 +3055,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1726fc0f8dc9"; /* 紹�
                 createPreviewItems();
                 try {
                     applyStrokeSettings(collectStrokePaths(previewItems), strokeSettings);
+                    /* 白フチでグループに入った複製は、消すときのためにグループに置き換える / track the groups that now hold the copies */
+                    if (strokeSettings.whiteEdgeStyle) previewItems = applyWhiteEdges(previewItems, strokeSettings.whiteEdgeStyle);
                 } catch (e) {
                     /* 入力のたびに出さないよう、知らせるのは1回だけ / tell only once, not on every edit */
                     if (!isActionErrorShown) alert(e.message);
@@ -3912,6 +4109,47 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1726fc0f8dc9"; /* 紹�
     }
 
     /**
+     * 白フチパネル（白フチ・オフセット・角の形状）を作る
+     * @param {Window|Group} parent - 追加先
+     * @returns {Object} 白フチパネルのコントロール
+     */
+    function buildWhiteEdgePanel(parent) {
+        var whiteEdgePanel = parent.add("panel", undefined, getLabel("panel.whiteEdge"));
+        setupPanel(whiteEdgePanel, 6);
+        whiteEdgePanel.alignment = ["fill", "top"];
+
+        var whiteEdgeCheckbox = whiteEdgePanel.add("checkbox", undefined, getLabel("checkbox.whiteEdge"));
+        whiteEdgeCheckbox.helpTip = getLabel("tooltip.whiteEdge");
+        whiteEdgeCheckbox.alignment = "left";
+        var offsetInput = addNumberField(whiteEdgePanel, {
+            labelKey: "fieldLabel.whiteEdgeOffset", text: String(getDefaultStrokeWidth() * WHITE_EDGE_OFFSET_RATIO),
+            min: 0, unitKey: "unit.point", unitInField: true, tooltipKey: "tooltip.whiteEdgeOffset"
+        });
+
+        /* ラジオは同じ親の中だけ排他なので、縦に並べる列に2つとも入れる / radios are exclusive only within one parent, so both go in one column */
+        var joinRow = addLabeledRow(whiteEdgePanel, "fieldLabel.whiteEdgeJoin");
+        joinRow.alignChildren = ["left", "top"];
+        joinRow.helpTip = getLabel("tooltip.whiteEdgeJoin");
+        var joinRadioColumn = joinRow.add("group");
+        joinRadioColumn.orientation = "column";
+        joinRadioColumn.alignChildren = ["left", "top"];
+        joinRadioColumn.spacing = WHITE_EDGE_JOIN_RADIO_SPACING;
+        var joinRadios = [];
+        for (var i = 0; i < WHITE_EDGE_JOIN_TYPES.length; i++) {
+            joinRadios.push(addOptionRadio(joinRadioColumn, getLabel("radio.whiteEdgeJoin." + WHITE_EDGE_JOIN_TYPES[i]), getLabel("tooltip.whiteEdgeJoin")));
+        }
+        joinRadios[0].value = true;
+        alignLabelWidths([offsetInput.fieldLabel, joinRow.rowLabel], "right");
+
+        return {
+            whiteEdgeCheckbox: whiteEdgeCheckbox,
+            offsetInput: offsetInput,
+            joinRow: joinRow,
+            joinRadios: joinRadios
+        };
+    }
+
+    /**
      * 最上部のプリセットの行（ドロップダウン・保存・削除）を作る
      * @param {Window} parent - 追加先
      * @returns {Object} プリセットの行のコントロール
@@ -3947,7 +4185,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1726fc0f8dc9"; /* 紹�
 
         var presetControls = buildPresetRow(settingsDialog);
 
-        /* 2 カラム：左に線と矢印、右に破線 / Two columns: stroke and arrowheads on the left, dashes on the right */
+        /* 2 カラム：左に線と矢印、右に破線と白フチ / Two columns: stroke and arrowheads on the left, dashes and the white outline on the right */
         var settingsColumns = settingsDialog.add("group");
         settingsColumns.orientation = "row";
         settingsColumns.alignChildren = ["fill", "fill"];
@@ -3957,7 +4195,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1726fc0f8dc9"; /* 紹�
         leftColumn.alignChildren = ["fill", "top"];
         var strokeControls = buildStrokePanel(leftColumn);
         var arrowheadControls = buildArrowheadPanel(leftColumn);
-        var dashControls = buildDashPanel(settingsColumns);
+        var rightColumn = settingsColumns.add("group");
+        rightColumn.orientation = "column";
+        rightColumn.alignChildren = ["fill", "top"];
+        rightColumn.alignment = ["fill", "top"];
+        var dashControls = buildDashPanel(rightColumn);
+        var whiteEdgeControls = buildWhiteEdgePanel(rightColumn);
 
         /* ボタン（左：「線」パネルを開く／右：キャンセル・OK）。プレビューは常にオン
            Buttons (left: Open Stroke Panel, right: cancel and OK); the preview is always on */
@@ -3975,6 +4218,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1726fc0f8dc9"; /* 紹�
             openStrokePanelButton: openStrokePanelButton,
             arrowhead: arrowheadControls,
             dash: dashControls,
+            whiteEdge: whiteEdgeControls
         };
     }
 
@@ -4014,6 +4258,73 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1726fc0f8dc9"; /* 紹�
     }
 
     /**
+     * 白フチの入力値を読む
+     * @param {Object} whiteEdgeControls - buildWhiteEdgePanel() の戻り値
+     * @returns {{offset: number, joinType: string}|null} オフセット（pt）と角の形状。白フチがオフなら null
+     */
+    function readWhiteEdgeStyle(whiteEdgeControls) {
+        if (!whiteEdgeControls.whiteEdgeCheckbox.value) return null;
+        var offset = parseFloat(whiteEdgeControls.offsetInput.text);
+        return {
+            offset: (isNaN(offset) || offset < 0) ? 0 : offset,
+            joinType: getCheckedWhiteEdgeJoin(whiteEdgeControls.joinRadios)
+        };
+    }
+
+    /**
+     * 選ばれている白フチの角の形状を返す
+     * @param {RadioButton[]} joinRadios - 角の形状のラジオボタン（WHITE_EDGE_JOIN_TYPES の順）
+     * @returns {string} "miter" または "round"
+     */
+    function getCheckedWhiteEdgeJoin(joinRadios) {
+        for (var i = 0; i < WHITE_EDGE_JOIN_TYPES.length; i++) {
+            if (joinRadios[i].value) return WHITE_EDGE_JOIN_TYPES[i];
+        }
+        return WHITE_EDGE_JOIN_TYPES[0];
+    }
+
+    /**
+     * 白フチの角の形状を選ぶ
+     * @param {RadioButton[]} joinRadios - 角の形状のラジオボタン（WHITE_EDGE_JOIN_TYPES の順）
+     * @param {string} joinType - "miter" または "round"
+     * @returns {void}
+     */
+    function checkWhiteEdgeJoin(joinRadios, joinType) {
+        for (var i = 0; i < WHITE_EDGE_JOIN_TYPES.length; i++) joinRadios[i].value = (WHITE_EDGE_JOIN_TYPES[i] === joinType);
+    }
+
+    /**
+     * 白フチのオフセットを線幅の WHITE_EDGE_OFFSET_RATIO に合わせる
+     * @param {Object} dialogControls - buildSettingsDialog() の戻り値
+     * @returns {void}
+     */
+    function followStrokeWidthWithWhiteEdgeOffset(dialogControls) {
+        var strokeWidth = parseFloat(dialogControls.stroke.strokeWidthInput.text);
+        if (!isNaN(strokeWidth)) setNumberFieldValue(dialogControls.whiteEdge.offsetInput, strokeWidth * WHITE_EDGE_OFFSET_RATIO);
+    }
+
+    /**
+     * 白フチの角の形状を線の角の形状に合わせる（ラウンドならラウンド、ほかはマイター）
+     * @param {Object} dialogControls - buildSettingsDialog() の戻り値
+     * @returns {void}
+     */
+    function followCornerJoinWithWhiteEdgeJoin(dialogControls) {
+        var isRoundJoin = (getCheckedOption(dialogControls.stroke.cornerJoinIcons).key === "round");
+        checkWhiteEdgeJoin(dialogControls.whiteEdge.joinRadios, isRoundJoin ? "round" : "miter");
+    }
+
+    /**
+     * 白フチのオフセット・角の形状を、白フチがオンのときだけ有効にする
+     * @param {Object} whiteEdgeControls - buildWhiteEdgePanel() の戻り値
+     * @returns {void}
+     */
+    function syncWhiteEdgeEnabled(whiteEdgeControls) {
+        var isWhiteEdge = whiteEdgeControls.whiteEdgeCheckbox.value;
+        setSteppedFieldEnabled(whiteEdgeControls.offsetInput, isWhiteEdge);
+        whiteEdgeControls.joinRow.enabled = isWhiteEdge;
+    }
+
+    /**
      * ダイアログの入力値を、アクションと破線に渡す設定にまとめる
      * @param {Object} dialogControls - buildSettingsDialog() の戻り値
      * @returns {Object|null} 線の設定。線幅が不正なら null
@@ -4047,7 +4358,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1726fc0f8dc9"; /* 紹�
             strokeCap: isDotted ? findOptionByKey(STROKE_CAP_OPTIONS, "round") : getCheckedOption(dialogControls.stroke.strokeCapIcons),
             cornerJoin: getCheckedOption(dialogControls.stroke.cornerJoinIcons),
             dashCalc: dashCalc,
-            strokeColor: dialogControls.stroke.strokeColorSwatch.isChanged ? dialogControls.stroke.strokeColorSwatch.strokeColor : null
+            strokeColor: dialogControls.stroke.strokeColorSwatch.isChanged ? dialogControls.stroke.strokeColorSwatch.strokeColor : null,
+            whiteEdgeStyle: readWhiteEdgeStyle(dialogControls.whiteEdge)
         };
     }
 
@@ -4239,7 +4551,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1726fc0f8dc9"; /* 紹�
             segments: parseInt(dashControls.segmentsInput.text, 10),
             gap: parseFloat(dashControls.gapInput.text),
             dash: parseFloat(dashControls.dashLengthInput.text),
-            adjustDashEnds: (getCheckedOption(dashControls.adjustDashEndsIcons).key === "adjustEnds")
+            adjustDashEnds: (getCheckedOption(dashControls.adjustDashEndsIcons).key === "adjustEnds"),
+            whiteEdge: dialogControls.whiteEdge.whiteEdgeCheckbox.value,
+            whiteEdgeOffset: parseFloat(dialogControls.whiteEdge.offsetInput.text),
+            whiteEdgeJoin: getCheckedWhiteEdgeJoin(dialogControls.whiteEdge.joinRadios)
         };
     }
 
@@ -4275,6 +4590,21 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1726fc0f8dc9"; /* 紹�
         if (!isNaN(presetData.gap)) setNumberFieldValue(dashControls.gapInput, presetData.gap);
         if (!isNaN(presetData.dash)) setNumberFieldValue(dashControls.dashLengthInput, presetData.dash);
         checkOptionByKey(dashControls.adjustDashEndsIcons, presetData.adjustDashEnds ? "adjustEnds" : "keepLength");
+
+        /* 白フチを持たない古いプリセットは、白フチをオフにし、オフセット・角の形状は線に合わせる
+           older presets without the white outline turn it off and fit the offset and join to the stroke */
+        var whiteEdgeControls = dialogControls.whiteEdge;
+        whiteEdgeControls.whiteEdgeCheckbox.value = !!presetData.whiteEdge;
+        if (typeof presetData.whiteEdgeOffset === "number" && !isNaN(presetData.whiteEdgeOffset)) {
+            setNumberFieldValue(whiteEdgeControls.offsetInput, presetData.whiteEdgeOffset);
+        } else {
+            followStrokeWidthWithWhiteEdgeOffset(dialogControls);
+        }
+        if (presetData.whiteEdgeJoin) {
+            checkWhiteEdgeJoin(whiteEdgeControls.joinRadios, presetData.whiteEdgeJoin);
+        } else {
+            followCornerJoinWithWhiteEdgeJoin(dialogControls);
+        }
     }
 
     /**
@@ -4387,6 +4717,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1726fc0f8dc9"; /* 紹�
            Start the weight from the selected path's stroke; without one, keep the unit-based default */
         var selectedStrokeWidth = getSelectedStrokeWidth(selectedPaths);
         if (selectedStrokeWidth !== null) setNumberFieldValue(dialogControls.stroke.strokeWidthInput, selectedStrokeWidth);
+        followStrokeWidthWithWhiteEdgeOffset(dialogControls);
         /* 色見本は選択しているパスの色から始める（線が無ければ塗りの色）/ the swatch starts from the selected path's color */
         var selectedStrokeColor = getSelectedStrokeColor(selectedPaths);
         if (selectedStrokeColor) dialogControls.stroke.strokeColorSwatch.strokeColor = selectedStrokeColor;
@@ -4402,8 +4733,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1726fc0f8dc9"; /* 紹�
         bindStrokeEvents(dialogSession);
         bindArrowheadEvents(dialogSession);
         bindDashEvents(dialogSession);
+        bindWhiteEdgeEvents(dialogSession);
         bindPresetEvents(dialogSession);
         syncDashEnabled(dialogControls);
+        syncWhiteEdgeEnabled(dialogControls.whiteEdge);
         syncArrowOptionsEnabled(dialogControls.arrowhead);
 
         /* プレビューは常にオン。開く前に今の設定で反映しておく / The preview is always on; show the current settings before opening */
@@ -4475,6 +4808,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1726fc0f8dc9"; /* 紹�
             /* 指定の無い矢印は線端なし・マイター結合に戻す / arrowheads without their own cap and corner go back to the defaults */
             checkOptionByKey(dialogControls.stroke.strokeCapIcons, arrowSettings.strokeCap || DEFAULT_STROKE_CAP);
             checkOptionByKey(dialogControls.stroke.cornerJoinIcons, arrowSettings.cornerJoin || DEFAULT_CORNER_JOIN);
+            followCornerJoinWithWhiteEdgeJoin(dialogControls);
         }
         var favoriteArrowIcons = arrowheadControls.favoriteArrowIcons;
         for (var i = 0; i < favoriteArrowIcons.length; i++) favoriteArrowIcons[i].value = (favoriteArrowIcons[i] === targetChoice);
@@ -4496,7 +4830,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1726fc0f8dc9"; /* 紹�
     }
 
     /**
-     * 線幅欄の値から前の矢印の倍数を外し、新しい倍数を掛ける（同じ倍数なら何もしない）
+     * 線幅欄の値から前の矢印の倍数を外し、新しい倍数を掛ける（同じ倍数なら何もしない）。白フチのオフセットも線幅に合わせる
      * @param {Object} dialogSession - showSettingsDialog() のダイアログの状態
      * @param {number} strokeWidthScale - 新しい矢印の倍数
      * @returns {void}
@@ -4507,6 +4841,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1726fc0f8dc9"; /* 紹�
         var strokeWidth = parseFloat(strokeWidthInput.text);
         if (!isNaN(strokeWidth)) setNumberFieldValue(strokeWidthInput, strokeWidth / dialogSession.strokeWidthScale * strokeWidthScale);
         dialogSession.strokeWidthScale = strokeWidthScale;
+        followStrokeWidthWithWhiteEdgeOffset(dialogSession.controls);
     }
 
     /**
@@ -4519,7 +4854,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1726fc0f8dc9"; /* 紹�
         strokeControls.strokeWidthInput.onChanging = function () {
             dialogSession.previewController.previewStrokeWidth(parseFloat(strokeControls.strokeWidthInput.text));
         };
-        addCommitHandler(strokeControls.strokeWidthInput, function () { updatePreview(dialogSession); });
+        /* 線幅を確定したら、白フチのオフセットも線幅に合わせる / committing a weight also fits the white outline offset */
+        addCommitHandler(strokeControls.strokeWidthInput, function () {
+            followStrokeWidthWithWhiteEdgeOffset(dialogSession.controls);
+            updatePreview(dialogSession);
+        });
         strokeControls.strokeColorSwatch.onColorChange = function () { updatePreview(dialogSession); };
         /* ▼で選んだ値は、手入力と同じく確定の処理を通す / a picked weight goes through the same commit as typing */
         strokeControls.strokeWidthPopupButton.onPick = function (pickedWidth) {
@@ -4527,13 +4866,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1726fc0f8dc9"; /* 紹�
             strokeControls.strokeWidthInput.onChange();
         };
         var strokeOptionIcons = strokeControls.strokeCapIcons.concat(strokeControls.cornerJoinIcons);
+        /* 角の形状を変えたら、白フチの角の形状も合わせる / the white outline join follows the corner */
         for (var i = 0; i < strokeOptionIcons.length; i++) {
-            strokeOptionIcons[i].onClick = function () { updatePreview(dialogSession); };
+            strokeOptionIcons[i].onClick = function () {
+                followCornerJoinWithWhiteEdgeJoin(dialogSession.controls);
+                updatePreview(dialogSession);
+            };
         }
         /* 丸型線端を option＋クリックすると、角の形状もラウンドにする / Option-clicking Round Cap also sets Round Join */
         var roundCapIcon = strokeControls.strokeCapIcons[findOptionIndexByKey(strokeControls.strokeCapIcons, "round")];
         roundCapIcon.onClick = function () {
             if (ScriptUI.environment.keyboardState.altKey) checkOptionByKey(strokeControls.cornerJoinIcons, "round");
+            followCornerJoinWithWhiteEdgeJoin(dialogSession.controls);
             updatePreview(dialogSession);
         };
     }
@@ -4609,6 +4953,24 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1726fc0f8dc9"; /* 紹�
     }
 
     /**
+     * 白フチパネルのイベントをつなぐ
+     * @param {Object} dialogSession - showSettingsDialog() のダイアログの状態
+     * @returns {void}
+     */
+    function bindWhiteEdgeEvents(dialogSession) {
+        var whiteEdgeControls = dialogSession.controls.whiteEdge;
+        var refreshPreview = function () { updatePreview(dialogSession); };
+        whiteEdgeControls.whiteEdgeCheckbox.onClick = function () {
+            syncWhiteEdgeEnabled(whiteEdgeControls);
+            refreshPreview();
+        };
+        /* 入力中はアクションのプレビューを取り消す（確定時に貼り直す）/ drop the action preview while typing; reapplied on commit */
+        whiteEdgeControls.offsetInput.onChanging = function () { dialogSession.previewController.clearAction(); };
+        addCommitHandler(whiteEdgeControls.offsetInput, refreshPreview);
+        for (var i = 0; i < whiteEdgeControls.joinRadios.length; i++) whiteEdgeControls.joinRadios[i].onClick = refreshPreview;
+    }
+
+    /**
      * 矢印を［なし］にする（プレビューは呼び出し側で更新する）
      * @param {Object} dialogSession - showSettingsDialog() のダイアログの状態
      * @returns {void}
@@ -4653,6 +5015,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1726fc0f8dc9"; /* 紹�
             /* プリセットの線幅は矢印の倍数を掛けたあとの値なので、倍数だけ合わせる / the preset weight already includes the multiplier */
             dialogSession.strokeWidthScale = getArrowStrokeWidthScale(presetData.arrowNumber);
             syncDashEnabled(dialogControls);
+            syncWhiteEdgeEnabled(dialogControls.whiteEdge);
             updateDashCalc(dialogSession);
         };
         presetControls.presetSaveIcon.onClick = function () {
@@ -4977,8 +5340,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1726fc0f8dc9"; /* 紹�
         var strokeSettings = showSettingsDialog(targetDocument);
         if (!strokeSettings) return;
 
+        var targetItems = [];
+        for (var i = 0; i < targetDocument.selection.length; i++) targetItems.push(targetDocument.selection[i]);
         try {
-            applyStrokeSettings(collectStrokePaths(targetDocument.selection), strokeSettings);
+            applyStrokeSettings(collectStrokePaths(targetItems), strokeSettings);
+            if (strokeSettings.whiteEdgeStyle) applyWhiteEdges(targetItems, strokeSettings.whiteEdgeStyle);
         } catch (e) {
             alert(e.message);
         }

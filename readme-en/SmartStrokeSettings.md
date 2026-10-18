@@ -10,7 +10,7 @@
 
 ### Overview
 
-- Applies a favorite arrowhead together with the stroke settings — weight, cap, corner, color and dashes — to the selected paths.
+- Applies a favorite arrowhead together with the stroke settings — weight, cap, corner, color, dashes and a white outline — to the selected paths.
 - Arrowheads cannot be reached from the Illustrator DOM, so a temporary action (ai_plugin_setStroke) is generated and played instead.
 - An adaptation of [SetStrokeAndArrowheads](SetStrokeAndArrowheads.md) that adds the cap and corner settings from SetStrokeAlignment and the dash calculation from [DashGapCalculator](DashGapCalculator.md).
 
@@ -18,7 +18,7 @@
 
 ### Features
 
-The dialog has the presets at the top, **Stroke** and **Arrowheads** in the left column, and **Dashes** in the right column.
+The dialog has the presets at the top, **Stroke** and **Arrowheads** in the left column, and **Dashes** and **White Outline** in the right column.
 
 #### Presets
 
@@ -69,6 +69,14 @@ The dialog has the presets at the top, **Stroke** and **Arrowheads** in the left
 - Dotted works out the gap between zero-length dots from Segments and fixes the cap to Round
 - Corner alignment (picked with icons; left: keep dash lengths / right: adjust ends): Adjust ends distributes the dashes on an open path so both ends finish with a dash (or dot)
 
+#### White Outline
+
+- With **White Outline** on, a white copy is placed behind the stroke and turned into a white outline with the Outline Stroke and Offset Path effects (arrowheads and dashes are outlined too). The stroke and its outline are grouped
+- Offset: width of the outline (pt). It starts at half the weight and follows the weight when it changes
+- Joins (Miter / Round): the Offset Path joins. They follow the stroke's corner (Round for Round, Miter otherwise)
+- Running again with White Outline on removes the old outline and rebuilds it
+- The white outline settings are saved in presets
+
 #### Preview and buttons
 
 - The preview is always on (from the moment the dialog opens). The weight updates live while you type; settings that include arrowheads are previewed on copies (the original paths are hidden only while previewing). Cancel restores the original state
@@ -85,6 +93,7 @@ The dialog has the presets at the top, **Stroke** and **Arrowheads** in the left
 - Arrowhead, tip alignment, cap and corner names must match Illustrator's UI labels (they depend on the UI language).
 - The arrowhead scale keys (asc1 / asc2) are estimated.
 - Dashes and the stroke color are set through the DOM after the action runs.
+- The white copy is named "WhiteEdge" so a re-run can find it.
 - The favorite arrowheads and their scale, tip alignment, weight multiplier, cap and corner can be changed in `FAVORITE_ARROWS` at the top of the script.
 
 ### Article
@@ -95,6 +104,7 @@ https://note.com/dtp_tranist/n/n1726fc0f8dc9
 
 ### Update History
 
+- v1.3.0 (2026-10-18) Added White Outline (ported from RectangleToArrow; set the offset and joins, also saved in presets)
 - v1.2.3 (2026-10-06) Confirmation dialogs for deleting or overwriting now default to No (Enter cancels)
 - v1.0.0 (2026-10-03) Initial release
 - v1.0.1 (2026-10-04) The initial stroke weight now follows the general unit (0.25 pt for mm, 1 px for px, 5 pt otherwise)
