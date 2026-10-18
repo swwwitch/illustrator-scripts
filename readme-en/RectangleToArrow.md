@@ -57,14 +57,15 @@
 
 - Turned on in the White Outline panel, it places a white copy behind the arrow and turns it into a white outline with the Offset Path effect (off by default). Works with all four types
 - Offset: the outline width (the Offset Path amount) in ruler units. Starts at half the stroke width for the stroke types, or 1/10 of the first target's short side for Fill and Pentagon
-- Joins: Miter, Round or Bevel (Round by default)
+- For the stroke types, Offset follows half the stroke width when you change Thickness
+- Joins: Miter or Round, as stacked radio buttons. Picking a type switches it to Round for Stroke (Round Cap) and Miter for the others
 - For Fill and Pentagon, the white copy gets the Add and Offset Path effects. The arrow and the outline are grouped, and the group gets the Divide effect, so expanding it splits the outline from the arrow without overlap
-- For the stroke types, turning it on also turns on Adjust Tips and Expand Appearance (Expand Appearance stays on while White Outline is on). The expanded path is copied in white, placed behind, and given the Offset Path effect. The arrow and the outline are grouped
+- For the stroke types, turning it on also turns on Expand Appearance (Expand Appearance stays on while White Outline is on). The expanded path is copied in white, placed behind, and given the Offset Path effect. The arrow and the outline are grouped
 - The outline is a copy, so it does not follow later edits to the arrow
 
-#### Adjust Tips
+#### Tip adjustment (follows Expand Appearance)
 
-- For the stroke types, pulls the shaft back from the arrowhead by 1/10 of the stroke width; double-headed arrows are trimmed at both ends (on by default)
+- For the stroke types, when Expand Appearance is on (including when White Outline turns it on), the shaft is pulled back from the arrowhead by 1/10 of the stroke width; double-headed arrows are trimmed at both ends. When it is off, the shaft is not shortened. There is no checkbox for it
 - Because the shaft end no longer overlaps the head's stroke, Expand Appearance leaves fewer stray anchor points
 
 #### Expand Appearance
@@ -108,6 +109,7 @@ https://note.com/dtp_tranist/n/n789072361c12
 
 ### Update History
 
+- v1.7.1 (2026-10-18) The white outline Joins now follow the type (Round for Stroke (Round Cap), Miter otherwise). Reworked the cleanup after Expand Appearance: for round caps, the cap and join arcs are rebuilt around the original line vertices in pieces of 90° or less; butt caps are left as they are. Fixed caps that the cleanup could distort. Centered the double-headed and reverse icons in the Type panel. For the stroke types, the white outline Offset now follows half the Thickness. Joins are now Miter and Round radio buttons, stacked. Removed the Adjust Tips checkbox; the tip adjustment now applies only when Expand Appearance is on. Added an Outline button on the left of the button row (toggles Outline and Preview)
 - v1.7.0 (2026-10-17) Added the White Outline panel (Offset and Joins). Fixed round caps that could come out notched after Expand Appearance. The Up and Down arrow keys now switch the type (right after opening, or when no number field has focus). Moved Direction to the bottom of the Type panel, and kept the buttons right-aligned. Cancel now restores the original selection. Fixed an error (expandFixCheckbox is undefined) that v1.6.0 raised when opening the dialog box
 - v1.6.0 (2026-10-17) Renamed Adjust for Expand to Adjust Tips and added Expand Appearance (expands the appearance on OK and rebuilds curves as clean arcs) for the stroke types. The dialog box now has two columns with right-aligned buttons (a Type panel with the type buttons and direction toggles on the left; an Options panel with Direction, Thickness, Height, Angle, Adjust Tips and Expand Appearance on the right)
 - v1.5.0 (2026-10-17) Added Adjust for Expand to the stroke types (pulls the shaft back from each head by 1/10 of the stroke width; on by default)
@@ -122,6 +124,6 @@ https://note.com/dtp_tranist/n/n789072361c12
 
 ### Script info
 
-- Version: v1.7.0
+- Version: v1.7.1
 - First release: 2026-10-10
-- Last updated: 2026-10-17
+- Last updated: 2026-10-18

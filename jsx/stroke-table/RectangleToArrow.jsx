@@ -29,10 +29,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RectangleT
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "RectangleToArrow";             /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.7.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.7.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-10";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-17";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-18";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/RectangleToArrow.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RectangleToArrow.md"; /* README (English) */
@@ -52,15 +52,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
     var DEFAULT_TIP_ANGLE = 45;     /* 塗り・ホームベースの先端の角度の初期値（度。軸に対する斜辺の角度で、45° で直角の先端） / initial tip angle of the fill and pentagon types (degrees between the axis and a slanted side; 45 gives a right-angled tip) */
     var LINE_SIDE_RATIO = 1 / 4;    /* 罫線（直線）を矢印にするときの短辺（線の長さに対する比率） / short side used for a rule (relative to its length) */
     var HEAD_RATIO = 1 / 2;         /* 矢じりの長さ（短辺に対する比率。1/2 で直角の矢じり） / head length relative to the short side (1/2 gives a right-angled head) */
-    var LINE_LENGTH_RATIO = 2;      /* 分割後の整理で、方向線のないセグメントを直線とみなす長さ（曲線のセグメントの長さの中央値に対する倍率） / after expanding, length ratio over the median curve segment at which a straight segment counts as a line */
-    var SHORT_LINE_RATIO = 0.5;     /* 分割後の整理で、円弧に接する直線のうち半径に対してこの倍率より短いものは円弧に取り込む（SimplifyArcPoints は 0.3） / after expanding, lines touching an arc shorter than this ratio of its radius join the arc (0.3 in SimplifyArcPoints) */
-    var STRAIGHT_TOLERANCE_RATIO = 1e-3; /* 分割後の整理で、方向線が弦からこの比率（弦の長さに対する）以内なら直線とみなす（SimplifyArcPoints は 1e-4） / after expanding, handles within this ratio of the chord count as straight (1e-4 in SimplifyArcPoints) */
-    var ENABLE_PATH_CLEANUP = false; /* 分割後のパス整形（線端の円弧の作り直し・円弧への置き換え）を行うか（検証のため一時的にオフ） / whether to clean up paths after expanding (temporarily off for testing) */
-    var ARC_FIT_TOLERANCE_RATIO = 0.01; /* 分割後の整理で、当てはめた円から標本がこの比率（半径に対する）より離れていれば円弧に置き換えない / after expanding, an arc is not replaced when a sample strays from the fitted circle by more than this ratio of the radius */
-    var ARC_SPLIT_ALLOWANCE = 0.05; /* 分割後の整理で、円弧を90°ごとに分けるときに許す超過（90°に対する比率。約4.5°。SimplifyArcPoints は 0.02） / overshoot allowed before an arc gets one more 90° piece (ratio of 90°, about 4.5°; 0.02 in SimplifyArcPoints) */
+    var ENABLE_PATH_CLEANUP = true; /* 分割後のパス整形（丸型線端・ラウンド結合の円弧の作り直し）を行うか / whether to rebuild the round arcs after expanding */
+    var ARC_CENTER_TOLERANCE_RATIO = 0.01; /* 分割後の整形で、アンカーが線の頂点から半径のこの比率以内の距離ずれていても、その頂点を中心とする円弧とみなす / after expanding, anchors within this ratio of the radius count as lying on a vertex's circle */
+    var ARC_SPLIT_ALLOWANCE = 0.05; /* 分割後の整形で、円弧を90°ごとに分けるときに許す超過（90°に対する比率。約4.5°） / overshoot allowed before an arc gets one more 90° piece (ratio of 90°, about 4.5°) */
     var WHITE_EDGE_RATIO = 1 / 10;  /* 塗りの白フチのオフセットの初期値（1つ目の対象の短辺に対する比率。線は線幅の1/2） / initial white outline offset for the fill types (ratio of the first target's short side; half the stroke width for strokes) */
-    var WHITE_EDGE_JOIN_TYPES = ["miter", "round", "bevel"]; /* 白フチの角の形状の並び（ドロップダウンの順） / white outline joins in dropdown order */
-    var DEFAULT_WHITE_EDGE_JOIN = "round"; /* 白フチの角の形状の初期値（"miter" / "round" / "bevel"） / initial white outline join */
+    var WHITE_EDGE_JOIN_TYPES = ["miter", "round"]; /* 白フチの角の形状の並び（ラジオボタンの順） / white outline joins in radio button order */
+    /* 白フチの角の形状は種類で決める（線（丸型線端）はラウンド、ほかはマイター。種類を変えると選び直す） / the white outline join follows the type (round for Stroke (Round Cap), miter otherwise; reset on type change) */
     var TIP_ADJUST_RATIO = 1 / 10;  /* 先端補正で、軸の矢じり側の端を縮める量（線幅に対する比率） / how far the tip adjustment pulls the shaft back from each head (relative to the stroke width) */
 
     var TOLERANCE = 0.001;          /* 座標比較の許容値（pt） / tolerance for coordinate comparison (pt) */
@@ -199,11 +196,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
             squareAxis: {
                 horizontal: { ja: "水平", en: "Horizontal" },
                 vertical: { ja: "垂直", en: "Vertical" }
+            },
+            whiteEdgeJoin: {
+                miter: { ja: "マイター", en: "Miter" },
+                round: { ja: "ラウンド", en: "Round" }
             }
         },
         checkbox: {
             whiteEdge: { ja: "白フチ", en: "White Outline" },
-            tipAdjust: { ja: "先端補正", en: "Adjust Tips" },
             expandAppearance: { ja: "分割・拡張", en: "Expand Appearance" }
         },
         fieldLabel: {
@@ -214,13 +214,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
             whiteEdgeOffset: { ja: "オフセット", en: "Offset" },
             whiteEdgeJoin: { ja: "角の形状", en: "Joins" }
         },
-        dropdown: {
-            whiteEdgeJoin: {
-                miter: { ja: "マイター", en: "Miter" },
-                round: { ja: "ラウンド", en: "Round" },
-                bevel: { ja: "ベベル", en: "Bevel" }
-            }
-        },
         button: {
             arrowType: {
                 fill: { ja: "塗り", en: "Fill" },
@@ -229,9 +222,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
                 roundLine: { ja: "線（丸型線端）", en: "Stroke (Round Cap)" }
             },
             ok: { ja: "OK", en: "OK" },
-            cancel: { ja: "キャンセル", en: "Cancel" }
+            cancel: { ja: "キャンセル", en: "Cancel" },
+            outlineView: { ja: "アウトライン表示", en: "Outline" }
         },
         tooltip: {
+            outlineView: {
+                ja: "アウトライン表示とプレビュー表示を切り替えます（表示メニューの［アウトライン］と同じ）。閉じるときは開いたときの表示に戻します。",
+                en: "Toggles between Outline and Preview (same as View > Outline). The view returns to how it was when the dialog box closes."
+            },
             arrowType: {
                 fill: { ja: "塗りの矢印にします。先端の角度は［角度］で指定します。", en: "Makes a filled arrow. Set the tip angle with Angle." },
                 pentagon: {
@@ -288,13 +286,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
                 en: "White outline width (the Offset Path amount) in ruler units. Starts at half the stroke width for the stroke types, or 1/10 of the first target's short side for Fill and Pentagon."
             },
             whiteEdgeJoin: { ja: "白フチの角の形状（［パスのオフセット］の角の形状）を選びます。", en: "Corner shape of the white outline (the Offset Path joins)." },
-            tipAdjust: {
-                ja: "軸の矢じり側の端を線幅の1/10だけ短くし、矢じりの線と重ならないようにします（［アピアランスを分割］で余分なアンカーポイントができにくくなります）。線の2種類で使います。",
-                en: "Pulls the shaft back from each arrowhead by 1/10 of the stroke width so it does not overlap the head's stroke (fewer stray anchor points after Expand Appearance). Used by the stroke types."
-            },
             expandAppearance: {
-                ja: "確定時に［アピアランスを分割］し、効果のない1つのパスにします。曲線の部分は90°以下の円弧に置き換えて、アンカーポイントを減らします。プレビューには反映しません。線の2種類で使います。",
-                en: "Expands the appearance on OK, leaving a single path with no effects. Curved parts are rebuilt as arcs of 90° or less to reduce anchor points. Not shown in the preview. Used by the stroke types."
+                ja: "確定時に［アピアランスを分割］し、効果のない1つのパスにします。曲線の部分は90°以下の円弧に置き換えて、アンカーポイントを減らします。あわせて、軸の矢じり側の端を線幅の1/10だけ短くし、矢じりの線と重ならないようにします（先端補正。これだけはプレビューにも出ます）。線の2種類で使います。",
+                en: "Expands the appearance on OK, leaving a single path with no effects. Curved parts are rebuilt as arcs of 90° or less to reduce anchor points. The shaft is also pulled back from each arrowhead by 1/10 of the stroke width so it does not overlap the head's stroke (tip adjustment; this part shows in the preview). Used by the stroke types."
             },
             stepUp: {
                 ja: "値を増やす（shift＋クリックで10の倍数へ、option＋クリックで0.1ずつ）",
@@ -326,6 +320,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
     var TYPE_ICON_INSET = 5;             /* 種類のボタンの枠と絵の間（px） / gap between a type button's frame and its drawing */
     var TYPE_ICON_SPACING = 6;           /* 種類のボタンどうしの縦の間隔 / vertical spacing between type buttons */
     var SQUARE_AXIS_RADIO_SPACING = 10;  /* 方向のラジオボタンどうしの間隔 / spacing between the square axis radios */
+    var WHITE_EDGE_JOIN_RADIO_SPACING = 4; /* 白フチの角の形状のラジオボタンどうしの縦の間隔 / vertical spacing between the white outline join radios */
+    var DIRECTION_TOGGLE_TOP_MARGIN = 5; /* 両矢印・反転のアイコンの上に、種類のボタンどうしの間隔より足す余白 / extra space above the double-headed and reverse icons, beyond the type button spacing */
     var DIRECTION_TOGGLE_SIZE = [30, 30]; /* 両矢印・反転のアイコンの大きさ / double-headed and reverse icon size */
     var LINK_CHAIN_RATIO = 0.8;          /* リンクアイコンの鎖の大きさ（枠に対する比率） / chain size relative to the link icon */
 
@@ -1611,12 +1607,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
     }
 
     /* ［パスのオフセット］の角の形状の値（jntp） / Offset Path join codes (jntp) */
-    var OFFSET_PATH_JOIN_CODES = { round: 0, bevel: 1, miter: 2 };
+    var OFFSET_PATH_JOIN_CODES = { round: 0, miter: 2 };
 
     /**
      * ［パスのオフセット］効果を掛ける
      * @param {PageItem} pageItem - 対象
-     * @param {{offset: number, joinType: string}} edgeStyle - オフセットの量（pt）と角の形状（"miter" / "round" / "bevel"）
+     * @param {{offset: number, joinType: string}} edgeStyle - オフセットの量（pt）と角の形状（"miter" / "round"）
      * @returns {void}
      */
     function applyOffsetPath(pageItem, edgeStyle) {
@@ -1655,6 +1651,29 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
      */
     function isStrokeArrowType(arrowType) {
         return arrowType === "line" || arrowType === "roundLine";
+    }
+
+    /**
+     * 白フチの角の形状を種類に合わせて選ぶ（線（丸型線端）はラウンド、ほかはマイター）
+     * @param {RadioButton[]} joinRadios - 角の形状のラジオボタン（WHITE_EDGE_JOIN_TYPES の順）
+     * @param {string} arrowType - 種類（"fill" / "pentagon" / "line" / "roundLine"）
+     * @returns {void}
+     */
+    function selectWhiteEdgeJoinForType(joinRadios, arrowType) {
+        var joinType = (arrowType === "roundLine") ? "round" : "miter";
+        for (var i = 0; i < WHITE_EDGE_JOIN_TYPES.length; i++) joinRadios[i].value = (WHITE_EDGE_JOIN_TYPES[i] === joinType);
+    }
+
+    /**
+     * 選ばれている白フチの角の形状を返す
+     * @param {RadioButton[]} joinRadios - 角の形状のラジオボタン（WHITE_EDGE_JOIN_TYPES の順）
+     * @returns {string} "miter" または "round"
+     */
+    function getCheckedWhiteEdgeJoin(joinRadios) {
+        for (var i = 0; i < WHITE_EDGE_JOIN_TYPES.length; i++) {
+            if (joinRadios[i].value) return WHITE_EDGE_JOIN_TYPES[i];
+        }
+        return WHITE_EDGE_JOIN_TYPES[0];
     }
 
     // =========================================
@@ -2697,12 +2716,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
         var typePanel = columnsRow.add("panel", undefined, getLabel("panel.arrowType"));
         setupPanel(typePanel);
         typePanel.alignChildren = ["left", "top"];
-        var typeIcons = addArrowTypeIcons(typePanel, currentType, switchType);
+        /* 種類のボタンと、その下の両矢印・反転のアイコン。列はパネルの幅いっぱいにして、アイコンを左右中央に置く
+           the type buttons and the toggles below them; the column spans the panel so the toggles sit centered */
+        var typeColumn = typePanel.add("group");
+        typeColumn.orientation = "column";
+        typeColumn.alignment = ["fill", "top"];
+        typeColumn.alignChildren = ["left", "top"];
+        typeColumn.spacing = TYPE_ICON_SPACING + DIRECTION_TOGGLE_TOP_MARGIN;
+        var typeIcons = addArrowTypeIcons(typeColumn, currentType, switchType);
         var typeState = typeIcons[0].typeState;
 
-        /* 両矢印・反転のアイコンは種類のボタンの下に並べる / double-headed and reverse toggles under the type buttons */
-        var directionRow = typeIcons[0].parent.add("group");
-        setupRow(directionRow, "left", TYPE_ICON_SPACING);
+        var directionRow = typeColumn.add("group");
+        setupRow(directionRow, "center", TYPE_ICON_SPACING);
         var bothEndsToggle = addLinkToggle(directionRow, typeState.isBothEnds, function () {
             typeState.isBothEnds = bothEndsToggle.value;
             syncDirectionToggles();
@@ -2732,11 +2757,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
         setupPanel(optionsPanel);
         optionsPanel.alignChildren = ["left", "top"];
 
+        /* 線の種類では、太さを変えると白フチのオフセットも太さの半分に合わせる / for the stroke types, the white outline offset follows half the thickness */
         var thicknessInput = addPreviewField("fieldLabel.thickness", "tooltip.thickness", {
             text: thicknessByKind.fill + thicknessFormats.percent.unit,
             step: thicknessFormats.percent.step, min: thicknessFormats.percent.min,
             max: thicknessFormats.percent.max, unit: thicknessFormats.percent.unit
-        });
+        }, followThicknessWithWhiteEdgeOffset);
         applyThicknessFormat();
         var heightInput = addPreviewField("fieldLabel.height", "tooltip.height", {
             text: DEFAULT_HEIGHT_PERCENT + "%", step: 1, min: 1, max: 500, unit: "%"
@@ -2745,10 +2771,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
             text: DEFAULT_TIP_ANGLE + "°", step: 1, min: 1, max: 89, unit: "°"
         });
 
-        var tipAdjustCheckbox = addIndentedCheckbox(optionsPanel, "checkbox.tipAdjust", "tooltip.tipAdjust", true);
-        tipAdjustCheckbox.onClick = refreshPreview;
-        /* 分割・拡張は確定時だけ行うので、プレビューは描き直さない / expanding happens only on OK, so the preview stays as is */
+        /* 分割・拡張そのものは確定時だけ行うが、先端補正は分割・拡張に連動してプレビューに出るので描き直す
+           expanding happens only on OK, but the tip adjustment follows it and shows in the preview, so redraw */
         var expandAppearanceCheckbox = addIndentedCheckbox(optionsPanel, "checkbox.expandAppearance", "tooltip.expandAppearance", false);
+        expandAppearanceCheckbox.onClick = refreshPreview;
 
         /* 白フチ・オフセット・角の形状 / white outline, offset and joins */
         var whiteEdgePanel = rightColumn.add("panel", undefined, getLabel("panel.whiteEdge"));
@@ -2756,17 +2782,26 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
         whiteEdgePanel.alignChildren = ["left", "top"];
         var whiteEdgeControls = addWhiteEdgeControls(whiteEdgePanel);
         var whiteEdgeCheckbox = whiteEdgeControls.checkbox;
-        /* 線の白フチは分割・拡張したパスに付けるので、オンにしたら先端補正と分割・拡張もオンにする
-           the stroked arrows' outline goes on the expanded path, so turning it on also turns on Adjust Tips and Expand Appearance */
+        /* 線の白フチは分割・拡張したパスに付けるので、オンにしたら分割・拡張もオンにする
+           the stroked arrows' outline goes on the expanded path, so turning it on also turns on Expand Appearance */
         whiteEdgeCheckbox.onClick = function () {
-            if (whiteEdgeCheckbox.value) tipAdjustCheckbox.value = expandAppearanceCheckbox.value = true;
+            if (whiteEdgeCheckbox.value) expandAppearanceCheckbox.value = true;
             syncFieldStates();
             refreshPreview();
         };
-        whiteEdgeControls.joinDropdown.onChange = refreshPreview;
+        for (var joinIndex = 0; joinIndex < whiteEdgeControls.joinRadios.length; joinIndex++) whiteEdgeControls.joinRadios[joinIndex].onClick = refreshPreview;
         syncFieldStates();
 
         var buttonRow = addButtonRow(arrowDialog);
+        /* アウトライン表示を切り替えた回数が奇数なら、閉じるときにもう一度切り替えて戻す / an odd number of toggles is undone on close */
+        var outlineToggleCount = 0;
+        var outlineViewButton = buttonRow.leftGroup.add("button", undefined, getLabel("button.outlineView"));
+        outlineViewButton.helpTip = getLabel("tooltip.outlineView");
+        outlineViewButton.onClick = function () {
+            app.executeMenuCommand("preview");
+            outlineToggleCount++;
+            app.redraw();
+        };
         buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
         buttonRow.rightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
         /* 幅にかかわらず右寄せにするので alignRightOnlyButtonRow は呼ばない / always right-aligned, so alignRightOnlyButtonRow is not called */
@@ -2776,16 +2811,20 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
          * @param {string} labelKey - 項目名の LABELS のパス
          * @param {string} tooltipKey - ツールチップの LABELS のパス
          * @param {Object} fieldOptions - text・step・min・max・unit（addSteppedField() と同じ）
+         * @param {function(): void} [beforeRefresh] - 値が変わってプレビューを描き直す前に呼ぶ
          * @returns {EditText} 入力欄
          */
-        function addPreviewField(labelKey, tooltipKey, fieldOptions) {
+        function addPreviewField(labelKey, tooltipKey, fieldOptions, beforeRefresh) {
             fieldOptions.label = labelText(labelKey);
             fieldOptions.labelWidth = LABEL_WIDTH;
             fieldOptions.characters = FIELD_CHARACTERS;
-            fieldOptions.onStep = refreshPreview;
+            fieldOptions.onStep = function () {
+                if (beforeRefresh) beforeRefresh();
+                refreshPreview();
+            };
             var numberInput = addSteppedField(optionsPanel, fieldOptions);
             numberInput.helpTip = getLabel(tooltipKey);
-            redrawPreviewOnChange(numberInput);
+            redrawPreviewOnChange(numberInput, beforeRefresh);
             return numberInput;
         }
 
@@ -2793,7 +2832,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
          * ［白フチ］パネルの中身（白フチのチェックボックス・オフセット・角の形状）を足す。
          * オフセットは定規の単位で、初めの種類に合わせた値（線は線幅の1/2、塗りは短辺の1/10）で始める
          * @param {Panel} parent - ［白フチ］パネル
-         * @returns {{checkbox: Checkbox, offsetInput: EditText, joinDropdown: DropDownList}} 作った部品
+         * @returns {{checkbox: Checkbox, offsetInput: EditText, joinRow: Group, joinRadios: RadioButton[]}} 作った部品
          */
         function addWhiteEdgeControls(parent) {
             var checkboxRow = parent.add("group");
@@ -2802,30 +2841,34 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
             var edgeCheckbox = checkboxRow.add("checkbox", undefined, getLabel("checkbox.whiteEdge"));
             edgeCheckbox.helpTip = getLabel("tooltip.whiteEdge");
 
-            var initialOffset = isStrokeArrowType(currentType)
-                ? thicknessByKind.stroke * strokeUnit.pointsPerUnit / 2
-                : getArrowAxis(rectangles[0]).thickness * WHITE_EDGE_RATIO;
             var offsetInput = addSteppedField(parent, {
                 label: labelText("fieldLabel.whiteEdgeOffset"), labelWidth: WHITE_EDGE_LABEL_WIDTH,
                 characters: FIELD_CHARACTERS, onStep: refreshPreview,
-                text: formatStepperNumber(Math.round(initialOffset / rulerUnit.pointsPerUnit * 100) / 100) + " " + rulerUnit.label,
+                text: formatStepperNumber(toRulerValue(getDefaultWhiteEdgeOffset())) + " " + rulerUnit.label,
                 step: rulerUnit.pointsPerUnit >= 2 ? 0.1 : 1, min: 0, max: 1000 / rulerUnit.pointsPerUnit, unit: " " + rulerUnit.label
             });
             offsetInput.helpTip = getLabel("tooltip.whiteEdgeOffset");
             redrawPreviewOnChange(offsetInput);
 
+            /* ラジオは同じ親の中だけ排他なので、縦に並べる列に2つとも入れる / radios are exclusive only within one parent, so both go in one column */
             var joinRow = parent.add("group");
             setupRow(joinRow, "left", STEPPER_FIELD_SPACING);
+            joinRow.alignChildren = ["left", "top"];
             var joinLabel = joinRow.add("statictext", undefined, labelText("fieldLabel.whiteEdgeJoin"));
             joinLabel.preferredSize.width = WHITE_EDGE_LABEL_WIDTH;
             joinLabel.justify = "right";
-            var joinDropdown = joinRow.add("dropdownlist");
+            var joinRadioColumn = joinRow.add("group");
+            joinRadioColumn.orientation = "column";
+            joinRadioColumn.alignChildren = ["left", "top"];
+            joinRadioColumn.spacing = WHITE_EDGE_JOIN_RADIO_SPACING;
+            var joinRadios = [];
             for (var i = 0; i < WHITE_EDGE_JOIN_TYPES.length; i++) {
-                joinDropdown.add("item", getLabel("dropdown.whiteEdgeJoin." + WHITE_EDGE_JOIN_TYPES[i]));
-                if (WHITE_EDGE_JOIN_TYPES[i] === DEFAULT_WHITE_EDGE_JOIN) joinDropdown.selection = i;
+                joinRadios.push(joinRadioColumn.add("radiobutton", undefined, getLabel("radio.whiteEdgeJoin." + WHITE_EDGE_JOIN_TYPES[i])));
+                joinRadios[i].helpTip = getLabel("tooltip.whiteEdgeJoin");
             }
-            joinRow.helpTip = joinDropdown.helpTip = getLabel("tooltip.whiteEdgeJoin");
-            return { checkbox: edgeCheckbox, offsetInput: offsetInput, joinDropdown: joinDropdown, joinLabel: joinLabel };
+            selectWhiteEdgeJoinForType(joinRadios, currentType);
+            joinRow.helpTip = getLabel("tooltip.whiteEdgeJoin");
+            return { checkbox: edgeCheckbox, offsetInput: offsetInput, joinRow: joinRow, joinRadios: joinRadios };
         }
 
         /**
@@ -2840,14 +2883,60 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
         }
 
         /**
-         * 入力欄の直接入力でもプレビューを描き直す（部品の onChange による値の正規化のあとに呼ぶ）
-         * @param {EditText} numberInput - addSteppedField() で作った入力欄
+         * 確定時に分割・拡張するかを返す（［分割・拡張］か［白フチ］がオン）
+         * @returns {boolean} 分割・拡張するなら true
+         */
+        function isExpandAppearanceOn() {
+            return expandAppearanceCheckbox.value || whiteEdgeCheckbox.value;
+        }
+
+        /**
+         * 白フチのオフセットの初期値（pt）を返す。線の種類は太さ（線幅）の半分、塗りの種類は長方形の短辺の WHITE_EDGE_RATIO
+         * @returns {number} オフセット（pt）
+         */
+        function getDefaultWhiteEdgeOffset() {
+            if (isStrokeArrowType(currentType)) return parseFloat(thicknessInput.text) * strokeUnit.pointsPerUnit / 2;
+            return getArrowAxis(rectangles[0]).thickness * WHITE_EDGE_RATIO;
+        }
+
+        /**
+         * pt を定規の単位の値（小数2桁）にする
+         * @param {number} points - 長さ（pt）
+         * @returns {number} 定規の単位の値
+         */
+        function toRulerValue(points) {
+            return Math.round(points / rulerUnit.pointsPerUnit * 100) / 100;
+        }
+
+        /**
+         * 白フチのオフセットの欄に値（pt）を書き込む
+         * @param {number} points - オフセット（pt）
          * @returns {void}
          */
-        function redrawPreviewOnChange(numberInput) {
+        function writeWhiteEdgeOffset(points) {
+            var offsetInput = whiteEdgeControls.offsetInput;
+            writeSteppedValue(offsetInput, toRulerValue(points), offsetInput.stepperGroup.stepOptions);
+        }
+
+        /**
+         * 線の種類のとき、白フチのオフセットを太さの半分に合わせる（塗りの種類では何もしない）
+         * @returns {void}
+         */
+        function followThicknessWithWhiteEdgeOffset() {
+            if (isStrokeArrowType(currentType)) writeWhiteEdgeOffset(getDefaultWhiteEdgeOffset());
+        }
+
+        /**
+         * 入力欄の直接入力でもプレビューを描き直す（部品の onChange による値の正規化のあとに呼ぶ）
+         * @param {EditText} numberInput - addSteppedField() で作った入力欄
+         * @param {function(): void} [beforeRefresh] - 正規化のあと、描き直す前に呼ぶ
+         * @returns {void}
+         */
+        function redrawPreviewOnChange(numberInput, beforeRefresh) {
             var normalizeInput = numberInput.onChange;
             numberInput.onChange = function () {
                 normalizeInput();
+                if (beforeRefresh) beforeRefresh();
                 refreshPreview();
             };
         }
@@ -2863,6 +2952,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
                 thicknessByKind[getThicknessKind(currentType)] = parseFloat(thicknessInput.text);
                 currentType = checkedType;
                 applyThicknessFormat();
+                selectWhiteEdgeJoinForType(whiteEdgeControls.joinRadios, currentType);
+                writeWhiteEdgeOffset(getDefaultWhiteEdgeOffset());
             }
             /* option＋クリックで向きが変わったときのため / the click may have changed the direction */
             syncDirectionToggles();
@@ -2880,10 +2971,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
             setSteppedFieldEnabled(thicknessInput, !isPentagon);
             setSteppedFieldEnabled(heightInput, !isPentagon);
             setSteppedFieldEnabled(tipAngleInput, isPentagon || currentType === "fill");
-            tipAdjustCheckbox.enabled = isStrokeArrowType(currentType);
             expandAppearanceCheckbox.enabled = isStrokeArrowType(currentType) && !whiteEdgeCheckbox.value;
             setSteppedFieldEnabled(whiteEdgeControls.offsetInput, whiteEdgeCheckbox.value);
-            whiteEdgeControls.joinDropdown.enabled = whiteEdgeControls.joinLabel.enabled = whiteEdgeCheckbox.value;
+            whiteEdgeControls.joinRow.enabled = whiteEdgeCheckbox.value;
         }
 
         /**
@@ -2928,11 +3018,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
                 isWhiteEdge: whiteEdgeCheckbox.value,
                 whiteEdgeStyle: {
                     offset: parseFloat(whiteEdgeControls.offsetInput.text) * rulerUnit.pointsPerUnit,
-                    joinType: WHITE_EDGE_JOIN_TYPES[whiteEdgeControls.joinDropdown.selection.index]
+                    joinType: getCheckedWhiteEdgeJoin(whiteEdgeControls.joinRadios)
                 },
-                isTipAdjust: tipAdjustCheckbox.value,
-                /* 線の白フチは分割・拡張が前提 / the stroked outline requires expanding */
-                isExpandAppearance: expandAppearanceCheckbox.value || whiteEdgeCheckbox.value
+                /* 線の白フチは分割・拡張が前提。先端補正は分割・拡張するときだけ行う / the stroked outline requires expanding; the tip adjustment goes with expanding */
+                isTipAdjust: isExpandAppearanceOn(),
+                isExpandAppearance: isExpandAppearanceOn()
             };
         }
 
@@ -2970,6 +3060,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
 
         prepareDialogWindow(arrowDialog, SCRIPT_NAME);
         var dialogResult = arrowDialog.show();
+        if (outlineToggleCount % 2 === 1) app.executeMenuCommand("preview");
 
         var arrowOptions = getArrowOptions();
         arrowPreview.clear();
@@ -2978,7 +3069,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
     }
 
     // =========================================
-    // 分割後のアンカーポイントの整理（SimplifyArcPoints から移植） / Anchor cleanup after expanding (ported from SimplifyArcPoints)
+    // 分割後のパスの整形 / Path cleanup after expanding
     // =========================================
 
     // パスの読み書き / Path data
@@ -3048,172 +3139,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
         return { anchor: pathNode.anchor, leftDirection: pathNode.leftDirection, rightDirection: pathNode.rightDirection, pointType: pathNode.pointType };
     }
 
-    /**
-     * パスの円弧の部分を90°以下の円弧に置き換え、アンカーポイントが減るときだけ書き換える
-     * @param {PathItem} pathItem - 対象のパス
-     * @returns {void}
-     */
-    function simplifyArcPoints(pathItem) {
-        var simplifiedNodes = computeSimplifiedNodes(readPathNodes(pathItem), pathItem.closed);
-        if (simplifiedNodes) writePathNodes(pathItem, simplifiedNodes);
-    }
-
-    // 円弧への置き換え / Arc simplification
-
-    /**
-     * 直線以外の区間を円弧とみなして置き換えたポイント列を求める
-     * @param {Object[]} pathNodes - 元のポイント情報
-     * @param {boolean} isClosed - クローズパスなら true
-     * @returns {Object[]|null} 置き換え後のポイント情報。アンカーが減らなければ null
-     */
-    function computeSimplifiedNodes(pathNodes, isClosed) {
-        var nodeCount = pathNodes.length;
-        if (nodeCount < 3) return null;
-
-        /* 直線部分を除いた全体がひとつの円になるクローズパス / closed path with no straight lines: a full circle */
-        var lineFlags = findLineSegments(pathNodes, isClosed);
-        if (isClosed && !hasTrue(lineFlags)) {
-            var circleNodes = buildFullCircleNodes(pathNodes);
-            return (circleNodes && circleNodes.length < nodeCount) ? circleNodes : null;
-        }
-
-        /* クローズパスは直線のセグメントが最後（先頭へ戻る区間）に来るよう始点をずらし、円弧が始点をまたがないようにする
-           For closed paths, rotate so a line closes the path and no arc straddles the start point */
-        var workNodes = pathNodes;
-        var workFlags = lineFlags;
-        if (isClosed) {
-            var firstLineIndex = 0;
-            while (!lineFlags[firstLineIndex]) firstLineIndex++;
-            workNodes = rotateArray(pathNodes, firstLineIndex + 1);
-            workFlags = rotateArray(lineFlags, firstLineIndex + 1);
-        }
-        absorbShortLines(workNodes, workFlags);
-
-        var resultNodes = [copyPathNode(workNodes[0])];
-        var runStart = 0;
-        var isChanged = false;
-        while (runStart < nodeCount - 1) {
-            if (workFlags[runStart]) {
-                resultNodes.push(copyPathNode(workNodes[runStart + 1]));
-                runStart++;
-                continue;
-            }
-            /* 次の直線まで（またはパスの終わりまで）を1つの円弧とみなす / treat everything up to the next line as one arc */
-            var runEnd = runStart + 1;
-            while (runEnd < nodeCount - 1 && !workFlags[runEnd]) runEnd++;
-            var fittedArc = (runEnd - runStart >= 2) ? fitArc(workNodes, runStart, runEnd) : null;
-            var arcNodes = fittedArc ? buildArcNodes(fittedArc, workNodes[runStart], workNodes[runEnd]) : null;
-            if (arcNodes && arcNodes.length - 1 < runEnd - runStart) {
-                resultNodes[resultNodes.length - 1].rightDirection = arcNodes[0].rightDirection;
-                for (var j = 1; j < arcNodes.length; j++) resultNodes.push(arcNodes[j]);
-                isChanged = true;
-            } else {
-                for (var k = runStart + 1; k <= runEnd; k++) resultNodes.push(copyPathNode(workNodes[k]));
-            }
-            runStart = runEnd;
-        }
-        return isChanged ? resultNodes : null;
-    }
-
-    /**
-     * 円弧に接する短い直線を円弧の側に取り込む（つなぎ目の半端なセグメント）
-     * @param {Object[]} pathNodes - ポイント情報
-     * @param {boolean[]} lineFlags - セグメントごとの直線判定（書き換える）
-     * @returns {void}
-     */
-    function absorbShortLines(pathNodes, lineFlags) {
-        var lastSegment = pathNodes.length - 2; /* 扱うのはアンカー0〜n-1の間のセグメント / segments between anchors 0..n-1 */
-        var isChanged = true;
-        while (isChanged) {
-            isChanged = false;
-            for (var i = 0; i <= lastSegment; i++) {
-                if (!lineFlags[i]) continue;
-                var lineLength = getPointDistance(pathNodes[i].anchor, pathNodes[i + 1].anchor);
-                var neighborSegments = [i - 1, i + 1];
-                for (var k = 0; k < neighborSegments.length; k++) {
-                    var neighbor = neighborSegments[k];
-                    if (neighbor < 0 || neighbor > lastSegment || lineFlags[neighbor]) continue;
-                    var runStart = neighbor;
-                    var runEnd = neighbor;
-                    while (runStart > 0 && !lineFlags[runStart - 1]) runStart--;
-                    while (runEnd < lastSegment && !lineFlags[runEnd + 1]) runEnd++;
-                    var fittedArc = fitArc(pathNodes, runStart, runEnd + 1);
-                    if (fittedArc && lineLength < fittedArc.radius * SHORT_LINE_RATIO) {
-                        lineFlags[i] = false;
-                        isChanged = true;
-                        break;
-                    }
-                }
-            }
-        }
-    }
-
-    /**
-     * 配列の先頭をずらす
-     * @param {Array} items - 元の配列
-     * @param {number} offset - 先頭にする位置
-     * @returns {Array} ずらした配列
-     */
-    function rotateArray(items, offset) {
-        return items.slice(offset).concat(items.slice(0, offset));
-    }
-
-    /**
-     * 配列に true が含まれるか
-     * @param {boolean[]} flags - 判定する配列
-     * @returns {boolean} 含まれれば true
-     */
-    function hasTrue(flags) {
-        for (var i = 0; i < flags.length; i++) {
-            if (flags[i]) return true;
-        }
-        return false;
-    }
-
-    /**
-     * 直線部分のセグメントを判定する
-     * 方向線のない（または弦と同じ向きの）セグメントのうち、曲線のセグメントより十分長いものを直線とみなす。
-     * 円弧を細かい直線でなぞったパスでは、弦は短いので円弧の側に入る
-     * @param {Object[]} pathNodes - ポイント情報
-     * @param {boolean} isClosed - クローズパスなら true
-     * @returns {boolean[]} セグメントごとの判定（i は アンカー i → i+1）
-     */
-    function findLineSegments(pathNodes, isClosed) {
-        var nodeCount = pathNodes.length;
-        var segmentCount = isClosed ? nodeCount : nodeCount - 1;
-        var segmentLengths = [];
-        var straightFlags = [];
-        var curveLengths = [];
-        for (var i = 0; i < segmentCount; i++) {
-            var startNode = pathNodes[i];
-            var endNode = pathNodes[(i + 1) % nodeCount];
-            var segmentLength = getPointDistance(startNode.anchor, endNode.anchor);
-            var isStraight = isStraightSegment(startNode, endNode);
-            segmentLengths.push(segmentLength);
-            straightFlags.push(isStraight);
-            if (!isStraight) curveLengths.push(segmentLength);
-        }
-        /* 曲線のセグメントがあればその長さ、なければ全体の長さの中央値を基準にする / reference: median of curve lengths, else of all */
-        var referenceLength = getMedian(curveLengths.length > 0 ? curveLengths : segmentLengths);
-        var lineFlags = [];
-        for (var j = 0; j < segmentCount; j++) {
-            lineFlags.push(straightFlags[j] && segmentLengths[j] > referenceLength * LINE_LENGTH_RATIO);
-        }
-        return lineFlags;
-    }
-
-    /**
-     * セグメントが直線か（方向線が無いか、弦の上にあるか）
-     * @param {Object} startNode - 始点側のポイント
-     * @param {Object} endNode - 終点側のポイント
-     * @returns {boolean} 直線なら true
-     */
-    function isStraightSegment(startNode, endNode) {
-        var chordLength = getPointDistance(startNode.anchor, endNode.anchor);
-        if (chordLength < 1e-9) return true;
-        return getDistanceToLine(startNode.rightDirection, startNode.anchor, endNode.anchor) < chordLength * STRAIGHT_TOLERANCE_RATIO
-            && getDistanceToLine(endNode.leftDirection, startNode.anchor, endNode.anchor) < chordLength * STRAIGHT_TOLERANCE_RATIO;
-    }
+    // 丸型線端・ラウンド結合の円弧の作り直し / Rebuilding round cap and join arcs
 
     /**
      * 2点間の距離
@@ -3226,101 +3152,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
     }
 
     /**
-     * 点から直線（2点を通る）までの距離
+     * 中心から見た点の角度
      * @param {number[]} point - [x, y]
-     * @param {number[]} lineStart - 直線上の点
-     * @param {number[]} lineEnd - 直線上の点
-     * @returns {number} 距離
+     * @param {Object} circle - {centerX, centerY}
+     * @returns {number} ラジアン
      */
-    function getDistanceToLine(point, lineStart, lineEnd) {
-        var lineLength = getPointDistance(lineStart, lineEnd);
-        return Math.abs((lineEnd[0] - lineStart[0]) * (lineStart[1] - point[1]) - (lineStart[0] - point[0]) * (lineEnd[1] - lineStart[1])) / lineLength;
-    }
-
-    /**
-     * 中央値
-     * @param {number[]} values - 数値の配列
-     * @returns {number} 中央値（空なら 0）
-     */
-    function getMedian(values) {
-        if (values.length === 0) return 0;
-        var sortedValues = values.slice(0).sort(function (x, y) { return x - y; });
-        var middleIndex = Math.floor(sortedValues.length / 2);
-        return (sortedValues.length % 2) ? sortedValues[middleIndex] : (sortedValues[middleIndex - 1] + sortedValues[middleIndex]) / 2;
-    }
-
-    /**
-     * セグメント上の点を求める（3次ベジェ）
-     * @param {Object} startNode - 始点側のポイント
-     * @param {Object} endNode - 終点側のポイント
-     * @param {number} t - 0〜1
-     * @returns {number[]} [x, y]
-     */
-    function getBezierPoint(startNode, endNode, t) {
-        var u = 1 - t;
-        var weights = [u * u * u, 3 * u * u * t, 3 * u * t * t, t * t * t];
-        var controlPoints = [startNode.anchor, startNode.rightDirection, endNode.leftDirection, endNode.anchor];
-        var point = [0, 0];
-        for (var i = 0; i < 4; i++) {
-            point[0] += weights[i] * controlPoints[i][0];
-            point[1] += weights[i] * controlPoints[i][1];
-        }
-        return point;
-    }
-
-    /**
-     * アンカー startIndex〜endIndex の区間に円を当てはめ、円弧として求める
-     * @param {Object[]} pathNodes - ポイント情報
-     * @param {number} startIndex - 開始インデックス
-     * @param {number} endIndex - 終了インデックス
-     * @returns {Object|null} {centerX, centerY, radius, startAngle, sweep}。円を求められないか、区間が円に沿わなければ null
-     */
-    function fitArc(pathNodes, startIndex, endIndex) {
-        var samplePoints = collectArcSamples(pathNodes, startIndex, endIndex, false);
-        var fittedCircle = fitCircle(samplePoints);
-        if (!fittedCircle || !isOnCircle(samplePoints, fittedCircle)) return null;
-
-        /* 標本を順にたどって、回った角度を足し合わせる / accumulate the angle swept along the samples */
-        var sweep = 0;
-        var previousAngle = getAngleFromCenter(samplePoints[0], fittedCircle);
-        for (var k = 1; k < samplePoints.length; k++) {
-            var currentAngle = getAngleFromCenter(samplePoints[k], fittedCircle);
-            var angleStep = currentAngle - previousAngle;
-            while (angleStep > Math.PI) angleStep -= 2 * Math.PI;
-            while (angleStep < -Math.PI) angleStep += 2 * Math.PI;
-            sweep += angleStep;
-            previousAngle = currentAngle;
-        }
-        if (Math.abs(sweep) < 1e-6 || Math.abs(sweep) > 2 * Math.PI - 1e-3) return null;
-
-        return {
-            centerX: fittedCircle.centerX,
-            centerY: fittedCircle.centerY,
-            radius: fittedCircle.radius,
-            startAngle: getAngleFromCenter(pathNodes[startIndex].anchor, fittedCircle),
-            sweep: sweep
-        };
-    }
-
-    /**
-     * 区間のアンカーとセグメント途中の点を標本として集める
-     * @param {Object[]} pathNodes - ポイント情報
-     * @param {number} startIndex - 開始インデックス
-     * @param {number} endIndex - 終了インデックス（isClosed ならポイント数で先頭に戻る）
-     * @param {boolean} isClosed - 最後のアンカーから先頭へ戻るなら true
-     * @returns {Array} [[x, y], ...]
-     */
-    function collectArcSamples(pathNodes, startIndex, endIndex, isClosed) {
-        var nodeCount = pathNodes.length;
-        var samplePoints = [];
-        for (var i = startIndex; i < endIndex; i++) {
-            var startNode = pathNodes[i % nodeCount];
-            var endNode = pathNodes[(i + 1) % nodeCount];
-            samplePoints.push(startNode.anchor);
-            for (var quarter = 1; quarter <= 3; quarter++) samplePoints.push(getBezierPoint(startNode, endNode, quarter / 4));
-        }
-        if (!isClosed) samplePoints.push(pathNodes[endIndex].anchor);
-        return samplePoints;
+    function getAngleFromCenter(point, circle) {
+        return Math.atan2(point[1] - circle.centerY, point[0] - circle.centerX);
     }
 
     /**
@@ -3344,138 +3182,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
     }
 
     /**
-     * クローズパス全体を円とみなし、4つのアンカーの円にする
-     * @param {Object[]} pathNodes - ポイント情報
-     * @returns {Object[]|null} ポイント情報。円を求められなければ null
-     */
-    function buildFullCircleNodes(pathNodes) {
-        var samplePoints = collectArcSamples(pathNodes, 0, pathNodes.length, true);
-        var fittedCircle = fitCircle(samplePoints);
-        if (!fittedCircle || !isOnCircle(samplePoints, fittedCircle)) return null;
-        /* パスの向き（時計回りか）を面積の符号で決める / direction from the signed area */
-        var signedArea = 0;
-        for (var i = 0; i < samplePoints.length; i++) {
-            var currentPoint = samplePoints[i];
-            var nextPoint = samplePoints[(i + 1) % samplePoints.length];
-            signedArea += currentPoint[0] * nextPoint[1] - nextPoint[0] * currentPoint[1];
-        }
-        var angleStep = (signedArea >= 0 ? 1 : -1) * Math.PI / 2;
-        var startAngle = getAngleFromCenter(pathNodes[0].anchor, fittedCircle);
-        var handleLength = 4 / 3 * Math.tan(angleStep / 4) * fittedCircle.radius;
-        var circleNodes = [];
-        for (var k = 0; k < 4; k++) circleNodes.push(buildCircleNode(fittedCircle, startAngle + angleStep * k, handleLength));
-        return circleNodes;
-    }
-
-    /**
-     * 標本がすべて円の上にあるか（半径との差が ARC_FIT_TOLERANCE_RATIO 以内）。
-     * 線端の半円と結合の円弧のように別々の曲線をまとめて当てはめた円は、どちらにも沿わないので外す
-     * @param {Array} samplePoints - [[x, y], ...]
-     * @param {Object} circle - {centerX, centerY, radius}
-     * @returns {boolean} 円の上にあれば true
-     */
-    function isOnCircle(samplePoints, circle) {
-        var allowance = circle.radius * ARC_FIT_TOLERANCE_RATIO;
-        for (var i = 0; i < samplePoints.length; i++) {
-            var distance = getPointDistance(samplePoints[i], [circle.centerX, circle.centerY]);
-            if (Math.abs(distance - circle.radius) > allowance) return false;
-        }
-        return true;
-    }
-
-    /**
-     * 中心から見た点の角度
-     * @param {number[]} point - [x, y]
-     * @param {Object} circle - {centerX, centerY}
-     * @returns {number} ラジアン
-     */
-    function getAngleFromCenter(point, circle) {
-        return Math.atan2(point[1] - circle.centerY, point[0] - circle.centerX);
-    }
-
-    /**
-     * 点群に円を当てはめる（最小二乗法）
-     * @param {Array} samplePoints - [[x, y], ...]
-     * @returns {Object|null} {centerX, centerY, radius}
-     */
-    function fitCircle(samplePoints) {
-        var sampleCount = samplePoints.length;
-        var meanX = 0, meanY = 0;
-        for (var i = 0; i < sampleCount; i++) {
-            meanX += samplePoints[i][0];
-            meanY += samplePoints[i][1];
-        }
-        meanX /= sampleCount;
-        meanY /= sampleCount;
-
-        /* 平均を原点にして x²+y²+Dx+Ey+F=0 を解く（sxx は Σx² などの和） / solve x²+y²+Dx+Ey+F=0 about the mean (sxx = Σx², …) */
-        var sxx = 0, sxy = 0, syy = 0, sx = 0, sy = 0, sxz = 0, syz = 0, sz = 0;
-        for (var j = 0; j < sampleCount; j++) {
-            var x = samplePoints[j][0] - meanX;
-            var y = samplePoints[j][1] - meanY;
-            var z = x * x + y * y;
-            sxx += x * x; sxy += x * y; syy += y * y;
-            sx += x; sy += y;
-            sxz += x * z; syz += y * z; sz += z;
-        }
-        var normalMatrix = [[sxx, sxy, sx], [sxy, syy, sy], [sx, sy, sampleCount]];
-        var rightHandSide = [-sxz, -syz, -sz];
-        var determinant = getDeterminant3(normalMatrix);
-        if (Math.abs(determinant) < 1e-12) return null;
-
-        /* クラメルの公式で D, E, F を求める / solve D, E, F by Cramer's rule */
-        var solution = [];
-        for (var column = 0; column < 3; column++) {
-            var replacedMatrix = [normalMatrix[0].slice(0), normalMatrix[1].slice(0), normalMatrix[2].slice(0)];
-            for (var row = 0; row < 3; row++) replacedMatrix[row][column] = rightHandSide[row];
-            solution.push(getDeterminant3(replacedMatrix) / determinant);
-        }
-        var centerX = -solution[0] / 2;
-        var centerY = -solution[1] / 2;
-        var radiusSquared = centerX * centerX + centerY * centerY - solution[2];
-        if (radiusSquared <= 0) return null;
-        var radius = Math.sqrt(radiusSquared);
-        if (radius > 1e5) return null; /* ほぼ直線 / nearly straight */
-        return { centerX: centerX + meanX, centerY: centerY + meanY, radius: radius };
-    }
-
-    /**
-     * 3×3行列の行列式
-     * @param {Array} matrix - 3×3の配列
-     * @returns {number} 行列式
-     */
-    function getDeterminant3(matrix) {
-        return matrix[0][0] * (matrix[1][1] * matrix[2][2] - matrix[1][2] * matrix[2][1])
-            - matrix[0][1] * (matrix[1][0] * matrix[2][2] - matrix[1][2] * matrix[2][0])
-            + matrix[0][2] * (matrix[1][0] * matrix[2][1] - matrix[1][1] * matrix[2][0]);
-    }
-
-    /**
-     * 円弧を90°以下に分けたポイント列を作る
-     * 両端は元のアンカー位置を使い、方向線だけ円の接線に合わせる
-     * @param {Object} fittedArc - {centerX, centerY, radius, startAngle, sweep}
-     * @param {Object} startNode - 開始ポイント
-     * @param {Object} endNode - 終了ポイント
-     * @returns {Array} ポイント情報の配列（先頭は開始、末尾は終了）
-     */
-    function buildArcNodes(fittedArc, startNode, endNode) {
-        /* 当てはめの誤差で180°がわずかに超えても3分割にならないよう、少しの超過は許す / allow a little overshoot so fitting error doesn't force an extra piece */
-        var pieceCount = Math.max(1, Math.ceil(Math.abs(fittedArc.sweep) / (Math.PI / 2) - ARC_SPLIT_ALLOWANCE));
-        var angleStep = fittedArc.sweep / pieceCount;
-        var handleLength = 4 / 3 * Math.tan(angleStep / 4) * fittedArc.radius;
-        var arcNodes = [];
-        for (var i = 0; i <= pieceCount; i++) {
-            var anchor = (i === 0) ? startNode.anchor : (i === pieceCount) ? endNode.anchor : undefined;
-            arcNodes.push(buildCircleNode(fittedArc, fittedArc.startAngle + angleStep * i, handleLength, anchor));
-        }
-        arcNodes[pieceCount].rightDirection = endNode.rightDirection;
-        arcNodes[pieceCount].pointType = endNode.pointType;
-        return arcNodes;
-    }
-
-    /**
-     * 線の矢印（分割前のグループ）の中の線の頂点を集める
-     * @param {GroupItem} arrowGroup - 線の矢印
+     * 線の矢印のグループから、分割前の線の頂点を集める（丸型線端・ラウンド結合の円弧の中心）
+     * @param {GroupItem} arrowGroup - 線の矢印のグループ
      * @returns {Array} 頂点 [[x, y], …]
      */
     function collectLineVertices(arrowGroup) {
@@ -3489,39 +3197,65 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
     }
 
     /**
-     * 分割・拡張で崩れた丸型線端・ラウンド結合の円弧を作り直す。
-     * 両端のアンカーが同じ頂点から半径の距離にある曲線のセグメントを、その頂点を中心とする円弧（短いほう）にする。
-     * Illustrator の分割・拡張は線端の方向線を壊すことがある（矢印の内側にへこむ）
-     * @param {PathItem} pathItem - 分割後のパス
+     * 分割・拡張した丸型線端の矢印のパスで、円弧の部分を既知の中心と半径で作り直す。
+     * 合体した外形の円弧は、どれも分割前の線の頂点を中心とする半径（線幅の1/2）の円で、外へふくらむ。
+     * 両端のアンカーが同じ頂点から半径の距離にあるセグメントを円弧とみなし（分割で崩れた曲線や弦になった直線も含む）、
+     * 同じ中心のセグメントが続く区間をまとめて、パスの向きに回る90°以下の円弧に置き換える。それ以外のセグメントはそのまま残す
+     * @param {PathItem} pathItem - 分割後のパス（クローズパス）
      * @param {Array} arcCenters - 円弧の中心の候補（線の頂点） [[x, y], …]
      * @param {number} arcRadius - 円弧の半径（pt）
      * @returns {void}
      */
-    function repairRoundArcs(pathItem, arcCenters, arcRadius) {
+    function rebuildRoundArcs(pathItem, arcCenters, arcRadius) {
+        if (!pathItem.closed) return;
         var pathNodes = readPathNodes(pathItem);
         var nodeCount = pathNodes.length;
-        var segmentCount = pathItem.closed ? nodeCount : nodeCount - 1;
-        var allowance = arcRadius * ARC_FIT_TOLERANCE_RATIO;
-        var isChanged = false;
-        for (var i = 0; i < segmentCount; i++) {
-            var startNode = pathNodes[i];
-            var endNode = pathNodes[(i + 1) % nodeCount];
-            if (isStraightSegment(startNode, endNode)) continue;
-            var center = findArcCenter(startNode.anchor, endNode.anchor, arcCenters, arcRadius, allowance);
-            if (!center) continue;
-            var circle = { centerX: center[0], centerY: center[1], radius: arcRadius };
-            var startAngle = getAngleFromCenter(startNode.anchor, circle);
-            var sweep = getAngleFromCenter(endNode.anchor, circle) - startAngle;
-            while (sweep > Math.PI) sweep -= 2 * Math.PI;
-            while (sweep < -Math.PI) sweep += 2 * Math.PI;
-            /* 半円ちょうどだと向きが決まらないので触らない / a half circle has no defined side, so leave it */
-            if (Math.abs(sweep) > Math.PI * 0.9) continue;
-            var handleLength = 4 / 3 * Math.tan(sweep / 4) * arcRadius;
-            startNode.rightDirection = buildCircleNode(circle, startAngle, handleLength, startNode.anchor).rightDirection;
-            endNode.leftDirection = buildCircleNode(circle, startAngle + sweep, handleLength, endNode.anchor).leftDirection;
-            isChanged = true;
+        if (nodeCount < 2) return;
+        var allowance = arcRadius * ARC_CENTER_TOLERANCE_RATIO;
+        /* セグメント i（アンカー i → i+1）の円弧の中心。円弧でなければ null / center of segment i, or null when it is not an arc */
+        var segmentCenters = [];
+        var hasArc = false;
+        for (var i = 0; i < nodeCount; i++) {
+            segmentCenters.push(findSharedArcCenter(pathNodes[i].anchor, pathNodes[(i + 1) % nodeCount].anchor, arcCenters, arcRadius, allowance));
+            if (segmentCenters[i]) hasArc = true;
         }
-        if (isChanged) writePathNodes(pathItem, pathNodes);
+        if (!hasArc) return;
+        /* 区間の切れ目から始める（全部が同じ円なら作り直さない） / start at a run boundary; leave a path that is one whole circle */
+        var firstSegment = -1;
+        for (var j = 0; j < nodeCount; j++) {
+            if (segmentCenters[j] !== segmentCenters[(j + nodeCount - 1) % nodeCount]) {
+                firstSegment = j;
+                break;
+            }
+        }
+        if (firstSegment < 0) return;
+
+        var turnSign = getPathTurnSign(pathNodes);
+        var resultNodes = [copyPathNode(pathNodes[firstSegment])];
+        var segmentOffset = 0;
+        while (segmentOffset < nodeCount) {
+            var segmentIndex = (firstSegment + segmentOffset) % nodeCount;
+            var arcCenter = segmentCenters[segmentIndex];
+            var runLength = 1;
+            while (arcCenter && segmentOffset + runLength < nodeCount
+                && segmentCenters[(segmentIndex + runLength) % nodeCount] === arcCenter) runLength++;
+            var endNode = copyPathNode(pathNodes[(segmentIndex + runLength) % nodeCount]);
+            var isClosingSegment = (segmentOffset + runLength === nodeCount);
+            if (arcCenter) {
+                var arcNodes = buildArcRunNodes(resultNodes[resultNodes.length - 1], endNode, arcCenter, arcRadius, turnSign);
+                resultNodes[resultNodes.length - 1].rightDirection = arcNodes[0].rightDirection;
+                for (var k = 1; k < arcNodes.length - 1; k++) resultNodes.push(arcNodes[k]);
+                endNode.leftDirection = arcNodes[arcNodes.length - 1].leftDirection;
+            }
+            /* 最後のセグメントは先頭のアンカーに戻るので、先頭の左の方向線だけ書き換える / the closing segment returns to the first anchor */
+            if (isClosingSegment) {
+                resultNodes[0].leftDirection = endNode.leftDirection;
+            } else {
+                resultNodes.push(endNode);
+            }
+            segmentOffset += runLength;
+        }
+        writePathNodes(pathItem, resultNodes);
     }
 
     /**
@@ -3531,15 +3265,69 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
      * @param {Array} arcCenters - 頂点 [[x, y], …]
      * @param {number} arcRadius - 半径（pt）
      * @param {number} allowance - 許容差（pt）
-     * @returns {number[]|null} 見つかった頂点。なければ null
+     * @returns {number[]|null} 見つかった頂点（arcCenters の要素そのもの）。なければ null
      */
-    function findArcCenter(firstAnchor, secondAnchor, arcCenters, arcRadius, allowance) {
+    function findSharedArcCenter(firstAnchor, secondAnchor, arcCenters, arcRadius, allowance) {
+        /* 同じ位置のアンカーどうし（長さ 0 のセグメント）は円弧にしない / skip zero-length segments */
+        if (getPointDistance(firstAnchor, secondAnchor) < TOLERANCE) return null;
         for (var i = 0; i < arcCenters.length; i++) {
             if (Math.abs(getPointDistance(firstAnchor, arcCenters[i]) - arcRadius) > allowance) continue;
             if (Math.abs(getPointDistance(secondAnchor, arcCenters[i]) - arcRadius) > allowance) continue;
             return arcCenters[i];
         }
         return null;
+    }
+
+    /**
+     * パスの回る向きを、アンカーの多角形の符号付き面積で返す
+     * @param {Object[]} pathNodes - ポイント情報
+     * @returns {number} 反時計回りなら 1、時計回りなら -1
+     */
+    function getPathTurnSign(pathNodes) {
+        var signedArea = 0;
+        for (var i = 0; i < pathNodes.length; i++) {
+            var currentPoint = pathNodes[i].anchor;
+            var nextPoint = pathNodes[(i + 1) % pathNodes.length].anchor;
+            signedArea += currentPoint[0] * nextPoint[1] - nextPoint[0] * currentPoint[1];
+        }
+        return (signedArea >= 0) ? 1 : -1;
+    }
+
+    /**
+     * 始点から終点まで、中心のまわりをパスの向きに回る円弧を、90°以下に分けたポイント列にする。
+     * 両端は元のアンカー位置を使い、方向線だけ円の接線に合わせる
+     * @param {Object} startNode - 始点のポイント
+     * @param {Object} endNode - 終点のポイント
+     * @param {number[]} arcCenter - 中心 [x, y]
+     * @param {number} arcRadius - 半径（pt）
+     * @param {number} turnSign - 回る向き（反時計回り 1、時計回り -1）
+     * @returns {Object[]} ポイント情報（先頭は始点、末尾は終点）
+     */
+    function buildArcRunNodes(startNode, endNode, arcCenter, arcRadius, turnSign) {
+        var circle = { centerX: arcCenter[0], centerY: arcCenter[1], radius: arcRadius };
+        var startAngle = getAngleFromCenter(startNode.anchor, circle);
+        /* パスの向きに回った角度（0〜360°） / angle swept in the path's direction (0–360°) */
+        var sweep = (getAngleFromCenter(endNode.anchor, circle) - startAngle) * turnSign;
+        while (sweep <= 0) sweep += 2 * Math.PI;
+        while (sweep > 2 * Math.PI) sweep -= 2 * Math.PI;
+        sweep *= turnSign;
+        /* 当てはめの誤差で90°の倍数をわずかに超えても1つ増えないよう、少しの超過は許す / allow a little overshoot */
+        var pieceCount = Math.max(1, Math.ceil(Math.abs(sweep) / (Math.PI / 2) - ARC_SPLIT_ALLOWANCE));
+        var angleStep = sweep / pieceCount;
+        var handleLength = 4 / 3 * Math.tan(angleStep / 4) * arcRadius;
+        var arcNodes = [];
+        for (var i = 0; i <= pieceCount; i++) {
+            /* 両端は元のアンカー。ExtendScript は入れ子の三項演算子を誤評価するので if で分ける / ends keep the original anchors; nested ternaries misevaluate in ExtendScript */
+            /* var は周をまたいで値が残るので、毎回 undefined から始める（中間は円上の点） / var keeps its value across iterations, so reset it */
+            var anchor = undefined;
+            if (i === 0) {
+                anchor = startNode.anchor;
+            } else if (i === pieceCount) {
+                anchor = endNode.anchor;
+            }
+            arcNodes.push(buildCircleNode(circle, startAngle + angleStep * i, handleLength, anchor));
+        }
+        return arcNodes;
     }
 
     /**
@@ -3562,9 +3350,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
             /* 白フチは整理したパスから複製する / the outline is copied from the simplified paths */
             var expandedPaths = [];
             collectPaths(resultItems, expandedPaths);
-            for (var k = 0; ENABLE_PATH_CLEANUP && k < expandedPaths.length; k++) {
-                if (roundRadius > 0) repairRoundArcs(expandedPaths[k], arcCenters, roundRadius);
-                simplifyArcPoints(expandedPaths[k]);
+            /* 線端なしは直線だけなので整形しない / butt-capped arrows are all straight, so leave them */
+            for (var k = 0; ENABLE_PATH_CLEANUP && roundRadius > 0 && k < expandedPaths.length; k++) {
+                rebuildRoundArcs(expandedPaths[k], arcCenters, roundRadius);
             }
             if (edgeStyle) {
                 expandedItems.push(addWhiteEdgeBehind(resultItems, edgeStyle));
