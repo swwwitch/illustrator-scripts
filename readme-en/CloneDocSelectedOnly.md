@@ -38,4 +38,4 @@ https://note.com/dtp_tranist/n/nb71dac0648f4
 - v1.0.1 (20250702): Minor adjustments
 - v1.0.2 (20260919): Tidied up internal names (no change in behavior)
 - v1.0.3 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
-- v1.0.4 (2026-10-18) Target application changed to Illustrator. Fixed unselected objects being left behind and selected ones being removed; sublayers and items inside groups are now handled
+- v1.0.4 (2026-10-18) Target application changed to Illustrator. Fixed unselected objects being left behind and selected ones being removed; sublayers and items inside groups are now handled. The alert for unsaved changes now says so. The temp file is always saved in Illustrator format (.ai), even when the original is PDF or EPS

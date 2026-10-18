@@ -136,9 +136,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb71dac0648f4"; /* 紹�
     var LABELS = {
         alert: {
             noDocument: { ja: "開いているドキュメントがありません。", en: "No documents are open." },
-            notSaved: {
+            neverSaved: {
                 ja: "ドキュメントが一度も保存されていません。先に保存してください。",
                 en: "The document has never been saved. Please save it first."
+            },
+            unsavedChanges: {
+                ja: "保存されていない変更があります。先に保存してください。",
+                en: "The document has unsaved changes. Please save it first."
             },
             noSelection: { ja: "選択されているオブジェクトがありません。", en: "No objects are selected." }
         }
@@ -159,9 +163,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb71dac0648f4"; /* 紹�
         }
 
         var originalDoc = app.activeDocument;
-        /* 一度でも保存されているか / Check if the document has been saved at least once */
+        /* 一度も保存していなければ path が空 / path is empty until the document is saved once */
+        if (originalDoc.path == "") {
+            alert(getLabel(LABELS.alert.neverSaved));
+            return;
+        }
+        /* saved は「未保存の変更が無い」の意味 / saved means there are no unsaved changes */
         if (!originalDoc.saved) {
-            alert(getLabel(LABELS.alert.notSaved));
+            alert(getLabel(LABELS.alert.unsavedChanges));
             return;
         }
 
@@ -178,7 +187,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb71dac0648f4"; /* 紹�
         }
 
         var tempFile = getUniqueTempFile(originalDoc.fullName, originalDoc.name);
-        originalDoc.saveAs(tempFile);
+        /* 元が PDF・EPS でも、一時ファイルは拡張子に合わせて Illustrator 形式で保存する
+           Save the temp file in Illustrator format to match its .ai extension, even when the original is PDF or EPS */
+        originalDoc.saveAs(tempFile, new IllustratorSaveOptions());
         var duplicateDoc = app.open(tempFile);
 
         removeUnselectedFromLayers(duplicateDoc.layers);
@@ -333,26 +344,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb71dac0648f4"; /* 紹�
     // =========================================
 
     /**
-     * ファイル名の最初のドットより前を返す
+     * ファイル名から最後の拡張子を外す（「a.b.ai」は「a.b」）
      * @param {string} fileName - ファイル名
      * @returns {string} ベース名
      */
     function getBaseName(fileName) {
-        return fileName.split('.')[0];
+        return fileName.replace(/\.[^.]*$/, "");
     }
 
     /**
-     * ファイル名の拡張子をドット付きで返す（無ければ空文字）
-     * @param {string} fileName - ファイル名
-     * @returns {string} 拡張子
-     */
-    function getExtension(fileName) {
-        var nameParts = fileName.split('.');
-        return nameParts.length > 1 ? '.' + nameParts[nameParts.length - 1] : '';
-    }
-
-    /**
-     * 元ファイルと同じフォルダーに、既存と重ならない「temp-<名前>」のファイルを返す
+     * 元ファイルと同じフォルダーに、既存と重ならない「temp-<名前>.ai」のファイルを返す
      * @param {File} originalFile - 元ドキュメントのファイル
      * @param {string} fileName - 元ドキュメントのファイル名
      * @returns {File} 一時ファイル
@@ -360,12 +361,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb71dac0648f4"; /* 紹�
     function getUniqueTempFile(originalFile, fileName) {
         var folderPath = originalFile.path + "/";
         var tempFileNameBase = "temp-" + getBaseName(fileName);
-        var extension = getExtension(fileName);
-        var tempFileName = tempFileNameBase + extension;
+        var tempFileName = tempFileNameBase + ".ai";
         var counter = 1;
 
         while (File(folderPath + tempFileName).exists) {
-            tempFileName = tempFileNameBase + "-" + counter + extension;
+            tempFileName = tempFileNameBase + "-" + counter + ".ai";
             counter++;
         }
         return new File(folderPath + tempFileName);
