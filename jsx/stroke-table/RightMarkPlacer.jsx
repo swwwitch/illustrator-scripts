@@ -29,7 +29,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RightMarkP
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "RightMarkPlacer";              /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.6.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.6.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-03-28";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-18";                   /* 更新日 / last updated */
@@ -71,6 +71,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
 
     /* → ➡ の矢じりの奥行きが、幅に占める割合の上限 / Maximum arrowhead depth as a ratio of the width */
     var MAX_ARROW_HEAD_RATIO = 0.9;
+
+    /* → の軸の矢じり側の端を、線幅に対してこの割合だけ短くする（矢じりの頂点と重ねない。重なると白フチの［合体］が終わらなくなる）
+       Shortens the shaft of → at the head end by this ratio of the stroke width, so it does not meet the head's vertex (which stalls the white outline's unite) */
+    var ARROW_SHAFT_TIP_INSET_RATIO = 0.1;
 
     /* 幅を自動計算するときの、アキに対する割合 / Ratio of the gap used when the width is calculated automatically */
     var AUTO_WIDTH_GAP_RATIO = 0.7;
@@ -168,7 +172,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
     var RADIO_SPACING  = 6;                  /* ラジオボタンの間隔 / gap between radio buttons */
     var COLUMN_PANEL_SPACING = 10;           /* カラム内のパネルの間隔 / gap between panels in a column */
     var FIELD_ROW_SPACING = 8;               /* ラベルと入力欄の間隔 / gap between a label and its field */
-    var LABEL_COLUMN_WIDTH = 60;             /* ラベル列の幅 / width of the label column */
+    var LABEL_COLUMN_WIDTH = 60;             /* ラベル列の最小幅（実際の幅は項目名を測って fitLabelColumn() で決める）/ minimum label column width; fitLabelColumn() measures the captions */
+    var LABEL_COLUMN_PADDING = 4;            /* 測った項目名の幅に足す余裕 / extra room added to the measured caption width */
     var FIELD_CHARACTERS = 4;                /* 入力欄の幅（文字数）/ field width in characters */
     var MIRROR_ROW_TOP_MARGIN = 6;           /* ［左右逆］の上余白 / top margin above the mirror checkbox */
     var OPTION_CHECKBOX_INDENT = 40;         /* ［オプション］のチェックボックスの字下げ / indent of the option checkboxes */
@@ -1753,7 +1758,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
             restoreSelection: { ja: "選択状態の復元", en: "Restore selection" },
             removePreviewItem: { ja: "プレビューの削除", en: "Remove preview item" },
             mergeSolidArrow: { ja: "➡ の合成", en: "Merge the solid arrow" },
-            initialPreview: { ja: "初回プレビューの作成", en: "Create the initial preview" }
+            initialPreview: { ja: "初回プレビューの作成", en: "Create the initial preview" },
+            addWhiteEdge: { ja: "白フチの複製の整理", en: "Clean up the white outline copy" }
         }
     };
 
@@ -2033,6 +2039,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
         defaultHeightPercent: 0,
         defaultGap: -1,
         defaultStrokePt: 0.6,
+        /* 線幅を引き継ぐ組。同じ組の形状どうしでは、切り替えても線幅を保つ / shapes in the same group keep the stroke width across switches */
+        strokeWidthGroup: "line",
         defaultAngle: 0,
         /* 幅の自動計算：basis が "gap" なら最も狭いアキ、"height" なら高さ（％）を掛けた合計高さに ratio を掛ける
            Automatic width: ratio × the narrowest gap ("gap"), or × the total height scaled by the height percentage ("height") */
@@ -2115,6 +2123,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
             enableMirror: true,
             changesSelection: true,
             defaultStrokePt: 3.6,
+            /* 線幅は軸の太さなので、ほかの線の形状とは別に覚える / the stroke is the shaft thickness, so it is kept apart from the line shapes */
+            strokeWidthGroup: "solidArrow",
             createMark: createSolidArrowMark
         }),
         arrowSlash: withShapeDefaults({
@@ -2315,8 +2325,67 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
     }
 
     /**
+     * 指定したアイテムだけを選択し、画面を更新します（効果のメニューコマンドの前に呼ぶ）。
+     *
+     * @param {PageItem[]} pageItems - 選択するアイテム。
+     * @returns {void}
+     */
+    function selectOnlyForMenuCommand(pageItems) {
+        app.activeDocument.selection = null;
+        for (var i = 0; i < pageItems.length; i++) pageItems[i].selected = true;
+        app.redraw();
+    }
+
+    /**
+     * 記号の白い複製を作り、線のあるパスに1本ずつ［パスのアウトライン］効果を掛けます。
+     * 部品が複数ある記号は、部品をすべてレイヤー直下へ出してから新しいグループにまとめ、［パスファインダー（合体）］で1つの輪郭にします。
+     * 入れ子のグループの中で効果のメニューコマンドを実行すると一番外側のグループに付くこと、
+     * グループに掛けた［パスのアウトライン］は［合体］より後に効くことから、この順で組みます（RectangleToArrow と同じ）。
+     * 部品を出したあとの空のグループには戻さず、削除します（空になったグループに戻すと処理が終わらなくなる）。
+     *
+     * @param {PageItem} markItem - 作業レイヤー直下にある記号。
+     * @returns {PageItem} 白い複製（作業レイヤー直下。部品が複数なら新しいグループ）。
+     */
+    function createWhiteOutlineSource(markItem) {
+        var targetLayer = getTargetLayer();
+        var whiteCopy = markItem.duplicate();
+        var copyPaths = collectPathItems(whiteCopy, []);
+        var strokedPaths = [];
+        for (var i = 0; i < copyPaths.length; i++) {
+            if (copyPaths[i].filled) copyPaths[i].fillColor = createWhiteColor();
+            if (copyPaths[i].stroked) {
+                copyPaths[i].strokeColor = createWhiteColor();
+                strokedPaths.push(copyPaths[i]);
+            }
+        }
+
+        if (whiteCopy.typename !== "GroupItem") {
+            if (strokedPaths.length > 0) {
+                selectOnlyForMenuCommand([whiteCopy]);
+                app.executeMenuCommand("Live Outline Stroke");
+            }
+            return whiteCopy;
+        }
+
+        /* 部品をレイヤー直下へ出し、空になった複製のグループは消す / move the parts to the layer's top level and drop the emptied copy group */
+        for (var j = 0; j < copyPaths.length; j++) copyPaths[j].move(targetLayer, ElementPlacement.PLACEATBEGINNING);
+        removeItemSafely(whiteCopy, getLabel("log.addWhiteEdge"));
+        if (strokedPaths.length > 0) {
+            selectOnlyForMenuCommand(strokedPaths);
+            app.executeMenuCommand("Live Outline Stroke");
+        }
+
+        var unitedGroup = targetLayer.groupItems.add();
+        for (var k = 0; k < copyPaths.length; k++) copyPaths[k].move(unitedGroup, ElementPlacement.PLACEATEND);
+        selectOnlyForMenuCommand([unitedGroup]);
+        app.executeMenuCommand("Live Pathfinder Add");
+        return unitedGroup;
+    }
+
+    /**
      * 記号の背面に白い複製を置き、［パスのアウトライン］と［パスのオフセット］効果で白フチにします。記号と白フチはグループにします。
-     * 線のままでは［パスのオフセット］が線幅を含まないので、線のある記号は先に［パスのアウトライン］を掛けます。
+     * 線のままでは［パスのオフセット］が線幅を含まないので、線のある記号は先に［パスのアウトライン］を掛け、
+     * 部品が複数ある記号は［合体］で1つの輪郭にしてからオフセットします（部品ごとにオフセットすると先端が四角くはみ出す）。
      * ［パスのアウトライン］は XML（applyEffect）では付かないので、選択してメニューコマンドで掛けます（呼び出し側の createMarks で選択を退避・復元）。
      *
      * @param {PageItem} markItem - 作業レイヤー直下にある記号。
@@ -2324,24 +2393,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
      * @returns {GroupItem} 記号と白フチのグループ。
      */
     function addWhiteEdgeBehind(markItem, edgeStyle) {
-        /* 入れ子のグループで効果のメニューコマンドを実行すると一番外側のグループに付くので、複製はレイヤー直下に作る
-           Effect menu commands inside nested groups land on the outermost group, so the copy stays at the layer's top level */
-        var whiteEdge = markItem.duplicate();
-        var edgePaths = collectPathItems(whiteEdge, []);
-        var hasStroke = false;
-        for (var i = 0; i < edgePaths.length; i++) {
-            if (edgePaths[i].filled) edgePaths[i].fillColor = createWhiteColor();
-            if (edgePaths[i].stroked) {
-                edgePaths[i].strokeColor = createWhiteColor();
-                hasStroke = true;
-            }
-        }
-        if (hasStroke) {
-            app.activeDocument.selection = null;
-            whiteEdge.selected = true;
-            app.redraw(); /* 効果のメニューコマンドの前に画面を更新する / redraw before an effect menu command */
-            app.executeMenuCommand("Live Outline Stroke");
-        }
+        var whiteEdge = createWhiteOutlineSource(markItem);
         applyOffsetPath(whiteEdge, edgeStyle);
 
         var edgeGroup = getTargetLayer().groupItems.add();
@@ -2432,7 +2484,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
         var headDepth = getArrowHeadDepth(width, placement.height);
         var tipX = centerX + width / 2;
 
-        var shaft = createStrokedLine([centerX - width / 2, centerY], [tipX, centerY], markSettings);
+        /* 軸の端は矢じりの線に隠れる位置で止め、頂点とは重ねない / stop the shaft inside the head's stroke, short of the vertex */
+        var shaftEndX = tipX - markSettings.strokeWidthPt * ARROW_SHAFT_TIP_INSET_RATIO;
+        var shaft = createStrokedLine([centerX - width / 2, centerY], [shaftEndX, centerY], markSettings);
 
         var head = createStrokedPath([
             [tipX - headDepth, centerY + headHalfHeight],
@@ -2739,6 +2793,29 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
     // ダイアログの構築 / Building the dialog
     // =========================================
 
+    /* 項目名の列にそろえるコントロール（項目名と、チェックボックスの字下げ用の空欄）/ Controls aligned to the label column */
+    var labelColumnItems = [];
+
+    /**
+     * 項目名の列の幅を、いちばん長い項目名に合わせてそろえます。
+     * フォントや言語で項目名の幅が変わるので、固定の幅ではなく文字列を測って決めます。
+     *
+     * @returns {void}
+     */
+    function fitLabelColumn() {
+        var columnWidth = LABEL_COLUMN_WIDTH;
+        var i;
+        for (i = 0; i < labelColumnItems.length; i++) {
+            var caption = labelColumnItems[i];
+            if (caption.text === "") continue;
+            var textWidth = caption.graphics.measureString(caption.text, caption.graphics.font)[0] + LABEL_COLUMN_PADDING;
+            if (textWidth > columnWidth) columnWidth = Math.ceil(textWidth);
+        }
+        for (i = 0; i < labelColumnItems.length; i++) {
+            labelColumnItems[i].preferredSize = [columnWidth, -1];
+        }
+    }
+
     /**
      * 項目名・入力欄・単位を1行にまとめて追加します。
      *
@@ -2757,6 +2834,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
         var fieldCaption = fieldRowGroup.add("statictext", undefined, labelText(labelPath));
         fieldCaption.preferredSize = [LABEL_COLUMN_WIDTH, -1];
         fieldCaption.justify = "right";
+        labelColumnItems.push(fieldCaption);
 
         /* ∧∨と入力欄は隙間0で突き合わせる / butt the stepper against the field */
         var stepperInputGroup = fieldRowGroup.add("group");
@@ -2920,7 +2998,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
         /* チェックボックスは入力欄の列にそろえる / align the checkbox with the field column */
         var checkboxRow = whiteEdgePanel.add("group");
         setupRow(checkboxRow, "left", FIELD_ROW_SPACING);
-        checkboxRow.add("statictext", undefined, "").preferredSize = [LABEL_COLUMN_WIDTH, -1];
+        var checkboxIndent = checkboxRow.add("statictext", undefined, "");
+        checkboxIndent.preferredSize = [LABEL_COLUMN_WIDTH, -1];
+        labelColumnItems.push(checkboxIndent);
         dialogControls.whiteEdgeCheckbox = checkboxRow.add("checkbox", undefined, getLabel("checkbox.whiteEdge"));
         dialogControls.whiteEdgeCheckbox.helpTip = getLabel("tooltip.whiteEdge");
 
@@ -2935,6 +3015,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
         var joinCaption = joinRow.add("statictext", undefined, labelText("fieldLabel.whiteEdgeJoin"));
         joinCaption.preferredSize = [LABEL_COLUMN_WIDTH, -1];
         joinCaption.justify = "right";
+        labelColumnItems.push(joinCaption);
         var joinRadioColumn = joinRow.add("group");
         joinRadioColumn.orientation = "column";
         joinRadioColumn.alignChildren = ["left", "top"];
@@ -2972,6 +3053,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
         buildOptionsPanel(rightColumn, dialogControls);
         buildPositionPanel(rightColumn, dialogControls);
         buildWhiteEdgePanel(rightColumn, dialogControls);
+        fitLabelColumn();
 
         /* ［画面にフィット］はボタン行の上に左揃えで置く / Fit to Window sits above the button row, aligned left */
         /* ∧∨・↑↓で増減したときも、部品が percentInput.onChange を呼ぶ / The part calls percentInput.onChange after stepping too */
@@ -3305,6 +3387,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
         /* 幅を手入力したかどうか（手入力後は自動計算しない）/ Whether the width was typed in (auto-calculation stops once it is) */
         var widthManuallySet = false;
 
+        /* 線幅の組ごとに、最後に使った線幅（pt）を覚える / last stroke width (pt) per stroke width group */
+        var strokeWidthByGroup = {};
+
+        /* 今表示している形状（線幅を覚えるときに、切り替える前の形状を知るため）/ shape currently shown, to know the one being left */
+        var currentShapeKey = null;
+
         /* プレビューで作成したアイテム / Items created for the preview */
         var previewItems = [];
 
@@ -3377,13 +3465,46 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
         }
 
         /**
+         * 切り替える前の形状の線幅を、線幅の組ごとに覚えます（線幅を使わない形状・不正な値は覚えません）。
+         *
+         * @returns {void}
+         */
+        function rememberStrokeWidth() {
+            if (currentShapeKey === null) return;
+            var previousConfig = SHAPE_CONFIG[currentShapeKey];
+            if (!previousConfig.enableStrokeInput) return;
+            var strokeWidthPt = parseFieldToPt(dialogControls.strokeField, strokeUnitInfo, false);
+            if (strokeWidthPt >= MIN_STROKE_WIDTH_PT) strokeWidthByGroup[previousConfig.strokeWidthGroup] = strokeWidthPt;
+        }
+
+        /**
+         * 形状に合わせて線幅の欄を更新します。
+         * 同じ組で覚えた線幅があればそれを、なければ形状の初期値を入れます。線幅を使わない形状では欄をそのままにします。
+         *
+         * @param {object} shapeConfig - 形状の設定。
+         * @returns {void}
+         */
+        function applyStrokeWidthForShape(shapeConfig) {
+            if (!shapeConfig.enableStrokeInput) {
+                /* 開いた直後だけは空欄にしない / fill the field only when it is still empty */
+                if (!/\S/.test(dialogControls.strokeField.text)) setFieldFromPt(dialogControls.strokeField, shapeConfig.defaultStrokePt, strokeUnitInfo);
+                return;
+            }
+            var rememberedPt = strokeWidthByGroup[shapeConfig.strokeWidthGroup];
+            setFieldFromPt(dialogControls.strokeField, (typeof rememberedPt === "number") ? rememberedPt : shapeConfig.defaultStrokePt, strokeUnitInfo);
+        }
+
+        /**
          * 選択中の形状に合わせて、入力欄の初期値とコントロールの有効・無効を更新します。
-         * 形状ごとに適切な値が違うため、切り替えるたびにその形状の初期値へ戻します。
+         * 形状ごとに適切な値が違うため、切り替えるたびにその形状の初期値へ戻します（線幅だけは同じ組の形状どうしで引き継ぎます）。
          *
          * @returns {void}
          */
         function applyShapeDefaults() {
-            var shapeConfig = SHAPE_CONFIG[getSelectedShapeKey(dialogControls)];
+            var shapeKey = getSelectedShapeKey(dialogControls);
+            var shapeConfig = SHAPE_CONFIG[shapeKey];
+            rememberStrokeWidth();
+            currentShapeKey = shapeKey;
 
             if (shapeConfig.enableHeightInput) {
                 dialogControls.heightField.text = String(shapeConfig.defaultHeightPercent);
@@ -3391,7 +3512,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
             resetWidthToAuto();
             setFieldFromPt(dialogControls.gapField, shapeConfig.defaultGap, rulerUnitInfo);
             setFieldFromPt(dialogControls.insetField, 0, rulerUnitInfo);
-            setFieldFromPt(dialogControls.strokeField, shapeConfig.defaultStrokePt, strokeUnitInfo);
+            applyStrokeWidthForShape(shapeConfig);
             dialogControls.angleField.text = String(shapeConfig.defaultAngle);
 
             applyShapeEnabledStates(dialogControls, shapeConfig);

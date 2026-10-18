@@ -79,7 +79,7 @@ Chooses None or Round for the stroke caps and joins. It is disabled for the fill
 
 - Items that do not apply to the current shape are dimmed, including their label and unit.
 - Typing a width stops the automatic calculation; clearing the field turns it back on.
-- Height, width, stroke, angle and position all return to the defaults of the shape you switch to.
+- Height, width, angle and position return to the defaults of the shape you switch to. The stroke width carries over between the stroked shapes (`➡` keeps its own, since it is the shaft thickness).
 
 ### Sizing of `➡`
 
@@ -164,6 +164,7 @@ These can be changed in the User settings section at the top of the script.
 
 ## Update history
 
+- v1.6.1 (2026-10-18): Fixed the Offset label in White Outline being cut off (the label column now fits the measured labels). Fixed the white outline sticking out square at the tip of → and of > with Keep top and bottom edges horizontal (the parts are now united before the offset). The stroke width now carries over when switching shapes (`➡` keeps its own)
 - v1.6.0 (2026-10-18): Added White Outline (a white copy behind each mark, turned into an outline with the Outline Stroke and Offset Path effects, with Offset and Joins (Miter/Round) settings). Fixed the preview and the OK result keeping the old value after an expression was committed. Fixed an error when run with characters selected by the Type tool. Left-to-right sorting is now stable. Values with units (such as "1in") are converted to the field's unit. Clearing the width field now fills in the automatic value on commit instead of immediately, so it can be retyped (0 also means automatic). Fixed Rounded corners staying off after switching shapes, invalid Gap values silently becoming 0, and the steppers not moving in ft, yd and m. Added steppers to the Fit to Window percentage. Shortcut tooltips now read "(F)"
 - v1.5.1 (2026-10-16): Right-only button rows are now centered when the dialog's inner width is up to 240 px (was 200 px) (shared part update)
 - v1.5.0 (2026-10-11): Added Fit to Window (on by default). The preview is now always shown, and the Preview checkbox was removed
