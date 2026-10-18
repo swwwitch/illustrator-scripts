@@ -29,10 +29,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RightMarkP
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "RightMarkPlacer";              /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.5.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.6.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-03-28";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-16";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-18";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/RightMarkPlacer.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RightMarkPlacer.md"; /* README (English) */
@@ -78,6 +78,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
 
     /* 山形の幅を自動計算するときの、高さに対する割合 / Ratio of the height used when a chevron width is calculated automatically */
     var AUTO_WIDTH_CHEVRON_HEIGHT_RATIO = 0.5;
+
+    /* 白フチのオフセットの初期値（pt）/ Initial white outline offset in points */
+    var WHITE_EDGE_DEFAULT_OFFSET_PT = 1;
 
     // =========================================
     // レイアウト / Layout
@@ -170,6 +173,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
     var MIRROR_ROW_TOP_MARGIN = 6;           /* ［左右逆］の上余白 / top margin above the mirror checkbox */
     var OPTION_CHECKBOX_INDENT = 40;         /* ［オプション］のチェックボックスの字下げ / indent of the option checkboxes */
     var OPTION_CHECKBOX_TOP_MARGIN = 10;     /* ［オプション］のチェックボックスの上余白 / top margin above the option checkboxes */
+    var WHITE_EDGE_JOIN_RADIO_SPACING = 4;   /* 白フチの角の形状のラジオボタンの縦の間隔 / vertical spacing between the white outline join radios */
 
     /**
      * 縦並びのグループ（カラム）に共通のレイアウトを適用します。
@@ -430,7 +434,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
      */
     function getArrowKeyStep(unitInfo) {
         if (!unitInfo || !(unitInfo.pointsPerUnit > 0)) return 1;
-        var exponent = Math.max(0, Math.round(Math.log(unitInfo.pointsPerUnit) / Math.LN10));
+        /* ∧∨は小数2桁に丸めて書き込むので、刻みは0.01まで（ft・yd・m で 0.001 にすると値が動かない）
+           The stepper writes two decimals, so the step stops at 0.01 (0.001 would never move ft, yd or m) */
+        var exponent = Math.min(2, Math.max(0, Math.round(Math.log(unitInfo.pointsPerUnit) / Math.LN10)));
         return Math.pow(10, -exponent);
     }
 
@@ -1639,17 +1645,23 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
             shape: { ja: "形状", en: "Shape" },
             capStyle: { ja: "先端", en: "End Style" },
             options: { ja: "オプション", en: "Options" },
-            position: { ja: "位置調整", en: "Position" }
+            position: { ja: "位置調整", en: "Position" },
+            whiteEdge: { ja: "白フチ", en: "White Outline" }
         },
         radio: {
             arrowSlash: { ja: "＿\\", en: "─\\" },
             capNone: { ja: "なし", en: "None" },
-            capRound: { ja: "丸型", en: "Round" }
+            capRound: { ja: "丸型", en: "Round" },
+            whiteEdgeJoin: {
+                miter: { ja: "マイター", en: "Miter" },
+                round: { ja: "ラウンド", en: "Round" }
+            }
         },
         checkbox: {
             mirrorHorizontal: { ja: "左右逆", en: "Mirror horizontally" },
             flatChevron: { ja: "天地を水平に", en: "Keep top and bottom edges horizontal" },
-            roundCorners: { ja: "角丸", en: "Rounded corners" }
+            roundCorners: { ja: "角丸", en: "Rounded corners" },
+            whiteEdge: { ja: "白フチ", en: "White Outline" }
         },
         /* 入力欄の前に置く項目名。区切りのコロンは labelText() で付ける / Field captions; labelText() adds the colon */
         fieldLabel: {
@@ -1660,13 +1672,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
             strokeWidth: { ja: "線幅", en: "Stroke" },
             angle: { ja: "角度", en: "Angle" },
             offsetX: { ja: "左右", en: "Horizontal" },
-            offsetY: { ja: "上下", en: "Vertical" }
+            offsetY: { ja: "上下", en: "Vertical" },
+            whiteEdgeOffset: { ja: "オフセット", en: "Offset" },
+            whiteEdgeJoin: { ja: "角の形状", en: "Joins" }
         },
         tooltip: {
             solidArrow: { ja: "矢じりの天地は線幅の%1倍になります。", en: "The arrowhead is %1× the stroke width tall." },
-            capNone: { ja: "ショートカット：F", en: "Shortcut: F" },
-            capRound: { ja: "ショートカット：R", en: "Shortcut: R" },
-            mirrorHorizontal: { ja: "ショートカット：V", en: "Shortcut: V" },
             height: {
                 ja: "隣り合う2つのオブジェクト全体の高さに対する割合（%1%まで）",
                 en: "Percentage of the overall height of the two adjacent objects (up to %1%)"
@@ -1688,6 +1699,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
             },
             offsetX: { ja: "記号を左右にずらします。正の値で右へ移動します", en: "Shifts the marks horizontally. Positive values move them right" },
             offsetY: { ja: "記号を上下にずらします。正の値で上へ移動します", en: "Shifts the marks vertically. Positive values move them up" },
+            whiteEdge: {
+                ja: "記号の背面に白い複製を置き、［パスのアウトライン］と［パスのオフセット］効果で白いフチにします。",
+                en: "Places a white copy behind each mark and turns it into a white outline with the Outline Stroke and Offset Path effects."
+            },
+            whiteEdgeOffset: {
+                ja: "白フチの幅（［パスのオフセット］の値）を定規の単位で指定します。",
+                en: "White outline width (the Offset Path amount) in ruler units."
+            },
+            whiteEdgeJoin: {
+                ja: "白フチの角の形状（［パスのオフセット］の角の形状）を選びます。［先端］が丸型か［角丸］がオンならラウンド、それ以外はマイターで始まります。",
+                en: "Corner shape of the white outline (the Offset Path joins). Starts as Round with Round ends or Rounded corners, otherwise Miter."
+            },
             stepUp: {
                 ja: "値を増やす（shift＋クリックで10の倍数へ、option＋クリックで0.1ずつ）",
                 en: "Increase (Shift-click to snap to 10s, Option-click by 0.1)"
@@ -1882,16 +1905,44 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
         return (itemBounds[0] + itemBounds[2]) / 2;
     }
 
+    /* 並べ替えキーの桁 / Sort key layout */
+    var SORT_KEY_OFFSET = 10000000;   /* 負の座標も正にするための下駄 / shifts negative coordinates above zero */
+    var SORT_KEY_WIDTH = 16;          /* 座標部分の桁数 / width of the coordinate part */
+    var SORT_KEY_INDEX_WIDTH = 6;     /* 元の順番の桁数 / width of the original index */
+
+    /**
+     * 文字列の左を 0 で埋めて指定の桁数にします。
+     *
+     * @param {string} text - 対象の文字列。
+     * @param {number} width - 桁数。
+     * @returns {string} 0 で埋めた文字列。
+     */
+    function padZero(text, width) {
+        while (text.length < width) text = "0" + text;
+        return text;
+    }
+
     /**
      * アイテムの配列を、中心の X 座標で左から右の順に並べ替えます（配列そのものを並べ替えます）。
+     * ExtendScript の比較関数つき sort() は並びが狂うことがあるため、文字列キーを引数なしの sort() で並べます。
      *
      * @param {PageItem[]} pageItems - 対象のアイテムの配列。
      * @returns {PageItem[]} 並べ替えた配列。
      */
     function sortItemsLeftToRight(pageItems) {
-        return pageItems.sort(function (leftItem, rightItem) {
-            return getItemCenterX(leftItem) - getItemCenterX(rightItem);
-        });
+        var sortKeys = [];
+        var i;
+        for (i = 0; i < pageItems.length; i++) {
+            var coordinateKey = padZero((getItemCenterX(pageItems[i]) + SORT_KEY_OFFSET).toFixed(4), SORT_KEY_WIDTH);
+            sortKeys.push(coordinateKey + "\u0001" + padZero(String(i), SORT_KEY_INDEX_WIDTH));
+        }
+        sortKeys.sort();
+
+        var originalItems = pageItems.slice(0);
+        for (i = 0; i < sortKeys.length; i++) {
+            pageItems[i] = originalItems[parseInt(sortKeys[i].split("\u0001")[1], 10)];
+        }
+        return pageItems;
     }
 
     /**
@@ -1900,7 +1951,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
      * @param {PageItem} leftItem - 左側のアイテム。
      * @param {PageItem} rightItem - 右側のアイテム。
      * @param {number} heightPercent - 高さ（％）。null なら合計高さをそのまま使います。
-     * @param {number} widthPt - 幅（pt）。0以下なら高さから決めます。
+     * @param {number} widthPt - 幅（pt）。
      * @param {number} offsetX - 左右の位置調整（pt）。
      * @param {number} offsetY - 上下の位置調整（pt）。
      * @returns {object} 配置情報。アキがない場合は null。
@@ -1929,9 +1980,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
             centerY: (top + bottom) / 2 + (offsetY || 0),
             totalHeight: totalHeight,
             height: markHeight,
-            width: (widthPt > 0) ? widthPt : markHeight,
-            /* 矢印系は幅未指定のとき、アキに対する割合で決める / Arrow shapes fall back to a ratio of the gap when no width is set */
-            arrowWidth: (widthPt > 0) ? widthPt : ((gapRight - gapLeft) * AUTO_WIDTH_GAP_RATIO)
+            width: widthPt
         };
     }
 
@@ -1979,6 +2028,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
         enableRoundCorners: false,    /* ［角丸］/ rounded corners */
         enableAngle: false,           /* ［角度］/ angle */
         enableFlatChevron: false,     /* ［天地を水平に］/ flat chevron */
+        defaultRoundCorners: false,   /* ［角丸］の初期値 / rounded corners starts checked */
         changesSelection: false,      /* 作成時にメニューコマンドで選択を変えるか / whether creation drives menu commands on the selection */
         defaultHeightPercent: 0,
         defaultGap: -1,
@@ -2019,6 +2069,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
             enableMirror: true,
             enableInset: true,
             enableRoundCorners: true,
+            defaultRoundCorners: true,
             defaultHeightPercent: 30,
             defaultStrokePt: 0.3,
             autoWidth: { basis: "height", ratio: 1 },
@@ -2213,6 +2264,94 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
     }
 
     // =========================================
+    // 白フチ / White outline
+    // =========================================
+
+    /* 白フチの角の形状の並び（ラジオボタンの順）/ White outline joins in radio button order */
+    var WHITE_EDGE_JOIN_TYPES = ["miter", "round"];
+
+    /* ［パスのオフセット］の角の形状の値（jntp）/ Offset Path join codes (jntp) */
+    var OFFSET_PATH_JOIN_CODES = { round: 0, miter: 2 };
+
+    /**
+     * アイテムの中のパスを集めます（グループ・複合パスの中も含む）。
+     *
+     * @param {PageItem} pageItem - 対象のアイテム。
+     * @param {PathItem[]} foundPaths - 集めたパスの格納先。
+     * @returns {PathItem[]} foundPaths。
+     */
+    function collectPathItems(pageItem, foundPaths) {
+        if (pageItem.typename === "PathItem") {
+            foundPaths.push(pageItem);
+        } else if (pageItem.typename === "GroupItem") {
+            for (var i = 0; i < pageItem.pageItems.length; i++) collectPathItems(pageItem.pageItems[i], foundPaths);
+        } else if (pageItem.typename === "CompoundPathItem") {
+            for (var j = 0; j < pageItem.pathItems.length; j++) collectPathItems(pageItem.pathItems[j], foundPaths);
+        }
+        return foundPaths;
+    }
+
+    /**
+     * 白（グレー 0%）を返します。
+     *
+     * @returns {GrayColor} 白。
+     */
+    function createWhiteColor() {
+        var whiteColor = new GrayColor();
+        whiteColor.gray = 0;
+        return whiteColor;
+    }
+
+    /**
+     * ［パスのオフセット］効果を掛けます。
+     *
+     * @param {PageItem} pageItem - 対象のアイテム。
+     * @param {{offset: number, joinType: string}} edgeStyle - オフセットの量（pt）と角の形状（"miter" / "round"）。
+     * @returns {void}
+     */
+    function applyOffsetPath(pageItem, edgeStyle) {
+        pageItem.applyEffect('<LiveEffect name="Adobe Offset Path"><Dict data="R mlim 4 R ofst ' + edgeStyle.offset
+            + ' I jntp ' + OFFSET_PATH_JOIN_CODES[edgeStyle.joinType] + ' "/><\/LiveEffect>');
+    }
+
+    /**
+     * 記号の背面に白い複製を置き、［パスのアウトライン］と［パスのオフセット］効果で白フチにします。記号と白フチはグループにします。
+     * 線のままでは［パスのオフセット］が線幅を含まないので、線のある記号は先に［パスのアウトライン］を掛けます。
+     * ［パスのアウトライン］は XML（applyEffect）では付かないので、選択してメニューコマンドで掛けます（呼び出し側の createMarks で選択を退避・復元）。
+     *
+     * @param {PageItem} markItem - 作業レイヤー直下にある記号。
+     * @param {{offset: number, joinType: string}} edgeStyle - 白フチのオフセット（pt）と角の形状。
+     * @returns {GroupItem} 記号と白フチのグループ。
+     */
+    function addWhiteEdgeBehind(markItem, edgeStyle) {
+        /* 入れ子のグループで効果のメニューコマンドを実行すると一番外側のグループに付くので、複製はレイヤー直下に作る
+           Effect menu commands inside nested groups land on the outermost group, so the copy stays at the layer's top level */
+        var whiteEdge = markItem.duplicate();
+        var edgePaths = collectPathItems(whiteEdge, []);
+        var hasStroke = false;
+        for (var i = 0; i < edgePaths.length; i++) {
+            if (edgePaths[i].filled) edgePaths[i].fillColor = createWhiteColor();
+            if (edgePaths[i].stroked) {
+                edgePaths[i].strokeColor = createWhiteColor();
+                hasStroke = true;
+            }
+        }
+        if (hasStroke) {
+            app.activeDocument.selection = null;
+            whiteEdge.selected = true;
+            app.redraw(); /* 効果のメニューコマンドの前に画面を更新する / redraw before an effect menu command */
+            app.executeMenuCommand("Live Outline Stroke");
+        }
+        applyOffsetPath(whiteEdge, edgeStyle);
+
+        var edgeGroup = getTargetLayer().groupItems.add();
+        /* 後から PLACEATEND で入れたほうが背面になる / the later PLACEATEND item ends up behind */
+        markItem.move(edgeGroup, ElementPlacement.PLACEATEND);
+        whiteEdge.move(edgeGroup, ElementPlacement.PLACEATEND);
+        return edgeGroup;
+    }
+
+    // =========================================
     // 形状の作成 / Shape creation
     // =========================================
     // 各 create…Mark() は、配置情報（computePlacementBetweenItems の戻り値）と
@@ -2288,7 +2427,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
     function createArrowMark(placement, markSettings) {
         var centerX = placement.centerX;
         var centerY = placement.centerY;
-        var width = placement.arrowWidth;
+        var width = placement.width;
         var headHalfHeight = placement.height / 2;
         var headDepth = getArrowHeadDepth(width, placement.height);
         var tipX = centerX + width / 2;
@@ -2315,7 +2454,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
     function createSolidArrowMark(placement, markSettings) {
         var centerX = placement.centerX;
         var centerY = placement.centerY;
-        var width = placement.arrowWidth;
+        var width = placement.width;
         var shaftWidthPt = markSettings.strokeWidthPt;
         var height = shaftWidthPt * SOLID_ARROW_HEIGHT_TO_STROKE_RATIO;
         var headHalfHeight = height / 2;
@@ -2387,7 +2526,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
      */
     function createArrowSlashMark(placement, markSettings) {
         var centerY = placement.centerY;
-        var width = placement.arrowWidth;
+        var width = placement.width;
         var rise = placement.height / 2;
         var leftX = placement.centerX - width / 2;
         var tipX = placement.centerX + width / 2;
@@ -2548,7 +2687,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
     // =========================================
 
     /**
-     * 隣り合う2つのオブジェクトの間に記号を1つ作成し、［左右逆］がONなら反転します。
+     * 隣り合う2つのオブジェクトの間に記号を1つ作成し、［左右逆］がONなら反転し、［白フチ］がONなら白フチを付けます。
      *
      * @param {PageItem} leftItem - 左側のアイテム。
      * @param {PageItem} rightItem - 右側のアイテム。
@@ -2563,6 +2702,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
         if (markSettings.mirror) {
             markItem.resize(-100, 100, true, true, true, true, 100, Transformation.CENTER);
         }
+        /* 反転したあとの記号から複製する / copy the mark after mirroring */
+        if (markSettings.whiteEdge) {
+            markItem = addWhiteEdgeBehind(markItem, markSettings.whiteEdgeStyle);
+        }
         return markItem;
     }
 
@@ -2576,8 +2719,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
     function createMarks(sortedItems, markSettings) {
         var createdItems = [];
 
-        /* ➡ だけは選択状態を使うメニューコマンドを呼ぶため、ここで1回だけ退避・復元する / Only the solid arrow drives menu commands, so save and restore the selection once */
-        var previousSelection = markSettings.shapeConfig.changesSelection
+        /* ➡ と白フチは選択状態を使うメニューコマンドを呼ぶため、ここで1回だけ退避・復元する / The solid arrow and the white outline drive menu commands, so save and restore the selection once */
+        var previousSelection = (markSettings.shapeConfig.changesSelection || markSettings.whiteEdge)
             ? collectionToArray(app.activeDocument.selection)
             : null;
 
@@ -2602,11 +2745,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
      * @param {Panel} parentPanel - 追加先のパネル。
      * @param {string} labelPath - 項目名のドットパス。
      * @param {string} unitText - 入力欄の右に置く単位表記。
+     * @param {object} [unitInfo] - 単位情報（表示桁数に使います）。％や度など単位のない入力欄では null。
      * @param {string} [initialText] - 入力欄の初期値。省略時は空欄。
      * @returns {EditText} 追加した入力欄。行のグループは rowGroup、∧∨は stepperGroup、増減の設定は stepOptions で参照できます
      *     （増減量・下限は setupFieldStepper() で設定します）。
      */
-    function addLabeledField(parentPanel, labelPath, unitText, initialText) {
+    function addLabeledField(parentPanel, labelPath, unitText, unitInfo, initialText) {
         var fieldRowGroup = parentPanel.add("group");
         setupRow(fieldRowGroup, "left", FIELD_ROW_SPACING);
 
@@ -2628,11 +2772,33 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
         inputField.rowGroup = fieldRowGroup;
         inputField.stepperGroup = stepperGroup;
         inputField.stepOptions = stepOptions;
+        inputField.unitText = unitText;
+        inputField.unitInfo = unitInfo || null;
         bindSteppedArrowKeys(inputField, stepperGroup);
+
+        /* 確定時の書き換えでは onChanging が来ないので、確定したら同じ後処理を通す / Rewrites on commit fire no onChanging, so rerun it */
+        inputField.onChange = function () {
+            commitLabeledField(inputField);
+        };
 
         fieldRowGroup.add("statictext", undefined, unitText);
 
         return inputField;
+    }
+
+    /**
+     * 確定した入力欄の値をそろえ、onChanging と同じ後処理（プレビューの更新など）を通します。
+     * 計算式は共通部品の change リスナーが先に計算済みなので、ここでは「1in」のような単位付きの値を欄の単位へ換算します。
+     *
+     * @param {EditText} inputField - addLabeledField() で作った入力欄。
+     * @returns {void}
+     */
+    function commitLabeledField(inputField) {
+        var value = evaluateArithmetic(inputField.text, inputField.unitText);
+        if (!isNaN(value) && value !== parseFloat(inputField.text)) {
+            inputField.text = String(roundDisplayValueForUnit(value, inputField.unitInfo));
+        }
+        if (inputField.onChanging) inputField.onChanging();
     }
 
     /**
@@ -2660,7 +2826,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
         mirrorGroup.margins = [0, MIRROR_ROW_TOP_MARGIN, 0, 0];
 
         dialogControls.mirrorCheckbox = mirrorGroup.add("checkbox", undefined, getLabel("checkbox.mirrorHorizontal"));
-        dialogControls.mirrorCheckbox.helpTip = getLabel("tooltip.mirrorHorizontal");
     }
 
     /**
@@ -2676,9 +2841,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
 
         dialogControls.capStylePanel = capStylePanel;
         dialogControls.capNoneRadio = capStylePanel.add("radiobutton", undefined, getLabel("radio.capNone"));
-        dialogControls.capNoneRadio.helpTip = getLabel("tooltip.capNone");
         dialogControls.capRoundRadio = capStylePanel.add("radiobutton", undefined, getLabel("radio.capRound"));
-        dialogControls.capRoundRadio.helpTip = getLabel("tooltip.capRound");
         dialogControls.capNoneRadio.value = true;
     }
 
@@ -2694,22 +2857,22 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
         var optionsPanel = parentColumn.add("panel", undefined, getLabel("panel.options"));
         setupPanel(optionsPanel, 6);
 
-        dialogControls.heightField = addLabeledField(optionsPanel, "fieldLabel.height", "%");
+        dialogControls.heightField = addLabeledField(optionsPanel, "fieldLabel.height", "%", null);
         dialogControls.heightField.helpTip = getLabel("tooltip.height", [MAX_HEIGHT_PERCENT]);
         dialogControls.heightField.active = true;
 
-        dialogControls.widthField = addLabeledField(optionsPanel, "fieldLabel.width", rulerUnitInfo.label);
+        dialogControls.widthField = addLabeledField(optionsPanel, "fieldLabel.width", rulerUnitInfo.label, rulerUnitInfo);
         dialogControls.widthField.helpTip = getLabel("tooltip.width");
 
-        dialogControls.insetField = addLabeledField(optionsPanel, "fieldLabel.inset", rulerUnitInfo.label);
+        dialogControls.insetField = addLabeledField(optionsPanel, "fieldLabel.inset", rulerUnitInfo.label, rulerUnitInfo);
         dialogControls.insetField.helpTip = getLabel("tooltip.inset", [roundDisplayValue(MAX_INSET_RATIO * 100)]);
 
-        dialogControls.gapField = addLabeledField(optionsPanel, "fieldLabel.gap", rulerUnitInfo.label);
+        dialogControls.gapField = addLabeledField(optionsPanel, "fieldLabel.gap", rulerUnitInfo.label, rulerUnitInfo);
         dialogControls.gapField.helpTip = getLabel("tooltip.gap");
 
-        dialogControls.strokeField = addLabeledField(optionsPanel, "fieldLabel.strokeWidth", strokeUnitInfo.label);
+        dialogControls.strokeField = addLabeledField(optionsPanel, "fieldLabel.strokeWidth", strokeUnitInfo.label, strokeUnitInfo);
 
-        dialogControls.angleField = addLabeledField(optionsPanel, "fieldLabel.angle", "°");
+        dialogControls.angleField = addLabeledField(optionsPanel, "fieldLabel.angle", "°", null);
         dialogControls.angleField.helpTip = getLabel("tooltip.angle", [SLASH_ANGLE_MAX]);
 
         var optionCheckboxGroup = optionsPanel.add("group");
@@ -2723,7 +2886,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
 
         dialogControls.roundCornersCheckbox = optionCheckboxGroup.add("checkbox", undefined, getLabel("checkbox.roundCorners"));
         dialogControls.roundCornersCheckbox.helpTip = getLabel("tooltip.roundCorners");
-        dialogControls.roundCornersCheckbox.value = true;
     }
 
     /**
@@ -2737,10 +2899,54 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
         var positionPanel = parentColumn.add("panel", undefined, getLabel("panel.position"));
         setupPanel(positionPanel, 6);
 
-        dialogControls.offsetXField = addLabeledField(positionPanel, "fieldLabel.offsetX", rulerUnitInfo.label, "0");
+        dialogControls.offsetXField = addLabeledField(positionPanel, "fieldLabel.offsetX", rulerUnitInfo.label, rulerUnitInfo, "0");
         dialogControls.offsetXField.helpTip = getLabel("tooltip.offsetX");
-        dialogControls.offsetYField = addLabeledField(positionPanel, "fieldLabel.offsetY", rulerUnitInfo.label, "0");
+        dialogControls.offsetYField = addLabeledField(positionPanel, "fieldLabel.offsetY", rulerUnitInfo.label, rulerUnitInfo, "0");
         dialogControls.offsetYField.helpTip = getLabel("tooltip.offsetY");
+    }
+
+    /**
+     * ［白フチ］パネル（白フチのチェックボックス・オフセット・角の形状）を作成します。
+     * 角の形状の初期値は、形状と先端に合わせて syncWhiteEdgeJoin() で選びます。
+     *
+     * @param {Group} parentColumn - 追加先のカラム。
+     * @param {object} dialogControls - コントロールを登録するオブジェクト。
+     * @returns {void}
+     */
+    function buildWhiteEdgePanel(parentColumn, dialogControls) {
+        var whiteEdgePanel = parentColumn.add("panel", undefined, getLabel("panel.whiteEdge"));
+        setupPanel(whiteEdgePanel, 6);
+
+        /* チェックボックスは入力欄の列にそろえる / align the checkbox with the field column */
+        var checkboxRow = whiteEdgePanel.add("group");
+        setupRow(checkboxRow, "left", FIELD_ROW_SPACING);
+        checkboxRow.add("statictext", undefined, "").preferredSize = [LABEL_COLUMN_WIDTH, -1];
+        dialogControls.whiteEdgeCheckbox = checkboxRow.add("checkbox", undefined, getLabel("checkbox.whiteEdge"));
+        dialogControls.whiteEdgeCheckbox.helpTip = getLabel("tooltip.whiteEdge");
+
+        dialogControls.whiteEdgeOffsetField = addLabeledField(whiteEdgePanel, "fieldLabel.whiteEdgeOffset", rulerUnitInfo.label, rulerUnitInfo);
+        dialogControls.whiteEdgeOffsetField.helpTip = getLabel("tooltip.whiteEdgeOffset");
+        setFieldFromPt(dialogControls.whiteEdgeOffsetField, WHITE_EDGE_DEFAULT_OFFSET_PT, rulerUnitInfo);
+
+        /* ラジオは同じ親の中だけ排他なので、縦に並べる列に2つとも入れる / radios are exclusive only within one parent, so both go in one column */
+        var joinRow = whiteEdgePanel.add("group");
+        setupRow(joinRow, "left", FIELD_ROW_SPACING);
+        joinRow.alignChildren = ["left", "top"];
+        var joinCaption = joinRow.add("statictext", undefined, labelText("fieldLabel.whiteEdgeJoin"));
+        joinCaption.preferredSize = [LABEL_COLUMN_WIDTH, -1];
+        joinCaption.justify = "right";
+        var joinRadioColumn = joinRow.add("group");
+        joinRadioColumn.orientation = "column";
+        joinRadioColumn.alignChildren = ["left", "top"];
+        joinRadioColumn.spacing = WHITE_EDGE_JOIN_RADIO_SPACING;
+        dialogControls.whiteEdgeJoinRadios = [];
+        for (var i = 0; i < WHITE_EDGE_JOIN_TYPES.length; i++) {
+            var joinRadio = joinRadioColumn.add("radiobutton", undefined, getLabel("radio.whiteEdgeJoin." + WHITE_EDGE_JOIN_TYPES[i]));
+            joinRadio.helpTip = getLabel("tooltip.whiteEdgeJoin");
+            dialogControls.whiteEdgeJoinRadios.push(joinRadio);
+        }
+        dialogControls.whiteEdgeJoinRadios[0].value = true;
+        dialogControls.whiteEdgeJoinRow = joinRow;
     }
 
     /**
@@ -2765,9 +2971,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
         buildCapStylePanel(leftColumn, dialogControls);
         buildOptionsPanel(rightColumn, dialogControls);
         buildPositionPanel(rightColumn, dialogControls);
+        buildWhiteEdgePanel(rightColumn, dialogControls);
 
         /* ［画面にフィット］はボタン行の上に左揃えで置く / Fit to Window sits above the button row, aligned left */
-        dialogControls.fitViewControls = FitViewToItems.addControls(markDialog, { lang: uiLang, value: true });
+        /* ∧∨・↑↓で増減したときも、部品が percentInput.onChange を呼ぶ / The part calls percentInput.onChange after stepping too */
+        dialogControls.fitViewControls = FitViewToItems.addControls(markDialog, { lang: uiLang, value: true, stepper: true });
         dialogControls.fitViewControls.row.alignment = ["left", "center"];
 
         /* ボタンの行。プレビューは常に表示する。［キャンセル］は name: "cancel" の既定動作で閉じ、プレビューは onClose で片付ける
@@ -2857,6 +3065,50 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
     }
 
     /**
+     * 白フチのオフセット・角の形状を、［白フチ］がONのときだけ有効にします。
+     *
+     * @param {object} dialogControls - ダイアログのコントロール。
+     * @returns {void}
+     */
+    function applyWhiteEdgeEnabledStates(dialogControls) {
+        var isWhiteEdgeOn = dialogControls.whiteEdgeCheckbox.value;
+        setFieldRowEnabled(dialogControls.whiteEdgeOffsetField, isWhiteEdgeOn);
+        dialogControls.whiteEdgeJoinRow.enabled = isWhiteEdgeOn;
+    }
+
+    /**
+     * 白フチの角の形状を、記号の角に合わせて選び直します（［先端］が丸型か［角丸］がオンならラウンド、それ以外はマイター）。
+     *
+     * @param {object} dialogControls - ダイアログのコントロール。
+     * @param {object} shapeConfig - 形状の設定。
+     * @param {boolean} [isRoundCorners] - ［角丸］の状態。省略時はチェックボックスから読む
+     *     （表示前に代入したチェックボックスの値は読み戻せないので、初期化では渡す）。
+     * @returns {void}
+     */
+    function syncWhiteEdgeJoin(dialogControls, shapeConfig, isRoundCorners) {
+        if (typeof isRoundCorners !== "boolean") isRoundCorners = dialogControls.roundCornersCheckbox.value;
+        var isRoundMark = (shapeConfig.enableCapPanel && dialogControls.capRoundRadio.value)
+            || (shapeConfig.enableRoundCorners && isRoundCorners);
+        var joinType = isRoundMark ? "round" : "miter";
+        for (var i = 0; i < WHITE_EDGE_JOIN_TYPES.length; i++) {
+            dialogControls.whiteEdgeJoinRadios[i].value = (WHITE_EDGE_JOIN_TYPES[i] === joinType);
+        }
+    }
+
+    /**
+     * 選ばれている白フチの角の形状を返します。
+     *
+     * @param {object} dialogControls - ダイアログのコントロール。
+     * @returns {string} "miter" または "round"。
+     */
+    function getCheckedWhiteEdgeJoin(dialogControls) {
+        for (var i = 0; i < WHITE_EDGE_JOIN_TYPES.length; i++) {
+            if (dialogControls.whiteEdgeJoinRadios[i].value) return WHITE_EDGE_JOIN_TYPES[i];
+        }
+        return WHITE_EDGE_JOIN_TYPES[0];
+    }
+
+    /**
      * 入力エラーを知らせ、対象の入力欄にフォーカスを移します。
      *
      * @param {EditText} invalidField - 対象の入力欄。
@@ -2883,24 +3135,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
     function readMarkSettings(dialogControls, showAlert) {
         var shapeConfig = SHAPE_CONFIG[getSelectedShapeKey(dialogControls)];
         var heightPercent = null;
-        var widthPt = parseFieldToPt(dialogControls.widthField, rulerUnitInfo, false);
+        /* 空欄は 0 として読み、下で自動計算の幅に置き換える / An empty field reads as 0 and becomes the automatic width below */
+        var widthPt = /\S/.test(dialogControls.widthField.text) ? parseFieldToPt(dialogControls.widthField, rulerUnitInfo, false) : 0;
         var insetPt = 0;
         var offsetX = parseFieldToPt(dialogControls.offsetXField, rulerUnitInfo, true);
         var offsetY = parseFieldToPt(dialogControls.offsetYField, rulerUnitInfo, true);
         var strokeWidthPt = parseFieldToPt(dialogControls.strokeField, strokeUnitInfo, false);
         var angleDeg = shapeConfig.enableAngle ? parseFloat(dialogControls.angleField.text) : 0;
-        var chevronGapPt = parseFieldToPt(dialogControls.gapField, rulerUnitInfo, true);
-
-        if (shapeConfig.enableInset) {
-            insetPt = parseFieldToPt(dialogControls.insetField, rulerUnitInfo, false);
-            if (isNaN(insetPt)) {
-                return reportInvalidValue(dialogControls.insetField, "alert.invalidValue", showAlert);
-            }
-            /* 幅が明示されている場合は、その割合まで凹みを抑える / Clamp the inset when the width is set explicitly */
-            if (widthPt > 0) {
-                insetPt = Math.min(insetPt, widthPt * MAX_INSET_RATIO);
-            }
-        }
+        var chevronGapPt = shapeConfig.enableGap ? parseFieldToPt(dialogControls.gapField, rulerUnitInfo, true) : 0;
+        var isWhiteEdge = dialogControls.whiteEdgeCheckbox.value;
+        var whiteEdgeOffsetPt = isWhiteEdge ? parseFieldToPt(dialogControls.whiteEdgeOffsetField, rulerUnitInfo, false) : 0;
 
         if (shapeConfig.enableHeightInput) {
             heightPercent = parseFloat(dialogControls.heightField.text);
@@ -2914,6 +3158,26 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
 
         if (isNaN(widthPt)) {
             return reportInvalidValue(dialogControls.widthField, "alert.widthPositive", showAlert);
+        }
+        /* 空欄・0 は自動計算の幅 / Empty or zero uses the automatic width */
+        if (widthPt === 0) {
+            widthPt = dialogControls.computeAutoWidthPt ? dialogControls.computeAutoWidthPt() : null;
+            if (!(widthPt > 0)) {
+                return reportInvalidValue(dialogControls.widthField, "alert.widthPositive", showAlert);
+            }
+        }
+
+        if (shapeConfig.enableInset) {
+            insetPt = parseFieldToPt(dialogControls.insetField, rulerUnitInfo, false);
+            if (isNaN(insetPt)) {
+                return reportInvalidValue(dialogControls.insetField, "alert.invalidValue", showAlert);
+            }
+            /* 凹みは幅の割合までに抑える / Clamp the inset to a ratio of the width */
+            insetPt = Math.min(insetPt, widthPt * MAX_INSET_RATIO);
+        }
+
+        if (isNaN(chevronGapPt)) {
+            return reportInvalidValue(dialogControls.gapField, "alert.invalidValue", showAlert);
         }
         if (isNaN(offsetX)) {
             return reportInvalidValue(dialogControls.offsetXField, "alert.invalidValue", showAlert);
@@ -2932,6 +3196,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
         if (shapeConfig.enableAngle && isNaN(angleDeg)) {
             return reportInvalidValue(dialogControls.angleField, "alert.invalidValue", showAlert);
         }
+        if (isNaN(whiteEdgeOffsetPt)) {
+            return reportInvalidValue(dialogControls.whiteEdgeOffsetField, "alert.invalidValue", showAlert);
+        }
 
         return {
             shapeConfig: shapeConfig,
@@ -2942,11 +3209,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
             offsetY: offsetY,
             strokeWidthPt: strokeWidthPt,
             angleDeg: angleDeg,
-            chevronGapPt: isNaN(chevronGapPt) ? 0 : chevronGapPt,
+            chevronGapPt: chevronGapPt,
             roundEnds: dialogControls.capRoundRadio.value,
             roundCorners: dialogControls.roundCornersCheckbox.value,
             flatChevron: dialogControls.flatChevronCheckbox.value,
-            mirror: dialogControls.mirrorCheckbox.value
+            mirror: dialogControls.mirrorCheckbox.value,
+            whiteEdge: isWhiteEdge,
+            whiteEdgeStyle: {
+                offset: whiteEdgeOffsetPt,
+                joinType: getCheckedWhiteEdgeJoin(dialogControls)
+            }
         };
     }
 
@@ -2996,7 +3268,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
             return;
         }
 
-        var sortedItems = collectionToArray(activeDoc.selection);
+        /* 文字ツールで文字を選択中は TextRange が返り、length が文字数になるので、オブジェクトの選択として扱わない
+           Selecting characters returns a TextRange whose length is a character count, so it is not an object selection */
+        var selectedItems = activeDoc.selection;
+        var sortedItems = (selectedItems && selectedItems.typename === "TextRange") ? [] : collectionToArray(selectedItems);
         if (sortedItems.length < 2) {
             alert(getLabel("alert.selectTwoObjects"));
             return;
@@ -3048,6 +3323,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
                 : narrowestGap.minTotalHeight * (heightPercent / 100);
             return roundDisplayValue(basePt * shapeConfig.autoWidth.ratio);
         }
+        /* 幅の欄が空欄・0 のとき、readMarkSettings() がこの値を使う / readMarkSettings() falls back to this when the width is empty or zero */
+        dialogControls.computeAutoWidthPt = computeAutoWidthPt;
 
         /**
          * 幅の入力欄に、自動計算した値を表示します。
@@ -3118,6 +3395,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
             dialogControls.angleField.text = String(shapeConfig.defaultAngle);
 
             applyShapeEnabledStates(dialogControls, shapeConfig);
+            /* 使えない形状で外した［角丸］を、戻ってきたときに初期値へ戻す / Restore the default that an unsupported shape cleared */
+            if (shapeConfig.enableRoundCorners) dialogControls.roundCornersCheckbox.value = shapeConfig.defaultRoundCorners;
+            syncWhiteEdgeJoin(dialogControls, shapeConfig, shapeConfig.defaultRoundCorners);
         }
 
         /**
@@ -3176,13 +3456,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
 
         /**
          * ［画面にフィット］のチェックと割合の欄を登録します。
-         * 部品の％欄には∧∨が無いので、↑↓キーだけほかの数値欄と同じ増減をつなぎます（10〜100%、整数）。
+         * 割合の∧∨・↑↓キーは部品が受け持ち、増減したあと percentInput.onChange を呼びます。
          *
          * @returns {void}
          */
         function bindFitViewEvents() {
             var fitViewControls = dialogControls.fitViewControls;
-            var fitPercentOptions = { step: 1, min: 10, max: 100, integer: true };
             fitViewControls.checkbox.onClick = function () {
                 fitViewControls.updateEnabled();
                 fitViewToPreview();
@@ -3192,17 +3471,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
                 fitViewToPreview();
                 app.redraw();
             };
-            bindSteppedArrowKeys(fitViewControls.percentInput, {
-                stepBy: function (direction) {
-                    var percentInput = fitViewControls.percentInput;
-                    if (!percentInput.enabled) return;
-                    var percentValue = parseFloat(percentInput.text);
-                    if (isNaN(percentValue)) percentValue = 0;
-                    writeSteppedValue(percentInput, computeSteppedValue(percentValue, direction, fitPercentOptions), fitPercentOptions);
-                    fitViewToPreview();
-                    app.redraw();
-                }
-            });
         }
 
         /**
@@ -3240,13 +3508,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
                 updatePreview();
             };
 
+            /* 入力中に空欄にしても値は入れず（打ち直せるように）、プレビューだけ自動計算の幅で作る。確定したときに自動計算の値を表示する
+               While typing, an empty field stays empty so it can be retyped; the preview uses the automatic width, shown on commit */
             dialogControls.widthField.onChanging = function () {
-                if (dialogControls.widthField.text === "") {
-                    resetWidthToAuto();
-                } else {
-                    widthManuallySet = true;
-                }
+                widthManuallySet = /\S/.test(dialogControls.widthField.text);
                 updatePreview();
+            };
+            dialogControls.widthField.onChange = function () {
+                if (/\S/.test(dialogControls.widthField.text)) {
+                    commitLabeledField(dialogControls.widthField);
+                } else {
+                    resetWidthToAuto();
+                }
             };
 
             dialogControls.insetField.onChanging = function () {
@@ -3259,7 +3532,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
                 dialogControls.strokeField,
                 dialogControls.angleField,
                 dialogControls.offsetXField,
-                dialogControls.offsetYField
+                dialogControls.offsetYField,
+                dialogControls.whiteEdgeOffsetField
             ];
             for (var i = 0; i < previewOnlyFields.length; i++) {
                 previewOnlyFields[i].onChanging = updatePreview;
@@ -3274,6 +3548,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
             setupFieldStepper(dialogControls.gapField, true, rulerUnitInfo);
             setupFieldStepper(dialogControls.offsetXField, true, rulerUnitInfo);
             setupFieldStepper(dialogControls.offsetYField, true, rulerUnitInfo);
+            setupFieldStepper(dialogControls.whiteEdgeOffsetField, false, rulerUnitInfo);
         }
 
         /**
@@ -3286,49 +3561,51 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
                 dialogControls.shapeRadios[SHAPE_ORDER[i]].onClick = handleShapeChange;
             }
 
-            var previewToggles = [
+            /* 先端・角丸を変えたら、白フチの角の形状も合わせ直す / the white outline join follows the ends and rounded corners */
+            var joinSourceToggles = [
                 dialogControls.capNoneRadio,
                 dialogControls.capRoundRadio,
-                dialogControls.mirrorCheckbox,
-                dialogControls.flatChevronCheckbox,
                 dialogControls.roundCornersCheckbox
             ];
-            for (var j = 0; j < previewToggles.length; j++) {
-                previewToggles[j].onClick = updatePreview;
+            for (var j = 0; j < joinSourceToggles.length; j++) {
+                joinSourceToggles[j].onClick = function () {
+                    syncWhiteEdgeJoin(dialogControls, SHAPE_CONFIG[getSelectedShapeKey(dialogControls)]);
+                    updatePreview();
+                };
             }
+
+            var previewToggles = [
+                dialogControls.mirrorCheckbox,
+                dialogControls.flatChevronCheckbox
+            ].concat(dialogControls.whiteEdgeJoinRadios);
+            for (var k = 0; k < previewToggles.length; k++) {
+                previewToggles[k].onClick = updatePreview;
+            }
+
+            dialogControls.whiteEdgeCheckbox.onClick = function () {
+                applyWhiteEdgeEnabledStates(dialogControls);
+                updatePreview();
+            };
         }
 
         /**
-         * キーボードショートカット（F：先端なし、R：丸型、V：左右逆）を登録します。
-         * 無効なときは false を返し、文字をそのまま通します。
+         * キーボードショートカット（F：先端なし、R：丸型、V：左右逆）を登録し、ツールチップにキーを表示します。
+         * クリックと同じく選択してから onClick（updatePreview）を呼びます。無効なコントロールは押しません。
          *
          * @returns {void}
          */
         function bindShortcutKeys() {
             addKeyShortcuts(markDialog, {
-                F: function () {
-                    if (!dialogControls.capStylePanel.enabled) return false;
-                    setRoundCaps(dialogControls, false);
-                    updatePreview();
-                    return true;
-                },
-                R: function () {
-                    if (!dialogControls.capStylePanel.enabled) return false;
-                    setRoundCaps(dialogControls, true);
-                    updatePreview();
-                    return true;
-                },
-                /* 反転して onClick（updatePreview）を呼ぶ / Toggle, then its onClick refreshes the preview */
-                V: function () {
-                    if (!dialogControls.mirrorCheckbox.enabled) return false;
-                    return dialogControls.mirrorCheckbox;
-                }
+                F: dialogControls.capNoneRadio,
+                R: dialogControls.capRoundRadio,
+                V: dialogControls.mirrorCheckbox
             }, {
                 numericFields: [
                     dialogControls.heightField, dialogControls.widthField, dialogControls.insetField,
                     dialogControls.gapField, dialogControls.strokeField, dialogControls.angleField,
-                    dialogControls.offsetXField, dialogControls.offsetYField
-                ]
+                    dialogControls.offsetXField, dialogControls.offsetYField, dialogControls.whiteEdgeOffsetField
+                ],
+                showInTip: true
             });
         }
 
@@ -3340,6 +3617,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
         markDialog.onClose = removePreview;
 
         applyShapeDefaults();
+        applyWhiteEdgeEnabledStates(dialogControls);
 
         /* 表示前にレイアウトを確定して描画欠けを防ぐ / Settle the layout before showing to avoid partial rendering */
         markDialog.layout.layout(true);

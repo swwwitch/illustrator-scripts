@@ -29,6 +29,7 @@ Use it to show the flow or the relationship between elements in a layout.
 - `─\` takes an angle for the slash, supports round ends, and can be mirrored
 - `>` / `>>` switch to a filled shape with Keep top and bottom edges horizontal (both draw the same width)
 - `➡` is sized from the stroke width alone; its head is three times the stroke width tall
+- White Outline adds a white outline behind the marks (with Offset and Joins settings)
 - The preview is always shown, updates immediately, and is always cleaned up when the dialog closes
 - Fit to Window zooms so the objects and the preview fill a given share of the window (65% by default); it is on by default, and Cancel restores the original view
 - Tooltips explain the fields and the keyboard shortcuts
@@ -102,6 +103,16 @@ Chooses None or Round for the stroke caps and joins. It is disabled for the fill
 
 - Both reset to 0 when the shape changes.
 
+## White Outline panel
+
+Places a white copy behind each mark and turns it into an outline with the Outline Stroke and Offset Path effects. The mark and its outline are grouped.
+
+| Item | Description |
+| --- | --- |
+| White Outline | Adds the outline when checked (off by default). |
+| Offset | Width of the outline (the Offset Path amount) in ruler units. Starts at the equivalent of 1 pt (`WHITE_EDGE_DEFAULT_OFFSET_PT`). |
+| Joins | Miter or Round. Starts as Round with Round ends or Rounded corners, otherwise Miter, and is chosen again when the shape, end style or rounded corners change. |
+
 ## Keyboard
 
 | Key | Action |
@@ -153,6 +164,7 @@ These can be changed in the User settings section at the top of the script.
 
 ## Update history
 
+- v1.6.0 (2026-10-18): Added White Outline (a white copy behind each mark, turned into an outline with the Outline Stroke and Offset Path effects, with Offset and Joins (Miter/Round) settings). Fixed the preview and the OK result keeping the old value after an expression was committed. Fixed an error when run with characters selected by the Type tool. Left-to-right sorting is now stable. Values with units (such as "1in") are converted to the field's unit. Clearing the width field now fills in the automatic value on commit instead of immediately, so it can be retyped (0 also means automatic). Fixed Rounded corners staying off after switching shapes, invalid Gap values silently becoming 0, and the steppers not moving in ft, yd and m. Added steppers to the Fit to Window percentage. Shortcut tooltips now read "(F)"
 - v1.5.1 (2026-10-16): Right-only button rows are now centered when the dialog's inner width is up to 240 px (was 200 px) (shared part update)
 - v1.5.0 (2026-10-11): Added Fit to Window (on by default). The preview is now always shown, and the Preview checkbox was removed
 - v1.4.7 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
