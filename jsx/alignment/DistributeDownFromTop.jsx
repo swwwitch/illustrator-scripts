@@ -2,6 +2,24 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.DistributeDownFromTop
+Name=DistributeDownFromTop
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.3.1
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択内容に応じて、行送り（leading）と配置を調整します。
+最も上のオブジェクトを固定し、以降を下方向へ広げます。
+
+Adjusts the leading and the placement according to what is selected.
+The topmost object stays fixed and the rest spread downwards.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

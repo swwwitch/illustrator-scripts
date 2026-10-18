@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.FitAreaText
+Name=FitAreaText
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=2.3.10
+Release-Date=2026-03-03
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択したエリア内文字・パス上文字のあふれ（オーバーセット）を、文字サイズの縮小・拡大、
+またはエリア内文字の高さの調整で解消します。
+
+Resolves overset text in the selected area type and path type, either by shrinking or growing
+the font size, or by adjusting the height of the area type.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

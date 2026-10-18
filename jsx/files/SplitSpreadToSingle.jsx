@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.SplitSpreadToSingle
+Name=SplitSpreadToSingle
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.3.8
+Release-Date=2026-03-21
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+見開きページ相当のオブジェクトを検出し、左右2つの片ページに分割します。
+対象は選択オブジェクトのみ、またはドキュメント内のすべてから選べます。
+
+Detects spread-like objects and splits them into left and right single pages.
+You can process only the selection, or every matching object in the document.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

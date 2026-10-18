@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.SankeyFlowMaker
+Name=SankeyFlowMaker
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.1.3
+Release-Date=2026-10-08
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択したオブジェクトを左端のノードにして、そこから枝分かれする流れ図（サンキー図）を作ります。
+ノードはキーオブジェクト（無ければ一番左のオブジェクト）。並べてあるラベルのテキストは動かさず、その位置と文字サイズに帯を合わせます。
+
+Uses the selected object as the left node and draws a branching flow diagram (Sankey diagram) from it.
+The node is the key object (or the leftmost object); selected label texts stay put, and the bands are fitted to their positions and size.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

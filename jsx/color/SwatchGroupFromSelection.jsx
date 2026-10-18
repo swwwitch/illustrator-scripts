@@ -2,6 +2,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.SwatchGroupFromSelection
+Name=SwatchGroupFromSelection
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.3.2
+Release-Date=2026-01-28
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択しているオブジェクトの塗り色を、配置順（左→右、上→下）で抽出してスウォッチグループに登録します。
+グループ・複合パス・テキストは再帰的に処理し、線色も対象にします。
+
+Extracts the fill colors of the selected objects in layout order (left to right, top to bottom) and registers them as a swatch group.
+Groups, compound paths and text are processed recursively, and stroke colors are collected as well.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

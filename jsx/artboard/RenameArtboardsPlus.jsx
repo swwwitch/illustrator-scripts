@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.RenameArtboardsPlus
+Name=RenameArtboardsPlus
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.3.12
+Release-Date=2025-04-20
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+ファイル名・接頭辞・元のアートボード名・連番・接尾辞を組み合わせて、アートボード名を一括で変更します。
+プレビューで結果を確認してから適用でき、よく使う組み合わせはプリセットとして書き出せます。
+
+Renames the artboards in bulk from a combination of the file name, a prefix, the original name, a sequence number and a suffix.
+The result is checked in a preview before it is applied, and a favourite combination can be exported as a preset.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

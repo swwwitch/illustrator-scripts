@@ -3,6 +3,22 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.TypeScaler
+Name=TypeScaler
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.3.7
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択したテキストのフォントサイズを、基準サイズと比率から算出して適用します。
+
+Sets the font size of the selected text from a base size and a ratio.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

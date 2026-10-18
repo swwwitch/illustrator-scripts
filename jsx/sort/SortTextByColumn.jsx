@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.SortTextByColumn
+Name=SortTextByColumn
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.0.18
+Release-Date=2025-06-15
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+テキストフレーム内のタブ区切りテキストを、指定した列の値で並び替えます。
+数値・文字列の昇順／降順とランダム順に対応し、見出し行は自動で判定します。
+
+Sorts the tab-separated text inside a text frame by the values in a chosen column.
+Numeric and string sorting (ascending or descending) and random order are supported, and a header row is detected automatically.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

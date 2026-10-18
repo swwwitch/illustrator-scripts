@@ -2,6 +2,24 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.ApplyLeadingPerTextFrame110
+Name=ApplyLeadingPerTextFrame110
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.0.2
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択された各テキストフレームの各行について、行頭数文字のフォントサイズを基準に行送りを再計算して適用します。
+行送りは110%に固定されます。
+
+Recalculates the leading of each line in the selected text frames from the font size of the first few characters, and applies it.
+The leading is fixed at 110%.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

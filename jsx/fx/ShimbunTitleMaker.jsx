@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.ShimbunTitleMaker
+Name=ShimbunTitleMaker
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.5.0
+Release-Date=2026-09-23
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択した見出しのまわりに罫線と段組みの新聞ダミーを敷いて、新聞の紙面を切り取ったような画像を作ります。
+新聞ダミーは縦組み・横組み、和文・欧文（英字新聞モード）で作れ、全体を傾けて欠けない長方形でマスクします。
+
+Surrounds the selected headline with rules and newspaper-style dummy columns, like a clipping from a newspaper page.
+The dummy can be vertical or horizontal, Japanese or Western (English newspaper mode), and the piece is tilted and masked so no corner is missing.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

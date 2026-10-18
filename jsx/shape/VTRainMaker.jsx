@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.VTRainMaker
+Name=VTRainMaker
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.1.7
+Release-Date=2026-03-27
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+雨のような罫線を生成します。
+雨の種類（雨粒・春雨・五月雨・鉄砲雨）や粒の形状、線幅・角度・密度・本数を指定できます。
+
+Generates rain-like rules.
+The rain type (raindrop, spring rain, early-summer rain, driving rain), the drop shape, and the stroke weight, angle, density and count are all configurable.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

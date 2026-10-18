@@ -3,6 +3,24 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.Convert2SeparateGradient
+Name=Convert2SeparateGradient
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.1.11
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択したオブジェクトのグラデーションに、指定した数の中間カラーストップを追加します。
+通常モードでは滑らかなグラデーション、セパレートモードでは色が混ざらない縞模様グラデーションを生成します。
+
+Adds a given number of intermediate color stops to the gradient on the selected objects.
+The normal mode produces a smooth gradient, while the separate mode produces hard-edged bands.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

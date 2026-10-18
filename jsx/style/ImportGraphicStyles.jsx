@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.ImportGraphicStyles
+Name=ImportGraphicStyles
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.7.11
+Release-Date=2025-08-14
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+指定したAIファイルからグラフィックスタイルを取り込み、スタイル名のラジオボタンを自動生成して選択オブジェクトへ適用します。
+指定したファイルは記憶され、次回以降は自動で参照します。
+
+Imports the graphic styles from an AI file you choose, builds a radio button per style name, and applies the selected one to the selection.
+The chosen file is remembered and reused on later runs.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

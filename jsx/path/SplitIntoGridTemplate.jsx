@@ -3,6 +3,23 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.SplitIntoGridTemplate
+Name=SplitIntoGridTemplate
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.0.6
+Release-Date=2026-09-28
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択したパスを、外接矩形を基準に行×列の格子で等分割します。行数・列数と間隔はダイアログで指定し、左右・上下の分割ボタンでも入れられます。
+
+Splits the selected paths into an equal grid of rows and columns across their bounding box. Set the rows, columns, and gutters in the dialog, or fill them in with the left/right and top/bottom split buttons.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

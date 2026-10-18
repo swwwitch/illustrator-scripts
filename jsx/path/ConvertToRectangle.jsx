@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.ConvertToRectangle
+Name=ConvertToRectangle
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.2.7
+Release-Date=2026-05-20
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択オブジェクトの境界に合わせて長方形を作成します。
+作成単位、マージン、角丸、塗り・線プリセット、元オブジェクトの扱いをダイアログで指定でき、プレビューにも対応します。
+
+Creates rectangles that match the bounds of the selected objects.
+The unit of creation, margin, corner radius, fill and stroke presets, and what happens to the originals are set in a dialog, with a preview.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

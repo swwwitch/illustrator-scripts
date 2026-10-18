@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.ExpandGradient
+Name=ExpandGradient
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.2.10
+Release-Date=2026-05-25
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択オブジェクトのグラデーションを、指定した数の単色オブジェクトに分割します。
+分割後の後処理として、重なりを整理してひとまとめにする／両端からブレンドを作成する、を選べます。
+
+Splits the gradient on the selected objects into a given number of solid-color objects.
+Post-processing can tidy the overlaps into a single set or build a blend from the two end objects.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

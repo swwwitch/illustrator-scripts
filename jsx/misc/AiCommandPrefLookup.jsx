@@ -3,6 +3,23 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.AiCommandPrefLookup
+Name=AiCommandPrefLookup
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.2.0
+Release-Date=2026-09-27
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+内蔵の一覧を種類・言語・カテゴリ・キーワードで絞り込んで項目を選び、app.executeMenuCommand() / app.selectTool() / app.preferences の get・set のコードを出力します。
+
+Filter the built-in list by kind, language, category and keyword, then output app.executeMenuCommand() / app.selectTool() / app.preferences get/set code for the selected items.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

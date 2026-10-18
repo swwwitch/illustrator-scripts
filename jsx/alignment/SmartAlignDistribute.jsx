@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.SmartAlignDistribute
+Name=SmartAlignDistribute
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.3.8
+Release-Date=2026-02-26
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択オブジェクトを縦または横に並べ、指定した間隔で分布します。
+方向は自動判定でき、揃え（左右／上下）、プレビュー境界、ランダム並べ替えにも対応します。
+
+Lines the selected objects up vertically or horizontally and distributes them at the spacing you specify.
+The direction can be detected automatically, and alignment, preview bounds and random reordering are all supported.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

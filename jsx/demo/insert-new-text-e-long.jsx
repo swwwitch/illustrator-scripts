@@ -2,6 +2,24 @@
 app.preferences.setBooleanPreference("ShowExternalJSXWarning", false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.InsertNewTextELong
+Name=InsertNewTextELong
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.1.1
+Release-Date=2025-04-01
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+現在の表示領域の中心に、欧文フォントを適用した長めのポイントテキストを作成し、中央揃えにして選択状態にします。
+
+Creates a longer point text with a Latin font at the center of the current view, centers the paragraph,
+and leaves it selected.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

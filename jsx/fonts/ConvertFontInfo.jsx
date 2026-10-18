@@ -3,6 +3,23 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.ConvertFontInfo
+Name=ConvertFontInfo
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.1.13
+Release-Date=2025-05-09
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択したテキストを、そのテキストで使われているフォント情報の文字列に変換します。
+
+Replaces the selected text with a string describing the font information it uses.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

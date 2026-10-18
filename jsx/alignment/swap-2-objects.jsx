@@ -2,6 +2,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.swap-2-objects
+Name=swap-2-objects
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.1.3
+Release-Date=2025-08-02
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+2つのオブジェクトを選択しているとき、それぞれの中心位置を入れ替えます。
+通常オブジェクトは visibleBounds、クリップグループはマスクパスの geometricBounds を基準にします。
+
+Swaps the center positions of two selected objects.
+Ordinary objects use their visibleBounds, while clipping groups use the geometricBounds of the mask path.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

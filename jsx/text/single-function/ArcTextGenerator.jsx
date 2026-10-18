@@ -3,6 +3,22 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.ArcTextGenerator
+Name=ArcTextGenerator
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.2.7
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+円弧に沿ったパス上文字を生成します。
+
+Generates text on an arc-shaped path.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

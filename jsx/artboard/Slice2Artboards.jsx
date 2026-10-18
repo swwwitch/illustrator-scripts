@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.Slice2Artboards
+Name=Slice2Artboards
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.7.10
+Release-Date=2025-07-10
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択したオブジェクトを、指定した行数・列数のグリッドに分割し、各ピースを矩形マスクでクリッピングします。
+分割したピースごとにアートボードを作成することもできます。
+
+Slices the selected objects into a grid of the given rows and columns and clips each piece with a rectangular mask.
+An artboard can be created for each piece as well.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

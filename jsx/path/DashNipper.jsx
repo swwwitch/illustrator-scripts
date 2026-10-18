@@ -2,6 +2,23 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.DashNipper
+Name=DashNipper
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.1.2
+Release-Date=2026-09-22
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+破線を選択して実行すると、アウトライン化して1つずつの線分に分け、それぞれを同じ見た目の線（中心線）に置き換えて、破線ごとにグループにまとめます。
+
+With a dashed line selected, outlines it, splits it into its dashes, replaces each dash with a line that looks the same (its center line), and groups the lines of each dashed line.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

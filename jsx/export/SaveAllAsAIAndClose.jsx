@@ -2,6 +2,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.SaveAllAsAIAndClose
+Name=SaveAllAsAIAndClose
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.0.1
+Release-Date=2026-10-01
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+開いているすべてのドキュメントを .ai 形式で元のフォルダーに保存し、閉じます。
+未保存（保存先のない）ドキュメントはスキップします。
+
+Saves every open document as an .ai file in its original folder, then closes it.
+Documents that have never been saved are skipped.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

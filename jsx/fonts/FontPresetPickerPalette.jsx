@@ -3,6 +3,27 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.FontPresetPickerPalette
+Name=FontPresetPickerPalette
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.2.0
+Release-Date=2026-09-17
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+よく使うフォントを、サイズ・行送り・段落前後のアキ・字間・日本語の文字組みとセットで「定番」として登録し、
+一覧から選ぶだけで選択中のテキストへまとめて適用する常駐パレットです。
+適用する設定を絞り込んだり、比率やアキを標準の状態へ戻したりもできます。
+
+A persistent palette that keeps your go-to fonts together with their size, leading, paragraph spacing,
+letter spacing and Japanese typesetting, and applies the whole set to the selected text with a single click in the list.
+You can narrow down what gets applied, and reset scaling and aki back to their default state.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

@@ -3,6 +3,24 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.AverageRulesInRectangle
+Name=AverageRulesInRectangle
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.0.8
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択した外枠の長方形と、その内側にある縦罫・横罫を、外枠の中で均等に再配置します。
+横罫・縦罫はそれぞれON/OFFでき、プレビューの切り替えにも対応します。
+
+Evenly redistributes the vertical and horizontal rules inside the selected outer rectangle.
+Horizontal and vertical rules can be toggled independently, with a live preview switch.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

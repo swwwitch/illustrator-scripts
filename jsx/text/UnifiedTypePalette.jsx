@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.UnifiedTypePalette
+Name=UnifiedTypePalette
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.5.0
+Release-Date=2026-03-24
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+文字組みに関する設定（フォント、フォントサイズ、自動カーニング、字間調整、文字揃え、行揃え、行送り、文字組みアキ量設定、禁則など）を1枚の常駐パレットにまとめました。
+ラジオや入力を操作した時点で、選択中のテキストへ即時適用します。
+
+Gathers the typography settings — font, size, auto-kerning, letter spacing, character alignment, justification, leading, mojikumi and kinsoku — into a single persistent palette.
+Every radio button and field applies to the current selection the moment you touch it.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.AddOutlineOffsetPath
+Name=AddOutlineOffsetPath
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.3.1
+Release-Date=2025-08-13
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択オブジェクトを複製して背面に置き、オフセットパス→アウトライン→合体→拡張の順で処理して縁取りを作ります。
+元オブジェクトと結果をグループ化し、Subtract を実行して白で塗りつぶします。
+
+Duplicates the selection behind itself and runs Offset Path, Outline Stroke, Unite and Expand to build an outline around it.
+The original and the result are grouped, then Subtract is run and the result filled with white.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

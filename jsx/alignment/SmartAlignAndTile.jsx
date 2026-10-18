@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.SmartAlignAndTile
+Name=SmartAlignAndTile
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=2.1.10
+Release-Date=2025-07-16
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+重なって配置されたオブジェクトを、横方向または縦方向へ指定した間隔で並べ直します。
+行数・列数を指定すればタイル状に、キーオブジェクトを設定すればその位置を基準に配置できます。
+
+Redistributes stacked objects along the horizontal or vertical axis at the spacing you specify.
+Set a row or column count to tile them, or set a key object to anchor the layout to it.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

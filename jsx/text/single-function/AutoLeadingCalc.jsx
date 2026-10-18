@@ -2,6 +2,24 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.AutoLeadingCalc
+Name=AutoLeadingCalc
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.0.2
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択したテキストの現在の行送り（絶対値）とフォントサイズから行送り％を逆算し、それを自動行送り量（％）として設定します。
+これにより、以後は常に自動行送りとして扱われます。
+
+Derives the leading percentage from the current absolute leading and font size of the selected text and stores it as the auto-leading percentage.
+From then on the text uses auto leading.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

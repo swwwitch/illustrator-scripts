@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.SplitLinkedImage
+Name=SplitLinkedImage
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.1.8
+Release-Date=2026-09-19
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択したリンク画像を、指定した列数・行数のグリッドに分割します。
+分割後の各画像はクリッピングマスクで切り出され、元の配置を保ったまま並びます。
+
+Splits the selected linked image into a grid of the given number of columns and rows.
+Each piece is cut out with a clipping mask and keeps the original placement.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

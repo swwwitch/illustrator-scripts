@@ -3,6 +3,22 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.ConvertToAreaTypeLikeButton
+Name=ConvertToAreaTypeLikeButton
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.1.10
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+ポイント文字・パス上文字・図形・エリア内文字を対象に、エリア内文字の作成と調整を行います。
+
+Creates and adjusts area text from point text, text on a path, shapes, or existing area text.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

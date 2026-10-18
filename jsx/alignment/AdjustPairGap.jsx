@@ -3,6 +3,27 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.AdjustPairGap
+Name=AdjustPairGap
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.4.10
+Release-Date=2026-06-08
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択したオブジェクトの間隔と位置を、指定した値にそろえます。
+グループ内の等間隔配置・最も近いもの同士のペア・アートボード端からのマージンの3モードがあり、
+［固定］で選んだ側は動かさず、残りをライブプレビューで確認しながら動かします。
+
+Sets the gap and the position of the selected objects to a value you specify.
+Three modes — even spacing inside a group, nearest-neighbour pairs, and margins from an
+artboard edge — hold the side picked as the key object and move the rest, with a live preview.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

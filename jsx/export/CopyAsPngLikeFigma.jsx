@@ -2,6 +2,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.CopyAsPngLikeFigma
+Name=CopyAsPngLikeFigma
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.0.3
+Release-Date=2025-05-02
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択中のオブジェクトを高解像度でラスタライズし、Figmaの「Copy as PNG」のようにビットマップとしてクリップボードへコピーします。
+600dpiでラスタライズしたあと、72ppi相当の偶数整数倍率に調整します。
+
+Rasterizes the selection at high resolution and copies it to the clipboard as a bitmap, the way Figma's "Copy as PNG" does.
+It rasterizes at 600 dpi, then scales the result to an even integer multiple of 72 ppi.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

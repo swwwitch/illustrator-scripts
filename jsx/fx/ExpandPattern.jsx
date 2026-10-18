@@ -2,6 +2,23 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.ExpandPattern
+Name=ExpandPattern
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.0.1
+Release-Date=2026-10-04
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択オブジェクトをグループ化し、3D 回転（クラシック・前面 0/0/0）と［合流］の効果を掛けてからアピアランスを分割し、パターンなどの塗りを通常のパスに展開します。
+
+Groups the selected objects, applies 3D Rotate (Classic, Front 0/0/0) and Pathfinder Merge effects, then expands the appearance to turn pattern fills into regular paths.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

@@ -3,6 +3,31 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.CloseAllPalettes
+Name=CloseAllPalettes
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.1.2
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+常駐エンジンで動いている各種フローティングパレットをまとめて閉じるユーティリティ。
+
+- `$.global` はエンジンごとに独立しており、Illustrator では外から別エンジンへコードを届ける
+  手段が無い（BridgeTalk 本文の `#targetengine` は無視され main で動く）
+- そこで対象パレットと同じ共通エンジン `SwwwitchPalettes` で動き、`$.global.<参照名>` を
+  直接読んで開いていれば `close()` する
+- 共通エンジンへ移行していないパレットは閉じられない（参照が見えない）
+- パレット参照は「Window を直接保持」する形式と「{ window: Window } のラッパー」形式の
+  両方に対応する
+- 対象は PALETTES テーブルで管理
+
+Closes the floating palettes that run in persistent engines, all at once.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

@@ -2,6 +2,24 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.register-temp-style
+Name=register-temp-style
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.0.1
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択中のオブジェクトの見た目を、固定名のグラフィックスタイルとして登録します。
+同名スタイルが既に存在する場合は削除してから登録するため、繰り返し実行しても重複しません。
+
+Registers the appearance of the selected object as a graphic style with a fixed name.
+An existing style with the same name is removed first, so repeated runs never create duplicates.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

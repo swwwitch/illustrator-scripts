@@ -2,6 +2,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.RegisterAndApplySwatches
+Name=RegisterAndApplySwatches
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.0.3
+Release-Date=2025-06-26
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択オブジェクトの塗りおよび線のカラーをスウォッチ（スポットカラー）として登録し、その場で再適用します。
+RGBとCMYKに対応し、既存の同名スウォッチは再利用します。
+
+Registers the fill and stroke colors of the selected objects as spot-color swatches and reapplies them in place.
+RGB and CMYK are supported, and an existing swatch with the same name is reused.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

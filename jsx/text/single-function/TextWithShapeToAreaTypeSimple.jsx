@@ -3,6 +3,23 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.TextWithShapeToAreaTypeSimple
+Name=TextWithShapeToAreaTypeSimple
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.4.10
+Release-Date=2026-07-01
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+ポイント文字・パス上文字を、見た目（アピアランス）を保ったままエリア内文字へ変換します。
+
+Converts point text and text on a path into area text while preserving the appearance.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

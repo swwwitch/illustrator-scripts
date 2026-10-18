@@ -3,6 +3,23 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.FitAndConvertToPointType
+Name=FitAndConvertToPointType
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.0.10
+Release-Date=2026-08-20
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択したエリア内文字のうち、あふれているものだけ自動サイズ調整をONにして解消してから、ポイント文字に変換します。
+
+Turns on auto-sizing for whichever of the selected area texts are overset, resolves the overflow, and then converts them to point text.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

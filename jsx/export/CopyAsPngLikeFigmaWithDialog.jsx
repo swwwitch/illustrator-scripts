@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.CopyAsPngLikeFigmaWithDialog
+Name=CopyAsPngLikeFigmaWithDialog
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.1.5
+Release-Date=2025-05-02
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択オブジェクトを高解像度でラスタライズし、PNG相当のビットマップとしてクリップボードへコピーします。
+解像度・背景色・アンチエイリアス・余白は、実行時のダイアログで指定できます。
+
+Rasterizes the selection at high resolution and copies it to the clipboard as a PNG-equivalent bitmap.
+Resolution, background color, anti-aliasing and margin are all set in a dialog when the script runs.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

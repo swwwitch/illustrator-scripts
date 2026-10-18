@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.SetStrokeAndArrowheads
+Name=SetStrokeAndArrowheads
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.1.7
+Release-Date=2026-07-22
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択したオブジェクトの線幅と矢印（始点／終点の形状・倍率・先端位置）をまとめて設定します。
+矢印はDOMから操作できないため、一時アクションを生成して実行します。
+
+Sets the stroke weight and the arrowheads — start and end shape, scale and tip position — on the selected objects.
+Arrowheads cannot be reached from the DOM, so a temporary action is generated and played instead.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

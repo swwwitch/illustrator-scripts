@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.ImportAndApplyBrush
+Name=ImportAndApplyBrush
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.0.10
+Release-Date=2026-09-20
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+このスクリプトと同じ場所に置いたブラシライブラリー（.ai）からブラシを取り込み、選択したパスに適用します。
+書類の［ブラシ］パネルに無いブラシは、取り込んでから適用します。
+
+Imports a brush from the brush library (.ai) kept beside this script and applies it to the selected paths.
+A brush the document's Brushes panel does not carry yet is imported first, then applied.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

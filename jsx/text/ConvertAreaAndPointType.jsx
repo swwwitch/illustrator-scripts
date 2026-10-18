@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.ConvertAreaAndPointType
+Name=ConvertAreaAndPointType
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.0.9
+Release-Date=2026-07-02
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択に応じて、ポイント文字・パス上文字とエリア内文字を相互に変換します。
+順変換は見た目を保ったままエリア内文字へ、逆変換は枠サイズを保ったままポイント文字へ変換します。
+
+Converts between point text or text on a path and area text, depending on what is selected.
+The forward conversion preserves the appearance, and the reverse keeps the frame size when returning to point text.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

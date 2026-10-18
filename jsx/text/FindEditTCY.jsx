@@ -3,6 +3,23 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.FindEditTCY
+Name=FindEditTCY
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.0.0
+Release-Date=2026-10-16
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択しているテキストから縦中横の箇所を集めてダイアログボックスに一覧で表示し、文字列の書き換え、字形の幅、トラッキングを調整します。
+
+Lists the Tate-Chu-Yoko places in the selected text in a dialog box and lets you rewrite their strings and adjust glyph width and tracking.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

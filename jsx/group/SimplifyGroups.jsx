@@ -2,6 +2,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.SimplifyGroups
+Name=SimplifyGroups
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.3.1
+Release-Date=2025-07-07
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択したグループの中にあるサブグループを再帰的に解除し、最外層のグループだけを残します。
+グループ以外のオブジェクトも選んでいるときは、それらをグループに取り込みます（グループが複数あるときは、全体を新しいグループにまとめてから処理します）。
+
+Recursively ungroups the subgroups inside the selection, leaving only the outermost group.
+Other selected objects are moved into the group; with several groups, everything is first combined into a new group.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

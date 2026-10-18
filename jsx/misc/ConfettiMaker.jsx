@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.ConfettiMaker
+Name=ConfettiMaker
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.7.15
+Release-Date=2026-02-16
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択オブジェクト（未選択のときはアートボード）の領域に、紙吹雪を散らします。
+形状・生成数・分布・ランダム量をプレビューで確かめながら調整し、［OK］で Confetti レイヤーへ出力します。
+
+Scatters confetti across the selected object, or across the artboard when nothing is selected.
+Shape, count, distribution and randomness are tuned against a live preview, and OK commits the result onto a Confetti layer.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

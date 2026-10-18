@@ -3,6 +3,23 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.SelectText
+Name=SelectText
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.0.8
+Release-Date=2026-03-31
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+現在のアートボードにかかっているテキスト、またはドキュメント全体のテキストを一覧表示し、まとめてクリップボードにコピーします。
+
+Lists the text on the current artboard, or in the whole document, and copies it all to the clipboard.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

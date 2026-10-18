@@ -3,6 +3,24 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.AiFontConverter
+Name=AiFontConverter
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.1.7
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+フォントの種別（文字セット・P・UD・N・NT・ウェイト）をまとめて変更します。
+対象は選択オブジェクト／ドキュメント全体／アクティブアートボードから選べます。
+
+Changes font variants — character set, P, UD, N, NT and weight — across the artwork in one pass.
+The scope can be the selection, the whole document, or the active artboard.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

@@ -3,6 +3,23 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.ImageScaler
+Name=ImageScaler
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.4.8
+Release-Date=2025-08-16
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択している配置画像（PlacedItem / RasterItem）の拡大・縮小率（%）を表示し、入力した値で再スケールします。
+
+Shows the scale (%) of the selected placed image (PlacedItem / RasterItem) and rescales it to the value you enter.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

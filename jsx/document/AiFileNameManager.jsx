@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.AiFileNameManager
+Name=AiFileNameManager
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.3.19
+Release-Date=2026-05-27
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+アクティブなドキュメントのファイル名を、ベース・サブテキスト・ステータス・タイムスタンプ・連番・バージョン番号のセグメント単位で組み立て直し、リネーム／別名で保存／コピーを保存のいずれかで付け直します。
+保存形式は常に Illustrator 形式（.ai）なので、.ai 以外の書類では「別名で保存」だけが使えます。
+
+Reassembles the active document's filename from its segments — base, title, status, timestamp, sequence and version — and then renames it, saves it under a new name, or saves a copy.
+The output is always Illustrator format (.ai), so only "Save As" is available for a non-.ai document.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

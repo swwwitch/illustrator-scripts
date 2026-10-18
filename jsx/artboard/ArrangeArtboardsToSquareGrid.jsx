@@ -3,6 +3,24 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.ArrangeArtboardsToSquareGrid
+Name=ArrangeArtboardsToSquareGrid
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.1.10
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+複数のアートボードを、全体の外形ができるだけ正方形に近づく行列で再配置します。
+各アートボード内のアートワークも一緒に移動し、グリッドはカンバス中央に配置します。
+
+Re-lays out every artboard so the whole grid's outline is as close to a square as possible.
+Each artboard's artwork moves with it, and the grid is centered on the canvas.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

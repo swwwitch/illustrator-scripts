@@ -3,6 +3,23 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.AiSmartRotateViewPalette
+Name=AiSmartRotateViewPalette
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.1.5
+Release-Date=2026-06-05
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+ビューの回転角度と環境設定の「角度の制限」をパレットから確認・変更し、選択オブジェクトの角度と合わせられます。
+
+A palette for checking and changing the view rotation and the "constrain angle" preference, and for aligning them with the selected object's angle.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

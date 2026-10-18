@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.DynamicTextGenerator
+Name=DynamicTextGenerator
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.2.8
+Release-Date=2026-05-18
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択したテキストの文字幅に合わせたパスを作り、アーチ・円・下向き弓のパス上文字に変換します。
+パスに対して文字が占める割合を指定でき、各行の幅を最長行にそろえる「ブロック」も選べます。
+
+Builds a path sized to the width of the selected text and converts it into text on an arch, a circle, or a downward bow.
+The share of the path the text occupies is configurable, and a "block" mode evens every line out to the width of the longest one.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

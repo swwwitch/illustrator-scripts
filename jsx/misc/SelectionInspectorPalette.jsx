@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.SelectionInspectorPalette
+Name=SelectionInspectorPalette
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.7.9
+Release-Date=2025-08-06
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択中またはドキュメント全体のオブジェクトを集計し、2カラムの常駐パレットで表示します。
+テキスト・配置画像・透明・グループ・パス・ガイドの内訳を確認でき、選択オブジェクトのメモの閲覧・編集にも対応します。
+
+Tallies the objects in the selection, or in the whole document, and shows them in a two-column persistent palette.
+It breaks down text, placed images, transparency, groups, paths and guides, and can view and edit the note on the selected object.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

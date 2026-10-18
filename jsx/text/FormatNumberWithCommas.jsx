@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference("ShowExternalJSXWarning", false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.FormatNumberWithCommas
+Name=FormatNumberWithCommas
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.0.10
+Release-Date=2025-08-12
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+テキスト内の数値に桁区切りのカンマを付け、位置の誤ったカンマを直します。
+西暦・郵便番号・電話番号などは除外し、書き換える数値はプレビューで選べます。
+
+Adds thousands separators to numbers in text and fixes misplaced commas.
+Years, postal codes, phone numbers and the like are skipped, and you pick the numbers to change in a preview.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

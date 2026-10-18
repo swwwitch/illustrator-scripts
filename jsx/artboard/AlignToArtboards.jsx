@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.AlignToArtboards
+Name=AlignToArtboards
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.2.9
+Release-Date=2025-12-17
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択したオブジェクトを、アートボード上の指定位置へ整列します。
+整列先は3×3の9点から選べ、辺からのマージンも指定できます。
+
+Aligns the selected objects to a chosen position on the artboard.
+The target is picked from a 3x3 grid of nine points, with a margin from the edges.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

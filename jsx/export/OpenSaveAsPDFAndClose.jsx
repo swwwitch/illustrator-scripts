@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.OpenSaveAsPDFAndClose
+Name=OpenSaveAsPDFAndClose
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.1.2
+Release-Date=2026-10-08
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+指定したファイルを Illustrator で開き、ダイアログボックスで選んだ設定で PDF として保存して閉じます。
+付属スクリプト「ドキュメントを PDF として保存.jsx」をもとにしています。
+
+Opens the specified files, saves each one as PDF with the settings chosen in a dialog, and closes it.
+Based on the bundled sample script "Save as PDFs.jsx".
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

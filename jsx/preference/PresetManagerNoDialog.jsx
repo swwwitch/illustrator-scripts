@@ -2,6 +2,23 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.PresetManagerNoDialog
+Name=PresetManagerNoDialog
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.2.0
+Release-Date=2025-08-18
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+PresetManager の［プリセット1］と同じ環境設定一式を、ダイアログを表示せずにまとめて適用します。アートボードの枠線は ArtboardDisplayPresetManagerPalette の［ライト］と同じです。
+
+Applies the same preferences as [Preset 1] in PresetManager at once, without showing a dialog. The artboard border matches [Light] in ArtboardDisplayPresetManagerPalette.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

@@ -2,6 +2,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.ClearBulletsAndNumbering
+Name=ClearBulletsAndNumbering
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.0.1
+Release-Date=2026-08-18
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択したテキストフレームから、Illustrator標準の「箇条書きと番号付きリスト」を解除します。
+テキストの内容・文字属性・段落設定・タブストップは控えて戻すため、リスト書式だけが外れます。
+
+Removes Illustrator's built-in Bullets and Numbering from the selected text frames.
+The text content, character attributes, paragraph settings and tab stops are captured and restored, so only the list formatting comes off.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

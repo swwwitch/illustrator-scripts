@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.ExcelTableNormalizer
+Name=ExcelTableNormalizer
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.2.7
+Release-Date=2026-04-30
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+Excel由来のIllustratorデータを、表組みとして扱いやすい状態に整形します。
+クリッピングマスクの解除、テキストの整理と配置、セル背景の抽出、罫線の中心線化と均等配置をまとめて行います。
+
+Normalizes Illustrator artwork that came from Excel so that it is easier to work with as a table.
+It releases clipping masks, tidies and aligns the text, extracts cell backgrounds, and converts the rules to evenly distributed center lines.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

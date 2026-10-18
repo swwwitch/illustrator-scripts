@@ -2,6 +2,22 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.ExpandAppearanceEachObject
+Name=ExpandAppearanceEachObject
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.0.3
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択しているオブジェクトごとに、アピアランスを分割します。
+
+Expands the appearance of each selected object individually.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

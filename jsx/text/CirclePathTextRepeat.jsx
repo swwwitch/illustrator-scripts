@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.CirclePathTextRepeat
+Name=CirclePathTextRepeat
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.1.9
+Release-Date=2026-06-12
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+円（パス）とテキストを1つずつ選択して実行すると、テキストを指定回数繰り返して、円を複製したパス上文字に変換します。
+区切り文字はスペースまたは任意の文字（初期値は「•」）から選べます。
+
+With one circle and one text frame selected, repeats the text a given number of times and converts it into text on a copy of the circle.
+The separator can be a space or any character you type ("•" by default).
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

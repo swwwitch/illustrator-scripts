@@ -3,6 +3,23 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.AiBreakLink
+Name=AiBreakLink
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.2.12
+Release-Date=2026-05-04
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択したシンボルインスタンスのリンクを解除し、通常のオブジェクトとして扱える状態にします。
+
+Breaks the links of the selected symbol instances and turns them into regular editable objects.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

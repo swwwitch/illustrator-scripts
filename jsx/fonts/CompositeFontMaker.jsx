@@ -3,6 +3,27 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.CompositeFontMaker
+Name=CompositeFontMaker
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.2.10
+Release-Date=2026-09-27
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+和文・かな・欧文のフォントと、かな・欧文のサイズ・ベースラインを指定して、合成フォントのファイルを作ります。
+選択したテキスト（和文・かな・欧文が混じった1行でも可）から初期値を読み取ります。作った合成フォントは Illustrator の再起動後に使えます。
+［InDesign にも作成］をオンにすると、起動中の InDesign にも同じ合成フォントを作ります（InDesign は再起動不要）。
+
+Creates a composite font file from Japanese, Kana and Roman fonts and the size and baseline of Kana and Roman.
+Initial values are read from the selected text (even a single line mixing Japanese, Kana and Roman). Restart Illustrator to use the new composite font.
+With Also create in InDesign on, the same composite font is created in the running InDesign too (no restart needed there).
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

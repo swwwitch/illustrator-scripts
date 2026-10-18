@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.LEConvertToShapePalette
+Name=LEConvertToShapePalette
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.1.7
+Release-Date=2026-09-19
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択オブジェクトに［形状に変換］のライブエフェクトを適用する常駐パレットです。
+「長方形／楕円」と「値を指定／値を追加」、幅・高さを設定すると、選択にライブプレビューが反映されます。
+
+A persistent palette that applies the "Convert to Shape" live effect to the selection.
+Pick Rectangle or Ellipse, Absolute or Relative sizing, and the width and height; the selection updates as a live preview.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

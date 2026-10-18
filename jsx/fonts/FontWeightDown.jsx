@@ -2,6 +2,23 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.FontWeightDown
+Name=FontWeightDown
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.0.1
+Release-Date=2026-09-28
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択しているテキストのフォントを、同じファミリー・同じ系列（イタリックや字幅）の一つ下のウェイトに切り替えます。
+
+Switches the selected text to the next lighter weight in the same family and the same series (italic, width).
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

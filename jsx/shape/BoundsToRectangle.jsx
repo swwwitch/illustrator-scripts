@@ -3,6 +3,27 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.BoundsToRectangle
+Name=BoundsToRectangle
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.4.8
+Release-Date=2026-03-08
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択した複数オブジェクト全体の外接矩形をもとに、ひとつの長方形へ統合します。
+キーオブジェクトがあれば、その塗りと線を引き継ぎます。
+塗りと線の引き継ぎ元やプレビュー境界／オブジェクト境界の切り替え、元の図形を残すオプションを指定できます。
+
+Merges the selected objects into a single rectangle based on their overall bounding box.
+A key object, if set, supplies the fill and stroke.
+You can choose which object's fill and stroke to inherit, switch between preview and geometric bounds, and keep the originals.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

@@ -2,6 +2,22 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.GroupEachSelection
+Name=GroupEachSelection
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.0.3
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択したオブジェクトを、1つずつ個別のグループにします。
+
+Puts each selected object into its own group.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

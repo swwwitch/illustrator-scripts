@@ -2,6 +2,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.SetFillColorFromClipboard
+Name=SetFillColorFromClipboard
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.0.1
+Release-Date=2026-09-23
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+クリップボードにある「204,225,179」のようなRGB文字列を読み取り、塗り色に設定します。
+ReplaceWithPaste.jsx と同じ2回ペースト方式で、1回目は削除、2回目で値を読み取ってからカットします。
+
+Reads an RGB string such as "204,225,179" from the clipboard and applies it as the fill color.
+As in ReplaceWithPaste.jsx it pastes twice: the first paste is discarded, the second is read and then cut.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

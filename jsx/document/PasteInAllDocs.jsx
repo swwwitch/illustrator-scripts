@@ -2,6 +2,23 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.PasteInAllDocs
+Name=PasteInAllDocs
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.1.1
+Release-Date=2025-07-29
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+コピー済みのオブジェクトを、開いているすべてのドキュメントへ同じ位置に貼り付けます（pasteInPlace）。
+
+Pastes the copied objects into every open document at the same position, using Paste in Place.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

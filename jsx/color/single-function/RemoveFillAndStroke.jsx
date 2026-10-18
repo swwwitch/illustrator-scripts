@@ -2,6 +2,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.RemoveFillAndStroke
+Name=RemoveFillAndStroke
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.0.1
+Release-Date=2026-09-29
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択したオブジェクトの塗りと線を、どちらも「なし」にします。
+FillStrokeSwitcher の［塗りと線を消去］をダイアログなしで実行するワンクリック版です。
+
+Sets both the fill and the stroke of the selected objects to None.
+A one-click version of "Erase Fill and Stroke" in FillStrokeSwitcher, without the dialog.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

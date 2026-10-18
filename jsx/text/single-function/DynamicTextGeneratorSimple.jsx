@@ -3,6 +3,23 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.DynamicTextGeneratorSimple
+Name=DynamicTextGeneratorSimple
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.1.7
+Release-Date=2026-08-11
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択した1つのテキストフレームの各行をアウトライン幅で測定し、最長行の幅にそろうよう行ごとの文字サイズを変倍します。
+
+Measures each line of a selected text frame by its outline width and scales the per-line font size so every line matches the longest one.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

@@ -3,6 +3,23 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.FontWeightPicker
+Name=FontWeightPicker
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.0.10
+Release-Date=2026-09-28
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択しているテキストのフォントと、名前が似ているファミリー（新ゴなら UD新ゴ など）のウェイトを一覧表示し、見本を見比べながら選んだフォントを適用します。
+
+Lists the weights of the selected text's font and of families with similar names (UD Shin Go for Shin Go, etc.), and applies the font you choose while you compare samples.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

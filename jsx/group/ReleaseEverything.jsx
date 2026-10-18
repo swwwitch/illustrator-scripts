@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.ReleaseEverything
+Name=ReleaseEverything
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.1.3
+Release-Date=2026-10-04
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択したオブジェクトのグループ・複合パス・複合シェイプ・ブレンド・エンベロープ・リピートなど、解除できるものを入れ子までまとめて解除します。
+クリップグループは単純に解除してマスクパスに塗りを付け、入れ子のグループがあるときだけダイアログで解除する深さを選べます。
+
+Releases everything that can be released in the selection, such as groups, compound paths, compound shapes, blends, envelopes, and repeats, including nested ones.
+Clipping groups are released simply with a fill on the mask path; a dialog asks how deep to release only when there are nested groups.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

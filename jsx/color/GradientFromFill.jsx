@@ -3,6 +3,24 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.GradientFromFill
+Name=GradientFromFill
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.1.9
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択した塗りオブジェクトに対して、元の塗り色を始点にした線形グラデーションを作成します。
+終点カラー（黒・白・透明・補色・淡色）と角度を指定でき、セパレートグラデーションや反転にも対応します。
+
+Creates a linear gradient on the selected filled objects, starting from their original fill color.
+The end color (black, white, transparent, complementary or tint) and the angle are selectable, and separate gradients and reversing are supported.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

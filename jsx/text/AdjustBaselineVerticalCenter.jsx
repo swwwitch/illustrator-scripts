@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.AdjustBaselineVerticalCenter
+Name=AdjustBaselineVerticalCenter
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.0.15
+Release-Date=2025-07-04
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+指定した文字を、基準文字の中心に合わせてベースラインシフトで上下に動かします。
+複数のテキストフレームへまとめて適用できます。
+
+Shifts the specified characters up or down with a baseline shift so they line up with the center of a reference character.
+It can be applied to several text frames at once.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

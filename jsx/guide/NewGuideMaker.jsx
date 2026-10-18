@@ -3,6 +3,23 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.NewGuideMaker
+Name=NewGuideMaker
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.4.0
+Release-Date=2025-07-13
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+ダイアログで方向・位置・単位・対象（カンバス／アートボード）を指定してガイドを作成します。
+
+Creates guides by specifying direction, position, unit, and target (canvas or artboard) in a dialog.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

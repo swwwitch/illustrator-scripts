@@ -3,6 +3,26 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.TreeSymbolToStroke
+Name=TreeSymbolToStroke
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.2.1
+Release-Date=2026-10-01
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択したテキストのツリー記号（├─・└─・│ や tree コマンドの ├── など）をパスの罫線に変換し、字下げと名前・説明のあいだの空きをタブにします。
+各行を囲み罫で囲むこともでき、罫線・タブストップ・囲み罫はプレビューを見ながら調整できます。
+
+Converts the tree symbols (├─, └─, │, the ├── from the tree command and so on) in the selected text into stroked paths,
+and turns indents and the gaps between names and descriptions into tabs. Each line can also be boxed; the lines, tab stops
+and boxes are adjusted with a live preview.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

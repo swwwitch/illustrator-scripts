@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.AiDocumentCleaner
+Name=AiDocumentCleaner
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.1.10
+Release-Date=2026-06-27
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+ドキュメント内の不要な要素（未使用のパネル項目、孤立点や空のテキスト、空のグループ・レイヤー、ガイド、アートボード外のオブジェクト、属性パネルのメモなど）をまとめて削除します。
+処理対象は、最前面のドキュメント／開いているすべてのドキュメント／指定フォルダー内の .ai ファイルから選べます。
+
+Removes the clutter from a document — unused panel entries, stray points and empty text, empty groups and layers, guides, objects outside the artboards, Attributes panel notes, and more.
+The scope can be the frontmost document, every open document, or the .ai files in a folder you choose.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

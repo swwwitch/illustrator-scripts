@@ -2,6 +2,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.ReplaceTextWithPasteSequential
+Name=ReplaceTextWithPasteSequential
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.0.5
+Release-Date=2026-08-14
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+クリップボードの複数行テキストから1行目を取り出して、選択中のテキストフレームに適用します（空行は読み飛ばします）。
+適用した行はクリップボードから取り除かれるため、繰り返し実行すると次の行へ順に進みます。
+
+Takes the first line of the multi-line text on the clipboard and applies it to the selected text frame, skipping blank lines.
+The line used is removed from the clipboard, so running it again moves on to the next one.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

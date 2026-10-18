@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.ArtboardExporter
+Name=ArtboardExporter
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.1.2
+Release-Date=2026-09-30
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+ダイアログで選んだアートボードを PNG・JPEG・PDF で書き出します。
+アートボードごとに形式・倍率（複数可）・背景（白・黒・透明）を指定でき、ファイル名・保存先・除外も設定できます。
+
+Exports the artboards chosen in a dialog as PNG, JPEG or PDF.
+Each artboard can have its own format, scales (one or more) and background (white, black or transparent); file names, destination and exclusions are configurable too.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

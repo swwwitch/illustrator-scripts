@@ -3,6 +3,23 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.ZIndexSorter
+Name=ZIndexSorter
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.0.12
+Release-Date=2025-08-06
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択したオブジェクトの重ね順を、指定した基準で並べ替えます。
+
+Reorders the stacking order of the selected objects according to a chosen criterion.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

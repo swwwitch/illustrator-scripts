@@ -3,6 +3,22 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.DirectPrefsPalette
+Name=DirectPrefsPalette
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.1.5
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+環境設定の「角度の制限」と「キー増加」の変更、およびガイド・グリッドの表示やロックの切り替えをパレットから行います。
+
+A palette for changing the constrain angle and the keyboard increment, and for toggling the display and lock state of guides and the grid.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

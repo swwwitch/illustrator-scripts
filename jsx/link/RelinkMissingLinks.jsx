@@ -3,6 +3,23 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.RelinkMissingLinks
+Name=RelinkMissingLinks
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.4.12
+Release-Date=2025-07-18
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+リンク切れの配置画像を検出し、指定したフォルダーから同名ファイルを探して自動的に再リンクします。
+
+Detects missing linked images and relinks them automatically from a folder you choose, matching by file name.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

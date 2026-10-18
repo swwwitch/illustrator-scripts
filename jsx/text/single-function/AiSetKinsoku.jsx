@@ -3,6 +3,22 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.AiSetKinsoku
+Name=AiSetKinsoku
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.0.8
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択したテキストに、禁則処理のプリセットを適用します。
+
+Applies a kinsoku (line-breaking) preset to the selected text.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

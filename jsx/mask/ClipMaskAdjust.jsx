@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.ClipMaskAdjust
+Name=ClipMaskAdjust
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=3.1.8
+Release-Date=2026-01-03
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+クリップグループ（クリッピングマスク）の「マスクパス」と「内容」を調整します。
+ダイアログの操作はオートプレビューで即時反映されます。
+
+Adjusts the mask path and the contents of a clipping group.
+Every change in the dialog is reflected immediately as an auto-preview.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

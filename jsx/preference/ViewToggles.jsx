@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.ViewToggles
+Name=ViewToggles
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.1.1
+Release-Date=2026-10-09
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+アプリケーションフレーム・コントロールパネル・ガイド・グリッド・スナップなどの表示とオン・オフを、ダイアログボックスのチェックボックスでまとめて切り替えます。
+今の状態を読んでから開くので、メニューの反転と違って意図しない切り替えが起きません。
+
+Switches the application frame, Control panel, guides, grid, snapping and more on or off with checkboxes in one dialog.
+The current state is read first, so nothing is flipped by accident as with a plain menu toggle.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

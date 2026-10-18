@@ -2,6 +2,23 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.AddTrimMarkToCurrentArtboard
+Name=AddTrimMarkToCurrentArtboard
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.1.1
+Release-Date=2025-02-05
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+現在のアートボードを対象に、トンボを作成します。
+
+Creates trim marks for the current artboard.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

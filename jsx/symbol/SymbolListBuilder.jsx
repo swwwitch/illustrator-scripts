@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.SymbolListBuilder
+Name=SymbolListBuilder
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.3.7
+Release-Date=2026-05-09
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+ドキュメントに登録されたシンボルを一覧表示する専用アートボード「シンボル一覧」を自動生成します。
+ダイアログでパラメーターを操作しながらライブプレビューで確認でき、［OK］で確定します。
+
+Generates a dedicated "Symbol List" artboard that lays out every symbol registered in the document.
+Parameters are adjusted with a live preview in the dialog, and OK commits the result.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

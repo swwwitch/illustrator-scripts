@@ -3,6 +3,23 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.MaskSpotlight
+Name=MaskSpotlight
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.1.8
+Release-Date=2026-09-20
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+画像またはベクターオブジェクトのグループと、パスを選択して実行すると、アートワークの複製をパスでマスクして、すりガラス風のぼかし、スポットライト、ルーペ、部分拡大をプレビューしながら作ります。
+
+With an image or a group of vector objects and a path selected, masks a copy of the artwork with the path and builds a frosted-glass blur, a spotlight, a loupe or a detail callout against a live preview.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

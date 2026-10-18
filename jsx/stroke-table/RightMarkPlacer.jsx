@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.RightMarkPlacer
+Name=RightMarkPlacer
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.6.1
+Release-Date=2026-03-28
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択した複数オブジェクトを左から順に見て、隣り合うオブジェクト同士のアキの中央に記号を配置します。
+記号は9種類から選べ、高さ・幅・線幅・位置をダイアログで調整できます。
+
+Scans the selected objects from left to right and places a mark in the middle of the gap between each adjacent pair.
+Nine marks are available, with height, width, stroke weight and position set from the dialog.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

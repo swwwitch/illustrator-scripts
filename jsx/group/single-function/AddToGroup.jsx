@@ -2,6 +2,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.AddToGroup
+Name=AddToGroup
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.0.2
+Release-Date=2026-03-06
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択したオブジェクトを、一緒に選んだ既存のグループへ加えます。グループの効果やクリッピングマスクはそのまま残ります。
+グループが無いか複数あるときは、グループを1段解除してから1つのグループにまとめ直します（クリップグループは解除しません）。
+
+Adds the selected objects to the existing group selected with them, keeping the group's effects and clipping mask.
+With no group or several groups, the groups are released one level and everything is regrouped as one (clipping groups are kept intact).
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

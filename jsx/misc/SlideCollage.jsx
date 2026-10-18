@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.SlideCollage
+Name=SlideCollage
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.8.1
+Release-Date=2026-03-01
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選んだ .ai / .pdf のアートボード（PDFはページ）を並べ、ポートフォリオ用のサムネイル一覧を作成します。
+並べ方は、列と行にそろえる［グリッド］と、表紙を中央に置いてほかを奥に散らす［スポットライト］の2種類です。
+
+Lays out the artboards (or PDF pages) of the .ai / .pdf file you choose to build a portfolio-style thumbnail sheet.
+Two layouts: Grid lines them up in rows and columns; Spotlight centers the cover and scatters the rest in depth.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

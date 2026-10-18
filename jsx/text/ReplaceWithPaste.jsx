@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.ReplaceWithPaste
+Name=ReplaceWithPaste
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=2.0.11
+Release-Date=2024-10-28
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+クリップボードのテキストで、選択中のテキストフレームの内容をまとめて置き換えます。
+クリップボードがテキスト以外なら、選択したオブジェクトをその内容で置き換えます。
+
+Replaces the contents of the selected text frames with the text on the clipboard.
+When the clipboard holds something other than text, it replaces the selected objects with it.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

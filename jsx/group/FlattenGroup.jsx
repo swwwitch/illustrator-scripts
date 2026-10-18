@@ -2,6 +2,22 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.FlattenGroup
+Name=FlattenGroup
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.0.2
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択したオブジェクトの入れ子グループをすべて解除してから、1つのグループにまとめ直します。
+
+Releases every nested group in the selection and then regroups everything as a single group.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

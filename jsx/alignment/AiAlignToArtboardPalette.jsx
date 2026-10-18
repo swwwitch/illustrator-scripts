@@ -3,6 +3,27 @@
 app.preferences.setBooleanPreference("ShowExternalJSXWarning", false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.AiAlignToArtboardPalette
+Name=AiAlignToArtboardPalette
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.5.0
+Release-Date=2026-08-23
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択したオブジェクトを、アートボードを対象に整列する常駐パレットです。
+3×3のボタンで8方向へ寄せ、押すたびにガイド・アートボードのエッジ・裁ち落としへと寄せ先が進みます。中央揃えはマージンの内側の中央へ寄せ、マージンや分割のガイドも引けます。
+
+A persistent palette that aligns the selected objects to the artboard.
+A 3x3 grid of buttons moves the selection in eight directions, stepping the destination outwards on each
+press: the guide, the artboard edge, then the bleed. The centred buttons align to the centre inside the
+margin, and it also draws margin and division guides.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

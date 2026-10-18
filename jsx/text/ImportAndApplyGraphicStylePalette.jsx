@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.ImportAndApplyGraphicStylePalette
+Name=ImportAndApplyGraphicStylePalette
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.4.6
+Release-Date=2026-07-01
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+ポイント文字・パス上文字・図形＋テキストを、見た目を保ったままエリア内文字へ変換します。
+あわせて、指定したファイルからグラフィックスタイルを取り込んで適用できます。
+
+Converts point text, text on a path, or a shape plus text into area text while preserving the appearance.
+A graphic style can be imported from a file you choose and applied at the same time.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.AddTrimMark
+Name=AddTrimMark
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.2.12
+Release-Date=2026-04-01
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択オブジェクト（単純な長方形1点）、現在のアートボード、またはすべてのアートボードを対象に、トンボを作成します。
+実行時のダイアログで、対象と「ガイドを残す」「日本式トンボ」のON/OFFを選べます。
+
+Creates trim marks for a selected object (a single simple rectangle), the current artboard, or every artboard.
+A dialog picks the target and toggles "keep guides" and "Japanese-style trim marks".
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

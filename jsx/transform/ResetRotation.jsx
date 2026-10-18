@@ -3,6 +3,23 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.ResetRotation
+Name=ResetRotation
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.4.9
+Release-Date=2025-08-15
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択オブジェクトの回転を水平（0°）に補正します。
+
+Corrects the rotation of the selected objects back to horizontal (0°).
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

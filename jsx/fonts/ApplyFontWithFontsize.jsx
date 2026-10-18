@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.ApplyFontWithFontsize
+Name=ApplyFontWithFontsize
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.3.13
+Release-Date=2026-06-06
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択したテキストフレームの各行（段落）を「フォント名（＋サイズ・行送り）」の指定とみなし、行単位でフォントを適用します。
+「ヒラギノ角ゴシック W3 12pt↓16pt」のようにサイズ・行送りを併記でき、併記のない行はフォントだけを適用します。
+
+Reads each line (paragraph) of the selected text frames as a "font name (plus size and leading)" spec and applies it line by line.
+Sizes and leading can be written after the name, as in "Hiragino Kaku Gothic W3 12pt↓16pt"; a line without them only changes the font.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.SetStrokeAlignment
+Name=SetStrokeAlignment
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.2.0
+Release-Date=2026-09-11
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択したオブジェクトに、線幅・線端・角の形状・線の位置をまとめて設定します。
+DOMからは変更できない線の位置は、一時アクション（ダイナミックアクション）で適用します。
+
+Applies the stroke weight, cap, corner join, and alignment to the selected objects at once.
+The alignment, which the DOM cannot change, is applied through a temporary action.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

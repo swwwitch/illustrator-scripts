@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.AddTextInfoLabel
+Name=AddTextInfoLabel
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.0.13
+Release-Date=2025-04-20
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択したテキストオブジェクトの下または右に、フォント情報を表示するラベルを作成します。
+詳細表示（エリア内文字）と簡易表示（ポイント文字）を切り替えられ、表示項目は個別に指定できます。
+
+Adds a label showing the font information below or beside the selected text objects.
+You can switch between a detailed layout (area text) and a compact one (point text), and choose which items appear.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

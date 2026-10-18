@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.AiApplySwatchesToSelection
+Name=AiApplySwatchesToSelection
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.8.11
+Release-Date=2024-11-03
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択したオブジェクトやテキストに、スウォッチや定義済みカラーを適用するモーダルダイアログです。
+配色は選択中のスウォッチかスウォッチグループから取り込め、適用単位（オブジェクト／1文字／単語／行／段落）と適用順（そのまま／逆順／ランダム／完全ランダム）を変えるたびにライブプレビューします。
+
+A modal dialog that applies swatches, or predefined colors, to the selected objects and text.
+Colors are captured from the selected swatches or from a swatch group, and every change to the application unit (object, character, word, line or paragraph) or order (as-is, reversed, random or fully random) is previewed live.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

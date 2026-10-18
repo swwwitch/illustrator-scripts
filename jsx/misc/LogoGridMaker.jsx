@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.LogoGridMaker
+Name=LogoGridMaker
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.5.7
+Release-Date=2026-04-10
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択オブジェクトの visibleBounds を基準に、ロゴ用の補助線およびクリアスペースを生成します。
+「文字形状からグリッド構造を抽出する」ことを目的としたスクリプトです。
+
+Generates construction lines and clear space for a logo, based on the visibleBounds of the selection.
+The script is aimed at extracting a grid structure from letterforms.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

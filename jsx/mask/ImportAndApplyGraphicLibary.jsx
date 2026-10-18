@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.ImportAndApplyGraphicLibary
+Name=ImportAndApplyGraphicLibary
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.0.10
+Release-Date=2026-09-20
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+このスクリプトと同じ場所に置いたライブラリー（.ai）からグラフィックスタイルを取り込み、選択したオブジェクトに適用します。
+書類の［グラフィックスタイル］パネルに無いスタイルは、取り込んでから適用します。
+
+Imports graphic styles from the library (.ai) kept beside this script and applies one to the selected objects.
+A style the document's Graphic Styles panel does not carry yet is imported first, then applied.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

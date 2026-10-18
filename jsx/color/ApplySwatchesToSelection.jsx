@@ -2,6 +2,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.ApplySwatchesToSelection
+Name=ApplySwatchesToSelection
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.0.3
+Release-Date=2026-03-05
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択したオブジェクトやテキストに、スウォッチや定義済みカラーを自動で適用します。
+CMYK／RGBのカラーモードに応じて使う色を切り替え、CMYKでスウォッチ未選択のときは2色混合の色をランダム生成します。
+
+Applies swatches, or predefined colors, to the selected objects and text automatically.
+The palette follows the CMYK/RGB color mode, and in CMYK with no swatch selected it generates random two-ink combinations.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

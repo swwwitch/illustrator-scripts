@@ -2,6 +2,24 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 #targetengine "SwwwitchPalettes"
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.ArtboardNavigatorPalette
+Name=ArtboardNavigatorPalette
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.2.15
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+アートボード間をなめらかにズーム移動する常駐パレットです。
+先頭・前・全体表示・次・末尾のボタンとキーボードショートカットで移動できます。
+
+A persistent palette for moving smoothly between artboards, zooming as it goes.
+Buttons and keyboard shortcuts cover first, previous, fit-all, next and last.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

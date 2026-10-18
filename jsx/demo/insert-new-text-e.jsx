@@ -2,6 +2,23 @@
 app.preferences.setBooleanPreference("ShowExternalJSXWarning", false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.InsertNewTextE
+Name=InsertNewTextE
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.1.1
+Release-Date=2025-04-01
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+現在の表示領域の中心に、欧文フォントを適用したポイントテキストを作成し、選択状態にします。
+
+Creates a point text with a Latin font at the center of the current view and leaves it selected.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

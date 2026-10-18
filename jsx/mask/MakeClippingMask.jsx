@@ -2,6 +2,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.MakeClippingMask
+Name=MakeClippingMask
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.0.1
+Release-Date=2024-11-18
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択オブジェクトの状態に応じて、クリッピングマスクの作成と解除を切り替えて実行します。
+すでにマスクが設定されていれば解除し、配置画像やパスの選択からは新たにマスクを作成します。
+
+Creates or releases a clipping mask, depending on what is selected.
+An existing mask is released, while a selection of placed images or paths produces a new one.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

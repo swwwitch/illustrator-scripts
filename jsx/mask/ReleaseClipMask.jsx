@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.ReleaseClipMask
+Name=ReleaseClipMask
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.2.10
+Release-Date=2025-06-06
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択したクリッピングマスクをモード別に解除します。
+単純解除、マスクパス削除、マスク内容削除の3つの方法から選べます。
+
+Releases the selected clipping masks in one of three modes.
+You can release them plainly, delete the mask path, or delete the masked contents.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

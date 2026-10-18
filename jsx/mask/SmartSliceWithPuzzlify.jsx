@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.SmartSliceWithPuzzlify
+Name=SmartSliceWithPuzzlify
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.7.1
+Release-Date=2025-06-07
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択した画像やオブジェクトを、グリッド（格子）またはジグソーパズル形状のピースに分割し、各ピースでマスクします。
+行数・列数・ピース数のほか、オフセット、オーバーラップ、バラけ、ケイ線、角丸を指定できます。
+
+Slices the selected image or artwork into grid cells or jigsaw pieces and masks each piece.
+Besides rows, columns and piece count, you can set offset, overlap, scatter, stroke and rounded corners.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

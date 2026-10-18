@@ -2,6 +2,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.CloneDocSelectedOnly
+Name=CloneDocSelectedOnly
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.0.5
+Release-Date=2023-12-26
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択オブジェクトだけを残した複製ドキュメントを作成するIllustrator用スクリプトです。
+元ドキュメントを一時保存してから複製を開き、非選択・非表示のオブジェクトを削除します。
+
+An Illustrator script that creates a duplicate document containing only the selected objects.
+The original is saved to a temporary file, the copy is opened, and unselected and hidden objects are removed from it.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

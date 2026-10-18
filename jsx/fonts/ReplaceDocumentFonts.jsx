@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.ReplaceDocumentFonts
+Name=ReplaceDocumentFonts
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=2.2.4
+Release-Date=2025-03-29
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+ドキュメント（または選択範囲）で使用中のフォントをファミリー／スタイル単位で一覧し、
+選んだフォントを別のフォントへまとめて置き換えます。
+
+Lists the fonts used in the document (or the selection) by family and style,
+and replaces the selected ones with another font in a single pass.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

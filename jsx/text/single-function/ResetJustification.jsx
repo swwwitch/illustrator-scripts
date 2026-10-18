@@ -2,6 +2,22 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.ResetJustification
+Name=ResetJustification
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.0.3
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択したテキストの段落に対して、ジャスティフィケーション関連の設定（ワードスペース、文字間、グリフスケーリング）を初期値に戻します。
+
+Resets the justification settings — word spacing, letter spacing and glyph scaling — of the selected paragraphs to their defaults.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

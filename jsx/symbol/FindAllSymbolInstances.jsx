@@ -2,6 +2,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.FindAllSymbolInstances
+Name=FindAllSymbolInstances
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.1.2
+Release-Date=2026-05-09
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択中のシンボルインスタンスと同じシンボルのインスタンスを、ドキュメント全体から探してまとめて選択し直します。
+グループ内のインスタンスや複数シンボルの混在にも対応し、シンボルを含まない選択では同じアピアランスのオブジェクトを選択します。
+
+Finds every instance of the same symbols as the selected symbol instances across the document and reselects them all.
+Instances inside groups and mixed symbols are handled; when no symbol instance is selected, objects with the same appearance are selected instead.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

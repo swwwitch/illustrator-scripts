@@ -2,6 +2,22 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.MergeExpand
+Name=MergeExpand
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.0.2
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択オブジェクトをグループ化し、線を塗りに変換してから Pathfinder の「合流」をライブエフェクトとして適用し、アピアランスを分割します。
+
+Groups the selection, converts strokes to fills, applies Pathfinder Merge as a live effect, and then expands the appearance.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

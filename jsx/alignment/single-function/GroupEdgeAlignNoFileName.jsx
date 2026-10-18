@@ -2,6 +2,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.GroupEdgeAlignNoFileName
+Name=GroupEdgeAlignNoFileName
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.0.4
+Release-Date=2025-04-06
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択されているオブジェクト群の端または中心を、`ALIGNMENT_SIDE` で指定した方向へ揃えます。
+GroupEdgeAlign.jsx からファイル名による方向判定を外した版です。
+
+Aligns the edges or the center of the selected objects in the direction given by `ALIGNMENT_SIDE`.
+This is GroupEdgeAlign.jsx without the filename-based direction detection.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

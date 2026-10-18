@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.RotateRomanInVertical
+Name=RotateRomanInVertical
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.0.0
+Release-Date=2026-10-15
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択したテキストに、文字パネルの［縦組み中の欧文回転］を適用します。
+DOM では設定できないため、一時アクション（ダイナミックアクション）で実行します。
+
+Applies "Rotate Standard Roman Characters in Vertical Text" from the Character panel to the selected text.
+The DOM cannot set it, so it runs through a temporary (dynamic) action.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

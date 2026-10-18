@@ -3,6 +3,24 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.FillSnapper
+Name=FillSnapper
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.1.7
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択中のオブジェクトを「動かす対象」と「スナップ基準」に分類し、対象のバウンディングボックスを最寄りの基準線へ合わせます。
+パスはアンカーポイントを直接変形するため、クリップグループ内の子パスにも対応します。
+
+Classifies the current selection into items to move and snap references, then snaps each item's bounding box to the nearest reference line.
+Paths are transformed at the anchor level, so child paths inside clipping groups are handled too.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

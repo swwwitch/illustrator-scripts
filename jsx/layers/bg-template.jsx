@@ -3,6 +3,23 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.bg-template
+Name=bg-template
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.1.8
+Release-Date=2025-07-29
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+現在のアートボードと同じ大きさの長方形を作成し、「bg-template」レイヤーに置いてテンプレート化したうえで最背面へ移動します。
+
+Creates a rectangle the size of the current artboard, places it on a "bg-template" layer, marks that layer as a template and sends it to the back.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

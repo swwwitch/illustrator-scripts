@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.AiArtboardScaler
+Name=AiArtboardScaler
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.1.10
+Release-Date=2026-07-15
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+アートボードを現在のサイズを基準にスケール変更します。ダイアログを開いたままライブプレビューできます。
+対象は現在のアートボード／すべて／指定から選べ、9つの基準点のいずれかを固定して再計算します。
+
+Scales artboards relative to their current size, with a live preview while the dialog stays open.
+The target can be the current artboard, all of them, or a specified set, recalculated around one of nine reference points.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

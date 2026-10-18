@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.AiMemoPalette
+Name=AiMemoPalette
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.1.10
+Release-Date=2026-06-15
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+メモ入力用のフローティングパレットです。
+選択オブジェクトやクリップボードからテキストを読み込み、空行・改行を整理して、テキストファイルへの保存やクリップボードへのコピーができます。
+
+A floating palette for taking notes.
+It can pull text in from the selection or the clipboard, tidy up blank lines and returns, and save the result to a text file or copy it back to the clipboard.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

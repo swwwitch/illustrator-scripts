@@ -3,6 +3,22 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.DetachPathText
+Name=DetachPathText
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.0.17
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+パス上文字を、テキストとパスに分離します。
+
+Detaches text on a path back into a separate text object and path.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

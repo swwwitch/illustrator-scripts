@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.SplitForTwo
+Name=SplitForTwo
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=2.10.12
+Release-Date=2026-03-14
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+1つのオブジェクトを選択して実行すると、その外接矩形を左右または上下に2分割し、2色の背景に置き換えます。
+［バランス］パネルで、左右（または上下）の幅と比率を数値入力とスライダーで調整できます。
+
+With a single object selected, splits its bounding box left/right or top/bottom and replaces the object with a two-color background.
+The Balance panel adjusts the width and ratio of each half with a field and a slider.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

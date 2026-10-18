@@ -2,6 +2,22 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.ClipEditMask
+Name=ClipEditMask
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.0.1
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択がクリップグループのときはマスク編集モードへ切り替え、そうでないときは重なり合うオブジェクトごとにクリッピングマスクを作成します。
+
+Enters mask-edit mode when the selection is a clipping group, and otherwise builds a clipping mask for each cluster of overlapping objects.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

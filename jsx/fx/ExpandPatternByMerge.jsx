@@ -2,6 +2,23 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.ExpandPatternByMerge
+Name=ExpandPatternByMerge
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.0.1
+Release-Date=2026-10-04
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択オブジェクトの塗りを［分割・拡張］で展開し、グループ化して［合流］の効果を掛けてからアピアランスを分割します。3D 効果を使わずに、パターンなどの塗りを通常のパスにまとめます。
+
+Expands the fills of the selected objects with Object > Expand, groups them, applies the Pathfinder Merge effect, then expands the appearance. Turns pattern fills and the like into regular paths without a 3D effect.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

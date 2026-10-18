@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.LockHistoryPalette
+Name=LockHistoryPalette
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.0.9
+Release-Date=2026-09-23
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+パレットの［ロック］でオブジェクトをロックすると、そのまとまりを履歴に1件として記録し、
+あとからその単位だけ解除できます。記録は各オブジェクトのタグに書き込まれ、ドキュメントに保存されます。
+
+Locking objects with the palette's Lock button records that batch as one history entry, so you can
+release just that batch later. The record is written into each object's tag and stored in the document.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

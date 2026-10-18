@@ -2,6 +2,23 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.SyncSelectionPosition
+Name=SyncSelectionPosition
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.0.2
+Release-Date=2025-12-27
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+最前面のドキュメントの選択範囲の左上を基準に、ほかの開いているドキュメントの選択オブジェクトを同じ座標へ移動します。
+
+Moves the selected objects in every other open document to the same position, using the top-left corner of the selection in the frontmost document as the reference.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

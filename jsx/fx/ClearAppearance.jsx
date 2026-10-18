@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.ClearAppearance
+Name=ClearAppearance
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.0.10
+Release-Date=2026-04-14
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択したオブジェクトに「アピアランスの消去」を実行します。
+実行前にダイアログを表示し、復元するかどうかと、選択オブジェクトに応じた復元方法を選べます。
+
+Runs Clear Appearance on the selected objects.
+A dialog first asks whether to restore anything, and which restore mode fits the selection.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

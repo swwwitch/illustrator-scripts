@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.SimplifyGroupsDialog
+Name=SimplifyGroupsDialog
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.0.10
+Release-Date=2026-09-22
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択したグループの入れ子をダイアログで選んだ方法で解消します。外側のグループを残して中だけ解除するか、すべて解除して1つのグループに作り直すかを選べます。
+クリップグループや、ロック・非表示のサブグループを解除せずに残すこともできます。
+
+Removes nested groups from the selection using the method chosen in a dialog: keep the outer group and ungroup only what is inside, or ungroup everything and rebuild it as one group.
+Clipping groups and locked or hidden subgroups can be left intact.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

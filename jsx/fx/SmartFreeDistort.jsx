@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.SmartFreeDistort
+Name=SmartFreeDistort
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.5.12
+Release-Date=2026-04-24
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択オブジェクトにIllustratorの「自由変形」ライブ効果を適用します。
+台形・平行四辺形・三角形・対角線の全18プリセットをアイコンから選び、調整可能なプリセットでは変形量と強度を設定できます。
+
+Applies Illustrator's Free Distort live effect to the selected objects.
+Eighteen presets — trapezoids, parallelograms, triangles and diagonals — are picked from icons, and the adjustable ones expose an amount and a strength setting.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

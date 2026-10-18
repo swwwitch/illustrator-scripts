@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.SmartSelectionFilter
+Name=SmartSelectionFilter
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.1.4
+Release-Date=2026-05-02
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択中のオブジェクトから、条件に合うテキストやパスだけを残して選択し直します。
+文字種・行揃え・使用フォント・パスの開閉・塗りや線の状態を条件にでき、変更はダイアログを閉じずにカンバスへ反映されます。
+
+Reselects only the text frames and paths in the current selection that match the conditions you set.
+Text kind, justification, font, open/closed paths and fill/stroke state can all be used as conditions, and changes are reflected on the canvas without closing the dialog.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.FlattenLayers
+Name=FlattenLayers
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.7.13
+Release-Date=2025-04-14
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+除外名を持つレイヤーを残しつつ、その他のレイヤー配下のオブジェクトを指定したレイヤーへ集約してフラット化します。
+ロック／非表示の扱いやガイドの行き先は、ダイアログで個別に指定できます。
+
+Flattens the document by moving the objects under every layer except the excluded ones into a single target layer.
+How locked and hidden items are treated, and where guides end up, are chosen in a dialog.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.LongShadowMaker
+Name=LongShadowMaker
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.3.7
+Release-Date=2026-02-25
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+距離・角度・スケールを指定して、選択したオブジェクトからロングシャドウを生成します。
+プレビューを見ながらプリセットやオフセットで調整でき、生成後に「パスの単純化」を実行できます。
+
+Generates a long shadow from the selected object using a distance, an angle and a scale.
+Presets and an offset are adjusted with a live preview, and a Simplify Path pass can be run afterwards.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

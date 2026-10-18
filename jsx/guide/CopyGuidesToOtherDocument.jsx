@@ -2,6 +2,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.CopyGuidesToOtherDocument
+Name=CopyGuidesToOtherDocument
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.0.1
+Release-Date=2026-09-07
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+開いている2つのドキュメントのうち、最前面のドキュメントのガイドを、もう一方のドキュメントの
+同じ番号・同じサイズのアートボードへ複製します。
+
+Copies the guides of the frontmost document into the other open document, matching artboards
+by index and size.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

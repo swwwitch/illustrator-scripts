@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference("ShowExternalJSXWarning", false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.AiSmartPathfinderPalette
+Name=AiSmartPathfinderPalette
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.1.7
+Release-Date=2026-07-10
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択した複数オブジェクトにパスファインダーを適用する常駐パレットです。
+アイコンをクリックすると、その操作をメインエンジンへ委譲して即時に実行します。
+
+A persistent palette that applies Pathfinder operations to the selected objects.
+Clicking an icon delegates the operation to the main engine and runs it immediately.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

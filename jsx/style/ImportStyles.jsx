@@ -3,6 +3,23 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.ImportStyles
+Name=ImportStyles
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.5.10
+Release-Date=2025-08-14
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+あらかじめ登録しておいたAIファイルを一覧から選び、その中身を現在のドキュメントへ取り込みます。
+
+Picks one of the registered AI files from a list and imports its contents into the current document.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

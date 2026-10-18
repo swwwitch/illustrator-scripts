@@ -2,6 +2,24 @@
 app.preferences.setBooleanPreference("ShowExternalJSXWarning", false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.InsertNewAreaText
+Name=InsertNewAreaText
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.0
+Release-Date=2025-08-13
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+現在の表示領域の中心に指定サイズの矩形を作り、エリア内文字としてサンプルテキストを流し込み、フォント・サイズ・行送り・行揃えを適用して選択状態にします。
+
+Creates a rectangle of a given size at the center of the current view, converts it into an area text
+filled with sample text, applies font, size, leading and justification, and leaves it selected.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

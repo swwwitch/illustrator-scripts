@@ -3,6 +3,23 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.ViewTogglePalette
+Name=ViewTogglePalette
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.0.2
+Release-Date=2026-10-03
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+ビデオ定規・すべてのドキュメントでの定規・ガイド・スマートガイド・アートボード・境界線・カンバスカラー・バウンディングボックスの表示を、常駐パレットのボタンで切り替えます。
+
+A persistent palette whose buttons toggle the video ruler, rulers in all documents, guides, smart guides, artboards, edges, canvas color and bounding box.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

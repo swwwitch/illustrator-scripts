@@ -3,6 +3,23 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.IncrementDatesAndNumbers
+Name=IncrementDatesAndNumbers
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.2.7
+Release-Date=2025-11-18
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択中のテキストに含まれる日付・曜日・連番・数値などを、一括して増減します。
+
+Increments or decrements the dates, weekday names, sequence numbers and other values found in the selected text, all at once.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

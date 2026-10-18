@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.CopyTextAttributesToClipboard
+Name=CopyTextAttributesToClipboard
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.3.11
+Release-Date=2021-04-10
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択したテキストの先頭文字を基準に、文字属性・段落属性を取得して保存します。
+保存した内容は ApplyTextAttributesFromClipboard.jsx から読み取って適用できます。
+
+Reads the character and paragraph attributes of the selected text, taking the first character as the reference, and stores them.
+The stored values can then be applied with ApplyTextAttributesFromClipboard.jsx.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

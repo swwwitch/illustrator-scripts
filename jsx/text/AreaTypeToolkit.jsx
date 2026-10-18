@@ -3,6 +3,23 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.AreaTypeToolkit
+Name=AreaTypeToolkit
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.7.0
+Release-Date=2026-03-03
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+ポイント文字・パス上文字・図形からエリア内文字をつくり、そのまま体裁（サイズ・行送り・先頭ベースライン・行揃え・インデントなど）を調整します。エリア内文字を囲み罫とポイント文字に分離することもできます。
+
+Builds area text from point text, text on a path, or a shape, and adjusts its formatting — size, leading, first baseline, justification, indents and more — in the same pass. It can also separate Area Type into a frame and point text.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

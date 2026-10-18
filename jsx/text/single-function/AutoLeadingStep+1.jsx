@@ -2,6 +2,24 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.AutoLeadingStepPlus1
+Name=AutoLeadingStep+1
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.0.3
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択したテキストの行送り（表示値）が 整数で1ステップ大きく するように、自動行送り量（％）を逆算して設定します。
+ダイアログは表示せず、実行するとその場で反映されます。
+
+Works out the auto-leading percentage that increases by one whole step the displayed leading of the selected text, and applies it.
+There is no dialog; running it applies the change straight away.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

@@ -2,6 +2,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.ColorToK100Converter
+Name=ColorToK100Converter
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.0.3
+Release-Date=2025-06-12
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+RGBまたはCMYKで構成された黒を、安定したK100の黒に変換します。
+テキスト、パス、スウォッチの塗りおよび線カラーが一括の対象です。
+
+Converts blacks built from RGB or CMYK into a stable K100 black.
+Text, paths and swatches are all covered, for both fill and stroke colors.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

@@ -3,6 +3,27 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.GenkoYoshiMaker
+Name=GenkoYoshiMaker
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.3.7
+Release-Date=2026-09-19
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択したテキストを1文字＝1マスに組み直し、マスの区切りと行の両側の罫線、十字線を引きます。縦組み・横組み、ポイント文字・エリア内文字のいずれにも対応し、組み方向は変換しません。
+比率・自動行送り・罫線の濃度・太罫・十字線などはダイアログで指定し、結果はその場でプレビューされます。
+
+Sets the selected text one character to a cell, then draws the cell rules, the rules along both
+sides of each line, and the crosshairs. Vertical and horizontal, point and area text are all
+supported, and the writing direction is left as it is. A dialog sets the scale, the auto leading,
+the rule density, the emphasis and the crosshairs, and previews the result live.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

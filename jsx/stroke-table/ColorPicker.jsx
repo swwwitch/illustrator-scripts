@@ -2,6 +2,24 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.ColorPicker
+Name=ColorPicker
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.1.8
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+他のスクリプトから `#include` して使う、カラーピッカーの再利用ライブラリです。
+`ColorPicker.show()` を呼ぶとダイアログを開き、選択された色を返します。
+
+A reusable color-picker library meant to be pulled in from other scripts with `#include`.
+Calling `ColorPicker.show()` opens the dialog and returns the chosen color.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

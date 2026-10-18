@@ -3,6 +3,23 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.SwapNearestItemWithDialogbox
+Name=SwapNearestItemWithDialogbox
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.0.8
+Release-Date=2025-07-06
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択中のオブジェクトと、指定した方向（上下左右）にある最も近いオブジェクトの位置を入れ替えます。方向はダイアログで指定します。
+
+Swaps the selected object with the nearest object in a chosen direction, picked from a dialog.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

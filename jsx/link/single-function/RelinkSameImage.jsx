@@ -2,6 +2,23 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.RelinkSameImage
+Name=RelinkSameImage
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.2.3
+Release-Date=2024-08-05
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択した配置画像と同じリンクファイルを参照している配置画像を探し、指定したファイルへ一括で差し替えます。
+
+Finds the placed images that reference the same linked file as the selected one and relinks them all to a file you choose.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.SelectSameLinks
+Name=SelectSameLinks
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.1.11
+Release-Date=2026-05-20
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択中のリンク画像と同じファイルを参照する配置画像をドキュメント全体から探し、まとめて選択または削除します。
+同一かどうかの判定は、リンクの絶対パスとファイル名のどちらでも行えます。
+
+Searches the whole document for placed images that reference the same file as the selection, then selects or deletes them together.
+The match can be made either on the absolute path of the link or on the file name.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

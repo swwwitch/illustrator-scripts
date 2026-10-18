@@ -3,6 +3,24 @@
 try { app.preferences.setBooleanPreference('ShowExternalJSXWarning', false); } catch (e) { }
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.TitleBarLineCut
+Name=TitleBarLineCut
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.2.10
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+テキスト1つと長方形パス1つを選択して実行すると、テキストの周りで罫線が欠けたタイトル帯を作成します。
+マージン、角丸、塗り、ノッチ、線幅をダイアログで指定できます。
+
+With one text frame and one rectangle path selected, builds a title bar whose rule is cut away around the text.
+Margin, corner radius, fill, notch and stroke weight are set in a dialog.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

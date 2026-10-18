@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.VariableDataImport
+Name=VariableDataImport
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.6.8
+Release-Date=2026-01-22
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+CSV／タブ区切りテキストのデータを、Illustratorのテンプレートに流し込むデータ結合スクリプトです。
+テキストフレーム内の `<変数名>` タグを列の値に置き換え、データ件数ぶんのアートボードを生成します。
+
+A data-merge script that pours CSV / TSV data into an Illustrator template.
+It replaces `<tag>` placeholders inside text frames with values from a column and generates one artboard per data row.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

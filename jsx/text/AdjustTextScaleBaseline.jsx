@@ -3,6 +3,23 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.AdjustTextScaleBaseline
+Name=AdjustTextScaleBaseline
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.5.6
+Release-Date=2025-07-23
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択したテキストの文字比率とベースラインシフトを調整します。
+
+Adjusts the character scale and the baseline shift of the selected text.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

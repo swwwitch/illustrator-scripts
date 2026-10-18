@@ -2,6 +2,23 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.CollectArtboardTexts
+Name=CollectArtboardTexts
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.0.2
+Release-Date=2026-05-13
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+全アートボード上にあるテキストの内容を集め、最後のアートボードの右側に新しいテキストフレームとして配置します（既定では1つにまとめ、設定で1つずつ縦に並べることもできます）。
+
+Collects the contents of the text frames on every artboard and places them as new text to the right of the last artboard (merged into one frame by default, or stacked one frame per text via a setting).
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

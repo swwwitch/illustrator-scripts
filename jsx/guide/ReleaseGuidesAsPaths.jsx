@@ -2,6 +2,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.ReleaseGuidesAsPaths
+Name=ReleaseGuidesAsPaths
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.0.2
+Release-Date=2025-07-16
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+「_guide」レイヤー内のガイドを通常のパス（塗りなし、線K100・1pt）に戻し、「ReleasedGuides」レイヤーへ移動します。
+移動後、「_guide」レイヤーは再ロックします。
+
+Turns the guides on the "_guide" layer back into regular paths (no fill, 1pt K100 stroke) and moves them to a "ReleasedGuides" layer.
+The "_guide" layer is locked again afterwards.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

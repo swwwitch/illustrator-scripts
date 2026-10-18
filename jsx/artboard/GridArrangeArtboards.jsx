@@ -3,6 +3,24 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.GridArrangeArtboards
+Name=GridArrangeArtboards
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.2.10
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+アートボード名を解析し、行列グリッドとして再配置します。
+名前全体が「行番号＋区切り文字（-, _, x）＋列番号」に一致するアートボードを、行列指定として扱います。
+
+Parses the artboard names and re-lays the artboards out as a row-column grid.
+An artboard counts as positioned when its whole name matches "row number + separator (-, _, x) + column number".
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

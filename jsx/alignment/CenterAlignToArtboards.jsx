@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference("ShowExternalJSXWarning", false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.CenterAlignToArtboards
+Name=CenterAlignToArtboards
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.0.2
+Release-Date=2026-10-03
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択したオブジェクトをグループ化せず1つずつ、それぞれが載っているアートボードの天地中央・左右中央に整列します。
+ダイアログで天地中央・左右中央を選べます。実行中だけ「字形の境界に整列」をONにし、終了時に元の状態へ戻します。
+
+Aligns each selected object, one at a time and without grouping, to the vertical and/or horizontal center of the artboard it sits on.
+Choose the directions in the dialog. "Align to glyph bounds" is turned on only while it runs and restored afterwards.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

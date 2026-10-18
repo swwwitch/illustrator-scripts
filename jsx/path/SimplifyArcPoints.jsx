@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.SimplifyArcPoints
+Name=SimplifyArcPoints
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.0.0
+Release-Date=2026-10-17
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択したパスの直線部分以外を円弧とみなし、90°以下の円弧に置き換えてアンカーポイントを減らします。
+ダイアログボックスで結果とアンカーポイント数をプレビューできます。
+
+Treats everything except the straight parts of the selected paths as arcs and rebuilds them with arcs of 90° or less, reducing the number of anchor points.
+The dialog previews the result and the anchor point count.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

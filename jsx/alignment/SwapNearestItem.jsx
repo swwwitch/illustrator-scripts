@@ -2,6 +2,23 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.SwapNearestItem
+Name=SwapNearestItem
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.0.6
+Release-Date=2025-06-10
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択したオブジェクトを基準に、指定した方向（右／左／上／下）にある最も近いオブジェクトと位置を入れ替えます。
+
+Swaps the selected object with the nearest object in a chosen direction — right, left, up or down.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

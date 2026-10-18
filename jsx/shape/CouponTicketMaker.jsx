@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.CouponTicketMaker
+Name=CouponTicketMaker
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.5.7
+Release-Date=2026-03-08
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択した長方形パスから、ミシン目・ギザギザ・コーナー処理・スリット／ホールを組み合わせたチケット風の形状を生成します。
+専用のプレビューレイヤーで結果を確認しながら設定でき、［OK］したときだけ元のオブジェクトへ適用します。
+
+Turns a selected rectangle into a ticket-like shape combining perforations, zigzag edges, corner treatments and slits or holes.
+The result is set up on a dedicated preview layer and applied to the original only when you confirm with OK.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

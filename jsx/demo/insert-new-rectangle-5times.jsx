@@ -2,6 +2,24 @@
 app.preferences.setBooleanPreference("ShowExternalJSXWarning", false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.InsertNewRectangle5Times
+Name=InsertNewRectangle5Times
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.3.1
+Release-Date=2025-04-01
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+現在の表示領域の中心付近に、黒く塗ってランダムな不透明度を与えた正方形を5つ作成し、重ならないように配置してから「Convert to Shape」「Make Pixel Perfect」コマンドを適用します。
+
+Creates five black squares with random opacity near the center of the current view, places them so that
+they do not overlap, and applies the "Convert to Shape" and "Make Pixel Perfect" commands.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

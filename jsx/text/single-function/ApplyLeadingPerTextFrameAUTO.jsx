@@ -2,6 +2,22 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.ApplyLeadingPerTextFrameAUTO
+Name=ApplyLeadingPerTextFrameAUTO
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.0.2
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択された各テキストフレームの各行に、自動行送り（autoLeading）を設定します。
+
+Turns on auto leading for each line of the selected text frames.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

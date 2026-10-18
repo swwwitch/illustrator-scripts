@@ -3,6 +3,22 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.SelectAlternateItems
+Name=SelectAlternateItems
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.1.10
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択中のオブジェクトを並び順で数え、奇数番目または偶数番目だけを互い違いに選択し直します。数える順は垂直・水平・重ね順から選べます。
+
+Counts the selected objects in order and reselects only the odd- or even-numbered ones. The counting order can be vertical, horizontal, or stacking order.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

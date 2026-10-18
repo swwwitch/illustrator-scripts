@@ -3,6 +3,23 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.PreferenceManagerForTransformAndAlignPalette
+Name=PreferenceManagerForTransformAndAlignPalette
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.7.4
+Release-Date=2025-08-04
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+Illustratorの各種環境設定を、常駐パレットでまとめて切り替えます。設定は操作した時点で即時反映されます。
+
+A persistent palette for switching a range of Illustrator preferences. Every change takes effect the moment you make it.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

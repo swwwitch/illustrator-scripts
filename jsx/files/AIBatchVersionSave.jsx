@@ -3,6 +3,24 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.AIBatchVersionSave
+Name=AIBatchVersionSave
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.5.10
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+フォルダー内の Illustrator ファイル（.ai / .svg）を、指定したバージョン形式でまとめて保存します。
+上書きモードとカスタム保存先を切り替えられ、対象の拡張子やパス表示の形式も指定できます。
+
+Batch-saves the Illustrator files (.ai / .svg) in a folder in a chosen file-format version.
+You can switch between overwrite mode and a custom destination, and choose the target extensions and how paths are displayed.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

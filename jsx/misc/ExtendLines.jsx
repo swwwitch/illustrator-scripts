@@ -3,6 +3,25 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 #targetengine "ExtendLinesEngine"
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.ExtendLines
+Name=ExtendLines
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.1.7
+Release-Date=2026-02-27
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択オブジェクト内のパス（グループ／複合パスを含む）から隣接するアンカーポイントのペアを取り、補助線として「直線を描画範囲いっぱいに延長した線」を描画します。
+［円弧から円］でBezier曲線セグメントから円を推定することもできます。
+
+Takes pairs of adjacent anchor points from the paths in the selection — groups and compound paths included — and draws each as a construction line extended across the drawing area.
+The "arc to circle" option can also estimate a circle from a Bézier segment.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.AdjustFontSize
+Name=AdjustFontSize
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.1.7
+Release-Date=2026-08-02
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択している文字を対象に、フォントサイズと水平比率／垂直比率を調整します。
+ライブプレビューで結果を確認しながら調整でき、キャンセルすると開く前の状態に戻ります。
+
+Adjusts the font size and the horizontal and vertical scale of the selected characters.
+A live preview shows the result, and cancelling restores the state from before the dialog opened.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

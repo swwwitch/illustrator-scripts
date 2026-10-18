@@ -2,6 +2,23 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.SetRoundCap
+Name=丸型先端にする
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.0.2
+Release-Date=2024-08-22
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択したパスアイテム（グループ内も含む）の線端を、丸型線端に設定します。
+
+Sets the stroke cap of the selected path items, including those inside groups, to a round cap.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

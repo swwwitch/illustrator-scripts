@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.ColorPaletteFromImage
+Name=ColorPaletteFromImage
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.7.12
+Release-Date=2026-03-05
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択した配置画像・ラスター画像・ベクター・テキストから代表色を抽出し、16／11／8／5色のカラーパレットを元オブジェクトの下に描画します（5色の行はスウォッチグループとしても登録できます）。
+オブジェクトを選択していないときは、スウォッチパネルで選択中のスウォッチから色玉パレットを作成します。
+
+Extracts representative colors from the selected placed image, raster image, vector art or text and draws a 16, 11, 8 or 5 color palette below the original (the 5-color rows can also be registered as swatch groups).
+With nothing selected, it builds the palette from the swatches selected in the Swatches panel instead.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

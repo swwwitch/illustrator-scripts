@@ -3,6 +3,23 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.MakeRectangleFromGuides
+Name=MakeRectangleFromGuides
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.2.7
+Release-Date=2025-07-13
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+ガイドの交点で区切られた区画に、塗りつぶした長方形を一括生成します。対象にするガイドと作成先はダイアログで指定できます。
+
+Fills every area bounded by guide intersections with a generated rectangle. A dialog selects which guides to use and where the rectangles go.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

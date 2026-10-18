@@ -3,6 +3,25 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 #targetengine "DialogEngine"
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.ResetTransform
+Name=ResetTransform
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.7.10
+Release-Date=2025-08-05
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+配置画像・テキスト・長方形・クリップグループ・直線パスに対して、回転／シアー／スケール／縦横比を安全にリセットします。
+バウンディングボックスをリセットしたあと元の中心位置へ戻すため、見た目の位置は保たれます。
+
+Safely resets rotation, shear, scale and aspect ratio on placed images, text, rectangles, clipping groups and straight paths.
+The bounding box is reset and the item is moved back to its original center, so its apparent position is preserved.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

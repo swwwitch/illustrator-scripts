@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.AddArtboardPlus
+Name=AddArtboardPlus
+Author=Takeshi Umeda (noellabo)
+Target-App=Illustrator
+Version=1.2.8
+Release-Date=2026-04-15
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+既存のアートボードの並び（行・列）を解析し、その規則を維持したまま新しいアートボードを挿入します。
+追加方法・追加位置・追加数・間隔をダイアログで指定できます。
+
+Analyzes how the existing artboards are arranged in rows and columns and inserts new ones that follow the same pattern.
+The method, position, count and spacing are all set in a dialog.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

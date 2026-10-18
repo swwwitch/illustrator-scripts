@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.AiScriptLauncher
+Name=AiScriptLauncher
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.6.1
+Release-Date=2025-11-13
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+指定したフォルダー内の .jsx / .js / .jsxbin をキーワードで絞り込み、選んだスクリプトをその場で実行するランチャーです。
+フォルダーとファイル名を左右のリストに分けて表示し、絞り込んだ結果によく出てくる語をワンクリックのボタンとして自動で並べます。
+
+A launcher that filters .jsx / .js / .jsxbin files in a chosen folder by keyword and runs the selected script on the spot.
+Folders and file names are shown in two side-by-side lists, and words that appear often in the filtered results become one-click buttons automatically.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

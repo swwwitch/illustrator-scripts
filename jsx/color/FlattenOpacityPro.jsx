@@ -2,6 +2,26 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.FlattenOpacityPro
+Name=FlattenOpacityPro
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.1.1
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択したオブジェクトの不透明度を、塗りのカラーそのものに焼き込んで不透明にします。
+親グループの不透明度も再帰的に合成し、重なったオブジェクトは背面から合成して見た目の色を再現します。
+グラデーションや画像など焼き込めないものを含むときは、標準の［透明部分を分割・統合］で処理します。
+
+Bakes the opacity of the selected objects into their fill colors so that everything becomes fully opaque.
+Parent group opacity is composited recursively, and overlapping objects are composited from the back to reproduce the apparent color.
+When the selection contains gradients, images, or other items that cannot be baked, it falls back to the built-in Flatten Transparency.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

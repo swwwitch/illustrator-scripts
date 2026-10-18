@@ -3,6 +3,23 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.RenameAssets
+Name=RenameAssets
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.0.9
+Release-Date=2025-08-20
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+アセット書き出しパネルに登録されたアセットの名前を、一括で変更します。
+
+Renames the assets registered in the Asset Export panel in bulk.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

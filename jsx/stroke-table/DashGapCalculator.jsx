@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.DashGapCalculator
+Name=DashGapCalculator
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=2.2.0
+Release-Date=2026-02-25
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択したパス（オープン／クローズ）の長さをもとに、分割数と間隔から破線の線分長を計算して適用します。
+線分から間隔を逆算するモードや、ランダムパターン、開始位置（位相）の指定にも対応します。
+
+Works out the dash length for the selected paths, open or closed, from their length, the number of divisions and the gap.
+It can also derive the gap from the dash, produce random patterns, and set the starting phase.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

@@ -2,6 +2,22 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.apply-temp-style-or-last
+Name=apply-temp-style-or-last
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.1.2
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択オブジェクトに、既存のグラフィックスタイル「temp_style」を適用します。
+
+Applies the existing graphic style named "temp_style" to the selected objects.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

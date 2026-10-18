@@ -5,6 +5,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.LeaderLineBuilder
+Name=LeaderLineBuilder
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.6.8
+Release-Date=2026-03-06
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択したパスやグループの外接矩形から、指定した角度の引き出し線を作成し、元のオブジェクトと置き換えます。
+角度・斜線の方向・線のスタイル・先端マーカー・フチを、ダイアログでプレビューしながら調整できます。
+
+Builds a leader line at a chosen angle from the bounding box of the selected paths or groups and replaces the original with it.
+Angle, diagonal direction, stroke style, end marker and outline are all adjusted with a preview in the dialog.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

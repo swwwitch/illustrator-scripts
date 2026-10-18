@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.SmartCalendarMaker
+Name=SmartCalendarMaker
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.4.8
+Release-Date=2026-02-15
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+基準日をもとに、指定した月数ぶんのカレンダー（月曜はじまり）をアートボード中心に作成します。
+セル幅・高さや月間隔をダイアログで調整でき、日本の祝日（2020〜2035年、振替休日・国民の休日を含む）に対応します。
+
+Builds calendars — Monday-first — for a number of months from a reference date, centered on the artboard.
+Cell size and the spacing between months are set in a dialog, and Japanese public holidays from 2020 to 2035, including substitute and citizens' holidays, are covered.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

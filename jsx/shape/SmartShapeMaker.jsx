@@ -4,6 +4,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.SmartShapeMaker
+Name=SmartShapeMaker
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=2.4.8
+Release-Date=2025-05-02
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+1つのダイアログから、正円・多角形・星形・スーパー楕円・ルーローの三角形などのカスタム形状を作成します。
+リアルタイムプレビューで、辺の数・幅・回転・詳細オプションを調整できます。
+
+Creates custom shapes — circle, polygon, star, superellipse, Reuleaux-style — from a single dialog.
+A real-time preview lets you adjust the number of sides, the width, the rotation and the advanced options.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

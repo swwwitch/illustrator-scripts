@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.PathCleanupTool
+Name=PathCleanupTool
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.7.8
+Release-Date=2026-03-01
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択したパス（グループ・複合パスの中も含む）のアンカーポイントとハンドルを整理します。
+削除・変換の内容を選び、アンカー数とハンドル数の増減を確認してから実行できます。
+
+Tidies the anchor points and handles of the selected paths, including those inside groups and compound paths.
+You choose what to remove or convert and can see how the anchor and handle counts will change before running it.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

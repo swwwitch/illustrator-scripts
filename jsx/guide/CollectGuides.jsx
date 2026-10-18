@@ -2,6 +2,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.CollectGuides
+Name=CollectGuides
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.4.2
+Release-Date=2025-08-16
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+複数のレイヤーやサブレイヤーに散在するガイドを、1つのレイヤー（既定は「// guide」）へ集約します。
+非表示・ロックされたレイヤーのガイドも一時解除して対象にし、処理後に元の状態へ戻します。
+
+Collects guides scattered across layers and sublayers into a single layer ("// guide" by default).
+Hidden and locked layers are unlocked temporarily so their guides are included, then restored afterwards.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

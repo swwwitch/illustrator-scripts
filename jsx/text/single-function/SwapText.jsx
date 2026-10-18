@@ -2,6 +2,22 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.SwapText
+Name=SwapText
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.0.2
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択中の2つのテキストオブジェクトの文字列（contents）を入れ替えます。
+
+Swaps the contents of two selected text objects.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

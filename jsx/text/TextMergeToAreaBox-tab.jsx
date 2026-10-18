@@ -2,6 +2,23 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.TextMergeToAreaBox-tab
+Name=TextMergeToAreaBox-tab
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.2.3
+Release-Date=2025-07-18
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+バラバラに分割されたテキストオブジェクトを行単位にまとめ、タブ区切りの1つのエリア内文字に再構成します。
+
+Gathers scattered text objects line by line and rebuilds them as a single tab-separated area text.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

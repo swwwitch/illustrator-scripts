@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.SmartTableMaker
+Name=SmartTableMaker
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.2.10
+Release-Date=2026-01-24
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+2つのオブジェクト（テキスト、パス、グループなど）を選択して実行すると、各オブジェクトの背面に左右2分割の背景を作成します。
+高さ倍率（%）をダイアログで指定でき、閉じる前にプレビューを確認できます。
+
+With two objects selected — text, paths or groups — creates a background behind them, split into a left and a right half.
+The height scale (%) is set in a dialog, with a preview before you commit.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

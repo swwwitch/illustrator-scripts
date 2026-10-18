@@ -3,6 +3,22 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.SetTemplateLayer
+Name=SetTemplateLayer
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.0.9
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+指定したレイヤーをテンプレート化し、レイヤー名に接頭辞を付けます。
+
+Turns a chosen layer into a template layer and prefixes its name.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

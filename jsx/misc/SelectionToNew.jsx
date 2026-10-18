@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.SelectionToNew
+Name=SelectionToNew
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.1.8
+Release-Date=2026-07-29
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択したオブジェクトから、新規レイヤー・新規アートボード・新規ドキュメントを作成します。
+作成対象はラジオボタン（`L` / `A` / `D` キー）で切り替え、元のオブジェクトを残すかどうかも指定できます。
+
+Creates a new layer, a new artboard, or a new document from the selected objects.
+The target is picked with radio buttons (or the L / A / D keys), and you can choose whether the originals stay put.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

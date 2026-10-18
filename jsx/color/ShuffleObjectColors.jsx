@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.ShuffleObjectColors
+Name=ShuffleObjectColors
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.1.7
+Release-Date=2024-06-24
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択オブジェクト（パス、グループ、複合シェイプ）の塗り・線カラーを再配色します。
+RGB／CMYK／グレースケール／特色／グラデーション／パターンに対応します。
+
+Reshuffles the fill and stroke colors of the selected paths, groups and compound shapes.
+RGB, CMYK, grayscale, spot colors, gradients and patterns are all supported.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

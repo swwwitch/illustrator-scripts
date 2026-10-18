@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.HorizontalTextFormatter
+Name=HorizontalTextFormatter
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.1.0
+Release-Date=2026-10-16
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+縦組み用に整えたテキストを横組み用に戻します。縦組みを横組みにし、欧文回転・縦中横を外して、
+全角英数字・読点の桁区切り・中黒の小数点・組文字の単位などを横組みの書き方に書き換えます（VerticalTextFormatter の逆）。
+
+Turns text formatted for vertical setting back into horizontal text: switches the orientation, removes Roman rotation and
+Tate-Chu-Yoko, and rewrites full-width alphanumerics, 、 separators, ・ decimals, unit squares and more (the reverse of VerticalTextFormatter).
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

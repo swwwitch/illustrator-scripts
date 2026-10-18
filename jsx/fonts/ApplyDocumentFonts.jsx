@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.ApplyDocumentFonts
+Name=ApplyDocumentFonts
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.1.11
+Release-Date=2025-02-25
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+ドキュメント内で使用されているフォントを集計し、名前順に一覧表示します（括弧内は使用数）。
+一覧から選んだフォントを選択テキスト（グループ内を含む）へ即座に適用でき、テキストファイルとして書き出すこともできます。
+
+Collects the fonts used in the document and lists them by name with their usage counts.
+A font picked from the list can be applied to the selected text (including text in groups) right away, and the list can be exported as a text file.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

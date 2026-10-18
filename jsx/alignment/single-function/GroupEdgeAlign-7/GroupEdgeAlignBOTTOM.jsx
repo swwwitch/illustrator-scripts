@@ -2,6 +2,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.GroupEdgeAlignBOTTOM
+Name=GroupEdgeAlignBOTTOM
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.0.4
+Release-Date=2025-04-06
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択されているオブジェクト群の端または中心を取得し、下に揃えます。
+揃え先は、アクティブアートボードの端、または条件に合うガイドです。
+
+Takes the edges or the center of the selected objects and aligns them to the bottom edge.
+The target is the edge of the active artboard, or a matching guide.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

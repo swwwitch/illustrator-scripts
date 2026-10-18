@@ -3,6 +3,23 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.TextLineEditor
+Name=TextLineEditor
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.0.10
+Release-Date=2026-03-19
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択したテキストオブジェクトの行を、一覧で並べ替え・編集します。
+
+Reorders and edits the lines of the selected text object from a list.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

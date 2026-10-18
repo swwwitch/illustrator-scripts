@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.SmartClipAndGroup
+Name=SmartClipAndGroup
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.0.15
+Release-Date=2024-06-05
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択オブジェクトを重なりや距離、縦の列・横の行でまとまりに分け、まとまりごとにグループ化するか、クリッピングマスクを作成します（配置画像を1つずつクリップすることもできます）。
+［OK］の前に、できるグループの数と範囲を件数表示とプレビューの枠で確認できます。
+
+Splits the selection into clusters by overlap, distance, column or row, and groups or clips each cluster (placed images can also be clipped one by one).
+Before you click OK, a count and preview frames show the groups to be created.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

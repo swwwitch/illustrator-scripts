@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.FillStrokeSwitcher
+Name=FillStrokeSwitcher
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.1.8
+Release-Date=2026-03-25
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択したオブジェクトの塗りと線を入れ替えたり、一方をもう一方へ移したりします。
+塗り↔線、塗り→線、線→塗りの3モードに対応します。
+
+Swaps the fill and stroke of the selected objects, or moves one into the other.
+Three modes are available: fill ↔ stroke, fill → stroke, and stroke → fill.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

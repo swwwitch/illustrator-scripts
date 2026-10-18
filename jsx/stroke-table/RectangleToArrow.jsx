@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.RectangleToArrow
+Name=RectangleToArrow
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.7.1
+Release-Date=2026-10-10
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択中の長方形や罫線（回転・斜めも可）を、その範囲いっぱいの矢印に置き換えます。
+種類は塗り・ホームベース・線（線端なし／丸型線端）の4つで、太さ・高さ・角度をプレビューで確認しながら調整できます。
+
+Turns each selected rectangle or rule (rotated or slanted ones too) into an arrow that fills its bounds.
+Choose Fill, Pentagon, or Stroke (butt or round cap), and adjust the thickness, height and angle with a live preview.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.AiFileFinder
+Name=AiFileFinder
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.2.1
+Release-Date=2026-08-27
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+あらかじめ登録した複数のフォルダーから .ai/.svg ファイルをキーワードで絞り込み、選んだファイルをその場で開くファインダーです。ファイルは複数選んでまとめて開けます。
+フォルダーとファイル名を左右のリストに分けて表示し、一度作った索引をキャッシュして次回以降の起動を早くします。
+
+A finder that filters .ai/.svg files across several registered folders by keyword and opens the selected files on the spot, several at a time.
+Folders and file names are shown in two side-by-side lists, and the index is cached so later launches start quickly.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

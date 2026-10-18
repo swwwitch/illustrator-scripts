@@ -3,6 +3,24 @@
 app.preferences.setBooleanPreference("ShowExternalJSXWarning", false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.AiAlignToArtboardOld
+Name=AiAlignToArtboardOld
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.0.1
+Release-Date=2026-08-23
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択したオブジェクトを、アートボードを対象に整列する常駐パレットです。アイコンのクリックで即時に整列し、アートボードの端から空けるマージンも指定できます。
+
+A persistent palette that aligns the selection to the artboard.
+Clicking an icon aligns immediately, with an optional margin kept from the artboard edges.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

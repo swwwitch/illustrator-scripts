@@ -3,6 +3,24 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.SmartIncrementText
+Name=SmartIncrementText
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=2.0.8
+Release-Date=2026-02-20
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択したテキストフレーム内の数字・英字・日付・時刻を検出し、値を増分しながら下方向へ複製します。
+
+Finds the digits, letters, dates or times in the selected text frame and duplicates it downwards,
+incrementing the value each time.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

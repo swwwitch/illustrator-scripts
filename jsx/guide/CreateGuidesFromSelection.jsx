@@ -3,6 +3,23 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.CreateGuidesFromSelection
+Name=CreateGuidesFromSelection
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.10.7
+Release-Date=2025-07-11
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択オブジェクト・アートボード・カンバスを基準にガイドを作成します。
+
+Creates guides based on the selection, the artboard, or the canvas.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

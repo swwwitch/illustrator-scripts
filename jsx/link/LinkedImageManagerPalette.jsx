@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.LinkedImageManagerPalette
+Name=LinkedImageManagerPalette
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.6.6
+Release-Date=2026-04-24
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+ドキュメント内の配置画像（リンク画像・埋め込み画像）を解析して一覧表示し、ソート・絞り込み・再リンク・リネーム・削除・埋め込み／解除までを一元化する常駐パレットです。
+一覧とカンバスの選択は相互に連動します。
+
+A persistent palette that lists every placed image in the document — linked and embedded — and centralizes sorting, filtering, relinking, renaming, deleting, and embedding or unembedding.
+The list and the canvas selection stay in sync with each other.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

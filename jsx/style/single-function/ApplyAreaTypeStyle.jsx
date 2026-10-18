@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.ApplyAreaTypeStyle
+Name=ApplyAreaTypeStyle
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.6.11
+Release-Date=2025-08-14
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+ダイアログのラジオボタンでグラフィックスタイルを選び、選択中のオブジェクトへ適用します。
+選んだスタイルがドキュメントに無ければ、あらかじめ定義したAIファイルから取り込みます。
+
+Picks a graphic style with radio buttons in a dialog and applies it to the selection.
+If the chosen style is not in the document, it is imported from a predefined AI file.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

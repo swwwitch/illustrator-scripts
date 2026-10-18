@@ -2,6 +2,22 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.AutoKerningWabunSimple
+Name=AutoKerningWabunSimple
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.0.1
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択したテキストの自動カーニング方式を「オプティカル」に設定します。
+
+Sets the auto-kerning method of the selected text to Optical.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

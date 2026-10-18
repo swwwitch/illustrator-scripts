@@ -2,6 +2,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.CopyGuidesAsPaths
+Name=CopyGuidesAsPaths
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.0.1
+Release-Date=2026-09-07
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+アクティブアートボードのガイドを線付きのパスに変換してクリップボードへ送ります。
+元のガイドは残し、同じ座標に重なった余分なガイドだけを削除します。
+
+Converts the guides on the active artboard into stroked paths and sends them to the clipboard.
+The original guides are kept, while duplicated guides stacked at the same position are removed.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

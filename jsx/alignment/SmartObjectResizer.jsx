@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.SmartObjectResizer
+Name=SmartObjectResizer
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.5.7
+Release-Date=2025-04-05
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択したオブジェクトを、最大／最小／キーオブジェクト／指定サイズ／基準辺／面積／アートボード／裁ち落としのいずれかの基準でリサイズし、あわせて横位置・縦位置の整列も行えます。
+縦横比保持と片辺のみを切り替えでき、操作はリアルタイムにプレビューされます。
+
+Resizes the selected objects to the largest, the smallest, the key object, a given size, a reference edge, an area, the artboard, or the bleed, and can align them horizontally and vertically at the same time.
+You can switch between keeping the aspect ratio and constraining a single edge, with a real-time preview.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

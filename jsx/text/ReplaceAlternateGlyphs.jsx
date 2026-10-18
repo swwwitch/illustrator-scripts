@@ -3,6 +3,23 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.ReplaceAlternateGlyphs
+Name=ReplaceAlternateGlyphs
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.2.0
+Release-Date=2026-10-17
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択している文字の字形（JIS78・JIS90・旧字体など）を切り換えたり、異体字に置き換えたりします。
+
+Switches the selected characters to another glyph form (JIS78, JIS90, Traditional, etc.) or replaces them with a variant character.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.tabularize
+Name=tabularize
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.3.7
+Release-Date=2026-02-11
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択オブジェクトを「表」として解釈し、表組み用の塗りと線（横ケイ／縦ケイ）を生成します。
+計算のためにテキストを複製・アウトライン化しますが、元のテキストは編集可能なまま残ります。
+
+Interprets the selection as a table grid and generates fills and rules, both horizontal and vertical.
+Text is duplicated and outlined for measurement only, so the original stays editable.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

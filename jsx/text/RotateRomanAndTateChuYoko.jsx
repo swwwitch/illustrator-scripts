@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.RotateRomanAndTateChuYoko
+Name=RotateRomanAndTateChuYoko
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.0.0
+Release-Date=2026-10-15
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択したテキスト全体に文字パネルの［縦組み中の欧文回転］を適用し、2桁・3桁の半角数字には［縦中横］を適用します。
+DOM では設定できないため、一時アクション（ダイナミックアクション）で実行します。
+
+Applies "Rotate Standard Roman Characters in Vertical Text" to all of the selected text, and Tate-Chu-Yoko to 2- and 3-digit numbers.
+The DOM cannot set them, so they run through a temporary (dynamic) action.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

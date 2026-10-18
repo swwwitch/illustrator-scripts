@@ -3,6 +3,23 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.PreferenceManager-print-pt
+Name=PreferenceManager-print-pt
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.1.8
+Release-Date=2025-08-06
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+単位と数値インクリメントを、ダイアログから指定・変更します。
+
+Sets the units and the numeric increment from a dialog.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

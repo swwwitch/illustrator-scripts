@@ -2,6 +2,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.TransposeGrid
+Name=TransposeGrid
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.1.3
+Release-Date=2026-01-26
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択した複数オブジェクトを行・列として自動判定し、元の配置ピッチを推定してグリッドを転置（行⇄列）します。
+歯抜けのある配置や、1行だけ／1列だけの転置にも対応します。
+
+Detects the rows and columns of the selected objects, estimates the original pitch, and transposes the grid so rows become columns and vice versa.
+Gaps in the grid, and single-row or single-column layouts, are handled too.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

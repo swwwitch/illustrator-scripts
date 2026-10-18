@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.TypefaceSampler
+Name=TypefaceSampler
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.4.11
+Release-Date=2025-04-20
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+Illustratorで利用できるフォントをウェイト・スタイル順に並べ、ファミリー単位でアートボードへ整列描画します。
+キーワード、ウェイト（5段階）、種類で対象を絞り込み、フォント名・PostScript名・サンプル・カスタムテキストから出力内容を選べます。
+
+Lays out the fonts available in Illustrator on the artboard, grouped by family and ordered by weight and style.
+Narrow the list by keyword, weight (5 ranks) or style category, and output the font name, the PostScript name, a sample string, or your own custom text.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

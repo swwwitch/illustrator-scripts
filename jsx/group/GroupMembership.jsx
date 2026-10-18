@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.GroupMembership
+Name=GroupMembership
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.0.10
+Release-Date=2026-09-22
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択したオブジェクトを「既存のグループに入れる」「グループから出す」「1つずつグループにする」のどれで処理するかを、ダイアログで選んで実行します。
+初期値は選択の状態から自動で決まります。
+
+Adds the selection to an existing group, releases it from its groups, or wraps each object in its own group, as chosen in a dialog.
+The default choice is picked from the current selection.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

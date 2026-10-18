@@ -3,6 +3,24 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.DocumentFontListSelectorPalette
+Name=DocumentFontListSelectorPalette
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.1.10
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+ドキュメント内のテキストで使われている書式の組み合わせ（フォント・サイズ・行送り・文字ツメ・トラッキング・自動カーニング・プロポーショナルメトリクス）を収集し、重複を除いた一覧をパレットに表示します。
+同じフォントでも設定が異なれば、別の候補としてリストアップします。
+
+Collects the formatting combinations used by the text in the document — font, size, leading, tsume, tracking, auto-kerning and proportional metrics — and lists them, deduplicated, in a palette.
+The same font appears as separate entries when these settings differ.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

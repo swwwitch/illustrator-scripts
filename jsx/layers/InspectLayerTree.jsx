@@ -2,6 +2,22 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.InspectLayerTree
+Name=InspectLayerTree
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.0.2
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+ドキュメント内のレイヤーとサブレイヤーを階層順にたどり、名前・ロック状態・表示状態をアラートで一覧表示します。
+
+Walks the document's layers and sublayers in hierarchy order and lists each name with its locked and visible state in an alert.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

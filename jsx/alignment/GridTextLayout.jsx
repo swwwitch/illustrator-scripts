@@ -3,6 +3,23 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.GridTextLayout
+Name=GridTextLayout
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.1.10
+Release-Date=2025-08-04
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+テキストをグリッド状に整列して配置します。
+
+Arranges text objects into a grid layout.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

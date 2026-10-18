@@ -3,6 +3,23 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.SmartBaselineShifter
+Name=SmartBaselineShifter
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=2.3.7
+Release-Date=2025-07-04
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択したテキストのベースラインシフトを調整します。
+
+Adjusts the baseline shift of the selected text.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

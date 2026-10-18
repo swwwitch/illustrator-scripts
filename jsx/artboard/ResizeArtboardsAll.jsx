@@ -3,6 +3,23 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 #targetengine "DialogEngine"
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.ResizeArtboardsAll
+Name=ResizeArtboardsAll
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.1.9
+Release-Date=2025-08-29
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+作業アートボード、すべてのアートボード、または番号で指定したアートボードを、プレビューしながら指定の幅・高さに変更します。
+
+Resizes the active artboard, every artboard, or the artboards you list by number to a given width and height, with a live preview.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

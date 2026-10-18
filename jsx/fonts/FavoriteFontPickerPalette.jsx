@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.FavoriteFontPickerPalette
+Name=FavoriteFontPickerPalette
+Author=KOUJI & 相棒（Gem）
+Target-App=Illustrator
+Version=1.2.5
+Release-Date=2026-10-01
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+よく使うフォントを分類と文字セットで絞り込み、ファミリーごとにウェイト順で並べた一覧から、クリックしたフォントを選択中のテキストに適用する常駐パレットです。
+同じ書体の文字セット違い（Pr6N・Pr5 など）はチェックした文字セットの中で優先順位の高いものだけを残し、中国語・韓国語など日本語以外のフォントは外します。
+
+A persistent palette that lists the fonts you use often, narrowed by category and character set and ordered by weight within each family, and applies the one you click to the selected text.
+Of the same typeface in several character sets (Pr6N, Pr5, etc.), only the highest-priority checked one is kept, and Chinese, Korean and other non-Japanese fonts are left out.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

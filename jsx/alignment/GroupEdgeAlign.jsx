@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.GroupEdgeAlign
+Name=GroupEdgeAlign
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.0.9
+Release-Date=2025-04-06
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択オブジェクトの端または中心を、アクティブアートボードの端・中央、または条件に合うガイドへ整列します。
+整列先は3×3の9点から選べるほか、矢印キーでの1段階ずつの送りやファイル名からの自動判定にも対応します。
+
+Aligns the edges or the center of the selected objects to the edge or the center of the active artboard, or to a matching guide.
+The target is picked from a 3x3 grid of nine points, stepped one target at a time with the arrow keys, or derived from the filename.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

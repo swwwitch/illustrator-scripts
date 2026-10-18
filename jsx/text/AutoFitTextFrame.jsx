@@ -2,6 +2,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.AutoFitTextFrame
+Name=AutoFitTextFrame
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.0.2
+Release-Date=2026-09-26
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択したエリア内文字に自動サイズ調整を適用します（拡張のみ）。
+FitAreaText の［自動サイズ調整］だけを、ダイアログなしで実行する版です。
+
+Applies Auto Size to the selected area type (expand only).
+A dialog-free version of the Auto Size option in FitAreaText.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

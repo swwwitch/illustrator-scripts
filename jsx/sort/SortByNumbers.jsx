@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.SortByNumbers
+Name=SortByNumbers
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.2.8
+Release-Date=2025-06-15
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+グループ内のテキストから数値を抽出し、その数値でグループを並び替えて縦方向に整列します。
+フォント情報によるグループ分けと、昇順・降順・ランダム順に対応します。
+
+Extracts numbers from the text inside groups, sorts the groups by those numbers, and aligns them vertically.
+Groups can be split by font, and the order can be ascending, descending or random.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.MoveParagraphUp
+Name=MoveParagraphUp
+Author=sky-chaser-high
+Target-App=Illustrator
+Version=1.1.0
+Release-Date=2026-08-27
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+カーソルのある段落を、ひとつ上の段落と入れ替えます（変数 MOVE_BY_PARAGRAPH を 0 にすると行単位）。
+sky-chaser-high 氏の moveLineUp.jsx を、段落単位でも動かせるように改変したものです。
+
+Swaps the paragraph containing the cursor with the paragraph above it (set MOVE_BY_PARAGRAPH to 0 to move lines instead).
+A variant of moveLineUp.jsx by sky-chaser-high that can also move whole paragraphs.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

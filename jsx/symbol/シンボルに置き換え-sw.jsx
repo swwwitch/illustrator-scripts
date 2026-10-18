@@ -3,6 +3,23 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.ReplaceWithSymbol-sw
+Name=シンボルに置き換え-sw
+Author=Toshiyuki Takahashi
+Target-App=Illustrator
+Version=0.6.2
+Release-Date=2015-12-09
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+ドキュメントに登録されているシンボルを一覧から選び、選択したオブジェクトをそのシンボルインスタンスへ置き換えます。
+
+Picks a symbol from the ones registered in the document and replaces the selected objects with instances of it.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

@@ -2,6 +2,22 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.ExportActions
+Name=ExportActions
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.0.3
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+Illustratorに登録されているアクションセットを、デスクトップへ書き出します。
+
+Exports the action sets registered in Illustrator to the desktop.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

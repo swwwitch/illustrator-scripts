@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.AutoKerningPalette
+Name=AutoKerningPalette
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.1.7
+Release-Date=2026-06-22
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+自動カーニング（和文等幅／0／メトリクス／オプティカル）とプロポーショナルメトリクスだけをまとめた常駐パレットです。
+ラジオやチェックボックスを操作した時点で、選択中のテキストへ即時適用します。
+
+A persistent palette holding just the auto-kerning methods — Metrics (Roman Only), 0, Metrics, Optical — and proportional metrics.
+Every radio button and checkbox applies to the current text selection the moment you touch it.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

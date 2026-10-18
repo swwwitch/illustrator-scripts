@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.export-Event
+Name=export-Event
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.2.1
+Release-Date=2025-04-22
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+ダイアログで選んだアートボードを、アートボード名ごとのルールでPNG書き出しします。
+背景の透明・白、倍率、書き出し対象外の判定は `buildExportJobs()` で定義します。
+
+Exports the artboards chosen in a dialog to PNG, using rules keyed on the artboard name.
+Transparent or white background, scale, and exclusions are all defined in `buildExportJobs()`.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

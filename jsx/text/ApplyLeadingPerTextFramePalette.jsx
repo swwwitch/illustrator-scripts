@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.ApplyLeadingPerTextFramePalette
+Name=ApplyLeadingPerTextFramePalette
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.2.4
+Release-Date=2026-07-08
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択された各テキストフレームの各行について、行頭数文字のフォントサイズを基準に行送りを再計算して適用します。
+適用する行送りの割合はダイアログで指定できます。
+
+Recalculates the leading of each line in the selected text frames from the font size of the first few characters, and applies it.
+The leading percentage is chosen in a dialog.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

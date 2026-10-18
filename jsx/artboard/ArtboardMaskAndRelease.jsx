@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.ArtboardMaskAndRelease
+Name=ArtboardMaskAndRelease
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.2.11
+Release-Date=2025-07-10
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+すべてのアートボードに同じサイズの矩形を描画し、アートボード内のオブジェクトをマスクします。
+クリップグループ名はアートボード名に設定します。
+
+Draws a rectangle the size of each artboard and uses it to mask the objects on that artboard.
+Each clipping group is named after its artboard.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

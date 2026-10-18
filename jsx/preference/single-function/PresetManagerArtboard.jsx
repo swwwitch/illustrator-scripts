@@ -3,6 +3,23 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.PresetManagerArtboard
+Name=PresetManagerArtboard
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.0.8
+Release-Date=2026-03-23
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+アートボード名表示とアートボード枠線の表示設定を、ダイアログでまとめて切り替えます。
+
+Switches the artboard-name and artboard-border display preferences from a dialog.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

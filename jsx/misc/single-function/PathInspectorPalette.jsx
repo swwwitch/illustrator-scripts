@@ -3,6 +3,23 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.PathInspectorPalette
+Name=PathInspectorPalette
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.0.7
+Release-Date=2026-07-31
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択中またはドキュメント全体のパス統計を集計し、常駐パレットで表示します。
+
+Counts path statistics for the selection, or for the whole document, and shows them in a persistent palette.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

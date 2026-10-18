@@ -3,6 +3,22 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.ParagraphStyles
+Name=段落スタイル
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.0.8
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択したテキストの体裁を、段落スタイルとして登録します。既存のスタイルを選んで上書きすることもできます。
+
+Registers the formatting of the selected text as a paragraph style, or overwrites an existing style with it.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

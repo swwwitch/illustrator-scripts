@@ -2,6 +2,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.InfiniteArtboard
+Name=InfiniteArtboard
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.0.0
+Release-Date=2026-10-09
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+トリミング表示・アートボード・ガイド・ビデオ定規を隠し、カンバスカラーをホワイトにして、アートボードの境目が見えない「無限のカンバス」の表示にします。
+すでに隠れている項目はそのままにします（メニューの反転と違い、表示に戻ってしまうことはありません）。
+
+Hides Trim View, artboards, guides and the video ruler, and sets the canvas color to white, so the canvas looks like one endless sheet.
+Items already hidden stay hidden (unlike a plain menu toggle, nothing is turned back on).
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

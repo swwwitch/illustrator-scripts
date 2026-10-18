@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.SymbolizeEach
+Name=SymbolizeEach
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.0.12
+Release-Date=2026-05-10
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択したオブジェクトを1つずつ、またはまとめてシンボルとして登録し、元のオブジェクトをシンボルインスタンスに置き換えます。
+名前はテキスト内容・レイヤー名・メモ・連番から自動で付けるか、Illustrator 標準の［新規シンボル］ダイアログで確認しながら登録できます。
+
+Registers the selected objects as symbols, one by one or as a single symbol, and replaces the originals with symbol instances.
+Names are assigned automatically from the text contents, layer name, note, or a sequence number, or confirmed in Illustrator's native New Symbol dialog.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

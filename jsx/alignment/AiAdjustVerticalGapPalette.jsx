@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.AiAdjustVerticalGapPalette
+Name=AiAdjustVerticalGapPalette
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.4.7
+Release-Date=2026-06-28
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択した2つのオブジェクトの上下の間隔を、指定した値にそろえる常駐パレットです。
+ライブプレビューに対応し、設定を変えるたびに結果を確認できます。
+
+A persistent palette that sets the vertical gap between two selected objects to a value you specify.
+A live preview shows the result as you change the settings.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

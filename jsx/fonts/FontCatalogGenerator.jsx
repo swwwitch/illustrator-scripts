@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference("ShowExternalJSXWarning", false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.FontCatalogGenerator
+Name=FontCatalogGenerator
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.7.12
+Release-Date=2026-01-27
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+システムにインストールされているフォントを一覧化し、アートボード上にフォント見本を自動生成します。
+表示する文字列とフォントサイズはダイアログで指定できます。
+
+Lists the fonts installed on the system and generates a specimen sheet for them on the artboard.
+The sample string and the font size are set in a dialog.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

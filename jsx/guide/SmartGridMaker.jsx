@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.SmartGridMaker
+Name=SmartGridMaker
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.7.8
+Release-Date=2026-02-24
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+長方形の選択、またはアートボードを基準に、囲み罫とグリッドを一括生成します。
+外枠・タイトルエリア・内側エリアの分割や線種、裁ち落とし対応のフレームを、プレビューを見ながら1つのダイアログで設定できます。
+
+Builds a border and a grid from a selected rectangle, or from the artboard.
+The outer frame, the title area, the inner-area divisions, the line types, and a bleed-aware frame are all set in one dialog with a live preview.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

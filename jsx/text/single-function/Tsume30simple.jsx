@@ -2,6 +2,22 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.Tsume30simple
+Name=Tsume30simple
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.0.1
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択したテキストの文字ツメを30%に設定します。
+
+Sets the tsume of the selected text to 30%.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

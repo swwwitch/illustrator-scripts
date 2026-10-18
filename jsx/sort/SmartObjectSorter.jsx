@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.SmartObjectSorter
+Name=SmartObjectSorter
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=0.1.7
+Release-Date=2024-06-03
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択したオブジェクトを高さ・幅・不透明度・カラーなどの基準で並び替え、横または縦に整列・分布させます。
+整列方向、基準、順序、間隔、幅・高さの統一を、プレビューを見ながら指定できます。
+
+Sorts the selected objects by height, width, opacity or color and then aligns and distributes them horizontally or vertically.
+Direction, sort key, order, spacing and size unification are all set while watching a preview.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

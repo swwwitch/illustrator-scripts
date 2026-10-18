@@ -2,6 +2,24 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.ZoomToSelection
+Name=ZoomToSelection
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=2.1.3
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択オブジェクトに合わせて、アクティブビューをズーム＆センタリングします。
+複数選択時は全体の外接矩形にフィットし、選択がないときは100%表示に戻します。
+
+Zooms and centers the active view on the selected objects.
+With several objects selected it fits their overall bounding box, and with nothing selected it returns to 100%.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

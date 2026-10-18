@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.BlendSp
+Name=BlendSp
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.3.8
+Release-Date=2026-01-01
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択内容に応じて、ブレンドの作成・設定・調整を1つのダイアログで行います。
+ステップ数と方向はライブプレビューで確認でき、解除／拡張／ブレンド軸の置き換えは［OK］で確定したときだけ実行します。
+
+Creates, configures and adjusts a blend from a single dialog, depending on what is selected.
+Steps and orientation are shown as a live preview, while Release, Expand and Replace Spine run only when the dialog is confirmed.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

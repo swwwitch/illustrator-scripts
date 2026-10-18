@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.PreferenceManager-unit
+Name=PreferenceManager-unit
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.3.8
+Release-Date=2025-08-04
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+Illustratorの各種環境設定をダイアログから変更します。
+単位、文字設定、変形／整列設定などを1つのパネルで調整できます。
+
+Changes a range of Illustrator preferences from a dialog.
+Units, text settings and transform/align settings are all adjusted in a single panel.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

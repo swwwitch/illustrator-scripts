@@ -2,6 +2,22 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.GuidesToTemplate
+Name=ガイドをテンプレートに
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.0.1
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+「Guides Preview for Trim View」レイヤーを作成し、そのレイヤーをテンプレート化します。
+
+Creates the "Guides Preview for Trim View" layer and turns it into a template layer.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

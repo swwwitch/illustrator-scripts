@@ -3,6 +3,24 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.ColorGenerator
+Name=ColorGenerator
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.1.7
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+カラーパレットを生成してアートボードに描画し、スウォッチグループにも登録します。
+Tailwind / Lightness / Saturation / Complementary / LCH のアルゴリズムに対応します。
+
+Generates color palettes, draws them on the artboard and registers them as a swatch group.
+Tailwind, Lightness, Saturation, Complementary and LCH algorithms are supported.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

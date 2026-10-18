@@ -2,6 +2,23 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.ClipWithSquare
+Name=ClipWithSquare
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.1.1
+Release-Date=2023-11-26
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択したオブジェクトを、正方形のクリッピングマスクで切り抜きます。
+
+Clips the selected objects with a square clipping mask.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

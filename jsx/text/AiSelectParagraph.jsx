@@ -2,6 +2,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.AiSelectParagraph
+Name=AiSelectParagraph
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.0.3
+Release-Date=2026-07-16
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+テキストにカーソルを置いた状態で実行すると、その段落全体を選択します。
+同じ段落内で文字列を選択している場合も、その段落全体に広げます。
+
+Selects the whole paragraph the text cursor is sitting in.
+A selection already inside a paragraph is expanded to cover the whole paragraph.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

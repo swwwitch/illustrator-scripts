@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.SmartArtboardRenamer
+Name=SmartArtboardRenamer
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.5.11
+Release-Date=2025-05-09
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+接頭辞・接尾辞と参照テキスト（最前面のテキスト、指定レイヤーのテキスト、元のアートボード名、任意の文字列）を組み合わせて、アートボード名を一括で変更します。
+ダイアログでプレビューを確認しながら、アートボードの並び替えや1件ずつの手動リネームもできます。
+
+Renames the artboards in bulk from a prefix and suffix plus a reference text — the frontmost text, text on a chosen layer, the original name, or a string you type.
+The dialog offers a preview, along with reordering and renaming artboards one at a time.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

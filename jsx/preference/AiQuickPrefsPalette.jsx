@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.AiQuickPrefsPalette
+Name=AiQuickPrefsPalette
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=2.4.2
+Release-Date=2025-08-04
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+キー入力・整列・変形・ペースト・描画まわりの、よく使う環境設定を常駐パレットで切り替えます。
+操作したその場で反映されるため、環境設定ダイアログを開く手間がありません。
+
+A persistent palette for the preferences you change most often: keyboard increment, align, transform, paste and drawing.
+Every change applies the moment you make it, so there is no need to open the Preferences dialog.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

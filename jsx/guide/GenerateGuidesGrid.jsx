@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.GenerateGuidesGrid
+Name=GenerateGuidesGrid
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.8.9
+Release-Date=2025-04-24
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+アートボードまたは選択オブジェクトの外接矩形を、指定した行数・列数に分割してグリッド用のガイドを生成します。
+アートボードのエッジ、セルの長方形化（角丸・中心点の表示）、現在の設定のプリセット書き出しにも対応します。
+
+Divides the artboard, or the bounding box of the selection, into the specified rows and columns and generates grid guides.
+It can also draw the artboard edges, draw the cells as rectangles (with round corners and center points), and export the current settings as a preset.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

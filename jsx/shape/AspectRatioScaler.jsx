@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.AspectRatioScaler
+Name=AspectRatioScaler
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.8.9
+Release-Date=2025-07-20
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択したオブジェクトを、指定した縦横比に合わせてサイズ変更します。
+幅か高さを固定してもう一方を比率・長さ・％で決めるほか、幅・高さを別々に指定することもできます。
+
+Resizes the selected objects to a chosen aspect ratio.
+Fix the width or height and set the other side by ratio, length or percentage, or set width and height separately.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

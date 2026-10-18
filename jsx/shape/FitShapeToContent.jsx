@@ -3,6 +3,25 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 #targetengine "FitShapeToContentSession"
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.FitShapeToContent
+Name=FitShapeToContent
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=2.1.10
+Release-Date=2026-03-25
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+テキストやグループに合わせて、背面の座布団形状を手早く作成・調整します。
+図形も一緒に選ぶ（またはテキストと図形のグループを選ぶ）と、その図形を座布団として使います。
+
+Quickly creates and adjusts a backing shape that fits a text frame or a group.
+Add a shape to the selection, or select a text+shape group, to reuse that shape instead of creating a rectangle.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

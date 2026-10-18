@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.EditCornerRadius
+Name=EditCornerRadius
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.5.8
+Release-Date=2026-09-26
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択・現在のアートボード・ドキュメント全体のいずれかにある角丸長方形の角の半径を、ダイアログで変更します。
+吹き出し形状と、グループ・複合パス・複合シェイプの中の長方形も対象です。
+
+Edits the corner radius of rounded rectangles in the selection, on the current artboard, or in the entire document, using a dialog.
+Callout shapes and rectangles inside groups, compound paths and compound shapes are included.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

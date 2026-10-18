@@ -3,6 +3,24 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.LEFeather
+Name=LEFeather
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.1.9
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択オブジェクトに［効果］＞［スタイライズ］＞［ぼかし］のライブエフェクトを適用します。
+半径は現在の定規単位で入力し、内部で pt に換算します。
+
+Applies the Effect > Stylize > Feather live effect to the current selection.
+The radius is entered in the current ruler unit and converted to points internally.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

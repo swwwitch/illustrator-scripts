@@ -3,6 +3,24 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.AiCreateArtboardGuides
+Name=AiCreateArtboardGuides
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.2.8
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+アートボードを基準に、ルーラーガイドの変換・中心ガイド・エッジガイドをダイアログでまとめて作成します。
+作成したガイドは「_guide」レイヤーに集約し、ライブプレビューで結果を確認しながら設定できます。
+
+Creates artboard-based guides — converted ruler guides, center guides, and edge guides — from a single dialog.
+The generated guides are collected into a "_guide" layer, with a live preview of the result.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

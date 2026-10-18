@@ -2,6 +2,22 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.ImgFitMask
+Name=ImgFitMask
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.0.3
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+1つの図形と1つの画像を選択して実行すると、図形の大きさに合わせて画像を拡大・縮小してからクリッピングマスクを作成します。
+
+With one shape and one image selected, scales the image to the shape and then creates a clipping mask.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

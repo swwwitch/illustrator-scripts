@@ -3,6 +3,24 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.titlemaker
+Name=titlemaker
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.1.7
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択中のテキストフレームを、指定した文字（、。〜など）の直後で改行します。
+改行の対象にする文字はチェックボックスで選べます。
+
+Breaks the selected text frame onto a new line right after the characters you choose, such as 、 。 or 〜.
+Which characters trigger a break is set with checkboxes.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

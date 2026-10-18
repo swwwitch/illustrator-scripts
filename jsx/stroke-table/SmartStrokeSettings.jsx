@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.SmartStrokeSettings
+Name=SmartStrokeSettings
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.3.1
+Release-Date=2026-10-03
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択したパスに、よく使う矢印と線の設定（線幅・線端・角の形状・カラー・破線・白フチ）をまとめて適用します。
+矢印はDOMから操作できないため、一時アクションを生成して実行します。
+
+Applies a favorite arrowhead together with the stroke settings — weight, cap, corner, color, dashes and a white outline — to the selected paths.
+Arrowheads cannot be reached from the DOM, so a temporary action is generated and played instead.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

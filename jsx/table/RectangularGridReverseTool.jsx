@@ -3,6 +3,24 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.RectangularGridReverseTool
+Name=RectangularGridReverseTool
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.3.7
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択した水平線・垂直線を解析し、長方形グリッドとして再構成します。
+不揃いな罫線や、結合セルを含むレイアウトを整理し、整った格子構造に変換します。
+
+Analyzes the selected horizontal and vertical lines and reconstructs them into a rectangular grid.
+Uneven rules and layouts containing merged cells are tidied into a regular lattice.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

@@ -2,6 +2,24 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.AutoKerning-Optical30
+Name=AutoKerning-Optical30
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.0
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択したテキストの自動カーニング方式を「オプティカル」に設定します。
+プロポーショナルメトリクスはOFF、文字ツメは30%にします。
+
+Sets the auto-kerning method of the selected text to Optical.
+Proportional metrics are turned off and tsume is set to 30%.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

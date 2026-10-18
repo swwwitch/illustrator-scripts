@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.SwapTextSpecial
+Name=SwapTextSpecial
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.1.1
+Release-Date=2026-06-10
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択中の2つのテキストオブジェクトの内容を入れ替えます。
+入れ替える対象（文字列／スタイル／座標）はダイアログで選べます。
+
+Swaps the contents of two selected text objects.
+A dialog picks what is swapped: the contents, the style, or the position.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

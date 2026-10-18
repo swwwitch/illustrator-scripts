@@ -2,6 +2,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.export200
+Name=export200
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.1.1
+Release-Date=2025-04-22
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+アクティブなアートボードを、解像度200%・背景白のPNG24として、ドキュメントと同じフォルダーへ書き出します。
+書き出し中は「Guides Preview for Trim View」レイヤーを一時的に非表示にします。
+
+Exports the active artboard as a PNG24 at 200% scale on a white background, into the same folder as the document.
+The "Guides Preview for Trim View" layer is hidden while the export runs.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

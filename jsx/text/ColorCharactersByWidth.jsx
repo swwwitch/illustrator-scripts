@@ -3,6 +3,27 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.ColorCharactersByWidth
+Name=ColorCharactersByWidth
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.4.0
+Release-Date=2026-10-16
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択したテキストのうち、全角の英数字と「！？」を赤、半角の英数字と「!?」を青、等幅字形の文字を緑に塗ります。ほかの文字はベースの色（黒）にします。
+半角・全角のスペースは塗れないので、専用のレイヤーに色付きの長方形を描きます。
+色はダイアログボックスの色見本をクリックして、カラーピッカーで変えられます。
+
+Colors full-width alphanumerics and "！？" red, half-width alphanumerics and "!?" blue, and characters set to fixed-width glyphs green in the selected text. All other characters get the base color (black).
+Half-width and full-width spaces cannot be colored, so colored rectangles are drawn on a dedicated layer.
+Click a swatch in the dialog to change the color with the color picker.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

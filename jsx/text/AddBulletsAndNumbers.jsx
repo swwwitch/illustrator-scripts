@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.AddBulletsAndNumbers
+Name=AddBulletsAndNumbers
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.4.8
+Release-Date=2026-05-30
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択したテキストフレームの各行頭に、箇条書き記号または連番を付与します。
+ダイアログを開くと現在の行頭マーカーから設定を推定し、プレビューを見ながら「現状の続き」として編集できます。
+
+Adds a bullet or a sequence number to the start of each line in the selected text frames.
+The dialog infers its settings from the markers already present, so you can carry on from the current state while watching a preview.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

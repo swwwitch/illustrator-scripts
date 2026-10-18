@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.SmartBatchImporter
+Name=SmartBatchImporter
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.5.3
+Release-Date=2025-05-29
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+開いているドキュメントやフォルダー内の Illustrator ファイル（.ai / .svg / .eps）をまとめて読み込み、1つのドキュメントに、全体が正方形に近いグリッドで並べます。
+［アートボード単位］で読み込むと、元のアートボードの大きさと内容の位置を保ったアートボードを作ります。
+
+Imports open documents or Illustrator files (.ai / .svg / .eps) from a folder into one document, arranged in a grid that comes out close to square.
+With Import per artboard, each source artboard becomes an artboard of the same size with its content in the same position.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

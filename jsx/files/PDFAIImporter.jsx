@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.PDFAIImporter
+Name=PDFAIImporter
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.3.8
+Release-Date=2026-04-13
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+PDF/AI ファイルを指定したページ範囲で読み込み、現在のドキュメントまたは新規ドキュメント上に配置します。
+各ページを個別のアートボードとして並べるか、アートボードを追加せずオブジェクトとして配置するかを選べます。横長の見開きページは左右に分割できます。
+
+Imports a PDF/AI file over a given page range and places the pages in the current or a new document.
+The pages can be laid out as one artboard each, or placed as objects without adding artboards. Landscape spreads can be split left and right.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

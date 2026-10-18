@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.Group2Artboards
+Name=Group2Artboards
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.4.10
+Release-Date=2025-07-03
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択したグループオブジェクトの境界に指定したマージンを加え、その範囲をアートボードとして追加します。
+複数のグループ選択に対応し、名前の連番付与やファイル名参照、既存アートボードの削除オプションも備えます。
+
+Adds an artboard covering the bounds of each selected group, plus a margin you specify.
+Several groups can be processed at once, with options for sequential naming, using the file name, and removing the existing artboards.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

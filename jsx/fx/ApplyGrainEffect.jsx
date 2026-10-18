@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.ApplyGrainEffect
+Name=ApplyGrainEffect
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.0.0
+Release-Date=2026-10-12
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択したオブジェクトに［効果］＞［テクスチャ］＞［粒状］を適用します。
+パラメーターは Illustrator 標準のダイアログボックスで指定します。
+
+Applies Effect > Texture > Grain to the selected objects.
+Set the parameters in Illustrator's standard dialog box.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

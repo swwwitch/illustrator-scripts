@@ -3,6 +3,23 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 #targetengine "DialogEngine"
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.DrawRectangleBehindSelectedObject
+Name=DrawRectangleBehindSelectedObject
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.7.9
+Release-Date=2025-08-22
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択したオブジェクトの背面に、マージン・角丸・カラーを指定した長方形を作成します。
+
+Draws a rectangle with margins, rounded corners, and a color of your choice behind the selected objects.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

@@ -2,6 +2,22 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.ConvertToAreaTypeLikeButtonAccurateSize
+Name=ConvertToAreaTypeLikeButtonAccurateSize
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.0.3
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+ポイント文字・パス上文字・図形＋テキストを、見た目を保ったままエリア内文字へ変換します。
+
+Converts point text, text on a path, or a shape plus text into area text while preserving the appearance.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

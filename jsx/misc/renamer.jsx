@@ -3,6 +3,22 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.renamer
+Name=renamer
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.1.10
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+オブジェクトやレイヤーなどの名前を、条件を指定して一括で変更します。
+
+Renames objects, layers and the like in bulk, according to the conditions you set.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

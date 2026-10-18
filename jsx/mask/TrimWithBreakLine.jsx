@@ -3,6 +3,23 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.TrimWithBreakLine
+Name=TrimWithBreakLine
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.3.0
+Release-Date=2026-09-20
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+オブジェクト（画像・グループなど）とパスを選択して実行すると、パスの範囲を取り除いて残りを指定の間隔に詰めます（パスが対象の端を覆っているときは、その側だけを残します）。切り口はワープで曲げたりギザギザにしたりでき、省略線も引けます。
+
+With an object (image, group, …) and a path selected, drops the area the path covers and closes the remaining parts up to a set gap (when the path covers an edge of the artwork, only that side is kept). The cut edge can be bent with a warp or made jagged, and traced with break lines.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

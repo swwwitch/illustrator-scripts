@@ -2,6 +2,23 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.SelectSameAppearanceMulti
+Name=SelectSameAppearanceMulti
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.1.1
+Release-Date=2026-09-06
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択したオブジェクトそれぞれに「共通 > アピアランス」（シンボルインスタンスは「共通 > シンボルインスタンス」）を適用し、見つかったオブジェクトをまとめて選択し直します。標準機能では基準にできるオブジェクトが1つだけという制限を回避できます。
+
+Applies "Select > Same > Appearance" (or "Same > Symbol Instance" for symbol instances) to each selected object and reselects every object found. This works around the built-in limitation of using only one object as the reference.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

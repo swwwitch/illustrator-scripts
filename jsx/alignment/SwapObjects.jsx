@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.SwapObjects
+Name=SwapObjects
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.3.8
+Release-Date=2026-04-06
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択した2つのオブジェクトの位置を入れ替えます。
+「中心位置を交換」と「両端の位置を保って交換」を切り替えられ、見た目のサイズを基準にすることもできます。
+
+Swaps the positions of two selected objects.
+You can swap their centers, or keep their outer edges fixed, and optionally work from their visual bounds.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

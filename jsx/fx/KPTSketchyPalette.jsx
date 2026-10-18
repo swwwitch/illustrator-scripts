@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.KPTSketchyPalette
+Name=KPTSketchyPalette
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.3.5
+Release-Date=2026-04-14
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択したオブジェクトにランダムな変形を加え、手書き・スケッチ風の見た目に整える常駐パレットです。
+変形はすべてライブ効果として適用するため、あとから編集・解除できます。
+
+A persistent palette that adds random distortion to the selected objects for a hand-drawn, sketchy look.
+Everything is applied as live effects, so the result stays editable and removable.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

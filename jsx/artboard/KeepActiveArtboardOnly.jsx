@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.KeepActiveArtboardOnly
+Name=KeepActiveArtboardOnly
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.2.11
+Release-Date=2025-08-15
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+アクティブなアートボードだけを残すか、空のアートボードをまとめて削除します。
+アクティブなアートボードだけを残す場合は、その外側にあるオブジェクト（ガイドを含む）も削除できます。
+
+Keeps only the active artboard, or removes every empty artboard in one pass.
+When the active artboard is kept, the objects outside it — guides included — can be deleted as well.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

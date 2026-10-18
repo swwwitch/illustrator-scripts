@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.ExportFontInfoFromXMP
+Name=ExportFontInfoFromXMP
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.1.2
+Release-Date=2025-05-10
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+ドキュメントに埋め込まれたXMPメタデータから使用フォント情報を抽出し、TXT / CSV / Markdownで書き出します。
+XMPで足りない分はドキュメント内のテキストから補い、環境にないフォントだけに絞り込んで書き出すこともできます。
+
+Extracts font usage information from the XMP metadata embedded in the document and exports it as TXT / CSV / Markdown.
+What the XMP lacks is topped up from the text in the document, and the export can be narrowed to the fonts this machine does not have.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.ApplyTextAttributesFromClipboard
+Name=ApplyTextAttributesFromClipboard
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.3.9
+Release-Date=2021-04-10
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+CopyTextAttributesToClipboard.jsx が保存した文字属性を、選択中のテキストへ適用します。
+適用する属性はダイアログのチェックボックスで選べ、文字ツールでの部分選択にも対応します。
+
+Applies the text attributes saved by CopyTextAttributesToClipboard.jsx to the current text selection.
+Which attributes are applied is chosen with checkboxes in the dialog, and partial selections made with the Type tool are supported.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.PatternFill
+Name=PatternFill
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.5.11
+Release-Date=2025-10-26
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+2つのオブジェクトを選択し、大きい方を「容器」、小さい方を「タイル」として、容器のバウンディングボックス内にタイルを等間隔で敷き詰めます。
+完全に内側に収まるタイルのみを残し、元の2オブジェクトはそのまま残します。
+
+With two objects selected, treats the larger as the container and the smaller as the tile, then fills the container's bounding box with an even grid of tiles.
+Only the tiles that fit entirely inside are kept, and both originals are left in place.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

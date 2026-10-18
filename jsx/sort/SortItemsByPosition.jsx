@@ -3,6 +3,23 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.SortItemsByPosition
+Name=SortItemsByPosition
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.0.7
+Release-Date=2025-07-06
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+ページアイテムをX座標またはY座標で並べ替え、その順序で重ね順を更新します。
+
+Sorts page items by their X or Y coordinate and rewrites the stacking order to match.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

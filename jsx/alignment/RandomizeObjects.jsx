@@ -3,6 +3,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.RandomizeObjects
+Name=RandomizeObjects
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=2.3.8
+Release-Date=2025-08-03
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択したオブジェクトの位置・スケール・回転・不透明度・塗りカラーをランダムに変化させ、ダイアログ上で即時プレビューしながら調整します。
+［中央に集める］［重なりを避ける］による再配置にも対応します。
+
+Randomizes the position, scale, rotation, opacity and fill color of the selected objects, with an immediate preview in the dialog.
+It can also regroup them with "gather to center" and "avoid overlap".
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

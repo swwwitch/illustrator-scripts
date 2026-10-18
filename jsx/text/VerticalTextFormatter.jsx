@@ -3,6 +3,26 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.VerticalTextFormatter
+Name=VerticalTextFormatter
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.25.3
+Release-Date=2026-10-15
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+選択したテキストを縦組みにし、欧文回転・縦中横・数字の書き換え（全角・漢数字・和暦）・禁則・文字組みなどをまとめて適用します。
+ダイアログボックスで項目を選び、変換の結果を一覧で確かめてから実行できます。
+
+Turns the selected text vertical and applies vertical-text settings in one go: rotated Roman characters,
+Tate-Chu-Yoko, number rewriting (full-width digits, kanji numerals, Japanese era years), kinsoku and mojikumi.
+Choose the options in a dialog box and check the result list before running.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

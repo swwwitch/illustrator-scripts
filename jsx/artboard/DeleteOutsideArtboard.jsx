@@ -3,6 +3,23 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.DeleteOutsideArtboard
+Name=DeleteOutsideArtboard
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.4.10
+Release-Date=2025-07-08
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+アクティブなアートボードの外にあるオブジェクト、またはアートボード内の選択していないオブジェクトを、削除するか保管用レイヤーへ移します。
+
+Deletes the objects outside the active artboard, or the unselected objects inside it, or moves them to a backup layer.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

@@ -2,6 +2,25 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.BackgroundSaveExportState
+Name=BackgroundSaveExportState
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.0.0
+Release-Date=2026-10-18
+Meta-URL=https://github.com/swwwitch/illustrator-scripts
+Description-BEGIN
+環境設定の［ファイル管理］→［バックグラウンドで保存］［バックグラウンドで書き出し］のオン／オフを読み出して表示します。
+app.preferences では読めない（存在しないキー扱いで常に true が返る）ため、設定ファイル「Adobe Illustrator Cloud Prefs」を直接読みます。
+
+Shows whether File Handling > Save in Background and Export in Background are on or off.
+app.preferences cannot read them (the keys always return true), so this reads the "Adobe Illustrator Cloud Prefs" file directly.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 
