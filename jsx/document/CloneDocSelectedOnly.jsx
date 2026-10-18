@@ -1,19 +1,22 @@
-#target indesign
+#target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
 
 ### 概要
 
-選択オブジェクトだけを残した複製ドキュメントを作成するInDesign用スクリプトです。
+選択オブジェクトだけを残した複製ドキュメントを作成するIllustrator用スクリプトです。
 元ドキュメントを一時保存してから複製を開き、非選択・非表示のオブジェクトを削除します。
 
 詳細は README を参照してください。
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/CloneDocSelectedOnly.md
 
+note記事も参照してください。
+https://note.com/dtp_tranist/n/nb71dac0648f4
+
 ### Overview
 
-An InDesign script that creates a duplicate document containing only the selected objects.
+An Illustrator script that creates a duplicate document containing only the selected objects.
 The original is saved to a temporary file, the copy is opened, and unselected and hidden objects are removed from it.
 
 See the README for details.
@@ -25,13 +28,14 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CloneDocSe
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "CloneDocSelectedOnly";         /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.3";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.4";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2023-12-26";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-18";                   /* 更新日 / last updated */
 
-var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/CloneDocSelectedOnly.md"; /* README（日本語） */
-var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CloneDocSelectedOnly.md"; /* README (English) */
+var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/CloneDocSelectedOnly.md"; /* README（日本語） */
+var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CloneDocSelectedOnly.md"; /* README (English) */
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb71dac0648f4"; /* 紹介記事 / article URL */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
@@ -42,6 +46,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // ユーザー設定 / User Settings
     // =========================================
     var REMOVE_LOCKED_ITEMS = false; /* true: ロックされたオブジェクトやレイヤーも削除 / Remove locked items and layers if true */
+
+    /* 選択オブジェクトに付ける一時タグの名前（一時ファイルを開き直しても選択を見分けるため）
+       Temporary tag name on selected items, so they can be found again after the temp file is reopened */
+    var KEEP_TAG_NAME = "CloneDocSelectedOnly_keep";
 
     // =========================================
     // ローカライズ / Localization
@@ -141,7 +149,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // =========================================
 
     /**
-     * 元ドキュメントを一時ファイルに保存して開き、選択外の非表示オブジェクトを削除する
+     * 元ドキュメントを一時ファイルに保存して開き、選択していないオブジェクトを削除する
      * @returns {void}
      */
     function main() {
@@ -163,11 +171,17 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             return;
         }
 
+        /* 元のオブジェクトの参照は開き直したドキュメントでは一致しないので、タグを付けてファイルに残す
+           References to the original items do not match in the reopened document, so mark them with a tag saved in the file */
+        for (var i = 0; i < selectedItems.length; i++) {
+            addKeepTag(selectedItems[i]);
+        }
+
         var tempFile = getUniqueTempFile(originalDoc.fullName, originalDoc.name);
         originalDoc.saveAs(tempFile);
         var duplicateDoc = app.open(tempFile);
 
-        removeUnselectedHiddenItems(duplicateDoc.layers, selectedItems);
+        removeUnselectedFromLayers(duplicateDoc.layers);
     }
 
     // =========================================
@@ -175,64 +189,143 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // =========================================
 
     /**
-     * 選択されているオブジェクトを配列で返す
+     * 選択されているオブジェクトを配列で返す（文字の編集中は空）
      * @param {Document} doc - 対象ドキュメント
      * @returns {PageItem[]} 選択オブジェクトの配列
      */
     function getSelectedItems(doc) {
-        var selectedItems = [];
-        for (var i = 0; i < doc.selection.length; i++) {
-            selectedItems.push(doc.selection[i]);
-        }
-        return selectedItems;
+        /* 文字の編集中は TextRange が返る / While editing text, selection is a TextRange */
+        if (!(doc.selection instanceof Array)) return [];
+        return doc.selection;
     }
 
     /**
-     * 選択されていない非表示のオブジェクトを削除する（ロック中のものは設定に応じて削除）
-     * @param {Layers} layers - 対象ドキュメントのレイヤー
-     * @param {PageItem[]} selectedItems - 残す選択オブジェクト
+     * オブジェクトに残す目印のタグを付ける
+     * @param {PageItem} pageItem - 選択オブジェクト
      * @returns {void}
      */
-    function removeUnselectedHiddenItems(layers, selectedItems) {
+    function addKeepTag(pageItem) {
+        var keepTag = pageItem.tags.add();
+        keepTag.name = KEEP_TAG_NAME;
+        keepTag.value = "1";
+    }
+
+    /**
+     * オブジェクト自身に目印のタグがあるか判定する
+     * @param {PageItem} pageItem - 判定するオブジェクト
+     * @returns {boolean} タグがあれば true
+     */
+    function hasKeepTag(pageItem) {
+        for (var i = 0; i < pageItem.tags.length; i++) {
+            if (pageItem.tags[i].name === KEEP_TAG_NAME) return true;
+        }
+        return false;
+    }
+
+    /**
+     * グループや複合パスの中身を返す（それ以外は空）
+     * @param {PageItem} pageItem - 対象オブジェクト
+     * @returns {PageItems|PathItems|Array} 子オブジェクト
+     */
+    function getChildItems(pageItem) {
+        if (pageItem.typename === "GroupItem") return pageItem.pageItems;
+        if (pageItem.typename === "CompoundPathItem") return pageItem.pathItems;
+        return [];
+    }
+
+    /**
+     * オブジェクト自身か、その中のどれかに目印のタグがあるか判定する
+     * @param {PageItem} pageItem - 判定するオブジェクト
+     * @returns {boolean} タグがあれば true
+     */
+    function containsKeepTag(pageItem) {
+        if (hasKeepTag(pageItem)) return true;
+        var childItems = getChildItems(pageItem);
+        for (var i = 0; i < childItems.length; i++) {
+            if (containsKeepTag(childItems[i])) return true;
+        }
+        return false;
+    }
+
+    /**
+     * オブジェクトとその中から目印のタグを外す
+     * @param {PageItem} pageItem - 対象オブジェクト
+     * @returns {void}
+     */
+    function removeKeepTags(pageItem) {
+        for (var i = pageItem.tags.length - 1; i >= 0; i--) {
+            if (pageItem.tags[i].name === KEEP_TAG_NAME) pageItem.tags[i].remove();
+        }
+        var childItems = getChildItems(pageItem);
+        for (var j = 0; j < childItems.length; j++) {
+            removeKeepTags(childItems[j]);
+        }
+    }
+
+    /**
+     * ロックを外して削除する
+     * @param {Layer|PageItem} target - 削除するレイヤーまたはオブジェクト
+     * @returns {void}
+     */
+    function unlockAndRemove(target) {
+        target.locked = false;
+        target.remove();
+    }
+
+    /**
+     * レイヤー（サブレイヤーを含む）から選択していないオブジェクトを削除する
+     * ロック中のものは REMOVE_LOCKED_ITEMS が true のときだけ削除する
+     * @param {Layers} layers - 対象のレイヤー
+     * @returns {void}
+     */
+    function removeUnselectedFromLayers(layers) {
         for (var i = layers.length - 1; i >= 0; i--) {
             var currentLayer = layers[i];
 
             if (currentLayer.locked) {
-                if (REMOVE_LOCKED_ITEMS) {
-                    currentLayer.locked = false;
-                    currentLayer.remove();
-                }
+                if (REMOVE_LOCKED_ITEMS) unlockAndRemove(currentLayer);
                 continue;
             }
-            if (!currentLayer.visible) continue;
-
-            for (var j = currentLayer.pageItems.length - 1; j >= 0; j--) {
-                var pageItem = currentLayer.pageItems[j];
-                if (pageItem.locked) {
-                    if (REMOVE_LOCKED_ITEMS) {
-                        pageItem.locked = false;
-                        pageItem.remove();
-                    }
-                    continue;
-                }
-                if (!isItemSelected(pageItem, selectedItems) && !pageItem.visible) {
-                    pageItem.remove();
-                }
+            /* 非表示のレイヤーには選択オブジェクトが無い / Hidden layers hold no selected items */
+            if (!currentLayer.visible) {
+                currentLayer.remove();
+                continue;
             }
+
+            removeUnselectedFromLayers(currentLayer.layers);
+            removeUnselectedChildren(currentLayer);
         }
     }
 
     /**
-     * オブジェクトが選択オブジェクトの中にあるか判定する
-     * @param {PageItem} pageItem - 判定するオブジェクト
-     * @param {PageItem[]} selectedItems - 選択オブジェクトの配列
-     * @returns {boolean} 含まれていれば true
+     * レイヤーまたはグループの直下から、選択していないオブジェクトを削除する
+     * 選択した子を含むグループは中に入って続け、クリップグループと複合パスは丸ごと残す
+     * @param {Layer|GroupItem} container - 対象のレイヤーまたはグループ
+     * @returns {void}
      */
-    function isItemSelected(pageItem, selectedItems) {
-        for (var i = 0; i < selectedItems.length; i++) {
-            if (pageItem === selectedItems[i]) return true;
+    function removeUnselectedChildren(container) {
+        /* 削除で並びが変わらないよう、直下のものを先に控える / Collect direct children first so removals do not shift the list */
+        var directItems = [];
+        for (var i = 0; i < container.pageItems.length; i++) {
+            if (container.pageItems[i].parent === container) directItems.push(container.pageItems[i]);
         }
-        return false;
+
+        for (var j = 0; j < directItems.length; j++) {
+            var pageItem = directItems[j];
+            if (pageItem.locked) {
+                if (REMOVE_LOCKED_ITEMS) unlockAndRemove(pageItem);
+                continue;
+            }
+            if (!containsKeepTag(pageItem)) {
+                pageItem.remove();
+                continue;
+            }
+            if (!hasKeepTag(pageItem) && pageItem.typename === "GroupItem" && !pageItem.clipped) {
+                removeUnselectedChildren(pageItem);
+                continue;
+            }
+            removeKeepTags(pageItem);
+        }
     }
 
     // =========================================

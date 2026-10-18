@@ -10,7 +10,7 @@
 
 ### Overview
 
-- An InDesign script that creates a duplicate document containing only the selected objects.
+- An Illustrator script that creates a duplicate document containing only the selected objects.
 - Saves the original document temporarily, then removes unnecessary objects to create a clean copy.
 
 ### Main Features
@@ -28,9 +28,14 @@
 4. Remove unselected and hidden items
 5. Optionally remove locked items
 
+### Article
+
+https://note.com/dtp_tranist/n/nb71dac0648f4
+
 ### Update History
 
 - v1.0.0 (20231226): Initial release
 - v1.0.1 (20250702): Minor adjustments
 - v1.0.2 (20260919): Tidied up internal names (no change in behavior)
 - v1.0.3 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
+- v1.0.4 (2026-10-18) Target application changed to Illustrator. Fixed unselected objects being left behind and selected ones being removed; sublayers and items inside groups are now handled

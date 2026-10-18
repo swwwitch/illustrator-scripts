@@ -8,61 +8,85 @@
 	・色見本はアクションが無く System Events の click も効かないので、JXA の CGEvent で実クリックして
 	  macOS 標準のカラーパネルを開き、16進数欄に書き込む。色見本への反映はパネルを閉じたとき
 
+	・Illustrator の［ファイル］→［スクリプト］からも実行できる（.scpt にコンパイルしたもの）。
+	  Illustrator がスクリプトを実行している間はメニューやダイアログボックスに触れないので、
+	  Illustrator から呼ばれたときは osascript で自分を別プロセスとして起動し直してすぐ戻る
+
 	動作確認：Illustrator 2026（30.8）日本語版 / macOS
-	必要な許可：実行するアプリ（スクリプトエディタなど）にアクセシビリティの許可
+	必要な許可：実行するアプリ（スクリプトエディタなど。Illustrator から実行するときは Illustrator）にアクセシビリティの許可
 *)
 
-property gridHex : "" -- 例: "FFFFFF"。空なら上側の色に合わせる
+property gridHex : "CCCCCC" -- 例: "FFFFFF"。空なら上側の色に合わせる
 property pressOK : true
 
-tell application "Adobe Illustrator"
-	activate
-	if (count of documents) = 0 then
-		display alert "ドキュメントが開かれていません。"
+on run
+	-- Illustrator の［スクリプト］メニューから呼ばれたときは、別プロセスで起動し直す
+	if (name of current application) contains "Illustrator" then
+		do shell script "/usr/bin/osascript " & quoted form of POSIX path of (path to me) & " > /dev/null 2>&1 &"
 		return
 	end if
-end tell
+	try
+		main()
+	on error errMsg number errNum
+		if errNum is -128 then return -- ユーザーによるキャンセル
+		tell application "Adobe Illustrator"
+			activate
+			display alert "SetSameGridColors" message errMsg
+		end tell
+	end try
+end run
 
-tell application "System Events" to tell process "Adobe Illustrator"
-	set frontmost to true
-	-- ［ドキュメント設定］を開く（開いていなければ）
-	if not (exists UI element "ドキュメント設定") then
-		click menu item "ドキュメント設定..." of menu 1 of menu bar item "ファイル" of menu bar 1
-	end if
-	repeat 50 times
-		if exists UI element "ドキュメント設定" then exit repeat
-		delay 0.1
-	end repeat
-	if not (exists UI element "ドキュメント設定") then error "［ドキュメント設定］ダイアログボックスが開きませんでした。"
-	set dlg to UI element "ドキュメント設定"
-	set swatch1 to first UI element of dlg whose description is "gridColor1"
-	set swatch2 to first UI element of dlg whose description is "gridColor2"
-	set center1 to my centerOf(swatch1)
-	set center2 to my centerOf(swatch2)
-end tell
-
--- 上側の色見本：色を読み取る（gridHex 指定時はその色を書き込む）
-set hexField to my openColorPanel(center1)
-tell application "System Events"
-	if gridHex is "" then
-		set targetHex to value of hexField as text
-	else
-		set targetHex to gridHex
-		my writeHex(hexField, targetHex)
-	end if
-end tell
-my closeColorPanel()
-
--- 下側の色見本：同じ色を書き込む
-set hexField to my openColorPanel(center2)
-my writeHex(hexField, targetHex)
-my closeColorPanel()
-
-if pressOK then
-	tell application "System Events" to tell process "Adobe Illustrator"
-		click (first button of UI element "ドキュメント設定" whose description is "OK")
+on main()
+	delay 0.3 -- 呼び出し元の Illustrator がスクリプトの実行を終えるのを待つ
+	tell application "Adobe Illustrator"
+		activate
+		if (count of documents) = 0 then
+			display alert "ドキュメントが開かれていません。"
+			return
+		end if
 	end tell
-end if
+
+	tell application "System Events" to tell process "Adobe Illustrator"
+		set frontmost to true
+		-- ［ドキュメント設定］を開く（開いていなければ）
+		if not (exists UI element "ドキュメント設定") then
+			click menu item "ドキュメント設定..." of menu 1 of menu bar item "ファイル" of menu bar 1
+		end if
+		repeat 50 times
+			if exists UI element "ドキュメント設定" then exit repeat
+			delay 0.1
+		end repeat
+		if not (exists UI element "ドキュメント設定") then error "［ドキュメント設定］ダイアログボックスが開きませんでした。"
+		set dlg to UI element "ドキュメント設定"
+		set swatch1 to first UI element of dlg whose description is "gridColor1"
+		set swatch2 to first UI element of dlg whose description is "gridColor2"
+		set center1 to my centerOf(swatch1)
+		set center2 to my centerOf(swatch2)
+	end tell
+
+	-- 上側の色見本：色を読み取る（gridHex 指定時はその色を書き込む）
+	set hexField to my openColorPanel(center1)
+	tell application "System Events"
+		if gridHex is "" then
+			set targetHex to value of hexField as text
+		else
+			set targetHex to gridHex
+			my writeHex(hexField, targetHex)
+		end if
+	end tell
+	my closeColorPanel()
+
+	-- 下側の色見本：同じ色を書き込む
+	set hexField to my openColorPanel(center2)
+	my writeHex(hexField, targetHex)
+	my closeColorPanel()
+
+	if pressOK then
+		tell application "System Events" to tell process "Adobe Illustrator"
+			click (first button of UI element "ドキュメント設定" whose description is "OK")
+		end tell
+	end if
+end main
 
 -- ===== 補助 =====
 
