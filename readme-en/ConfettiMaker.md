@@ -73,6 +73,7 @@ https://note.com/dtp_tranist/n/n5a41fb524a5a
 
 ### Update History
 
+- v1.7.16 (2026-10-19) Fixed a plain group being masked by only its first path (the group is now united into one mask, falling back to its bounding rectangle). Confetti is now centered on the generated point, so it no longer leans toward the lower right. Size randomness now starts at 150 (100 produced no variation). Fixed errors piling up in the console while dragging sliders, a symbol instance left on the active layer when symbol creation failed, an empty layer and group left behind when OK was clicked with every shape off, and earlier output being selected when masking was on. Output now works when the Confetti layer is locked or hidden. The Margin tooltip now matches the actual behavior
 - v1.7.15 (2026-10-16) Right-only button rows are now centered when the dialog's inner width is up to 240 px (was 200 px) (shared part update)
 - v1.7.14 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.7.13 (2026-10-01) Added space below the button row to match Illustrator's own dialogs

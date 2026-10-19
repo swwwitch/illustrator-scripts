@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.ConfettiMaker
 Name=ConfettiMaker
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.7.15
+Version=1.7.16
 Release-Date=2026-02-16
 Description-BEGIN
 選択オブジェクト（未選択のときはアートボード）の領域に、紙吹雪を散らします。
@@ -47,10 +47,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ConfettiMa
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ConfettiMaker";                /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.7.15";                      /* バージョン / version */
+var SCRIPT_VERSION  = "v1.7.16";                      /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-02-16";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-16";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ConfettiMaker.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ConfettiMaker.md"; /* README (English) */
@@ -77,12 +77,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5a41fb524a5a"; /* 紹�
     var DEFAULT_COUNT        = 150; /* 生成数 / number of confetti */
     var DEFAULT_OPACITY_MIN  = 70;  /* 不透明度の下限（%）/ lower bound of random opacity */
     var DEFAULT_ROTATE_MAX   = 360; /* 最大回転角（度）/ maximum rotation in degrees */
-    var DEFAULT_STRENGTH       = 2.0; /* 分布の強度 / distribution strength */
+    var DEFAULT_STRENGTH     = 2.0; /* 分布の強度 / distribution strength */
+    var DEFAULT_RANDOM_SIZE  = 150; /* 大きさのランダム量（100で固定、300で最大±150%）/ size randomness (100 = fixed, 300 = up to ±150%) */
 
     /* 挙動の調整値 / Behavior tuning */
     var SOLO_RANDOM_SIZE      = 167; /* Option+クリックの単独選択時に設定する大きさランダム量 / size randomness applied on solo click */
     var MARGIN_STEP_ON_ENABLE = 30;  /* マージンをONにしたときに加算する量（pt）/ amount added when margin is switched on */
-    var PREVIEW_DEBOUNCE_MS   = 140; /* プレビュー再描画の間引き時間（ms）/ debounce delay for preview redraw */
     var SKEW_MAX_DEG          = 45;  /* 歪みの上限（度）/ upper bound of skew */
 
     /* カラフルな配色 / Confetti colors */
@@ -419,8 +419,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5a41fb524a5a"; /* 紹�
                 en: "Clips the confetti to the selected shape so nothing spills outside."
             },
             margin: {
-                ja: "生成範囲を外側へ広げます。マスクの端で切れた紙吹雪が増えて自然になります。",
-                en: "Extends the generation area outward, so more pieces are cut off at the edge."
+                ja: "生成範囲を外側へ広げます。オンにするとマスク処理はオフになります。",
+                en: "Extends the generation area outward. Turning it on switches masking off."
             },
             distributionEven:     { ja: "範囲全体に同じ密度で散らします。", en: "Scatters at an even density across the whole area." },
             distributionVertical: { ja: "上から下へ密度を変えて散らします。", en: "Varies the density from top to bottom." },
@@ -622,7 +622,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5a41fb524a5a"; /* 紹�
     var confettiCount = DEFAULT_COUNT;
     var generationMarginPt = 0;
     var distributionStrength = DEFAULT_STRENGTH;
-    var randomSizeStrength = 100;
+    var randomSizeStrength = DEFAULT_RANDOM_SIZE;
     var opacityMin = DEFAULT_OPACITY_MIN;
     var skewMaxDeg = 0;
     var rotateMaxDeg = DEFAULT_ROTATE_MAX;
@@ -919,7 +919,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5a41fb524a5a"; /* 紹�
     function buildRandomPanel(parentWindow, dialogUI) {
         var randomPanel = addPanel(parentWindow, getLabel("panel.random"));
 
-        var randomSizeControls = addCheckboxSliderRow(randomPanel, "randomSize", true, 100, 100, 300);
+        var randomSizeControls = addCheckboxSliderRow(randomPanel, "randomSize", true, DEFAULT_RANDOM_SIZE, 100, 300);
         /* スライダーは反転指定（値 = 100 − 不透明度の下限）/ Reversed slider: value = 100 − minimum opacity */
         var opacityControls = addCheckboxSliderRow(randomPanel, "opacity", true, 100 - DEFAULT_OPACITY_MIN, 0, 100);
         var skewControls = addCheckboxSliderRow(randomPanel, "skew", false, 0, 0, SKEW_MAX_DEG);
@@ -1865,6 +1865,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5a41fb524a5a"; /* 紹�
 
     var selectedSymbolName = "";
     var selectedSymbolRef = null;
+    var isRefreshingSymbols = false; /* 組み直し中の onChange を無視する / ignore onChange while rebuilding the list */
 
     /**
      * ドキュメント内のシンボルでドロップダウンを組み直す
@@ -1881,7 +1882,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5a41fb524a5a"; /* 紹�
             symbolEntry._symbolDef = symbolDef;
         }
         dialogUI.symbolDropdown.enabled = hasSymbols;
+        isRefreshingSymbols = true;
         dialogUI.symbolDropdown.selection = 0;
+        isRefreshingSymbols = false;
 
         /* シンボル未選択なので形状パネルの「シンボル」はディム / Dim the symbol shape until one is picked */
         clearSelectedSymbol();
@@ -1939,7 +1942,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5a41fb524a5a"; /* 紹�
             symbolItem.move(wrapGroup, ElementPlacement.PLACEATEND);
         } catch (eCreateSymbol) {
             logError(eCreateSymbol, "createSymbolConfetti");
-            if (symbolItem && !wrapGroup) {
+            if (symbolItem) {
                 try { symbolItem.remove(); } catch (e) { }
             }
             if (wrapGroup) {
@@ -2022,16 +2025,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5a41fb524a5a"; /* 紹�
     }
 
     /**
-     * アイテムの左上を指定座標へ合わせる
+     * アイテムの中心を指定座標へ合わせる
      * @param {PageItem} targetItem - 対象アイテム
-     * @param {number} left - 左端
-     * @param {number} top - 上端
+     * @param {number} centerX - 中心X
+     * @param {number} centerY - 中心Y
      * @returns {void}
      */
-    function alignItemTopLeft(targetItem, left, top) {
+    function alignItemCenter(targetItem, centerX, centerY) {
         var bounds = targetItem.geometricBounds; /* [左, 上, 右, 下] / [L, T, R, B] */
-        targetItem.left = Number(targetItem.left) + (Number(left) - Number(bounds[0]));
-        targetItem.top = Number(targetItem.top) + (Number(top) - Number(bounds[1]));
+        targetItem.translate(centerX - (bounds[0] + bounds[2]) / 2, centerY - (bounds[1] + bounds[3]) / 2);
     }
 
     /**
@@ -2074,15 +2076,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5a41fb524a5a"; /* 紹�
     }
 
     /**
-     * 紙吹雪を1個生成する
+     * 紙吹雪を1個生成する（指定座標を中心に置く）
      * @param {Layer|GroupItem} container - 追加先
-     * @param {number} left - 左端
-     * @param {number} top - 上端
+     * @param {number} centerX - 中心X
+     * @param {number} centerY - 中心Y
      * @param {number} size - 基準サイズ
      * @param {Array<number>} color - [R, G, B]
      * @returns {PageItem|null} 生成したアイテム（生成できなかった場合は null）
      */
-    function createConfetti(container, left, top, size, color) {
+    function createConfetti(container, centerX, centerY, size, color) {
         var shapeToggle = pickEnabledShape();
         if (!shapeToggle) return null;
 
@@ -2091,13 +2093,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5a41fb524a5a"; /* 紹�
             if (!symbolConfetti) return null;
             applyRandomRotate(symbolConfetti);
             applyRandomSkew(symbolConfetti);
-            alignItemTopLeft(symbolConfetti, left, top);
+            alignItemCenter(symbolConfetti, centerX, centerY);
             applyRandomOpacity(symbolConfetti);
             return symbolConfetti;
         }
 
-        var confetti = shapeToggle.create(container, left, top, size * shapeToggle.sizeScale);
+        var confetti = shapeToggle.create(container, centerX, centerY, size * shapeToggle.sizeScale);
         if (!confetti) return null;
+        alignItemCenter(confetti, centerX, centerY);
         applyConfettiColor(confetti, color);
         applyRandomRotate(confetti);
         applyRandomSkew(confetti);
@@ -2170,25 +2173,29 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5a41fb524a5a"; /* 紹�
             return null;
         }
 
+        var unitedItem = null;
         try {
             /* 選択を複製グループに切り替えて合体→展開 / Select the copy, then unite and expand */
             doc.selection = null;
             duplicatedGroup.selected = true;
             app.executeMenuCommand('Live Pathfinder Add');
             app.executeMenuCommand('expandStyle');
-            if (doc.selection && doc.selection.length > 0) return doc.selection[0];
+            if (doc.selection && doc.selection.length > 0) unitedItem = doc.selection[0];
         } catch (eUniteGroup) {
             logError(eUniteGroup, "uniteGroupToSinglePath.pathfinder");
-            try { duplicatedGroup.remove(); } catch (e) { }
-            return null;
-        } finally {
-            doc.selection = null;
-            var itemsToReselect = (previousSelection && previousSelection.length) ? previousSelection : [selectedItem];
-            for (var i = 0; i < itemsToReselect.length; i++) {
-                try { itemsToReselect[i].selected = true; } catch (e) { }
-            }
         }
-        return null;
+
+        doc.selection = null;
+        var itemsToReselect = (previousSelection && previousSelection.length) ? previousSelection : [selectedItem];
+        for (var i = 0; i < itemsToReselect.length; i++) {
+            try { itemsToReselect[i].selected = true; } catch (e) { }
+        }
+
+        /* 合体できなかった複製は紙吹雪に混ざらないよう消す / Remove the leftover copy so it does not show among the confetti */
+        if (!unitedItem) {
+            try { duplicatedGroup.remove(); } catch (eRemoveCopy) { }
+        }
+        return unitedItem;
     }
 
     /**
@@ -2208,9 +2215,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5a41fb524a5a"; /* 紹�
         for (var j = 0; j < groupItem.pathItems.length; j++) {
             if (groupItem.pathItems[j].clipping) return groupItem.pathItems[j];
         }
-        /* クリッピング指定が見つからない場合は最初のパスを使う（最後の手段）/ Fall back to the first path */
-        if (groupItem.compoundPathItems.length > 0) return groupItem.compoundPathItems[0];
-        if (groupItem.pathItems.length > 0) return groupItem.pathItems[0];
+        /* 通常のグループは合体して使うので、ここでは返さない / A plain group is united instead */
         return null;
     }
 
@@ -2224,16 +2229,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5a41fb524a5a"; /* 紹�
         if (!container || !sourceItem) return null;
 
         try {
-            /* Path / CompoundPath / TextFrame はそのまま複製 / Duplicate these as-is */
+            /* Path / CompoundPath はそのまま複製（テキスト選択ではマスク処理をディムしている）
+               Duplicate these as-is (masking is dimmed for a text selection) */
             var typeName = sourceItem.typename;
-            if (typeName === "PathItem" || typeName === "CompoundPathItem" || typeName === "TextFrame") {
+            if (typeName === "PathItem" || typeName === "CompoundPathItem") {
                 return sourceItem.duplicate(container, ElementPlacement.PLACEATEND);
             }
             if (typeName === "GroupItem") {
                 var clipCandidate = findClippingCandidate(sourceItem);
                 if (clipCandidate) return clipCandidate.duplicate(container, ElementPlacement.PLACEATEND);
-                /* 通常グループなど候補が取れない場合は合体して単一パス化 / Unite a plain group into one path */
-                return uniteGroupToSinglePath(container, sourceItem);
+                /* 通常グループは合体して単一パス化。できなければ下の矩形に回す / Unite a plain group; fall back to the rectangle below */
+                var unitedItem = uniteGroupToSinglePath(container, sourceItem);
+                if (unitedItem) return unitedItem;
             }
         } catch (eMaskShape) {
             logError(eMaskShape, "createMaskShapeFromSelection");
@@ -2279,7 +2286,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5a41fb524a5a"; /* 紹�
             logError(eMoveMask, "applyMaskToGroup.moveMask");
         }
 
-        /* TextFrame は clipping を立てられないため makeMask を使う / Text frames need the makeMask command */
+        /* テキストを型にしたクリップグループの型は clipping を立てられないため makeMask を使う / A text mask from a clip group needs the makeMask command */
         if (maskItem.typename === "TextFrame") {
             try {
                 doc.selection = null;
@@ -2304,7 +2311,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5a41fb524a5a"; /* 紹�
     // =========================================
 
     var previewLayer = null;
-    var debounceTaskId = 0;
+    var previewConfettiCount = 0; /* 直近のプレビューで生成できた数 / pieces created by the latest preview */
 
     /**
      * プレビュー専用レイヤーを用意する
@@ -2341,6 +2348,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5a41fb524a5a"; /* 紹�
     function drawPreview() {
         ensurePreviewLayer();
         clearPreview();
+        previewConfettiCount = 0;
 
         try {
             var confettiContainer = createConfettiContainer(previewLayer);
@@ -2350,7 +2358,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5a41fb524a5a"; /* 紹�
             for (var i = 0; i < confettiCount; i++) {
                 var point = pickConfettiPoint(bounds);
                 var color = CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)];
-                createConfetti(confettiContainer.container, point.x, point.y, getConfettiSize(), color);
+                if (createConfetti(confettiContainer.container, point.x, point.y, getConfettiSize(), color)) previewConfettiCount++;
             }
             if (confettiContainer.maskGroup && !useArtboardBounds) {
                 applyMaskToGroup(confettiContainer.maskGroup, selectedItem);
@@ -2359,47 +2367,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5a41fb524a5a"; /* 紹�
             logError(eDrawPreview, "drawPreview");
         }
         app.redraw();
-    }
-
-    /* scheduleTask はグローバルスコープで動くため、呼び出し口を公開する / scheduleTask runs in the global scope */
-    $.global.__ConfettiMaker_runDebouncedPreview = function () {
-        try {
-            drawPreview();
-        } catch (eDebouncedPreview) {
-            logError(eDebouncedPreview, "runDebouncedPreview");
-        }
-    };
-
-    /**
-     * 公開したグローバル関数を片付ける
-     * @returns {void}
-     */
-    function cleanupScheduledGlobals() {
-        delete $.global.__ConfettiMaker_runDebouncedPreview;
-    }
-
-    /**
-     * 予約済みのプレビュー再描画を取り消す
-     * @returns {void}
-     */
-    function cancelScheduledPreview() {
-        if (!debounceTaskId) return;
-        try { app.cancelTask(debounceTaskId); } catch (e) { }
-        debounceTaskId = 0;
-    }
-
-    /**
-     * プレビューの再描画を間引いて予約する（スライダードラッグ対策）
-     * @returns {void}
-     */
-    function requestPreviewDebounced() {
-        cancelScheduledPreview();
-        try {
-            debounceTaskId = app.scheduleTask("__ConfettiMaker_runDebouncedPreview()", PREVIEW_DEBOUNCE_MS, false);
-        } catch (eScheduleTask) {
-            logError(eScheduleTask, "requestPreviewDebounced.scheduleTask");
-            drawPreview(); /* 予約できない環境では即時描画 / Draw immediately when scheduling is unavailable */
-        }
     }
 
     // =========================================
@@ -2427,13 +2394,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5a41fb524a5a"; /* 紹�
     }
 
     /**
-     * 指定した形状だけをOFFにする（それ以外をON）
+     * 指定した形状だけをOFFにする（それ以外をON。ディムしている形状はOFFのまま）
      * @param {ShapeDef} activeShape - OFFにする形状
      * @returns {void}
      */
     function setOnlyOtherShapes(activeShape) {
         for (var i = 0; i < dialogUI.shapeToggles.length; i++) {
-            dialogUI.shapeToggles[i].checkbox.value = (dialogUI.shapeToggles[i] !== activeShape);
+            var shapeCheckbox = dialogUI.shapeToggles[i].checkbox;
+            shapeCheckbox.value = (dialogUI.shapeToggles[i] !== activeShape) && shapeCheckbox.enabled;
         }
     }
 
@@ -2518,7 +2486,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5a41fb524a5a"; /* 紹�
     function bindRandomSlider(toggleCheckbox, targetSlider, storeValue) {
         targetSlider.onChanging = function () {
             storeValue(targetSlider.value);
-            if (toggleCheckbox.value) requestPreviewDebounced();
+            if (toggleCheckbox.value) drawPreview();
         };
     }
 
@@ -2545,6 +2513,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5a41fb524a5a"; /* 紹�
         }
 
         dialogUI.symbolDropdown.onChange = function () {
+            if (isRefreshingSymbols) return;
             var symbolSelection = dialogUI.symbolDropdown.selection;
             if (!symbolSelection || symbolSelection.index === 0) {
                 /* （なし）を選んだらシンボル形状をディム / Dim the symbol shape when "(None)" is picked */
@@ -2559,12 +2528,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5a41fb524a5a"; /* 紹�
         };
 
         dialogUI.baseSizeSlider.onChanging = function () {
-            requestPreviewDebounced();
+            drawPreview();
         };
 
         dialogUI.countSlider.onChanging = function () {
             confettiCount = Math.round(dialogUI.countSlider.value);
-            requestPreviewDebounced();
+            drawPreview();
         };
 
         dialogUI.maskCheckbox.onClick = function () {
@@ -2582,12 +2551,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5a41fb524a5a"; /* 紹�
                 /* マージンONとマスク処理は両立させない / Margin and masking are mutually exclusive */
                 if (dialogUI.maskCheckbox.enabled) dialogUI.maskCheckbox.value = false;
             }
-            requestPreviewDebounced();
+            drawPreview();
         };
 
         dialogUI.marginSlider.onChanging = function () {
             generationMarginPt = Math.round(dialogUI.marginSlider.value);
-            requestPreviewDebounced();
+            drawPreview();
         };
 
         bindDistributionRadio(dialogUI.evenRadio, false);
@@ -2596,7 +2565,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5a41fb524a5a"; /* 紹�
 
         dialogUI.strengthSlider.onChanging = function () {
             distributionStrength = Math.round(dialogUI.strengthSlider.value * 10) / 10; /* 0.1刻み / step of 0.1 */
-            requestPreviewDebounced();
+            drawPreview();
         };
 
         bindSliderToggle(dialogUI.randomSizeCheckbox, dialogUI.randomSizeSlider);
@@ -2644,12 +2613,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5a41fb524a5a"; /* 紹�
     // =========================================
 
     /**
-     * 出力先レイヤーを取得する（既存があれば再利用）
+     * 出力先レイヤーを取得する（既存があれば、ロック解除・表示して再利用）
      * @returns {Layer} 出力先レイヤー
      */
     function getOutputLayer() {
         for (var i = 0; i < doc.layers.length; i++) {
-            if (doc.layers[i].name === OUTPUT_LAYER_NAME) return doc.layers[i];
+            if (doc.layers[i].name !== OUTPUT_LAYER_NAME) continue;
+            /* ロック・非表示のままだと移動できない / Items cannot be moved onto a locked or hidden layer */
+            doc.layers[i].locked = false;
+            doc.layers[i].visible = true;
+            return doc.layers[i];
         }
         var createdLayer = doc.layers.add();
         createdLayer.name = OUTPUT_LAYER_NAME;
@@ -2660,7 +2633,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5a41fb524a5a"; /* 紹�
      * プレビューレイヤーの中身を出力先へ移し、生成物を既存のアートワークより前面にする
      * @param {Layer} confettiLayer - 出力先レイヤー
      * @param {GroupItem|null} confettiGroup - マスクOFF時のまとめグループ（マスクONなら null）
-     * @returns {void}
+     * @returns {PageItem[]} 移したアイテム
      */
     function movePreviewToOutput(confettiLayer, confettiGroup) {
         /* プレビューの中身を丸ごと移動（マスクグループ含む）/ Move the whole preview, clipping group included */
@@ -2688,22 +2661,23 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5a41fb524a5a"; /* 紹�
         } catch (eFinalizeMove) {
             logError(eFinalizeMove, "finalize.movePreviewItems");
         }
+        return movedItems;
     }
 
     /**
-     * 生成したコンフェティ全体を選択状態にする
-     * @param {Layer} confettiLayer - 出力先レイヤー
+     * この実行で生成した紙吹雪を選択状態にする（以前の出力は選ばない）
      * @param {GroupItem|null} confettiGroup - マスクOFF時のまとめグループ（マスクONなら null）
+     * @param {PageItem[]} movedItems - 出力先へ移したアイテム
      * @returns {void}
      */
-    function selectOutput(confettiLayer, confettiGroup) {
+    function selectOutput(confettiGroup, movedItems) {
         try {
             doc.selection = null;
             if (confettiGroup) {
                 confettiGroup.selected = true;
             } else {
-                for (var i = 0; i < confettiLayer.pageItems.length; i++) {
-                    confettiLayer.pageItems[i].selected = true;
+                for (var i = 0; i < movedItems.length; i++) {
+                    movedItems[i].selected = true;
                 }
             }
         } catch (eSelectResult) {
@@ -2716,7 +2690,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5a41fb524a5a"; /* 紹�
      * @returns {void}
      */
     function commitPreview() {
-        if (previewLayer && previewLayer.pageItems.length === 0) drawPreview();
+        if (!previewLayer || previewLayer.pageItems.length === 0) drawPreview();
+
+        /* 形状がすべてOFFなどで1個も作れなかったときは、空のレイヤー・グループを残さない
+           When nothing was generated (e.g. every shape is off), leave no empty layer or group behind */
+        if (previewConfettiCount === 0) {
+            try { previewLayer.remove(); } catch (eRemoveEmpty) { logError(eRemoveEmpty, "finalize.removeEmptyPreview"); }
+            return;
+        }
 
         var confettiLayer = getOutputLayer();
 
@@ -2727,11 +2708,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5a41fb524a5a"; /* 紹�
             confettiGroup.name = OUTPUT_GROUP_NAME;
         }
 
-        movePreviewToOutput(confettiLayer, confettiGroup);
+        var movedItems = movePreviewToOutput(confettiLayer, confettiGroup);
 
-        try { if (previewLayer) previewLayer.remove(); } catch (eRemoveLayer) { logError(eRemoveLayer, "finalize.removePreviewLayer"); }
+        try { previewLayer.remove(); } catch (eRemoveLayer) { logError(eRemoveLayer, "finalize.removePreviewLayer"); }
 
-        selectOutput(confettiLayer, confettiGroup);
+        selectOutput(confettiGroup, movedItems);
     }
 
     // =========================================
@@ -2741,19 +2722,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5a41fb524a5a"; /* 紹�
     bindDialogEvents();
     prepareDialogWindow(dialogUI.dialog, SCRIPT_NAME);
     var dialogResult = dialogUI.dialog.show();
-    cancelScheduledPreview();
 
     if (dialogResult !== 1) {
         clearPreview();
         try { if (previewLayer) previewLayer.remove(); } catch (eRemovePreviewLayer) { logError(eRemovePreviewLayer, "cancel.removePreviewLayer"); }
         dialogUI.zoomControls.restoreInitial();
-        cleanupScheduledGlobals();
         return;
     }
 
     commitPreview();
 
     /* 画面ズームはプレビュー中の操作を尊重して復元しない / Keep whatever zoom the user landed on */
-    cleanupScheduledGlobals();
 
 })();
