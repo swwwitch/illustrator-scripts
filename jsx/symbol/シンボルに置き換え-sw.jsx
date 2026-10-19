@@ -10,7 +10,6 @@ Author=Toshiyuki Takahashi
 Target-App=Illustrator
 Version=0.6.2
 Release-Date=2015-12-09
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 ドキュメントに登録されているシンボルを一覧から選び、選択したオブジェクトをそのシンボルインスタンスへ置き換えます。
 

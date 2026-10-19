@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.2.0
 Release-Date=2026-09-27
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 内蔵の一覧を種類・言語・カテゴリ・キーワードで絞り込んで項目を選び、app.executeMenuCommand() / app.selectTool() / app.preferences の get・set のコードを出力します。
 

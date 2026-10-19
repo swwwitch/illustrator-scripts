@@ -8,7 +8,6 @@ Name=ImgFitMask
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.0.3
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 1つの図形と1つの画像を選択して実行すると、図形の大きさに合わせて画像を拡大・縮小してからクリッピングマスクを作成します。
 

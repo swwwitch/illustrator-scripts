@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.5.0
 Release-Date=2026-08-23
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択したオブジェクトを、アートボードを対象に整列する常駐パレットです。
 3×3のボタンで8方向へ寄せ、押すたびにガイド・アートボードのエッジ・裁ち落としへと寄せ先が進みます。中央揃えはマージンの内側の中央へ寄せ、マージンや分割のガイドも引けます。

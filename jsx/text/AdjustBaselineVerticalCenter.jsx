@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.0.15
 Release-Date=2025-07-04
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 指定した文字を、基準文字の中心に合わせてベースラインシフトで上下に動かします。
 複数のテキストフレームへまとめて適用できます。

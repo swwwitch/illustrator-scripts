@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.0.13
 Release-Date=2026-05-09
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択オブジェクトをシンボルに登録し、ドキュメント内の一致するオブジェクトをそのインスタンスにまとめて置き換えます。
 

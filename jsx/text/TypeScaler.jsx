@@ -9,7 +9,6 @@ Name=TypeScaler
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.3.7
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択したテキストのフォントサイズを、基準サイズと比率から算出して適用します。
 

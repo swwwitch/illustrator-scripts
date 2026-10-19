@@ -9,7 +9,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.0
 Release-Date=2025-08-13
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 現在の表示領域の中心に指定サイズの矩形を作り、エリア内文字としてサンプルテキストを流し込み、フォント・サイズ・行送り・行揃えを適用して選択状態にします。
 

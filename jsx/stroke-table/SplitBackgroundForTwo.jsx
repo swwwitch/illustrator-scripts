@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=2.10.10
 Release-Date=2026-01-24
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 2つのオブジェクトを選択して実行すると、背面に2分割の背景を作成します。
 左右・上下のどちらで分けるかは位置関係から自動で判別し、大きさや分割位置はプレビューを見ながら調整できます。

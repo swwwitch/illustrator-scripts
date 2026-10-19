@@ -8,7 +8,6 @@ Name=FlattenOpacityPro
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.1.1
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択したオブジェクトの不透明度を、塗りのカラーそのものに焼き込んで不透明にします。
 親グループの不透明度も再帰的に合成し、重なったオブジェクトは背面から合成して見た目の色を再現します。

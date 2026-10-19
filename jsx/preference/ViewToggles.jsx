@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.1.1
 Release-Date=2026-10-09
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 アプリケーションフレーム・コントロールパネル・ガイド・グリッド・スナップなどの表示とオン・オフを、ダイアログボックスのチェックボックスでまとめて切り替えます。
 今の状態を読んでから開くので、メニューの反転と違って意図しない切り替えが起きません。

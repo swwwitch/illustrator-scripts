@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.4.8
 Release-Date=2026-05-30
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択したテキストフレームの各行頭に、箇条書き記号または連番を付与します。
 ダイアログを開くと現在の行頭マーカーから設定を推定し、プレビューを見ながら「現状の続き」として編集できます。

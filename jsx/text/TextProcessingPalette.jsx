@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.10.3
 Release-Date=2026-03-18
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 改行・分割・連結・整形に加えて、行の入れ替えや英字のケース変換、かな変換までを1つのパレットに集約し、選択中のテキストへ即時に適用します。
 選択状態に応じて、実行できる処理のボタンだけを有効化します。

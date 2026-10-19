@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.1.8
 Release-Date=2026-05-10
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択中のオブジェクトに対して、複合パス解除→パスの合体→アピアランス拡張→グループ解除→オフセットパスを一括で実行します。
 プレビューを有効にすると、ダイアログを閉じずに結果を確認できます。

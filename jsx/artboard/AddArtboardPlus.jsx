@@ -10,7 +10,6 @@ Author=Takeshi Umeda (noellabo)
 Target-App=Illustrator
 Version=1.2.8
 Release-Date=2026-04-15
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 既存のアートボードの並び（行・列）を解析し、その規則を維持したまま新しいアートボードを挿入します。
 追加方法・追加位置・追加数・間隔をダイアログで指定できます。

@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.4.8
 Release-Date=2026-03-08
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択した複数オブジェクト全体の外接矩形をもとに、ひとつの長方形へ統合します。
 キーオブジェクトがあれば、その塗りと線を引き継ぎます。

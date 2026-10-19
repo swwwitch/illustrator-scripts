@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.0.9
 Release-Date=2026-07-02
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択に応じて、ポイント文字・パス上文字とエリア内文字を相互に変換します。
 順変換は見た目を保ったままエリア内文字へ、逆変換は枠サイズを保ったままポイント文字へ変換します。

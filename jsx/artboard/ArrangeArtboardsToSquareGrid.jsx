@@ -9,7 +9,6 @@ Name=ArrangeArtboardsToSquareGrid
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.1.10
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 複数のアートボードを、全体の外形ができるだけ正方形に近づく行列で再配置します。
 各アートボード内のアートワークも一緒に移動し、グリッドはカンバス中央に配置します。

@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.6.6
 Release-Date=2026-04-24
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 ドキュメント内の配置画像（リンク画像・埋め込み画像）を解析して一覧表示し、ソート・絞り込み・再リンク・リネーム・削除・埋め込み／解除までを一元化する常駐パレットです。
 一覧とカンバスの選択は相互に連動します。

@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.7.12
 Release-Date=2026-03-05
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択した配置画像・ラスター画像・ベクター・テキストから代表色を抽出し、16／11／8／5色のカラーパレットを元オブジェクトの下に描画します（5色の行はスウォッチグループとしても登録できます）。
 オブジェクトを選択していないときは、スウォッチパネルで選択中のスウォッチから色玉パレットを作成します。

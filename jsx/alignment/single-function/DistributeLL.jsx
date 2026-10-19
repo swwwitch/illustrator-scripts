@@ -8,7 +8,6 @@ Name=DistributeLL
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.3.2
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 横並びに選択した複数オブジェクトのうち最も左のものを固定し、以降を環境設定［一般］の「キー入力」の値ぶんずつ左へ動かして間隔を狭めます。
 

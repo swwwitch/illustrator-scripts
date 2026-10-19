@@ -9,7 +9,6 @@ Name=titlemaker
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.1.7
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択中のテキストフレームを、指定した文字（、。〜など）の直後で改行します。
 改行の対象にする文字はチェックボックスで選べます。

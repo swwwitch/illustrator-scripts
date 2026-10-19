@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.1.7
 Release-Date=2026-06-22
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 自動カーニング（和文等幅／0／メトリクス／オプティカル）とプロポーショナルメトリクスだけをまとめた常駐パレットです。
 ラジオやチェックボックスを操作した時点で、選択中のテキストへ即時適用します。

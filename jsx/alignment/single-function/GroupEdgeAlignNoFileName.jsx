@@ -9,7 +9,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.0.4
 Release-Date=2025-04-06
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択されているオブジェクト群の端または中心を、`ALIGNMENT_SIDE` で指定した方向へ揃えます。
 GroupEdgeAlign.jsx からファイル名による方向判定を外した版です。

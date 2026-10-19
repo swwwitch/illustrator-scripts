@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.3.8
 Release-Date=2025-12-21
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 配置画像に対する「埋め込み」「埋め込み解除」「リセット」「ケイ線」「リンク」を、1つのダイアログでまとめて扱います。
 ダイアログ上部のモードで処理を切り替え、対応するパネルだけが有効になります。

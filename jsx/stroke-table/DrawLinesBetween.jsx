@@ -9,7 +9,6 @@ Name=DrawLinesBetween
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.1.11
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択したオブジェクト（図形／テキスト）を上から順に並べ、その間に水平の罫線を描画します。
 入力単位は環境設定の「線」に追従し、［延長］で罫線を左右方向に伸縮できます。

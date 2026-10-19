@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=0.5.12
 Release-Date=2025-03-25
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 複数のIllustratorドキュメントが開いているときに、別のドキュメントへ素早く切り替えます。
 2つだけ開いているときは自動で切り替え、3つ以上のときはダイアログのリストから選びます（キャンセルすると元のドキュメントに戻ります）。

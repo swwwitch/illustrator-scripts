@@ -9,7 +9,6 @@ Name=SetTemplateLayer
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.0.9
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 指定したレイヤーをテンプレート化し、レイヤー名に接頭辞を付けます。
 

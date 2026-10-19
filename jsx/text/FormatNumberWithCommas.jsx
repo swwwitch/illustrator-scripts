@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.0.10
 Release-Date=2025-08-12
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 テキスト内の数値に桁区切りのカンマを付け、位置の誤ったカンマを直します。
 西暦・郵便番号・電話番号などは除外し、書き換える数値はプレビューで選べます。

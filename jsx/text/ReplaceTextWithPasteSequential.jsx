@@ -9,7 +9,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.0.5
 Release-Date=2026-08-14
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 クリップボードの複数行テキストから1行目を取り出して、選択中のテキストフレームに適用します（空行は読み飛ばします）。
 適用した行はクリップボードから取り除かれるため、繰り返し実行すると次の行へ順に進みます。

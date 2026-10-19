@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.6.8
 Release-Date=2026-03-03
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 複数のオブジェクトを、選択範囲内の1本のパスに沿って等間隔に自動配置します。
 基準にするパスは「自動（面積最大）／最前面／最背面」から選べます。

@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=2.1.10
 Release-Date=2025-10-23
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択したオブジェクトを、グリッド／行／列／ランダムのいずれかの方式で複製・配置します。
 繰り返し数・間隔・方向・アートボードへの敷き詰めを2カラムのダイアログで指定でき、結果はライブプレビューで確認できます。

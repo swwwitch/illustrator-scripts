@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.3.7
 Release-Date=2024-07-21
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 アクティブレイヤーの「テンプレート」属性（ロック・印刷不可・画像を薄く表示）をON/OFFします。
 小さなダイアログで切り替えを選び、ダイナミックアクションで実行します。

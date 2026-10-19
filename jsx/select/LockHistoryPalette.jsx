@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.0.9
 Release-Date=2026-09-23
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 パレットの［ロック］でオブジェクトをロックすると、そのまとまりを履歴に1件として記録し、
 あとからその単位だけ解除できます。記録は各オブジェクトのタグに書き込まれ、ドキュメントに保存されます。

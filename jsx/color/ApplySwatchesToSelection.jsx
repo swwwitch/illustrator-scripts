@@ -9,7 +9,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.0.3
 Release-Date=2026-03-05
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択したオブジェクトやテキストに、スウォッチや定義済みカラーを自動で適用します。
 CMYK／RGBのカラーモードに応じて使う色を切り替え、CMYKでスウォッチ未選択のときは2色混合の色をランダム生成します。

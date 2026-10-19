@@ -9,7 +9,6 @@ Name=GridArrangeArtboards
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.2.10
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 アートボード名を解析し、行列グリッドとして再配置します。
 名前全体が「行番号＋区切り文字（-, _, x）＋列番号」に一致するアートボードを、行列指定として扱います。

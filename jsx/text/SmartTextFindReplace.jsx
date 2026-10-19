@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.5.6
 Release-Date=2026-09-26
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 テキストから文字列をまとめて検索・削除・置換し（5つまで、正規表現も可）、一致した文字をカンバス上で選択することもできます。
 英字の大文字・小文字の変換や、スペース・記号・かな・数字の整形も行い、残った文字の書式は変わりません。

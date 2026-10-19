@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.8.6
 Release-Date=2025-10-31
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 だいたいグリッド状に並んでいる選択オブジェクトを、指定した左右・上下の間隔で再配置します。
 間隔は現在の定規単位で入力でき、常時プレビューで結果を確認できます。

@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.3.8
 Release-Date=2026-02-26
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択オブジェクトを縦または横に並べ、指定した間隔で分布します。
 方向は自動判定でき、揃え（左右／上下）、プレビュー境界、ランダム並べ替えにも対応します。

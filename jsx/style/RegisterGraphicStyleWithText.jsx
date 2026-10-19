@@ -8,7 +8,6 @@ Name=RegisterGraphicStyleWithText
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.1.2
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 オブジェクトとテキストを同時に選択して実行すると、オブジェクトの見た目をグラフィックスタイルとして登録し、テキストの文字列をそのスタイル名にします。
 テキスト＋オブジェクトのグループ選択や、複数グループの一括処理にも対応します。

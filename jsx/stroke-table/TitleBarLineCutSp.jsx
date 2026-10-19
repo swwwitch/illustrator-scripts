@@ -9,7 +9,6 @@ Name=TitleBarLineCutSp
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.1.10
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択したオブジェクトの周りで、罫線を欠けさせます。
 オフセット・線幅・線端・角の形状をダイアログで指定できます。

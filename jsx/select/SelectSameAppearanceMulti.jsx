@@ -9,7 +9,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.1.1
 Release-Date=2026-09-06
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択したオブジェクトそれぞれに「共通 > アピアランス」（シンボルインスタンスは「共通 > シンボルインスタンス」）を適用し、見つかったオブジェクトをまとめて選択し直します。標準機能では基準にできるオブジェクトが1つだけという制限を回避できます。
 

@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.5.8
 Release-Date=2023-11-15
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 カンバス上の見た目の並び（左上基準・Y優先）をもとに、［アートボード］パネルの並び順を整理します。
 列数指定やアートボード名にもとづくカンバス上の再配置、「行-列」形式へのリネームも実行できます。

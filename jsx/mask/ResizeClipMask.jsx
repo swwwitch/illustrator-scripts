@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.3.11
 Release-Date=2025-07-10
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 クリップグループのマスクパスの大きさを変更します。
 

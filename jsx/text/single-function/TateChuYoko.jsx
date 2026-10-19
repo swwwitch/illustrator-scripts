@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.0.0
 Release-Date=2026-10-15
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択したテキストに、文字パネルの［縦中横］を適用します。
 DOM では設定できないため、一時アクション（ダイナミックアクション）で実行します。

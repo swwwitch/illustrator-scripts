@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.2.10
 Release-Date=2026-09-27
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 和文・かな・欧文のフォントと、かな・欧文のサイズ・ベースラインを指定して、合成フォントのファイルを作ります。
 選択したテキスト（和文・かな・欧文が混じった1行でも可）から初期値を読み取ります。作った合成フォントは Illustrator の再起動後に使えます。

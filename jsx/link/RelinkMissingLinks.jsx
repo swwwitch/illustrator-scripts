@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.4.12
 Release-Date=2025-07-18
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 リンク切れの配置画像を検出し、指定したフォルダーから同名ファイルを探して自動的に再リンクします。
 

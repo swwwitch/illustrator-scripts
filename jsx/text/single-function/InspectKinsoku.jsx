@@ -8,7 +8,6 @@ Name=InspectKinsoku
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.0.2
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択している段落で使われている禁則処理の値を列挙して表示します。
 

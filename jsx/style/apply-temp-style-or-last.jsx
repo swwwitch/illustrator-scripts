@@ -8,7 +8,6 @@ Name=apply-temp-style-or-last
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.1.2
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択オブジェクトに、既存のグラフィックスタイル「temp_style」を適用します。
 

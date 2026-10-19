@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.1.10
 Release-Date=2026-09-26
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 アクティブなドキュメントで使われている書式（フォント・サイズ・行送り・字間・行揃え・段落前後のアキ）を段落ごとに調べて一覧にし、
 一覧で選んだ書式を編集・置換すると、その書式の段落をまとめて更新します（段落スタイルを使わない再定義）。

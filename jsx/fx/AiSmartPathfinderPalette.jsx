@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.1.7
 Release-Date=2026-07-10
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択した複数オブジェクトにパスファインダーを適用する常駐パレットです。
 アイコンをクリックすると、その操作をメインエンジンへ委譲して即時に実行します。

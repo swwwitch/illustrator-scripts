@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.5.7
 Release-Date=2025-04-05
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択したオブジェクトを、最大／最小／キーオブジェクト／指定サイズ／基準辺／面積／アートボード／裁ち落としのいずれかの基準でリサイズし、あわせて横位置・縦位置の整列も行えます。
 縦横比保持と片辺のみを切り替えでき、操作はリアルタイムにプレビューされます。

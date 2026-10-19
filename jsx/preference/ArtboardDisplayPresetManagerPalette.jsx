@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.3.5
 Release-Date=2026-03-23
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 アートボード関連のIllustrator環境設定を、常駐パレットでまとめて切り替えます。
 アートボードのサイズ確認とリサイズ、名前表示と枠線、プリセット、カンバスカラーの切り替えに対応します。

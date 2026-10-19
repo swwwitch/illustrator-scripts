@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.3.1
 Release-Date=2025-08-13
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択オブジェクトを複製して背面に置き、オフセットパス→アウトライン→合体→拡張の順で処理して縁取りを作ります。
 元オブジェクトと結果をグループ化し、Subtract を実行して白で塗りつぶします。

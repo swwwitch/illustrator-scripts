@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.1.10
 Release-Date=2025-08-04
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 テキストをグリッド状に整列して配置します。
 

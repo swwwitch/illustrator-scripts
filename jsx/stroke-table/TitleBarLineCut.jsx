@@ -9,7 +9,6 @@ Name=TitleBarLineCut
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.2.10
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 テキスト1つと長方形パス1つを選択して実行すると、テキストの周りで罫線が欠けたタイトル帯を作成します。
 マージン、角丸、塗り、ノッチ、線幅をダイアログで指定できます。

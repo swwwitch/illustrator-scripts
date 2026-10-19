@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.2.3
 Release-Date=2025-06-19
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択したオブジェクトを一時アートボードに収め、背景・マージン・枠線・書き出しサイズ・ファイル名を指定してPNG書き出しします。
 設定した内容はアートボード上でそのままプレビューでき、よく使う組み合わせはプリセットとして呼び出せます。

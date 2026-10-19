@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.3.8
 Release-Date=2025-08-04
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 Illustratorの各種環境設定をダイアログから変更します。
 単位、文字設定、変形／整列設定などを1つのパネルで調整できます。

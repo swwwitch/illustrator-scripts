@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.2.7
 Release-Date=2025-11-18
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択中のテキストに含まれる日付・曜日・連番・数値などを、一括して増減します。
 

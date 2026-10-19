@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.3.13
 Release-Date=2026-06-06
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択したテキストフレームの各行（段落）を「フォント名（＋サイズ・行送り）」の指定とみなし、行単位でフォントを適用します。
 「ヒラギノ角ゴシック W3 12pt↓16pt」のようにサイズ・行送りを併記でき、併記のない行はフォントだけを適用します。

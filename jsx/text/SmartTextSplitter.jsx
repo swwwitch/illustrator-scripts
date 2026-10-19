@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=2.0.11
 Release-Date=2026-02-16
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択したテキストフレームを、書式を保ったまま1文字ごとのテキストフレームへ分割します。
 

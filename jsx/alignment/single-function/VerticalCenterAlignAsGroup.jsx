@@ -9,7 +9,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.0.4
 Release-Date=2026-08-21
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択したオブジェクトを一時的にグループ化してから、整列パネルの［垂直方向中央に整列］をダイナミックアクション経由で実行します。
 天地中央のみで左右方向は動かさず、整列の基準は整列パネルの設定に従います。

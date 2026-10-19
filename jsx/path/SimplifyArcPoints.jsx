@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.0.0
 Release-Date=2026-10-17
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択したパスの直線部分以外を円弧とみなし、90°以下の円弧に置き換えてアンカーポイントを減らします。
 ダイアログボックスで結果とアンカーポイント数をプレビューできます。

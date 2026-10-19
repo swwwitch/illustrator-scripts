@@ -9,7 +9,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.0.3
 Release-Date=2025-05-02
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択中のオブジェクトを高解像度でラスタライズし、Figmaの「Copy as PNG」のようにビットマップとしてクリップボードへコピーします。
 600dpiでラスタライズしたあと、72ppi相当の偶数整数倍率に調整します。

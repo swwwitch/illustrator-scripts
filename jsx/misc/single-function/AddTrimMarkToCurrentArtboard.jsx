@@ -9,7 +9,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.1.1
 Release-Date=2025-02-05
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 現在のアートボードを対象に、トンボを作成します。
 

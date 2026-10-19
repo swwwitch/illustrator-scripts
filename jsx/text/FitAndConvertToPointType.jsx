@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.0.10
 Release-Date=2026-08-20
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択したエリア内文字のうち、あふれているものだけ自動サイズ調整をONにして解消してから、ポイント文字に変換します。
 

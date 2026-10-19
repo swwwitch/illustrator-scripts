@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.2.12
 Release-Date=2026-05-04
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択したシンボルインスタンスのリンクを解除し、通常のオブジェクトとして扱える状態にします。
 

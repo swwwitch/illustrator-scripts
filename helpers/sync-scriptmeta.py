@@ -3,16 +3,16 @@
 SCRIPTMETA（https://github.com/Yamonov/SCRIPTMETA）の同期ツール。
 
 各 .jsx の基本情報ブロック（SCRIPT_NAME / SCRIPT_VERSION / SCRIPT_AUTHOR / SCRIPT_RELEASED）と
-ヘッダーの「### 概要」「### Overview」から SCRIPTMETA ブロックを作り直し、
-リポジトリ直下の SCRIPTMETA.txt（配布ページ側の SCRIPTMETA-DIST ブロック）を書き出す。
+ヘッダーの「### 概要」「### Overview」から SCRIPTMETA ブロック（Local Subset）を作り直す。
+更新確認は使わないので Meta-URL は書かない。
 
 SCRIPT_VERSION を上げたり概要を書き換えたりしたら、コミット前に実行する。
 
     python3 helpers/sync-scriptmeta.py          # 書き換える
     python3 helpers/sync-scriptmeta.py --check  # 差分があれば一覧を出して終了コード1
 
-Syncs SCRIPTMETA blocks in every .jsx from its basic info block and header overview,
-and regenerates SCRIPTMETA.txt at the repository root. Run it before committing.
+Syncs the SCRIPTMETA block (Local Subset, no Meta-URL) in every .jsx from its basic info block
+and header overview. Run it before committing.
 """
 import glob
 import os
@@ -21,7 +21,6 @@ import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ID_PREFIX = "com.swwwitch.illustrator."
-META_URL = "https://github.com/swwwitch/illustrator-scripts"
 TARGET_APP = "Illustrator"
 EXCLUDE_DIRS = ("/_templates/",)
 
@@ -88,11 +87,10 @@ def build_block(path, text):
     released = read_var(text, "SCRIPT_RELEASED")
     if released:
         lines.append("Release-Date=" + released)
-    lines.append("Meta-URL=" + META_URL)
     if desc:
         lines += ["Description-BEGIN", desc, "Description-END"]
     lines += ["SCRIPTMETA-END", "*/", "", ""]
-    return script_id, version, "\n".join(lines)
+    return script_id, "\n".join(lines)
 
 
 def insert_block(text, block):
@@ -117,13 +115,13 @@ def main():
         f for f in glob.glob(os.path.join(ROOT, "jsx", "**", "*.jsx"), recursive=True)
         if not any(d in f.replace(os.sep, "/") for d in EXCLUDE_DIRS)
     )
-    records, seen, changed, errors = [], {}, [], []
+    seen, changed, errors = {}, [], []
     for path in files:
         rel = os.path.relpath(path, ROOT)
         with open(path, encoding="utf-8", newline="") as fp:
             text = fp.read()
         try:
-            script_id, version, block = build_block(path, text)
+            script_id, block = build_block(path, text)
         except ValueError as e:
             errors.append(rel + ": " + str(e))
             continue
@@ -131,7 +129,6 @@ def main():
             errors.append(rel + ": Script-ID が " + seen[script_id] + " と重複しています")
             continue
         seen[script_id] = rel
-        records.append((script_id, version))
         new_text = insert_block(text, block)
         if new_text != text:
             changed.append(rel)
@@ -139,24 +136,12 @@ def main():
                 with open(path, "w", encoding="utf-8", newline="") as fp:
                     fp.write(new_text)
 
-    dist = ["SCRIPTMETA-DIST-BEGIN", ""]
-    for script_id, version in sorted(records):
-        dist += ["Script-ID=" + script_id, "Version=" + version, ""]
-    dist += ["SCRIPTMETA-DIST-END", ""]
-    dist_text = "\n".join(dist)
-    dist_path = os.path.join(ROOT, "SCRIPTMETA.txt")
-    old_dist = open(dist_path, encoding="utf-8").read() if os.path.exists(dist_path) else ""
-    if dist_text != old_dist:
-        changed.append("SCRIPTMETA.txt")
-        if not check:
-            with open(dist_path, "w", encoding="utf-8", newline="") as fp:
-                fp.write(dist_text)
 
     for e in errors:
         print("ERROR " + e)
     for c in changed:
         print(("NEEDS SYNC " if check else "updated ") + c)
-    print("%d scripts, %d changed, %d errors" % (len(records), len(changed), len(errors)))
+    print("%d scripts, %d changed, %d errors" % (len(seen), len(changed), len(errors)))
     sys.exit(1 if errors or (check and changed) else 0)
 
 

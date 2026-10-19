@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.2.0
 Release-Date=2026-09-17
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 よく使うフォントを、サイズ・行送り・段落前後のアキ・字間・日本語の文字組みとセットで「定番」として登録し、
 一覧から選ぶだけで選択中のテキストへまとめて適用する常駐パレットです。

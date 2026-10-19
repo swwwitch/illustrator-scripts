@@ -8,7 +8,6 @@ Name=AutoKerning-MetricsRomanOnly
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.0
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択したテキストの自動カーニング方式を「和文等幅（欧文のみメトリクス）」に設定します。
 プロポーショナルメトリクスはOFF、文字ツメは0%にします。

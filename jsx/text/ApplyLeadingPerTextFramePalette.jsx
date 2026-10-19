@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.2.4
 Release-Date=2026-07-08
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択された各テキストフレームの各行について、行頭数文字のフォントサイズを基準に行送りを再計算して適用します。
 適用する行送りの割合はダイアログで指定できます。

@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.7.15
 Release-Date=2026-02-16
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択オブジェクト（未選択のときはアートボード）の領域に、紙吹雪を散らします。
 形状・生成数・分布・ランダム量をプレビューで確かめながら調整し、［OK］で Confetti レイヤーへ出力します。

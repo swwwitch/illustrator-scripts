@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.10.3
 Release-Date=2025-08-07
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 Illustratorの主要な環境設定を、カテゴリ一覧から選んで「デフォルト／現在の値」を並べて確認・変更します。
 変更した項目には印と件数が出て、［OK］でまとめて書き込まれます。従来の2カラム表示にも切り替えられます。

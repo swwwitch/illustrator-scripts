@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=2.0.11
 Release-Date=2024-10-28
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 クリップボードのテキストで、選択中のテキストフレームの内容をまとめて置き換えます。
 クリップボードがテキスト以外なら、選択したオブジェクトをその内容で置き換えます。

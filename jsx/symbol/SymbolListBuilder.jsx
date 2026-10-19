@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.3.7
 Release-Date=2026-05-09
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 ドキュメントに登録されたシンボルを一覧表示する専用アートボード「シンボル一覧」を自動生成します。
 ダイアログでパラメーターを操作しながらライブプレビューで確認でき、［OK］で確定します。

@@ -9,7 +9,6 @@ Name=CloseAllPalettes
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.1.2
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 常駐エンジンで動いている各種フローティングパレットをまとめて閉じるユーティリティ。
 

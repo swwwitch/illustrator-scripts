@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.3.2
 Release-Date=2026-05-09
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 ドキュメント内のテキストフレームを、複数の条件で一括選択します。
 フォント属性・テキストの種類・文字列を組み合わせて絞り込み、選択後に非表示やレイヤー移動、一括編集も行えます。

@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.0.10
 Release-Date=2026-09-28
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択しているテキストのフォントと、名前が似ているファミリー（新ゴなら UD新ゴ など）のウェイトを一覧表示し、見本を見比べながら選んだフォントを適用します。
 

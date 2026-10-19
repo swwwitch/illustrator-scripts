@@ -9,7 +9,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.1.0
 Release-Date=2026-06-23
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択したテキストフレーム（グループ内も再帰的に処理）の全段落に、文字組みアキ量設定をダイアログボックスのラジオボタンから適用します。
 ラジオボタンを選ぶと、選択中のテキストへすぐに反映されます。組み込みの8種類に加えて、ドキュメントのカスタムのセットも選べます。

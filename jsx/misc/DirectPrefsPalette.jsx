@@ -9,7 +9,6 @@ Name=DirectPrefsPalette
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.1.5
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 環境設定の「角度の制限」と「キー増加」の変更、およびガイド・グリッドの表示やロックの切り替えをパレットから行います。
 

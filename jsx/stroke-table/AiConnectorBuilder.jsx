@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.1.10
 Release-Date=2026-09-05
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 キーオブジェクトを起点に、選択した各図形へコネクターを引きます。
 直線・ワープ・カギ・分岐・カーブの5種類の経路に、線・線端・矢印をプレビューしながら設定できます。

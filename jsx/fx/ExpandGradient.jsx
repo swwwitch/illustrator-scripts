@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.2.10
 Release-Date=2026-05-25
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択オブジェクトのグラデーションを、指定した数の単色オブジェクトに分割します。
 分割後の後処理として、重なりを整理してひとまとめにする／両端からブレンドを作成する、を選べます。

@@ -9,7 +9,6 @@ Name=AiFontConverter
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.1.7
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 フォントの種別（文字セット・P・UD・N・NT・ウェイト）をまとめて変更します。
 対象は選択オブジェクト／ドキュメント全体／アクティブアートボードから選べます。

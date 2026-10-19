@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.6.9
 Release-Date=2025-05-09
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 アートボード・シンボル・レイヤー・グラフィックスタイルの名前を、接頭辞／接尾辞／名前の基準／検索置換を組み合わせて一括リネームします。
 ダイアログ上で対象の絞り込み・並び替え・個別の手動編集ができ、結果はプレビューで確認できます。

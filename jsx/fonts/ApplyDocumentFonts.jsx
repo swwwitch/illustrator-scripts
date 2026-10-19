@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.1.11
 Release-Date=2025-02-25
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 ドキュメント内で使用されているフォントを集計し、名前順に一覧表示します（括弧内は使用数）。
 一覧から選んだフォントを選択テキスト（グループ内を含む）へ即座に適用でき、テキストファイルとして書き出すこともできます。

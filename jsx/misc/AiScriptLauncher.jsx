@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.6.1
 Release-Date=2025-11-13
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 指定したフォルダー内の .jsx / .js / .jsxbin をキーワードで絞り込み、選んだスクリプトをその場で実行するランチャーです。
 フォルダーとファイル名を左右のリストに分けて表示し、絞り込んだ結果によく出てくる語をワンクリックのボタンとして自動で並べます。

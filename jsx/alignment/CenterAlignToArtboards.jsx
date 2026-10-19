@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.0.2
 Release-Date=2026-10-03
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択したオブジェクトをグループ化せず1つずつ、それぞれが載っているアートボードの天地中央・左右中央に整列します。
 ダイアログで天地中央・左右中央を選べます。実行中だけ「字形の境界に整列」をONにし、終了時に元の状態へ戻します。

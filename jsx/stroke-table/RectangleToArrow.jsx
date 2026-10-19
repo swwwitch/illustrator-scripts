@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.7.1
 Release-Date=2026-10-10
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択中の長方形や罫線（回転・斜めも可）を、その範囲いっぱいの矢印に置き換えます。
 種類は塗り・ホームベース・線（線端なし／丸型線端）の4つで、太さ・高さ・角度をプレビューで確認しながら調整できます。

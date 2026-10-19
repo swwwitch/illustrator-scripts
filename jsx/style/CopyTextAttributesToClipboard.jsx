@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.3.11
 Release-Date=2021-04-10
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択したテキストの先頭文字を基準に、文字属性・段落属性を取得して保存します。
 保存した内容は ApplyTextAttributesFromClipboard.jsx から読み取って適用できます。

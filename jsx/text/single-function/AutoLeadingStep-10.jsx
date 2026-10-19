@@ -8,7 +8,6 @@ Name=AutoLeadingStep-10
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.0.3
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択したテキストの行送り（表示値）が 整数で10ステップ小さく するように、自動行送り量（％）を逆算して設定します。
 ダイアログは表示せず、実行するとその場で反映されます。

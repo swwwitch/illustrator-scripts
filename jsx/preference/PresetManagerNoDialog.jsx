@@ -9,7 +9,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.2.0
 Release-Date=2025-08-18
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 PresetManager の［プリセット1］と同じ環境設定一式を、ダイアログを表示せずにまとめて適用します。アートボードの枠線は ArtboardDisplayPresetManagerPalette の［ライト］と同じです。
 

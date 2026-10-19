@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.1.9
 Release-Date=2026-06-12
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 円（パス）とテキストを1つずつ選択して実行すると、テキストを指定回数繰り返して、円を複製したパス上文字に変換します。
 区切り文字はスペースまたは任意の文字（初期値は「•」）から選べます。

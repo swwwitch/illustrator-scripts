@@ -9,7 +9,6 @@ Name=DocumentFontListSelectorPalette
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.1.10
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 ドキュメント内のテキストで使われている書式の組み合わせ（フォント・サイズ・行送り・文字ツメ・トラッキング・自動カーニング・プロポーショナルメトリクス）を収集し、重複を除いた一覧をパレットに表示します。
 同じフォントでも設定が異なれば、別の候補としてリストアップします。

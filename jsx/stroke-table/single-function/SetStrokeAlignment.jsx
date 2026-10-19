@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.2.0
 Release-Date=2026-09-11
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択したオブジェクトに、線幅・線端・角の形状・線の位置をまとめて設定します。
 DOMからは変更できない線の位置は、一時アクション（ダイナミックアクション）で適用します。

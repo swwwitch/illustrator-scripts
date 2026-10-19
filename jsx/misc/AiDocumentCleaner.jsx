@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.1.10
 Release-Date=2026-06-27
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 ドキュメント内の不要な要素（未使用のパネル項目、孤立点や空のテキスト、空のグループ・レイヤー、ガイド、アートボード外のオブジェクト、属性パネルのメモなど）をまとめて削除します。
 処理対象は、最前面のドキュメント／開いているすべてのドキュメント／指定フォルダー内の .ai ファイルから選べます。

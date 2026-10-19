@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.7.8
 Release-Date=2026-03-01
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択したパス（グループ・複合パスの中も含む）のアンカーポイントとハンドルを整理します。
 削除・変換の内容を選び、アンカー数とハンドル数の増減を確認してから実行できます。

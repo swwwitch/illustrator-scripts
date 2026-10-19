@@ -9,7 +9,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.0.1
 Release-Date=2026-09-07
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 アクティブアートボードのガイドを線付きのパスに変換してクリップボードへ送ります。
 元のガイドは残し、同じ座標に重なった余分なガイドだけを削除します。

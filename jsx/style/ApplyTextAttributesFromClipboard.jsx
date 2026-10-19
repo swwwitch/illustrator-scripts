@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.3.9
 Release-Date=2021-04-10
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 CopyTextAttributesToClipboard.jsx が保存した文字属性を、選択中のテキストへ適用します。
 適用する属性はダイアログのチェックボックスで選べ、文字ツールでの部分選択にも対応します。

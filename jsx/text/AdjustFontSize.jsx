@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.1.7
 Release-Date=2026-08-02
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択している文字を対象に、フォントサイズと水平比率／垂直比率を調整します。
 ライブプレビューで結果を確認しながら調整でき、キャンセルすると開く前の状態に戻ります。

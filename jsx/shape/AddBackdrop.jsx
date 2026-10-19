@@ -11,7 +11,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.7.9
 Release-Date=2025-12-23
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択したテキストやオブジェクトの背面に、正円・スーパー楕円・長方形の図形を敷きます。
 既存の背面図形を一緒に選んでいれば、形状を読み取って置き換えます。

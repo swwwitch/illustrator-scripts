@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.1.7
 Release-Date=2026-08-11
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択した1つのテキストフレームの各行をアウトライン幅で測定し、最長行の幅にそろうよう行ごとの文字サイズを変倍します。
 

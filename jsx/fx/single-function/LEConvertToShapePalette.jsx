@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.1.7
 Release-Date=2026-09-19
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択オブジェクトに［形状に変換］のライブエフェクトを適用する常駐パレットです。
 「長方形／楕円」と「値を指定／値を追加」、幅・高さを設定すると、選択にライブプレビューが反映されます。

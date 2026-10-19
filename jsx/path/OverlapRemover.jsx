@@ -9,7 +9,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.0.3
 Release-Date=2026-03-01
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択オブジェクトに対して、重なりをならすためのメニューコマンドを順に実行します。
 オフセットパス→グループ化→パスファインダー：合流→アピアランスを分割の順で処理します。

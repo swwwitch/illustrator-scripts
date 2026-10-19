@@ -9,7 +9,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.0.3
 Release-Date=2026-08-28
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択したエリア内文字の垂直方向の配置と行揃えを、まとめて中央にそろえます。閉じたパスを選択している場合はエリア内文字に変換し、サンプルテキスト、または一緒に選択した／グループ化したテキストの内容を流し込みます（グループは流し込み後に解除）。
 

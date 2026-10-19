@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.10.7
 Release-Date=2025-05-20
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択したオブジェクトを、指定した行数・列数のグリッドに沿って各セルの中央へ配置します。
 配置先は「現在のアートボード」「最背面のオブジェクト」「_target レイヤーの長方形」から選べます。

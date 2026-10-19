@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.7.10
 Release-Date=2025-07-10
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択したオブジェクトを、指定した行数・列数のグリッドに分割し、各ピースを矩形マスクでクリッピングします。
 分割したピースごとにアートボードを作成することもできます。

@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.1.4
 Release-Date=2026-05-02
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択中のオブジェクトから、条件に合うテキストやパスだけを残して選択し直します。
 文字種・行揃え・使用フォント・パスの開閉・塗りや線の状態を条件にでき、変更はダイアログを閉じずにカンバスへ反映されます。

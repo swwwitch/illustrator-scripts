@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.0.14
 Release-Date=2025-07-03
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 オブジェクトを指定したレイヤーへ一括で移動します。
 対象は選択オブジェクト、全テキスト、すべて、すべて（強制）から選べます。

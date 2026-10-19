@@ -9,7 +9,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.0.3
 Release-Date=2025-06-12
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 RGBまたはCMYKで構成された黒を、安定したK100の黒に変換します。
 テキスト、パス、スウォッチの塗りおよび線カラーが一括の対象です。

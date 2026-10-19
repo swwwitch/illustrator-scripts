@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=0.1.7
 Release-Date=2024-06-03
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択したオブジェクトを高さ・幅・不透明度・カラーなどの基準で並び替え、横または縦に整列・分布させます。
 整列方向、基準、順序、間隔、幅・高さの統一を、プレビューを見ながら指定できます。

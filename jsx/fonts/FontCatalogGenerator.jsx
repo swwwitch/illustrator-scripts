@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.7.12
 Release-Date=2026-01-27
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 システムにインストールされているフォントを一覧化し、アートボード上にフォント見本を自動生成します。
 表示する文字列とフォントサイズはダイアログで指定できます。

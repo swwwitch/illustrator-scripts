@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.7.0
 Release-Date=2026-03-03
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 ポイント文字・パス上文字・図形からエリア内文字をつくり、そのまま体裁（サイズ・行送り・先頭ベースライン・行揃え・インデントなど）を調整します。エリア内文字を囲み罫とポイント文字に分離することもできます。
 

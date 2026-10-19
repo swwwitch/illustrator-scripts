@@ -8,7 +8,6 @@ Name=ImgFitMaskMultiple
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.0.3
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 複数の画像と図形を選択して実行すると、対応する図形の大きさに合わせて各画像を拡大・縮小し、それぞれクリッピングマスクを作成します。
 

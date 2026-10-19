@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.2.7
 Release-Date=2026-04-30
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 Excel由来のIllustratorデータを、表組みとして扱いやすい状態に整形します。
 クリッピングマスクの解除、テキストの整理と配置、セル背景の抽出、罫線の中心線化と均等配置をまとめて行います。

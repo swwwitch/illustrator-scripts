@@ -8,7 +8,6 @@ Name=RemoveTrimViewGuideLayer
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.0.2
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 「Guides Preview for Trim View」レイヤーを探し、ロックと非表示を解除してから削除し、結果をアラートで報告します。
 

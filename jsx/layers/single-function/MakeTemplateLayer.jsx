@@ -8,7 +8,6 @@ Name=MakeTemplateLayer
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.0.3
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 アクティブレイヤーを「テンプレート」属性（ロック・印刷不可・画像を薄く表示）にします。ダイアログを出さずに即実行します。
 

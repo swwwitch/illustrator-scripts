@@ -8,7 +8,6 @@ Name=ArtboardNavigatorPalette
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.2.15
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 アートボード間をなめらかにズーム移動する常駐パレットです。
 先頭・前・全体表示・次・末尾のボタンとキーボードショートカットで移動できます。

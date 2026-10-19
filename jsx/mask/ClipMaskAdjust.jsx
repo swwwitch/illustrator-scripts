@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=3.1.8
 Release-Date=2026-01-03
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 クリップグループ（クリッピングマスク）の「マスクパス」と「内容」を調整します。
 ダイアログの操作はオートプレビューで即時反映されます。

@@ -9,7 +9,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.0.0
 Release-Date=2026-10-09
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 トリミング表示・アートボード・ガイド・ビデオ定規を隠し、カンバスカラーをホワイトにして、アートボードの境目が見えない「無限のカンバス」の表示にします。
 すでに隠れている項目はそのままにします（メニューの反転と違い、表示に戻ってしまうことはありません）。

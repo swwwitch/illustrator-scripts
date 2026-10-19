@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.6.8
 Release-Date=2026-01-22
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 CSV／タブ区切りテキストのデータを、Illustratorのテンプレートに流し込むデータ結合スクリプトです。
 テキストフレーム内の `<変数名>` タグを列の値に置き換え、データ件数ぶんのアートボードを生成します。

@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.1.10
 Release-Date=2026-01-24
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択したテキストフレームの見た目（位置・幅・行数）に合わせて、罫線と背景を自動生成します。
 テキスト（文字・タブ・スタイル・タブストップ）には一切手を加えません。

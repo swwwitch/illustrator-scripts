@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.3.19
 Release-Date=2026-05-27
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 アクティブなドキュメントのファイル名を、ベース・サブテキスト・ステータス・タイムスタンプ・連番・バージョン番号のセグメント単位で組み立て直し、リネーム／別名で保存／コピーを保存のいずれかで付け直します。
 保存形式は常に Illustrator 形式（.ai）なので、.ai 以外の書類では「別名で保存」だけが使えます。

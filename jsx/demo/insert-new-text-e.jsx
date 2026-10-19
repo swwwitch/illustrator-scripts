@@ -9,7 +9,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.1.1
 Release-Date=2025-04-01
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 現在の表示領域の中心に、欧文フォントを適用したポイントテキストを作成し、選択状態にします。
 

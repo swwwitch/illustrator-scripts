@@ -9,7 +9,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.1.3
 Release-Date=2025-08-02
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 2つのオブジェクトを選択しているとき、それぞれの中心位置を入れ替えます。
 通常オブジェクトは visibleBounds、クリップグループはマスクパスの geometricBounds を基準にします。

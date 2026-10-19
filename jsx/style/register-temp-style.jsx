@@ -8,7 +8,6 @@ Name=register-temp-style
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.0.1
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択中のオブジェクトの見た目を、固定名のグラフィックスタイルとして登録します。
 同名スタイルが既に存在する場合は削除してから登録するため、繰り返し実行しても重複しません。

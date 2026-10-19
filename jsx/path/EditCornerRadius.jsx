@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.5.8
 Release-Date=2026-09-26
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択・現在のアートボード・ドキュメント全体のいずれかにある角丸長方形の角の半径を、ダイアログで変更します。
 吹き出し形状と、グループ・複合パス・複合シェイプの中の長方形も対象です。

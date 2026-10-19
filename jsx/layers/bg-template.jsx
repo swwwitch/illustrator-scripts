@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.1.8
 Release-Date=2025-07-29
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 現在のアートボードと同じ大きさの長方形を作成し、「bg-template」レイヤーに置いてテンプレート化したうえで最背面へ移動します。
 

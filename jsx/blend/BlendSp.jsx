@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.3.8
 Release-Date=2026-01-01
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択内容に応じて、ブレンドの作成・設定・調整を1つのダイアログで行います。
 ステップ数と方向はライブプレビューで確認でき、解除／拡張／ブレンド軸の置き換えは［OK］で確定したときだけ実行します。

@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=2.2.10
 Release-Date=2025-06-25
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択中のポイントテキストを雛形に、すべてのアートボードへページ番号を配置します。
 接頭辞・接尾辞・ゼロ埋め・総ページ数表示に対応し、変更は即時プレビューされます。

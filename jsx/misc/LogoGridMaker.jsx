@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.5.7
 Release-Date=2026-04-10
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択オブジェクトの visibleBounds を基準に、ロゴ用の補助線およびクリアスペースを生成します。
 「文字形状からグリッド構造を抽出する」ことを目的としたスクリプトです。

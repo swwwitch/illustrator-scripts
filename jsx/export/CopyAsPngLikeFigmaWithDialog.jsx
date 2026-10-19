@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.1.5
 Release-Date=2025-05-02
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択オブジェクトを高解像度でラスタライズし、PNG相当のビットマップとしてクリップボードへコピーします。
 解像度・背景色・アンチエイリアス・余白は、実行時のダイアログで指定できます。

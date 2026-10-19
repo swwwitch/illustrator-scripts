@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.1.10
 Release-Date=2026-09-01
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択した複数行のテキストを1段落ごとのテキストオブジェクトに分け、指定したアートボードから順番に配置し、アートボードの幅に合わせて中央にそろえます。
 

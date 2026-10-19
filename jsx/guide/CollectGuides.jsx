@@ -9,7 +9,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.4.2
 Release-Date=2025-08-16
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 複数のレイヤーやサブレイヤーに散在するガイドを、1つのレイヤー（既定は「// guide」）へ集約します。
 非表示・ロックされたレイヤーのガイドも一時解除して対象にし、処理後に元の状態へ戻します。

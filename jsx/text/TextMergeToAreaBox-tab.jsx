@@ -9,7 +9,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.2.3
 Release-Date=2025-07-18
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 バラバラに分割されたテキストオブジェクトを行単位にまとめ、タブ区切りの1つのエリア内文字に再構成します。
 

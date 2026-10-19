@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.5.10
 Release-Date=2025-08-14
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 あらかじめ登録しておいたAIファイルを一覧から選び、その中身を現在のドキュメントへ取り込みます。
 

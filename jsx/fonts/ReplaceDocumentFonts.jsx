@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=2.2.4
 Release-Date=2025-03-29
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 ドキュメント（または選択範囲）で使用中のフォントをファミリー／スタイル単位で一覧し、
 選んだフォントを別のフォントへまとめて置き換えます。

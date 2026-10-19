@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.0.0
 Release-Date=2026-10-16
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択しているテキストから縦中横の箇所を集めてダイアログボックスに一覧で表示し、文字列の書き換え、字形の幅、トラッキングを調整します。
 

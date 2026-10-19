@@ -8,7 +8,6 @@ Name=InspectLayerTree
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.0.2
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 ドキュメント内のレイヤーとサブレイヤーを階層順にたどり、名前・ロック状態・表示状態をアラートで一覧表示します。
 

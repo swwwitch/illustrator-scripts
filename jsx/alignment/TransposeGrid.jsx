@@ -9,7 +9,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.1.3
 Release-Date=2026-01-26
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択した複数オブジェクトを行・列として自動判定し、元の配置ピッチを推定してグリッドを転置（行⇄列）します。
 歯抜けのある配置や、1行だけ／1列だけの転置にも対応します。

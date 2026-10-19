@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=2.1.6
 Release-Date=2025-12-25
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択した数字・英字・漢数字のテキストを、位置・重ね順・現在の値などの並び順でソートして連番を振り直します。
 書式と開始値はプレビューを見ながら指定できます。

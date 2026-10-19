@@ -9,7 +9,6 @@ Name=LEFeather
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.1.9
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択オブジェクトに［効果］＞［スタイライズ］＞［ぼかし］のライブエフェクトを適用します。
 半径は現在の定規単位で入力し、内部で pt に換算します。

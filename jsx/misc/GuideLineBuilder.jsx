@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.3.7
 Release-Date=2026-02-27
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択オブジェクト（グループ／複合パス／テキストを含む）から直線セグメントを拾い、描画範囲いっぱいに延長した補助線を描画します。
 Bezier曲線から円を推定する［円弧から円］、アンカーポイントに円・正方形を置く機能もあります。

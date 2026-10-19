@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.7.10
 Release-Date=2025-08-05
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 配置画像・テキスト・長方形・クリップグループ・直線パスに対して、回転／シアー／スケール／縦横比を安全にリセットします。
 バウンディングボックスをリセットしたあと元の中心位置へ戻すため、見た目の位置は保たれます。

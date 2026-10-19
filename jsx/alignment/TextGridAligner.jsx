@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.1.10
 Release-Date=2025-08-02
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 テキストフレームを行・列単位で整列またはグループ化します。
 行方向と列方向のしきい値を独立して調整でき、行・列のアキを均等に配置するオプションもあります。

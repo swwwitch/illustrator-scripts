@@ -9,7 +9,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.0.2
 Release-Date=2025-12-27
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 最前面のドキュメントの選択範囲の左上を基準に、ほかの開いているドキュメントの選択オブジェクトを同じ座標へ移動します。
 

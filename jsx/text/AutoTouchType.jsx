@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.3.7
 Release-Date=2026-02-16
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択したテキストの各文字に対して、ベースライン・比率・回転・カーニング・トラッキングをランダムに付与します。
 seed付きの乱数でプレビューの見た目を安定させ、文字回転を適用したときはトラッキングを自動補正します。

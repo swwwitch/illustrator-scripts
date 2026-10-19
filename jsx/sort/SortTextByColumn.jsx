@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.0.18
 Release-Date=2025-06-15
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 テキストフレーム内のタブ区切りテキストを、指定した列の値で並び替えます。
 数値・文字列の昇順／降順とランダム順に対応し、見出し行は自動で判定します。

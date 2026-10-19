@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.3.0
 Release-Date=2026-09-20
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 オブジェクト（画像・グループなど）とパスを選択して実行すると、パスの範囲を取り除いて残りを指定の間隔に詰めます（パスが対象の端を覆っているときは、その側だけを残します）。切り口はワープで曲げたりギザギザにしたりでき、省略線も引けます。
 

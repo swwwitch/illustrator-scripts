@@ -8,7 +8,6 @@ Name=ResetJustification
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.0.3
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択したテキストの段落に対して、ジャスティフィケーション関連の設定（ワードスペース、文字間、グリフスケーリング）を初期値に戻します。
 

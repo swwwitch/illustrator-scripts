@@ -9,7 +9,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.2.1
 Release-Date=2025-04-01
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 現在の表示領域の中心に黒く塗った正方形を作成して選択し、「Convert to Shape」「Make Pixel Perfect」コマンドを適用します。
 

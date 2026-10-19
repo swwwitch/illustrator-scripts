@@ -9,7 +9,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.0.2
 Release-Date=2024-10-27
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択した各オブジェクトを、クリップボードの内容で置き換えます。
 貼り付けた内容は元のオブジェクトの長辺に合わせて縦横比を保ったまま拡大・縮小し、中心をそろえます。

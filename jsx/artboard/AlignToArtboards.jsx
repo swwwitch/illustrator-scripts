@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.2.9
 Release-Date=2025-12-17
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択したオブジェクトを、アートボード上の指定位置へ整列します。
 整列先は3×3の9点から選べ、辺からのマージンも指定できます。

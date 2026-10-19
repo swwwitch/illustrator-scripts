@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.0.6
 Release-Date=2026-09-28
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択したパスを、外接矩形を基準に行×列の格子で等分割します。行数・列数と間隔はダイアログで指定し、左右・上下の分割ボタンでも入れられます。
 

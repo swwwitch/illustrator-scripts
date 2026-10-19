@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.4.10
 Release-Date=2025-07-08
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 アクティブなアートボードの外にあるオブジェクト、またはアートボード内の選択していないオブジェクトを、削除するか保管用レイヤーへ移します。
 

@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.2.1
 Release-Date=2026-08-27
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 あらかじめ登録した複数のフォルダーから .ai/.svg ファイルをキーワードで絞り込み、選んだファイルをその場で開くファインダーです。ファイルは複数選んでまとめて開けます。
 フォルダーとファイル名を左右のリストに分けて表示し、一度作った索引をキャッシュして次回以降の起動を早くします。

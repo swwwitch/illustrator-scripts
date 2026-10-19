@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.0.9
 Release-Date=2025-08-20
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 アセット書き出しパネルに登録されたアセットの名前を、一括で変更します。
 

@@ -10,7 +10,6 @@ Author=KOUJI & 相棒（Gem）
 Target-App=Illustrator
 Version=1.2.5
 Release-Date=2026-10-01
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 よく使うフォントを分類と文字セットで絞り込み、ファミリーごとにウェイト順で並べた一覧から、クリックしたフォントを選択中のテキストに適用する常駐パレットです。
 同じ書体の文字セット違い（Pr6N・Pr5 など）はチェックした文字セットの中で優先順位の高いものだけを残し、中国語・韓国語など日本語以外のフォントは外します。

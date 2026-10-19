@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.5.1
 Release-Date=2026-04-04
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 ドキュメント内のオブジェクトをアートボード単位で振り分け、「番号_アートボード名」のレイヤーに整理します。
 所属アートボードは各オブジェクトの重心位置で判定します。

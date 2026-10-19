@@ -11,7 +11,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.10.9
 Release-Date=2025-04-20
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 アートボードのサイズを「操作」×「対象」×「サイズ」の組み合わせで自動調整します。
 選択オブジェクトに合わせるほか、各アートボード内のオブジェクトに合わせて全アートボードを個別に調整できます。

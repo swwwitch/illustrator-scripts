@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.3.1
 Release-Date=2026-10-03
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択したパスに、よく使う矢印と線の設定（線幅・線端・角の形状・カラー・破線・白フチ）をまとめて適用します。
 矢印はDOMから操作できないため、一時アクションを生成して実行します。

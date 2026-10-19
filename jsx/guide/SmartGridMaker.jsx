@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.7.8
 Release-Date=2026-02-24
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 長方形の選択、またはアートボードを基準に、囲み罫とグリッドを一括生成します。
 外枠・タイトルエリア・内側エリアの分割や線種、裁ち落とし対応のフレームを、プレビューを見ながら1つのダイアログで設定できます。

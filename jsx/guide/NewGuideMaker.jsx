@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.4.0
 Release-Date=2025-07-13
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 ダイアログで方向・位置・単位・対象（カンバス／アートボード）を指定してガイドを作成します。
 

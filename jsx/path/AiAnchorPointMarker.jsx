@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.1.8
 Release-Date=2026-07-05
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択オブジェクトのすべてのアンカーポイントに、マーカー（自動生成の正方形／最前面オブジェクトの複製／シンボルのインスタンス）を配置します。
 ダイアログを閉じずに、ライブプレビューで仕上がりを確かめながら設定を調整できます。

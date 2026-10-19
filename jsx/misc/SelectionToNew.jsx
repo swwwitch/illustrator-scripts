@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.1.8
 Release-Date=2026-07-29
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択したオブジェクトから、新規レイヤー・新規アートボード・新規ドキュメントを作成します。
 作成対象はラジオボタン（`L` / `A` / `D` キー）で切り替え、元のオブジェクトを残すかどうかも指定できます。

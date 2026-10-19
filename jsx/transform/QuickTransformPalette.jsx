@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.4.5
 Release-Date=2026-07-03
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択したオブジェクトの移動・複製と反転・回転を、アイコンのクリックで即時実行する常駐パレットです。
 9軸の基準点・マージン・プレビュー境界の設定はすべての操作に共通で、Option＋クリックすると複製してから変形します。

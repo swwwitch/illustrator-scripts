@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.0.11
 Release-Date=2026-07-27
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 埋め込み画像を、一時アクションを動的に生成して実行することでリンク画像に置き換えます。
 「選択オブジェクトと置換」で配置するため、位置・サイズ・回転角・重ね順はそのまま引き継がれます。

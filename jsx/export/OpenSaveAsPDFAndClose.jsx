@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.1.2
 Release-Date=2026-10-08
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 指定したファイルを Illustrator で開き、ダイアログボックスで選んだ設定で PDF として保存して閉じます。
 付属スクリプト「ドキュメントを PDF として保存.jsx」をもとにしています。

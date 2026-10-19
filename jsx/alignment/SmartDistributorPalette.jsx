@@ -8,7 +8,6 @@ Name=SmartDistributorPalette
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.1.7
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 DistributeDownFromTop.jsx / DistributeUpFromTop.jsx を統合した常駐パレットです。
 十字ボタン（↑ / ← 0 → / ↓）を押すたびに、その時点の選択へ1ステップぶん適用します。

@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.3.8
 Release-Date=2026-03-21
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 見開きページ相当のオブジェクトを検出し、左右2つの片ページに分割します。
 対象は選択オブジェクトのみ、またはドキュメント内のすべてから選べます。

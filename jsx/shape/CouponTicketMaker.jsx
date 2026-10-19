@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.5.7
 Release-Date=2026-03-08
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択した長方形パスから、ミシン目・ギザギザ・コーナー処理・スリット／ホールを組み合わせたチケット風の形状を生成します。
 専用のプレビューレイヤーで結果を確認しながら設定でき、［OK］したときだけ元のオブジェクトへ適用します。

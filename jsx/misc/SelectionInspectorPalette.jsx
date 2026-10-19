@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.7.9
 Release-Date=2025-08-06
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択中またはドキュメント全体のオブジェクトを集計し、2カラムの常駐パレットで表示します。
 テキスト・配置画像・透明・グループ・パス・ガイドの内訳を確認でき、選択オブジェクトのメモの閲覧・編集にも対応します。

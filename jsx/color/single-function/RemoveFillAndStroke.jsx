@@ -9,7 +9,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.0.1
 Release-Date=2026-09-29
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択したオブジェクトの塗りと線を、どちらも「なし」にします。
 FillStrokeSwitcher の［塗りと線を消去］をダイアログなしで実行するワンクリック版です。

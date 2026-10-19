@@ -9,7 +9,6 @@ Name=SmartAlignAndTile-simple
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.1.8
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 重なって配置されたオブジェクトを、横方向へ等間隔に並べ直します。
 

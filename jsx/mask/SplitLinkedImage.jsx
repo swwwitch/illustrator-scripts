@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.1.8
 Release-Date=2026-09-19
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択したリンク画像を、指定した列数・行数のグリッドに分割します。
 分割後の各画像はクリッピングマスクで切り出され、元の配置を保ったまま並びます。

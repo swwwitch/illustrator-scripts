@@ -9,7 +9,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.0.3
 Release-Date=2026-05-19
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択した長方形を、左下隅・上辺中央・右下隅の3点を通る円弧に変換します。
 長方形の幅と高さから円の半径・中心・開始角・終了角を求め、元の長方形は削除します。

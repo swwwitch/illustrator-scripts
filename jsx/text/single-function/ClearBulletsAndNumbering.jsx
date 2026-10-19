@@ -9,7 +9,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.0.1
 Release-Date=2026-08-18
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択したテキストフレームから、Illustrator標準の「箇条書きと番号付きリスト」を解除します。
 テキストの内容・文字属性・段落設定・タブストップは控えて戻すため、リスト書式だけが外れます。

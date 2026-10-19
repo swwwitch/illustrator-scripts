@@ -9,7 +9,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.0.2
 Release-Date=2025-07-16
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 「_guide」レイヤー内のガイドを通常のパス（塗りなし、線K100・1pt）に戻し、「ReleasedGuides」レイヤーへ移動します。
 移動後、「_guide」レイヤーは再ロックします。

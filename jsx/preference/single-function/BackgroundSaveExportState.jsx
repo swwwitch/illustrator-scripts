@@ -9,7 +9,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.0.0
 Release-Date=2026-10-18
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 環境設定の［ファイル管理］→［バックグラウンドで保存］［バックグラウンドで書き出し］のオン／オフを読み出して表示します。
 app.preferences では読めない（存在しないキー扱いで常に true が返る）ため、設定ファイル「Adobe Illustrator Cloud Prefs」を直接読みます。

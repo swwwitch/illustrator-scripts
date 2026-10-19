@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.0.8
 Release-Date=2025-08-06
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 入力したテキストを、インストールされているフォントで並べて表示します。
 30個ぶん／アートボードいっぱい／すべてのフォント、の3モードから選べます。

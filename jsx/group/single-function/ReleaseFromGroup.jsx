@@ -8,7 +8,6 @@ Name=ReleaseFromGroup
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.0.2
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択中のオブジェクトがグループ内にある場合、親グループを辿って所属レイヤーの直下へ移動します。
 重ね順が反転しないよう、選択オブジェクトは逆順に処理します。

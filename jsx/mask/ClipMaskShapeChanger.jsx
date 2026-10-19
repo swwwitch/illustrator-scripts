@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.1.10
 Release-Date=2026-02-01
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択した画像（配置／埋め込み）または既存のクリップグループを、正方形・正円・六角形のクリップ形状へ置き換えます。
 ケイ線の追加、角丸、複数オブジェクトの大きさ揃えにも対応します。

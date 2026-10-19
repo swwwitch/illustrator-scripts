@@ -9,7 +9,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.1
 Release-Date=2024-06-24
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択したオブジェクトを、重ね順を維持したまま「bg」レイヤーへ移動して最背面に配置します。
 「bg」レイヤーは自動的に作成され、処理後にロックされます。

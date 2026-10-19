@@ -9,7 +9,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.0.2
 Release-Date=2026-03-06
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択したオブジェクトを、一緒に選んだ既存のグループへ加えます。グループの効果やクリッピングマスクはそのまま残ります。
 グループが無いか複数あるときは、グループを1段解除してから1つのグループにまとめ直します（クリップグループは解除しません）。

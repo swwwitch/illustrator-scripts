@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.2.11
 Release-Date=2025-07-10
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 すべてのアートボードに同じサイズの矩形を描画し、アートボード内のオブジェクトをマスクします。
 クリップグループ名はアートボード名に設定します。

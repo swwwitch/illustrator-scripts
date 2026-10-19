@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.0.10
 Release-Date=2026-09-22
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択したオブジェクトを「既存のグループに入れる」「グループから出す」「1つずつグループにする」のどれで処理するかを、ダイアログで選んで実行します。
 初期値は選択の状態から自動で決まります。

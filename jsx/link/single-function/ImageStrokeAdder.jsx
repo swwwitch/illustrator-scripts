@@ -9,7 +9,6 @@ Name=ImageStrokeAdder
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.1.8
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択した配置画像に、アピアランスとしてケイ線を追加します。
 

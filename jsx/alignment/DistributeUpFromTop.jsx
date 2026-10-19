@@ -8,7 +8,6 @@ Name=DistributeUpFromTop
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.3.1
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択内容に応じて、行送り（leading）と配置を調整します。
 最も上のオブジェクトを固定し、以降を上方向へ詰めます。

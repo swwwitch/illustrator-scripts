@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.7.13
 Release-Date=2025-04-14
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 除外名を持つレイヤーを残しつつ、その他のレイヤー配下のオブジェクトを指定したレイヤーへ集約してフラット化します。
 ロック／非表示の扱いやガイドの行き先は、ダイアログで個別に指定できます。

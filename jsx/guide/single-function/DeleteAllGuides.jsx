@@ -9,7 +9,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.0.2
 Release-Date=2025-07-11
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 ドキュメント内のすべてのガイドを削除します。
 ロックされたレイヤーも一時的にロックを解除して対象にし、処理後に元のロック状態へ戻します。

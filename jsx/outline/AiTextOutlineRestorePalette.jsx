@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=2.0.11
 Release-Date=2024-07-23
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 テキストのアウトライン化と、アウトラインからのテキスト復元を常駐パレットから実行します。
 アウトライン化の直前に文字・段落属性をオブジェクトのメモ（note）へ保存し、そのメモをもとにテキストフレームを再生成します。

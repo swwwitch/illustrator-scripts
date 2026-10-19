@@ -9,7 +9,6 @@ Name=AverageRulesInRectangle
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.0.8
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択した外枠の長方形と、その内側にある縦罫・横罫を、外枠の中で均等に再配置します。
 横罫・縦罫はそれぞれON/OFFでき、プレビューの切り替えにも対応します。

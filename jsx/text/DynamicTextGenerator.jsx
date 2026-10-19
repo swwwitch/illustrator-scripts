@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.2.8
 Release-Date=2026-05-18
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択したテキストの文字幅に合わせたパスを作り、アーチ・円・下向き弓のパス上文字に変換します。
 パスに対して文字が占める割合を指定でき、各行の幅を最長行にそろえる「ブロック」も選べます。

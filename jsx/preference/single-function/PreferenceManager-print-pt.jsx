@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.1.8
 Release-Date=2025-08-06
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 単位と数値インクリメントを、ダイアログから指定・変更します。
 

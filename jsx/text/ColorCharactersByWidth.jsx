@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.4.0
 Release-Date=2026-10-16
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択したテキストのうち、全角の英数字と「！？」を赤、半角の英数字と「!?」を青、等幅字形の文字を緑に塗ります。ほかの文字はベースの色（黒）にします。
 半角・全角のスペースは塗れないので、専用のレイヤーに色付きの長方形を描きます。

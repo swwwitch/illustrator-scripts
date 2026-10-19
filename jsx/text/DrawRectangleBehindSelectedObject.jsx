@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.7.9
 Release-Date=2025-08-22
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択したオブジェクトの背面に、マージン・角丸・カラーを指定した長方形を作成します。
 

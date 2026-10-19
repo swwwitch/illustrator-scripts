@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.1.9
 Release-Date=2025-08-29
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 作業アートボード、すべてのアートボード、または番号で指定したアートボードを、プレビューしながら指定の幅・高さに変更します。
 

@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=2.1.10
 Release-Date=2025-07-16
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 重なって配置されたオブジェクトを、横方向または縦方向へ指定した間隔で並べ直します。
 行数・列数を指定すればタイル状に、キーオブジェクトを設定すればその位置を基準に配置できます。

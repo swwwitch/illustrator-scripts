@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.7.11
 Release-Date=2025-08-14
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 指定したAIファイルからグラフィックスタイルを取り込み、スタイル名のラジオボタンを自動生成して選択オブジェクトへ適用します。
 指定したファイルは記憶され、次回以降は自動で参照します。

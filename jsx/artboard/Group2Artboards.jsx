@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.4.10
 Release-Date=2025-07-03
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択したグループオブジェクトの境界に指定したマージンを加え、その範囲をアートボードとして追加します。
 複数のグループ選択に対応し、名前の連番付与やファイル名参照、既存アートボードの削除オプションも備えます。

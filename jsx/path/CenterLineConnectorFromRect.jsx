@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.7.7
 Release-Date=2025-06-12
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 Excelなどからコピー＆ペーストした長方形から、罫線（グリッド・枠線）を自動生成します。
 線同士の関係に応じて、格子化・結合・統合まで実行します。

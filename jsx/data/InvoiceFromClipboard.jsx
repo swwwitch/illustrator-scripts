@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.1.2
 Release-Date=2026-08-16
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 クリップボードにある「見出しと値」のテキストを読み取り、テンプレート内の `<タグ>` を置き換えて、領収書・請求書・納品書のPDFを書き出す作例スクリプトです。
 書き出したあとは、保存先フォルダーと、宛先・件名・本文を入れたメールの下書きを開きます。

@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.0.12
 Release-Date=2026-06-22
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択したテキストの自動カーニング方式（和文等幅／0／メトリクス／オプティカル）をまとめて設定します。
 

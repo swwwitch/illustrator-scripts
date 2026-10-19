@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.1.10
 Release-Date=2026-09-05
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 カーリーブラケット（波括弧）のパスを、2つの半径・中央の移動・全体の長さ・線の設定（ブラシを含む）から作成します。
 値を変えるたびにアートボード上のプレビューが更新され、オブジェクトを選択して実行すると、その大きさと向きに合わせて配置します。

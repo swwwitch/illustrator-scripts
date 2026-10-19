@@ -9,7 +9,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.0.1
 Release-Date=2026-06-18
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択テキスト内で文字サイズが混在しているとき、各テキストの先頭文字のサイズへ統一します。
 見た目の大きさは変えず、サイズ差を水平比率・垂直比率に変換して補正します。

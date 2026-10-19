@@ -9,7 +9,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.3.2
 Release-Date=2025-07-18
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 バラバラに分割されたテキストオブジェクトを行単位にまとめ、元のフォント・サイズ・行送り・幅を引き継いだ1つのエリア内文字に再構成します。
 PDFをIllustratorで開いたときの分断テキストの復元に使います。

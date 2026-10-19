@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.1.10
 Release-Date=2026-05-10
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 ドキュメント内のテキストフレームから日付を検索し、選択した項目だけを置換します。
 オブジェクトが選択されている場合は、その選択範囲のテキストフレームだけを検索対象にします。

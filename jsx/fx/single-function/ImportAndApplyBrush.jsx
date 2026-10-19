@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.0.10
 Release-Date=2026-09-20
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 このスクリプトと同じ場所に置いたブラシライブラリー（.ai）からブラシを取り込み、選択したパスに適用します。
 書類の［ブラシ］パネルに無いブラシは、取り込んでから適用します。

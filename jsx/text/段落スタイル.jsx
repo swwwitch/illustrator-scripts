@@ -9,7 +9,6 @@ Name=段落スタイル
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.0.8
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択したテキストの体裁を、段落スタイルとして登録します。既存のスタイルを選んで上書きすることもできます。
 

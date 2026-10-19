@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.1.11
 Release-Date=2026-05-20
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択中のリンク画像と同じファイルを参照する配置画像をドキュメント全体から探し、まとめて選択または削除します。
 同一かどうかの判定は、リンクの絶対パスとファイル名のどちらでも行えます。

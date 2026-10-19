@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.1.7
 Release-Date=2026-02-27
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択オブジェクト内のパス（グループ／複合パスを含む）から隣接するアンカーポイントのペアを取り、補助線として「直線を描画範囲いっぱいに延長した線」を描画します。
 ［円弧から円］でBezier曲線セグメントから円を推定することもできます。

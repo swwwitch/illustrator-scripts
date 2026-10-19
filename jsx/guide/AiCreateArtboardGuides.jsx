@@ -9,7 +9,6 @@ Name=AiCreateArtboardGuides
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.2.8
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 アートボードを基準に、ルーラーガイドの変換・中心ガイド・エッジガイドをダイアログでまとめて作成します。
 作成したガイドは「_guide」レイヤーに集約し、ライブプレビューで結果を確認しながら設定できます。

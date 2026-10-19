@@ -9,7 +9,6 @@ Name=TableRuleAverager
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.0.9
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択した外枠の長方形を基準に、内部の縦罫・横罫を等間隔に再配置します。
 最大の長方形を外枠として判定し、縦罫は左右、横罫は上下方向に均等配置します。

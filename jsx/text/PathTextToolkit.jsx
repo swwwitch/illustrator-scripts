@@ -9,7 +9,6 @@ Name=PathTextToolkit
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.4.8
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 パス上文字の作成と調整をまとめて行うツールです。
 

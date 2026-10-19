@@ -9,7 +9,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.0.1
 Release-Date=2026-09-28
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択しているテキストのフォントを、同じファミリー・同じ系列（イタリックや字幅）の一つ下のウェイトに切り替えます。
 

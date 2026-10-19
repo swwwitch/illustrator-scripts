@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.2.11
 Release-Date=2025-08-15
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 アクティブなアートボードだけを残すか、空のアートボードをまとめて削除します。
 アクティブなアートボードだけを残す場合は、その外側にあるオブジェクト（ガイドを含む）も削除できます。

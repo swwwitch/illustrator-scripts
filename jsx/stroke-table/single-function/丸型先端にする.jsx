@@ -9,7 +9,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.0.2
 Release-Date=2024-08-22
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択したパスアイテム（グループ内も含む）の線端を、丸型線端に設定します。
 

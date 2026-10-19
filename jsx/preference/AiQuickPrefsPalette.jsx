@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=2.4.2
 Release-Date=2025-08-04
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 キー入力・整列・変形・ペースト・描画まわりの、よく使う環境設定を常駐パレットで切り替えます。
 操作したその場で反映されるため、環境設定ダイアログを開く手間がありません。

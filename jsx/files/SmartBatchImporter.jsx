@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.5.3
 Release-Date=2025-05-29
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 開いているドキュメントやフォルダー内の Illustrator ファイル（.ai / .svg / .eps）をまとめて読み込み、1つのドキュメントに、全体が正方形に近いグリッドで並べます。
 ［アートボード単位］で読み込むと、元のアートボードの大きさと内容の位置を保ったアートボードを作ります。

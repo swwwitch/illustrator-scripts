@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.2.0
 Release-Date=2026-10-17
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択している文字の字形（JIS78・JIS90・旧字体など）を切り換えたり、異体字に置き換えたりします。
 

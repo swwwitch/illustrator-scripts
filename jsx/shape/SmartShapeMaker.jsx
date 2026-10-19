@@ -11,7 +11,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=2.4.8
 Release-Date=2025-05-02
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 1つのダイアログから、正円・多角形・星形・スーパー楕円・ルーローの三角形などのカスタム形状を作成します。
 リアルタイムプレビューで、辺の数・幅・回転・詳細オプションを調整できます。

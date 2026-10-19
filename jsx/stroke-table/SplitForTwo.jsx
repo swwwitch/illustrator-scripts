@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=2.10.12
 Release-Date=2026-03-14
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 1つのオブジェクトを選択して実行すると、その外接矩形を左右または上下に2分割し、2色の背景に置き換えます。
 ［バランス］パネルで、左右（または上下）の幅と比率を数値入力とスライダーで調整できます。

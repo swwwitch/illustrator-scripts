@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.4.6
 Release-Date=2026-07-01
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 ポイント文字・パス上文字・図形＋テキストを、見た目を保ったままエリア内文字へ変換します。
 あわせて、指定したファイルからグラフィックスタイルを取り込んで適用できます。

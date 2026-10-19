@@ -8,7 +8,6 @@ Name=ApplyLeadingPerTextFrame150
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.0.2
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択された各テキストフレームの各行について、行頭数文字のフォントサイズを基準に行送りを再計算して適用します。
 行送りは150%に固定されます。

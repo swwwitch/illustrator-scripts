@@ -9,7 +9,6 @@ Name=FillSnapper
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.1.7
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択中のオブジェクトを「動かす対象」と「スナップ基準」に分類し、対象のバウンディングボックスを最寄りの基準線へ合わせます。
 パスはアンカーポイントを直接変形するため、クリップグループ内の子パスにも対応します。

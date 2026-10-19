@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.4.7
 Release-Date=2026-06-28
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択した2つのオブジェクトの上下の間隔を、指定した値にそろえる常駐パレットです。
 ライブプレビューに対応し、設定を変えるたびに結果を確認できます。

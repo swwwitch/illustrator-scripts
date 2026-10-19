@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.0.10
 Release-Date=2026-04-14
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択したオブジェクトに「アピアランスの消去」を実行します。
 実行前にダイアログを表示し、復元するかどうかと、選択オブジェクトに応じた復元方法を選べます。

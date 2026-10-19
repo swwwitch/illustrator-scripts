@@ -9,7 +9,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.0.1
 Release-Date=2026-09-27
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択したテキストの合成フォントを、文字ごとに構成フォントへ置き換えます。サイズ・比率・ベースラインも写すので、見た目はそのままです。
 

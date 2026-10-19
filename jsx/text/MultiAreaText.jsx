@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.2.10
 Release-Date=2025-03-01
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 複数のテキストを1つのエリア内文字にまとめたり、逆に分割したりします。
 

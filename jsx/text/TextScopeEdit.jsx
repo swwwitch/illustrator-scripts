@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.6.1
 Release-Date=2026-04-08
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 ドキュメント内のテキスト（シンボル内を含む）を一覧にし、書式を保ったまま編集して書き戻します。
 改行・強制改行はボタンでカーソルの位置に入れられ、テキストとフォント名の書き出しもできます。

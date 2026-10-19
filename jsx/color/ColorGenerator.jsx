@@ -9,7 +9,6 @@ Name=ColorGenerator
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.1.7
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 カラーパレットを生成してアートボードに描画し、スウォッチグループにも登録します。
 Tailwind / Lightness / Saturation / Complementary / LCH のアルゴリズムに対応します。

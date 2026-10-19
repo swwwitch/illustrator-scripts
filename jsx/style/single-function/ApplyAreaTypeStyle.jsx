@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.6.11
 Release-Date=2025-08-14
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 ダイアログのラジオボタンでグラフィックスタイルを選び、選択中のオブジェクトへ適用します。
 選んだスタイルがドキュメントに無ければ、あらかじめ定義したAIファイルから取り込みます。

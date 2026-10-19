@@ -9,7 +9,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.0.2
 Release-Date=2026-05-13
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 全アートボード上にあるテキストの内容を集め、最後のアートボードの右側に新しいテキストフレームとして配置します（既定では1つにまとめ、設定で1つずつ縦に並べることもできます）。
 

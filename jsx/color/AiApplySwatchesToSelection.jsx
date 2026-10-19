@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.8.11
 Release-Date=2024-11-03
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択したオブジェクトやテキストに、スウォッチや定義済みカラーを適用するモーダルダイアログです。
 配色は選択中のスウォッチかスウォッチグループから取り込め、適用単位（オブジェクト／1文字／単語／行／段落）と適用順（そのまま／逆順／ランダム／完全ランダム）を変えるたびにライブプレビューします。

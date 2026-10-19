@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.2.10
 Release-Date=2025-06-06
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択したクリッピングマスクをモード別に解除します。
 単純解除、マスクパス削除、マスク内容削除の3つの方法から選べます。

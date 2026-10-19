@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.2.6
 Release-Date=2025-08-31
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択中のオブジェクトを、％または仕上がりの幅・高さで拡大・縮小する常駐パレットです。プレビューで確かめてから確定でき、個別に拡大・縮小しながら選択全体の端を固定することもできます。
 

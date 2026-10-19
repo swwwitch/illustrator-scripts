@@ -9,7 +9,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.0.1
 Release-Date=2026-10-04
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択オブジェクトの塗りを［分割・拡張］で展開し、グループ化して［合流］の効果を掛けてからアピアランスを分割します。3D 効果を使わずに、パターンなどの塗りを通常のパスにまとめます。
 

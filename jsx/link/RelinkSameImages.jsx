@@ -9,7 +9,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.2.3
 Release-Date=2024-06-15
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択した配置画像と同じリンクファイルを参照している配置画像をドキュメント全体から探し、指定したファイルへ一括で差し替えます。
 グループの中にある配置画像も自動で解決します。

@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.0.10
 Release-Date=2026-09-22
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択したグループの入れ子をダイアログで選んだ方法で解消します。外側のグループを残して中だけ解除するか、すべて解除して1つのグループに作り直すかを選べます。
 クリップグループや、ロック・非表示のサブグループを解除せずに残すこともできます。

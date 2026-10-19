@@ -8,7 +8,6 @@ Name=ClipEditMask
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.0.1
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択がクリップグループのときはマスク編集モードへ切り替え、そうでないときは重なり合うオブジェクトごとにクリッピングマスクを作成します。
 

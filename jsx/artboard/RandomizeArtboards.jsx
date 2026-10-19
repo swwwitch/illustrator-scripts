@@ -8,7 +8,6 @@ Name=RandomizeArtboards
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.0.2
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 すべてのアートボードを、指定した列数のグリッドへランダムな順序で並べ替えます。
 

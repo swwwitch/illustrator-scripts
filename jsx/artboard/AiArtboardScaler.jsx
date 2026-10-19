@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.1.10
 Release-Date=2026-07-15
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 アートボードを現在のサイズを基準にスケール変更します。ダイアログを開いたままライブプレビューできます。
 対象は現在のアートボード／すべて／指定から選べ、9つの基準点のいずれかを固定して再計算します。

@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.0.1
 Release-Date=2026-08-23
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択したオブジェクトを、アートボードを対象に整列する常駐パレットです。アイコンのクリックで即時に整列し、アートボードの端から空けるマージンも指定できます。
 

@@ -9,7 +9,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.0.1
 Release-Date=2026-09-07
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 開いている2つのドキュメントのうち、最前面のドキュメントのガイドを、もう一方のドキュメントの
 同じ番号・同じサイズのアートボードへ複製します。

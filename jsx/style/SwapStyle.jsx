@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.1.7
 Release-Date=2026-05-21
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択した2つのオブジェクトの間で、見た目または文字列を交換します。
 スタイル交換では、グラフィックスタイル・基本的な塗りや線・文字属性を組み合わせて指定できます。

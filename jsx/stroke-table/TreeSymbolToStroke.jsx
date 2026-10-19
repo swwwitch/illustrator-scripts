@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.2.1
 Release-Date=2026-10-01
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択したテキストのツリー記号（├─・└─・│ や tree コマンドの ├── など）をパスの罫線に変換し、字下げと名前・説明のあいだの空きをタブにします。
 各行を囲み罫で囲むこともでき、罫線・タブストップ・囲み罫はプレビューを見ながら調整できます。

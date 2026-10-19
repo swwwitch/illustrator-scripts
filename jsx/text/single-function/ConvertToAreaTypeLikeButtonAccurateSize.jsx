@@ -8,7 +8,6 @@ Name=ConvertToAreaTypeLikeButtonAccurateSize
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.0.3
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 ポイント文字・パス上文字・図形＋テキストを、見た目を保ったままエリア内文字へ変換します。
 

@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.1.5
 Release-Date=2026-06-05
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 ビューの回転角度と環境設定の「角度の制限」をパレットから確認・変更し、選択オブジェクトの角度と合わせられます。
 

@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.5.11
 Release-Date=2025-10-26
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 2つのオブジェクトを選択し、大きい方を「容器」、小さい方を「タイル」として、容器のバウンディングボックス内にタイルを等間隔で敷き詰めます。
 完全に内側に収まるタイルのみを残し、元の2オブジェクトはそのまま残します。

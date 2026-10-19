@@ -8,7 +8,6 @@ Name=bg-template-only
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.0.3
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 アクティブレイヤー（「bg-template」レイヤーなど）をテンプレートレイヤーにします。
 

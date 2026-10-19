@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.4.8
 Release-Date=2026-02-15
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 基準日をもとに、指定した月数ぶんのカレンダー（月曜はじまり）をアートボード中心に作成します。
 セル幅・高さや月間隔をダイアログで調整でき、日本の祝日（2020〜2035年、振替休日・国民の休日を含む）に対応します。

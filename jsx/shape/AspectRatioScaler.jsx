@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.8.9
 Release-Date=2025-07-20
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択したオブジェクトを、指定した縦横比に合わせてサイズ変更します。
 幅か高さを固定してもう一方を比率・長さ・％で決めるほか、幅・高さを別々に指定することもできます。

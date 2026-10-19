@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=2.3.10
 Release-Date=2026-03-03
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択したエリア内文字・パス上文字のあふれ（オーバーセット）を、文字サイズの縮小・拡大、
 またはエリア内文字の高さの調整で解消します。

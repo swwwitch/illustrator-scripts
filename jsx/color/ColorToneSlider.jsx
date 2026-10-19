@@ -10,7 +10,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.1.7
 Release-Date=2025-12-28
-Meta-URL=https://github.com/swwwitch/illustrator-scripts
 Description-BEGIN
 選択したオブジェクトの明るさを、スライダーで調整します。
 プラスで明るく、マイナスで暗くなり、プレビューを確認しながら決めた結果は、取り消し1ステップにまとまります。
