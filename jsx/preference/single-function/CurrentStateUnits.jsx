@@ -3,8 +3,8 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
 SCRIPTMETA-BEGIN
-Script-ID=com.swwwitch.illustrator.CurrentUnitsState
-Name=CurrentUnitsState
+Script-ID=com.swwwitch.illustrator.CurrentStateUnits
+Name=CurrentStateUnits
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.0.0
@@ -32,7 +32,7 @@ Shows the current units in Units > General, Stroke, Type and East Asian Type.
 // =========================================
 // 基本情報 / Basic info
 // =========================================
-var SCRIPT_NAME     = "CurrentUnitsState";            /* スクリプト名 / script name */
+var SCRIPT_NAME     = "CurrentStateUnits";            /* スクリプト名 / script name */
 var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-18";                   /* 最初のリリース日 / first release date */
