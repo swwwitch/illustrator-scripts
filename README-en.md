@@ -358,7 +358,7 @@ After release, we continue to fix bugs and make adjustments through daily use.
 - [Draw connectors from the key object to each object](readme-en/AiConnectorBuilder.md)
 - [Filter scripts by keyword and run them](readme-en/AiScriptLauncher.md)
 - [Apply saved text attributes to the selection](readme-en/ApplyTextAttributesFromClipboard.md)
-- [Center text in cells divided by rules](readme-en/ArrangeLikeTableCells.md)
+- [Tidy up a ruled table and center texts in its cells](readme-en/ArrangeLikeTableCells.md)
 - [Redistribute rules evenly inside a frame](readme-en/AverageRulesInRectangle.md)
 - [Scatter confetti across the selected area](readme-en/ConfettiMaker.md)
 - [Save the character and paragraph attributes](readme-en/CopyTextAttributesToClipboard.md)

@@ -361,7 +361,7 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 - [キーオブジェクトから各図形へコネクターを引く](readme-ja/AiConnectorBuilder.md)
 - [スクリプトをキーワードで絞り込んで実行](readme-ja/AiScriptLauncher.md)
 - [保存した文字属性をテキストに適用](readme-ja/ApplyTextAttributesFromClipboard.md)
-- [罫線で区切ったセルの中央にテキストを配置](readme-ja/ArrangeLikeTableCells.md)
+- [罫線で区切った表を整え、テキストをセルの中央に配置](readme-ja/ArrangeLikeTableCells.md)
 - [外枠の中で罫線を均等に再配置](readme-ja/AverageRulesInRectangle.md)
 - [選択オブジェクトの領域に紙吹雪を散らす](readme-ja/ConfettiMaker.md)
 - [文字属性・段落属性を取得して保存](readme-ja/CopyTextAttributesToClipboard.md)

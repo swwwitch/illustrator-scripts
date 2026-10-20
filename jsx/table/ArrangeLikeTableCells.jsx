@@ -1,4 +1,5 @@
 #target illustrator
+#targetengine "ArrangeLikeTableCellsEngine"
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
@@ -7,12 +8,12 @@ Script-ID=com.swwwitch.illustrator.ArrangeLikeTableCells
 Name=ArrangeLikeTableCells
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.1.0
+Version=1.2.0
 Release-Date=2026-10-20
 Description-BEGIN
-外枠の中の縦罫・横罫を均等に、またはテキストに合わせて並べ直し、罫線で区切られたセルの中央にテキストを字形の見た目で配置します。
+外枠と罫線で区切った表で、外枠の大きさ・罫線の間隔・線幅を整え、各テキストをセルの中央に字形の見た目で配置します。
 
-Redistributes the rules inside the outer frame, evenly or to fit the texts, then centers each text in its cell based on its glyph outlines.
+In a table drawn with an outer frame and rules, adjusts the frame size, the rule spacing and the stroke weights, then centers each text in its cell based on its glyph outlines.
 Description-END
 SCRIPTMETA-END
 */
@@ -21,14 +22,17 @@ SCRIPTMETA-END
 
 ### 概要
 
-外枠の中の縦罫・横罫を均等に、またはテキストに合わせて並べ直し、罫線で区切られたセルの中央にテキストを字形の見た目で配置します。
+外枠と罫線で区切った表で、外枠の大きさ・罫線の間隔・線幅を整え、各テキストをセルの中央に字形の見た目で配置します。
 
 詳細は README を参照してください。
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ArrangeLikeTableCells.md
 
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n22aa0e767930
+
 ### Overview
 
-Redistributes the rules inside the outer frame, evenly or to fit the texts, then centers each text in its cell based on its glyph outlines.
+In a table drawn with an outer frame and rules, adjusts the frame size, the rule spacing and the stroke weights, then centers each text in its cell based on its glyph outlines.
 
 See the README for details.
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ArrangeLikeTableCells.md
@@ -39,13 +43,14 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ArrangeLik
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ArrangeLikeTableCells";        /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.2.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-20";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-20";                   /* 更新日 / last updated */
 
-var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ArrangeLikeTableCells.md"; /* README（日本語） */
-var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ArrangeLikeTableCells.md"; /* README (English) */
+var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ArrangeLikeTableCells.md"; /* README（日本語） */
+var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ArrangeLikeTableCells.md"; /* README (English) */
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹介記事 / article URL */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
@@ -56,8 +61,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // ユーザー設定 / User Settings
     // =========================================
 
-    /* ［縦罫を並べ直す］［横罫を並べ直す］の初期値 / Initial value of "Redistribute vertical / horizontal rules" */
-    var AVERAGE_RULES = true;
+    /* ［縦罫の間隔を調整］［横罫の間隔を調整］の初期値 / Initial value of "Adjust vertical / horizontal rule spacing" */
+    var ADJUST_RULE_SPACING = true;
 
     /*
         ［間隔］の初期値 / Initial value of "Spacing"
@@ -69,13 +74,30 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     var DISTRIBUTE_MODE = "even";
 
     /*
-        ［長さを揃える］の初期値 / Initial value of "Match rule lengths"
+        ［長さを外枠に合わせる］の初期値 / Initial value of "Match rule lengths to frame"
         true  : 縦罫の上下、横罫の左右を外枠に合わせる（2点の罫線のみ）
                 Snap rule endpoints to the outer frame (two-point rules only).
         false : 罫線の長さは変えず、位置だけ平均化する
                 Keep rule lengths; redistribute positions only.
     */
-    var MATCH_LINES_TO_RECT = true;
+    var MATCH_RULE_LENGTHS = true;
+
+    /* ［外枠を長方形に変換］の初期値 / Initial value of "Convert frame to rectangle" */
+    var CONVERT_FRAME_TO_RECT = false;
+
+    /* ［角を丸くする］の初期値と、半径の初期値（pt） / Initial value of "Round corners" and the initial radius (pt) */
+    var ROUND_CORNERS = false;
+    var CORNER_RADIUS_PT = 8;
+
+    /* ［線幅をそろえる］の初期値（線幅の初期値は、外枠・罫線でもっとも多い線幅） / Initial value of "Match stroke weights" (the weight starts at the most common one among the frame and rules) */
+    var MATCH_STROKE_WIDTHS = false;
+
+    /* ［ランダムな濃さで塗る］の初期値と、ランダムに選ぶ濃さの範囲（K%） / Initial value of "Fill with random tints" and the range of random tints (K%) */
+    var FILL_CELLS = false;
+    /* ［グループ化］の初期値（塗りの長方形を1つのグループにまとめる） / Initial value of "Group" (group the fill rectangles) */
+    var GROUP_CELL_FILLS = true;
+    var FILL_TINT_MIN = 10;
+    var FILL_TINT_MAX = 60;
 
     /* ［セルの中央に配置］の初期値 / Initial value of "Center in cells" */
     var CENTER_IN_CELLS = true;
@@ -89,9 +111,16 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     /* 位置の比較に挟む許容値（pt） / Tolerance for comparing positions (pt) */
     var EPSILON = 0.001;
 
+    /* 縦・横の辺とみなす傾き（長さに対するずれの割合。0.02 で約1°） / Slope still treated as vertical or horizontal (offset per length; 0.02 is about 1 degree) */
+    var SLOPE_TOLERANCE = 0.02;
+
     // =========================================
     // レイアウト / Layout
     // =========================================
+
+    /* ダイアログの区切りの余白 / Gaps in the dialog */
+    var SEPARATE_OPTION_GAP     = 6;   /* 別の機能の行の上に足す余白 / extra space above a row for a separate feature */
+    var FRAME_OPTIONS_TOP_GAP   = 5;   /* ［外枠を長方形に変換］の上に足す余白 / extra space above "Convert frame to rectangle" */
 
     // UIレイアウト（再利用パーツ） / UI layout (reusable)
 
@@ -171,6 +200,649 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     // UIレイアウト（再利用パーツ）ここまで / End of the reusable UI layout
+
+    // UI の明暗（再利用パーツ） / UI theme (reusable)
+
+    /**
+     * UI がダークテーマかどうかを判定する（Illustrator は uiBrightness、InDesign は uiBrightnessPreference）
+     * @returns {boolean} ダークなら true。取得できない環境では false（明るいUI扱い）
+     */
+    function isDarkUI() {
+        try {
+            if (app.preferences && app.preferences.getRealPreference) {
+                return app.preferences.getRealPreference("uiBrightness") <= 0.5; /* Illustrator */
+            }
+            return app.generalPreferences.uiBrightnessPreference <= 0.5; /* InDesign */
+        } catch (e) {
+            return false;
+        }
+    }
+
+    // UI の明暗（再利用パーツ）ここまで / End of the reusable UI theme
+
+    // ステップボタン（再利用パーツ） / Stepper buttons (reusable)
+
+    // -----------------------------------------
+    // ステップボタンの寸法・増減量 / Stepper metrics and steps
+    // -----------------------------------------
+    var STEPPER_BUTTON_WIDTH   = 20;  /* ∧∨ボタンの幅 / button width */
+    var STEPPER_BUTTON_HEIGHT  = 11;  /* ∧∨ボタン1つの高さ（2つ重ねた全体の高さは22） / button height (22 for the pair) */
+    var STEPPER_CORNER_RADIUS  = 2;   /* 枠の角丸の半径（ScriptUIは円弧を描けないため短い線分で近似） / corner radius, approximated with segments */
+    var STEPPER_FIELD_SPACING  = 3;   /* 項目名と∧∨の間隔 / spacing between the label and the stepper */
+    var STEPPER_SIDE_MARGIN    = 3;   /* ∧∨の左に足す余白（右は入力欄に突き合わせる） / extra space left of the stepper */
+    var STEPPER_SHIFT_MULTIPLE = 10;  /* shift＋クリックでそろえる倍数 / Shift-click snaps to multiples of this */
+    var STEPPER_OPTION_STEP    = 0.1; /* option＋クリックの増減量 / Option-click step */
+
+    /* 単位の換算は UnitValue に任せる（in / ft / yd / mm / cm / m / pt / pc / px ほか、単数形・複数形も可）。
+       UnitValue に無い単位だけ、ここで UnitValue の単位に読み替える（値は「1単位＝何 unit か」）。
+       「p」は「1p6」（1パイカ6ポイント）の形にも使う
+       Units UnitValue lacks, mapped onto UnitValue units (how many of `unit` make one) */
+    var STEPPER_UNIT_ALIASES = {
+        "q": { unit: "mm", amount: 0.25 },    /* 級 / Q */
+        "h": { unit: "mm", amount: 0.25 },    /* 歯 / H */
+        "p": { unit: "pc", amount: 1 },       /* パイカ / pica */
+        "ft/in": { unit: "ft", amount: 1 },   /* Illustrator の単位コード7の表示 / Illustrator unit code 7 */
+        "c": { unit: "ci", amount: 1 },       /* シセロ（InDesign の表示） / ciceros as InDesign shows them */
+        "ag": { unit: "in", amount: 1 / 14 }, /* アゲート / agates */
+        "ap": { unit: "tpt", amount: 1 }      /* アメリカンポイント / American points */
+    };
+
+    // -----------------------------------------
+    // ステップボタンの配色 / Stepper colors
+    // -----------------------------------------
+    var STEPPER_UI_DARK           = isDarkUI();
+    /* UIの明るさは4段階あり、段階ごとに背景色が違う。どの段階でも背景に対する差で見せるよう、黒・白の半透明を重ねる。
+       ダーク側は Illustrator 標準のスピナー（［グリッドに分割］）で実測、明るい側は最も明るい段階（背景 約0.94）から逆算
+       UI brightness has four levels with different backgrounds, so colors are translucent overlays that follow the
+       dialog background. Dark values are measured from Illustrator's own spinner; light values derived for the lightest level */
+    var STEPPER_FILL_COLOR        = STEPPER_UI_DARK ? [0, 0, 0, 0.10]  : [1, 1, 1, 0.50];  /* 地 / background */
+    var STEPPER_FRAME_COLOR       = STEPPER_UI_DARK ? [1, 1, 1, 0.07]  : [0, 0, 0, 0.10];  /* 枠線 / frame */
+    var STEPPER_PRESSED_COLOR     = STEPPER_UI_DARK ? [1, 1, 1, 0.12]  : [0, 0, 0, 0.13];  /* 押下中 / pressed */
+    var STEPPER_CHEVRON_COLOR     = STEPPER_UI_DARK ? [1, 1, 1, 1]     : [0, 0, 0, 0.70];  /* 山形の線 / chevron */
+    var STEPPER_DIM_FILL_COLOR    = STEPPER_UI_DARK ? [1, 1, 1, 0.035] : [1, 1, 1, 0.30];  /* 無効時の地 / background when disabled */
+    var STEPPER_DIM_FRAME_COLOR   = STEPPER_UI_DARK ? [1, 1, 1, 0.035] : [0, 0, 0, 0.05];  /* 無効時の枠線（ダークは地と同じで見せない） / frame when disabled */
+    var STEPPER_DIM_CHEVRON_COLOR = STEPPER_UI_DARK ? [1, 1, 1, 0.20]  : [0, 0, 0, 0.25];  /* 無効時の山形 / chevron when disabled */
+
+    // -----------------------------------------
+    // 数値欄を作る（外から呼ぶ関数） / Public API
+    // -----------------------------------------
+    /**
+     * 「項目名・∧∨・入力欄」をひと組にした数値欄を追加する。
+     * ↑↓キーでも∧∨と同じように増減する。直接入力した値も、フォーカスが外れたときに
+     * 整数化・下限・上限・単位（「20 mm」の形）へそろえ、数値でなければ直前の値に戻す。
+     * 四則演算（+ - * / と括弧）を入れると、確定時に計算した値にする。欄と違う単位で入れた値は欄の単位へ換算する（mm の欄に「1 in」→「25.4 mm」）
+     * @param {Group|Panel} parent - 追加先
+     * @param {Object} fieldOptions - label（コロン込みの項目名）/ labelWidth / text / characters /
+     *     step / min / max / integer（true で整数のみ）/ unit / onStep
+     * @returns {EditText} 入力欄（項目名は .fieldLabel、∧∨は .stepperGroup で参照できる）
+     */
+    function addSteppedField(parent, fieldOptions) {
+        var fieldRowGroup = parent.add("group");
+        fieldRowGroup.orientation = "row";
+        fieldRowGroup.alignChildren = ["left", "center"];
+        fieldRowGroup.spacing = STEPPER_FIELD_SPACING;
+
+        var fieldLabel = fieldRowGroup.add("statictext", undefined, fieldOptions.label || "");
+        if (fieldOptions.labelWidth) {
+            fieldLabel.preferredSize.width = fieldOptions.labelWidth;
+            fieldLabel.justify = "right";
+        }
+
+        /* ∧∨と入力欄は隙間0で突き合わせる / butt the stepper against the field */
+        var stepperInputGroup = fieldRowGroup.add("group");
+        stepperInputGroup.orientation = "row";
+        stepperInputGroup.alignChildren = ["left", "center"];
+        stepperInputGroup.spacing = 0;
+        stepperInputGroup.margins = 0;
+
+        var numberInput;
+        var stepperGroup = addStepper(stepperInputGroup, function () { return numberInput; }, fieldOptions);
+        numberInput = stepperInputGroup.add("edittext", undefined, fieldOptions.text || "");
+        numberInput.characters = fieldOptions.characters || 6;
+        numberInput.fieldLabel = fieldLabel;
+        numberInput.stepperGroup = stepperGroup;
+
+        /* ↑↓キーも∧∨と同じ処理で増減する（増減量・下限・上限・単位・修飾キーをそろえる） / arrow keys share the stepper's logic */
+        bindSteppedArrowKeys(numberInput, stepperGroup);
+
+        /* 項目名のクリックで入力欄にフォーカスを移す / clicking the label focuses the field */
+        fieldLabel.addEventListener("click", function () { focusNumberInput(numberInput); });
+
+        /* 直接入力をそろえる。計算式は計算し、数値でなければ直前の値に戻す / normalize typed values; evaluate arithmetic, revert non-numbers */
+        numberInput.lastValidText = numberInput.text;
+        numberInput.onChange = function () {
+            var value = evaluateArithmetic(numberInput.text, fieldOptions.unit);
+            if (isNaN(value)) {
+                numberInput.text = numberInput.lastValidText;
+                return;
+            }
+            writeSteppedValue(numberInput, value, fieldOptions);
+        };
+        return numberInput;
+    }
+
+    /**
+     * 数値欄の有効／無効を、項目名・∧∨ごとまとめて切り替える
+     * @param {EditText} numberInput - addSteppedField() で作った入力欄
+     * @param {boolean} isEnabled - 有効にするなら true
+     * @returns {void}
+     */
+    function setSteppedFieldEnabled(numberInput, isEnabled) {
+        numberInput.enabled = isEnabled;
+        numberInput.fieldLabel.enabled = isEnabled;
+        numberInput.stepperGroup.enabled = isEnabled;
+        /* ∧∨は自作描画なので、描き直してディム表示を切り替える / redraw the custom-drawn buttons to update the dimming */
+        for (var i = 0; i < numberInput.stepperGroup.children.length; i++) {
+            redrawStepperGroup(numberInput.stepperGroup.children[i]);
+        }
+    }
+
+    /**
+     * 数値欄の単位を差し替える（単位の設定やドロップダウンを切り替えたとき用）。
+     * shouldConvert が true なら値を新しい単位へ換算し（10 mm → 28.35 pt）、false なら数値はそのままで単位だけ付け替える
+     * @param {EditText} numberInput - addSteppedField() で作った入力欄、または bindSteppedArrowKeys() を呼んだ入力欄
+     * @param {string} unit - 新しい単位（例 " pt"。単位なしは ""）
+     * @param {boolean} [shouldConvert] - 値も換算するなら true
+     * @returns {void}
+     */
+    function setSteppedFieldUnit(numberInput, unit, shouldConvert) {
+        var stepOptions = numberInput.stepperGroup.stepOptions;
+        var oldUnit = stepOptions.unit || "";
+        var value = parseFloat(numberInput.text);
+        stepOptions.unit = unit;
+        if (isNaN(value)) return;
+        if (shouldConvert) {
+            var converted = evaluateArithmetic(String(value) + oldUnit, unit);
+            if (!isNaN(converted)) value = converted;
+        }
+        numberInput.text = formatStepperNumber(value) + unit;
+        numberInput.lastValidText = numberInput.text;
+    }
+
+    /**
+     * 入力欄の値を増減する∧∨ボタンを、隙間なく縦に積んで追加する
+     * @param {Group|Panel} parent - 追加先
+     * @param {Function} getNumberInput - 対象の入力欄を返す関数（入力欄を∧∨より後に作れるよう、クリック時に引く）
+     * @param {Object} stepOptions - step（増減量）/ min / max / integer / unit（例 " mm"）/ onStep(numberInput)
+     * @returns {Group} ∧∨をまとめた group（.stepBy(direction) で同じ増減を呼べる）
+     */
+    function addStepper(parent, getNumberInput, stepOptions) {
+        var stepperGroup = parent.add("group");
+        stepperGroup.orientation = "column";
+        stepperGroup.spacing = 0; /* 2つのボタンをつなげて1つの枠に見せる / join the buttons into one frame */
+        stepperGroup.margins = [STEPPER_SIDE_MARGIN, 0, 0, 0]; /* 右は入力欄に突き合わせる / butt against the field on the right */
+        stepperGroup.alignment = ["left", "center"];
+
+        /**
+         * 入力欄の値を増減する（shift を押しながらなら STEPPER_SHIFT_MULTIPLE の倍数へ、option なら STEPPER_OPTION_STEP ずつ。下限・上限で止める）
+         * @param {number} direction - 増やすなら 1、減らすなら -1
+         * @returns {void}
+         */
+        function stepBy(direction) {
+            var numberInput = getNumberInput();
+            if (!isStepperEnabledInTree(numberInput)) return; /* 入力欄か親が無効の間は動かさない */
+            var value = evaluateArithmetic(numberInput.text, stepOptions.unit); /* 確定前の計算式も計算してから増減 / evaluate an uncommitted expression first */
+            if (isNaN(value)) value = parseFloat(numberInput.text); /* 計算できなければ従来どおり先頭の数値 / fall back to the leading number */
+            if (isNaN(value)) value = 0;
+            writeSteppedValue(numberInput, computeSteppedValue(value, direction, stepOptions), stepOptions);
+            if (stepOptions.onStep) stepOptions.onStep(numberInput);
+        }
+
+        /**
+         * ∧∨を離したときに入力欄へフォーカスを移す（mousedown で移しても、離したときに外れる）
+         * @param {Group} chevronButton - makeStepperChevronButton() で作ったボタン
+         * @returns {Group} 渡したボタン
+         */
+        function focusInputOnRelease(chevronButton) {
+            chevronButton.addEventListener("mouseup", function () {
+                var numberInput = getNumberInput();
+                if (isStepperEnabledInTree(numberInput)) focusNumberInput(numberInput);
+            });
+            return chevronButton;
+        }
+
+        /* 整数の欄では option＋クリックの0.1刻みが効かないので、説明から外す / integer fields have no 0.1 step */
+        var upTooltip = stepOptions.integer ? LABELS.tooltip.stepUpInteger : LABELS.tooltip.stepUp;
+        var downTooltip = stepOptions.integer ? LABELS.tooltip.stepDownInteger : LABELS.tooltip.stepDown;
+        focusInputOnRelease(makeStepperChevronButton(stepperGroup, "up", function () { stepBy(1); })).helpTip = getLabel(upTooltip);
+        focusInputOnRelease(makeStepperChevronButton(stepperGroup, "down", function () { stepBy(-1); })).helpTip = getLabel(downTooltip);
+        stepperGroup.stepBy = stepBy; /* ↑↓キーからも同じ処理で増減できるよう公開 / shared with the arrow keys */
+        stepperGroup.stepOptions = stepOptions; /* 確定時の計算で欄の単位を引けるよう公開 / lets the commit-time evaluation find the unit */
+        return stepperGroup;
+    }
+
+    /**
+     * 入力欄の↑↓キーを、∧∨と同じ処理で増減させる。ほかのキーは素通し。
+     * あわせて、確定時に計算式・単位付きの値を計算して書き戻す（各スクリプトの onChange より先に呼ばれるので、onChange は計算後の値を読む）
+     * @param {EditText} numberInput - 対象の入力欄
+     * @param {Group} stepperGroup - addStepper() で作った∧∨
+     * @returns {void}
+     */
+    function bindSteppedArrowKeys(numberInput, stepperGroup) {
+        numberInput.addEventListener("keydown", function (event) {
+            if (event.keyName !== "Up" && event.keyName !== "Down") return;
+            stepperGroup.stepBy(event.keyName === "Up" ? 1 : -1);
+            event.preventDefault(); /* カーソル移動を止める / keep the caret from moving */
+        });
+        numberInput.addEventListener("change", function () {
+            var fieldUnit = stepperGroup.stepOptions ? stepperGroup.stepOptions.unit : undefined;
+            var value = evaluateArithmetic(numberInput.text, fieldUnit);
+            if (isNaN(value)) return; /* 計算できなければ各スクリプトの処理に任せる / leave it to the script's own handler */
+            /* 式か、換算で値が変わったときだけ書き戻す（ただの数値は書式を崩さない） / rewrite only expressions and converted values */
+            var hasOperator = /[*\/()\u00D7\u00F7\uFF0A\uFF0F\uFF08\uFF09]|[\d.\uFF10-\uFF19][^\d.\uFF10-\uFF19]*[+\-\u2212\uFF0B\uFF0D]/.test(numberInput.text);
+            if (!hasOperator && value === parseFloat(numberInput.text)) {
+                /* 単位を省いて入れた数値には、欄の単位だけ付け足す（桁は丸めない） / append the field unit to a bare number */
+                var trimmedText = numberInput.text.replace(/^\s+|\s+$/g, "");
+                if (fieldUnit && /[\d.]$/.test(trimmedText)) numberInput.text = trimmedText + fieldUnit;
+                return;
+            }
+            numberInput.text = formatStepperNumber(value) + (fieldUnit || "");
+        });
+        numberInput.stepperGroup = stepperGroup; /* setSteppedFieldUnit() から∧∨の設定を引けるようにする / lets setSteppedFieldUnit() find the options */
+    }
+
+    // -----------------------------------------
+    // 値の計算 / Value helpers
+    // -----------------------------------------
+    /**
+     * 押された修飾キーに応じて、1回分増減した値を返す
+     * （shift なら STEPPER_SHIFT_MULTIPLE の倍数へ、option なら STEPPER_OPTION_STEP ずつ、それ以外は step の倍数へ（1.5→2、1.5→1）。
+     * 整数の欄では option を無視して step の倍数へ）
+     * @param {number} value - 元の値
+     * @param {number} direction - 増やすなら 1、減らすなら -1
+     * @param {Object} stepOptions - step（通常の増減量。省略時は 1）/ integer
+     * @returns {number} 増減した値（下限・上限は未適用）
+     */
+    function computeSteppedValue(value, direction, stepOptions) {
+        var keyState = ScriptUI.environment.keyboardState;
+        if (keyState.shiftKey) return snapStepperToNextMultiple(value, STEPPER_SHIFT_MULTIPLE, direction);
+        if (keyState.altKey && !stepOptions.integer) return value + direction * STEPPER_OPTION_STEP;
+        return snapStepperToNextMultiple(value, stepOptions.step || 1, direction);
+    }
+
+    /**
+     * 値を、指定した方向にある次の倍数へ移す（230→240、232→240、下げるときは 232→230、230→220）
+     * @param {number} value - 元の値
+     * @param {number} multiple - 倍数の単位（例 10）
+     * @param {number} direction - 上げるなら 1、下げるなら -1
+     * @returns {number} 移した値
+     */
+    function snapStepperToNextMultiple(value, multiple, direction) {
+        /* 0.29 / 0.01 = 28.999… のような浮動小数の誤差で同じ値に戻らないよう、商を丸めてから切り捨て・切り上げる
+           round the quotient first so float error (0.29 / 0.01 = 28.999…) does not step back to the same value */
+        var quotient = Math.round(value / multiple * 1e6) / 1e6;
+        if (direction > 0) return Math.round((Math.floor(quotient) + 1) * multiple * 1e6) / 1e6;
+        return Math.round((Math.ceil(quotient) - 1) * multiple * 1e6) / 1e6;
+    }
+
+    /**
+     * 値を下限・上限の範囲に収める
+     * @param {number} value - 数値
+     * @param {Object} rangeOptions - min / max（どちらも省略可）
+     * @returns {number} 範囲に収めた値
+     */
+    function clampSteppedValue(value, rangeOptions) {
+        if (rangeOptions.min !== undefined && value < rangeOptions.min) return rangeOptions.min;
+        if (rangeOptions.max !== undefined && value > rangeOptions.max) return rangeOptions.max;
+        return value;
+    }
+
+    /**
+     * 入力欄の文字列を四則演算（+ - * / と括弧）として計算する。eval は使わない。
+     * 数値の後ろの単位は UnitValue で欄の単位へ換算する（mm の欄に「1in」→ 25.4、「1p6」は1パイカ6ポイント）。単位のない数値は欄の単位とみなす。
+     * 全角の数字・記号と × ÷ は半角に直す
+     * @param {string} text - 入力欄の文字列
+     * @param {string} [fieldUnit] - 欄の単位（例 " mm"。前後の空白は無視）
+     * @returns {number} 欄の単位での計算結果（式として読めない・換算できない単位・0で割ったときは NaN）
+     */
+    function evaluateArithmetic(text, fieldUnit) {
+        var source = String(text)
+            .replace(/[！-～]/g, function (ch) { return String.fromCharCode(ch.charCodeAt(0) - 0xFEE0); })
+            .replace(/×/g, "*")
+            .replace(/÷/g, "/")
+            .replace(/[−–—]/g, "-")
+            .replace(/\s/g, "");
+        if (source === "") return NaN;
+        var fieldUnitKey = String(fieldUnit || "").replace(/^\s+|\s+$/g, "").toLowerCase();
+        var fieldUnitValue = createStepperUnitValue(1, fieldUnitKey); /* 欄の単位の1単位（換算できない欄は null） / one field unit */
+        var position = 0;
+
+        /**
+         * 加減算の並び（項 ± 項 …）を読む
+         * @returns {number} 値（読めなければ NaN）
+         */
+        function readSum() {
+            var total = readProduct();
+            while (position < source.length && (source.charAt(position) === "+" || source.charAt(position) === "-")) {
+                var operator = source.charAt(position++);
+                var operand = readProduct();
+                total = (operator === "+") ? total + operand : total - operand;
+            }
+            return total;
+        }
+
+        /**
+         * 乗除算の並び（因子 × 因子 …）を読む
+         * @returns {number} 値（読めなければ NaN）
+         */
+        function readProduct() {
+            var total = readFactor();
+            while (position < source.length && (source.charAt(position) === "*" || source.charAt(position) === "/")) {
+                var operator = source.charAt(position++);
+                var operand = readFactor();
+                if (operator === "/" && operand === 0) return NaN;
+                total = (operator === "*") ? total * operand : total / operand;
+            }
+            return total;
+        }
+
+        /**
+         * 符号付きの数値（単位付きなら欄の単位へ換算）か、括弧で囲んだ式を読む
+         * @returns {number} 値（読めなければ NaN）
+         */
+        function readFactor() {
+            var ch = source.charAt(position);
+            if (ch === "+" || ch === "-") {
+                position++;
+                var signedValue = readFactor();
+                return (ch === "-") ? -signedValue : signedValue;
+            }
+            if (ch === "(") {
+                position++;
+                var innerValue = readSum();
+                if (source.charAt(position) !== ")") return NaN;
+                position++;
+                return innerValue;
+            }
+            var numberMatch = /^(\d+\.?\d*|\.\d+)/.exec(source.substring(position));
+            if (!numberMatch) return NaN;
+            position += numberMatch[0].length;
+            return readUnitSuffix(parseFloat(numberMatch[0]));
+        }
+
+        /**
+         * 数値の直後の単位を読み、欄の単位へ換算する
+         * @param {number} value - 単位の前の数値
+         * @returns {number} 欄の単位での値（換算できない単位なら NaN）
+         */
+        function readUnitSuffix(value) {
+            var unitMatch = /^(ft\/in|[A-Za-z]+|%|°)/i.exec(source.substring(position));
+            if (!unitMatch) return value; /* 単位なしは欄の単位 / no unit means the field's unit */
+            position += unitMatch[0].length;
+            var unitKey = unitMatch[0].toLowerCase();
+            if (unitKey === fieldUnitKey) return value;
+            var typedValue = createStepperUnitValue(value, unitKey);
+            if (!typedValue || !fieldUnitValue) return NaN; /* 知らない単位・単位のない欄 / unknown unit or unitless field */
+            var points = typedValue.as("pt");
+            /* 「1p6」＝1パイカ6ポイント / pica-point notation */
+            if (unitKey === "p") {
+                var pointMatch = /^(\d+\.?\d*|\.\d+)/.exec(source.substring(position));
+                if (pointMatch) {
+                    position += pointMatch[0].length;
+                    points += parseFloat(pointMatch[0]);
+                }
+            }
+            return points / fieldUnitValue.as("pt");
+        }
+
+        var result = readSum();
+        if (position !== source.length || !isFinite(result)) return NaN; /* 読み残しがあれば式として不正 / leftovers mean a malformed expression */
+        return result;
+    }
+
+    /**
+     * 数値と単位から UnitValue を作る。Q・H・p は STEPPER_UNIT_ALIASES で UnitValue の単位に読み替える。
+     * %（percent）は基準の長さが無いと換算できないので扱わない
+     * @param {number} value - 数値
+     * @param {string} unitKey - 単位（小文字。例 "mm"、"inches"、"q"）
+     * @returns {UnitValue|null} UnitValue（UnitValue が知らない単位・空・% なら null）
+     */
+    function createStepperUnitValue(value, unitKey) {
+        if (unitKey === "" || unitKey === "%") return null;
+        var alias = STEPPER_UNIT_ALIASES[unitKey];
+        var unitValue = alias ? new UnitValue(value * alias.amount, alias.unit) : new UnitValue(value, unitKey);
+        if (unitValue.type === "?" || unitValue.type === "%") return null; /* 知らない単位は例外にならず "?" になる。"percent" も除く / unknown units become "?" */
+        return unitValue;
+    }
+
+    /**
+     * 値を整数化・下限・上限でそろえ、単位を付けて入力欄に書き込む（直前の正しい値としても控える）
+     * @param {EditText} numberInput - 書き込む入力欄
+     * @param {number} value - 数値
+     * @param {Object} valueOptions - integer / min / max / unit（どれも省略可）
+     * @returns {void}
+     */
+    function writeSteppedValue(numberInput, value, valueOptions) {
+        numberInput.text = formatSteppedValue(value, valueOptions);
+        numberInput.lastValidText = numberInput.text;
+    }
+
+    /**
+     * 値を整数化・下限・上限でそろえ、丸めて単位を付けた表示用の文字列にする。
+     * 整数化してから下限で止めるので、「整数・下限1」の欄に 0.4 が入っても 1 になる
+     * @param {number} value - 数値
+     * @param {Object} valueOptions - integer / min / max / unit（どれも省略可）
+     * @returns {string} 入力欄に入れる文字列（例 "20 mm"）
+     */
+    function formatSteppedValue(value, valueOptions) {
+        if (valueOptions.integer) value = Math.round(value);
+        return formatStepperNumber(clampSteppedValue(value, valueOptions)) + (valueOptions.unit || "");
+    }
+
+    /**
+     * 小数第2位で丸めた数値を文字列で返す
+     * @param {number} value - 数値
+     * @returns {string} 表示用の数値文字列
+     */
+    function formatStepperNumber(value) {
+        return String(Math.round(value * 100) / 100);
+    }
+
+    // -----------------------------------------
+    // ∧∨ボタンの描画 / Drawing
+    // -----------------------------------------
+    /**
+     * 山形（∧／∨）の極小ボタンを作成する。
+     * 上下2つを隙間なく積んで1つの枠に見えるよう、枠線は外側の辺だけ描き（上ボタンは上側、下ボタンは下側）、
+     * 継ぎ目に線は引かない
+     * @param {Group|Panel} parent - 追加先
+     * @param {string} direction - "up" または "down"
+     * @param {Function} onClickFn - クリック時の処理
+     * @returns {Group} ボタンとして使う group
+     */
+    function makeStepperChevronButton(parent, direction, onClickFn) {
+        var buttonWidth = STEPPER_BUTTON_WIDTH;
+        var buttonHeight = STEPPER_BUTTON_HEIGHT;
+        var isUp = (direction === "up");
+        var chevronBox = parent.add("group");
+        chevronBox.margins = 0;
+        chevronBox.spacing = 0;
+        chevronBox.preferredSize = [buttonWidth, buttonHeight];
+        chevronBox.minimumSize = [buttonWidth, buttonHeight];
+        chevronBox.maximumSize = [buttonWidth, buttonHeight];
+        chevronBox.isPressed = false;
+        chevronBox.isStepperButton = true; /* redrawSteppersIn() の目印 / marker for redrawSteppersIn() */
+
+        chevronBox.onDraw = function () {
+            var boxGraphics = chevronBox.graphics;
+            /* 自作描画は自動でディムにならないため、無効なら薄い色で描く。親の無効化は子の enabled に出ないので親も見る
+               Custom drawing is not dimmed automatically; the parent's state does not reach the child's enabled */
+            var isDimmed = !isStepperEnabledInTree(chevronBox);
+
+            /* 枠線の内側の地（押下中は押下色） / background inside the frame, pressed color while pressed */
+            var fillColor = isDimmed ? STEPPER_DIM_FILL_COLOR : (chevronBox.isPressed ? STEPPER_PRESSED_COLOR : STEPPER_FILL_COLOR);
+            boxGraphics.newPath();
+            boxGraphics.rectPath(1, isUp ? 1 : 0, buttonWidth - 2, buttonHeight - 1);
+            boxGraphics.fillPath(boxGraphics.newBrush(boxGraphics.BrushType.SOLID_COLOR, fillColor));
+
+            drawStepperFrame(boxGraphics, buttonWidth, buttonHeight, isUp, isDimmed ? STEPPER_DIM_FRAME_COLOR : STEPPER_FRAME_COLOR);
+            drawStepperChevron(boxGraphics, buttonWidth, buttonHeight, isUp, isDimmed ? STEPPER_DIM_CHEVRON_COLOR : STEPPER_CHEVRON_COLOR);
+        };
+
+        /**
+         * 押下状態を変えて描き直す
+         * @param {boolean} isPressed - 押下中なら true
+         * @returns {void}
+         */
+        function repaint(isPressed) {
+            if (chevronBox.isPressed === isPressed) return;
+            chevronBox.isPressed = isPressed;
+            redrawStepperGroup(chevronBox);
+        }
+        chevronBox.addEventListener("mousedown", function () {
+            if (!isStepperEnabledInTree(chevronBox)) return;
+            repaint(true);
+            if (onClickFn) onClickFn();
+        });
+        chevronBox.addEventListener("mouseup", function () { repaint(false); });
+        /* 押したまま外へ出たときも押下色を残さない / reset when the pointer leaves while pressed */
+        chevronBox.addEventListener("mouseout", function () { repaint(false); });
+        return chevronBox;
+    }
+
+    /**
+     * 外側の辺だけの枠を描く（角は丸める）。継ぎ目側は開けておき、上下2つで1つの枠に見せる。
+     * ScriptUI は円弧を描けないため、角丸は短い線分で近似する
+     * @param {ScriptUIGraphics} boxGraphics - 描画先
+     * @param {number} boxWidth - ボタンの幅
+     * @param {number} boxHeight - ボタンの高さ
+     * @param {boolean} isUp - 上のボタンなら true（上側に枠を描く）
+     * @param {number[]} frameColor - [r, g, b, a]
+     * @returns {void}
+     */
+    function drawStepperFrame(boxGraphics, boxWidth, boxHeight, isUp, frameColor) {
+        var frameLeft = 0.5;
+        var frameRight = boxWidth - 0.5;
+        var outerY = isUp ? 0.5 : boxHeight - 0.5;
+        var seamY = isUp ? boxHeight : 0;
+        var towardSeam = isUp ? 1 : -1; /* 外側の辺から継ぎ目へ向かう向き / direction from the outer edge to the seam */
+        var radius = STEPPER_CORNER_RADIUS;
+        var arcSteps = 4; /* 角丸1つを何本の線分で近似するか / segments per corner */
+        var angle, k;
+
+        boxGraphics.newPath();
+        boxGraphics.moveTo(frameLeft, seamY);
+        /* 左の角丸 / left corner */
+        for (k = 0; k <= arcSteps; k++) {
+            angle = (Math.PI / 2) * k / arcSteps;
+            boxGraphics.lineTo(frameLeft + radius - radius * Math.cos(angle), outerY + towardSeam * (radius - radius * Math.sin(angle)));
+        }
+        /* 右の角丸 / right corner */
+        for (k = 0; k <= arcSteps; k++) {
+            angle = (Math.PI / 2) * k / arcSteps;
+            boxGraphics.lineTo(frameRight - radius + radius * Math.sin(angle), outerY + towardSeam * (radius - radius * Math.cos(angle)));
+        }
+        boxGraphics.lineTo(frameRight, seamY);
+        boxGraphics.strokePath(boxGraphics.newPen(boxGraphics.PenType.SOLID_COLOR, frameColor, 1));
+    }
+
+    /**
+     * 山形（∧／∨）を描く。文字グリフの▲▼は上下で大きさやベースラインが揃わないため、線で描く
+     * @param {ScriptUIGraphics} boxGraphics - 描画先
+     * @param {number} boxWidth - ボタンの幅
+     * @param {number} boxHeight - ボタンの高さ
+     * @param {boolean} isUp - ∧なら true、∨なら false
+     * @param {number[]} chevronColor - [r, g, b, a]
+     * @returns {void}
+     */
+    function drawStepperChevron(boxGraphics, boxWidth, boxHeight, isUp, chevronColor) {
+        var centerX = boxWidth / 2;
+        var centerY = isUp ? boxHeight / 2 + 0.5 : boxHeight / 2 - 0.5; /* 継ぎ目から少し離す / nudged away from the seam */
+        var halfWidth = 3.6; /* 山形の半幅（高さ1.8に対して開き約127°） / half width of the chevron */
+        var tipOffsetY = isUp ? -1.8 : 1.8; /* 頂点の中心からのずれ（上向きは上、下向きは下） */
+        boxGraphics.newPath();
+        boxGraphics.moveTo(centerX - halfWidth, centerY - tipOffsetY);
+        boxGraphics.lineTo(centerX, centerY + tipOffsetY);
+        boxGraphics.lineTo(centerX + halfWidth, centerY - tipOffsetY);
+        boxGraphics.strokePath(boxGraphics.newPen(boxGraphics.PenType.SOLID_COLOR, chevronColor, 1.2));
+    }
+
+    /**
+     * 入力欄にフォーカスを移す
+     * @param {EditText} numberInput - 対象の入力欄
+     * @returns {void}
+     */
+    function focusNumberInput(numberInput) {
+        numberInput.active = false; /* 一度外さないとフォーカスが移らないことがある / reset first or focus may not move */
+        numberInput.active = true;
+    }
+
+    /**
+     * コントロールと、その親をたどってすべて有効かを返す（親の無効化は子の enabled に出ない）
+     * @param {Object} control - 対象のコントロール
+     * @returns {boolean} すべて有効なら true
+     */
+    function isStepperEnabledInTree(control) {
+        for (var node = control; node; node = node.parent) {
+            if (!node.enabled) return false;
+        }
+        return true;
+    }
+
+    /**
+     * コンテナ以下にある∧∨ボタンをすべて描き直す。行やパネルの enabled を切り替えたあとに呼ぶ
+     * @param {Object} container - 行・グループ・パネルなど
+     * @returns {void}
+     */
+    function redrawSteppersIn(container) {
+        if (!container.children) return;
+        for (var i = 0; i < container.children.length; i++) {
+            var child = container.children[i];
+            if (child.isStepperButton) redrawStepperGroup(child);
+            else redrawSteppersIn(child);
+        }
+    }
+
+    /**
+     * group の onDraw を呼び直す。group には notify() が無いため、隠して再表示して描き直させる
+     * @param {Group} targetGroup - 描き直す group
+     * @returns {void}
+     */
+    function redrawStepperGroup(targetGroup) {
+        targetGroup.hide();
+        targetGroup.show();
+    }
+
+    // ステップボタン（再利用パーツ）ここまで / End of the reusable stepper
+
+    // =========================================
+    // 単位 / Units
+    // =========================================
+
+    /* 単位コードに対応する表示ラベルと、1単位あたりのポイント数
+       Unit code -> display label and points per unit */
+    var UNITS = [
+        { label: "in",    pointsPerUnit: 72 },                /* 0 */
+        { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
+        { label: "pt",    pointsPerUnit: 1 },                 /* 2 */
+        { label: "pica",  pointsPerUnit: 12 },                /* 3 */
+        { label: "cm",    pointsPerUnit: 72 / 2.54 },         /* 4 */
+        { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25 },  /* 5 */
+        { label: "px",    pointsPerUnit: 1 },                 /* 6 */
+        { label: "ft/in", pointsPerUnit: 72 * 12 },           /* 7 */
+        { label: "m",     pointsPerUnit: 72 / 25.4 * 1000 },  /* 8 */
+        { label: "yd",    pointsPerUnit: 72 * 36 },           /* 9 */
+        { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
+    ];
+
+    /* 単位コード5を「歯（H）」と表示する環境設定キー。文字サイズ（text/units）だけ「級（Q）」
+       Preference keys that show unit code 5 as H; only the type size (text/units) shows Q */
+    var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
+
+    /**
+     * 環境設定キーの単位を返す
+     * @param {string} [prefKey] - "rulerType"（既定）/ "strokeUnits" / "text/units" / "text/asianunits"
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位の情報
+     */
+    function getUnitInfo(prefKey) {
+        var unitKey = prefKey || "rulerType";
+        var unitCode = app.preferences.getIntegerPreference(unitKey);
+        /* 未知のコードは pt に寄せる / unknown codes fall back to points */
+        var unit = UNITS[unitCode] || UNITS[2];
+        /* 級（Q）と歯（H）は同じ長さだが、文字サイズは「Q」、距離は「H」と呼び分ける */
+        var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
+        return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
+    }
 
     // =========================================
     // ローカライズ / Localization
@@ -258,21 +930,30 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     /* 日英ラベル定義 / Japanese-English label definitions */
     var LABELS = {
         dialog: {
-            title: { ja: "セルの中央に配置", en: "Center Text in Cells" }
+            title: { ja: "表のように整える", en: "Arrange Like a Table" }
         },
         panel: {
+            frame: { ja: "外枠", en: "Frame" },
             rules: { ja: "罫線", en: "Rules" },
-            text: { ja: "テキスト", en: "Text" }
+            text: { ja: "テキスト", en: "Text" },
+            cells: { ja: "セル", en: "Cells" }
         },
         checkbox: {
-            averageVertical: { ja: "縦罫を並べ直す", en: "Redistribute vertical rules" },
-            averageHorizontal: { ja: "横罫を並べ直す", en: "Redistribute horizontal rules" },
-            matchRuleLengths: { ja: "長さを揃える", en: "Match rule lengths" },
+            adjustVerticalSpacing: { ja: "縦罫の間隔を調整", en: "Adjust vertical rule spacing" },
+            adjustHorizontalSpacing: { ja: "横罫の間隔を調整", en: "Adjust horizontal rule spacing" },
+            matchRuleLengths: { ja: "長さを外枠に合わせる", en: "Match rule lengths to frame" },
+            convertFrame: { ja: "外枠を長方形に変換", en: "Convert frame to rectangle" },
+            roundCorners: { ja: "角を丸くする", en: "Round corners" },
+            matchStrokeWidths: { ja: "線幅をそろえる", en: "Match stroke weights" },
+            fillCells: { ja: "ランダムな濃さで塗る（K{min}〜K{max}）", en: "Fill with random tints (K{min}-K{max})" },
+            groupFills: { ja: "グループ化", en: "Group" },
             centerInCells: { ja: "セルの中央に配置", en: "Center in cells" },
             justifyCenter: { ja: "中央揃えにする", en: "Align center" },
             preview: { ja: "プレビュー", en: "Preview" }
         },
         fieldLabel: {
+            frameWidth: { ja: "幅", en: "Width" },
+            frameHeight: { ja: "高さ", en: "Height" },
             spacing: { ja: "間隔", en: "Spacing" }
         },
         radio: {
@@ -280,13 +961,17 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             content: { ja: "テキストに合わせる", en: "Fit to text" }
         },
         tooltip: {
-            averageVertical: {
-                ja: "外枠の中にある縦罫を、［間隔］の指定どおりに並べ直します。Option キーを押しながらクリックすると横罫もまとめて切り替えます。",
-                en: "Redistributes the vertical rules inside the frame as set in Spacing. Option-click to toggle the horizontal rules too."
+            frameSize: {
+                ja: "外枠の大きさを変えます。左上を基準に、外枠と罫線を伸縮します（線幅とテキストの大きさは変えません）。",
+                en: "Changes the size of the frame. The frame and rules are scaled from the top-left corner (stroke widths and text sizes are kept)."
             },
-            averageHorizontal: {
-                ja: "外枠の中にある横罫を、［間隔］の指定どおりに並べ直します。Option キーを押しながらクリックすると縦罫もまとめて切り替えます。",
-                en: "Redistributes the horizontal rules inside the frame as set in Spacing. Option-click to toggle the vertical rules too."
+            adjustVerticalSpacing: {
+                ja: "外枠の中にある縦罫の位置を、［間隔］の指定どおりに調整します。Option キーを押しながらクリックすると横罫もまとめて切り替えます。",
+                en: "Adjusts the positions of the vertical rules inside the frame as set in Spacing. Option-click to toggle the horizontal rules too."
+            },
+            adjustHorizontalSpacing: {
+                ja: "外枠の中にある横罫の位置を、［間隔］の指定どおりに調整します。Option キーを押しながらクリックすると縦罫もまとめて切り替えます。",
+                en: "Adjusts the positions of the horizontal rules inside the frame as set in Spacing. Option-click to toggle the vertical rules too."
             },
             even: {
                 ja: "罫線を等間隔に並べます。",
@@ -297,8 +982,28 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 en: "Sizes each column (row) to its texts, with equal space on both sides."
             },
             matchRuleLengths: {
-                ja: "並べ直した罫線の長さを外枠の辺にそろえます。",
-                en: "Matches the length of the redistributed rules to the sides of the frame."
+                ja: "間隔を調整した罫線の長さを、外枠の辺に合わせます。",
+                en: "Matches the length of the adjusted rules to the sides of the frame."
+            },
+            roundCorners: {
+                ja: "外枠の長方形に、指定した半径で［角を丸くする］効果を適用します。外枠が長方形のとき（［外枠を長方形に変換］を含む）に使えます。セルの塗りも外枠の角に合わせて丸めます。",
+                en: "Applies the Round Corners effect with the given radius to the frame rectangle. Available when the frame is a rectangle (including \"Convert frame to rectangle\"). Cell fills are rounded at the frame corners too."
+            },
+            matchStrokeWidths: {
+                ja: "外枠と罫線の線幅を、指定した値にそろえます（線の無いパスは変えません）。",
+                en: "Sets the stroke weight of the frame and rules to the given value (paths without a stroke are left as they are)."
+            },
+            groupFills: {
+                ja: "塗りの長方形を1つのグループにまとめます。オフにすると、長方形を1つずつ最背面に置きます。",
+                en: "Groups the fill rectangles. When off, the rectangles are placed individually at the back."
+            },
+            fillCells: {
+                ja: "各セルに、ランダムな濃さのグレーで塗った長方形を最背面に作ります。",
+                en: "Adds a rectangle filled with a random gray tint in each cell, sent to the back."
+            },
+            convertFrame: {
+                ja: "外枠を作っている罫線4本を、同じ位置の長方形1つに置き換えます。線の設定は上辺の罫線から引き継ぎます。長方形を使わず罫線で囲んだ枠のときだけ使えます。",
+                en: "Replaces the four rules forming the frame with a single rectangle in the same place, taking the stroke from the top rule. Available only when the frame is drawn with rules."
             },
             centerInCells: {
                 ja: "テキストを、枠・罫線で区切られたセルの中央へ字形の見た目で移動します。",
@@ -311,7 +1016,17 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             preview: {
                 ja: "結果を画面で確認します。キャンセルすると元に戻ります。",
                 en: "Shows the result on the canvas. Cancel restores the original layout."
-            }
+            },
+            stepUp: {
+                ja: "値を増やす（shift＋クリックで10の倍数へ、option＋クリックで0.1ずつ）",
+                en: "Increase (Shift-click to snap to 10s, Option-click by 0.1)"
+            },
+            stepDown: {
+                ja: "値を減らす（shift＋クリックで10の倍数へ、option＋クリックで0.1ずつ）",
+                en: "Decrease (Shift-click to snap to 10s, Option-click by 0.1)"
+            },
+            stepUpInteger: { ja: "値を増やす（shift＋クリックで10の倍数へ）", en: "Increase (Shift-click to snap to 10s)" },
+            stepDownInteger: { ja: "値を減らす（shift＋クリックで10の倍数へ）", en: "Decrease (Shift-click to snap to 10s)" }
         },
         button: {
             ok: { ja: "OK", en: "OK" },
@@ -380,9 +1095,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // =========================================
 
     /**
-     * パスのアンカー間の線分から、垂直・水平の辺を拾う
+     * パスのアンカー間の線分から、垂直・水平の辺を拾う（SLOPE_TOLERANCE までの傾きも含める）
      * @param {PathItem[]} pathItems - 枠・罫線のパス
-     * @returns {{vertical: Object[], horizontal: Object[]}} 垂直は {pos: x, from: y下, to: y上}、水平は {pos: y, from: x左, to: x右}
+     * @returns {{vertical: Object[], horizontal: Object[]}} 辺ごとの {pathItem, startAlong, startPos, endAlong, endPos}。
+     *     along は辺に沿う軸（垂直なら Y）、pos は直交する軸（垂直なら X）の座標で、startAlong ≦ endAlong
      */
     function collectEdges(pathItems) {
         var edges = { vertical: [], horizontal: [] };
@@ -395,18 +1111,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 var endPoint = points[(j + 1) % pointCount].anchor;
                 var dx = Math.abs(startPoint[0] - endPoint[0]);
                 var dy = Math.abs(startPoint[1] - endPoint[1]);
-                if (dx <= TOLERANCE && dy > TOLERANCE) {
-                    edges.vertical.push({
-                        pos: (startPoint[0] + endPoint[0]) / 2,
-                        from: Math.min(startPoint[1], endPoint[1]),
-                        to: Math.max(startPoint[1], endPoint[1])
-                    });
-                } else if (dy <= TOLERANCE && dx > TOLERANCE) {
-                    edges.horizontal.push({
-                        pos: (startPoint[1] + endPoint[1]) / 2,
-                        from: Math.min(startPoint[0], endPoint[0]),
-                        to: Math.max(startPoint[0], endPoint[0])
-                    });
+                if (dy > TOLERANCE && dx <= Math.max(TOLERANCE, dy * SLOPE_TOLERANCE)) {
+                    edges.vertical.push(createEdge(pathItems[i], startPoint[1], startPoint[0], endPoint[1], endPoint[0]));
+                } else if (dx > TOLERANCE && dy <= Math.max(TOLERANCE, dx * SLOPE_TOLERANCE)) {
+                    edges.horizontal.push(createEdge(pathItems[i], startPoint[0], startPoint[1], endPoint[0], endPoint[1]));
                 }
             }
         }
@@ -414,34 +1122,74 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /**
-     * 基準位置の両側で、いちばん近い辺の位置を返す
-     * @param {Object[]} edges - collectEdges の vertical または horizontal
-     * @param {number} pos - 辺と直交する軸での基準位置
-     * @param {number} along - 辺に沿う軸での基準位置（この範囲を覆う辺だけを使う）
-     * @returns {{lower: number, upper: number}|null} 両側の辺の位置。片側でも無ければ null
+     * 線分を、沿う軸の小さい端から大きい端への辺の情報にする
+     * @param {PathItem} pathItem - 線分を含むパス
+     * @param {number} alongA - 一方の端の、辺に沿う軸の座標
+     * @param {number} posA - 一方の端の、直交する軸の座標
+     * @param {number} alongB - もう一方の端の、辺に沿う軸の座標
+     * @param {number} posB - もう一方の端の、直交する軸の座標
+     * @returns {{pathItem: PathItem, startAlong: number, startPos: number, endAlong: number, endPos: number}} 辺の情報
      */
-    function findNearestEdges(edges, pos, along) {
-        var lower = null;
-        var upper = null;
-        for (var i = 0; i < edges.length; i++) {
-            var edge = edges[i];
-            if (along < edge.from - TOLERANCE || along > edge.to + TOLERANCE) continue;
-            if (edge.pos < pos - EPSILON && (lower === null || edge.pos > lower)) lower = edge.pos;
-            if (edge.pos > pos + EPSILON && (upper === null || edge.pos < upper)) upper = edge.pos;
-        }
-        if (lower === null || upper === null) return null;
-        return { lower: lower, upper: upper };
+    function createEdge(pathItem, alongA, posA, alongB, posB) {
+        if (alongA <= alongB) return { pathItem: pathItem, startAlong: alongA, startPos: posA, endAlong: alongB, endPos: posB };
+        return { pathItem: pathItem, startAlong: alongB, startPos: posB, endAlong: alongA, endPos: posA };
     }
 
     /**
-     * 罫線を動かす前の位置を、動かしたあとの位置に置き換える
-     * @param {Object[]} positionMap - {from: 前の位置, to: 後の位置} の配列
-     * @param {number} pos - 動かす前の辺の位置
-     * @returns {number} 動かしたあとの位置。対応する罫線が無ければそのまま
+     * 辺に沿う軸の座標での、辺の位置を返す（傾いた辺は両端から補間する）
+     * @param {Object} edge - createEdge() の戻り値
+     * @param {number} along - 辺に沿う軸の座標
+     * @returns {number} 直交する軸の座標
      */
-    function mapPosition(positionMap, pos) {
-        for (var i = 0; i < positionMap.length; i++) {
-            if (Math.abs(positionMap[i].from - pos) <= TOLERANCE) return positionMap[i].to;
+    function getEdgePosAt(edge, along) {
+        var span = edge.endAlong - edge.startAlong;
+        if (span <= 0) return edge.startPos;
+        var ratio = Math.max(0, Math.min(1, (along - edge.startAlong) / span));
+        return edge.startPos + (edge.endPos - edge.startPos) * ratio;
+    }
+
+    /**
+     * 基準位置の両側で、いちばん近い辺を返す
+     * @param {Object[]} edges - collectEdges の vertical または horizontal
+     * @param {number} pos - 辺と直交する軸での基準位置
+     * @param {number} along - 辺に沿う軸での基準位置（この位置を覆う辺だけを使う）
+     * @returns {{lower: number, upper: number, lowerItem: PathItem, upperItem: PathItem}|null} 両側の辺の位置とパス。片側でも無ければ null
+     */
+    function findNearestEdges(edges, pos, along) {
+        var nearest = { lower: null, upper: null, lowerItem: null, upperItem: null };
+        for (var i = 0; i < edges.length; i++) {
+            var edge = edges[i];
+            if (along < edge.startAlong - TOLERANCE || along > edge.endAlong + TOLERANCE) continue;
+            var edgePos = getEdgePosAt(edge, along);
+            if (edgePos < pos - EPSILON && (nearest.lower === null || edgePos > nearest.lower)) {
+                nearest.lower = edgePos;
+                nearest.lowerItem = edge.pathItem;
+            }
+            if (edgePos > pos + EPSILON && (nearest.upper === null || edgePos < nearest.upper)) {
+                nearest.upper = edgePos;
+                nearest.upperItem = edge.pathItem;
+            }
+        }
+        if (nearest.lower === null || nearest.upper === null) return null;
+        return nearest;
+    }
+
+    /**
+     * 罫線を動かす前の辺の位置を、動かしたあとの位置に置き換える
+     * @param {Object[]} positionMap - {pathItem, from: 前の位置, to: 後の位置} の配列
+     * @param {number} pos - 動かす前の辺の位置
+     * @param {PathItem} pathItem - その辺を含むパス
+     * @param {{pathItems: PathItem[], origin: number, ratio: number}} axisScale - 外枠の伸縮（この軸の基準と倍率、伸縮したパス）
+     * @returns {number} 動かしたあとの位置。並べ直した罫線ならその位置、伸縮したパスなら伸縮後の位置、どちらでもなければそのまま
+     */
+    function mapPosition(positionMap, pos, pathItem, axisScale) {
+        var i;
+        for (i = 0; i < positionMap.length; i++) {
+            /* DOM の参照は === で同じものと判定できる / DOM references compare equal with === */
+            if (positionMap[i].pathItem === pathItem) return positionMap[i].to;
+        }
+        for (i = 0; i < axisScale.pathItems.length; i++) {
+            if (axisScale.pathItems[i] === pathItem) return axisScale.origin + (pos - axisScale.origin) * axisScale.ratio;
         }
         return pos;
     }
@@ -544,13 +1292,17 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var centerX = (geometricBounds[0] + geometricBounds[2]) / 2;
         var centerY = (geometricBounds[1] + geometricBounds[3]) / 2;
 
+        /* 罫線の幅（傾いた罫線ならその振れ幅）ごと外枠の内側にあるものだけを罫線とする。外枠の辺に重なる線は辺とみなす
+           Only lines lying entirely inside the frame across their thickness (or tilt) are rules; lines on a frame edge count as the edge */
         if (isVertical) {
             return hasRuleShape(pathHeight, pathWidth, rectBounds.height) &&
-                isInsideRange(centerX, rectBounds.left, rectBounds.right) &&
+                isInsideRange(geometricBounds[0], rectBounds.left, rectBounds.right) &&
+                isInsideRange(geometricBounds[2], rectBounds.left, rectBounds.right) &&
                 isNearRange(centerY, rectBounds.bottom, rectBounds.top);
         }
         return hasRuleShape(pathWidth, pathHeight, rectBounds.width) &&
-            isInsideRange(centerY, rectBounds.bottom, rectBounds.top) &&
+            isInsideRange(geometricBounds[3], rectBounds.bottom, rectBounds.top) &&
+            isInsideRange(geometricBounds[1], rectBounds.bottom, rectBounds.top) &&
             isNearRange(centerX, rectBounds.left, rectBounds.right);
     }
 
@@ -615,16 +1367,15 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /**
      * 外枠と、その中の縦罫・横罫を見つける。
-     * 外枠は、いちばん大きい閉じたパスと、罫線4本で囲んだ枠のうち、広いほうを使う
+     * 外枠は、いちばん大きい閉じたパス。閉じたパスが無いときだけ、罫線4本で囲んだ枠を使う
+     * （長方形を領域として置き、罫線をその外まで伸ばした表でも、長方形を外枠にする）
      * @param {PathItem[]} pathItems - 選択中のパス
-     * @returns {{rectBounds: Object, vertical: PathItem[], horizontal: PathItem[], frameLines: Object|null}|null} 外枠の範囲と罫線（罫線で囲んだ枠なら、その4辺の罫線も）。外枠が無ければ null
+     * @returns {{rectBounds: Object, vertical: PathItem[], horizontal: PathItem[], frameLines: Object|null, outerRect: PathItem|null}|null} 外枠の範囲と罫線（罫線で囲んだ枠なら、その4辺の罫線も。閉じたパスの外枠ならそのパスも）。外枠が無ければ null
      */
     function findRules(pathItems) {
         var outerRect = findOuterRectangle(pathItems);
         var rectBounds = outerRect ? getRectBounds(outerRect) : null;
-        var lineFrame = findLineFrame(pathItems);
-        var bounds = lineFrame ? lineFrame.bounds : null;
-        if (bounds && rectBounds && bounds.width * bounds.height <= rectBounds.width * rectBounds.height + TOLERANCE) lineFrame = null;
+        var lineFrame = outerRect ? null : findLineFrame(pathItems);
         if (lineFrame) {
             /* 外側の罫線は外枠の辺になり、classifyRules() で罫線から外れる / The outermost rules become the frame and are left out by classifyRules() */
             outerRect = null;
@@ -637,7 +1388,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             rectBounds: rectBounds,
             vertical: rules.vertical,
             horizontal: rules.horizontal,
-            frameLines: lineFrame ? { vertical: lineFrame.vertical, horizontal: lineFrame.horizontal } : null
+            frameLines: lineFrame ? { vertical: lineFrame.vertical, horizontal: lineFrame.horizontal } : null,
+            outerRect: outerRect
         };
     }
 
@@ -656,8 +1408,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             var geometricBounds = pathItems[i].geometricBounds;
             var pathWidth = geometricBounds[2] - geometricBounds[0];
             var pathHeight = geometricBounds[1] - geometricBounds[3];
-            if (pathWidth <= TOLERANCE && pathHeight > TOLERANCE) verticalLines.push(pathItems[i]);
-            else if (pathHeight <= TOLERANCE && pathWidth > TOLERANCE) horizontalLines.push(pathItems[i]);
+            /* セルの辺と同じく、SLOPE_TOLERANCE までの傾きは縦・横とみなす / Allow the same slope as cell edges */
+            if (pathHeight > TOLERANCE && pathWidth <= Math.max(TOLERANCE, pathHeight * SLOPE_TOLERANCE)) verticalLines.push(pathItems[i]);
+            else if (pathWidth > TOLERANCE && pathHeight <= Math.max(TOLERANCE, pathWidth * SLOPE_TOLERANCE)) horizontalLines.push(pathItems[i]);
         }
         if (verticalLines.length < 2 || horizontalLines.length < 2) return null;
 
@@ -714,23 +1467,23 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     /**
      * 縦罫・横罫を、設定に従って並べ直す
      * @param {Object|null} rules - findRules() の戻り値（columnSizes・rowSizes を足したもの）
-     * @param {{averageVertical: boolean, averageHorizontal: boolean, distributeMode: string, matchRuleLengths: boolean}} settings - 設定
+     * @param {{adjustVerticalSpacing: boolean, adjustHorizontalSpacing: boolean, distributeMode: string, matchRuleLengths: boolean}} settings - 設定
      * @returns {{vertical: Object[], horizontal: Object[]}} 罫線ごとの {from: 前の位置, to: 後の位置}
      */
-    function averageRules(rules, settings) {
+    function adjustRuleSpacing(rules, settings) {
         var positionMap = { vertical: [], horizontal: [] };
         if (!rules) return positionMap;
 
         var fitsContent = settings.distributeMode === "content";
-        if (settings.averageVertical) {
+        if (settings.adjustVerticalSpacing) {
             var columnOffsets = computeRuleOffsets(rules.rectBounds.width, rules.vertical.length, fitsContent ? rules.columnSizes : null);
             positionMap.vertical = redistributeVerticalRules(rules.vertical, rules.rectBounds, settings.matchRuleLengths, columnOffsets);
         }
-        if (settings.averageHorizontal) {
+        if (settings.adjustHorizontalSpacing) {
             var rowOffsets = computeRuleOffsets(rules.rectBounds.height, rules.horizontal.length, fitsContent ? rules.rowSizes : null);
             positionMap.horizontal = redistributeHorizontalRules(rules.horizontal, rules.rectBounds, settings.matchRuleLengths, rowOffsets);
         }
-        if (rules.frameLines && settings.matchRuleLengths && (settings.averageVertical || settings.averageHorizontal)) {
+        if (rules.frameLines && settings.matchRuleLengths && (settings.adjustVerticalSpacing || settings.adjustHorizontalSpacing)) {
             matchFrameLineLengths(rules.frameLines, rules.rectBounds);
         }
         return positionMap;
@@ -825,7 +1578,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             var verticalRule = verticalRules[i];
             var currentX = getCenterX(verticalRule);
             var targetX = rectBounds.left + ruleOffsets[i];
-            positionMap.push({ from: currentX, to: targetX });
+            positionMap.push({ pathItem: verticalRule, from: currentX, to: targetX });
 
             if (matchRuleLengths && verticalRule.pathPoints.length === 2) {
                 setTwoPointVerticalLine(verticalRule, targetX, rectBounds.top, rectBounds.bottom);
@@ -852,7 +1605,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             var horizontalRule = horizontalRules[i];
             var currentY = getCenterY(horizontalRule);
             var targetY = rectBounds.top - ruleOffsets[i];
-            positionMap.push({ from: currentY, to: targetY });
+            positionMap.push({ pathItem: horizontalRule, from: currentY, to: targetY });
 
             if (matchRuleLengths && horizontalRule.pathPoints.length === 2) {
                 setTwoPointHorizontalLine(horizontalRule, targetY, rectBounds.left, rectBounds.right);
@@ -935,6 +1688,313 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     // =========================================
+    // 外枠の大きさ / Frame size
+    // =========================================
+
+    /**
+     * 外枠の大きさを変えるときに伸縮するパス（外枠・枠の罫線・中の罫線）を返す
+     * @param {Object} rules - findRules() の戻り値
+     * @returns {PathItem[]} 伸縮するパス
+     */
+    function getTablePathItems(rules) {
+        var tablePaths = rules.outerRect ? [rules.outerRect] : [];
+        if (rules.frameLines) tablePaths = tablePaths.concat(rules.frameLines.vertical, rules.frameLines.horizontal);
+        return tablePaths.concat(rules.vertical, rules.horizontal);
+    }
+
+    /**
+     * 線のあるパスのうち、もっとも多い線幅を返す
+     * @param {PathItem[]} targetPathItems - 対象のパス
+     * @returns {number} 線幅（pt）。線のあるパスが無ければ 1
+     */
+    function getMostCommonStrokeWidth(targetPathItems) {
+        var widthCounts = {};
+        var mostCommonWidth = 1;
+        var maxCount = 0;
+        for (var i = 0; i < targetPathItems.length; i++) {
+            if (!targetPathItems[i].stroked) continue;
+            var strokeWidth = targetPathItems[i].strokeWidth;
+            var widthKey = String(Math.round(strokeWidth * 1000) / 1000);
+            widthCounts[widthKey] = (widthCounts[widthKey] || 0) + 1;
+            if (widthCounts[widthKey] > maxCount) {
+                maxCount = widthCounts[widthKey];
+                mostCommonWidth = strokeWidth;
+            }
+        }
+        return mostCommonWidth;
+    }
+
+    /**
+     * 線のあるパスの線幅をそろえる（線の無いパスはそのまま）
+     * @param {PathItem[]} targetPathItems - 対象のパス
+     * @param {number} strokeWidth - 線幅（pt）
+     * @returns {void}
+     */
+    function setStrokeWidths(targetPathItems, strokeWidth) {
+        for (var i = 0; i < targetPathItems.length; i++) {
+            if (targetPathItems[i].stroked) targetPathItems[i].strokeWidth = strokeWidth;
+        }
+    }
+
+    /**
+     * パスのアンカーポイントとハンドルを、基準点から縦横の倍率で伸縮する（線幅は変えない）
+     * @param {PathItem[]} targetPathItems - 対象のパス
+     * @param {number} originX - 基準点の X
+     * @param {number} originY - 基準点の Y
+     * @param {number} ratioX - 横の倍率
+     * @param {number} ratioY - 縦の倍率
+     * @returns {void}
+     */
+    function scalePathItems(targetPathItems, originX, originY, ratioX, ratioY) {
+        /**
+         * 座標を伸縮する
+         * @param {number[]} point - 座標
+         * @returns {number[]} 伸縮後の座標
+         */
+        function scalePoint(point) {
+            return [originX + (point[0] - originX) * ratioX, originY + (point[1] - originY) * ratioY];
+        }
+        for (var i = 0; i < targetPathItems.length; i++) {
+            var pathPoints = targetPathItems[i].pathPoints;
+            for (var j = 0; j < pathPoints.length; j++) {
+                var pathPoint = pathPoints[j];
+                pathPoint.anchor = scalePoint(pathPoint.anchor);
+                pathPoint.leftDirection = scalePoint(pathPoint.leftDirection);
+                pathPoint.rightDirection = scalePoint(pathPoint.rightDirection);
+            }
+        }
+    }
+
+    // =========================================
+    // 外枠の変換 / Converting the frame
+    // =========================================
+
+    /**
+     * 罫線で囲んだ枠と同じ位置に長方形を作り、枠の罫線を隠す（プレビュー中は隠すだけで、確定時に削除する）
+     * @param {Object} frameLines - findRules() の frameLines
+     * @param {Object} rectBounds - 枠の範囲
+     * @returns {PathItem} 作った長方形
+     */
+    function createFrameRectangle(frameLines, rectBounds) {
+        /* 線の設定は上辺の罫線から引き継ぐ / Take the stroke from the top rule */
+        var styleSource = frameLines.horizontal[0];
+        for (var i = 1; i < frameLines.horizontal.length; i++) {
+            if (getCenterY(frameLines.horizontal[i]) > getCenterY(styleSource)) styleSource = frameLines.horizontal[i];
+        }
+
+        var frameRect = styleSource.parent.pathItems.rectangle(rectBounds.top, rectBounds.left, rectBounds.width, rectBounds.height);
+        frameRect.move(styleSource, ElementPlacement.PLACEBEFORE);
+        frameRect.filled = false;
+        frameRect.stroked = styleSource.stroked;
+        if (styleSource.stroked) {
+            frameRect.strokeColor = styleSource.strokeColor;
+            frameRect.strokeWidth = styleSource.strokeWidth;
+            frameRect.strokeDashes = styleSource.strokeDashes;
+            frameRect.strokeDashOffset = styleSource.strokeDashOffset;
+            frameRect.strokeOverprint = styleSource.strokeOverprint;
+            /* 角が欠けないようにマイター結合にする / Use miter joins so the corners stay square */
+            frameRect.strokeJoin = StrokeJoin.MITERENDJOIN;
+        }
+        frameRect.opacity = styleSource.opacity;
+
+        setFrameLinesHidden(frameLines, true);
+        return frameRect;
+    }
+
+    /**
+     * 枠の罫線の表示・非表示を切り替える
+     * @param {Object} frameLines - findRules() の frameLines
+     * @param {boolean} isHidden - 隠すなら true
+     * @returns {void}
+     */
+    function setFrameLinesHidden(frameLines, isHidden) {
+        var lines = frameLines.vertical.concat(frameLines.horizontal);
+        for (var i = 0; i < lines.length; i++) lines[i].hidden = isHidden;
+    }
+
+    /**
+     * 枠の罫線を削除する（［OK］で変換を確定したとき）
+     * @param {Object} frameLines - findRules() の frameLines
+     * @returns {void}
+     */
+    function removeFrameLines(frameLines) {
+        var lines = frameLines.vertical.concat(frameLines.horizontal);
+        for (var i = 0; i < lines.length; i++) lines[i].remove();
+    }
+
+    // =========================================
+    // 角丸とセルの塗り / Rounded corners and cell fills
+    // =========================================
+
+    /**
+     * ［効果］→［スタイライズ］→［角を丸くする］を適用する
+     * @param {PathItem} pathItem - 対象のパス
+     * @param {number} radiusPt - 半径（pt）
+     * @returns {void}
+     */
+    function applyRoundCornersEffect(pathItem, radiusPt) {
+        pathItem.applyEffect('<LiveEffect name="Adobe Round Corners"><Dict data="R radius ' + radiusPt + ' "/></LiveEffect>');
+    }
+
+    /* 円弧をベジェで近似するハンドルの長さ（半径に対する比） / Handle length approximating a quarter circle (ratio to the radius) */
+    var CIRCLE_KAPPA = 0.5523;
+
+    /**
+     * 角ごとに半径を指定した長方形のアンカーポイントを、左上から時計回りに返す
+     * @param {number} left - 左端
+     * @param {number} top - 上端
+     * @param {number} right - 右端
+     * @param {number} bottom - 下端
+     * @param {number[]} radii - [左上, 右上, 右下, 左下] の半径（0 なら角は丸めない）
+     * @returns {Object[]} {anchor, leftDirection, rightDirection} の配列
+     */
+    function buildRoundedRectPoints(left, top, right, bottom, radii) {
+        var maxRadius = Math.min(right - left, top - bottom) / 2;
+        var clampedRadii = [];
+        for (var i = 0; i < 4; i++) clampedRadii.push(Math.max(0, Math.min(radii[i], maxRadius)));
+        var points = [];
+
+        /**
+         * 角を1つ足す（丸めるなら円弧の両端の2点、丸めないなら角の1点）
+         * @param {number[]} cornerPoint - 角の座標
+         * @param {number[]} arcStart - 円弧の始点
+         * @param {number[]} arcEnd - 円弧の終点
+         * @param {number} radius - 半径
+         * @returns {void}
+         */
+        function addCorner(cornerPoint, arcStart, arcEnd, radius) {
+            if (radius <= 0) {
+                points.push({ anchor: cornerPoint, leftDirection: cornerPoint, rightDirection: cornerPoint });
+                return;
+            }
+            /* ハンドルは円弧の端から角の方向へ伸ばす / Handles point from each arc end toward the corner */
+            var startHandle = [arcStart[0] + (cornerPoint[0] - arcStart[0]) * CIRCLE_KAPPA, arcStart[1] + (cornerPoint[1] - arcStart[1]) * CIRCLE_KAPPA];
+            var endHandle = [arcEnd[0] + (cornerPoint[0] - arcEnd[0]) * CIRCLE_KAPPA, arcEnd[1] + (cornerPoint[1] - arcEnd[1]) * CIRCLE_KAPPA];
+            points.push({ anchor: arcStart, leftDirection: arcStart, rightDirection: startHandle });
+            points.push({ anchor: arcEnd, leftDirection: endHandle, rightDirection: arcEnd });
+        }
+
+        addCorner([left, top], [left, top - clampedRadii[0]], [left + clampedRadii[0], top], clampedRadii[0]);
+        addCorner([right, top], [right - clampedRadii[1], top], [right, top - clampedRadii[1]], clampedRadii[1]);
+        addCorner([right, bottom], [right, bottom + clampedRadii[2]], [right - clampedRadii[2], bottom], clampedRadii[2]);
+        addCorner([left, bottom], [left + clampedRadii[3], bottom], [left, bottom + clampedRadii[3]], clampedRadii[3]);
+        return points;
+    }
+
+    /**
+     * パスの形を、指定したアンカーポイントで置き換える（閉じたパスにする）
+     * @param {PathItem} pathItem - 対象のパス
+     * @param {Object[]} points - buildRoundedRectPoints() の戻り値
+     * @returns {void}
+     */
+    function setPathShape(pathItem, points) {
+        var anchors = [];
+        for (var i = 0; i < points.length; i++) anchors.push(points[i].anchor);
+        pathItem.setEntirePath(anchors);
+        for (var j = 0; j < points.length; j++) {
+            var pathPoint = pathItem.pathPoints[j];
+            pathPoint.leftDirection = points[j].leftDirection;
+            pathPoint.rightDirection = points[j].rightDirection;
+            pathPoint.pointType = PointType.CORNER;
+        }
+        pathItem.closed = true;
+    }
+
+    /**
+     * セルの塗りに使う、K の濃さの色を返す（CMYK ドキュメントは K だけの CMYK、RGB ドキュメントはグレースケール）
+     * @param {number} tint - 濃さ（%）
+     * @returns {Color} 塗りの色
+     */
+    function createTintColor(tint) {
+        if (app.activeDocument.documentColorSpace === DocumentColorSpace.CMYK) {
+            var cmykColor = new CMYKColor();
+            cmykColor.cyan = 0;
+            cmykColor.magenta = 0;
+            cmykColor.yellow = 0;
+            cmykColor.black = tint;
+            return cmykColor;
+        }
+        var grayColor = new GrayColor();
+        grayColor.gray = tint;
+        return grayColor;
+    }
+
+    /**
+     * 外枠と、今の罫線の位置で区切られたセルを、左上から右下の順に返す
+     * @param {Object} rules - findRules() の戻り値（罫線は並べ直したあとの位置で読む）
+     * @returns {{columnEdges: number[], rowEdges: number[]}} 列の境界の X（左から右）と、行の境界の Y（上から下）
+     */
+    function getCellGrid(rules) {
+        var rectBounds = rules.rectBounds;
+        var columnEdges = [rectBounds.left];
+        var rowEdges = [rectBounds.top];
+        var i;
+        for (i = 0; i < rules.vertical.length; i++) columnEdges.push(getCenterX(rules.vertical[i]));
+        for (i = 0; i < rules.horizontal.length; i++) rowEdges.push(getCenterY(rules.horizontal[i]));
+        columnEdges.push(rectBounds.right);
+        rowEdges.push(rectBounds.bottom);
+        /* 並べ直さなかった罫線も含め、位置の順に並べる / Sort by position, including rules that were not redistributed */
+        columnEdges.sort(function (a, b) { return a - b; });
+        rowEdges.sort(function (a, b) { return b - a; });
+        return { columnEdges: columnEdges, rowEdges: rowEdges };
+    }
+
+    /**
+     * 各セルに塗りの長方形を作り、最背面に置く（1つのグループにまとめるか、ばらのまま）
+     * @param {Object} rules - findRules() の戻り値
+     * @param {number} cornerRadius - 外枠の角丸の半径（pt。角丸にしないなら 0）
+     * @param {number[]} cellTints - セルごとの濃さ（足りない分はここに足していき、プレビューのたびに色が変わらないようにする）
+     * @param {PageItem} backmostItem - 選択の中でいちばん背面のオブジェクト（このオブジェクトのレイヤー・グループの最背面に置く）
+     * @param {boolean} isGrouped - グループにまとめるなら true
+     * @returns {PageItem[]} 作ったもの（グループなら1つ、ばらなら長方形の配列）
+     */
+    function createCellFills(rules, cornerRadius, cellTints, backmostItem, isGrouped) {
+        var grid = getCellGrid(rules);
+        var lastColumn = grid.columnEdges.length - 2;
+        var lastRow = grid.rowEdges.length - 2;
+        var fillGroup = app.activeDocument.groupItems.add();
+
+        for (var row = 0; row <= lastRow; row++) {
+            for (var column = 0; column <= lastColumn; column++) {
+                var cellIndex = row * (lastColumn + 1) + column;
+                if (cellTints[cellIndex] === undefined) {
+                    cellTints[cellIndex] = FILL_TINT_MIN + Math.floor(Math.random() * (FILL_TINT_MAX - FILL_TINT_MIN + 1));
+                }
+                /* 外枠の角に当たる角だけを丸める / Round only the corners that sit on the frame corners */
+                var radii = [
+                    (row === 0 && column === 0) ? cornerRadius : 0,
+                    (row === 0 && column === lastColumn) ? cornerRadius : 0,
+                    (row === lastRow && column === lastColumn) ? cornerRadius : 0,
+                    (row === lastRow && column === 0) ? cornerRadius : 0
+                ];
+                var cellFill = fillGroup.pathItems.add();
+                setPathShape(cellFill, buildRoundedRectPoints(
+                    grid.columnEdges[column], grid.rowEdges[row], grid.columnEdges[column + 1], grid.rowEdges[row + 1], radii));
+                cellFill.stroked = false;
+                cellFill.filled = true;
+                cellFill.fillColor = createTintColor(cellTints[cellIndex]);
+            }
+        }
+
+        /* 選択のいちばん背面のオブジェクトと同じレイヤー（グループ）に入れ、その中の最背面へ送る
+           Put it in the same layer (or group) as the backmost selected item, then send it to the back there */
+        fillGroup.move(backmostItem, ElementPlacement.PLACEAFTER);
+        fillGroup.zOrder(ZOrderMethod.SENDTOBACK);
+        if (isGrouped) return [fillGroup];
+
+        /* グループにしないときは、前面の長方形から順にグループの直前へ出して重なり順を保ち、空のグループを消す
+           When not grouping, move the rectangles out front to back just before the group to keep their order, then delete the empty group */
+        var looseFills = [];
+        while (fillGroup.pageItems.length > 0) {
+            var looseFill = fillGroup.pageItems[0];
+            looseFill.move(fillGroup, ElementPlacement.PLACEBEFORE);
+            looseFills.push(looseFill);
+        }
+        fillGroup.remove();
+        return looseFills;
+    }
+
+    // =========================================
     // テキスト / Text
     // =========================================
 
@@ -955,23 +2015,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
         /* createOutline() は複製を消費するので、残っていれば消す / createOutline() consumes the duplicate; remove it only if it remains */
         try { duplicateFrame.remove(); } catch (e) { }
-        if (outlineGroup) {
-            try { outlineGroup.remove(); } catch (e) { }
-        }
+        if (outlineGroup) outlineGroup.remove();
         return bounds;
     }
 
-
-    /**
-     * テキストの字形の中心を返す
-     * @param {TextFrame} textFrame - 対象のテキスト
-     * @returns {number[]|null} [X, Y]。字形が無ければ null
-     */
-    function getGlyphCenter(textFrame) {
-        var bounds = getGlyphBounds(textFrame);
-        if (!bounds) return null;
-        return [(bounds[0] + bounds[2]) / 2, (bounds[1] + bounds[3]) / 2];
-    }
 
     /**
      * 字形の範囲から、中心と大きさを求める
@@ -984,6 +2031,69 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             center: [(bounds[0] + bounds[2]) / 2, (bounds[1] + bounds[3]) / 2],
             size: [bounds[2] - bounds[0], bounds[1] - bounds[3]]
         };
+    }
+
+    /**
+     * テキストごとに、字形の中心・大きさと、それを囲むセルの辺を集める
+     * @param {TextFrame[]} textFrames - 対象のテキスト
+     * @param {{vertical: Object[], horizontal: Object[]}} cellEdges - collectEdges() の戻り値
+     * @returns {Object[]} テキストごとの {textFrame, glyphCenter, glyphSize, column, row}（字形やセルが無ければ null）
+     */
+    function collectTextCells(textFrames, cellEdges) {
+        var textCells = [];
+        for (var i = 0; i < textFrames.length; i++) {
+            var glyphGeometry = getBoundsGeometry(getGlyphBounds(textFrames[i]));
+            var glyphCenter = glyphGeometry ? glyphGeometry.center : null;
+            textCells.push({
+                textFrame: textFrames[i],
+                glyphCenter: glyphCenter,
+                glyphSize: glyphGeometry ? glyphGeometry.size : null,
+                column: glyphCenter ? findNearestEdges(cellEdges.vertical, glyphCenter[0], glyphCenter[1]) : null,
+                row: glyphCenter ? findNearestEdges(cellEdges.horizontal, glyphCenter[1], glyphCenter[0]) : null
+            });
+        }
+        return textCells;
+    }
+
+    /**
+     * 行揃えを設定し、テキストを動かしたあとのセルの中央へ移動する
+     * @param {Object[]} textCells - collectTextCells() の戻り値
+     * @param {{centerInCells: boolean, justifyCenter: boolean}} settings - 設定
+     * @param {{vertical: Object[], horizontal: Object[]}} positionMap - adjustRuleSpacing() の戻り値
+     * @param {{vertical: Object, horizontal: Object}} frameScale - 外枠の伸縮（mapPosition() に渡す）
+     * @returns {number} セルが見つからず移動しなかったテキストの数
+     */
+    function placeTextsInCells(textCells, settings, positionMap, frameScale) {
+        var skippedCount = 0;
+        for (var i = 0; i < textCells.length; i++) {
+            var textCell = textCells[i];
+            if (settings.justifyCenter) setJustifyCenter(textCell.textFrame);
+            if (!settings.centerInCells) continue;
+
+            if (!textCell.column || !textCell.row) {
+                skippedCount++;
+                continue;
+            }
+
+            var currentCenter = textCell.glyphCenter;
+            if (settings.justifyCenter) {
+                /* 行揃えを変えると字形が動くので測り直す / Re-measure, since changing the alignment moves the glyphs */
+                var currentGeometry = getBoundsGeometry(getGlyphBounds(textCell.textFrame));
+                currentCenter = currentGeometry ? currentGeometry.center : null;
+            }
+            if (!currentCenter) {
+                skippedCount++;
+                continue;
+            }
+            var column = textCell.column;
+            var row = textCell.row;
+            var cellCenterX = (mapPosition(positionMap.vertical, column.lower, column.lowerItem, frameScale.vertical) +
+                mapPosition(positionMap.vertical, column.upper, column.upperItem, frameScale.vertical)) / 2;
+            var cellCenterY = (mapPosition(positionMap.horizontal, row.lower, row.lowerItem, frameScale.horizontal) +
+                mapPosition(positionMap.horizontal, row.upper, row.upperItem, frameScale.horizontal)) / 2;
+            textCell.textFrame.translate(cellCenterX - currentCenter[0], cellCenterY - currentCenter[1]);
+        }
+        return skippedCount;
     }
 
     /**
@@ -1000,9 +2110,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // =========================================
 
     /**
-     * 編集前のパスの座標を保存する
+     * 編集前のパスの座標と線幅を保存する
      * @param {PathItem[]} targetPathItems - 保存するパス
-     * @returns {Object[]} パスごとのアンカーポイントの状態
+     * @returns {Object[]} パスごとのアンカーポイントの状態と線幅
      */
     function savePathState(targetPathItems) {
         var pathStates = [];
@@ -1022,14 +2132,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 });
             }
 
-            pathStates.push({ pathItem: pathItem, pointStates: pointStates });
+            pathStates.push({ pathItem: pathItem, pointStates: pointStates, strokeWidth: pathItem.strokeWidth });
         }
 
         return pathStates;
     }
 
     /**
-     * 保存しておいた座標へ戻す
+     * 保存しておいた座標と線幅へ戻す
      * @param {Object[]} pathStates - savePathState() の戻り値
      * @returns {void}
      */
@@ -1047,6 +2157,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 pathPoint.rightDirection = [pointState.rightDirection[0], pointState.rightDirection[1]];
                 pathPoint.pointType = pointState.pointType;
             }
+            pathItem.strokeWidth = pathStates[pathIndex].strokeWidth;
         }
     }
 
@@ -1111,26 +2222,15 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             return;
         }
 
-        var edges = collectEdges(pathItems);
-        if (!edges.vertical.length || !edges.horizontal.length) {
+        var cellEdges = collectEdges(pathItems);
+        if (!cellEdges.vertical.length || !cellEdges.horizontal.length) {
             alert(getLabel("alert.noRule"));
             return;
         }
 
         /* 罫線を動かすとセルの判定がずれるので、先に今のセルを決めておく
            Find each text's cell before moving rules, since moving them changes the result */
-        var textCells = [];
-        for (var j = 0; j < textFrames.length; j++) {
-            var glyphGeometry = getBoundsGeometry(getGlyphBounds(textFrames[j]));
-            var glyphCenter = glyphGeometry ? glyphGeometry.center : null;
-            textCells.push({
-                textFrame: textFrames[j],
-                glyphCenter: glyphCenter,
-                glyphSize: glyphGeometry ? glyphGeometry.size : null,
-                column: glyphCenter ? findNearestEdges(edges.vertical, glyphCenter[0], glyphCenter[1]) : null,
-                row: glyphCenter ? findNearestEdges(edges.horizontal, glyphCenter[1], glyphCenter[0]) : null
-            });
-        }
+        var textCells = collectTextCells(textFrames, cellEdges);
 
         var rules = findRules(pathItems);
         if (rules) {
@@ -1142,58 +2242,140 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var horizontalRuleCount = rules ? rules.horizontal.length : 0;
         var pathState = savePathState(pathItems);
         var textState = saveTextState(textFrames);
+        var frameRectangle = null; /* ［外枠を長方形に変換］で作った長方形 / rectangle made by "Convert frame to rectangle" */
+        var roundedFramePreview = null; /* 角丸のプレビュー用に作った外枠の複製（効果は取り消せないので、元は隠しておく） / duplicate of the frame for the round-corner preview (effects cannot be removed, so the original stays hidden) */
+        var cellFillItems = [];    /* ［ランダムな濃さで塗る］で作ったグループ、またはばらの長方形 / group or loose rectangles made by "Fill with random tints" */
+        var cellTints = [];        /* セルごとの塗りの濃さ / fill tint of each cell */
+        var backmostItem = selectedItems[selectedItems.length - 1]; /* 選択は前面→背面の順 / the selection runs front to back */
+        var originalBounds = rules ? rules.rectBounds : null; /* 大きさを変える前の外枠の範囲 / frame bounds before resizing */
+        var tablePathItems = rules ? getTablePathItems(rules) : []; /* 外枠の大きさに合わせて伸縮するパス / paths scaled with the frame size */
+
+        /**
+         * 罫線・テキストを元に戻し、作った長方形・塗り・角丸の複製を消して、隠したパスを表示し直す
+         * @returns {void}
+         */
+        function restoreOriginalState() {
+            for (var fillIndex = 0; fillIndex < cellFillItems.length; fillIndex++) cellFillItems[fillIndex].remove();
+            cellFillItems = [];
+            if (roundedFramePreview) {
+                roundedFramePreview.remove();
+                roundedFramePreview = null;
+                rules.outerRect.hidden = false;
+            }
+            if (frameRectangle) {
+                frameRectangle.remove();
+                frameRectangle = null;
+                setFrameLinesHidden(rules.frameLines, false);
+            }
+            restorePathState(pathState);
+            restoreTextState(textState);
+            if (rules) rules.rectBounds = originalBounds;
+        }
+
+        /**
+         * 外枠と罫線を、左上を基準に指定の大きさへ伸縮し、rules.rectBounds を伸縮後の範囲にする
+         * @param {number} frameWidth - 外枠の幅（pt）
+         * @param {number} frameHeight - 外枠の高さ（pt）
+         * @returns {{vertical: Object, horizontal: Object}} mapPosition() に渡す、軸ごとの伸縮
+         */
+        function resizeFrame(frameWidth, frameHeight) {
+            var ratioX = frameWidth / originalBounds.width;
+            var ratioY = frameHeight / originalBounds.height;
+            if (Math.abs(frameWidth - originalBounds.width) > EPSILON || Math.abs(frameHeight - originalBounds.height) > EPSILON) {
+                scalePathItems(tablePathItems, originalBounds.left, originalBounds.top, ratioX, ratioY);
+            }
+            rules.rectBounds = {
+                left: originalBounds.left,
+                top: originalBounds.top,
+                right: originalBounds.left + frameWidth,
+                bottom: originalBounds.top - frameHeight,
+                width: frameWidth,
+                height: frameHeight
+            };
+            return {
+                vertical: { pathItems: tablePathItems, origin: originalBounds.left, ratio: ratioX },
+                horizontal: { pathItems: tablePathItems, origin: originalBounds.top, ratio: ratioY }
+            };
+        }
 
         /**
          * 元の状態に戻したうえで、設定どおりに均等化・配置する
-         * @param {{averageVertical: boolean, averageHorizontal: boolean, distributeMode: string, matchRuleLengths: boolean, centerInCells: boolean, justifyCenter: boolean}} settings - 設定
+         * @param {{frameWidth: number, frameHeight: number, adjustVerticalSpacing: boolean, adjustHorizontalSpacing: boolean, distributeMode: string, matchRuleLengths: boolean, convertFrame: boolean, roundCorners: boolean, cornerRadius: number, matchStrokeWidths: boolean, strokeWidth: number, fillCells: boolean, groupFills: boolean, centerInCells: boolean, justifyCenter: boolean}} settings - 設定（frameWidth・frameHeight・cornerRadius・strokeWidth は pt）
+         * @param {boolean} [isFinal] - ［OK］で確定するとき true（角丸の効果を複製ではなく外枠そのものに適用する）
          * @returns {number} セルが見つからず移動しなかったテキストの数
          */
-        function applySettings(settings) {
-            restorePathState(pathState);
-            restoreTextState(textState);
+        function applySettings(settings, isFinal) {
+            restoreOriginalState();
 
-            var positionMap = averageRules(rules, settings);
-            var skippedCount = 0;
-
-            for (var k = 0; k < textCells.length; k++) {
-                var textCell = textCells[k];
-                if (settings.justifyCenter) setJustifyCenter(textCell.textFrame);
-                if (!settings.centerInCells) continue;
-                if (!textCell.column || !textCell.row) {
-                    skippedCount++;
-                    continue;
-                }
-
-                /* 行揃えを変えると字形が動くので測り直す / Re-measure, since changing the alignment moves the glyphs */
-                var currentCenter = settings.justifyCenter ? getGlyphCenter(textCell.textFrame) : textCell.glyphCenter;
-                if (!currentCenter) {
-                    skippedCount++;
-                    continue;
-                }
-                var cellCenterX = (mapPosition(positionMap.vertical, textCell.column.lower) + mapPosition(positionMap.vertical, textCell.column.upper)) / 2;
-                var cellCenterY = (mapPosition(positionMap.horizontal, textCell.row.lower) + mapPosition(positionMap.horizontal, textCell.row.upper)) / 2;
-                textCell.textFrame.translate(cellCenterX - currentCenter[0], cellCenterY - currentCenter[1]);
+            var identityScale = { pathItems: [], origin: 0, ratio: 1 };
+            var frameScale = rules ? resizeFrame(settings.frameWidth, settings.frameHeight) : { vertical: identityScale, horizontal: identityScale };
+            var positionMap = adjustRuleSpacing(rules, settings);
+            if (settings.convertFrame && rules && rules.frameLines) {
+                frameRectangle = createFrameRectangle(rules.frameLines, rules.rectBounds);
             }
-            return skippedCount;
+            if (settings.matchStrokeWidths && rules) {
+                /* 角丸の複製より先に掛け、複製にも同じ線幅を引き継がせる / Set before the round-corner duplicate so it inherits the width */
+                setStrokeWidths(frameRectangle ? tablePathItems.concat([frameRectangle]) : tablePathItems, settings.strokeWidth);
+            }
+
+            /* 角丸は外枠が長方形のときだけ / Round corners only when the frame is a rectangle */
+            var frameShape = frameRectangle || (rules ? rules.outerRect : null);
+            var cornerRadius = (settings.roundCorners && frameShape) ? settings.cornerRadius : 0;
+            if (cornerRadius > 0) {
+                /* 作った長方形は消せば戻るので直接、元からある外枠はプレビュー中だけ複製に掛ける
+                   The created rectangle is simply removed on restore; an existing frame gets the effect on a duplicate while previewing */
+                if (frameShape === rules.outerRect && !isFinal) {
+                    /* duplicate() は hidden を引き継ぐので、隠す前に複製する / duplicate() inherits hidden, so duplicate before hiding */
+                    roundedFramePreview = rules.outerRect.duplicate();
+                    rules.outerRect.hidden = true;
+                    frameShape = roundedFramePreview;
+                }
+                applyRoundCornersEffect(frameShape, cornerRadius);
+            }
+            if (settings.fillCells && rules) {
+                cellFillItems = createCellFills(rules, cornerRadius, cellTints, backmostItem, settings.groupFills);
+            }
+            return placeTextsInCells(textCells, settings, positionMap, frameScale);
         }
 
         /* 開いた時点の設定（見つかった罫線は ON） / Initial settings: rules found start ON */
         var initialSettings = {
-            averageVertical: AVERAGE_RULES && verticalRuleCount > 0,
-            averageHorizontal: AVERAGE_RULES && horizontalRuleCount > 0,
+            frameWidth: rules ? rules.rectBounds.width : 0,
+            frameHeight: rules ? rules.rectBounds.height : 0,
+            adjustVerticalSpacing: ADJUST_RULE_SPACING && verticalRuleCount > 0,
+            adjustHorizontalSpacing: ADJUST_RULE_SPACING && horizontalRuleCount > 0,
             distributeMode: DISTRIBUTE_MODE,
-            matchRuleLengths: MATCH_LINES_TO_RECT,
+            matchRuleLengths: MATCH_RULE_LENGTHS,
+            convertFrame: CONVERT_FRAME_TO_RECT && !!(rules && rules.frameLines),
+            roundCorners: ROUND_CORNERS,
+            cornerRadius: CORNER_RADIUS_PT,
+            matchStrokeWidths: MATCH_STROKE_WIDTHS && tablePathItems.length > 0,
+            strokeWidth: getMostCommonStrokeWidth(tablePathItems),
+            fillCells: FILL_CELLS && !!rules,
+            groupFills: GROUP_CELL_FILLS,
             centerInCells: CENTER_IN_CELLS,
             justifyCenter: JUSTIFY_CENTER
         };
 
-        var dialogControls = buildDialog(verticalRuleCount, horizontalRuleCount, initialSettings);
-        var verticalRulesCheckbox = dialogControls.verticalRulesCheckbox;
-        var horizontalRulesCheckbox = dialogControls.horizontalRulesCheckbox;
+        var unitInfo = getUnitInfo();
+        var strokeUnitInfo = getUnitInfo("strokeUnits");
+        var dialogControls = buildDialog(verticalRuleCount, horizontalRuleCount, rules, unitInfo, strokeUnitInfo, initialSettings);
+        var frameWidthInput = dialogControls.frameWidthInput;
+        var frameHeightInput = dialogControls.frameHeightInput;
+        var adjustVerticalCheckbox = dialogControls.adjustVerticalCheckbox;
+        var adjustHorizontalCheckbox = dialogControls.adjustHorizontalCheckbox;
         var spacingRow = dialogControls.spacingRow;
         var evenSpacingRadio = dialogControls.evenSpacingRadio;
         var contentSpacingRadio = dialogControls.contentSpacingRadio;
         var matchRuleLengthsCheckbox = dialogControls.matchRuleLengthsCheckbox;
+        var convertFrameCheckbox = dialogControls.convertFrameCheckbox;
+        var cornerRow = dialogControls.cornerRow;
+        var roundCornersCheckbox = dialogControls.roundCornersCheckbox;
+        var cornerRadiusInput = dialogControls.cornerRadiusInput;
+        var matchStrokeCheckbox = dialogControls.matchStrokeCheckbox;
+        var strokeWidthInput = dialogControls.strokeWidthInput;
+        var fillCellsCheckbox = dialogControls.fillCellsCheckbox;
+        var groupFillsCheckbox = dialogControls.groupFillsCheckbox;
         var centerInCellsCheckbox = dialogControls.centerInCellsCheckbox;
         var justifyCenterCheckbox = dialogControls.justifyCenterCheckbox;
         var previewCheckbox = dialogControls.previewCheckbox;
@@ -1204,23 +2386,92 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
          */
         function getCheckedSettings() {
             return {
-                averageVertical: verticalRulesCheckbox.value,
-                averageHorizontal: horizontalRulesCheckbox.value,
+                frameWidth: frameWidthPt,
+                frameHeight: frameHeightPt,
+                adjustVerticalSpacing: adjustVerticalCheckbox.value,
+                adjustHorizontalSpacing: adjustHorizontalCheckbox.value,
                 distributeMode: contentSpacingRadio.value ? "content" : "even",
                 matchRuleLengths: matchRuleLengthsCheckbox.value,
+                convertFrame: convertFrameCheckbox.value,
+                roundCorners: roundCornersCheckbox.value,
+                cornerRadius: cornerRadiusPt,
+                matchStrokeWidths: matchStrokeCheckbox.value,
+                strokeWidth: strokeWidthPt,
+                fillCells: fillCellsCheckbox.value,
+                groupFills: groupFillsCheckbox.value,
                 centerInCells: centerInCellsCheckbox.value,
                 justifyCenter: justifyCenterCheckbox.value
             };
         }
 
+        /* 有効／無効の切り替え。表示前は checkbox.value を読み戻せないので、状態は引数で受け取る
+           Enabling helpers take the state as an argument, since checkbox.value cannot be read back before show() */
+
         /**
-         * ［間隔］［長さを揃える］は、どちらかの罫線を並べ直すときだけ操作できるようにする
+         * ［間隔］［長さを外枠に合わせる］は、どちらかの罫線の間隔を調整するときだけ操作できるようにする
+         * @param {boolean} isAdjustingSpacing - 縦罫か横罫の間隔を調整するなら true
          * @returns {void}
          */
-        function updateRuleOptionsEnabled() {
-            var isAveraging = verticalRulesCheckbox.value || horizontalRulesCheckbox.value;
-            spacingRow.enabled = isAveraging;
-            matchRuleLengthsCheckbox.enabled = isAveraging;
+        function updateRuleOptionsEnabled(isAdjustingSpacing) {
+            spacingRow.enabled = isAdjustingSpacing;
+            matchRuleLengthsCheckbox.enabled = isAdjustingSpacing;
+        }
+
+        /**
+         * ［角を丸くする］は、外枠が長方形のとき（閉じたパスか、［外枠を長方形に変換］がオン）だけ操作できるようにする
+         * @param {boolean} isConvertingFrame - ［外枠を長方形に変換］がオンなら true
+         * @returns {void}
+         */
+        function updateCornerRowEnabled(isConvertingFrame) {
+            cornerRow.enabled = !!(rules && (rules.outerRect || (rules.frameLines && isConvertingFrame)));
+            /* ∧∨は自作描画なので、描き直してディム表示を切り替える / Redraw the custom-drawn stepper to update its dimming */
+            redrawSteppersIn(cornerRow);
+        }
+
+        /**
+         * ［グループ化］は、塗るときだけ操作できるようにする
+         * @param {boolean} isFilling - ［ランダムな濃さで塗る］がオンなら true
+         * @returns {void}
+         */
+        function updateGroupFillsEnabled(isFilling) {
+            groupFillsCheckbox.enabled = isFilling;
+        }
+
+        updateRuleOptionsEnabled(initialSettings.adjustVerticalSpacing || initialSettings.adjustHorizontalSpacing);
+        updateCornerRowEnabled(initialSettings.convertFrame);
+        updateGroupFillsEnabled(initialSettings.fillCells);
+
+        /* 欄の値（pt）。不正な値が入ったら直前の値に戻す / Field values in pt; invalid input falls back to the previous value */
+        var frameWidthPt = initialSettings.frameWidth;
+        var frameHeightPt = initialSettings.frameHeight;
+        var cornerRadiusPt = initialSettings.cornerRadius;
+        var strokeWidthPt = initialSettings.strokeWidth;
+
+        /**
+         * 長さの欄の入力を読み取り、pt に換算して返す（計算式・別の単位も欄の単位へ換算する）。
+         * 欄の表示は小数第2位までなので、表示が前回読んだときのままなら控えた値を使い、丸めた分だけ外枠が伸縮しないようにする
+         * @param {EditText} valueInput - 対象の欄
+         * @param {number} previousPt - 直前の値（pt）
+         * @param {boolean} allowsZero - 0 を受け付けるなら true（半径）。false なら 0 より大きい値だけ（幅・高さ）
+         * @returns {number} 読み取った値（pt）。不正な値なら直前の値
+         */
+        function readLengthInput(valueInput, previousPt, allowsZero) {
+            if (valueInput.text === valueInput.readText) return previousPt;
+            var inputValue = evaluateArithmetic(valueInput.text, valueInput.stepperGroup.stepOptions.unit);
+            if (isNaN(inputValue) || (allowsZero ? inputValue < 0 : inputValue <= 0)) return previousPt;
+            valueInput.readText = valueInput.text;
+            return inputValue * valueInput.pointsPerUnit;
+        }
+
+        /**
+         * 幅・高さ・半径・線幅の欄をすべて読み取る
+         * @returns {void}
+         */
+        function readLengthInputs() {
+            frameWidthPt = readLengthInput(frameWidthInput, frameWidthPt, false);
+            frameHeightPt = readLengthInput(frameHeightInput, frameHeightPt, false);
+            cornerRadiusPt = readLengthInput(cornerRadiusInput, cornerRadiusPt, true);
+            strokeWidthPt = readLengthInput(strokeWidthInput, strokeWidthPt, true);
         }
 
         /**
@@ -1231,8 +2482,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             if (previewCheckbox.value) {
                 applySettings(getCheckedSettings());
             } else {
-                restorePathState(pathState);
-                restoreTextState(textState);
+                restoreOriginalState();
             }
             app.redraw();
         }
@@ -1244,29 +2494,96 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
          */
         function handleRuleCheckboxClick(clickedCheckbox) {
             if (ScriptUI.environment.keyboardState.altKey) {
-                if (verticalRulesCheckbox.enabled) verticalRulesCheckbox.value = clickedCheckbox.value;
-                if (horizontalRulesCheckbox.enabled) horizontalRulesCheckbox.value = clickedCheckbox.value;
+                if (adjustVerticalCheckbox.enabled) adjustVerticalCheckbox.value = clickedCheckbox.value;
+                if (adjustHorizontalCheckbox.enabled) adjustHorizontalCheckbox.value = clickedCheckbox.value;
             }
-            updateRuleOptionsEnabled();
+            updateRuleOptionsEnabled(adjustVerticalCheckbox.value || adjustHorizontalCheckbox.value);
             updatePreview();
         }
 
-        verticalRulesCheckbox.onClick = function () {
-            handleRuleCheckboxClick(verticalRulesCheckbox);
+        adjustVerticalCheckbox.onClick = function () {
+            handleRuleCheckboxClick(adjustVerticalCheckbox);
         };
-        horizontalRulesCheckbox.onClick = function () {
-            handleRuleCheckboxClick(horizontalRulesCheckbox);
+        adjustHorizontalCheckbox.onClick = function () {
+            handleRuleCheckboxClick(adjustHorizontalCheckbox);
         };
         evenSpacingRadio.onClick = updatePreview;
         contentSpacingRadio.onClick = updatePreview;
         matchRuleLengthsCheckbox.onClick = updatePreview;
+        convertFrameCheckbox.onClick = function () {
+            updateCornerRowEnabled(convertFrameCheckbox.value);
+            updatePreview();
+        };
+        roundCornersCheckbox.onClick = updatePreview;
+        matchStrokeCheckbox.onClick = updatePreview;
+
+        var lengthInputs = [frameWidthInput, frameHeightInput, cornerRadiusInput, strokeWidthInput];
+        for (var inputIndex = 0; inputIndex < lengthInputs.length; inputIndex++) {
+            /* 開いた時点の表示は初期値そのものとして扱う / The initial text stands for the exact initial value */
+            lengthInputs[inputIndex].readText = lengthInputs[inputIndex].text;
+        }
+
+        /**
+         * 欄の値を読み直してプレビューを更新する（∧∨・↑↓キー・直接入力のあと）
+         * @returns {void}
+         */
+        function handleLengthChange() {
+            readLengthInputs();
+            updatePreview();
+        }
+
+        /**
+         * 直接入力をそろえる addSteppedField() の onChange のあとで、プレビューを更新する
+         * @param {EditText} valueInput - 対象の欄
+         * @returns {void}
+         */
+        function chainLengthOnChange(valueInput) {
+            var normalizeInput = valueInput.onChange;
+            valueInput.onChange = function () {
+                normalizeInput();
+                handleLengthChange();
+            };
+        }
+
+        /**
+         * チェックボックスの横の欄（半径・線幅）の直接入力をそろえ、プレビューを更新する
+         * @param {EditText} valueInput - 対象の欄
+         * @returns {void}
+         */
+        function wireCheckboxLengthOnChange(valueInput) {
+            valueInput.onChange = function () {
+                /* 数値でなければ直前の値に戻し、下限と単位をそろえる / Revert non-numbers; apply the minimum and the unit */
+                var stepOptions = valueInput.stepperGroup.stepOptions;
+                var inputValue = evaluateArithmetic(valueInput.text, stepOptions.unit);
+                if (isNaN(inputValue)) valueInput.text = valueInput.lastValidText;
+                else writeSteppedValue(valueInput, inputValue, stepOptions);
+                handleLengthChange();
+            };
+        }
+
+        chainLengthOnChange(frameWidthInput);
+        chainLengthOnChange(frameHeightInput);
+        wireCheckboxLengthOnChange(cornerRadiusInput);
+        wireCheckboxLengthOnChange(strokeWidthInput);
+        for (inputIndex = 0; inputIndex < lengthInputs.length; inputIndex++) {
+            /* 入力中も1文字ごとにプレビューする（数値として読めない途中の入力は直前の値のまま） / Preview on every keystroke; incomplete input keeps the previous value */
+            lengthInputs[inputIndex].onChanging = handleLengthChange;
+            lengthInputs[inputIndex].stepperGroup.stepOptions.onStep = handleLengthChange;
+        }
+        fillCellsCheckbox.onClick = function () {
+            updateGroupFillsEnabled(fillCellsCheckbox.value);
+            updatePreview();
+        };
+        groupFillsCheckbox.onClick = updatePreview;
         centerInCellsCheckbox.onClick = updatePreview;
         justifyCenterCheckbox.onClick = updatePreview;
         previewCheckbox.onClick = updatePreview;
 
         var skippedCount = 0;
         dialogControls.btnOK.onClick = function () {
-            skippedCount = applySettings(getCheckedSettings());
+            /* 欄を確定せずに［OK］を押したときも、入力中の値を使う / Use the value being typed even when OK is pressed without committing it */
+            readLengthInputs();
+            skippedCount = applySettings(getCheckedSettings(), true);
             app.redraw();
             dialogControls.mainDialog.close(1);
         };
@@ -1282,14 +2599,19 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         app.redraw();
 
         prepareDialogWindow(dialogControls.mainDialog, SCRIPT_NAME);
+        /* 表は横に長く、選択範囲を避けると画面の端まで追いやられるので、避けずに前回の位置で開く
+           Tables are wide, so avoiding the selection pushes the dialog to the screen edge; open at the last location instead */
+        dialogControls.mainDialog.dialogWindowState.selectionSpan = null;
 
         /* Esc など［OK］以外で閉じたときも元に戻す / Restore however the dialog is closed, unless by OK */
         if (dialogControls.mainDialog.show() !== 1) {
-            restorePathState(pathState);
-            restoreTextState(textState);
+            restoreOriginalState();
             app.redraw();
             return;
         }
+
+        /* 変換を確定したら、隠しておいた枠の罫線を削除する / Once the conversion is confirmed, delete the hidden frame rules */
+        if (frameRectangle) removeFrameLines(rules.frameLines);
 
         if (skippedCount) alert(getLabel("alert.skipped", { count: skippedCount }));
     }
@@ -1511,35 +2833,69 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * ダイアログを組み立てる
      * @param {number} verticalRuleCount - 見つかった縦罫の数
      * @param {number} horizontalRuleCount - 見つかった横罫の数
-     * @param {{averageVertical: boolean, averageHorizontal: boolean, distributeMode: string, matchRuleLengths: boolean, centerInCells: boolean, justifyCenter: boolean}} initialSettings - コントロールの初期値
-     * @returns {{mainDialog: Window, verticalRulesCheckbox: Checkbox, horizontalRulesCheckbox: Checkbox, spacingRow: Group, evenSpacingRadio: RadioButton, contentSpacingRadio: RadioButton, matchRuleLengthsCheckbox: Checkbox, centerInCellsCheckbox: Checkbox, justifyCenterCheckbox: Checkbox, previewCheckbox: Checkbox, btnCancel: Button, btnOK: Button}} ダイアログとコントロール
+     * @param {Object|null} rules - findRules() の戻り値
+     * @param {{label: string, pointsPerUnit: number}} unitInfo - 定規の単位
+     * @param {{label: string, pointsPerUnit: number}} strokeUnitInfo - 線の単位
+     * @param {{frameWidth: number, frameHeight: number, adjustVerticalSpacing: boolean, adjustHorizontalSpacing: boolean, distributeMode: string, matchRuleLengths: boolean, convertFrame: boolean, roundCorners: boolean, cornerRadius: number, matchStrokeWidths: boolean, strokeWidth: number, fillCells: boolean, groupFills: boolean, centerInCells: boolean, justifyCenter: boolean}} initialSettings - コントロールの初期値
+     * @returns {{mainDialog: Window, frameWidthInput: EditText, frameHeightInput: EditText, adjustVerticalCheckbox: Checkbox, adjustHorizontalCheckbox: Checkbox, spacingRow: Group, evenSpacingRadio: RadioButton, contentSpacingRadio: RadioButton, matchRuleLengthsCheckbox: Checkbox, convertFrameCheckbox: Checkbox, cornerRow: Group, roundCornersCheckbox: Checkbox, cornerRadiusInput: EditText, matchStrokeCheckbox: Checkbox, strokeWidthInput: EditText, fillCellsCheckbox: Checkbox, groupFillsCheckbox: Checkbox, centerInCellsCheckbox: Checkbox, justifyCenterCheckbox: Checkbox, previewCheckbox: Checkbox, btnCancel: Button, btnOK: Button}} ダイアログとコントロール
      */
-    function buildDialog(verticalRuleCount, horizontalRuleCount, initialSettings) {
+    function buildDialog(verticalRuleCount, horizontalRuleCount, rules, unitInfo, strokeUnitInfo, initialSettings) {
+        var hasFrameLines = !!(rules && rules.frameLines);
         var mainDialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
         setupWindow(mainDialog);
+
+        var framePanel = mainDialog.add("panel", undefined, getLabel("panel.frame"));
+        setupPanel(framePanel, 6);
+        /* 幅・高さの項目名は長いほうの幅にそろえて右揃え / Size labels share the wider label's width, right-aligned */
+        var sizeLabelWidth = Math.max(
+            mainDialog.graphics.measureString(labelText("fieldLabel.frameWidth"))[0],
+            mainDialog.graphics.measureString(labelText("fieldLabel.frameHeight"))[0]);
+        var frameWidthInput = addLengthField(framePanel, "fieldLabel.frameWidth", sizeLabelWidth, initialSettings.frameWidth, unitInfo);
+        var frameHeightInput = addLengthField(framePanel, "fieldLabel.frameHeight", sizeLabelWidth, initialSettings.frameHeight, unitInfo);
+        /* 大きさの欄とチェックボックスの間を少し空ける（コントロールには margins が無いのでグループで包む）
+           Leave a little space below the size fields (controls have no margins, so wrap it in a group) */
+        var convertFrameGroup = framePanel.add("group");
+        convertFrameGroup.alignChildren = ["left", "center"];
+        convertFrameGroup.margins = [0, FRAME_OPTIONS_TOP_GAP, 0, 0];
+        var convertFrameCheckbox = addOptionCheckbox(convertFrameGroup,
+            "checkbox.convertFrame", "tooltip.convertFrame", hasFrameLines, initialSettings.convertFrame);
+        var cornerRowControls = addCheckboxLengthRow(framePanel, "checkbox.roundCorners", "tooltip.roundCorners",
+            initialSettings.roundCorners, initialSettings.cornerRadius, unitInfo);
+        var cornerRow = cornerRowControls.row;
+        framePanel.enabled = !!rules;
 
         var rulesPanel = mainDialog.add("panel", undefined, getLabel("panel.rules"));
         setupPanel(rulesPanel, 6);
 
-        var verticalRulesCheckbox = addOptionCheckbox(rulesPanel,
-            "checkbox.averageVertical", "tooltip.averageVertical", verticalRuleCount > 0, initialSettings.averageVertical);
-        var horizontalRulesCheckbox = addOptionCheckbox(rulesPanel,
-            "checkbox.averageHorizontal", "tooltip.averageHorizontal", horizontalRuleCount > 0, initialSettings.averageHorizontal);
-        var isAveraging = initialSettings.averageVertical || initialSettings.averageHorizontal;
+        var adjustVerticalCheckbox = addOptionCheckbox(rulesPanel,
+            "checkbox.adjustVerticalSpacing", "tooltip.adjustVerticalSpacing", verticalRuleCount > 0, initialSettings.adjustVerticalSpacing);
+        var adjustHorizontalCheckbox = addOptionCheckbox(rulesPanel,
+            "checkbox.adjustHorizontalSpacing", "tooltip.adjustHorizontalSpacing", horizontalRuleCount > 0, initialSettings.adjustHorizontalSpacing);
 
         var spacingRow = rulesPanel.add("group");
         setupRow(spacingRow, "left", 8);
+        spacingRow.alignChildren = ["left", "top"];
         spacingRow.add("statictext", undefined, labelText("fieldLabel.spacing"));
-        var evenSpacingRadio = spacingRow.add("radiobutton", undefined, getLabel("radio.even"));
+        /* ラジオは同じ親の中だけ排他になるので、2つを1つのグループに縦に積む / Radios are exclusive only within one parent, so stack both in one group */
+        var spacingRadioGroup = spacingRow.add("group");
+        spacingRadioGroup.orientation = "column";
+        spacingRadioGroup.alignChildren = ["left", "top"];
+        spacingRadioGroup.spacing = 6;
+        var evenSpacingRadio = spacingRadioGroup.add("radiobutton", undefined, getLabel("radio.even"));
         evenSpacingRadio.helpTip = getLabel("tooltip.even");
-        var contentSpacingRadio = spacingRow.add("radiobutton", undefined, getLabel("radio.content"));
+        var contentSpacingRadio = spacingRadioGroup.add("radiobutton", undefined, getLabel("radio.content"));
         contentSpacingRadio.helpTip = getLabel("tooltip.content");
         contentSpacingRadio.value = initialSettings.distributeMode === "content";
         evenSpacingRadio.value = !contentSpacingRadio.value;
-        spacingRow.enabled = isAveraging;
 
         var matchRuleLengthsCheckbox = addOptionCheckbox(rulesPanel,
-            "checkbox.matchRuleLengths", "tooltip.matchRuleLengths", isAveraging, initialSettings.matchRuleLengths);
+            "checkbox.matchRuleLengths", "tooltip.matchRuleLengths", true, initialSettings.matchRuleLengths);
+
+        var strokeRowControls = addCheckboxLengthRow(rulesPanel, "checkbox.matchStrokeWidths", "tooltip.matchStrokeWidths",
+            initialSettings.matchStrokeWidths, initialSettings.strokeWidth, strokeUnitInfo);
+        /* 間隔の調整とは別の機能なので、上と少し離す / A separate feature from the spacing, so set it apart */
+        strokeRowControls.row.margins = [0, SEPARATE_OPTION_GAP, 0, 0];
+        strokeRowControls.row.enabled = !!rules;
 
         var textPanel = mainDialog.add("panel", undefined, getLabel("panel.text"));
         setupPanel(textPanel, 6);
@@ -1548,6 +2904,16 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             "checkbox.centerInCells", "tooltip.centerInCells", true, initialSettings.centerInCells);
         var justifyCenterCheckbox = addOptionCheckbox(textPanel,
             "checkbox.justifyCenter", "tooltip.justifyCenter", true, initialSettings.justifyCenter);
+
+        var cellsPanel = mainDialog.add("panel", undefined, getLabel("panel.cells"));
+        setupPanel(cellsPanel, 6);
+
+        var fillCellsCheckbox = cellsPanel.add("checkbox", undefined, getLabel("checkbox.fillCells", { min: FILL_TINT_MIN, max: FILL_TINT_MAX }));
+        fillCellsCheckbox.helpTip = getLabel("tooltip.fillCells");
+        fillCellsCheckbox.value = initialSettings.fillCells === true;
+        fillCellsCheckbox.enabled = !!rules;
+        var groupFillsCheckbox = addOptionCheckbox(cellsPanel,
+            "checkbox.groupFills", "tooltip.groupFills", true, initialSettings.groupFills);
 
         var previewGroup = mainDialog.add("group");
         previewGroup.orientation = "row";
@@ -1564,18 +2930,97 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         return {
             mainDialog: mainDialog,
-            verticalRulesCheckbox: verticalRulesCheckbox,
-            horizontalRulesCheckbox: horizontalRulesCheckbox,
+            frameWidthInput: frameWidthInput,
+            frameHeightInput: frameHeightInput,
+            adjustVerticalCheckbox: adjustVerticalCheckbox,
+            adjustHorizontalCheckbox: adjustHorizontalCheckbox,
             spacingRow: spacingRow,
             evenSpacingRadio: evenSpacingRadio,
             contentSpacingRadio: contentSpacingRadio,
             matchRuleLengthsCheckbox: matchRuleLengthsCheckbox,
+            convertFrameCheckbox: convertFrameCheckbox,
+            cornerRow: cornerRow,
+            roundCornersCheckbox: cornerRowControls.checkbox,
+            cornerRadiusInput: cornerRowControls.input,
+            matchStrokeCheckbox: strokeRowControls.checkbox,
+            strokeWidthInput: strokeRowControls.input,
+            fillCellsCheckbox: fillCellsCheckbox,
+            groupFillsCheckbox: groupFillsCheckbox,
             centerInCellsCheckbox: centerInCellsCheckbox,
             justifyCenterCheckbox: justifyCenterCheckbox,
             previewCheckbox: previewCheckbox,
             btnCancel: btnCancel,
             btnOK: btnOK
         };
+    }
+
+    /**
+     * 欄に付ける単位（「20 mm」の「 mm」）を返す
+     * @param {{label: string}} unitInfo - 定規の単位
+     * @returns {string} 単位の文字列
+     */
+    function getLengthUnitSuffix(unitInfo) {
+        return " " + unitInfo.label;
+    }
+
+    /**
+     * 長さ（pt）を、定規の単位に換算して単位を付けた欄の文字列にする（小数第2位まで）
+     * @param {number} lengthPt - 長さ（pt）
+     * @param {{label: string, pointsPerUnit: number}} unitInfo - 定規の単位
+     * @returns {string} 欄に表示する文字列（例 "20 mm"）
+     */
+    function formatLength(lengthPt, unitInfo) {
+        return formatStepperNumber(lengthPt / unitInfo.pointsPerUnit) + getLengthUnitSuffix(unitInfo);
+    }
+
+    /**
+     * 「項目名 : ∧∨[欄]」の長さの欄（幅・高さ）を追加する
+     * @param {Panel} parentPanel - 追加先のパネル
+     * @param {string} labelPath - 項目名の LABELS パス
+     * @param {number} labelWidth - 項目名の幅（右揃え）
+     * @param {number} valuePt - 初期値（pt）
+     * @param {{label: string, pointsPerUnit: number}} unitInfo - 定規の単位
+     * @returns {EditText} 追加した欄
+     */
+    function addLengthField(parentPanel, labelPath, labelWidth, valuePt, unitInfo) {
+        var valueInput = addSteppedField(parentPanel, {
+            label: labelText(labelPath), labelWidth: labelWidth,
+            text: formatLength(valuePt, unitInfo), characters: 8, step: 1, min: 0.01, unit: getLengthUnitSuffix(unitInfo)
+        });
+        valueInput.helpTip = getLabel("tooltip.frameSize");
+        valueInput.pointsPerUnit = unitInfo.pointsPerUnit;
+        return valueInput;
+    }
+
+    /**
+     * 「□チェックボックス ∧∨[欄]」の行（角丸の半径・線幅）を追加する
+     * @param {Panel} parentPanel - 追加先のパネル
+     * @param {string} checkboxLabelPath - チェックボックスの LABELS パス
+     * @param {string} tooltipPath - tooltip の LABELS パス
+     * @param {boolean} isChecked - チェックボックスの初期値
+     * @param {number} valuePt - 欄の初期値（pt）
+     * @param {{label: string, pointsPerUnit: number}} lengthUnitInfo - 欄の単位
+     * @returns {{row: Group, checkbox: Checkbox, input: EditText}} 行とチェックボックスと欄
+     */
+    function addCheckboxLengthRow(parentPanel, checkboxLabelPath, tooltipPath, isChecked, valuePt, lengthUnitInfo) {
+        var checkboxRow = parentPanel.add("group");
+        setupRow(checkboxRow, "left", 6);
+        var rowCheckbox = checkboxRow.add("checkbox", undefined, getLabel(checkboxLabelPath));
+        rowCheckbox.helpTip = getLabel(tooltipPath);
+        rowCheckbox.value = isChecked === true;
+        /* ∧∨と入力欄は隙間0で突き合わせる / butt the stepper against the field */
+        var stepperInputGroup = checkboxRow.add("group");
+        setupRow(stepperInputGroup, "left", 0);
+        var valueInput;
+        var rowStepper = addStepper(stepperInputGroup, function () { return valueInput; },
+            { step: 1, min: 0, unit: getLengthUnitSuffix(lengthUnitInfo) });
+        valueInput = stepperInputGroup.add("edittext", undefined, formatLength(valuePt, lengthUnitInfo));
+        valueInput.characters = 6;
+        valueInput.helpTip = getLabel(tooltipPath);
+        valueInput.lastValidText = valueInput.text;
+        valueInput.pointsPerUnit = lengthUnitInfo.pointsPerUnit;
+        bindSteppedArrowKeys(valueInput, rowStepper);
+        return { row: checkboxRow, checkbox: rowCheckbox, input: valueInput };
     }
 
     /**
