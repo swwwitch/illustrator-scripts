@@ -1,5 +1,17 @@
 -- アートボードごとにPDFを書き出し、Keynoteのスライドへ画像として挿入する
--- クリップボードとキー操作を使わないので、ArtboardsToKeynote より速い（貼られるのはPDF画像）
+-- クリップボードとキー操作を使わないので速い（貼られるのはPDF画像）
+
+use AppleScript version "2.4"
+use framework "Foundation"
+use framework "AppKit"
+use scripting additions
+
+-- 設定ダイアログボックスとの受け渡し（メインスレッドで開くため、引数ではなくプロパティで渡す）
+property dialogIsNewDocument : false
+property dialogSlideCount : 0
+property dialogSlideText : ""
+property dialogScaleText : ""
+property dialogButton : ""
 
 tell application "Adobe Illustrator"
 	if (count of documents) = 0 then
@@ -36,23 +48,44 @@ end tell
 
 -- 貼り付け先：新規ドキュメントはスライド1から、既存ドキュメントは末尾に追加か指定スライドからを選ぶ
 -- startSlideIndex 以降は既存スライドに貼り、足りなくなったら末尾に追加する
-if isNewDocument then
-	set startSlideIndex to 1
-else
-	set modeAnswer to button returned of (display dialog "貼り付け先を選んでください。" buttons {"キャンセル", "既存スライドに貼る", "末尾に追加"} default button "末尾に追加" cancel button "キャンセル")
-	if modeAnswer is "末尾に追加" then
+-- スケール（%）は100でアートボードと同じ大きさ（1pt＝1ポイント）
+-- 貼り付け先・開始スライド・スケールは1つのダイアログボックスで受け取り、入力が不正なら値を残して開き直す
+set dialogIsNewDocument to isNewDocument
+set dialogSlideCount to slideCount
+set dialogSlideText to currentSlideNumber as text
+set dialogScaleText to "100"
+repeat
+	if (current application's NSThread's isMainThread()) as boolean then
+		my showSettingsDialog:(missing value)
+	else
+		my performSelectorOnMainThread:"showSettingsDialog:" withObject:(missing value) waitUntilDone:true
+	end if
+	if dialogButton is "キャンセル" then return
+
+	set errorText to ""
+	try
+		set scalePercent to dialogScaleText as real
+		if scalePercent ≤ 0 then error
+	on error
+		set errorText to "スケールには0より大きい数字を入力してください。"
+	end try
+	if dialogButton is "既存スライドに貼る" then
+		try
+			set startSlideIndex to dialogSlideText as integer
+			if startSlideIndex < 1 or startSlideIndex > slideCount then error
+		on error
+			set errorText to "開始スライドには1〜" & slideCount & " の数字を入力してください。"
+		end try
+	else if dialogButton is "末尾に追加" then
 		set startSlideIndex to slideCount + 1
 	else
-		repeat
-			set startAnswer to text returned of (display dialog "何枚目のスライドから貼り付けますか？（1〜" & slideCount & "）" default answer (currentSlideNumber as text) buttons {"キャンセル", "OK"} default button "OK" cancel button "キャンセル")
-			try
-				set startSlideIndex to startAnswer as integer
-				if startSlideIndex ≥ 1 and startSlideIndex ≤ slideCount then exit repeat
-			end try
-			display alert "1〜" & slideCount & " の数字を入力してください。"
-		end repeat
+		set startSlideIndex to 1
 	end if
-end if
+	if errorText is "" then exit repeat
+	display alert errorText
+end repeat
+set scaleFactor to scalePercent / 100
+
 
 -- 書き出し用の一時フォルダー
 set exportRoot to do shell script "mktemp -d -t ArtboardsToKeynote"
@@ -126,12 +159,14 @@ repeat with artboardIndex from 1 to artboardCount
 					set targetSlide to make new slide at end of slides
 				end if
 
-				-- PDFを画像として挿入し、アートボードの大きさ（1pt＝1ポイント）にしてスライドの中央に置く
+				-- PDFを画像として挿入し、アートボードの大きさ（1pt＝1ポイント）にスケールを掛けてスライドの中央に置く
+				set imageWidth to artboardWidth * scaleFactor
+				set imageHeight to artboardHeight * scaleFactor
 				tell targetSlide
 					set pdfImage to make new image with properties {file:pdfFile}
-					set width of pdfImage to artboardWidth
-					set height of pdfImage to artboardHeight
-					set position of pdfImage to {(slideWidth - artboardWidth) / 2, (slideHeight - artboardHeight) / 2}
+					set width of pdfImage to imageWidth
+					set height of pdfImage to imageHeight
+					set position of pdfImage to {(slideWidth - imageWidth) / 2, (slideHeight - imageHeight) / 2}
 				end tell
 			end tell
 		end tell
@@ -162,3 +197,67 @@ else
 	set AppleScript's text item delimiters to ""
 	display dialog "Keynoteへ挿入しました。" & return & "空または書き出せなかったアートボード : " & skippedText buttons {"OK"} default button "OK"
 end if
+
+-- 貼り付け先のボタンと、開始スライド・スケールの入力欄を並べたダイアログボックスを開く
+-- 結果は dialogButton・dialogSlideText・dialogScaleText に入る（NSAlertはメインスレッドで開く）
+on showSettingsDialog:unusedArgument
+	set settingsAlert to current application's NSAlert's alloc()'s init()
+	settingsAlert's setMessageText:"アートボードをKeynoteへ挿入"
+	if dialogIsNewDocument then
+		set buttonTitles to {"OK", "キャンセル"}
+		settingsAlert's setInformativeText:"新規ドキュメントのスライド1から挿入します。"
+	else
+		set buttonTitles to {"末尾に追加", "既存スライドに貼る", "キャンセル"}
+		settingsAlert's setInformativeText:"［既存スライドに貼る］は開始スライドから順に貼り、足りなくなったら末尾に追加します。"
+	end if
+	repeat with buttonTitle in buttonTitles
+		set lastButton to (settingsAlert's addButtonWithTitle:(buttonTitle as text))
+	end repeat
+	-- Escで［キャンセル］
+	lastButton's setKeyEquivalent:(character id 27)
+
+	-- 入力欄：既存ドキュメントでは開始スライドを上の行に置く
+	if dialogIsNewDocument then
+		set accessoryView to current application's NSView's alloc()'s initWithFrame:{{0, 0}, {260, 22}}
+		set scaleField to my addFieldRow(accessoryView, 0, "スケール :", dialogScaleText, "%")
+		set firstField to scaleField
+	else
+		set accessoryView to current application's NSView's alloc()'s initWithFrame:{{0, 0}, {260, 54}}
+		set slideField to my addFieldRow(accessoryView, 32, "開始スライド :", dialogSlideText, "（1〜" & dialogSlideCount & "）")
+		set scaleField to my addFieldRow(accessoryView, 0, "スケール :", dialogScaleText, "%")
+		slideField's setNextKeyView:scaleField
+		scaleField's setNextKeyView:slideField
+		set firstField to slideField
+	end if
+	settingsAlert's setAccessoryView:accessoryView
+	settingsAlert's layout()
+	(settingsAlert's |window|())'s setInitialFirstResponder:firstField
+
+	-- osascript などから開くと前面のアプリの後ろに隠れるので、アクセサリーとして前面に出し、モーダルパネルのレベルに上げる
+	set hostApp to current application's NSApplication's sharedApplication()
+	hostApp's setActivationPolicy:(current application's NSApplicationActivationPolicyAccessory)
+	hostApp's activateIgnoringOtherApps:true
+	(settingsAlert's |window|())'s setLevel:(current application's NSModalPanelWindowLevel)
+	set response to (settingsAlert's runModal()) as integer
+	-- 1つ目のボタンが1000、以降1ずつ増える
+	set dialogButton to item (response - 1000 + 1) of buttonTitles
+	if not dialogIsNewDocument then set dialogSlideText to (slideField's stringValue()) as text
+	set dialogScaleText to (scaleField's stringValue()) as text
+end showSettingsDialog:
+
+-- 「ラベル・入力欄・単位」の1行を parentView の rowY の位置に置き、入力欄を返す
+on addFieldRow(parentView, rowY, labelText, valueText, unitText)
+	set labelField to current application's NSTextField's labelWithString:labelText
+	labelField's setAlignment:(current application's NSTextAlignmentRight)
+	labelField's setFrame:{{0, rowY + 3}, {90, 17}}
+	parentView's addSubview:labelField
+
+	set inputField to current application's NSTextField's alloc()'s initWithFrame:{{96, rowY}, {60, 22}}
+	inputField's setStringValue:valueText
+	parentView's addSubview:inputField
+
+	set unitField to current application's NSTextField's labelWithString:unitText
+	unitField's setFrame:{{162, rowY + 3}, {98, 17}}
+	parentView's addSubview:unitField
+	return inputField
+end addFieldRow
