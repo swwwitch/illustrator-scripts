@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.ArrangeLikeTableCells
 Name=ArrangeLikeTableCells
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.2.0
+Version=1.3.0
 Release-Date=2026-10-20
 Description-BEGIN
 外枠と罫線で区切った表で、外枠の大きさ・罫線の間隔・線幅を整え、各テキストをセルの中央に字形の見た目で配置します。
@@ -43,7 +43,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ArrangeLik
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ArrangeLikeTableCells";        /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.2.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.3.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-20";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-20";                   /* 更新日 / last updated */
@@ -89,15 +89,28 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
     var ROUND_CORNERS = false;
     var CORNER_RADIUS_PT = 8;
 
-    /* ［線幅をそろえる］の初期値（線幅の初期値は、外枠・罫線でもっとも多い線幅） / Initial value of "Match stroke weights" (the weight starts at the most common one among the frame and rules) */
+    /* ［線幅を揃える］の初期値（線幅の初期値は、外枠・罫線でもっとも多い線幅） / Initial value of "Match stroke weights" (the weight starts at the most common one among the frame and rules) */
     var MATCH_STROKE_WIDTHS = false;
 
-    /* ［ランダムな濃さで塗る］の初期値と、ランダムに選ぶ濃さの範囲（K%） / Initial value of "Fill with random tints" and the range of random tints (K%) */
-    var FILL_CELLS = false;
-    /* ［グループ化］の初期値（塗りの長方形を1つのグループにまとめる） / Initial value of "Group" (group the fill rectangles) */
-    var GROUP_CELL_FILLS = true;
+    /* ［図形を作成］の初期値 / Initial value of "Create cell shapes" */
+    var CREATE_CELL_SHAPES = false;
+
+    /*
+        セルの図形の塗り方の初期値 / Initial fill of the cell shapes
+        "uniform" : すべてのセルを FILL_UNIFORM_TINT の濃さで塗る
+                    Fill every cell with the FILL_UNIFORM_TINT tint.
+        "random"  : セルごとに FILL_TINT_MIN〜FILL_TINT_MAX のランダムな濃さで塗る
+                    Fill each cell with a random tint from FILL_TINT_MIN to FILL_TINT_MAX.
+    */
+    var CELL_FILL_MODE = "uniform";
+
+    /* ［すべてのセルを…で塗る］の濃さと、ランダムに選ぶ濃さの範囲（K%） / Tint for "Fill all cells" and the range of random tints (K%) */
+    var FILL_UNIFORM_TINT = 15;
     var FILL_TINT_MIN = 10;
     var FILL_TINT_MAX = 60;
+
+    /* ［グループ化］の初期値（セルの図形を1つのグループにまとめる） / Initial value of "Group" (group the cell shapes) */
+    var GROUP_CELL_FILLS = true;
 
     /* ［セルの中央に配置］の初期値 / Initial value of "Center in cells" */
     var CENTER_IN_CELLS = true;
@@ -118,9 +131,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
     // レイアウト / Layout
     // =========================================
 
-    /* ダイアログの区切りの余白 / Gaps in the dialog */
-    var SEPARATE_OPTION_GAP     = 6;   /* 別の機能の行の上に足す余白 / extra space above a row for a separate feature */
-    var FRAME_OPTIONS_TOP_GAP   = 5;   /* ［外枠を長方形に変換］の上に足す余白 / extra space above "Convert frame to rectangle" */
+    /* ダイアログの余白・字下げ・欄の幅 / Gaps, indents and field widths in the dialog */
+    var SEPARATE_OPTION_GAP       = 6;   /* 別の機能の行の上に足す余白 / extra space above a row for a separate feature */
+    var FRAME_OPTIONS_TOP_GAP     = 5;   /* ［外枠を長方形に変換］の上に足す余白 / extra space above "Convert frame to rectangle" */
+    var MATCH_LENGTHS_TOP_GAP     = 3;   /* ［長さを外枠に合わせる］の上に足す余白 / extra space above "Match rule lengths to frame" */
+    var SUB_OPTION_INDENT         = 12;  /* チェックボックスの下に置く項目（塗り方のラジオボタン・線幅の欄）の字下げ / indent of items placed under a checkbox (fill radios, stroke weight field) */
+    var CORNER_RADIUS_FIELD_CHARS = 4;   /* ［角を丸くする］の欄の幅（文字数） / width of the "Round corners" field (characters) */
 
     // UIレイアウト（再利用パーツ） / UI layout (reusable)
 
@@ -944,21 +960,23 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
             matchRuleLengths: { ja: "長さを外枠に合わせる", en: "Match rule lengths to frame" },
             convertFrame: { ja: "外枠を長方形に変換", en: "Convert frame to rectangle" },
             roundCorners: { ja: "角を丸くする", en: "Round corners" },
-            matchStrokeWidths: { ja: "線幅をそろえる", en: "Match stroke weights" },
-            fillCells: { ja: "ランダムな濃さで塗る（K{min}〜K{max}）", en: "Fill with random tints (K{min}-K{max})" },
+            matchStrokeWidths: { ja: "線幅を揃える", en: "Match stroke weights" },
+            createCellShapes: { ja: "図形を作成", en: "Create cell shapes" },
             groupFills: { ja: "グループ化", en: "Group" },
             centerInCells: { ja: "セルの中央に配置", en: "Center in cells" },
-            justifyCenter: { ja: "中央揃えにする", en: "Align center" },
-            preview: { ja: "プレビュー", en: "Preview" }
+            justifyCenter: { ja: "中央揃えにする", en: "Align center" }
         },
         fieldLabel: {
             frameWidth: { ja: "幅", en: "Width" },
             frameHeight: { ja: "高さ", en: "Height" },
-            spacing: { ja: "間隔", en: "Spacing" }
+            spacing: { ja: "間隔", en: "Spacing" },
+            fill: { ja: "塗り", en: "Fill" }
         },
         radio: {
             even: { ja: "均等", en: "Even" },
-            content: { ja: "テキストに合わせる", en: "Fit to text" }
+            content: { ja: "テキストに合わせる", en: "Fit to text" },
+            uniformFill: { ja: "同じ濃さ（K{tint}）", en: "Same tint (K{tint})" },
+            randomFill: { ja: "ランダムな濃さ", en: "Random tints" }
         },
         tooltip: {
             frameSize: {
@@ -994,12 +1012,20 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
                 en: "Sets the stroke weight of the frame and rules to the given value (paths without a stroke are left as they are)."
             },
             groupFills: {
-                ja: "塗りの長方形を1つのグループにまとめます。オフにすると、長方形を1つずつ最背面に置きます。",
-                en: "Groups the fill rectangles. When off, the rectangles are placed individually at the back."
+                ja: "セルの図形を1つのグループにまとめます。オフにすると、図形を1つずつ最背面に置きます。",
+                en: "Groups the cell shapes. When off, the shapes are placed individually at the back."
             },
-            fillCells: {
-                ja: "各セルに、ランダムな濃さのグレーで塗った長方形を最背面に作ります。",
-                en: "Adds a rectangle filled with a random gray tint in each cell, sent to the back."
+            createCellShapes: {
+                ja: "各セルに、グレーで塗った長方形を作り、最背面に置きます。",
+                en: "Adds a rectangle filled with gray in each cell, sent to the back."
+            },
+            uniformFill: {
+                ja: "すべてのセルを K{tint} のグレーで塗ります。",
+                en: "Fills every cell with a K{tint} gray."
+            },
+            randomFill: {
+                ja: "セルごとに、K{min}〜K{max} のランダムな濃さのグレーで塗ります。プレビューを更新しても濃さは変わりません。",
+                en: "Fills each cell with a random gray tint from K{min} to K{max}. The tints stay the same while the preview updates."
             },
             convertFrame: {
                 ja: "外枠を作っている罫線4本を、同じ位置の長方形1つに置き換えます。線の設定は上辺の罫線から引き継ぎます。長方形を使わず罫線で囲んだ枠のときだけ使えます。",
@@ -1012,10 +1038,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
             justifyCenter: {
                 ja: "段落の行揃えを中央揃えにします。",
                 en: "Sets the paragraph alignment to center."
-            },
-            preview: {
-                ja: "結果を画面で確認します。キャンセルすると元に戻ります。",
-                en: "Shows the result on the canvas. Cancel restores the original layout."
             },
             stepUp: {
                 ja: "値を増やす（shift＋クリックで10の倍数へ、option＋クリックで0.1ずつ）",
@@ -1737,6 +1759,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
     }
 
     /**
+     * パスの線端をそろえる
+     * @param {PathItem[]} targetPathItems - 対象のパス
+     * @param {StrokeCap} strokeCap - 線端
+     * @returns {void}
+     */
+    function setStrokeCaps(targetPathItems, strokeCap) {
+        for (var i = 0; i < targetPathItems.length; i++) targetPathItems[i].strokeCap = strokeCap;
+    }
+
+    /**
      * パスのアンカーポイントとハンドルを、基準点から縦横の倍率で伸縮する（線幅は変えない）
      * @param {PathItem[]} targetPathItems - 対象のパス
      * @param {number} originX - 基準点の X
@@ -1943,12 +1975,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
      * 各セルに塗りの長方形を作り、最背面に置く（1つのグループにまとめるか、ばらのまま）
      * @param {Object} rules - findRules() の戻り値
      * @param {number} cornerRadius - 外枠の角丸の半径（pt。角丸にしないなら 0）
-     * @param {number[]} cellTints - セルごとの濃さ（足りない分はここに足していき、プレビューのたびに色が変わらないようにする）
+     * @param {string} fillMode - "uniform"（すべて FILL_UNIFORM_TINT）または "random"（セルごとにランダム）
+     * @param {number[]} cellTints - セルごとのランダムな濃さ（足りない分はここに足していき、プレビューのたびに色が変わらないようにする）
      * @param {PageItem} backmostItem - 選択の中でいちばん背面のオブジェクト（このオブジェクトのレイヤー・グループの最背面に置く）
      * @param {boolean} isGrouped - グループにまとめるなら true
      * @returns {PageItem[]} 作ったもの（グループなら1つ、ばらなら長方形の配列）
      */
-    function createCellFills(rules, cornerRadius, cellTints, backmostItem, isGrouped) {
+    function createCellFills(rules, cornerRadius, fillMode, cellTints, backmostItem, isGrouped) {
         var grid = getCellGrid(rules);
         var lastColumn = grid.columnEdges.length - 2;
         var lastRow = grid.rowEdges.length - 2;
@@ -1957,7 +1990,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
         for (var row = 0; row <= lastRow; row++) {
             for (var column = 0; column <= lastColumn; column++) {
                 var cellIndex = row * (lastColumn + 1) + column;
-                if (cellTints[cellIndex] === undefined) {
+                if (fillMode === "random" && cellTints[cellIndex] === undefined) {
                     cellTints[cellIndex] = FILL_TINT_MIN + Math.floor(Math.random() * (FILL_TINT_MAX - FILL_TINT_MIN + 1));
                 }
                 /* 外枠の角に当たる角だけを丸める / Round only the corners that sit on the frame corners */
@@ -1972,7 +2005,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
                     grid.columnEdges[column], grid.rowEdges[row], grid.columnEdges[column + 1], grid.rowEdges[row + 1], radii));
                 cellFill.stroked = false;
                 cellFill.filled = true;
-                cellFill.fillColor = createTintColor(cellTints[cellIndex]);
+                cellFill.fillColor = createTintColor(fillMode === "random" ? cellTints[cellIndex] : FILL_UNIFORM_TINT);
             }
         }
 
@@ -2110,9 +2143,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
     // =========================================
 
     /**
-     * 編集前のパスの座標と線幅を保存する
+     * 編集前のパスの座標・線幅・線端を保存する
      * @param {PathItem[]} targetPathItems - 保存するパス
-     * @returns {Object[]} パスごとのアンカーポイントの状態と線幅
+     * @returns {Object[]} パスごとのアンカーポイントの状態・線幅・線端
      */
     function savePathState(targetPathItems) {
         var pathStates = [];
@@ -2132,14 +2165,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
                 });
             }
 
-            pathStates.push({ pathItem: pathItem, pointStates: pointStates, strokeWidth: pathItem.strokeWidth });
+            pathStates.push({ pathItem: pathItem, pointStates: pointStates, strokeWidth: pathItem.strokeWidth, strokeCap: pathItem.strokeCap });
         }
 
         return pathStates;
     }
 
     /**
-     * 保存しておいた座標と線幅へ戻す
+     * 保存しておいた座標・線幅・線端へ戻す
      * @param {Object[]} pathStates - savePathState() の戻り値
      * @returns {void}
      */
@@ -2158,6 +2191,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
                 pathPoint.pointType = pointState.pointType;
             }
             pathItem.strokeWidth = pathStates[pathIndex].strokeWidth;
+            pathItem.strokeCap = pathStates[pathIndex].strokeCap;
         }
     }
 
@@ -2244,7 +2278,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
         var textState = saveTextState(textFrames);
         var frameRectangle = null; /* ［外枠を長方形に変換］で作った長方形 / rectangle made by "Convert frame to rectangle" */
         var roundedFramePreview = null; /* 角丸のプレビュー用に作った外枠の複製（効果は取り消せないので、元は隠しておく） / duplicate of the frame for the round-corner preview (effects cannot be removed, so the original stays hidden) */
-        var cellFillItems = [];    /* ［ランダムな濃さで塗る］で作ったグループ、またはばらの長方形 / group or loose rectangles made by "Fill with random tints" */
+        var cellFillItems = [];    /* ［図形を作成］で作ったグループ、またはばらの長方形 / group or loose rectangles made by "Create cell shapes" */
         var cellTints = [];        /* セルごとの塗りの濃さ / fill tint of each cell */
         var backmostItem = selectedItems[selectedItems.length - 1]; /* 選択は前面→背面の順 / the selection runs front to back */
         var originalBounds = rules ? rules.rectBounds : null; /* 大きさを変える前の外枠の範囲 / frame bounds before resizing */
@@ -2300,7 +2334,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
 
         /**
          * 元の状態に戻したうえで、設定どおりに均等化・配置する
-         * @param {{frameWidth: number, frameHeight: number, adjustVerticalSpacing: boolean, adjustHorizontalSpacing: boolean, distributeMode: string, matchRuleLengths: boolean, convertFrame: boolean, roundCorners: boolean, cornerRadius: number, matchStrokeWidths: boolean, strokeWidth: number, fillCells: boolean, groupFills: boolean, centerInCells: boolean, justifyCenter: boolean}} settings - 設定（frameWidth・frameHeight・cornerRadius・strokeWidth は pt）
+         * @param {{frameWidth: number, frameHeight: number, adjustVerticalSpacing: boolean, adjustHorizontalSpacing: boolean, distributeMode: string, matchRuleLengths: boolean, convertFrame: boolean, roundCorners: boolean, cornerRadius: number, matchStrokeWidths: boolean, strokeWidth: number, createCellShapes: boolean, fillMode: string, groupFills: boolean, centerInCells: boolean, justifyCenter: boolean}} settings - 設定（frameWidth・frameHeight・cornerRadius・strokeWidth は pt）
          * @param {boolean} [isFinal] - ［OK］で確定するとき true（角丸の効果を複製ではなく外枠そのものに適用する）
          * @returns {number} セルが見つからず移動しなかったテキストの数
          */
@@ -2312,6 +2346,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
             var positionMap = adjustRuleSpacing(rules, settings);
             if (settings.convertFrame && rules && rules.frameLines) {
                 frameRectangle = createFrameRectangle(rules.frameLines, rules.rectBounds);
+            } else if (rules && rules.frameLines) {
+                /* 罫線で囲んだ外枠は、角が欠けないよう突出線端にする / A frame drawn with rules gets projecting caps so the corners close */
+                setStrokeCaps(rules.frameLines.vertical.concat(rules.frameLines.horizontal), StrokeCap.PROJECTINGENDCAP);
             }
             if (settings.matchStrokeWidths && rules) {
                 /* 角丸の複製より先に掛け、複製にも同じ線幅を引き継がせる / Set before the round-corner duplicate so it inherits the width */
@@ -2332,8 +2369,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
                 }
                 applyRoundCornersEffect(frameShape, cornerRadius);
             }
-            if (settings.fillCells && rules) {
-                cellFillItems = createCellFills(rules, cornerRadius, cellTints, backmostItem, settings.groupFills);
+            if (settings.createCellShapes && rules) {
+                cellFillItems = createCellFills(rules, cornerRadius, settings.fillMode, cellTints, backmostItem, settings.groupFills);
             }
             return placeTextsInCells(textCells, settings, positionMap, frameScale);
         }
@@ -2351,7 +2388,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
             cornerRadius: CORNER_RADIUS_PT,
             matchStrokeWidths: MATCH_STROKE_WIDTHS && tablePathItems.length > 0,
             strokeWidth: getMostCommonStrokeWidth(tablePathItems),
-            fillCells: FILL_CELLS && !!rules,
+            createCellShapes: CREATE_CELL_SHAPES && !!rules,
+            fillMode: CELL_FILL_MODE,
             groupFills: GROUP_CELL_FILLS,
             centerInCells: CENTER_IN_CELLS,
             justifyCenter: JUSTIFY_CENTER
@@ -2374,11 +2412,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
         var cornerRadiusInput = dialogControls.cornerRadiusInput;
         var matchStrokeCheckbox = dialogControls.matchStrokeCheckbox;
         var strokeWidthInput = dialogControls.strokeWidthInput;
-        var fillCellsCheckbox = dialogControls.fillCellsCheckbox;
+        var createCellShapesCheckbox = dialogControls.createCellShapesCheckbox;
+        var fillModeGroup = dialogControls.fillModeGroup;
+        var uniformFillRadio = dialogControls.uniformFillRadio;
+        var randomFillRadio = dialogControls.randomFillRadio;
         var groupFillsCheckbox = dialogControls.groupFillsCheckbox;
         var centerInCellsCheckbox = dialogControls.centerInCellsCheckbox;
         var justifyCenterCheckbox = dialogControls.justifyCenterCheckbox;
-        var previewCheckbox = dialogControls.previewCheckbox;
 
         /**
          * チェックボックスの状態を設定にまとめる（表示前は value を読み戻せないので、ユーザー操作のあとだけ呼ぶ）
@@ -2397,7 +2437,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
                 cornerRadius: cornerRadiusPt,
                 matchStrokeWidths: matchStrokeCheckbox.value,
                 strokeWidth: strokeWidthPt,
-                fillCells: fillCellsCheckbox.value,
+                createCellShapes: createCellShapesCheckbox.value,
+                fillMode: randomFillRadio.value ? "random" : "uniform",
                 groupFills: groupFillsCheckbox.value,
                 centerInCells: centerInCellsCheckbox.value,
                 justifyCenter: justifyCenterCheckbox.value
@@ -2429,17 +2470,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
         }
 
         /**
-         * ［グループ化］は、塗るときだけ操作できるようにする
-         * @param {boolean} isFilling - ［ランダムな濃さで塗る］がオンなら true
+         * 塗り方と［グループ化］は、セルの図形を作るときだけ操作できるようにする
+         * @param {boolean} isCreating - ［図形を作成］がオンなら true
          * @returns {void}
          */
-        function updateGroupFillsEnabled(isFilling) {
-            groupFillsCheckbox.enabled = isFilling;
+        function updateCellShapeOptionsEnabled(isCreating) {
+            fillModeGroup.enabled = isCreating;
+            groupFillsCheckbox.enabled = isCreating;
         }
 
         updateRuleOptionsEnabled(initialSettings.adjustVerticalSpacing || initialSettings.adjustHorizontalSpacing);
         updateCornerRowEnabled(initialSettings.convertFrame);
-        updateGroupFillsEnabled(initialSettings.fillCells);
+        updateCellShapeOptionsEnabled(initialSettings.createCellShapes);
 
         /* 欄の値（pt）。不正な値が入ったら直前の値に戻す / Field values in pt; invalid input falls back to the previous value */
         var frameWidthPt = initialSettings.frameWidth;
@@ -2475,15 +2517,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
         }
 
         /**
-         * プレビューを更新する（プレビューが OFF のときは元に戻すだけ）
+         * プレビューを更新する（プレビューは常にオン。［キャンセル］で元に戻す）
          * @returns {void}
          */
         function updatePreview() {
-            if (previewCheckbox.value) {
-                applySettings(getCheckedSettings());
-            } else {
-                restoreOriginalState();
-            }
+            applySettings(getCheckedSettings());
             app.redraw();
         }
 
@@ -2570,14 +2608,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
             lengthInputs[inputIndex].onChanging = handleLengthChange;
             lengthInputs[inputIndex].stepperGroup.stepOptions.onStep = handleLengthChange;
         }
-        fillCellsCheckbox.onClick = function () {
-            updateGroupFillsEnabled(fillCellsCheckbox.value);
+        uniformFillRadio.onClick = updatePreview;
+        randomFillRadio.onClick = updatePreview;
+        createCellShapesCheckbox.onClick = function () {
+            updateCellShapeOptionsEnabled(createCellShapesCheckbox.value);
             updatePreview();
         };
         groupFillsCheckbox.onClick = updatePreview;
         centerInCellsCheckbox.onClick = updatePreview;
         justifyCenterCheckbox.onClick = updatePreview;
-        previewCheckbox.onClick = updatePreview;
 
         var skippedCount = 0;
         dialogControls.btnOK.onClick = function () {
@@ -2594,7 +2633,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
         /* 「キャンセル」の文字では Esc の取消ボタンと認識されない / "キャンセル" is not recognized as the Esc button */
         dialogControls.mainDialog.cancelElement = dialogControls.btnCancel;
 
-        /* 初回のプレビュー（プレビューは ON で始まる） / Initial preview (Preview starts ON) */
+        /* 初回のプレビュー（プレビューは常にオン） / Initial preview (the preview is always on) */
         applySettings(initialSettings);
         app.redraw();
 
@@ -2836,15 +2875,25 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
      * @param {Object|null} rules - findRules() の戻り値
      * @param {{label: string, pointsPerUnit: number}} unitInfo - 定規の単位
      * @param {{label: string, pointsPerUnit: number}} strokeUnitInfo - 線の単位
-     * @param {{frameWidth: number, frameHeight: number, adjustVerticalSpacing: boolean, adjustHorizontalSpacing: boolean, distributeMode: string, matchRuleLengths: boolean, convertFrame: boolean, roundCorners: boolean, cornerRadius: number, matchStrokeWidths: boolean, strokeWidth: number, fillCells: boolean, groupFills: boolean, centerInCells: boolean, justifyCenter: boolean}} initialSettings - コントロールの初期値
-     * @returns {{mainDialog: Window, frameWidthInput: EditText, frameHeightInput: EditText, adjustVerticalCheckbox: Checkbox, adjustHorizontalCheckbox: Checkbox, spacingRow: Group, evenSpacingRadio: RadioButton, contentSpacingRadio: RadioButton, matchRuleLengthsCheckbox: Checkbox, convertFrameCheckbox: Checkbox, cornerRow: Group, roundCornersCheckbox: Checkbox, cornerRadiusInput: EditText, matchStrokeCheckbox: Checkbox, strokeWidthInput: EditText, fillCellsCheckbox: Checkbox, groupFillsCheckbox: Checkbox, centerInCellsCheckbox: Checkbox, justifyCenterCheckbox: Checkbox, previewCheckbox: Checkbox, btnCancel: Button, btnOK: Button}} ダイアログとコントロール
+     * @param {{frameWidth: number, frameHeight: number, adjustVerticalSpacing: boolean, adjustHorizontalSpacing: boolean, distributeMode: string, matchRuleLengths: boolean, convertFrame: boolean, roundCorners: boolean, cornerRadius: number, matchStrokeWidths: boolean, strokeWidth: number, createCellShapes: boolean, fillMode: string, groupFills: boolean, centerInCells: boolean, justifyCenter: boolean}} initialSettings - コントロールの初期値
+     * @returns {{mainDialog: Window, frameWidthInput: EditText, frameHeightInput: EditText, adjustVerticalCheckbox: Checkbox, adjustHorizontalCheckbox: Checkbox, spacingRow: Group, evenSpacingRadio: RadioButton, contentSpacingRadio: RadioButton, matchRuleLengthsCheckbox: Checkbox, convertFrameCheckbox: Checkbox, cornerRow: Group, roundCornersCheckbox: Checkbox, cornerRadiusInput: EditText, matchStrokeCheckbox: Checkbox, strokeWidthInput: EditText, createCellShapesCheckbox: Checkbox, fillModeGroup: Group, uniformFillRadio: RadioButton, randomFillRadio: RadioButton, groupFillsCheckbox: Checkbox, centerInCellsCheckbox: Checkbox, justifyCenterCheckbox: Checkbox, btnCancel: Button, btnOK: Button}} ダイアログとコントロール
      */
     function buildDialog(verticalRuleCount, horizontalRuleCount, rules, unitInfo, strokeUnitInfo, initialSettings) {
         var hasFrameLines = !!(rules && rules.frameLines);
         var mainDialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
         setupWindow(mainDialog);
 
-        var framePanel = mainDialog.add("panel", undefined, getLabel("panel.frame"));
+        /* 2カラム：左に［罫線］［テキスト］、右に［外枠］［セル］ / Two columns: Rules and Text on the left, Frame and Cells on the right */
+        var columnsGroup = mainDialog.add("group");
+        columnsGroup.orientation = "row";
+        columnsGroup.alignChildren = ["fill", "top"];
+        columnsGroup.spacing = COLUMN_SPACING;
+        var leftColumn = columnsGroup.add("group");
+        var rightColumn = columnsGroup.add("group");
+        setupColumn(leftColumn);
+        setupColumn(rightColumn);
+
+        var framePanel = rightColumn.add("panel", undefined, getLabel("panel.frame"));
         setupPanel(framePanel, 6);
         /* 幅・高さの項目名は長いほうの幅にそろえて右揃え / Size labels share the wider label's width, right-aligned */
         var sizeLabelWidth = Math.max(
@@ -2862,9 +2911,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
         var cornerRowControls = addCheckboxLengthRow(framePanel, "checkbox.roundCorners", "tooltip.roundCorners",
             initialSettings.roundCorners, initialSettings.cornerRadius, unitInfo);
         var cornerRow = cornerRowControls.row;
+        cornerRowControls.input.characters = CORNER_RADIUS_FIELD_CHARS;
         framePanel.enabled = !!rules;
 
-        var rulesPanel = mainDialog.add("panel", undefined, getLabel("panel.rules"));
+        var rulesPanel = leftColumn.add("panel", undefined, getLabel("panel.rules"));
         setupPanel(rulesPanel, 6);
 
         var adjustVerticalCheckbox = addOptionCheckbox(rulesPanel,
@@ -2888,16 +2938,21 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
         contentSpacingRadio.value = initialSettings.distributeMode === "content";
         evenSpacingRadio.value = !contentSpacingRadio.value;
 
-        var matchRuleLengthsCheckbox = addOptionCheckbox(rulesPanel,
+        /* ［間隔］のラジオボタンとの間を少し空ける（コントロールには margins が無いのでグループで包む）
+           Leave a little space below the spacing radios (controls have no margins, so wrap it in a group) */
+        var matchRuleLengthsGroup = rulesPanel.add("group");
+        matchRuleLengthsGroup.alignChildren = ["left", "center"];
+        matchRuleLengthsGroup.margins = [0, MATCH_LENGTHS_TOP_GAP, 0, 0];
+        var matchRuleLengthsCheckbox = addOptionCheckbox(matchRuleLengthsGroup,
             "checkbox.matchRuleLengths", "tooltip.matchRuleLengths", true, initialSettings.matchRuleLengths);
 
         var strokeRowControls = addCheckboxLengthRow(rulesPanel, "checkbox.matchStrokeWidths", "tooltip.matchStrokeWidths",
-            initialSettings.matchStrokeWidths, initialSettings.strokeWidth, strokeUnitInfo);
+            initialSettings.matchStrokeWidths, initialSettings.strokeWidth, strokeUnitInfo, true);
         /* 間隔の調整とは別の機能なので、上と少し離す / A separate feature from the spacing, so set it apart */
         strokeRowControls.row.margins = [0, SEPARATE_OPTION_GAP, 0, 0];
         strokeRowControls.row.enabled = !!rules;
 
-        var textPanel = mainDialog.add("panel", undefined, getLabel("panel.text"));
+        var textPanel = leftColumn.add("panel", undefined, getLabel("panel.text"));
         setupPanel(textPanel, 6);
 
         var centerInCellsCheckbox = addOptionCheckbox(textPanel,
@@ -2905,23 +2960,31 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
         var justifyCenterCheckbox = addOptionCheckbox(textPanel,
             "checkbox.justifyCenter", "tooltip.justifyCenter", true, initialSettings.justifyCenter);
 
-        var cellsPanel = mainDialog.add("panel", undefined, getLabel("panel.cells"));
+        var cellsPanel = rightColumn.add("panel", undefined, getLabel("panel.cells"));
         setupPanel(cellsPanel, 6);
 
-        var fillCellsCheckbox = cellsPanel.add("checkbox", undefined, getLabel("checkbox.fillCells", { min: FILL_TINT_MIN, max: FILL_TINT_MAX }));
-        fillCellsCheckbox.helpTip = getLabel("tooltip.fillCells");
-        fillCellsCheckbox.value = initialSettings.fillCells === true;
-        fillCellsCheckbox.enabled = !!rules;
+        var createCellShapesCheckbox = addOptionCheckbox(cellsPanel,
+            "checkbox.createCellShapes", "tooltip.createCellShapes", !!rules, initialSettings.createCellShapes);
+        /* ラジオは同じ親の中だけ排他になるので、2つを1つのグループに入れる / Radios are exclusive only within one parent, so keep both in one group */
+        /* 「塗り : ○ 同じ濃さ（K15） ○ ランダムな濃さ」を［罫線］パネルの［間隔］と同じ形で置き、［図形を作成］に従うので少し字下げする
+           Laid out like "Spacing" in the Rules panel, indented under "Create cell shapes" */
+        var fillModeGroup = cellsPanel.add("group");
+        setupRow(fillModeGroup, "left", 8);
+        fillModeGroup.alignChildren = ["left", "top"];
+        fillModeGroup.margins = [SUB_OPTION_INDENT, 0, 0, 0];
+        fillModeGroup.add("statictext", undefined, labelText("fieldLabel.fill"));
+        var fillRadioGroup = fillModeGroup.add("group");
+        fillRadioGroup.orientation = "column";
+        fillRadioGroup.alignChildren = ["left", "top"];
+        fillRadioGroup.spacing = 6;
+        var uniformFillRadio = fillRadioGroup.add("radiobutton", undefined, getLabel("radio.uniformFill", { tint: FILL_UNIFORM_TINT }));
+        uniformFillRadio.helpTip = getLabel("tooltip.uniformFill", { tint: FILL_UNIFORM_TINT });
+        var randomFillRadio = fillRadioGroup.add("radiobutton", undefined, getLabel("radio.randomFill"));
+        randomFillRadio.helpTip = getLabel("tooltip.randomFill", { min: FILL_TINT_MIN, max: FILL_TINT_MAX });
+        randomFillRadio.value = initialSettings.fillMode === "random";
+        uniformFillRadio.value = !randomFillRadio.value;
         var groupFillsCheckbox = addOptionCheckbox(cellsPanel,
             "checkbox.groupFills", "tooltip.groupFills", true, initialSettings.groupFills);
-
-        var previewGroup = mainDialog.add("group");
-        previewGroup.orientation = "row";
-        previewGroup.alignment = "center";
-
-        var previewCheckbox = previewGroup.add("checkbox", undefined, getLabel("checkbox.preview"));
-        previewCheckbox.helpTip = getLabel("tooltip.preview");
-        previewCheckbox.value = true;
 
         var buttonRow = addButtonRow(mainDialog);
         var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"));
@@ -2944,14 +3007,29 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
             cornerRadiusInput: cornerRowControls.input,
             matchStrokeCheckbox: strokeRowControls.checkbox,
             strokeWidthInput: strokeRowControls.input,
-            fillCellsCheckbox: fillCellsCheckbox,
+            createCellShapesCheckbox: createCellShapesCheckbox,
+            fillModeGroup: fillModeGroup,
+            uniformFillRadio: uniformFillRadio,
+            randomFillRadio: randomFillRadio,
             groupFillsCheckbox: groupFillsCheckbox,
             centerInCellsCheckbox: centerInCellsCheckbox,
             justifyCenterCheckbox: justifyCenterCheckbox,
-            previewCheckbox: previewCheckbox,
             btnCancel: btnCancel,
             btnOK: btnOK
         };
+    }
+
+    /**
+     * ダイアログのカラム（パネルを縦に積むグループ）の共通設定
+     * @param {Group} columnGroup - 対象のグループ
+     * @returns {void}
+     */
+    function setupColumn(columnGroup) {
+        columnGroup.orientation = "column";
+        columnGroup.alignChildren = ["fill", "top"];
+        columnGroup.alignment = ["fill", "top"];
+        columnGroup.spacing = WINDOW_SPACING;
+        columnGroup.margins = 0;
     }
 
     /**
@@ -3000,17 +3078,25 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
      * @param {boolean} isChecked - チェックボックスの初期値
      * @param {number} valuePt - 欄の初期値（pt）
      * @param {{label: string, pointsPerUnit: number}} lengthUnitInfo - 欄の単位
-     * @returns {{row: Group, checkbox: Checkbox, input: EditText}} 行とチェックボックスと欄
+     * @param {boolean} [placesFieldBelow] - true なら欄をチェックボックスの次の行に字下げして置く
+     * @returns {{row: Group, checkbox: Checkbox, input: EditText}} 行（欄を次の行に置くときは2行をまとめたグループ）とチェックボックスと欄
      */
-    function addCheckboxLengthRow(parentPanel, checkboxLabelPath, tooltipPath, isChecked, valuePt, lengthUnitInfo) {
+    function addCheckboxLengthRow(parentPanel, checkboxLabelPath, tooltipPath, isChecked, valuePt, lengthUnitInfo, placesFieldBelow) {
         var checkboxRow = parentPanel.add("group");
-        setupRow(checkboxRow, "left", 6);
+        if (placesFieldBelow) {
+            checkboxRow.orientation = "column";
+            checkboxRow.alignChildren = ["left", "top"];
+            checkboxRow.spacing = 6;
+        } else {
+            setupRow(checkboxRow, "left", 6);
+        }
         var rowCheckbox = checkboxRow.add("checkbox", undefined, getLabel(checkboxLabelPath));
         rowCheckbox.helpTip = getLabel(tooltipPath);
         rowCheckbox.value = isChecked === true;
         /* ∧∨と入力欄は隙間0で突き合わせる / butt the stepper against the field */
         var stepperInputGroup = checkboxRow.add("group");
         setupRow(stepperInputGroup, "left", 0);
+        if (placesFieldBelow) stepperInputGroup.margins = [SUB_OPTION_INDENT, 0, 0, 0];
         var valueInput;
         var rowStepper = addStepper(stepperInputGroup, function () { return valueInput; },
             { step: 1, min: 0, unit: getLengthUnitSuffix(lengthUnitInfo) });
