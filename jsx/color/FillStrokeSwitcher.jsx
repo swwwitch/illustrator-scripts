@@ -11,11 +11,11 @@ Target-App=Illustrator
 Version=1.2.1
 Release-Date=2026-03-25
 Description-BEGIN
-選択したオブジェクトの塗りと線を入れ替えたり、一方をもう一方へ移したりします。
-塗り↔線、塗り→線、線→塗りの3モードに対応します。
+選択したオブジェクトの塗りと線を入れ替えたり、一方をもう一方へ移したり、消去したりします。
+2つのオブジェクトの間で塗りと線を交換することもできます。
 
-Swaps the fill and stroke of the selected objects, or moves one into the other.
-Three modes are available: fill ↔ stroke, fill → stroke, and stroke → fill.
+Swaps, moves, or erases the fill and stroke of the selected objects.
+It can also exchange fill and stroke between two objects.
 Description-END
 SCRIPTMETA-END
 */
@@ -24,8 +24,8 @@ SCRIPTMETA-END
 
 ### 概要
 
-選択したオブジェクトの塗りと線を入れ替えたり、一方をもう一方へ移したりします。
-塗り↔線、塗り→線、線→塗りの3モードに対応します。
+選択したオブジェクトの塗りと線を入れ替えたり、一方をもう一方へ移したり、消去したりします。
+2つのオブジェクトの間で塗りと線を交換することもできます。
 
 詳細は README を参照してください。
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/FillStrokeSwitcher.md
@@ -38,8 +38,8 @@ https://note.com/shibumi/n/n5229b4357dd3
 
 ### Overview
 
-Swaps the fill and stroke of the selected objects, or moves one into the other.
-Three modes are available: fill ↔ stroke, fill → stroke, and stroke → fill.
+Swaps, moves, or erases the fill and stroke of the selected objects.
+It can also exchange fill and stroke between two objects.
 
 See the README for details.
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FillStrokeSwitcher.md

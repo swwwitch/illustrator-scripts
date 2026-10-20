@@ -10,8 +10,10 @@
 
 ### Description
 
-- Adjusts fill and stroke on the selected objects in one pass.
+- Swaps, moves, or erases the fill and stroke of the selected objects.
+- It can also exchange fill and stroke between two objects.
 - Seven processing modes are offered as radio buttons across three panels: "Swap Fill and Stroke", "Erase", and "Options".
+- Any number of objects can be selected. Modes that cannot run on the selection are dimmed.
 - The mode can be switched with live preview, and Cancel restores the original appearance.
 
 ### Main Features
@@ -20,21 +22,25 @@
   - **Fill ↔ Stroke**: swaps fill and stroke within each selected object
   - **Fill → Stroke**: applies the fill color to the stroke (adds a stroke width of 1 when missing)
   - **Stroke → Fill**: applies the stroke color to the fill
-- Erase modes
+- Erase
   - **Erase Fill** / **Erase Stroke** / **Erase Fill and Stroke**
 - Options
   - **Swap Between 2 Objects**: exchanges the fill and stroke appearance between the two selected objects (enabled and preselected only when exactly two objects are selected)
+- Modes that cannot run are dimmed
+  - Nothing has a fill: Fill → Stroke, Erase Fill
+  - Nothing has a stroke: Stroke → Fill, Erase Stroke
+  - Nothing has a fill or a stroke: Fill ↔ Stroke, Erase Fill and Stroke (Preview and OK are dimmed too when no mode can run)
+  - Not exactly two objects, or anything other than paths, compound paths, and text: Swap Between 2 Objects
 - **Preview**: temporarily shows the result and restores the original appearance on Cancel
 - Supports gradients, compound paths, and groups (groups and compound paths are processed recursively)
 - Text (point text, area text, text on a path) is processed character by character, preserving partial text styling
 - Restores the original selection after OK
-- Modes that cannot run on the selection are dimmed (fill-based modes when nothing has a fill, stroke-based modes when nothing has a stroke)
 - Reports the number of path / text / selection-restore failures with up to eight detail lines
 
 ### Workflow
 
 1. Validate the document and the selection (one or more objects)
-2. Snapshot the current appearance and show the mode dialog
+2. Snapshot the current appearance, dim the modes that cannot run, and show the mode dialog
 3. With preview on, restore then reapply each time the mode changes
 4. Commit with OK (applying the mode if preview was off), or restore the original appearance with Cancel
 
