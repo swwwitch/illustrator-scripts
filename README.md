@@ -353,7 +353,6 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 - [Illustrator のアートボード／シンボル／レイヤー名を、接頭辞・接尾辞・名前ソース・検索置換を組み合…](readme-ja/SmartRenamer.md)
 - [2つのオブジェクト（テキスト、パス、グループなど）を選択して実行すると、各オブジェクトの背面に2分割の背景を…](readme-ja/SplitBackgroundForTwo.md)
 - [1つのオブジェクト（テキスト、パス、グループなど）を選択して実行すると、そのオブジェクトの外接矩形を左右また…](readme-ja/SplitForTwo.md)
-- [選択した外枠の長方形を基準に、内部の縦罫／横罫を等間隔に再配置します](readme-ja/TableRuleAverager.md)
 - [Illustrator の選択テキストや全体の文字情報を統計的に可視化](readme-ja/TextCountStatsPalette.md)
 - [選択オブジェクトに合わせて、アクティブビューをズーム＆センタリングします](readme-ja/ZoomToSelection.md)
 - [選択中のオブジェクトの見た目を「名称未設定」で登録する Illustrator 標準の挙動を回避し、固定名の…](readme-ja/register-temp-style.md)

@@ -8,13 +8,14 @@ Script-ID=com.swwwitch.illustrator.AverageRulesInRectangle
 Name=AverageRulesInRectangle
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.0.8
+Version=1.0.9
+Release-Date=2026-04-29
 Description-BEGIN
 選択した外枠の長方形と、その内側にある縦罫・横罫を、外枠の中で均等に再配置します。
-横罫・縦罫はそれぞれON/OFFでき、プレビューの切り替えにも対応します。
+横罫・縦罫はそれぞれON/OFFでき、罫線の長さを外枠の辺に揃えることもできます。
 
 Evenly redistributes the vertical and horizontal rules inside the selected outer rectangle.
-Horizontal and vertical rules can be toggled independently, with a live preview switch.
+Horizontal and vertical rules can be toggled independently, and rules can be stretched to the sides of the frame.
 Description-END
 SCRIPTMETA-END
 */
@@ -24,15 +25,18 @@ SCRIPTMETA-END
 ### 概要
 
 選択した外枠の長方形と、その内側にある縦罫・横罫を、外枠の中で均等に再配置します。
-横罫・縦罫はそれぞれON/OFFでき、プレビューの切り替えにも対応します。
+横罫・縦罫はそれぞれON/OFFでき、罫線の長さを外枠の辺に揃えることもできます。
 
 詳細は README を参照してください。
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AverageRulesInRectangle.md
 
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n7e8c9ce0173e
+
 ### Overview
 
 Evenly redistributes the vertical and horizontal rules inside the selected outer rectangle.
-Horizontal and vertical rules can be toggled independently, with a live preview switch.
+Horizontal and vertical rules can be toggled independently, and rules can be stretched to the sides of the frame.
 
 See the README for details.
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AverageRulesInRectangle.md
@@ -43,13 +47,14 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AverageRul
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AverageRulesInRectangle";      /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.8";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.9";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
-var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-16";                   /* 更新日 / last updated */
+var SCRIPT_RELEASED = "2026-04-29";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-10-20";                   /* 更新日 / last updated */
 
-var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AverageRulesInRectangle.md"; /* README（日本語） */
-var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AverageRulesInRectangle.md"; /* README (English) */
+var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AverageRulesInRectangle.md"; /* README（日本語） */
+var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AverageRulesInRectangle.md"; /* README (English) */
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n7e8c9ce0173e"; /* 紹介記事 / article URL */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
@@ -61,6 +66,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // =========================================
 
     /*
+        ［長さを揃える］の初期値 / Initial value of "Match rule lengths"
         true  : 縦罫の上下、横罫の左右を外枠に合わせる
                 Snap rule endpoints to the outer rectangle.
         false : 罫線の長さは変えず、位置だけ平均化する
@@ -328,9 +334,17 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         var originalState = savePathState(selectedPathItems);
 
-        var dialogControls = buildDialog(rules.horizontal.length, rules.vertical.length);
+        /* 開いた時点の設定（見つかった罫線は ON、長さはユーザー設定どおり） / Initial settings: rules found start ON, lengths follow the user setting */
+        var initialSettings = {
+            averageHorizontal: rules.horizontal.length > 0,
+            averageVertical: rules.vertical.length > 0,
+            matchRuleLengths: MATCH_LINES_TO_RECT
+        };
+
+        var dialogControls = buildDialog(rules.horizontal.length, rules.vertical.length, initialSettings);
         var horizontalRulesCheckbox = dialogControls.horizontalRulesCheckbox;
         var verticalRulesCheckbox = dialogControls.verticalRulesCheckbox;
+        var matchRuleLengthsCheckbox = dialogControls.matchRuleLengthsCheckbox;
         var previewCheckbox = dialogControls.previewCheckbox;
 
         /**
@@ -360,17 +374,30 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
 
         /**
-         * 元の座標に戻したうえで、チェックボックスの状態どおりに平均化する
+         * 元の座標に戻したうえで、設定どおりに平均化する
+         * @param {{averageHorizontal: boolean, averageVertical: boolean, matchRuleLengths: boolean}} ruleSettings - 平均化の設定
+         * @returns {void}
+         */
+        function applyRuleSettings(ruleSettings) {
+            restorePathState(originalState);
+            if (ruleSettings.averageVertical) {
+                redistributeVerticalRules(rules.vertical, rectBounds, ruleSettings.matchRuleLengths);
+            }
+            if (ruleSettings.averageHorizontal) {
+                redistributeHorizontalRules(rules.horizontal, rectBounds, ruleSettings.matchRuleLengths);
+            }
+        }
+
+        /**
+         * チェックボックスの状態どおりに平均化する（表示前は value を読み戻せないので、ユーザー操作のあとだけ呼ぶ）
          * @returns {void}
          */
         function applyCheckedRules() {
-            restorePathState(originalState);
-            if (verticalRulesCheckbox.value) {
-                redistributeVerticalRules(rules.vertical, rectBounds);
-            }
-            if (horizontalRulesCheckbox.value) {
-                redistributeHorizontalRules(rules.horizontal, rectBounds);
-            }
+            applyRuleSettings({
+                averageHorizontal: horizontalRulesCheckbox.value,
+                averageVertical: verticalRulesCheckbox.value,
+                matchRuleLengths: matchRuleLengthsCheckbox.value
+            });
         }
 
         /**
@@ -394,6 +421,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             handleRuleCheckboxClick(verticalRulesCheckbox);
         };
 
+        matchRuleLengthsCheckbox.onClick = function () {
+            updatePreview();
+        };
+
         previewCheckbox.onClick = function () {
             updatePreview();
         };
@@ -405,15 +436,23 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         };
 
         dialogControls.btnCancel.onClick = function () {
-            restorePathState(originalState);
-            app.redraw();
             dialogControls.rulesDialog.close(0);
         };
 
-        updatePreview();
+        /* 「キャンセル」の文字では Esc の取消ボタンと認識されない / "キャンセル" is not recognized as the Esc button */
+        dialogControls.rulesDialog.cancelElement = dialogControls.btnCancel;
+
+        /* 初回のプレビュー（プレビューは ON で始まる） / Initial preview (Preview starts ON) */
+        applyRuleSettings(initialSettings);
+        app.redraw();
 
         prepareDialogWindow(dialogControls.rulesDialog, SCRIPT_NAME);
-        dialogControls.rulesDialog.show();
+
+        /* Esc など［OK］以外で閉じたときも元に戻す / Restore however the dialog is closed, unless by OK */
+        if (dialogControls.rulesDialog.show() !== 1) {
+            restorePathState(originalState);
+            app.redraw();
+        }
     }
 
     // ボタン行（再利用パーツ） / Button row (reusable)
@@ -633,9 +672,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * ダイアログを組み立てる
      * @param {number} horizontalRuleCount - 見つかった横罫の数
      * @param {number} verticalRuleCount - 見つかった縦罫の数
+     * @param {{averageHorizontal: boolean, averageVertical: boolean, matchRuleLengths: boolean}} initialSettings - チェックボックスの初期値
      * @returns {{rulesDialog: Window, horizontalRulesCheckbox: Checkbox, verticalRulesCheckbox: Checkbox, matchRuleLengthsCheckbox: Checkbox, previewCheckbox: Checkbox, btnCancel: Button, btnOK: Button}} ダイアログとコントロール
      */
-    function buildDialog(horizontalRuleCount, verticalRuleCount) {
+    function buildDialog(horizontalRuleCount, verticalRuleCount, initialSettings) {
         var rulesDialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
         setupWindow(rulesDialog);
 
@@ -643,11 +683,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         setupPanel(targetPanel, 6);
 
         var horizontalRulesCheckbox = addOptionCheckbox(targetPanel,
-            "checkbox.averageHorizontal", "tooltip.averageHorizontal", horizontalRuleCount > 0);
+            "checkbox.averageHorizontal", "tooltip.averageHorizontal", horizontalRuleCount > 0, initialSettings.averageHorizontal);
         var verticalRulesCheckbox = addOptionCheckbox(targetPanel,
-            "checkbox.averageVertical", "tooltip.averageVertical", verticalRuleCount > 0);
+            "checkbox.averageVertical", "tooltip.averageVertical", verticalRuleCount > 0, initialSettings.averageVertical);
         var matchRuleLengthsCheckbox = addOptionCheckbox(targetPanel,
-            "checkbox.matchRuleLengths", "tooltip.matchRuleLengths", horizontalRuleCount > 0 || verticalRuleCount > 0);
+            "checkbox.matchRuleLengths", "tooltip.matchRuleLengths", horizontalRuleCount > 0 || verticalRuleCount > 0, initialSettings.matchRuleLengths);
 
         var previewGroup = rulesDialog.add("group");
         previewGroup.orientation = "row";
@@ -674,17 +714,18 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /**
-     * OFF で始まるチェックボックスを tooltip 付きで追加する
+     * チェックボックスを tooltip 付きで追加する
      * @param {Panel} parentPanel - 追加先のパネル
      * @param {string} labelPath - 表示名の LABELS パス
      * @param {string} tooltipPath - tooltip の LABELS パス
      * @param {boolean} isEnabled - 操作できるかどうか
+     * @param {boolean} initialValue - 初期値
      * @returns {Checkbox} 追加したチェックボックス
      */
-    function addOptionCheckbox(parentPanel, labelPath, tooltipPath, isEnabled) {
+    function addOptionCheckbox(parentPanel, labelPath, tooltipPath, isEnabled, initialValue) {
         var optionCheckbox = parentPanel.add("checkbox", undefined, getLabel(labelPath));
         optionCheckbox.helpTip = getLabel(tooltipPath);
-        optionCheckbox.value = false;
+        optionCheckbox.value = initialValue === true;
         optionCheckbox.enabled = isEnabled;
         return optionCheckbox;
     }
@@ -1279,16 +1320,17 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * 縦罫を外枠の幅で等間隔に並べ直す
      * @param {PathItem[]} verticalRules - 左から右に並んだ縦罫
      * @param {Object} rectBounds - getRectBounds() の戻り値
+     * @param {boolean} matchRuleLengths - 2点の罫線の上下を外枠に合わせるかどうか
      * @returns {void}
      */
-    function redistributeVerticalRules(verticalRules, rectBounds) {
+    function redistributeVerticalRules(verticalRules, rectBounds, matchRuleLengths) {
         var ruleCount = verticalRules.length;
 
         for (var i = 0; i < ruleCount; i++) {
             var verticalRule = verticalRules[i];
             var targetX = rectBounds.left + rectBounds.width * (i + 1) / (ruleCount + 1);
 
-            if (MATCH_LINES_TO_RECT && verticalRule.pathPoints.length === 2) {
+            if (matchRuleLengths && verticalRule.pathPoints.length === 2) {
                 setTwoPointVerticalLine(verticalRule, targetX, rectBounds.top, rectBounds.bottom);
             } else {
                 translatePath(verticalRule, targetX - getCenterX(verticalRule), 0);
@@ -1300,16 +1342,17 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * 横罫を外枠の高さで等間隔に並べ直す
      * @param {PathItem[]} horizontalRules - 上から下に並んだ横罫
      * @param {Object} rectBounds - getRectBounds() の戻り値
+     * @param {boolean} matchRuleLengths - 2点の罫線の左右を外枠に合わせるかどうか
      * @returns {void}
      */
-    function redistributeHorizontalRules(horizontalRules, rectBounds) {
+    function redistributeHorizontalRules(horizontalRules, rectBounds, matchRuleLengths) {
         var ruleCount = horizontalRules.length;
 
         for (var i = 0; i < ruleCount; i++) {
             var horizontalRule = horizontalRules[i];
             var targetY = rectBounds.top - rectBounds.height * (i + 1) / (ruleCount + 1);
 
-            if (MATCH_LINES_TO_RECT && horizontalRule.pathPoints.length === 2) {
+            if (matchRuleLengths && horizontalRule.pathPoints.length === 2) {
                 setTwoPointHorizontalLine(horizontalRule, targetY, rectBounds.left, rectBounds.right);
             } else {
                 translatePath(horizontalRule, 0, targetY - getCenterY(horizontalRule));

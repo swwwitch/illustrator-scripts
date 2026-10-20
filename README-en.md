@@ -350,7 +350,6 @@ After release, we continue to fix bugs and make adjustments through daily use.
 - [Batch rename and reorder Illustrator artboards / symbo…](readme-en/SmartRenamer.md)
 - [Select two objects (text, paths, groups, and so on) an…](readme-en/SplitBackgroundForTwo.md)
 - [Select a single object (text, a path, a group, and so…](readme-en/SplitForTwo.md)
-- [Evenly redistributes the internal vertical and horizon…](readme-en/TableRuleAverager.md)
 - [Visualize statistics of selected or all text objects i…](readme-en/TextCountStatsPalette.md)
 - [Zooms and centers the active view on the selection](readme-en/ZoomToSelection.md)
 - [Registers the appearance of the selected object as a g…](readme-en/register-temp-style.md)

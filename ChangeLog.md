@@ -1,5 +1,12 @@
 # Change Log
 
+## 20261020
+
+### 調整
+
+- [外枠の中で罫線を均等に再配置](readme-ja/AverageRulesInRectangle.md)（v1.0.9）：［長さを揃える］が効かない不具合を修正（チェックボックスの値で切り替えるようにした）。Esc キーで閉じるとプレビューの結果が残る不具合を修正。見つかった罫線の向きと［長さを揃える］を ON にして開くようにした
+- [外枠の中で罫線を均等に再配置](readme-ja/AverageRulesInRectangle.md)：同じ機能の TableRuleAverager.jsx を削除し、こちらに一本化した
+
 ## 20261019
 
 ### 調整
