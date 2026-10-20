@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.RectangularGridReverseTool
 Name=RectangularGridReverseTool
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.3.8
+Version=1.3.9
 Release-Date=2026-04-27
 Description-BEGIN
 選択した水平線・垂直線（外枠の長方形を含む）を解析し、長方形グリッドとして組み直します。
@@ -47,7 +47,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/Rectangula
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "RectangularGridReverseTool";   /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.3.8";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.3.9";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-04-27";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-20";                   /* 更新日 / last updated */
@@ -1207,10 +1207,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4f290b420561"; /* 紹�
         }
 
         // 前処理：外枠を四辺に分割しない場合は分解を取り消して終了 / If split is disabled, undo expansion and exit
-        if (!dialogOptions.splitOuterFrame && hasExpandedRectangles) {
+        if (isGridRebuildSkipped(dialogOptions, hasExpandedRectangles)) {
             restoreRectangleExpansions(rectangleExpansions);
             return;
         }
+        removeExpandedRectangles(rectangleExpansions);
 
         restoreLineStates(originalLineStates);
         applyLineOptions(classified, gridBounds, dialogOptions);
@@ -1750,7 +1751,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4f290b420561"; /* 紹�
     }
 
     /**
-     * 軸に平行な長方形を4本の罫線に分解する（元の長方形は削除）
+     * 軸に平行な長方形を4本の罫線に分解する。
+     * 線は元の長方形の直前（重ね順）に作り、元の長方形は確定まで非表示にして残す（取り消しで重ね順・属性ごと戻せるように）
      * @param {PathItem[]} pathItems - 対象のパス
      * @returns {{items: PathItem[], expansions: Object[]}} 分解後のパスと、取り消し用の記録
      */
@@ -1777,21 +1779,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4f290b420561"; /* 紹�
                 createLineFromAppearance(parentContainer, bottomRight, topRight, appearance)
             ];
             for (var generatedIndex = 0; generatedIndex < generatedLines.length; generatedIndex++) {
+                generatedLines[generatedIndex].move(sourceItem, ElementPlacement.PLACEBEFORE);
                 expandedItems.push(generatedLines[generatedIndex]);
             }
-            rectangleExpansions.push({
-                bounds: rectangleBounds,
-                appearance: appearance,
-                parent: parentContainer,
-                generatedLines: generatedLines
-            });
-            sourceItem.remove();
+            rectangleExpansions.push({ sourceRectangle: sourceItem, generatedLines: generatedLines });
+            sourceItem.hidden = true;
         }
         return { items: expandedItems, expansions: rectangleExpansions };
     }
 
     /**
-     * 長方形の分解を取り消す（キャンセル時用）
+     * 長方形の分解を取り消す（キャンセル時用）。作った線を消し、隠していた長方形を表示し直す
      * @param {Object[]} rectangleExpansions - expandRectanglesInSelection() の記録
      * @returns {void}
      */
@@ -1801,12 +1799,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4f290b420561"; /* 紹�
             for (var generatedLineIndex = 0; generatedLineIndex < expansion.generatedLines.length; generatedLineIndex++) {
                 expansion.generatedLines[generatedLineIndex].remove();
             }
-            var rectangleBounds = expansion.bounds;
-            var restoredRectangle = expansion.parent.pathItems.rectangle(
-                rectangleBounds.maxY, rectangleBounds.minX,
-                rectangleBounds.maxX - rectangleBounds.minX, rectangleBounds.maxY - rectangleBounds.minY
-            );
-            applyPathAppearance(restoredRectangle, expansion.appearance);
+            expansion.sourceRectangle.hidden = false;
+        }
+    }
+
+    /**
+     * 分解を確定し、隠していた元の長方形を削除する
+     * @param {Object[]} rectangleExpansions - expandRectanglesInSelection() の記録
+     * @returns {void}
+     */
+    function removeExpandedRectangles(rectangleExpansions) {
+        for (var expansionIndex = 0; expansionIndex < rectangleExpansions.length; expansionIndex++) {
+            rectangleExpansions[expansionIndex].sourceRectangle.remove();
         }
     }
 
@@ -2041,13 +2045,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4f290b420561"; /* 紹�
      */
     function updatePreviewFromDialogState(dialogControls, classified, gridBounds, originalLineStates) {
         restoreLineStates(originalLineStates);
-        // 外枠を四辺に分割が OFF の場合、本処理（罫線整列）を行わず元の状態のまま表示 / If split is OFF, skip the main alignment and show original state
-        if (dialogControls.previewCheckbox.value && dialogControls.splitOuterFrameCheckbox.value) {
+        if (dialogControls.previewCheckbox.value) {
             var previewOptions = readOptionDialogState(dialogControls);
-            // プレビュー時は frameToRect, group を適用しない / frameToRect and group are not applied in preview
-            previewOptions.frameToRect = false;
-            previewOptions.group = false;
-            applyLineOptions(classified, gridBounds, previewOptions);
+            // 外枠を四辺に分割が OFF の場合、本処理（罫線整列）を行わず元の状態のまま表示 / If split is OFF, skip the main alignment and show original state
+            if (!isGridRebuildSkipped(previewOptions, dialogControls.hasExpandedRectangles)) {
+                // プレビュー時は frameToRect, group を適用しない / frameToRect and group are not applied in preview
+                previewOptions.frameToRect = false;
+                previewOptions.group = false;
+                applyLineOptions(classified, gridBounds, previewOptions);
+            }
         }
         app.redraw();
     }
@@ -2078,6 +2084,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4f290b420561"; /* 紹�
             group: dialogControls.groupingCheckbox.value,
             splitOuterFrame: dialogControls.splitOuterFrameCheckbox.value
         };
+    }
+
+    /**
+     * 本処理（罫線の整列）を省くかどうか。長方形を分解したのに［外枠を四辺に分割］がオフなら省く（プレビューと確定で共通）
+     * @param {Object} dialogOptions - ダイアログの設定
+     * @param {boolean} hasExpandedRectangles - 外枠の長方形を分解したかどうか
+     * @returns {boolean} 省くなら true
+     */
+    function isGridRebuildSkipped(dialogOptions, hasExpandedRectangles) {
+        return hasExpandedRectangles && !dialogOptions.splitOuterFrame;
     }
 
     /**
@@ -2493,20 +2509,54 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4f290b420561"; /* 紹�
     }
 
     /**
-     * ポイント文字を、中心が含まれる行の上下中央へ移動する
-     * @param {Object[]} horizontalLines - 水平線（y は分類時の座標）
+     * 整列後の水平線の Y 座標を、重複を除いて下から順に返す（同じ行に並ぶ結合セルの線は1つにまとめる）
+     * @param {Object[]} horizontalLines - 水平線
+     * @returns {number[]} 下から上に並んだ Y 座標
+     */
+    function collectCurrentRowYs(horizontalLines) {
+        var currentYs = [];
+        for (var lineIndex = 0; lineIndex < horizontalLines.length; lineIndex++) {
+            var linePoints = horizontalLines[lineIndex].path.pathPoints;
+            currentYs.push((linePoints[0].anchor[1] + linePoints[1].anchor[1]) / 2);
+        }
+        currentYs.sort(function (firstY, secondY) { return firstY - secondY; });
+        var rowYs = [];
+        for (var yIndex = 0; yIndex < currentYs.length; yIndex++) {
+            if (rowYs.length === 0 || currentYs[yIndex] - rowYs[rowYs.length - 1] > SELECTION_ITEMS_TOLERANCE) rowYs.push(currentYs[yIndex]);
+        }
+        return rowYs;
+    }
+
+    /**
+     * オブジェクトが動かせる状態か（自身・親のグループ・レイヤーがロックも非表示もされていない）を返す
+     * @param {PageItem} pageItem - 調べるオブジェクト
+     * @returns {boolean} 動かせるなら true
+     */
+    function isEditablePageItem(pageItem) {
+        for (var node = pageItem; node && node.typename !== "Document"; node = node.parent) {
+            if (node.typename === "Layer") {
+                if (node.locked || !node.visible) return false;
+            } else if (node.locked || node.hidden) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * ポイント文字を、中心が含まれる行の上下中央へ移動する（ロック・非表示の文字は動かさない）
+     * @param {Object[]} horizontalLines - 水平線（整列後の位置を読む）
      * @param {Object} gridBounds - 外周座標
      * @returns {void}
      */
     function centerPointTextVerticallyInCells(horizontalLines, gridBounds) {
-        var rowYs = collectLineValues(horizontalLines, "y");
-        rowYs.sort(function (firstY, secondY) { return firstY - secondY; });
+        var rowYs = collectCurrentRowYs(horizontalLines);
         if (rowYs.length < 2) return;
 
         var documentTextFrames = app.activeDocument.textFrames;
         for (var textIndex = 0; textIndex < documentTextFrames.length; textIndex++) {
             var textFrame = documentTextFrames[textIndex];
-            if (textFrame.kind !== TextType.POINTTEXT) continue;
+            if (textFrame.kind !== TextType.POINTTEXT || !isEditablePageItem(textFrame)) continue;
             var textBounds = textFrame.geometricBounds; // [left, top, right, bottom]（Y上方向が正）
             var textCenterX = (textBounds[0] + textBounds[2]) / 2;
             var textCenterY = (textBounds[1] + textBounds[3]) / 2;
@@ -2627,6 +2677,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4f290b420561"; /* 紹�
         var preprocessingPanel = addOptionPanel(leftColumnGroup, "panel.preprocessing");
         var splitOuterFrameCheckbox = addOptionCheckbox(preprocessingPanel,
             "checkbox.splitFrameToFourSides", "tooltip.splitFrameToFourSides", !!hasExpandedRectangles);
+        /* 分解する長方形が無ければ意味が無いのでディム / dimmed when there is no rectangle to split */
+        splitOuterFrameCheckbox.enabled = !!hasExpandedRectangles;
 
         // 配置ラジオボタン / Distribution options
         var distributionPanel = addOptionPanel(leftColumnGroup, "panel.distribution");
@@ -2658,10 +2710,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4f290b420561"; /* 紹�
         var strokeWidthAverageRadio = addOptionRadio(strokeWidthPanel, "radio.strokeWidthAverage", "tooltip.strokeWidthAverage");
         var strokeWidthSpecifiedRadio = addOptionRadio(strokeWidthPanel, "radio.strokeWidthSpecified", "tooltip.strokeWidthSpecified");
 
-        /* 項目名は「指定」のラジオが兼ねる。0以上（onStep は bindOptionDialogEvents() で入れる）
-           The "Specified" radio serves as the label; 0 or more */
+        /* 項目名は「指定」のラジオが兼ねる。0.01以上（0 だと線幅を変えられないため。onStep は bindOptionDialogEvents() で入れる）
+           The "Specified" radio serves as the label; 0.01 or more, since 0 cannot be applied */
         var strokeWidthSpecifiedInputGroup = addOptionRow(strokeWidthPanel);
-        var strokeWidthInput = addSteppedField(strokeWidthSpecifiedInputGroup, { text: "0.25", characters: 4, step: 1, min: 0 });
+        var strokeWidthInput = addSteppedField(strokeWidthSpecifiedInputGroup, { text: "0.25", characters: 4, step: 1, min: 0.01 });
         strokeWidthInput.helpTip = getLabel("tooltip.strokeWidthSpecified");
         strokeWidthSpecifiedInputGroup.add("statictext", undefined, strokeUnitInfo.label);
 
@@ -2687,6 +2739,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4f290b420561"; /* 紹�
 
         return {
             optionDialog: optionDialog,
+            hasExpandedRectangles: !!hasExpandedRectangles,
             previewCheckbox: previewCheckbox,
             distributionNoneRadio: distributionNoneRadio,
             distributionEvenRadio: distributionEvenRadio,

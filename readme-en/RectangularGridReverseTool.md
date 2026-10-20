@@ -45,6 +45,7 @@ Line ends are snapped to the intersections and rows and columns are evenly space
 
 ### Update History
 
+- v1.3.9 (2026-10-20) Fixed the preview not updating when only lines are selected (Split outer frame is dimmed when there is no rectangle). Fixed Center point text vertically using the rows from before alignment, and a possible stop on locked or hidden text. Splitting a rectangle and cancelling now keep its stacking order and attributes. The Specified stroke width now starts at 0.01
 - v1.3.8 (2026-10-20) Fixed the Distribution Mode and Stroke Width choices sometimes being read incorrectly. The stroke width field now accepts arithmetic and unit values and reverts non-numbers. Renamed the "Line (post-process)" panel to "Lines" and noted the Option-click on Vertical/Horizontal lines in the tooltips
 - v1.3.7 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.3.6 (2026-10-01): Added space below the button row to match Illustrator's own dialogs
