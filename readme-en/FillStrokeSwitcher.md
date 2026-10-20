@@ -41,7 +41,7 @@
 ### Not Supported
 
 - No open document (alert)
-- An empty selection (alert)
+- An empty selection, or characters selected with the Type tool (alert)
 - Item types other than paths, compound paths, groups, and text (placed images, symbols, and so on) are left untouched
 - "Swap Between 2 Objects" only handles PathItem, CompoundPathItem, and TextFrame
 
@@ -63,3 +63,4 @@
 - v1.1.6 (2026-10-01) Unified the window and panel margins and spacing with the shared layout part
 - v1.1.8 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.2.0 (2026-10-20) Runs with three or more objects selected; modes that cannot run are now dimmed; the "Convert" panel is renamed "Swap Fill and Stroke" and "Swap Between 2 Objects" moved to a new "Options" panel
+- v1.2.1 (2026-10-20) The "Swap Between 2 Objects" tooltip now says it is available when exactly two objects are selected; running with characters selected by the Type tool now shows an alert asking you to select objects

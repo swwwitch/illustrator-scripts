@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.FillStrokeSwitcher
 Name=FillStrokeSwitcher
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.2.0
+Version=1.2.1
 Release-Date=2026-03-25
 Description-BEGIN
 選択したオブジェクトの塗りと線を入れ替えたり、一方をもう一方へ移したりします。
@@ -50,7 +50,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FillStroke
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "FillStrokeSwitcher";           /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.2.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.2.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-03-25";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-20";                   /* 更新日 / last updated */
@@ -249,7 +249,7 @@ var SCRIPT_REFERENCE_URL = "https://note.com/shibumi/n/n5229b4357dd3";     /* �
             title: { ja: "塗りと線の調整", en: "Fill and Stroke Adjustments" }
         },
         panel: {
-            convert: { ja: "塗りと線の交換", en: "Swap Fill and Stroke" },
+            fillStrokeSwap: { ja: "塗りと線の交換", en: "Swap Fill and Stroke" },
             erase: { ja: "消去", en: "Erase" },
             options: { ja: "オプション", en: "Options" }
         },
@@ -277,8 +277,8 @@ var SCRIPT_REFERENCE_URL = "https://note.com/shibumi/n/n5229b4357dd3";     /* �
             },
             strokeToFill: { ja: "線の色を塗りに適用します。", en: "Applies the stroke color to the fill." },
             swapBetween: {
-                ja: "選択した2つのオブジェクトの塗りと線の見た目を交換します。",
-                en: "Swaps the fill and stroke appearance between the two selected objects."
+                ja: "選択した2つのオブジェクトの塗りと線の見た目を交換します。オブジェクトを2つ選択しているときに使えます。",
+                en: "Swaps the fill and stroke appearance between the two selected objects. Available when exactly two objects are selected."
             },
             fillNone: { ja: "選択オブジェクトの塗りをなしにします。", en: "Removes the fill from selected objects." },
             strokeNone: { ja: "選択オブジェクトの線をなしにします。", en: "Removes the stroke from selected objects." },
@@ -516,10 +516,9 @@ var SCRIPT_REFERENCE_URL = "https://note.com/shibumi/n/n5229b4357dd3";     /* �
      */
     function forEachCharacterRange(textFrame, applyToRange) {
         var textRange = textFrame.textRange;
-        var textCharacters = null;
-        try { textCharacters = textRange.characters; } catch (eC) { textCharacters = null; }
-
-        if (textCharacters && textCharacters.length > 0) {
+        var textCharacters = textRange.characters;
+        /* 空のテキストは文字が無いので全体に掛ける / Empty text has no characters, so apply to the whole range */
+        if (textCharacters.length > 0) {
             for (var i = 0; i < textCharacters.length; i++) {
                 applyToRange(textCharacters[i]);
             }
@@ -688,35 +687,56 @@ var SCRIPT_REFERENCE_URL = "https://note.com/shibumi/n/n5229b4357dd3";     /* �
     }
 
     /**
-     * 選択オブジェクトに処理モードを適用する（グループ・複合パスは再帰）
+     * グループ・複合パスの中までたどり、パスとテキストごとに処理を呼ぶ（それ以外の種類は飛ばす）
+     * @param {PageItem[]} sourceItems - 対象のオブジェクト
+     * @param {Function} visitLeafItem - PathItem または TextFrame を受け取る関数
+     * @returns {void}
+     */
+    function forEachLeafItem(sourceItems, visitLeafItem) {
+        for (var i = 0; i < sourceItems.length; i++) {
+            var sourceItem = sourceItems[i];
+            switch (sourceItem.typename) {
+                case "GroupItem":
+                    forEachLeafItem(sourceItem.pageItems, visitLeafItem);
+                    break;
+                case "CompoundPathItem":
+                    forEachLeafItem(sourceItem.pathItems, visitLeafItem);
+                    break;
+                case "PathItem":
+                case "TextFrame":
+                    visitLeafItem(sourceItem);
+                    break;
+            }
+        }
+    }
+
+    /**
+     * 選択オブジェクトのパス・テキストごとに処理モードを適用する
      * @param {PageItem[]} targetItems - 対象のオブジェクト
      * @param {string} mode - 処理モード（MODE_*）
      * @param {Object|null} processStats - 集計（プレビュー時は null）
      * @returns {void}
      */
-    function processItems(targetItems, mode, processStats) {
-        for (var i = 0; i < targetItems.length; i++) {
-            var targetItem = targetItems[i];
+    function applyModeToEachItem(targetItems, mode, processStats) {
+        forEachLeafItem(targetItems, function (leafItem) {
+            if (leafItem.typename === "PathItem") applyPathFillStrokeMode(leafItem, mode, processStats);
+            else applyTextFillStrokeMode(leafItem, mode, processStats);
+        });
+    }
 
-            switch (targetItem.typename) {
-
-                case "GroupItem":
-                    processItems(targetItem.pageItems, mode, processStats);
-                    break;
-
-                case "PathItem":
-                    applyPathFillStrokeMode(targetItem, mode, processStats);
-                    break;
-
-                case "CompoundPathItem":
-                    processItems(targetItem.pathItems, mode, processStats);
-                    break;
-
-                case "TextFrame":
-                    applyTextFillStrokeMode(targetItem, mode, processStats);
-                    break;
-            }
+    /**
+     * 選択オブジェクトに処理モードを適用する（2つのオブジェクト間で交換は、ちょうど2つのときだけ）
+     * @param {PageItem[]} targetItems - 対象のオブジェクト
+     * @param {string} mode - 処理モード（MODE_*）
+     * @param {Object|null} processStats - 集計（プレビュー時は null）
+     * @returns {void}
+     */
+    function applyMode(targetItems, mode, processStats) {
+        if (mode === MODE_SWAP_BETWEEN) {
+            if (targetItems.length === 2) swapAppearanceBetween(targetItems[0], targetItems[1], processStats);
+            return;
         }
+        applyModeToEachItem(targetItems, mode, processStats);
     }
 
     // =========================================
@@ -799,7 +819,7 @@ var SCRIPT_REFERENCE_URL = "https://note.com/shibumi/n/n5229b4357dd3";     /* �
      * @param {PageItem} sourceItem - 対象のオブジェクト
      * @returns {Object} 見た目
      */
-    function snapshotAppearance(sourceItem) {
+    function captureRepresentativeAppearance(sourceItem) {
         var typeName = sourceItem.typename;
         if (typeName === "PathItem") return capturePathAppearance(sourceItem);
         if (typeName === "CompoundPathItem") {
@@ -818,7 +838,7 @@ var SCRIPT_REFERENCE_URL = "https://note.com/shibumi/n/n5229b4357dd3";     /* �
      * @param {Object} appearance - 適用する見た目
      * @returns {void}
      */
-    function applyAppearance(targetItem, appearance) {
+    function applyAppearanceToItem(targetItem, appearance) {
         var typeName = targetItem.typename;
         if (typeName === "PathItem") {
             applyPathAppearance(targetItem, appearance);
@@ -848,10 +868,10 @@ var SCRIPT_REFERENCE_URL = "https://note.com/shibumi/n/n5229b4357dd3";     /* �
      */
     function swapAppearanceBetween(itemA, itemB, processStats) {
         try {
-            var appearanceA = snapshotAppearance(itemA);
-            var appearanceB = snapshotAppearance(itemB);
-            applyAppearance(itemA, appearanceB);
-            applyAppearance(itemB, appearanceA);
+            var appearanceA = captureRepresentativeAppearance(itemA);
+            var appearanceB = captureRepresentativeAppearance(itemB);
+            applyAppearanceToItem(itemA, appearanceB);
+            applyAppearanceToItem(itemB, appearanceA);
         } catch (e) {
             recordFailure(processStats, 'pathFailureCount', 'SwapBetween', itemA, e);
         }
@@ -863,63 +883,36 @@ var SCRIPT_REFERENCE_URL = "https://note.com/shibumi/n/n5229b4357dd3";     /* �
 
     /**
      * プレビューの取り消し用に、パス・テキスト1つの状態を控える
-     * @param {PageItem} leafItem - パスまたはテキスト
-     * @returns {Object|null} 控えた状態（対象外の種類は null）
+     * @param {PathItem|TextFrame} leafItem - パスまたはテキスト
+     * @returns {Object} 控えた状態
      */
     function snapshotLeafForPreview(leafItem) {
-        var typeName = leafItem.typename;
-        if (typeName === "PathItem") {
+        if (leafItem.typename === "PathItem") {
             var pathSnapshot = capturePathAppearance(leafItem);
             pathSnapshot.kind = "path";
             pathSnapshot.item = leafItem;
             return pathSnapshot;
         }
-        if (typeName === "TextFrame") {
-            var textSnapshot = { kind: "text", item: leafItem, characters: [] };
-            try {
-                var textCharacters = leafItem.textRange.characters;
-                for (var i = 0; i < textCharacters.length; i++) {
-                    textSnapshot.characters.push(captureTextRangeAppearance(textCharacters[i]));
-                }
-            } catch (e) { /* 読めた文字までで止める / keep the characters read so far */ }
-            return textSnapshot;
-        }
-        return null;
-    }
-
-    /**
-     * 選択の中のパス・テキストを再帰的にたどって状態を控える
-     * @param {PageItem[]} sourceItems - 対象のオブジェクト
-     * @param {Object[]} leafSnapshots - 控えた状態を追加する配列
-     * @returns {void}
-     */
-    function captureLeafSnapshots(sourceItems, leafSnapshots) {
-        for (var i = 0; i < sourceItems.length; i++) {
-            var sourceItem = sourceItems[i];
-            switch (sourceItem.typename) {
-                case "GroupItem":
-                    captureLeafSnapshots(sourceItem.pageItems, leafSnapshots);
-                    break;
-                case "PathItem":
-                case "TextFrame":
-                    var leafSnapshot = snapshotLeafForPreview(sourceItem);
-                    if (leafSnapshot) leafSnapshots.push(leafSnapshot);
-                    break;
-                case "CompoundPathItem":
-                    captureLeafSnapshots(sourceItem.pathItems, leafSnapshots);
-                    break;
+        var textSnapshot = { kind: "text", item: leafItem, characters: [] };
+        try {
+            var textCharacters = leafItem.textRange.characters;
+            for (var i = 0; i < textCharacters.length; i++) {
+                textSnapshot.characters.push(captureTextRangeAppearance(textCharacters[i]));
             }
-        }
+        } catch (e) { /* 読めた文字までで止める / keep the characters read so far */ }
+        return textSnapshot;
     }
 
     /**
-     * 選択全体の状態を控える
+     * 選択全体（グループ・複合パスの中のパス・テキスト）の状態を控える
      * @param {PageItem[]} sourceItems - 対象のオブジェクト
      * @returns {Object[]} 控えた状態
      */
     function captureSelectionState(sourceItems) {
         var leafSnapshots = [];
-        captureLeafSnapshots(sourceItems, leafSnapshots);
+        forEachLeafItem(sourceItems, function (leafItem) {
+            leafSnapshots.push(snapshotLeafForPreview(leafItem));
+        });
         return leafSnapshots;
     }
 
@@ -934,12 +927,10 @@ var SCRIPT_REFERENCE_URL = "https://note.com/shibumi/n/n5229b4357dd3";     /* �
             return;
         }
         if (leafSnapshot.kind === "text") {
-            var textCharacters = null;
-            try { textCharacters = leafSnapshot.item.textRange.characters; } catch (eC) { return; }
-            if (!textCharacters) return;
+            var textCharacters = leafSnapshot.item.textRange.characters;
             var pairCount = (textCharacters.length < leafSnapshot.characters.length) ? textCharacters.length : leafSnapshot.characters.length;
             for (var i = 0; i < pairCount; i++) {
-                try { applyTextRangeAppearance(textCharacters[i], leafSnapshot.characters[i]); } catch (eR) { }
+                applyTextRangeAppearance(textCharacters[i], leafSnapshot.characters[i]);
             }
         }
     }
@@ -951,7 +942,7 @@ var SCRIPT_REFERENCE_URL = "https://note.com/shibumi/n/n5229b4357dd3";     /* �
      */
     function restoreSelectionState(leafSnapshots) {
         for (var i = 0; i < leafSnapshots.length; i++) {
-            if (!leafSnapshots[i]) continue;
+            /* 1つ戻せなくても残りは戻す / keep restoring the rest even if one fails */
             try { restoreLeafSnapshot(leafSnapshots[i]); } catch (e) { }
         }
     }
@@ -964,32 +955,11 @@ var SCRIPT_REFERENCE_URL = "https://note.com/shibumi/n/n5229b4357dd3";     /* �
      * @returns {void}
      */
     function restoreSelectedItems(doc, originalItems, processStats) {
-        var restoredItems = [];
-        for (var i = 0; i < originalItems.length; i++) {
-            if (originalItems[i]) restoredItems.push(originalItems[i]);
-        }
-
         try {
-            doc.selection = restoredItems;
+            doc.selection = originalItems;
         } catch (eR) {
             recordFailure(processStats, 'selectionRestoreFailureCount', 'Selection', null, eR);
         }
-    }
-
-    /**
-     * プレビューとして選択中のオブジェクトに処理モードを適用する
-     * @param {PageItem[]} targetItems - 対象のオブジェクト
-     * @param {string} mode - 処理モード（MODE_*）
-     * @returns {void}
-     */
-    function applyPreview(targetItems, mode) {
-        if (mode === MODE_SWAP_BETWEEN) {
-            if (targetItems.length === 2) {
-                swapAppearanceBetween(targetItems[0], targetItems[1], null);
-            }
-            return;
-        }
-        processItems(targetItems, mode, null);
     }
 
     // =========================================
@@ -1343,8 +1313,8 @@ var SCRIPT_REFERENCE_URL = "https://note.com/shibumi/n/n5229b4357dd3";     /* �
         modePanelsGroup.alignChildren = ['fill', 'fill'];
         modePanelsGroup.spacing = COLUMN_SPACING;
 
-        var convertPanel = modePanelsGroup.add('panel', undefined, getLabel('panel.convert'));
-        setupPanel(convertPanel, 6);
+        var fillStrokeSwapPanel = modePanelsGroup.add('panel', undefined, getLabel('panel.fillStrokeSwap'));
+        setupPanel(fillStrokeSwapPanel, 6);
 
         var erasePanel = modePanelsGroup.add('panel', undefined, getLabel('panel.erase'));
         setupPanel(erasePanel, 6);
@@ -1355,9 +1325,9 @@ var SCRIPT_REFERENCE_URL = "https://note.com/shibumi/n/n5229b4357dd3";     /* �
 
         /* 3つのパネルにまたがるラジオボタン / Radio buttons spread across three panels */
         var modeRadioEntries = [];
-        addModeRadio(convertPanel, 'swap', MODE_SWAP, modeRadioEntries);
-        addModeRadio(convertPanel, 'fillToStroke', MODE_FILL_TO_STROKE, modeRadioEntries);
-        addModeRadio(convertPanel, 'strokeToFill', MODE_STROKE_TO_FILL, modeRadioEntries);
+        addModeRadio(fillStrokeSwapPanel, 'swap', MODE_SWAP, modeRadioEntries);
+        addModeRadio(fillStrokeSwapPanel, 'fillToStroke', MODE_FILL_TO_STROKE, modeRadioEntries);
+        addModeRadio(fillStrokeSwapPanel, 'strokeToFill', MODE_STROKE_TO_FILL, modeRadioEntries);
         addModeRadio(erasePanel, 'fillNone', MODE_FILL_NONE, modeRadioEntries);
         addModeRadio(erasePanel, 'strokeNone', MODE_STROKE_NONE, modeRadioEntries);
         addModeRadio(erasePanel, 'fillStrokeNone', MODE_FILL_AND_STROKE_NONE, modeRadioEntries);
@@ -1370,7 +1340,7 @@ var SCRIPT_REFERENCE_URL = "https://note.com/shibumi/n/n5229b4357dd3";     /* �
         function refreshPreview() {
             restoreSelectionState(leafSnapshots);
             if (previewCheckbox.value) {
-                applyPreview(originalSelection, getModeFromRadios(modeRadioEntries));
+                applyMode(originalSelection, getModeFromRadios(modeRadioEntries), null);
             }
             app.redraw();
         }
@@ -1387,7 +1357,7 @@ var SCRIPT_REFERENCE_URL = "https://note.com/shibumi/n/n5229b4357dd3";     /* �
         var previewCheckbox = buttonRow.leftGroup.add('checkbox', undefined, getLabel('checkbox.preview'));
         previewCheckbox.helpTip = getLabel('tooltip.preview');
         previewCheckbox.onClick = refreshPreview;
-        var btnCancel = buttonRow.rightGroup.add('button', undefined, getLabel('button.cancel'), { name: 'cancel' });
+        buttonRow.rightGroup.add('button', undefined, getLabel('button.cancel'), { name: 'cancel' });
         var btnOK = buttonRow.rightGroup.add('button', undefined, getLabel('button.ok'), { name: 'ok' });
 
         /* 実行できるモードが1つも無ければ、プレビューと OK もディム表示にする / Dim Preview and OK when no mode can run */
@@ -1425,7 +1395,8 @@ var SCRIPT_REFERENCE_URL = "https://note.com/shibumi/n/n5229b4357dd3";     /* �
         }
 
         var doc = app.activeDocument;
-        if (doc.selection.length === 0) {
+        /* 文字ツールで文字を選択しているときは TextRange が返り、[0] が無い / Selecting characters with the Type tool returns a TextRange, which has no [0] */
+        if (doc.selection.typename === "TextRange" || doc.selection.length === 0) {
             alert(getLabel('alert.noSelection'));
             return;
         }
@@ -1444,11 +1415,7 @@ var SCRIPT_REFERENCE_URL = "https://note.com/shibumi/n/n5229b4357dd3";     /* �
         try {
             /* プレビューで適用済みなら掛け直さない / Skip when the preview already applied it */
             if (!dialogResult.previewApplied) {
-                if (dialogResult.mode === MODE_SWAP_BETWEEN) {
-                    swapAppearanceBetween(originalSelection[0], originalSelection[1], processStats);
-                } else {
-                    processItems(originalSelection, dialogResult.mode, processStats);
-                }
+                applyMode(originalSelection, dialogResult.mode, processStats);
             }
         } finally {
             restoreSelectedItems(doc, originalSelection, processStats);
