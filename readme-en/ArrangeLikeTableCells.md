@@ -37,11 +37,12 @@ It can also redistribute the rules, evenly or to fit the texts, and set the para
 - Cell borders are the vertical and horizontal segments of the selected paths (the four sides of a rectangle and a single rule are treated alike). The nearest border on each side of a text's center forms its cell.
 - Texts with no enclosing cell are left in place, and their count is reported at the end.
 - Glyph bounds are measured by outlining a duplicate of the text, so ascender and descender space does not affect the result.
-- When redistributing rules, the closed path with the largest area in the selection is used as the outer frame. A rule is a thin open path at least 20% as long as the matching side of the frame, with its center inside the frame.
+- When redistributing rules, the outer frame is the larger of the closed path with the largest area in the selection and a frame drawn with four rules (left and right at the outermost vertical rules, top and bottom at the outermost horizontal rules). The four frame rules are not moved, and "Match rule lengths" also trims them to run from corner to corner. A rule is a thin open path at least 20% as long as the matching side of the frame, with its center inside the frame.
 - "Fit to text" uses the widest text in each column. A column with no text gets only the shared space. If the texts do not fit in the frame, the width is divided by the ratio of the text widths with no extra space.
 - "Match rule lengths" only affects rules with two anchor points.
 - The initial values can be changed with `AVERAGE_RULES`, `DISTRIBUTE_MODE`, `MATCH_LINES_TO_RECT`, `CENTER_IN_CELLS` and `JUSTIFY_CENTER` at the top of the script.
 
 ### Update History
 
+- v1.1.0 (2026-10-20) Rules can now be redistributed in a frame drawn with four rules instead of a rectangle (the positions of the outermost rules form the frame, and "Match rule lengths" also trims the four frame rules to run from corner to corner)
 - v1.0.0 (2026-10-20) Initial release

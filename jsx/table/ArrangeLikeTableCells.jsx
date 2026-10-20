@@ -7,7 +7,7 @@ Script-ID=com.swwwitch.illustrator.ArrangeLikeTableCells
 Name=ArrangeLikeTableCells
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.0.0
+Version=1.1.0
 Release-Date=2026-10-20
 Description-BEGIN
 外枠の中の縦罫・横罫を均等に、またはテキストに合わせて並べ直し、罫線で区切られたセルの中央にテキストを字形の見た目で配置します。
@@ -39,7 +39,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ArrangeLik
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ArrangeLikeTableCells";        /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-20";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-20";                   /* 更新日 / last updated */
@@ -497,7 +497,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     /**
      * 外枠の中にある縦罫・横罫を振り分け、縦罫は左から右、横罫は上から下に並べる
      * @param {PathItem[]} candidatePathItems - 候補のパス
-     * @param {PathItem} outerRect - 外枠のパス（対象から除く）
+     * @param {PathItem|null} outerRect - 外枠のパス（対象から除く）。罫線で囲んだ枠なら null
      * @param {Object} rectBounds - getRectBounds() の戻り値
      * @returns {{vertical: PathItem[], horizontal: PathItem[]}} 縦罫と横罫
      */
@@ -614,17 +614,101 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // =========================================
 
     /**
-     * 外枠と、その中の縦罫・横罫を見つける
+     * 外枠と、その中の縦罫・横罫を見つける。
+     * 外枠は、いちばん大きい閉じたパスと、罫線4本で囲んだ枠のうち、広いほうを使う
      * @param {PathItem[]} pathItems - 選択中のパス
-     * @returns {{rectBounds: Object, vertical: PathItem[], horizontal: PathItem[]}|null} 外枠の範囲と罫線。外枠が無ければ null
+     * @returns {{rectBounds: Object, vertical: PathItem[], horizontal: PathItem[], frameLines: Object|null}|null} 外枠の範囲と罫線（罫線で囲んだ枠なら、その4辺の罫線も）。外枠が無ければ null
      */
     function findRules(pathItems) {
         var outerRect = findOuterRectangle(pathItems);
-        if (!outerRect) return null;
+        var rectBounds = outerRect ? getRectBounds(outerRect) : null;
+        var lineFrame = findLineFrame(pathItems);
+        var bounds = lineFrame ? lineFrame.bounds : null;
+        if (bounds && rectBounds && bounds.width * bounds.height <= rectBounds.width * rectBounds.height + TOLERANCE) lineFrame = null;
+        if (lineFrame) {
+            /* 外側の罫線は外枠の辺になり、classifyRules() で罫線から外れる / The outermost rules become the frame and are left out by classifyRules() */
+            outerRect = null;
+            rectBounds = lineFrame.bounds;
+        }
+        if (!rectBounds) return null;
 
-        var rectBounds = getRectBounds(outerRect);
         var rules = classifyRules(pathItems, outerRect, rectBounds);
-        return { rectBounds: rectBounds, vertical: rules.vertical, horizontal: rules.horizontal };
+        return {
+            rectBounds: rectBounds,
+            vertical: rules.vertical,
+            horizontal: rules.horizontal,
+            frameLines: lineFrame ? { vertical: lineFrame.vertical, horizontal: lineFrame.horizontal } : null
+        };
+    }
+
+    /**
+     * 長方形を使わず、罫線4本で囲んだ枠を見つける。
+     * 左右は外側の縦罫の位置、上下は外側の横罫の位置で決める（罫線の端がはみ出していても枠は広がらない）
+     * @param {PathItem[]} pathItems - 選択中のパス
+     * @returns {{bounds: Object, vertical: PathItem[], horizontal: PathItem[]}|null} 枠の範囲と、枠になる縦罫・横罫。縦・横とも2本以上なければ null
+     */
+    function findLineFrame(pathItems) {
+        var verticalLines = [];
+        var horizontalLines = [];
+        var i;
+        for (i = 0; i < pathItems.length; i++) {
+            if (pathItems[i].closed) continue;
+            var geometricBounds = pathItems[i].geometricBounds;
+            var pathWidth = geometricBounds[2] - geometricBounds[0];
+            var pathHeight = geometricBounds[1] - geometricBounds[3];
+            if (pathWidth <= TOLERANCE && pathHeight > TOLERANCE) verticalLines.push(pathItems[i]);
+            else if (pathHeight <= TOLERANCE && pathWidth > TOLERANCE) horizontalLines.push(pathItems[i]);
+        }
+        if (verticalLines.length < 2 || horizontalLines.length < 2) return null;
+
+        var left = Infinity;
+        var right = -Infinity;
+        var top = -Infinity;
+        var bottom = Infinity;
+        for (i = 0; i < verticalLines.length; i++) {
+            left = Math.min(left, getCenterX(verticalLines[i]));
+            right = Math.max(right, getCenterX(verticalLines[i]));
+        }
+        for (i = 0; i < horizontalLines.length; i++) {
+            top = Math.max(top, getCenterY(horizontalLines[i]));
+            bottom = Math.min(bottom, getCenterY(horizontalLines[i]));
+        }
+        if (right - left <= TOLERANCE || top - bottom <= TOLERANCE) return null;
+
+        var frameVertical = [];
+        var frameHorizontal = [];
+        for (i = 0; i < verticalLines.length; i++) {
+            var centerX = getCenterX(verticalLines[i]);
+            if (Math.abs(centerX - left) <= TOLERANCE || Math.abs(centerX - right) <= TOLERANCE) frameVertical.push(verticalLines[i]);
+        }
+        for (i = 0; i < horizontalLines.length; i++) {
+            var centerY = getCenterY(horizontalLines[i]);
+            if (Math.abs(centerY - top) <= TOLERANCE || Math.abs(centerY - bottom) <= TOLERANCE) frameHorizontal.push(horizontalLines[i]);
+        }
+
+        return {
+            bounds: { left: left, top: top, right: right, bottom: bottom, width: right - left, height: top - bottom },
+            vertical: frameVertical,
+            horizontal: frameHorizontal
+        };
+    }
+
+    /**
+     * 罫線で囲んだ枠の4辺を、枠の角から角までの長さにそろえる（2点の罫線のみ）
+     * @param {Object} frameLines - findRules() の frameLines
+     * @param {Object} rectBounds - 枠の範囲
+     * @returns {void}
+     */
+    function matchFrameLineLengths(frameLines, rectBounds) {
+        var i;
+        for (i = 0; i < frameLines.vertical.length; i++) {
+            if (frameLines.vertical[i].pathPoints.length !== 2) continue;
+            setTwoPointVerticalLine(frameLines.vertical[i], getCenterX(frameLines.vertical[i]), rectBounds.top, rectBounds.bottom);
+        }
+        for (i = 0; i < frameLines.horizontal.length; i++) {
+            if (frameLines.horizontal[i].pathPoints.length !== 2) continue;
+            setTwoPointHorizontalLine(frameLines.horizontal[i], getCenterY(frameLines.horizontal[i]), rectBounds.left, rectBounds.right);
+        }
     }
 
     /**
@@ -645,6 +729,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         if (settings.averageHorizontal) {
             var rowOffsets = computeRuleOffsets(rules.rectBounds.height, rules.horizontal.length, fitsContent ? rules.rowSizes : null);
             positionMap.horizontal = redistributeHorizontalRules(rules.horizontal, rules.rectBounds, settings.matchRuleLengths, rowOffsets);
+        }
+        if (rules.frameLines && settings.matchRuleLengths && (settings.averageVertical || settings.averageHorizontal)) {
+            matchFrameLineLengths(rules.frameLines, rules.rectBounds);
         }
         return positionMap;
     }
