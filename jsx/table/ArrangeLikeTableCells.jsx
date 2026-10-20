@@ -8,12 +8,12 @@ Script-ID=com.swwwitch.illustrator.ArrangeLikeTableCells
 Name=ArrangeLikeTableCells
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.4.0
+Version=1.4.2
 Release-Date=2026-10-20
 Description-BEGIN
-外枠と罫線で区切った表で、外枠の大きさ・罫線の間隔・線幅を整え、各テキストをセルの中央に字形の見た目で配置します。
+外枠と罫線で区切った表で、外枠の大きさ・罫線の間隔・線幅を整え、各テキストをセルの中央に配置します（天地は欧文のベースラインをそろえる）。
 
-In a table drawn with an outer frame and rules, adjusts the frame size, the rule spacing and the stroke weights, then centers each text in its cell based on its glyph outlines.
+In a table drawn with an outer frame and rules, adjusts the frame size, the rule spacing and the stroke weights, then centers each text in its cell, keeping Latin baselines aligned.
 Description-END
 SCRIPTMETA-END
 */
@@ -22,7 +22,7 @@ SCRIPTMETA-END
 
 ### 概要
 
-外枠と罫線で区切った表で、外枠の大きさ・罫線の間隔・線幅を整え、各テキストをセルの中央に字形の見た目で配置します。
+外枠と罫線で区切った表で、外枠の大きさ・罫線の間隔・線幅を整え、各テキストをセルの中央に配置します（天地は欧文のベースラインをそろえる）。
 
 詳細は README を参照してください。
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ArrangeLikeTableCells.md
@@ -32,7 +32,7 @@ https://note.com/dtp_tranist/n/n22aa0e767930
 
 ### Overview
 
-In a table drawn with an outer frame and rules, adjusts the frame size, the rule spacing and the stroke weights, then centers each text in its cell based on its glyph outlines.
+In a table drawn with an outer frame and rules, adjusts the frame size, the rule spacing and the stroke weights, then centers each text in its cell, keeping Latin baselines aligned.
 
 See the README for details.
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ArrangeLikeTableCells.md
@@ -43,10 +43,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ArrangeLik
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ArrangeLikeTableCells";        /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.4.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.4.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-20";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-20";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-21";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ArrangeLikeTableCells.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ArrangeLikeTableCells.md"; /* README (English) */
@@ -1076,8 +1076,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
                 en: "Replaces the four rules forming the frame with a single rectangle in the same place, taking the stroke from the top rule. Available only when the frame is drawn with rules."
             },
             centerInCells: {
-                ja: "テキストを、枠・罫線で区切られたセルの中央へ字形の見た目で移動します。",
-                en: "Moves each text to the center of its cell, based on its glyph outlines."
+                ja: "テキストを、枠・罫線で区切られたセルの中央へ移動します。左右は字形の見た目、天地は欧文のベースラインからキャップハイトまでを基準にします。",
+                en: "Moves each text to the center of its cell: horizontally by its glyph outlines, vertically by the band from the baseline to the cap height, so baselines line up."
             },
             justifyCenter: {
                 ja: "段落の行揃えを中央揃えにします。",
@@ -2167,14 +2167,60 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
 
 
     /**
-     * 字形の範囲から、中心と大きさを求める
-     * @param {number[]|null} bounds - getGlyphBounds() の戻り値
-     * @returns {{center: number[], size: number[]}|null} 中心 [X, Y] と大きさ [幅, 高さ]。範囲が無ければ null
+     * 欧文の文字をすべて「H」に置き換えた複製で、ベースラインからキャップハイトまでの範囲を返す
+     * （アセンダー・ディセンダーの有無で天地の中心がずれないようにする）
+     * @param {TextFrame} textFrame - 対象のテキスト
+     * @returns {number[]|null} [左, 上, 右, 下]。欧文が無い、置き換えで行数が変わった、字形が無いときは null
      */
-    function getBoundsGeometry(bounds) {
+    function getCapHeightBounds(textFrame) {
+        var text = textFrame.contents;
+        var duplicateFrame = textFrame.duplicate();
+        var outlineGroup = null;
+        var bounds = null;
+        try {
+            var lineCount = duplicateFrame.lines.length;
+            var replacedCount = 0;
+            /* characters の番号は contents と1対1 / character indices match contents one to one */
+            for (var i = 0; i < text.length; i++) {
+                if (!isCapHeightTarget(text.charCodeAt(i))) continue;
+                duplicateFrame.characters[i].contents = "H";
+                replacedCount++;
+            }
+            /* エリア内文字で折り返しが変わったら使わない / Skip when area text rewraps */
+            if (replacedCount > 0 && duplicateFrame.lines.length === lineCount) {
+                outlineGroup = duplicateFrame.createOutline();
+                bounds = outlineGroup.geometricBounds;
+            }
+        } catch (e) {
+            bounds = null;
+        }
+        /* createOutline() は複製を消費するので、残っていれば消す / createOutline() consumes the duplicate; remove it only if it remains */
+        try { duplicateFrame.remove(); } catch (e) { }
+        if (outlineGroup) outlineGroup.remove();
+        return bounds;
+    }
+
+    /**
+     * 「H」に置き換えて天地を測る文字か（空白・改行・和文・絵文字は除く）
+     * @param {number} charCode - 文字コード
+     * @returns {boolean} 置き換える文字なら true
+     */
+    function isCapHeightTarget(charCode) {
+        return charCode > 0x20 && charCode < 0x2E80 && charCode !== 0x2028 && charCode !== 0x2029;
+    }
+
+    /**
+     * テキストの中心と大きさを求める（左右と大きさは字形の外形、天地の中心はキャップハイトの範囲）
+     * @param {TextFrame} textFrame - 対象のテキスト
+     * @returns {{center: number[], size: number[]}|null} 中心 [X, Y] と大きさ [幅, 高さ]。字形が無ければ null
+     */
+    function getTextGeometry(textFrame) {
+        var bounds = getGlyphBounds(textFrame);
         if (!bounds) return null;
+        var capBounds = getCapHeightBounds(textFrame);
+        var verticalBounds = capBounds || bounds;
         return {
-            center: [(bounds[0] + bounds[2]) / 2, (bounds[1] + bounds[3]) / 2],
+            center: [(bounds[0] + bounds[2]) / 2, (verticalBounds[1] + verticalBounds[3]) / 2],
             size: [bounds[2] - bounds[0], bounds[1] - bounds[3]]
         };
     }
@@ -2188,7 +2234,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
     function collectTextCells(textFrames, cellEdges) {
         var textCells = [];
         for (var i = 0; i < textFrames.length; i++) {
-            var glyphGeometry = getBoundsGeometry(getGlyphBounds(textFrames[i]));
+            var glyphGeometry = getTextGeometry(textFrames[i]);
             var glyphCenter = glyphGeometry ? glyphGeometry.center : null;
             textCells.push({
                 textFrame: textFrames[i],
@@ -2224,7 +2270,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
             var currentCenter = textCell.glyphCenter;
             if (settings.justifyCenter) {
                 /* 行揃えを変えると字形が動くので測り直す / Re-measure, since changing the alignment moves the glyphs */
-                var currentGeometry = getBoundsGeometry(getGlyphBounds(textCell.textFrame));
+                var currentGeometry = getTextGeometry(textCell.textFrame);
                 currentCenter = currentGeometry ? currentGeometry.center : null;
             }
             if (!currentCenter) {

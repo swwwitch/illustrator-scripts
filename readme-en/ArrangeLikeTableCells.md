@@ -10,7 +10,7 @@
 
 ### Overview
 
-In a table drawn with an outer frame and rules, adjusts the frame size, the rule spacing and the stroke weights, then centers each text in its cell based on its glyph outlines.
+In a table drawn with an outer frame and rules, adjusts the frame size, the rule spacing and the stroke weights, then centers each text in its cell, keeping Latin baselines aligned.
 It can also round the frame corners and fill the cells with random gray tints.
 
 ### Features
@@ -44,7 +44,7 @@ It can also round the frame corners and fill the cells with random gray tints.
 
 #### Text
 
-- "Center in cells" moves each text to the center of the cell formed by the frame and rules (centered by its glyph outlines, both horizontally and vertically)
+- "Center in cells" moves each text to the center of the cell formed by the frame and rules (horizontally by its glyph outlines, vertically by the band from the baseline to the cap height, so ascenders and descenders do not shift the baseline)
 - "Align center" sets the paragraph alignment to center
 
 #### Cells
@@ -91,6 +91,7 @@ It can also round the frame corners and fill the cells with random gray tints.
 
 ### Update History
 
+- v1.4.2 (2026-10-21) "Center in cells" now centers vertically by the band from the baseline to the cap height instead of the glyph outlines (baselines in adjacent cells no longer mismatch because of ascenders or descenders, as with "Lorem" and "Lorem ip")
 - v1.4.0 (2026-10-20) Added the Stroke Color and Weight panel, replacing "Match stroke weights" with "Adjust stroke weight". Added "Stroke color" (change the stroke color in the Color Picker). The stroke weight can now be set to "Max", "Min", "Average" (the average is shown next to it) or "Specified". Removed "Match rule lengths to frame" from the dialog; it is now always on (configurable with `MATCH_RULE_LENGTHS`). Moved the Text panel to the bottom of the right column. Moved Width and Height from the Frame panel to a new Size panel and added "Preview bounds" (Width and Height include the stroke weight). Replaced the Rules panel ("Adjust vertical / horizontal rule spacing" and "Spacing") with the Vertical Rule Spacing and Horizontal Rule Spacing panels of radio buttons ("Even", "Fit to text", "Keep"), so each direction can be placed differently. Edges are hidden while the script runs (restored on exit)
 - v1.3.1 (2026-10-20) The script now runs with only the frame and rules selected, without texts (the Text panel and "Fit to text" are disabled)
 - v1.3.0 (2026-10-20) The Cells panel now has "Create cell shapes" with a choice of fill ("Fill": "Same tint (K15)" / "Random tints" (K10-K60)). A frame drawn with four rules now gets projecting caps automatically. The dialog now has two columns (Rules and Text on the left, Frame and Cells on the right). Removed the Preview checkbox; the preview is now always on
