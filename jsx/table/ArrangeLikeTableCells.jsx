@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.ArrangeLikeTableCells
 Name=ArrangeLikeTableCells
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.3.0
+Version=1.3.1
 Release-Date=2026-10-20
 Description-BEGIN
 外枠と罫線で区切った表で、外枠の大きさ・罫線の間隔・線幅を整え、各テキストをセルの中央に字形の見た目で配置します。
@@ -43,7 +43,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ArrangeLik
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ArrangeLikeTableCells";        /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.3.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.3.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-20";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-20";                   /* 更新日 / last updated */
@@ -1055,10 +1055,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
             cancel: { ja: "キャンセル", en: "Cancel" }
         },
         alert: {
-            noText: {
-                ja: "テキストと、セルの枠・罫線をいっしょに選択してください。",
-                en: "Select the texts together with the cell frame and rules."
-            },
             noRule: {
                 ja: "セルの枠・罫線が選択されていません。",
                 en: "No cell frame or rules are selected."
@@ -2244,17 +2240,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
     function main() {
         var selectedItems = getValidSelection();
         if (!selectedItems) {
-            alert(getLabel("alert.noText"));
+            alert(getLabel("alert.noRule"));
             return;
         }
 
+        /* テキストが無くても、外枠・罫線だけを整えられる / Without texts, only the frame and rules are adjusted */
         var textFrames = [];
         var pathItems = [];
         for (var i = 0; i < selectedItems.length; i++) collectItems(selectedItems[i], textFrames, pathItems);
-        if (!textFrames.length) {
-            alert(getLabel("alert.noText"));
-            return;
-        }
+        var hasText = textFrames.length > 0;
 
         var cellEdges = collectEdges(pathItems);
         if (!cellEdges.vertical.length || !cellEdges.horizontal.length) {
@@ -2381,7 +2375,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
             frameHeight: rules ? rules.rectBounds.height : 0,
             adjustVerticalSpacing: ADJUST_RULE_SPACING && verticalRuleCount > 0,
             adjustHorizontalSpacing: ADJUST_RULE_SPACING && horizontalRuleCount > 0,
-            distributeMode: DISTRIBUTE_MODE,
+            distributeMode: hasText ? DISTRIBUTE_MODE : "even",
             matchRuleLengths: MATCH_RULE_LENGTHS,
             convertFrame: CONVERT_FRAME_TO_RECT && !!(rules && rules.frameLines),
             roundCorners: ROUND_CORNERS,
@@ -2397,7 +2391,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
 
         var unitInfo = getUnitInfo();
         var strokeUnitInfo = getUnitInfo("strokeUnits");
-        var dialogControls = buildDialog(verticalRuleCount, horizontalRuleCount, rules, unitInfo, strokeUnitInfo, initialSettings);
+        var dialogControls = buildDialog(verticalRuleCount, horizontalRuleCount, rules, hasText, unitInfo, strokeUnitInfo, initialSettings);
         var frameWidthInput = dialogControls.frameWidthInput;
         var frameHeightInput = dialogControls.frameHeightInput;
         var adjustVerticalCheckbox = dialogControls.adjustVerticalCheckbox;
@@ -2873,12 +2867,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
      * @param {number} verticalRuleCount - 見つかった縦罫の数
      * @param {number} horizontalRuleCount - 見つかった横罫の数
      * @param {Object|null} rules - findRules() の戻り値
+     * @param {boolean} hasText - テキストを選択しているなら true（false なら［テキスト］パネルと［テキストに合わせる］を無効にする）
      * @param {{label: string, pointsPerUnit: number}} unitInfo - 定規の単位
      * @param {{label: string, pointsPerUnit: number}} strokeUnitInfo - 線の単位
      * @param {{frameWidth: number, frameHeight: number, adjustVerticalSpacing: boolean, adjustHorizontalSpacing: boolean, distributeMode: string, matchRuleLengths: boolean, convertFrame: boolean, roundCorners: boolean, cornerRadius: number, matchStrokeWidths: boolean, strokeWidth: number, createCellShapes: boolean, fillMode: string, groupFills: boolean, centerInCells: boolean, justifyCenter: boolean}} initialSettings - コントロールの初期値
      * @returns {{mainDialog: Window, frameWidthInput: EditText, frameHeightInput: EditText, adjustVerticalCheckbox: Checkbox, adjustHorizontalCheckbox: Checkbox, spacingRow: Group, evenSpacingRadio: RadioButton, contentSpacingRadio: RadioButton, matchRuleLengthsCheckbox: Checkbox, convertFrameCheckbox: Checkbox, cornerRow: Group, roundCornersCheckbox: Checkbox, cornerRadiusInput: EditText, matchStrokeCheckbox: Checkbox, strokeWidthInput: EditText, createCellShapesCheckbox: Checkbox, fillModeGroup: Group, uniformFillRadio: RadioButton, randomFillRadio: RadioButton, groupFillsCheckbox: Checkbox, centerInCellsCheckbox: Checkbox, justifyCenterCheckbox: Checkbox, btnCancel: Button, btnOK: Button}} ダイアログとコントロール
      */
-    function buildDialog(verticalRuleCount, horizontalRuleCount, rules, unitInfo, strokeUnitInfo, initialSettings) {
+    function buildDialog(verticalRuleCount, horizontalRuleCount, rules, hasText, unitInfo, strokeUnitInfo, initialSettings) {
         var hasFrameLines = !!(rules && rules.frameLines);
         var mainDialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
         setupWindow(mainDialog);
@@ -2937,6 +2932,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
         contentSpacingRadio.helpTip = getLabel("tooltip.content");
         contentSpacingRadio.value = initialSettings.distributeMode === "content";
         evenSpacingRadio.value = !contentSpacingRadio.value;
+        /* 合わせるテキストが無ければ等間隔だけ / Without texts there is nothing to fit, so only even spacing */
+        contentSpacingRadio.enabled = hasText;
 
         /* ［間隔］のラジオボタンとの間を少し空ける（コントロールには margins が無いのでグループで包む）
            Leave a little space below the spacing radios (controls have no margins, so wrap it in a group) */
@@ -2954,6 +2951,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
 
         var textPanel = leftColumn.add("panel", undefined, getLabel("panel.text"));
         setupPanel(textPanel, 6);
+        textPanel.enabled = hasText;
 
         var centerInCellsCheckbox = addOptionCheckbox(textPanel,
             "checkbox.centerInCells", "tooltip.centerInCells", true, initialSettings.centerInCells);

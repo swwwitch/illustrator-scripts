@@ -53,7 +53,7 @@ It can also round the frame corners and fill the cells with random gray tints.
 
 ### Usage
 
-1. Select the texts together with the outer frame and the rules.
+1. Select the texts together with the outer frame and the rules (the frame and rules alone also work).
 2. Run the script. The dialog opens and the preview is shown.
 3. Set the frame, rule, text and cell options, then confirm with OK.
 
@@ -79,6 +79,7 @@ It can also round the frame corners and fill the cells with random gray tints.
 
 ### Update History
 
+- v1.3.1 (2026-10-20) The script now runs with only the frame and rules selected, without texts (the Text panel and "Fit to text" are disabled)
 - v1.3.0 (2026-10-20) The Cells panel now has "Create cell shapes" with a choice of fill ("Fill": "Same tint (K15)" / "Random tints" (K10-K60)). A frame drawn with four rules now gets projecting caps automatically. The dialog now has two columns (Rules and Text on the left, Frame and Cells on the right). Removed the Preview checkbox; the preview is now always on
 - v1.2.0 (2026-10-20) Added the Frame panel with "Width" / "Height" (scale the frame and rules from the top-left corner), "Convert frame to rectangle" (replaces the four rules forming the frame with a single rectangle in the same place) and "Round corners" (applies the Round Corners effect to the frame rectangle). Added "Match stroke weights" to the Rules panel, and "Fill with random tints" (a random gray from K10 to K60 in each cell) and "Group" to the Cells panel. Numeric fields now have up/down buttons, and the preview updates while you type. Renamed the options to "Adjust vertical rule spacing", "Adjust horizontal rule spacing" and "Match rule lengths to frame", and the dialog title to "Arrange Like a Table". The dialog now opens where it was last closed instead of moving sideways to avoid the selection. Fixed the rectangle not being used as the frame when the rules extend beyond it (a closed path, when present, is now always the frame). Slightly tilted lines (up to about 1 degree) now count as cell borders and as rules forming a frame. Lines lying on a frame edge are no longer redistributed as rules
 - v1.1.0 (2026-10-20) Rules can now be redistributed in a frame drawn with four rules instead of a rectangle (the positions of the outermost rules form the frame, and "Match rule lengths" also trims the four frame rules to run from corner to corner)
