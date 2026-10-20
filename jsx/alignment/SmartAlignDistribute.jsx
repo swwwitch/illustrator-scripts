@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.SmartAlignDistribute
 Name=SmartAlignDistribute
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.3.8
+Version=1.3.9
 Release-Date=2026-02-26
 Description-BEGIN
 選択オブジェクトを縦または横に並べ、指定した間隔で分布します。
@@ -44,10 +44,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartAlign
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SmartAlignDistribute";         /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.3.8";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.3.9";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-02-26";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-16";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-21";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartAlignDistribute.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartAlignDistribute.md"; /* README (English) */
@@ -73,6 +73,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /* 計測用に一時的に作るグループの名前 / name of the throwaway measuring group */
     var TEMP_MEASURE_GROUP_NAME = "__SmartAlignDistribute_TempMeasure__";
+
+    /* ダイアログの設定を Illustrator のセッション中だけ覚えるキー / $.global key for the session-only dialog settings */
+    var SESSION_SETTINGS_KEY = "__" + SCRIPT_NAME + "_SessionSettings";
 
     // =========================================
     // レイアウト / Layout
@@ -2334,6 +2337,55 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         return fallbackKey;
     }
 
+    /**
+     * ラジオの組で、指定したキーのラジオだけを選ぶ（無いキーなら何もしない）
+     * @param {object} radioSet - キー → ラジオ
+     * @param {string} selectedKey - 選ぶラジオのキー
+     * @returns {void}
+     */
+    function selectRadioByKey(radioSet, selectedKey) {
+        if (!radioSet.hasOwnProperty(selectedKey)) return;
+        for (var radioKey in radioSet) {
+            radioSet[radioKey].value = (radioKey === selectedKey);
+        }
+    }
+
+    /**
+     * ダイアログを閉じたときの設定を、Illustrator のセッション中だけ覚える
+     * @param {object} dialogControls - {directionRadios, spacingInput, alignControls, optionCheckboxes}
+     * @returns {void}
+     */
+    function saveSessionSettings(dialogControls) {
+        var checkboxes = dialogControls.optionCheckboxes;
+        $.global[SESSION_SETTINGS_KEY] = {
+            direction: getCheckedKey(dialogControls.directionRadios, "vertical"),
+            spacingText: dialogControls.spacingInput.text,
+            hAlign: getCheckedKey(dialogControls.alignControls.horizontal, "center"),
+            vAlign: getCheckedKey(dialogControls.alignControls.vertical, "middle"),
+            usePreviewBounds: checkboxes.usePreviewBounds.value,
+            measureText: checkboxes.measureText.value,
+            random: checkboxes.random.value
+        };
+    }
+
+    /**
+     * 覚えておいた設定をダイアログに戻す（このセッションで初めて開くときは既定のまま）
+     * @param {object} dialogControls - {directionRadios, spacingInput, alignControls, optionCheckboxes}
+     * @returns {void}
+     */
+    function restoreSessionSettings(dialogControls) {
+        var saved = $.global[SESSION_SETTINGS_KEY];
+        if (!saved) return;
+        var checkboxes = dialogControls.optionCheckboxes;
+        selectRadioByKey(dialogControls.directionRadios, saved.direction);
+        dialogControls.spacingInput.text = saved.spacingText;
+        selectRadioByKey(dialogControls.alignControls.horizontal, saved.hAlign);
+        selectRadioByKey(dialogControls.alignControls.vertical, saved.vAlign);
+        checkboxes.usePreviewBounds.value = saved.usePreviewBounds;
+        checkboxes.measureText.value = saved.measureText;
+        checkboxes.random.value = saved.random;
+    }
+
     // =========================================
     // ダイアログ / Dialog
     // =========================================
@@ -2363,6 +2415,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
         var btnOK = buttonRow.rightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
         alignRightOnlyButtonRow(buttonRow);
+
+        var dialogControls = {
+            directionRadios: directionRadios,
+            spacingInput: spacingInput,
+            alignControls: alignControls,
+            optionCheckboxes: optionCheckboxes
+        };
+        restoreSessionSettings(dialogControls);
 
         /* ---- 内部状態 / Internal state ---- */
         var randomOrderCache = null;
@@ -2523,6 +2583,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         prepareDialogWindow(alignDialog, SCRIPT_NAME);
         var dialogResult = alignDialog.show();
         try { if (previewTaskId) app.cancelTask(previewTaskId); } catch (e) { }
+        /* OK でもキャンセルでも、閉じたときの設定を覚える / Remember the settings on OK and on Cancel */
+        saveSessionSettings(dialogControls);
 
         if (dialogResult !== 1) {
             /* キャンセル: プレビューを undo してプリファレンスも戻す / Cancel: undo preview & restore preference */

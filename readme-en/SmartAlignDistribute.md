@@ -26,8 +26,8 @@ https://gorolib.blog.jp/archives/77282974.html
 
 ### Script info
 
-- Version: v1.3.8
-- Last updated: 2026-10-04
+- Version: v1.3.9
+- Last updated: 2026-10-21
 
 ### Update history
 
@@ -40,3 +40,4 @@ https://gorolib.blog.jp/archives/77282974.html
 - v1.3.6 (2026-10-01) Added space below the button row to match Illustrator's own dialogs
 - v1.3.7 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.3.8 (2026-10-16) Right-only button rows are now centered when the dialog's inner width is up to 240 px (was 200 px) (shared part update)
+- v1.3.9 (2026-10-21) The dialog now remembers its settings (direction, spacing, alignment, options) from when it was last closed, for the rest of the Illustrator session
