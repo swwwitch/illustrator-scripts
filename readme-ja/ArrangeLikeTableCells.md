@@ -1,8 +1,8 @@
 # 罫線で区切ったセルの中央にテキストを配置
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-CenterTextInCells.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/table/CenterTextInCells.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-ArrangeLikeTableCells.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/table/ArrangeLikeTableCells.jsx)
 
-[![English](https://img.shields.io/badge/README-English-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CenterTextInCells.md)
+[![English](https://img.shields.io/badge/README-English-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ArrangeLikeTableCells.md)
 
 [![Direct](https://img.shields.io/badge/Back%20to%20home-All%20scripts-cccccc.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/README.md)
 

@@ -3,8 +3,8 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
 SCRIPTMETA-BEGIN
-Script-ID=com.swwwitch.illustrator.CenterTextInCells
-Name=CenterTextInCells
+Script-ID=com.swwwitch.illustrator.ArrangeLikeTableCells
+Name=ArrangeLikeTableCells
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.0.0
@@ -24,28 +24,28 @@ SCRIPTMETA-END
 外枠の中の縦罫・横罫を均等に、またはテキストに合わせて並べ直し、罫線で区切られたセルの中央にテキストを字形の見た目で配置します。
 
 詳細は README を参照してください。
-https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/CenterTextInCells.md
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ArrangeLikeTableCells.md
 
 ### Overview
 
 Redistributes the rules inside the outer frame, evenly or to fit the texts, then centers each text in its cell based on its glyph outlines.
 
 See the README for details.
-https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CenterTextInCells.md
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ArrangeLikeTableCells.md
 
 */
 
 // =========================================
 // 基本情報 / Basic info
 // =========================================
-var SCRIPT_NAME     = "CenterTextInCells";            /* スクリプト名 / script name */
+var SCRIPT_NAME     = "ArrangeLikeTableCells";        /* スクリプト名 / script name */
 var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-20";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-20";                   /* 更新日 / last updated */
 
-var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/CenterTextInCells.md"; /* README（日本語） */
-var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CenterTextInCells.md"; /* README (English) */
+var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ArrangeLikeTableCells.md"; /* README（日本語） */
+var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ArrangeLikeTableCells.md"; /* README (English) */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php

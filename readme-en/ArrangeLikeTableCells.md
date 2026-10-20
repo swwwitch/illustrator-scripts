@@ -1,8 +1,8 @@
 # Center text in cells divided by rules
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-CenterTextInCells.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/table/CenterTextInCells.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-ArrangeLikeTableCells.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/table/ArrangeLikeTableCells.jsx)
 
-[![Japanese](https://img.shields.io/badge/README-Japanese-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/CenterTextInCells.md)
+[![Japanese](https://img.shields.io/badge/README-Japanese-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ArrangeLikeTableCells.md)
 
 [![Direct](https://img.shields.io/badge/Back%20to%20home-All%20scripts-cccccc.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/README.md)
 
