@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.FillStrokeSwitcher
 Name=FillStrokeSwitcher
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.1.8
+Version=1.2.0
 Release-Date=2026-03-25
 Description-BEGIN
 選択したオブジェクトの塗りと線を入れ替えたり、一方をもう一方へ移したりします。
@@ -50,10 +50,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FillStroke
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "FillStrokeSwitcher";           /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.8";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.2.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-03-25";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-20";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA     = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/FillStrokeSwitcher.md"; /* README（日本語） */
 var SCRIPT_README_EN     = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FillStrokeSwitcher.md"; /* README (English) */
@@ -249,8 +249,9 @@ var SCRIPT_REFERENCE_URL = "https://note.com/shibumi/n/n5229b4357dd3";     /* �
             title: { ja: "塗りと線の調整", en: "Fill and Stroke Adjustments" }
         },
         panel: {
-            convert: { ja: "変換", en: "Convert" },
-            erase: { ja: "消去", en: "Erase" }
+            convert: { ja: "塗りと線の交換", en: "Swap Fill and Stroke" },
+            erase: { ja: "消去", en: "Erase" },
+            options: { ja: "オプション", en: "Options" }
         },
         radio: {
             swap: { ja: "塗り↔線", en: "Fill ↔ Stroke" },
@@ -292,7 +293,6 @@ var SCRIPT_REFERENCE_URL = "https://note.com/shibumi/n/n5229b4357dd3";     /* �
         },
         alert: {
             noSelection: { ja: "オブジェクトを選択してください", en: "Please select at least one object." },
-            tooManyObjects: { ja: "オブジェクトは 2 つまでにしてください", en: "Please select up to two objects." },
             noDocument: { ja: "ドキュメントが開かれていません", en: "No document is open." },
             pathFailures: { ja: "パス処理の失敗", en: "Path processing failures" },
             textFailures: { ja: "テキスト処理の失敗", en: "Text processing failures" },
@@ -1206,6 +1206,64 @@ var SCRIPT_REFERENCE_URL = "https://note.com/shibumi/n/n5229b4357dd3";     /* �
     // ボタン行（再利用パーツ）ここまで / End of the reusable button row
 
     /**
+     * 選択の中身から、実行できる処理モードを調べる
+     * （塗りのあるものが無ければ塗りを使うモード、線のあるものが無ければ線を使うモードは実行できない）
+     * @param {PageItem[]} originalSelection - 元の選択
+     * @param {Object[]} leafSnapshots - captureSelectionState() の結果
+     * @returns {Object} 処理モード（MODE_*）をキーに、実行できれば true
+     */
+    function getAvailableModes(originalSelection, leafSnapshots) {
+        var hasAnyFill = false;
+        var hasAnyStroke = false;
+        for (var i = 0; i < leafSnapshots.length; i++) {
+            var leafSnapshot = leafSnapshots[i];
+            /* テキストは文字ごと、パスはそのものの見た目を見る / Text is checked per character, paths as a whole */
+            var appearances = (leafSnapshot.kind === "text") ? leafSnapshot.characters : [leafSnapshot];
+            for (var j = 0; j < appearances.length; j++) {
+                if (appearances[j].filled) hasAnyFill = true;
+                if (appearances[j].stroked) hasAnyStroke = true;
+            }
+        }
+
+        /* 2つのオブジェクト間で交換は、ちょうど2つで、どちらも見た目を控えられる種類のとき
+           Swap between objects needs exactly two items of types whose appearance can be captured */
+        var canSwapBetween = (originalSelection.length === 2);
+        for (var k = 0; canSwapBetween && k < originalSelection.length; k++) {
+            var typeName = originalSelection[k].typename;
+            if (typeName !== "PathItem" && typeName !== "CompoundPathItem" && typeName !== "TextFrame") canSwapBetween = false;
+        }
+
+        var availableModes = {};
+        availableModes[MODE_SWAP] = hasAnyFill || hasAnyStroke;
+        availableModes[MODE_FILL_TO_STROKE] = hasAnyFill;
+        availableModes[MODE_STROKE_TO_FILL] = hasAnyStroke;
+        availableModes[MODE_SWAP_BETWEEN] = canSwapBetween;
+        availableModes[MODE_FILL_NONE] = hasAnyFill;
+        availableModes[MODE_STROKE_NONE] = hasAnyStroke;
+        availableModes[MODE_FILL_AND_STROKE_NONE] = hasAnyFill || hasAnyStroke;
+        return availableModes;
+    }
+
+    /**
+     * 実行できないモードのラジオボタンをディム表示にし、最初に選択するラジオボタンを返す
+     * @param {Object[]} modeRadioEntries - {radio, mode} の一覧
+     * @param {Object} availableModes - getAvailableModes() の結果
+     * @param {string} preferredMode - 実行できれば最初に選択する処理モード（MODE_*）
+     * @returns {RadioButton|null} 最初に選択するラジオボタン（どれも実行できなければ null）
+     */
+    function dimUnavailableRadios(modeRadioEntries, availableModes, preferredMode) {
+        var initialRadio = null;
+        for (var i = 0; i < modeRadioEntries.length; i++) {
+            var modeEntry = modeRadioEntries[i];
+            modeEntry.radio.enabled = !!availableModes[modeEntry.mode];
+            if (!modeEntry.radio.enabled) continue;
+            if (modeEntry.mode === preferredMode) initialRadio = modeEntry.radio;
+            else if (!initialRadio) initialRadio = modeEntry.radio;
+        }
+        return initialRadio;
+    }
+
+    /**
      * ラジオボタンを1つだけ選択状態にする（パネルをまたぐので手動で排他にする）
      * @param {RadioButton} selectedRadio - 選択するラジオボタン
      * @param {Object[]} modeRadioEntries - {radio, mode} の一覧
@@ -1275,7 +1333,7 @@ var SCRIPT_REFERENCE_URL = "https://note.com/shibumi/n/n5229b4357dd3";     /* �
      */
     function showModeDialog(originalSelection) {
         var leafSnapshots = captureSelectionState(originalSelection);
-        var isPairSelected = (originalSelection && originalSelection.length === 2);
+        var availableModes = getAvailableModes(originalSelection, leafSnapshots);
 
         var modeDialog = new Window('dialog', getLabel('dialog.title') + ' ' + SCRIPT_VERSION);
         setupWindow(modeDialog);
@@ -1291,16 +1349,19 @@ var SCRIPT_REFERENCE_URL = "https://note.com/shibumi/n/n5229b4357dd3";     /* �
         var erasePanel = modePanelsGroup.add('panel', undefined, getLabel('panel.erase'));
         setupPanel(erasePanel, 6);
 
-        /* 2つのパネルにまたがるラジオボタン / Radio buttons spread across two panels */
+        /* 2カラムの下に、幅いっぱいのパネル / Full-width panel below the two columns */
+        var optionsPanel = modeDialog.add('panel', undefined, getLabel('panel.options'));
+        setupPanel(optionsPanel, 6);
+
+        /* 3つのパネルにまたがるラジオボタン / Radio buttons spread across three panels */
         var modeRadioEntries = [];
-        var swapRadio = addModeRadio(convertPanel, 'swap', MODE_SWAP, modeRadioEntries);
+        addModeRadio(convertPanel, 'swap', MODE_SWAP, modeRadioEntries);
         addModeRadio(convertPanel, 'fillToStroke', MODE_FILL_TO_STROKE, modeRadioEntries);
         addModeRadio(convertPanel, 'strokeToFill', MODE_STROKE_TO_FILL, modeRadioEntries);
-        var swapBetweenRadio = addModeRadio(convertPanel, 'swapBetween', MODE_SWAP_BETWEEN, modeRadioEntries);
-        swapBetweenRadio.enabled = isPairSelected;
         addModeRadio(erasePanel, 'fillNone', MODE_FILL_NONE, modeRadioEntries);
         addModeRadio(erasePanel, 'strokeNone', MODE_STROKE_NONE, modeRadioEntries);
         addModeRadio(erasePanel, 'fillStrokeNone', MODE_FILL_AND_STROKE_NONE, modeRadioEntries);
+        addModeRadio(optionsPanel, 'swapBetween', MODE_SWAP_BETWEEN, modeRadioEntries);
 
         /**
          * プレビューをいったん元に戻し、ON なら選んだモードで掛け直す
@@ -1315,7 +1376,11 @@ var SCRIPT_REFERENCE_URL = "https://note.com/shibumi/n/n5229b4357dd3";     /* �
         }
 
         bindModeRadioEvents(modeRadioEntries, refreshPreview);
-        setExclusiveRadio(isPairSelected ? swapBetweenRadio : swapRadio, modeRadioEntries);
+        /* 2つ選択していれば「2つのオブジェクト間で交換」、それ以外は「塗り↔線」を優先する
+           Prefer swapping between objects for a pair, otherwise fill <-> stroke */
+        var preferredMode = availableModes[MODE_SWAP_BETWEEN] ? MODE_SWAP_BETWEEN : MODE_SWAP;
+        var initialRadio = dimUnavailableRadios(modeRadioEntries, availableModes, preferredMode);
+        setExclusiveRadio(initialRadio, modeRadioEntries);
 
         /* ボタン行（左にプレビュー、右に OK／キャンセル） / Button row: preview on the left, OK/Cancel on the right */
         var buttonRow = addButtonRow(modeDialog);
@@ -1324,6 +1389,12 @@ var SCRIPT_REFERENCE_URL = "https://note.com/shibumi/n/n5229b4357dd3";     /* �
         previewCheckbox.onClick = refreshPreview;
         var btnCancel = buttonRow.rightGroup.add('button', undefined, getLabel('button.cancel'), { name: 'cancel' });
         var btnOK = buttonRow.rightGroup.add('button', undefined, getLabel('button.ok'), { name: 'ok' });
+
+        /* 実行できるモードが1つも無ければ、プレビューと OK もディム表示にする / Dim Preview and OK when no mode can run */
+        if (!initialRadio) {
+            previewCheckbox.enabled = false;
+            btnOK.enabled = false;
+        }
 
         alignRightOnlyButtonRow(buttonRow);
         prepareDialogWindow(modeDialog, SCRIPT_NAME);
@@ -1356,11 +1427,6 @@ var SCRIPT_REFERENCE_URL = "https://note.com/shibumi/n/n5229b4357dd3";     /* �
         var doc = app.activeDocument;
         if (doc.selection.length === 0) {
             alert(getLabel('alert.noSelection'));
-            return;
-        }
-
-        if (doc.selection.length > 2) {
-            alert(getLabel('alert.tooManyObjects'));
             return;
         }
 
