@@ -359,6 +359,7 @@ After release, we continue to fix bugs and make adjustments through daily use.
 - [Filter scripts by keyword and run them](readme-en/AiScriptLauncher.md)
 - [Apply saved text attributes to the selection](readme-en/ApplyTextAttributesFromClipboard.md)
 - [Redistribute rules evenly inside a frame](readme-en/AverageRulesInRectangle.md)
+- [Center text in cells divided by rules](readme-en/CenterTextInCells.md)
 - [Scatter confetti across the selected area](readme-en/ConfettiMaker.md)
 - [Save the character and paragraph attributes](readme-en/CopyTextAttributesToClipboard.md)
 - [Dash Calculator (DashGapCalculator)](readme-en/DashGapCalculator.md)
