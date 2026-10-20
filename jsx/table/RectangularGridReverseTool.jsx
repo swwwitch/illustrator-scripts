@@ -8,13 +8,14 @@ Script-ID=com.swwwitch.illustrator.RectangularGridReverseTool
 Name=RectangularGridReverseTool
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.3.7
+Version=1.3.8
+Release-Date=2026-04-27
 Description-BEGIN
-選択した水平線・垂直線を解析し、長方形グリッドとして再構成します。
-不揃いな罫線や、結合セルを含むレイアウトを整理し、整った格子構造に変換します。
+選択した水平線・垂直線（外枠の長方形を含む）を解析し、長方形グリッドとして組み直します。
+罫線の端を交点にそろえ、行・列の間隔を均等にして、結合セルを含む表も整った格子にします。
 
-Analyzes the selected horizontal and vertical lines and reconstructs them into a rectangular grid.
-Uneven rules and layouts containing merged cells are tidied into a regular lattice.
+Analyzes the selected horizontal and vertical lines (including an outer-frame rectangle) and rebuilds them into a rectangular grid.
+Line ends are snapped to the intersections and rows and columns are evenly spaced, so even tables with merged cells become a regular lattice.
 Description-END
 SCRIPTMETA-END
 */
@@ -23,16 +24,19 @@ SCRIPTMETA-END
 
 ### 概要
 
-選択した水平線・垂直線を解析し、長方形グリッドとして再構成します。
-不揃いな罫線や、結合セルを含むレイアウトを整理し、整った格子構造に変換します。
+選択した水平線・垂直線（外枠の長方形を含む）を解析し、長方形グリッドとして組み直します。
+罫線の端を交点にそろえ、行・列の間隔を均等にして、結合セルを含む表も整った格子にします。
 
 詳細は README を参照してください。
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/RectangularGridReverseTool.md
 
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n4f290b420561
+
 ### Overview
 
-Analyzes the selected horizontal and vertical lines and reconstructs them into a rectangular grid.
-Uneven rules and layouts containing merged cells are tidied into a regular lattice.
+Analyzes the selected horizontal and vertical lines (including an outer-frame rectangle) and rebuilds them into a rectangular grid.
+Line ends are snapped to the intersections and rows and columns are evenly spaced, so even tables with merged cells become a regular lattice.
 
 See the README for details.
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RectangularGridReverseTool.md
@@ -43,13 +47,14 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/Rectangula
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "RectangularGridReverseTool";   /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.3.7";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.3.8";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
-var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last updated */
+var SCRIPT_RELEASED = "2026-04-27";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-10-20";                   /* 更新日 / last updated */
 
-var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/RectangularGridReverseTool.md"; /* README（日本語） */
-var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RectangularGridReverseTool.md"; /* README (English) */
+var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/RectangularGridReverseTool.md"; /* README（日本語） */
+var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RectangularGridReverseTool.md"; /* README (English) */
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4f290b420561"; /* 紹介記事 / article URL */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
@@ -1011,7 +1016,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             preprocessing: { ja: "前処理", en: "Pre-processing" },
             distribution: { ja: "配置モード", en: "Distribution Mode" },
             equalize: { ja: "均等配置の対象", en: "Equalize Targets" },
-            line: { ja: "線（後処理）", en: "Line (post-process)" },
+            line: { ja: "線", en: "Lines" },
             strokeWidth: { ja: "線幅", en: "Stroke Width" },
             postProcessing: { ja: "後処理", en: "Post-processing" }
         },
@@ -1048,12 +1053,18 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 ja: "結合セルを考慮しながら、行・列の間隔を均等にそろえます。",
                 en: "Evens out the spacing while respecting merged cells."
             },
-            equalizeVertical: { ja: "列の幅をそろえます。", en: "Gives the columns the same width." },
+            equalizeVertical: {
+                ja: "列の幅をそろえます。option＋クリックで横罫も同じ状態にします。",
+                en: "Gives the columns the same width. Option-click to set Horizontal lines the same way."
+            },
             lockFirstColumn: {
                 ja: "1列目の幅は変えずに、残りをそろえます。",
                 en: "Keeps the first column as it is and evens out the rest."
             },
-            equalizeHorizontal: { ja: "行の高さをそろえます。", en: "Gives the rows the same height." },
+            equalizeHorizontal: {
+                ja: "行の高さをそろえます。option＋クリックで縦罫も同じ状態にします。",
+                en: "Gives the rows the same height. Option-click to set Vertical lines the same way."
+            },
             lockFirstRow: {
                 ja: "1行目の高さは変えずに、残りをそろえます。",
                 en: "Keeps the first row as it is and evens out the rest."
@@ -1774,8 +1785,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 parent: parentContainer,
                 generatedLines: generatedLines
             });
-            /* 削除できない場合も分解は続ける / keep going even if the rectangle cannot be removed */
-            try { sourceItem.remove(); } catch (rectangleRemoveError) { }
+            sourceItem.remove();
         }
         return { items: expandedItems, expansions: rectangleExpansions };
     }
@@ -1789,8 +1799,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         for (var expansionIndex = 0; expansionIndex < rectangleExpansions.length; expansionIndex++) {
             var expansion = rectangleExpansions[expansionIndex];
             for (var generatedLineIndex = 0; generatedLineIndex < expansion.generatedLines.length; generatedLineIndex++) {
-                /* 既に消えている線は飛ばす / skip lines that are already gone */
-                try { expansion.generatedLines[generatedLineIndex].remove(); } catch (lineRemoveError) { }
+                expansion.generatedLines[generatedLineIndex].remove();
             }
             var rectangleBounds = expansion.bounds;
             var restoredRectangle = expansion.parent.pathItems.rectangle(
@@ -2049,9 +2058,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * @returns {Object} ダイアログの設定
      */
     function readOptionDialogState(dialogControls) {
-        var distributionMode = dialogControls.distributionNoneRadio.value ? "none"
-            : dialogControls.distributionEvenMergedCellRadio.value ? "evenMergedCell"
-                : "even";
+        var distributionMode = readDistributionMode(dialogControls);
         var isEvenMode = distributionMode !== "none";
         return {
             distributionMode: distributionMode,
@@ -2060,10 +2067,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             evenVertical: isEvenMode && dialogControls.equalizeVerticalCheckbox.value,
             projectingCap: dialogControls.projectingCapCheckbox.value,
             convertDashedToSolid: dialogControls.convertDashedToSolidCheckbox.value,
-            strokeWidthMode: dialogControls.strokeWidthMaxRadio.value ? "max"
-                : dialogControls.strokeWidthMinRadio.value ? "min"
-                    : dialogControls.strokeWidthSpecifiedRadio.value ? "specified"
-                        : "average",
+            strokeWidthMode: readStrokeWidthMode(dialogControls),
             specifiedStrokeWidthPt: dialogControls.strokeWidthSpecifiedRadio.value
                 ? readNumericText(dialogControls.strokeWidthInput.text, 0) * dialogControls.strokeUnitInfo.pointsPerUnit
                 : 0,
@@ -2074,6 +2078,29 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             group: dialogControls.groupingCheckbox.value,
             splitOuterFrame: dialogControls.splitOuterFrameCheckbox.value
         };
+    }
+
+    /**
+     * 配置モードのラジオから選択中のモードを返す（ExtendScript は入れ子の三項演算子を誤評価するため if で分ける）
+     * @param {Object} dialogControls - buildOptionDialog() の戻り値
+     * @returns {string} "none" / "evenMergedCell" / "even"
+     */
+    function readDistributionMode(dialogControls) {
+        if (dialogControls.distributionNoneRadio.value) return "none";
+        if (dialogControls.distributionEvenMergedCellRadio.value) return "evenMergedCell";
+        return "even";
+    }
+
+    /**
+     * 線幅のラジオから選択中のモードを返す
+     * @param {Object} dialogControls - buildOptionDialog() の戻り値
+     * @returns {string} "max" / "min" / "specified" / "average"
+     */
+    function readStrokeWidthMode(dialogControls) {
+        if (dialogControls.strokeWidthMaxRadio.value) return "max";
+        if (dialogControls.strokeWidthMinRadio.value) return "min";
+        if (dialogControls.strokeWidthSpecifiedRadio.value) return "specified";
+        return "average";
     }
 
     /**
@@ -2095,10 +2122,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * @returns {void}
      */
     function syncSpecifiedStrokeWidthInput(dialogControls) {
-        var isSpecified = dialogControls.strokeWidthSpecifiedRadio.value;
-        dialogControls.strokeWidthInput.enabled = isSpecified;
-        dialogControls.strokeWidthInput.stepperGroup.enabled = isSpecified;
-        redrawSteppersIn(dialogControls.strokeWidthInput.stepperGroup);
+        setSteppedFieldEnabled(dialogControls.strokeWidthInput, dialogControls.strokeWidthSpecifiedRadio.value);
     }
 
     // =========================================
@@ -2463,8 +2487,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         innerGridItems.push(frameRectangle);
         // 参照が無効になる前にフィルタを終え、最後に削除 / Finish filtering before references become invalid, then remove them at the end
         for (var removeIndex = 0; removeIndex < outerPaths.uniqueOuterPaths.length; removeIndex++) {
-            /* 削除できない線は残す / leave lines that cannot be removed */
-            try { outerPaths.uniqueOuterPaths[removeIndex].remove(); } catch (removeError) { }
+            outerPaths.uniqueOuterPaths[removeIndex].remove();
         }
         return innerGridItems;
     }
@@ -2635,29 +2658,18 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var strokeWidthAverageRadio = addOptionRadio(strokeWidthPanel, "radio.strokeWidthAverage", "tooltip.strokeWidthAverage");
         var strokeWidthSpecifiedRadio = addOptionRadio(strokeWidthPanel, "radio.strokeWidthSpecified", "tooltip.strokeWidthSpecified");
 
+        /* 項目名は「指定」のラジオが兼ねる。0以上（onStep は bindOptionDialogEvents() で入れる）
+           The "Specified" radio serves as the label; 0 or more */
         var strokeWidthSpecifiedInputGroup = addOptionRow(strokeWidthPanel);
-        /* ∧∨と入力欄は隙間0で突き合わせる。0以上（onStep は bindOptionDialogEvents() で入れる）
-           Butt the stepper against the field; 0 or more */
-        var strokeWidthStepperInputGroup = strokeWidthSpecifiedInputGroup.add("group");
-        strokeWidthStepperInputGroup.orientation = "row";
-        strokeWidthStepperInputGroup.alignChildren = ["left", "center"];
-        strokeWidthStepperInputGroup.spacing = 0;
-        strokeWidthStepperInputGroup.margins = 0;
-        var strokeWidthStepOptions = { step: 1, min: 0 };
-        var strokeWidthInput;
-        var strokeWidthStepperGroup = addStepper(strokeWidthStepperInputGroup, function () { return strokeWidthInput; }, strokeWidthStepOptions);
-        strokeWidthInput = strokeWidthStepperInputGroup.add("edittext", undefined, "0.25");
+        var strokeWidthInput = addSteppedField(strokeWidthSpecifiedInputGroup, { text: "0.25", characters: 4, step: 1, min: 0 });
         strokeWidthInput.helpTip = getLabel("tooltip.strokeWidthSpecified");
-        strokeWidthInput.characters = 4;
-        strokeWidthInput.stepperGroup = strokeWidthStepperGroup;
-        strokeWidthInput.stepOptions = strokeWidthStepOptions;
-        bindSteppedArrowKeys(strokeWidthInput, strokeWidthStepperGroup);
         strokeWidthSpecifiedInputGroup.add("statictext", undefined, strokeUnitInfo.label);
 
-        // デフォルトは平均 / Default is average
+        // デフォルトは平均（表示前なので描き直さずに無効にする）/ Default is average; disabled without redrawing before show
         strokeWidthAverageRadio.value = true;
         strokeWidthInput.enabled = false;
-        strokeWidthStepperGroup.enabled = false;
+        strokeWidthInput.fieldLabel.enabled = false;
+        strokeWidthInput.stepperGroup.enabled = false;
 
         // 後処理パネル / Post-processing panel
         var postProcessingPanel = addOptionPanel(leftColumnGroup, "panel.postProcessing");
@@ -2670,8 +2682,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         // 下段：左＝プレビュー、右＝ボタン / Bottom row: left=preview, right=buttons
         var buttonRow = addButtonRow(optionDialog);
         var previewCheckbox = addOptionCheckbox(buttonRow.leftGroup, "checkbox.preview", "tooltip.preview", false);
-        var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
-        var btnOK = buttonRow.rightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+        buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+        buttonRow.rightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
 
         return {
             optionDialog: optionDialog,
@@ -2762,8 +2774,15 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         dialogControls.strokeWidthAverageRadio.onClick = onStrokeWidthClick;
         dialogControls.strokeWidthSpecifiedRadio.onClick = onStrokeWidthClick;
         dialogControls.strokeWidthInput.onChanging = refreshPreview;
+        /* 確定時は addSteppedField() の正規化（計算式・下限・不正値の差し戻し）のあとに更新する
+           On commit, refresh after addSteppedField()'s normalization */
+        var normalizeStrokeWidthInput = dialogControls.strokeWidthInput.onChange;
+        dialogControls.strokeWidthInput.onChange = function () {
+            normalizeStrokeWidthInput();
+            refreshPreview();
+        };
         /* ∧∨・↑↓キーで増減したあと / after stepping with the stepper or arrow keys */
-        dialogControls.strokeWidthInput.stepOptions.onStep = function () {
+        dialogControls.strokeWidthInput.stepperGroup.stepOptions.onStep = function () {
             if (!dialogControls.strokeWidthSpecifiedRadio.value) dialogControls.strokeWidthSpecifiedRadio.value = true;
             syncSpecifiedStrokeWidthInput(dialogControls);
             refreshPreview();
