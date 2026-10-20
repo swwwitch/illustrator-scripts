@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.RectangularGridReverseTool
 Name=RectangularGridReverseTool
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.3.9
+Version=1.4.0
 Release-Date=2026-04-27
 Description-BEGIN
 選択した水平線・垂直線（外枠の長方形を含む）を解析し、長方形グリッドとして組み直します。
@@ -47,7 +47,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/Rectangula
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "RectangularGridReverseTool";   /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.3.9";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.4.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-04-27";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-20";                   /* 更新日 / last updated */
@@ -60,6 +60,22 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4f290b420561"; /* 紹�
 // http://opensource.org/licenses/mit-license.php
 
 (function () {
+    // =========================================
+    // ユーザー設定 / User Settings
+    // =========================================
+
+    /*
+        簡易モードの［長さを揃える］の初期値 / Initial value of "Match rule lengths" in Simple mode
+        true  : 縦罫の上下、横罫の左右を外枠に合わせる
+                Snap rule endpoints to the outer rectangle.
+        false : 罫線の長さは変えず、位置だけ均等にする
+                Keep rule lengths; redistribute positions only.
+    */
+    var MATCH_LINES_TO_RECT = true;
+
+    /* 簡易モードで罫線を判定する許容値（pt） / Tolerance for detecting rules in Simple mode (pt) */
+    var RULE_TOLERANCE = 0.5;
+
     // =========================================
     // レイアウト / Layout
     // =========================================
@@ -1013,6 +1029,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4f290b420561"; /* 紹�
             title: { ja: "グリッド再構築", en: "Rebuild Grid" }
         },
         panel: {
+            target: { ja: "対象", en: "Target" },
             preprocessing: { ja: "前処理", en: "Pre-processing" },
             distribution: { ja: "配置モード", en: "Distribution Mode" },
             equalize: { ja: "均等配置の対象", en: "Equalize Targets" },
@@ -1021,6 +1038,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4f290b420561"; /* 紹�
             postProcessing: { ja: "後処理", en: "Post-processing" }
         },
         radio: {
+            modeSimple: { ja: "簡易", en: "Simple" },
+            modeDetailed: { ja: "詳細", en: "Advanced" },
             distributionNone: { ja: "均等配置しない", en: "Do not distribute evenly" },
             distributionEven: { ja: "均等に（強制）", en: "Evenly (force)" },
             distributionEvenMergedCell: { ja: "均等＋結合セル対応", en: "Evenly + merged cells" },
@@ -1030,6 +1049,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4f290b420561"; /* 紹�
             strokeWidthSpecified: { ja: "指定", en: "Specified" }
         },
         checkbox: {
+            averageHorizontal: { ja: "横罫を平均化", en: "Distribute horizontal rules" },
+            averageVertical: { ja: "縦罫を平均化", en: "Distribute vertical rules" },
+            matchRuleLengths: { ja: "長さを揃える", en: "Match rule lengths" },
             splitFrameToFourSides: { ja: "外枠を四辺に分割", en: "Split outer frame into four sides" },
             equalizeVertical: { ja: "縦罫", en: "Vertical lines" },
             equalizeHorizontal: { ja: "横罫", en: "Horizontal lines" },
@@ -1043,6 +1065,30 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4f290b420561"; /* 紹�
             preview: { ja: "プレビュー", en: "Preview" }
         },
         tooltip: {
+            modeSimple: {
+                ja: "外枠の長方形の中にある罫線を均等に並べます。外枠と罫線の形はそのまま残します。",
+                en: "Evenly spaces the rules inside the outer rectangle, leaving the frame and the rules themselves as they are."
+            },
+            modeDetailed: {
+                ja: "線を解析して格子に組み直します。線幅・破線・後処理も指定できます。",
+                en: "Analyzes the lines and rebuilds them into a grid, with options for stroke width, dashes, and post-processing."
+            },
+            modeUnavailable: {
+                ja: "今の選択では使えません。",
+                en: "Not available for the current selection."
+            },
+            averageHorizontal: {
+                ja: "長方形の中にある横罫の間隔を均等にします。option＋クリックで縦罫も同じ状態にします。",
+                en: "Evens out the spacing of the horizontal rules inside the rectangle. Option-click to set the vertical rules the same way."
+            },
+            averageVertical: {
+                ja: "長方形の中にある縦罫の間隔を均等にします。option＋クリックで横罫も同じ状態にします。",
+                en: "Evens out the spacing of the vertical rules inside the rectangle. Option-click to set the horizontal rules the same way."
+            },
+            matchRuleLengths: {
+                ja: "罫の長さを長方形の辺にそろえます。オフのときは長さを変えずに位置だけ動かします。",
+                en: "Matches the length of the rules to the sides of the rectangle. When off, only the positions change."
+            },
             splitFrameToFourSides: {
                 ja: "外枠の長方形を、上下左右4本の線に分割します。",
                 en: "Splits the outer rectangle into four separate lines."
@@ -1108,9 +1154,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4f290b420561"; /* 紹�
         },
         alert: {
             noSelection: { ja: "水平線と垂直線を選択してください。", en: "Select horizontal and vertical lines." },
-            notEnoughLines: {
-                ja: "格子を作るには、最低でも2本の水平線と2本の垂直線が必要です。",
-                en: "To create a grid, select at least two horizontal lines and two vertical lines."
+            noTarget: {
+                ja: "外枠の長方形と罫線、または水平線と垂直線を2本ずつ以上選択してください。",
+                en: "Select an outer rectangle with rules, or at least two horizontal lines and two vertical lines."
             }
         }
     };
@@ -1166,7 +1212,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4f290b420561"; /* 紹�
     // =========================================
 
     /**
-     * 選択した罫線を解析し、ダイアログの設定でグリッドに組み直す
+     * 選択から簡易・詳細モードの対象を調べ、ダイアログの設定で罫線を並べ直す（または格子に組み直す）
      * @returns {void}
      */
     function main() {
@@ -1178,42 +1224,54 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4f290b420561"; /* 紹�
             return;
         }
 
-        // グループ等を再帰展開して PathItem の平坦リストにする / Flatten selection (descending into groups) to PathItems
-        var flatPathItems = collectSelectionPathItems(selectedItems);
+        // 簡易モード：外枠の長方形と、その中の罫線 / Simple mode: the outer rectangle and the rules inside it
+        var simpleTarget = findSimpleTarget(collectSelectionPathItems(selectedItems, { skipLocked: true, skipHidden: true }));
 
-        // 塗りのあるパスは対象外 / Exclude paths that have a fill
-        flatPathItems = excludeFilledPaths(flatPathItems);
+        // 詳細モード：グループ等を再帰展開し、塗りのあるパスを除く / Advanced mode: flatten groups, excluding filled paths
+        var detailedSourceItems = excludeFilledPaths(collectSelectionPathItems(selectedItems));
+        var canUseDetailedMode = hasEnoughGridLines(detailedSourceItems);
 
-        // 軸並行の長方形は4本の罫線に分解 / Decompose axis-aligned rectangles into 4 lines
-        var expansionResult = expandRectanglesInSelection(flatPathItems);
-        var rectangleExpansions = expansionResult.expansions;
-
-        var classified = classifySelectedStraightLines(expansionResult.items);
-        if (classified.horizontalLines.length < 2 || classified.verticalLines.length < 2) {
-            restoreRectangleExpansions(rectangleExpansions);
-            alert(getLabel("alert.notEnoughLines"));
+        if (!simpleTarget && !canUseDetailedMode) {
+            alert(getLabel("alert.noTarget"));
             return;
         }
 
-        var gridBounds = getGridBounds(classified.horizontalLines, classified.verticalLines);
-        var originalLineStates = captureLineStates(classified.horizontalLines, classified.verticalLines);
-        var strokeUnitInfo = getUnitInfo("strokeUnits");
+        var modeSession = {
+            simpleTarget: simpleTarget,
+            detailedSourceItems: detailedSourceItems,
+            canUseDetailedMode: canUseDetailedMode,
+            hasRectangles: containsAxisAlignedRectangle(detailedSourceItems),
+            detailedState: null
+        };
+        var dialogOptions = showOptionDialog(modeSession, getUnitInfo("strokeUnits"));
+        if (!dialogOptions) return;
 
-        var hasExpandedRectangles = rectangleExpansions.length > 0;
-        var dialogOptions = showOptionDialog(classified, gridBounds, originalLineStates, strokeUnitInfo, hasExpandedRectangles);
-        if (!dialogOptions) {
-            restoreRectangleExpansions(rectangleExpansions);
+        $.global[MODE_STORAGE_KEY] = dialogOptions.mode;
+        if (dialogOptions.mode === MODE_SIMPLE) {
+            applySimpleSettings(simpleTarget, dialogOptions);
             return;
         }
+        rebuildGrid(openDetailedState(modeSession), dialogOptions);
+    }
+
+    /**
+     * 詳細モードの確定処理：分解した外枠を確定し、線を格子に組み直して後処理まで行う
+     * @param {{expansions: Object[], classified: Object, gridBounds: Object, originalLineStates: Object[]}} detailedState - openDetailedState() の戻り値
+     * @param {Object} dialogOptions - ダイアログの設定
+     * @returns {void}
+     */
+    function rebuildGrid(detailedState, dialogOptions) {
+        var classified = detailedState.classified;
+        var gridBounds = detailedState.gridBounds;
 
         // 前処理：外枠を四辺に分割しない場合は分解を取り消して終了 / If split is disabled, undo expansion and exit
-        if (isGridRebuildSkipped(dialogOptions, hasExpandedRectangles)) {
-            restoreRectangleExpansions(rectangleExpansions);
+        if (isGridRebuildSkipped(dialogOptions, detailedState.expansions.length > 0)) {
+            restoreRectangleExpansions(detailedState.expansions);
             return;
         }
-        removeExpandedRectangles(rectangleExpansions);
+        var backgroundRectangles = removeExpandedRectangles(detailedState.expansions);
 
-        restoreLineStates(originalLineStates);
+        restoreLineStates(detailedState.originalLineStates);
         applyLineOptions(classified, gridBounds, dialogOptions);
 
         // ポイント文字をセル内で上下中央に配置 / Center point text vertically within cells
@@ -1228,7 +1286,437 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4f290b420561"; /* 紹�
         }
 
         if (dialogOptions.group && groupTargets.length > 1) {
-            groupProcessedItems(groupTargets);
+            groupProcessedItems(groupTargets.concat(backgroundRectangles));
+        }
+    }
+
+    // =========================================
+    // モードの切り替え / Switching modes
+    // =========================================
+
+    var MODE_SIMPLE = "simple";
+    var MODE_DETAILED = "detailed";
+    var MODE_STORAGE_KEY = "__" + SCRIPT_NAME + "_Mode"; /* 最後に使ったモード（Illustrator を終了するまで）/ last used mode, kept until Illustrator quits */
+
+    /**
+     * 開いたときのモードを決める。前回のモードが今の選択で使えればそれ、なければ簡易、簡易が使えなければ詳細
+     * @param {Object} modeSession - main() で作るモードの状態
+     * @returns {string} MODE_SIMPLE / MODE_DETAILED
+     */
+    function resolveInitialMode(modeSession) {
+        var lastMode = $.global[MODE_STORAGE_KEY];
+        if (lastMode === MODE_DETAILED && modeSession.canUseDetailedMode) return MODE_DETAILED;
+        if (modeSession.simpleTarget) return MODE_SIMPLE;
+        return MODE_DETAILED;
+    }
+
+    /**
+     * 詳細モードの準備：外枠の長方形を4本の線に分解し、線を分類して元の状態を記録する（準備済みならそれを返す）
+     * @param {Object} modeSession - main() で作るモードの状態
+     * @returns {{expansions: Object[], classified: Object, gridBounds: Object, originalLineStates: Object[]}} 詳細モードの状態
+     */
+    function openDetailedState(modeSession) {
+        if (modeSession.detailedState) return modeSession.detailedState;
+        var expansionResult = expandRectanglesInSelection(modeSession.detailedSourceItems);
+        var classified = classifySelectedStraightLines(expansionResult.items);
+        modeSession.detailedState = {
+            expansions: expansionResult.expansions,
+            classified: classified,
+            gridBounds: getGridBounds(classified.horizontalLines, classified.verticalLines),
+            originalLineStates: captureLineStates(classified.horizontalLines, classified.verticalLines)
+        };
+        return modeSession.detailedState;
+    }
+
+    /**
+     * 両モードのプレビューを取り消して元の状態に戻す。keepDetailedState が true なら、詳細モードの分解は残す
+     * @param {Object} modeSession - main() で作るモードの状態
+     * @param {boolean} keepDetailedState - 分解した外枠を残すかどうか
+     * @returns {void}
+     */
+    function resetModePreviews(modeSession, keepDetailedState) {
+        var detailedState = modeSession.detailedState;
+        if (detailedState) {
+            restoreLineStates(detailedState.originalLineStates);
+            if (!keepDetailedState) {
+                restoreRectangleExpansions(detailedState.expansions);
+                modeSession.detailedState = null;
+            }
+        }
+        if (modeSession.simpleTarget) restorePathState(modeSession.simpleTarget.originalPathStates);
+    }
+
+    /**
+     * 詳細モードで格子を組めるだけの線（水平・垂直それぞれ2本以上）があるか。長方形は4本の線として数える（ドキュメントは変えない）
+     * @param {PathItem[]} pathItems - 塗りのないパス
+     * @returns {boolean} 組めるなら true
+     */
+    function hasEnoughGridLines(pathItems) {
+        var straightItems = [];
+        var rectangleCount = 0;
+        for (var itemIndex = 0; itemIndex < pathItems.length; itemIndex++) {
+            if (isAxisAlignedRectangle(pathItems[itemIndex])) {
+                rectangleCount++;
+            } else {
+                straightItems.push(pathItems[itemIndex]);
+            }
+        }
+        var classified = classifySelectedStraightLines(straightItems);
+        return classified.horizontalLines.length + rectangleCount * 2 >= 2 &&
+            classified.verticalLines.length + rectangleCount * 2 >= 2;
+    }
+
+    /**
+     * 軸に平行な長方形が含まれるか
+     * @param {PathItem[]} pathItems - 対象のパス
+     * @returns {boolean} 含まれるなら true
+     */
+    function containsAxisAlignedRectangle(pathItems) {
+        for (var itemIndex = 0; itemIndex < pathItems.length; itemIndex++) {
+            if (isAxisAlignedRectangle(pathItems[itemIndex])) return true;
+        }
+        return false;
+    }
+
+    // =========================================
+    // 簡易モード / Simple mode
+    // =========================================
+
+    /**
+     * 簡易モードの対象（外枠の長方形と、その中の縦罫・横罫）を探す
+     * @param {PathItem[]} pathItems - 選択から集めたパス（ロック中・非表示を除く）
+     * @returns {{outerRect: PathItem, rectBounds: Object, verticalRules: PathItem[], horizontalRules: PathItem[], originalPathStates: Object[]}|null} 外枠か罫線が無ければ null
+     */
+    function findSimpleTarget(pathItems) {
+        var outerRect = findOuterRectangle(pathItems);
+        if (!outerRect) return null;
+        var rectBounds = getRectBounds(outerRect);
+        var rules = classifyRules(pathItems, outerRect, rectBounds);
+        if (rules.vertical.length === 0 && rules.horizontal.length === 0) return null;
+        return {
+            outerRect: outerRect,
+            rectBounds: rectBounds,
+            verticalRules: rules.vertical,
+            horizontalRules: rules.horizontal,
+            originalPathStates: savePathState(rules.vertical.concat(rules.horizontal))
+        };
+    }
+
+    /**
+     * 簡易モードの設定どおりに罫線を並べ直す（呼ぶ前に元の座標へ戻しておく）
+     * @param {Object} simpleTarget - findSimpleTarget() の戻り値
+     * @param {{averageHorizontal: boolean, averageVertical: boolean, matchRuleLengths: boolean}} simpleSettings - 簡易モードの設定
+     * @returns {void}
+     */
+    function applySimpleSettings(simpleTarget, simpleSettings) {
+        if (simpleSettings.averageVertical) {
+            redistributeVerticalRules(simpleTarget.verticalRules, simpleTarget.rectBounds, simpleSettings.matchRuleLengths);
+        }
+        if (simpleSettings.averageHorizontal) {
+            redistributeHorizontalRules(simpleTarget.horizontalRules, simpleTarget.rectBounds, simpleSettings.matchRuleLengths);
+        }
+    }
+
+    /**
+     * 閉じたパスのうち、外接矩形の面積が最大のものを外枠とみなす（塗りの有無は問わない）
+     * @param {PathItem[]} candidatePathItems - 候補のパス
+     * @returns {PathItem|null} 外枠のパス。閉じたパスが無ければ null
+     */
+    function findOuterRectangle(candidatePathItems) {
+        var outerRectangleCandidate = null;
+        var maxArea = 0;
+        for (var i = 0; i < candidatePathItems.length; i++) {
+            var pathItem = candidatePathItems[i];
+            if (!pathItem.closed) continue;
+            var geometricBounds = pathItem.geometricBounds;
+            var pathWidth = geometricBounds[2] - geometricBounds[0];
+            var pathHeight = geometricBounds[1] - geometricBounds[3];
+            if (pathWidth <= 0 || pathHeight <= 0) continue;
+            var pathArea = pathWidth * pathHeight;
+            if (pathArea > maxArea) {
+                maxArea = pathArea;
+                outerRectangleCandidate = pathItem;
+            }
+        }
+        return outerRectangleCandidate;
+    }
+
+    /**
+     * 外枠の座標と寸法をまとめて返す
+     * @param {PathItem} outerRect - 外枠のパス
+     * @returns {{left: number, top: number, right: number, bottom: number, width: number, height: number}} 外枠の範囲
+     */
+    function getRectBounds(outerRect) {
+        var outerBounds = outerRect.geometricBounds;
+        return {
+            left: outerBounds[0],
+            top: outerBounds[1],
+            right: outerBounds[2],
+            bottom: outerBounds[3],
+            width: outerBounds[2] - outerBounds[0],
+            height: outerBounds[1] - outerBounds[3]
+        };
+    }
+
+    /**
+     * 外枠の中にある縦罫・横罫を振り分け、縦罫は左から右、横罫は上から下に並べる
+     * @param {PathItem[]} candidatePathItems - 候補のパス
+     * @param {PathItem} outerRect - 外枠のパス（対象から除く）
+     * @param {Object} rectBounds - getRectBounds() の戻り値
+     * @returns {{vertical: PathItem[], horizontal: PathItem[]}} 縦罫と横罫
+     */
+    function classifyRules(candidatePathItems, outerRect, rectBounds) {
+        var verticalRules = [];
+        var horizontalRules = [];
+        for (var i = 0; i < candidatePathItems.length; i++) {
+            var pathItem = candidatePathItems[i];
+            if (pathItem === outerRect) continue;
+            if (isRuleInRect(pathItem, rectBounds, true)) {
+                verticalRules.push(pathItem);
+            } else if (isRuleInRect(pathItem, rectBounds, false)) {
+                horizontalRules.push(pathItem);
+            }
+        }
+        /* 縦罫は左から右へ、横罫は上から下へソート / Sort vertical L→R, horizontal T→B */
+        verticalRules.sort(function (firstRule, secondRule) {
+            return getCenterX(firstRule) - getCenterX(secondRule);
+        });
+        horizontalRules.sort(function (firstRule, secondRule) {
+            return getCenterY(secondRule) - getCenterY(firstRule);
+        });
+        return { vertical: verticalRules, horizontal: horizontalRules };
+    }
+
+    /**
+     * 外枠の中にある縦罫（または横罫）かどうかを判定する
+     * 縦罫は「長さ＝高さ、並ぶ方向＝X」、横罫は「長さ＝幅、並ぶ方向＝Y」として同じ条件で見る
+     * @param {PathItem} pathItem - 判定するパス
+     * @param {Object} rectBounds - getRectBounds() の戻り値
+     * @param {boolean} isVertical - true なら縦罫、false なら横罫として判定する
+     * @returns {boolean} 罫線とみなせるとき true
+     */
+    function isRuleInRect(pathItem, rectBounds, isVertical) {
+        if (pathItem.closed) return false;
+        var geometricBounds = pathItem.geometricBounds;
+        var pathWidth = Math.abs(geometricBounds[2] - geometricBounds[0]);
+        var pathHeight = Math.abs(geometricBounds[1] - geometricBounds[3]);
+        var centerX = (geometricBounds[0] + geometricBounds[2]) / 2;
+        var centerY = (geometricBounds[1] + geometricBounds[3]) / 2;
+        if (isVertical) {
+            return hasRuleShape(pathHeight, pathWidth, rectBounds.height) &&
+                isInsideRange(centerX, rectBounds.left, rectBounds.right) &&
+                isNearRange(centerY, rectBounds.bottom, rectBounds.top);
+        }
+        return hasRuleShape(pathWidth, pathHeight, rectBounds.width) &&
+            isInsideRange(centerY, rectBounds.bottom, rectBounds.top) &&
+            isNearRange(centerX, rectBounds.left, rectBounds.right);
+    }
+
+    /**
+     * 細長い形で、外枠の辺の 20% 以上の長さがあるかどうか
+     * @param {number} ruleLength - 罫線の方向の長さ
+     * @param {number} ruleThickness - 罫線と直交する方向の幅
+     * @param {number} outerLength - 同じ方向の外枠の長さ
+     * @returns {boolean} 罫線の形とみなせるとき true
+     */
+    function hasRuleShape(ruleLength, ruleThickness, outerLength) {
+        if (ruleLength <= 0) return false;
+        if (!(ruleThickness <= RULE_TOLERANCE || ruleLength > ruleThickness * 5)) return false;
+        return !(ruleLength < outerLength * 0.2);
+    }
+
+    /**
+     * 値が範囲の内側に、許容値より離れて収まっているかどうか（両端ちょうどは外）
+     * @param {number} value - 調べる値
+     * @param {number} rangeMin - 範囲の最小値
+     * @param {number} rangeMax - 範囲の最大値
+     * @returns {boolean} 内側なら true
+     */
+    function isInsideRange(value, rangeMin, rangeMax) {
+        return value > rangeMin + RULE_TOLERANCE && value < rangeMax - RULE_TOLERANCE;
+    }
+
+    /**
+     * 値が範囲に、許容値の はみ出しまで含めて収まっているかどうか
+     * @param {number} value - 調べる値
+     * @param {number} rangeMin - 範囲の最小値
+     * @param {number} rangeMax - 範囲の最大値
+     * @returns {boolean} 収まっていれば true
+     */
+    function isNearRange(value, rangeMin, rangeMax) {
+        return value >= rangeMin - RULE_TOLERANCE && value <= rangeMax + RULE_TOLERANCE;
+    }
+
+    /**
+     * パスの外接矩形の中心 X を返す
+     * @param {PathItem} pathItem - 対象のパス
+     * @returns {number} 中心の X 座標
+     */
+    function getCenterX(pathItem) {
+        var geometricBounds = pathItem.geometricBounds;
+        return (geometricBounds[0] + geometricBounds[2]) / 2;
+    }
+
+    /**
+     * パスの外接矩形の中心 Y を返す
+     * @param {PathItem} pathItem - 対象のパス
+     * @returns {number} 中心の Y 座標
+     */
+    function getCenterY(pathItem) {
+        var geometricBounds = pathItem.geometricBounds;
+        return (geometricBounds[1] + geometricBounds[3]) / 2;
+    }
+
+    /**
+     * 縦罫を外枠の幅で等間隔に並べ直す
+     * @param {PathItem[]} verticalRules - 左から右に並んだ縦罫
+     * @param {Object} rectBounds - getRectBounds() の戻り値
+     * @param {boolean} matchRuleLengths - 2点の罫線の上下を外枠に合わせるかどうか
+     * @returns {void}
+     */
+    function redistributeVerticalRules(verticalRules, rectBounds, matchRuleLengths) {
+        var ruleCount = verticalRules.length;
+        for (var i = 0; i < ruleCount; i++) {
+            var verticalRule = verticalRules[i];
+            var targetX = rectBounds.left + rectBounds.width * (i + 1) / (ruleCount + 1);
+            if (matchRuleLengths && verticalRule.pathPoints.length === 2) {
+                setTwoPointVerticalLine(verticalRule, targetX, rectBounds.top, rectBounds.bottom);
+            } else {
+                translatePath(verticalRule, targetX - getCenterX(verticalRule), 0);
+            }
+        }
+    }
+
+    /**
+     * 横罫を外枠の高さで等間隔に並べ直す
+     * @param {PathItem[]} horizontalRules - 上から下に並んだ横罫
+     * @param {Object} rectBounds - getRectBounds() の戻り値
+     * @param {boolean} matchRuleLengths - 2点の罫線の左右を外枠に合わせるかどうか
+     * @returns {void}
+     */
+    function redistributeHorizontalRules(horizontalRules, rectBounds, matchRuleLengths) {
+        var ruleCount = horizontalRules.length;
+        for (var i = 0; i < ruleCount; i++) {
+            var horizontalRule = horizontalRules[i];
+            var targetY = rectBounds.top - rectBounds.height * (i + 1) / (ruleCount + 1);
+            if (matchRuleLengths && horizontalRule.pathPoints.length === 2) {
+                setTwoPointHorizontalLine(horizontalRule, targetY, rectBounds.left, rectBounds.right);
+            } else {
+                translatePath(horizontalRule, 0, targetY - getCenterY(horizontalRule));
+            }
+        }
+    }
+
+    /**
+     * パスのすべてのアンカーポイントとハンドルを平行移動する
+     * @param {PathItem} pathItem - 対象のパス
+     * @param {number} deltaX - X 方向の移動量
+     * @param {number} deltaY - Y 方向の移動量
+     * @returns {void}
+     */
+    function translatePath(pathItem, deltaX, deltaY) {
+        for (var i = 0; i < pathItem.pathPoints.length; i++) {
+            movePathPoint(pathItem.pathPoints[i], deltaX, deltaY);
+        }
+    }
+
+    /**
+     * 2点の縦罫を、指定の X 位置で上端から下端までの線にする
+     * @param {PathItem} pathItem - 2点のパス
+     * @param {number} x - 配置する X 座標
+     * @param {number} top - 上端の Y 座標
+     * @param {number} bottom - 下端の Y 座標
+     * @returns {void}
+     */
+    function setTwoPointVerticalLine(pathItem, x, top, bottom) {
+        var firstPoint = pathItem.pathPoints[0];
+        var secondPoint = pathItem.pathPoints[1];
+        var isFirstOnTop = firstPoint.anchor[1] >= secondPoint.anchor[1];
+        movePointTo(isFirstOnTop ? firstPoint : secondPoint, x, top);
+        movePointTo(isFirstOnTop ? secondPoint : firstPoint, x, bottom);
+    }
+
+    /**
+     * 2点の横罫を、指定の Y 位置で左端から右端までの線にする
+     * @param {PathItem} pathItem - 2点のパス
+     * @param {number} y - 配置する Y 座標
+     * @param {number} left - 左端の X 座標
+     * @param {number} right - 右端の X 座標
+     * @returns {void}
+     */
+    function setTwoPointHorizontalLine(pathItem, y, left, right) {
+        var firstPoint = pathItem.pathPoints[0];
+        var secondPoint = pathItem.pathPoints[1];
+        var isFirstOnLeft = firstPoint.anchor[0] <= secondPoint.anchor[0];
+        movePointTo(isFirstOnLeft ? firstPoint : secondPoint, left, y);
+        movePointTo(isFirstOnLeft ? secondPoint : firstPoint, right, y);
+    }
+
+    /**
+     * アンカーポイントを指定の座標へ移動する（ハンドルも同じ量だけ動かす）
+     * @param {PathPoint} pathPoint - 対象のアンカーポイント
+     * @param {number} targetX - 移動先の X 座標
+     * @param {number} targetY - 移動先の Y 座標
+     * @returns {void}
+     */
+    function movePointTo(pathPoint, targetX, targetY) {
+        movePathPoint(pathPoint, targetX - pathPoint.anchor[0], targetY - pathPoint.anchor[1]);
+    }
+
+    /**
+     * アンカーポイントと両ハンドルを同じ量だけ動かす
+     * @param {PathPoint} pathPoint - 対象のアンカーポイント
+     * @param {number} deltaX - X 方向の移動量
+     * @param {number} deltaY - Y 方向の移動量
+     * @returns {void}
+     */
+    function movePathPoint(pathPoint, deltaX, deltaY) {
+        pathPoint.anchor = [pathPoint.anchor[0] + deltaX, pathPoint.anchor[1] + deltaY];
+        pathPoint.leftDirection = [pathPoint.leftDirection[0] + deltaX, pathPoint.leftDirection[1] + deltaY];
+        pathPoint.rightDirection = [pathPoint.rightDirection[0] + deltaX, pathPoint.rightDirection[1] + deltaY];
+    }
+
+    /**
+     * 編集前のパスの座標を保存する（アンカーポイントの数を問わない）
+     * @param {PathItem[]} targetPathItems - 保存するパス
+     * @returns {Object[]} パスごとのアンカーポイントの状態
+     */
+    function savePathState(targetPathItems) {
+        var pathStates = [];
+        for (var pathIndex = 0; pathIndex < targetPathItems.length; pathIndex++) {
+            var pathItem = targetPathItems[pathIndex];
+            var pointStates = [];
+            for (var pointIndex = 0; pointIndex < pathItem.pathPoints.length; pointIndex++) {
+                var pathPoint = pathItem.pathPoints[pointIndex];
+                pointStates.push({
+                    anchor: [pathPoint.anchor[0], pathPoint.anchor[1]],
+                    leftDirection: [pathPoint.leftDirection[0], pathPoint.leftDirection[1]],
+                    rightDirection: [pathPoint.rightDirection[0], pathPoint.rightDirection[1]],
+                    pointType: pathPoint.pointType
+                });
+            }
+            pathStates.push({ pathItem: pathItem, pointStates: pointStates });
+        }
+        return pathStates;
+    }
+
+    /**
+     * 保存しておいた座標へ戻す
+     * @param {Object[]} pathStates - savePathState() の戻り値
+     * @returns {void}
+     */
+    function restorePathState(pathStates) {
+        for (var pathIndex = 0; pathIndex < pathStates.length; pathIndex++) {
+            var pathItem = pathStates[pathIndex].pathItem;
+            var pointStates = pathStates[pathIndex].pointStates;
+            for (var pointIndex = 0; pointIndex < pointStates.length; pointIndex++) {
+                var pathPoint = pathItem.pathPoints[pointIndex];
+                var pointState = pointStates[pointIndex];
+                pathPoint.anchor = [pointState.anchor[0], pointState.anchor[1]];
+                pathPoint.leftDirection = [pointState.leftDirection[0], pointState.leftDirection[1]];
+                pathPoint.rightDirection = [pointState.rightDirection[0], pointState.rightDirection[1]];
+                pathPoint.pointType = pointState.pointType;
+            }
         }
     }
 
@@ -1638,37 +2126,72 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4f290b420561"; /* 紹�
     // =========================================
 
     /**
-     * 塗りのあるパスを対象から除外する
+     * 塗りのあるパスを対象から除外する。ただし軸に平行な長方形は、塗りがあっても外枠として残す
      * @param {PathItem[]} pathItems - 対象のパス
-     * @returns {PathItem[]} 塗りのないパス
+     * @returns {PathItem[]} 塗りのないパスと長方形
      */
     function excludeFilledPaths(pathItems) {
-        var unfilledPaths = [];
+        var targetPaths = [];
         for (var itemIndex = 0; itemIndex < pathItems.length; itemIndex++) {
-            if (!pathItems[itemIndex].filled) unfilledPaths.push(pathItems[itemIndex]);
+            var pathItem = pathItems[itemIndex];
+            if (!pathItem.filled || isAxisAlignedRectangle(pathItem)) targetPaths.push(pathItem);
         }
-        return unfilledPaths;
+        return targetPaths;
     }
 
+    /* 長方形とみなす座標のずれの許容値（pt） / Tolerance for coordinates when detecting rectangles (pt) */
+    var RECTANGLE_TOLERANCE = 0.1;
+
     /**
-     * 軸に平行な長方形（閉じた4点で、各辺が水平または垂直）かどうかを判定する
+     * 軸に平行な長方形かどうかを判定する。
+     * 閉じた直線だけのパスで、各辺が水平か垂直、アンカーがすべて外接矩形の辺上にあり、4隅がそろっていれば長方形とみなす
+     * （パスファインダーなどで増えた辺上の点や、閉じる位置に重なった点、わずかな座標のずれも許す）
      * @param {PathItem} pathItem - 判定するパス
      * @returns {boolean} 軸に平行な長方形なら true
      */
     function isAxisAlignedRectangle(pathItem) {
         if (!pathItem || pathItem.typename !== "PathItem") return false;
         if (!pathItem.closed) return false;
-        if (pathItem.pathPoints.length !== 4) return false;
-        var rectangleTolerance = 0.01;
-        for (var pointIndex = 0; pointIndex < 4; pointIndex++) {
-            var currentAnchor = pathItem.pathPoints[pointIndex].anchor;
-            var nextAnchor = pathItem.pathPoints[(pointIndex + 1) % 4].anchor;
-            var horizontalDelta = Math.abs(currentAnchor[0] - nextAnchor[0]);
-            var verticalDelta = Math.abs(currentAnchor[1] - nextAnchor[1]);
-            if (horizontalDelta > rectangleTolerance && verticalDelta > rectangleTolerance) return false;
-            if (horizontalDelta < rectangleTolerance && verticalDelta < rectangleTolerance) return false;
+        var pathPoints = pathItem.pathPoints;
+        var pointCount = pathPoints.length;
+        if (pointCount < 4) return false;
+
+        var rectangleBounds = getRectangleBoundsFromPath(pathItem);
+        if (rectangleBounds.maxX - rectangleBounds.minX <= RECTANGLE_TOLERANCE) return false;
+        if (rectangleBounds.maxY - rectangleBounds.minY <= RECTANGLE_TOLERANCE) return false;
+
+        var cornerFound = [false, false, false, false];
+        for (var pointIndex = 0; pointIndex < pointCount; pointIndex++) {
+            var currentPoint = pathPoints[pointIndex];
+            var currentAnchor = currentPoint.anchor;
+            var nextAnchor = pathPoints[(pointIndex + 1) % pointCount].anchor;
+            /* 曲線のハンドルがあれば長方形ではない / A curve handle means it is not a rectangle */
+            if (!isSamePoint(currentPoint.leftDirection, currentAnchor) || !isSamePoint(currentPoint.rightDirection, currentAnchor)) return false;
+            /* 辺は水平か垂直 / Each segment is horizontal or vertical */
+            if (Math.abs(currentAnchor[0] - nextAnchor[0]) > RECTANGLE_TOLERANCE &&
+                Math.abs(currentAnchor[1] - nextAnchor[1]) > RECTANGLE_TOLERANCE) return false;
+            var isOnLeft = Math.abs(currentAnchor[0] - rectangleBounds.minX) <= RECTANGLE_TOLERANCE;
+            var isOnRight = Math.abs(currentAnchor[0] - rectangleBounds.maxX) <= RECTANGLE_TOLERANCE;
+            var isOnBottom = Math.abs(currentAnchor[1] - rectangleBounds.minY) <= RECTANGLE_TOLERANCE;
+            var isOnTop = Math.abs(currentAnchor[1] - rectangleBounds.maxY) <= RECTANGLE_TOLERANCE;
+            /* アンカーは外接矩形の辺上 / Anchors lie on the bounding box */
+            if (!isOnLeft && !isOnRight && !isOnBottom && !isOnTop) return false;
+            if (isOnLeft && isOnTop) cornerFound[0] = true;
+            if (isOnRight && isOnTop) cornerFound[1] = true;
+            if (isOnRight && isOnBottom) cornerFound[2] = true;
+            if (isOnLeft && isOnBottom) cornerFound[3] = true;
         }
-        return true;
+        return cornerFound[0] && cornerFound[1] && cornerFound[2] && cornerFound[3];
+    }
+
+    /**
+     * 2点がほぼ同じ位置かどうか
+     * @param {number[]} pointA - [x, y]
+     * @param {number[]} pointB - [x, y]
+     * @returns {boolean} 許容値以内なら true
+     */
+    function isSamePoint(pointA, pointB) {
+        return Math.abs(pointA[0] - pointB[0]) <= RECTANGLE_TOLERANCE && Math.abs(pointA[1] - pointB[1]) <= RECTANGLE_TOLERANCE;
     }
 
     /**
@@ -1752,7 +2275,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4f290b420561"; /* 紹�
 
     /**
      * 軸に平行な長方形を4本の罫線に分解する。
-     * 線は元の長方形の直前（重ね順）に作り、元の長方形は確定まで非表示にして残す（取り消しで重ね順・属性ごと戻せるように）
+     * 線は元の長方形の直前（重ね順）に作り、元の長方形は確定まで非表示にして残す（取り消しで重ね順・属性ごと戻せるように）。
+     * 塗りのある長方形は背景として表示したまま線だけ消し、確定後も残す
      * @param {PathItem[]} pathItems - 対象のパス
      * @returns {{items: PathItem[], expansions: Object[]}} 分解後のパスと、取り消し用の記録
      */
@@ -1782,8 +2306,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4f290b420561"; /* 紹�
                 generatedLines[generatedIndex].move(sourceItem, ElementPlacement.PLACEBEFORE);
                 expandedItems.push(generatedLines[generatedIndex]);
             }
-            rectangleExpansions.push({ sourceRectangle: sourceItem, generatedLines: generatedLines });
-            sourceItem.hidden = true;
+            var keepsFill = sourceItem.filled;
+            rectangleExpansions.push({ sourceRectangle: sourceItem, generatedLines: generatedLines, keepsFill: keepsFill, wasStroked: sourceItem.stroked });
+            if (keepsFill) {
+                sourceItem.stroked = false;
+            } else {
+                sourceItem.hidden = true;
+            }
         }
         return { items: expandedItems, expansions: rectangleExpansions };
     }
@@ -1799,19 +2328,30 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4f290b420561"; /* 紹�
             for (var generatedLineIndex = 0; generatedLineIndex < expansion.generatedLines.length; generatedLineIndex++) {
                 expansion.generatedLines[generatedLineIndex].remove();
             }
-            expansion.sourceRectangle.hidden = false;
+            if (expansion.keepsFill) {
+                expansion.sourceRectangle.stroked = expansion.wasStroked;
+            } else {
+                expansion.sourceRectangle.hidden = false;
+            }
         }
     }
 
     /**
-     * 分解を確定し、隠していた元の長方形を削除する
+     * 分解を確定し、隠していた元の長方形を削除する。塗りのある長方形は背景として残す
      * @param {Object[]} rectangleExpansions - expandRectanglesInSelection() の記録
-     * @returns {void}
+     * @returns {PathItem[]} 背景として残した長方形
      */
     function removeExpandedRectangles(rectangleExpansions) {
+        var keptRectangles = [];
         for (var expansionIndex = 0; expansionIndex < rectangleExpansions.length; expansionIndex++) {
-            rectangleExpansions[expansionIndex].sourceRectangle.remove();
+            var expansion = rectangleExpansions[expansionIndex];
+            if (expansion.keepsFill) {
+                keptRectangles.push(expansion.sourceRectangle);
+            } else {
+                expansion.sourceRectangle.remove();
+            }
         }
+        return keptRectangles;
     }
 
     // =========================================
@@ -2036,26 +2576,39 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4f290b420561"; /* 紹�
     }
 
     /**
-     * プレビューを更新する（元に戻してから、プレビューと外枠分割が ON のときだけ整列する）
+     * プレビューを更新する。両モードのプレビューを元に戻してから、プレビューが ON なら今のモードで適用する
      * @param {Object} dialogControls - buildOptionDialog() の戻り値
-     * @param {{horizontalLines: Object[], verticalLines: Object[]}} classified - 分類済みの線
-     * @param {Object} gridBounds - 外周座標
-     * @param {Object[]} originalLineStates - 元の線の状態
+     * @param {Object} modeSession - main() で作るモードの状態
      * @returns {void}
      */
-    function updatePreviewFromDialogState(dialogControls, classified, gridBounds, originalLineStates) {
-        restoreLineStates(originalLineStates);
-        if (dialogControls.previewCheckbox.value) {
-            var previewOptions = readOptionDialogState(dialogControls);
-            // 外枠を四辺に分割が OFF の場合、本処理（罫線整列）を行わず元の状態のまま表示 / If split is OFF, skip the main alignment and show original state
-            if (!isGridRebuildSkipped(previewOptions, dialogControls.hasExpandedRectangles)) {
-                // プレビュー時は frameToRect, group を適用しない / frameToRect and group are not applied in preview
-                previewOptions.frameToRect = false;
-                previewOptions.group = false;
-                applyLineOptions(classified, gridBounds, previewOptions);
+    function refreshModePreview(dialogControls, modeSession) {
+        var isPreviewOn = dialogControls.previewCheckbox.value;
+        var isDetailedMode = dialogControls.currentMode === MODE_DETAILED;
+        /* 詳細モードのプレビュー中は、分解した外枠を作り直さずに使い回す / Keep the split frame while previewing Advanced mode */
+        resetModePreviews(modeSession, isPreviewOn && isDetailedMode);
+        if (isPreviewOn) {
+            if (isDetailedMode) {
+                applyDetailedPreview(dialogControls, openDetailedState(modeSession));
+            } else {
+                applySimpleSettings(modeSession.simpleTarget, readOptionDialogState(dialogControls));
             }
         }
         app.redraw();
+    }
+
+    /**
+     * 詳細モードのプレビューを適用する（外枠を四辺に分割が OFF なら、分解した線のまま整列しない）
+     * @param {Object} dialogControls - buildOptionDialog() の戻り値
+     * @param {Object} detailedState - openDetailedState() の戻り値
+     * @returns {void}
+     */
+    function applyDetailedPreview(dialogControls, detailedState) {
+        var previewOptions = readOptionDialogState(dialogControls);
+        if (isGridRebuildSkipped(previewOptions, detailedState.expansions.length > 0)) return;
+        // プレビュー時は frameToRect, group を適用しない / frameToRect and group are not applied in preview
+        previewOptions.frameToRect = false;
+        previewOptions.group = false;
+        applyLineOptions(detailedState.classified, detailedState.gridBounds, previewOptions);
     }
 
     /**
@@ -2067,6 +2620,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4f290b420561"; /* 紹�
         var distributionMode = readDistributionMode(dialogControls);
         var isEvenMode = distributionMode !== "none";
         return {
+            mode: dialogControls.currentMode,
+            averageHorizontal: dialogControls.averageHorizontalCheckbox.value,
+            averageVertical: dialogControls.averageVerticalCheckbox.value,
+            matchRuleLengths: dialogControls.matchRuleLengthsCheckbox.value,
             distributionMode: distributionMode,
             even: isEvenMode,
             evenHorizontal: isEvenMode && dialogControls.equalizeHorizontalCheckbox.value,
@@ -2087,7 +2644,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4f290b420561"; /* 紹�
     }
 
     /**
-     * 本処理（罫線の整列）を省くかどうか。長方形を分解したのに［外枠を四辺に分割］がオフなら省く（プレビューと確定で共通）
+     * 詳細モードの本処理（罫線の整列）を省くかどうか。長方形を分解したのに［外枠を四辺に分割］がオフなら省く（プレビューと確定で共通）
      * @param {Object} dialogOptions - ダイアログの設定
      * @param {boolean} hasExpandedRectangles - 外枠の長方形を分解したかどうか
      * @returns {boolean} 省くなら true
@@ -2649,18 +3206,81 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4f290b420561"; /* 紹�
         return optionRadio;
     }
 
+    /* 隠したモードのグループの最大サイズ（0 で詰める）と、表示中の最大サイズ / max size of the hidden mode group (0 collapses it) and of the shown one */
+    var MODE_GROUP_HIDDEN_SIZE = [0, 0];
+    var MODE_GROUP_SHOWN_SIZE = [10000, 10000];
+
+    /**
+     * モード切り替えのラジオボタンを追加する（今の選択で使えないモードはディム）
+     * @param {Group} parentRow - 追加先の行
+     * @param {string} labelPath - 表示名の LABELS パス
+     * @param {string} tooltipPath - tooltip の LABELS パス
+     * @param {boolean} isAvailable - 今の選択で使えるかどうか
+     * @param {boolean} initialValue - 初期値
+     * @returns {RadioButton} 追加したラジオボタン
+     */
+    function addModeRadio(parentRow, labelPath, tooltipPath, isAvailable, initialValue) {
+        var modeRadio = addOptionRadio(parentRow, labelPath, tooltipPath);
+        if (!isAvailable) modeRadio.helpTip += "\n" + getLabel("tooltip.modeUnavailable");
+        modeRadio.enabled = isAvailable;
+        modeRadio.value = initialValue;
+        return modeRadio;
+    }
+
     /**
      * ダイアログを組み立てる
      * @param {{label: string, pointsPerUnit: number}} strokeUnitInfo - 線の単位
-     * @param {boolean} hasExpandedRectangles - 外枠の長方形を分解したかどうか
+     * @param {Object} modeSession - main() で作るモードの状態
+     * @param {string} initialMode - 開いたときのモード（MODE_SIMPLE / MODE_DETAILED）
      * @returns {Object} ダイアログ（optionDialog）と各コントロール
      */
-    function buildOptionDialog(strokeUnitInfo, hasExpandedRectangles) {
+    function buildOptionDialog(strokeUnitInfo, modeSession, initialMode) {
         var optionDialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
         setupWindow(optionDialog);
 
+        var simpleTarget = modeSession.simpleTarget;
+        var hasRectangles = modeSession.hasRectangles;
+
+        // モード切り替え / Mode switch
+        var modeRow = optionDialog.add("group");
+        setupRow(modeRow, "left");
+        var modeSimpleRadio = addModeRadio(modeRow, "radio.modeSimple", "tooltip.modeSimple",
+            !!simpleTarget, initialMode === MODE_SIMPLE);
+        var modeDetailedRadio = addModeRadio(modeRow, "radio.modeDetailed", "tooltip.modeDetailed",
+            modeSession.canUseDetailedMode, initialMode === MODE_DETAILED);
+
+        /* 2つのモードのグループを重ねる。隠した側は 0 に詰めるので、間隔も 0 にする
+           Stack the two mode groups; the hidden one collapses to 0, so no spacing between them */
+        var modeStackGroup = optionDialog.add("group");
+        modeStackGroup.orientation = "column";
+        modeStackGroup.alignChildren = "fill";
+        modeStackGroup.spacing = 0;
+
+        // 簡易モード / Simple mode
+        var simpleGroup = modeStackGroup.add("group");
+        simpleGroup.orientation = "column";
+        simpleGroup.alignChildren = "fill";
+        var simpleTargetPanel = addOptionPanel(simpleGroup, "panel.target");
+        var horizontalRuleCount = simpleTarget ? simpleTarget.horizontalRules.length : 0;
+        var verticalRuleCount = simpleTarget ? simpleTarget.verticalRules.length : 0;
+        /* 見つかった罫線の向きは ON で開く / Rules found start ON */
+        var averageHorizontalCheckbox = addOptionCheckbox(simpleTargetPanel,
+            "checkbox.averageHorizontal", "tooltip.averageHorizontal", horizontalRuleCount > 0);
+        averageHorizontalCheckbox.enabled = horizontalRuleCount > 0;
+        var averageVerticalCheckbox = addOptionCheckbox(simpleTargetPanel,
+            "checkbox.averageVertical", "tooltip.averageVertical", verticalRuleCount > 0);
+        averageVerticalCheckbox.enabled = verticalRuleCount > 0;
+        var matchRuleLengthsCheckbox = addOptionCheckbox(simpleTargetPanel,
+            "checkbox.matchRuleLengths", "tooltip.matchRuleLengths", MATCH_LINES_TO_RECT);
+        matchRuleLengthsCheckbox.enabled = !!simpleTarget;
+
+        // 詳細モード / Advanced mode
+        var detailedGroup = modeStackGroup.add("group");
+        detailedGroup.orientation = "column";
+        detailedGroup.alignChildren = "fill";
+
         // メインオプション2カラム / Main options in two columns
-        var mainOptionsGroup = optionDialog.add("group");
+        var mainOptionsGroup = detailedGroup.add("group");
         mainOptionsGroup.orientation = "row";
         mainOptionsGroup.alignChildren = ["fill", "top"];
         mainOptionsGroup.spacing = COLUMN_SPACING;
@@ -2676,9 +3296,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4f290b420561"; /* 紹�
         // 前処理パネル / Pre-processing panel
         var preprocessingPanel = addOptionPanel(leftColumnGroup, "panel.preprocessing");
         var splitOuterFrameCheckbox = addOptionCheckbox(preprocessingPanel,
-            "checkbox.splitFrameToFourSides", "tooltip.splitFrameToFourSides", !!hasExpandedRectangles);
+            "checkbox.splitFrameToFourSides", "tooltip.splitFrameToFourSides", hasRectangles);
         /* 分解する長方形が無ければ意味が無いのでディム / dimmed when there is no rectangle to split */
-        splitOuterFrameCheckbox.enabled = !!hasExpandedRectangles;
+        splitOuterFrameCheckbox.enabled = hasRectangles;
 
         // 配置ラジオボタン / Distribution options
         var distributionPanel = addOptionPanel(leftColumnGroup, "panel.distribution");
@@ -2726,20 +3346,29 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4f290b420561"; /* 紹�
         // 後処理パネル / Post-processing panel
         var postProcessingPanel = addOptionPanel(leftColumnGroup, "panel.postProcessing");
         var frameToRectangleCheckbox = addOptionCheckbox(postProcessingPanel,
-            "checkbox.frameToRect", "tooltip.frameToRect", !!hasExpandedRectangles);
+            "checkbox.frameToRect", "tooltip.frameToRect", hasRectangles);
         var centerPointTextVerticallyCheckbox = addOptionCheckbox(postProcessingPanel,
             "checkbox.centerPointTextVertically", "tooltip.centerPointTextVertically", false);
         var groupingCheckbox = addOptionCheckbox(postProcessingPanel, "checkbox.grouping", "tooltip.grouping", false);
 
         // 下段：左＝プレビュー、右＝ボタン / Bottom row: left=preview, right=buttons
         var buttonRow = addButtonRow(optionDialog);
-        var previewCheckbox = addOptionCheckbox(buttonRow.leftGroup, "checkbox.preview", "tooltip.preview", false);
+        /* 簡易モードはプレビュー ON、詳細モードは OFF で開く / Preview starts ON in Simple mode and OFF in Advanced mode */
+        var previewCheckbox = addOptionCheckbox(buttonRow.leftGroup, "checkbox.preview", "tooltip.preview", initialMode === MODE_SIMPLE);
         buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
         buttonRow.rightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
 
         return {
             optionDialog: optionDialog,
-            hasExpandedRectangles: !!hasExpandedRectangles,
+            currentMode: initialMode,
+            modeDialogSizes: null,
+            modeSimpleRadio: modeSimpleRadio,
+            modeDetailedRadio: modeDetailedRadio,
+            simpleGroup: simpleGroup,
+            detailedGroup: detailedGroup,
+            averageHorizontalCheckbox: averageHorizontalCheckbox,
+            averageVerticalCheckbox: averageVerticalCheckbox,
+            matchRuleLengthsCheckbox: matchRuleLengthsCheckbox,
             previewCheckbox: previewCheckbox,
             distributionNoneRadio: distributionNoneRadio,
             distributionEvenRadio: distributionEvenRadio,
@@ -2845,25 +3474,137 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4f290b420561"; /* 紹�
     }
 
     /**
-     * ダイアログを表示してオプションを受け取る
-     * @param {{horizontalLines: Object[], verticalLines: Object[]}} classified - 分類済みの線
-     * @param {Object} gridBounds - 外周座標
-     * @param {Object[]} originalLineStates - 元の線の状態
+     * 簡易モードのチェックボックスの処理を結び付ける。option＋クリックで、有効なもう一方も同じ状態にする
+     * @param {Object} dialogControls - buildOptionDialog() の戻り値
+     * @param {Function} refreshPreview - プレビューを更新する関数
+     * @returns {void}
+     */
+    function bindSimpleModeEvents(dialogControls, refreshPreview) {
+        /**
+         * 横罫・縦罫のチェックボックスの処理を設定する
+         * @param {Checkbox} clickedCheckbox - クリックされるチェックボックス
+         * @param {Checkbox} otherCheckbox - そろえるチェックボックス
+         * @returns {void}
+         */
+        function bindRuleCheckbox(clickedCheckbox, otherCheckbox) {
+            clickedCheckbox.onClick = function () {
+                if (ScriptUI.environment.keyboardState.altKey && otherCheckbox.enabled) {
+                    otherCheckbox.value = clickedCheckbox.value;
+                }
+                refreshPreview();
+            };
+        }
+
+        bindRuleCheckbox(dialogControls.averageHorizontalCheckbox, dialogControls.averageVerticalCheckbox);
+        bindRuleCheckbox(dialogControls.averageVerticalCheckbox, dialogControls.averageHorizontalCheckbox);
+        dialogControls.matchRuleLengthsCheckbox.onClick = refreshPreview;
+    }
+
+    /**
+     * モードのラジオボタンの処理を結び付ける（ダイアログの大きさを合わせ直してからプレビューを更新する）
+     * @param {Object} dialogControls - buildOptionDialog() の戻り値
+     * @param {Function} refreshPreview - プレビューを更新する関数
+     * @returns {void}
+     */
+    function bindModeEvents(dialogControls, refreshPreview) {
+        dialogControls.modeSimpleRadio.onClick = function () {
+            switchDialogMode(dialogControls, MODE_SIMPLE);
+            refreshPreview();
+        };
+        dialogControls.modeDetailedRadio.onClick = function () {
+            switchDialogMode(dialogControls, MODE_DETAILED);
+            refreshPreview();
+        };
+    }
+
+    /**
+     * モードのグループを表示し、もう一方を隠して 0 に詰める（レイアウトは呼ぶ側で行う）
+     * @param {Object} dialogControls - buildOptionDialog() の戻り値
+     * @param {string} mode - 表示するモード
+     * @returns {void}
+     */
+    function showModeGroup(dialogControls, mode) {
+        var isSimple = mode === MODE_SIMPLE;
+        dialogControls.simpleGroup.visible = isSimple;
+        dialogControls.simpleGroup.maximumSize = isSimple ? MODE_GROUP_SHOWN_SIZE : MODE_GROUP_HIDDEN_SIZE;
+        dialogControls.detailedGroup.visible = !isSimple;
+        dialogControls.detailedGroup.maximumSize = isSimple ? MODE_GROUP_HIDDEN_SIZE : MODE_GROUP_SHOWN_SIZE;
+    }
+
+    /**
+     * 表示前に、モードごとのダイアログの大きさを測っておき、開くときのモードで組み直す
+     * @param {Object} dialogControls - buildOptionDialog() の戻り値
+     * @returns {void}
+     */
+    function measureModeDialogSizes(dialogControls) {
+        var optionDialog = dialogControls.optionDialog;
+        var modes = [MODE_SIMPLE, MODE_DETAILED];
+        var modeSizes = {};
+        for (var modeIndex = 0; modeIndex < modes.length; modeIndex++) {
+            showModeGroup(dialogControls, modes[modeIndex]);
+            optionDialog.layout.layout(true);
+            if (optionDialog.size) modeSizes[modes[modeIndex]] = [optionDialog.size.width, optionDialog.size.height];
+        }
+        dialogControls.modeDialogSizes = modeSizes;
+        showModeGroup(dialogControls, dialogControls.currentMode);
+        optionDialog.layout.layout(true);
+    }
+
+    /**
+     * 表示中のダイアログのモードを切り替え、測っておいた大きさに組み直す
+     * 一度配置したあとは layout だけでは大きさが変わらないので、size も入れ直す
+     * @param {Object} dialogControls - buildOptionDialog() の戻り値
+     * @param {string} mode - 切り替え先のモード
+     * @returns {void}
+     */
+    function switchDialogMode(dialogControls, mode) {
+        if (dialogControls.currentMode === mode) return;
+        dialogControls.currentMode = mode;
+        var optionDialog = dialogControls.optionDialog;
+        showModeGroup(dialogControls, mode);
+        optionDialog.layout.layout(true);
+        var modeSize = dialogControls.modeDialogSizes && dialogControls.modeDialogSizes[mode];
+        if (modeSize) {
+            optionDialog.size = [modeSize[0], modeSize[1]];
+            optionDialog.layout.resize();
+        }
+    }
+
+    /**
+     * ダイアログを表示してオプションを受け取る。閉じたときは両モードのプレビューを元に戻す
+     * （詳細モードで確定したときだけ、分解した外枠を確定処理のために残す）
+     * @param {Object} modeSession - main() で作るモードの状態
      * @param {{label: string, pointsPerUnit: number}} strokeUnitInfo - 線の単位
-     * @param {boolean} hasExpandedRectangles - 外枠の長方形を分解したかどうか
      * @returns {Object|null} ダイアログの設定。キャンセルなら null
      */
-    function showOptionDialog(classified, gridBounds, originalLineStates, strokeUnitInfo, hasExpandedRectangles) {
-        var dialogControls = buildOptionDialog(strokeUnitInfo, hasExpandedRectangles);
-        bindOptionDialogEvents(dialogControls, function () {
-            updatePreviewFromDialogState(dialogControls, classified, gridBounds, originalLineStates);
-        });
+    function showOptionDialog(modeSession, strokeUnitInfo) {
+        var initialMode = resolveInitialMode(modeSession);
+        var dialogControls = buildOptionDialog(strokeUnitInfo, modeSession, initialMode);
+        var refreshPreview = function () {
+            refreshModePreview(dialogControls, modeSession);
+        };
+        bindOptionDialogEvents(dialogControls, refreshPreview);
+        bindSimpleModeEvents(dialogControls, refreshPreview);
+        bindModeEvents(dialogControls, refreshPreview);
+        measureModeDialogSizes(dialogControls);
+
+        /* 簡易モードはプレビュー ON で開く。表示前はチェックボックスの値を読み戻せないので、初期値から適用する
+           Simple mode opens with Preview ON; checkbox values cannot be read back before show, so apply the initial values */
+        if (initialMode === MODE_SIMPLE) {
+            applySimpleSettings(modeSession.simpleTarget, {
+                averageHorizontal: modeSession.simpleTarget.horizontalRules.length > 0,
+                averageVertical: modeSession.simpleTarget.verticalRules.length > 0,
+                matchRuleLengths: MATCH_LINES_TO_RECT
+            });
+            app.redraw();
+        }
 
         prepareDialogWindow(dialogControls.optionDialog, SCRIPT_NAME);
         var dialogResult = dialogControls.optionDialog.show();
-        restoreLineStates(originalLineStates);
-        if (dialogResult !== 1) return null;
-        return readOptionDialogState(dialogControls);
+        var dialogOptions = (dialogResult === 1) ? readOptionDialogState(dialogControls) : null;
+        resetModePreviews(modeSession, !!dialogOptions && dialogOptions.mode === MODE_DETAILED);
+        if (!dialogOptions) app.redraw();
+        return dialogOptions;
     }
 
     /* 定数の代入がすべて済んでから実行する / run only after every constant above has been assigned */
