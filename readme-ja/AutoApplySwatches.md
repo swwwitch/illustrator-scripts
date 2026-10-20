@@ -1,8 +1,8 @@
 # スウォッチの連続適用
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-ApplySwatchesToSelection.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/color/ApplySwatchesToSelection.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-AutoApplySwatches.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/color/AutoApplySwatches.jsx)
 
-[![English](https://img.shields.io/badge/README-English-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ApplySwatchesToSelection.md)
+[![English](https://img.shields.io/badge/README-English-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AutoApplySwatches.md)
 
 [![Direct](https://img.shields.io/badge/Back%20to%20home-All%20scripts-cccccc.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/README.md)
 
@@ -14,6 +14,7 @@ UIはありません。
 
 - テキストが1つの場合には、文字単位で変更
 - テキストが2つの場合には、テキストオブジェクトごとに変更
+- 線（塗りなし・オープンパス）のみの場合には、線に色を付ける（線幅0は1ptに）
 
 ## 概要：
 
@@ -46,6 +47,7 @@ https://gist.github.com/shspage/02c6d8654cf6b3798b6c0b69d976a891
 - v1.0.1（2025-06-25）スウォッチを選択していないときには、全スウォッチを対象に
 - v1.0.2（2026-09-27）エラーメッセージのコロンを全角に
 - v1.0.3（2026-10-04）項目名のコロンを「 :」（半角スペース＋半角コロン）に変更（共通部品の更新）
+- v1.1.0（2026-10-20）線のみを選択しているときは線にカラーを適用（線幅0は1ptに）
 
 
 

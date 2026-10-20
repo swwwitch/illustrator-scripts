@@ -1,8 +1,8 @@
 # Distribute swatch colors across the selection
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-ApplySwatchesToSelection.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/color/ApplySwatchesToSelection.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-AutoApplySwatches.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/color/AutoApplySwatches.jsx)
 
-[![Japanese](https://img.shields.io/badge/README-Japanese-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ApplySwatchesToSelection.md)
+[![Japanese](https://img.shields.io/badge/README-Japanese-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AutoApplySwatches.md)
 
 [![Direct](https://img.shields.io/badge/Back%20to%20home-All%20scripts-cccccc.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/README.md)
 
@@ -18,6 +18,7 @@
 - Uses selected swatches from the Swatches panel or all process swatches
 - Colors individual characters for single text frame
 - Colors objects in order when multiple objects are selected
+- Colors the strokes when only lines (unfilled or open paths) are selected; zero stroke widths become 1 pt
 - Random shuffle if there are more than 3 colors
 - Japanese and English UI support
 
@@ -39,3 +40,4 @@ https://gist.github.com/shspage/02c6d8654cf6b3798b6c0b69d976a891
 - v1.0.1 (20250625): Supported all process swatches when no swatches are selected
 - v1.0.2 (20260927): Internal cleanup (the Japanese error message now uses a full-width colon)
 - v1.0.3 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
+- v1.1.0 (2026-10-20) When only lines are selected, colors are applied to the strokes (zero widths become 1 pt)

@@ -24,8 +24,8 @@ ID_PREFIX = "com.swwwitch.illustrator."
 TARGET_APP = "Illustrator"
 EXCLUDE_DIRS = ("/_templates/",)
 
-# Script-ID に使えない文字（A-Z a-z 0-9 . _ - 以外）を含む SCRIPT_NAME の代わりの ID。
-# 一度公開した ID は変えない / IDs for names with characters Script-ID does not allow. Never change once published
+# Script-ID に使えない文字（A-Z a-z 0-9 . _ - 以外）を含む SCRIPT_NAME と、改名したスクリプトの旧名の ID。
+# 一度公開した ID は変えない / IDs for names Script-ID does not allow, and the old IDs of renamed scripts. Never change once published
 ID_OVERRIDES = {
     "ガイドをテンプレートに": "GuidesToTemplate",
     "レイヤーをテンプレートに": "LayersToTemplate",
@@ -34,6 +34,8 @@ ID_OVERRIDES = {
     "AutoLeadingStep+1": "AutoLeadingStepPlus1",
     "AutoLeadingStep+10": "AutoLeadingStepPlus10",
     "段落スタイル": "ParagraphStyles",
+    "AutoApplySwatches": "ApplySwatchesToSelection",
+    "AiDistributeColors": "AiApplySwatchesToSelection",
 }
 
 BLOCK_RE = re.compile(r"/\*\nSCRIPTMETA-BEGIN\n.*?\nSCRIPTMETA-END\n\*/\n\n", re.S)

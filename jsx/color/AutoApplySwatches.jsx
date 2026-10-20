@@ -4,17 +4,19 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 /*
 SCRIPTMETA-BEGIN
 Script-ID=com.swwwitch.illustrator.ApplySwatchesToSelection
-Name=ApplySwatchesToSelection
+Name=AutoApplySwatches
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.0.3
+Version=1.1.0
 Release-Date=2026-03-05
 Description-BEGIN
 選択したオブジェクトやテキストに、スウォッチや定義済みカラーを自動で適用します。
 CMYK／RGBのカラーモードに応じて使う色を切り替え、CMYKでスウォッチ未選択のときは2色混合の色をランダム生成します。
+線（塗りなし・オープンパス）だけを選択しているときは、線に色を付けます（線幅0は1ptに）。
 
 Applies swatches, or predefined colors, to the selected objects and text automatically.
 The palette follows the CMYK/RGB color mode, and in CMYK with no swatch selected it generates random two-ink combinations.
+When only lines (unfilled or open paths) are selected, the strokes are colored instead (zero widths become 1 pt).
 Description-END
 SCRIPTMETA-END
 */
@@ -25,31 +27,33 @@ SCRIPTMETA-END
 
 選択したオブジェクトやテキストに、スウォッチや定義済みカラーを自動で適用します。
 CMYK／RGBのカラーモードに応じて使う色を切り替え、CMYKでスウォッチ未選択のときは2色混合の色をランダム生成します。
+線（塗りなし・オープンパス）だけを選択しているときは、線に色を付けます（線幅0は1ptに）。
 
 詳細は README を参照してください。
-https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ApplySwatchesToSelection.md
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AutoApplySwatches.md
 
 ### Overview
 
 Applies swatches, or predefined colors, to the selected objects and text automatically.
 The palette follows the CMYK/RGB color mode, and in CMYK with no swatch selected it generates random two-ink combinations.
+When only lines (unfilled or open paths) are selected, the strokes are colored instead (zero widths become 1 pt).
 
 See the README for details.
-https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ApplySwatchesToSelection.md
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AutoApplySwatches.md
 
 */
 
 // =========================================
 // 基本情報 / Basic info
 // =========================================
-var SCRIPT_NAME     = "ApplySwatchesToSelection";     /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.3";                       /* バージョン / version */
+var SCRIPT_NAME     = "AutoApplySwatches";            /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-03-05";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-20";                   /* 更新日 / last updated */
 
-var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ApplySwatchesToSelection.md"; /* README（日本語） */
-var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ApplySwatchesToSelection.md"; /* README (English) */
+var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AutoApplySwatches.md"; /* README（日本語） */
+var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AutoApplySwatches.md"; /* README (English) */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
@@ -59,6 +63,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // =========================================
     // ユーザー設定 / User Settings
     // =========================================
+
+    /* 線のみを選択したとき、線幅が0なら使う線幅（pt） / Stroke width used when a selected line has none (pt) */
+    var DEFAULT_LINE_STROKE_WIDTH = 1;
 
     /* RGB ドキュメントでスウォッチ未選択のときに使う色 / Colors used in RGB documents when no swatches are selected */
     var RGB_FALLBACK_COLORS = [
@@ -253,6 +260,37 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             return Math.max(1, colorTargets[0].contents.length);
         }
         return Math.max(1, colorTargets.length);
+    }
+
+    /**
+     * 線として扱うパスか（塗りなし、またはオープンパス）
+     * @param {PathItem} pathItem - 判定するパス
+     * @returns {boolean} 線なら true
+     */
+    function isLinePath(pathItem) {
+        return !pathItem.filled || !pathItem.closed;
+    }
+
+    /**
+     * 色付け対象がすべて線（塗りなし・オープンパスのパスや複合パス）か
+     * @param {PageItem[]} colorTargets - 色付け対象
+     * @returns {boolean} すべて線なら true
+     */
+    function isLinesOnly(colorTargets) {
+        if (colorTargets.length === 0) return false;
+        for (var i = 0; i < colorTargets.length; i++) {
+            var target = colorTargets[i];
+            if (target.typename === "PathItem") {
+                if (!isLinePath(target)) return false;
+            } else if (target.typename === "CompoundPathItem" && target.pathItems.length > 0) {
+                for (var j = 0; j < target.pathItems.length; j++) {
+                    if (!isLinePath(target.pathItems[j])) return false;
+                }
+            } else {
+                return false;
+            }
+        }
+        return true;
     }
 
     // =========================================
@@ -539,6 +577,21 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /**
+     * パスの線に色を付ける（線幅0なら既定の線幅に）。塗りはそのまま
+     * @param {PathItem} pathItem - 対象のパス
+     * @param {Color} color - 線の色
+     * @returns {void}
+     */
+    function colorStroke(pathItem, color) {
+        pathItem.stroked = true;
+        pathItem.strokeColor = color;
+        if (!(pathItem.strokeWidth > 0)) {
+            pathItem.strokeWidth = DEFAULT_LINE_STROKE_WIDTH;
+        }
+        pathItem.opacity = 100;
+    }
+
+    /**
      * オブジェクトを位置順に並べ替える（横に広ければ左→右、縦に広ければ上→下）
      * @param {PageItem[]} items - 並べ替えるオブジェクト（その場で並べ替える）
      * @returns {void}
@@ -576,19 +629,21 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * 複数のオブジェクトを位置順に並べ、1つずつ色を付ける
      * @param {PageItem[]} colorTargets - 色付け対象
      * @param {Array<{color: Color}>} swatches - 使う色
+     * @param {boolean} strokeOnly - true なら塗りではなく線に色を付ける
      * @returns {void}
      */
-    function colorItemsByPosition(colorTargets, swatches) {
+    function colorItemsByPosition(colorTargets, swatches, strokeOnly) {
+        var colorPathItem = strokeOnly ? colorStroke : colorPath;
         sortByPosition(colorTargets);
         for (var i = 0; i < colorTargets.length; i++) {
             var swatchColor = getSwatchColor(i, swatches);
             var currentItem = colorTargets[i];
 
             if (currentItem.typename === "PathItem") {
-                colorPath(currentItem, swatchColor);
+                colorPathItem(currentItem, swatchColor);
             } else if (currentItem.typename === "CompoundPathItem" && currentItem.pathItems.length > 0) {
                 for (var j = 0; j < currentItem.pathItems.length; j++) {
-                    colorPath(currentItem.pathItems[j], swatchColor);
+                    colorPathItem(currentItem.pathItems[j], swatchColor);
                 }
             } else if (currentItem.typename === "TextFrame") {
                 /* 複数テキストはテキスト単位で色付け / Color each text frame as a whole */
@@ -636,7 +691,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             } else if (isSingleTextFrame(colorTargets)) {
                 colorCharacters(colorTargets[0].characters, colorTargets[0].contents.length, swatches);
             } else {
-                colorItemsByPosition(colorTargets, swatches);
+                /* 線のみの選択は線に色を付ける / Color the strokes when only lines are selected */
+                colorItemsByPosition(colorTargets, swatches, isLinesOnly(colorTargets));
             }
         } catch (e) {
             alert(getLabel("alert.unexpected") + e.message);
