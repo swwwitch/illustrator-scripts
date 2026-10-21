@@ -8,14 +8,14 @@ Script-ID=com.swwwitch.illustrator.CenterLineConnectorFromRect
 Name=CenterLineConnectorFromRect
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.7.7
+Version=1.8.0
 Release-Date=2025-06-12
 Description-BEGIN
 Excelなどからコピー＆ペーストした長方形から、罫線（グリッド・枠線）を自動生成します。
-線同士の関係に応じて、格子化・結合・統合まで実行します。
+線同士の関係に応じて、格子化・結合・統合まで実行し、仕上がりはプレビューで確認できます。
 
 Generates table rules — a grid and a border — from rectangles pasted in from Excel or similar.
-Depending on how the lines relate to each other, it also lattices, joins and merges them.
+Depending on how the lines relate to each other, it also lattices, joins and merges them, with a preview of the result.
 Description-END
 SCRIPTMETA-END
 */
@@ -25,7 +25,7 @@ SCRIPTMETA-END
 ### 概要
 
 Excelなどからコピー＆ペーストした長方形から、罫線（グリッド・枠線）を自動生成します。
-線同士の関係に応じて、格子化・結合・統合まで実行します。
+線同士の関係に応じて、格子化・結合・統合まで実行し、仕上がりはプレビューで確認できます。
 
 詳細は README を参照してください。
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/CenterLineConnectorFromRect.md
@@ -36,7 +36,7 @@ https://note.com/dtp_tranist/n/n0a1c70def387
 ### Overview
 
 Generates table rules — a grid and a border — from rectangles pasted in from Excel or similar.
-Depending on how the lines relate to each other, it also lattices, joins and merges them.
+Depending on how the lines relate to each other, it also lattices, joins and merges them, with a preview of the result.
 
 See the README for details.
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CenterLineConnectorFromRect.md
@@ -47,10 +47,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CenterLine
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "CenterLineConnectorFromRect";  /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.7.7";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.8.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-06-12";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-21";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/CenterLineConnectorFromRect.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CenterLineConnectorFromRect.md"; /* README (English) */
@@ -73,6 +73,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0a1c70def387"; /* 紹�
 
     var GENERATED_WORK_LAYER_NAME = "__generated_center_line__";
     var EXCLUSION_PREVIEW_LAYER_NAME = "__center_line_preview__";
+    var RESULT_PREVIEW_LAYER_NAME = "__center_line_result_preview__";
+
+    /* 生成物を置くレイヤー名。結果のプレビュー中だけ RESULT_PREVIEW_LAYER_NAME に切り替える
+       Layer that receives generated items; switched to RESULT_PREVIEW_LAYER_NAME only while previewing */
+    var generatedLayerName = GENERATED_WORK_LAYER_NAME;
 
     // UI の明暗（再利用パーツ） / UI theme (reusable)
 
@@ -746,6 +751,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0a1c70def387"; /* 紹�
         lblStrokePref: { ja: "線幅", en: "Stroke Width" },
         chkCommonStroke: { ja: "線幅を共通にする", en: "Make stroke widths common" },
         chkGroup: { ja: "グループ化", en: "Group result" },
+        chkPreview: { ja: "プレビュー", en: "Preview" },
         chkReturnToOriginal: { ja: "元のレイヤーに戻す", en: "Return to the original layer" },
         tipCenterLine: { ja: "細長い長方形を、その中心を通る1本の線に置き換えます。", en: "Replaces each long thin rectangle with a single line down its middle." },
         tipAngleCorrect: { ja: "わずかに傾いた線を、水平・垂直にそろえ直します。", en: "Straightens lines that are only slightly off horizontal or vertical." },
@@ -760,6 +766,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0a1c70def387"; /* 紹�
         tipStrokeAvg: { ja: "元の長方形の短辺の平均を線幅にします。", en: "Uses the average of the original short sides as the stroke weight." },
         tipStrokeCustom: { ja: "線幅を数値で指定します。", en: "Sets the stroke weight to a value you type." },
         tipCommonStroke: { ja: "すべての線を同じ太さにそろえます。オフだと元の太さを保ちます。", en: "Gives every line the same weight. Off keeps their original weights." },
+        tipPreview: { ja: "仕上がりをアートボード上に表示します。線の数が多いと時間がかかります。", en: "Shows the result on the artboard. Takes a while with many lines." },
         tipGroup: { ja: "作った線を1つのグループにまとめます。", en: "Groups the resulting lines together." },
         tipReturnToOriginal: { ja: "作った線を、元の長方形があったレイヤーへ戻します。", en: "Moves the new lines back onto the layer the rectangles came from." },
         tooltip: {
@@ -936,9 +943,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0a1c70def387"; /* 紹�
         var doc = app.activeDocument;
         var layer;
         try {
-            layer = doc.layers.getByName(GENERATED_WORK_LAYER_NAME);
+            layer = doc.layers.getByName(generatedLayerName);
         } catch (e) {
-            layer = addLayerSafely(GENERATED_WORK_LAYER_NAME);
+            layer = addLayerSafely(generatedLayerName);
         }
         layer.locked = false;
         layer.visible = true;
@@ -1565,6 +1572,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0a1c70def387"; /* 紹�
         var post = buildPostProcessPanel(panelColumn);
         /* ボタン行（左：アウトライン切替／右：キャンセル・OK）/ Button row: outline toggle on the left, Cancel/OK on the right */
         var buttonRow = addButtonRow(dialog);
+        var cbPreview = buttonRow.leftGroup.add("checkbox", undefined, getLabel('chkPreview'));
+        cbPreview.helpTip = getLabel('tipPreview');
+        cbPreview.value = true;
         var btnOutlineToggle = buttonRow.leftGroup.add("button", undefined, getLabel('btnOutlineOn'));
         var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel('btnCancel'), { name: "cancel" });
         var btnOK = buttonRow.rightGroup.add("button", undefined, getLabel('btnOk'), { name: "ok" });
@@ -1607,6 +1617,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0a1c70def387"; /* 紹�
             customStrokeStepper: rule.customStrokeStepper,
             cbCommonStroke: rule.cbCommonStroke,
             cbGroup: post.cbGroup,
+
+            cbPreview: cbPreview,
+            hiddenOriginals: [], /* 結果のプレビュー中に隠した元のオブジェクト / originals hidden during the result preview */
 
             btnOutlineToggle: btnOutlineToggle,
             isOutlineMode: false
@@ -1673,7 +1686,72 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0a1c70def387"; /* 紹�
     /* ダイアログ表示前の初期状態を同期 / Initialize dialog state before showing */
     function initializeOptionDialogState(ui) {
         syncUIState(ui);
+        refreshDialogPreview(ui);
+    }
+
+    /**
+     * 対象外マーカーと結果のプレビューを作り直す。
+     * 対象外の判定は元のオブジェクトで行うため、結果のプレビューを消して元を表示に戻してから作る
+     * @param {Object} ui - buildOptionDialogUI() の戻り値
+     * @returns {void}
+     */
+    function refreshDialogPreview(ui) {
+        clearResultPreview(ui);
         updateExclusionPreviewFromUIState(ui);
+        if (ui.cbPreview.value) showResultPreview(ui);
+    }
+
+    /**
+     * 選択を一時レイヤーへ複製して元を隠し、複製に本処理と同じ変換・連結・仕上げを掛ける
+     * （グループ化と元のレイヤーへ戻す処理は見た目が変わらないので省く）
+     * @param {Object} ui - buildOptionDialogUI() の戻り値
+     * @returns {void}
+     */
+    function showResultPreview(ui) {
+        var options = readOptionDialogValues(ui);
+        generatedLayerName = RESULT_PREVIEW_LAYER_NAME;
+        try {
+            var previewLayer = ensureGeneratedWorkLayer();
+            /* 対象外マーカーは結果の上に見せる / keep the exclusion markers above the result */
+            try { app.activeDocument.layers.getByName(EXCLUSION_PREVIEW_LAYER_NAME).zOrder(ZOrderMethod.BRINGTOFRONT); } catch (eZ) { }
+
+            /* 複製は hidden を引き継ぐので、隠す前に作る。前面から順に末尾へ置き、重なり順を保つ
+               duplicates inherit hidden, so copy before hiding; front-first to the end keeps the stacking order */
+            var previewItems = [];
+            for (var i = 0; i < ui.snapshotSelection.length; i++) {
+                try { previewItems.push(ui.snapshotSelection[i].duplicate(previewLayer, ElementPlacement.PLACEATEND)); } catch (eD) { }
+            }
+            for (var j = 0; j < ui.snapshotSelection.length; j++) {
+                try {
+                    ui.snapshotSelection[j].hidden = true;
+                    ui.hiddenOriginals.push(ui.snapshotSelection[j]);
+                } catch (eH) { }
+            }
+
+            var previewLines = buildTargetCenterLines(previewItems, options);
+            if (previewLines.length > 0) {
+                previewLines = processCenterLineClusters(previewLines, options);
+                applyFinishingOptions(previewLines, options);
+            }
+        } catch (e) {
+        } finally {
+            generatedLayerName = GENERATED_WORK_LAYER_NAME;
+        }
+        try { app.activeDocument.selection = null; } catch (eS) { }
+        app.redraw();
+    }
+
+    /**
+     * 結果のプレビューを消し、隠した元のオブジェクトを表示に戻す
+     * @param {Object} ui - buildOptionDialogUI() の戻り値
+     * @returns {void}
+     */
+    function clearResultPreview(ui) {
+        try { app.activeDocument.layers.getByName(RESULT_PREVIEW_LAYER_NAME).remove(); } catch (e) { }
+        for (var i = 0; i < ui.hiddenOriginals.length; i++) {
+            try { ui.hiddenOriginals[i].hidden = false; } catch (eH) { }
+        }
+        ui.hiddenOriginals = [];
     }
 
     /* UI状態からプレビューを更新 / Update preview from UI state */
@@ -1709,17 +1787,22 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0a1c70def387"; /* 紹�
 
         ui.cbMinShortSide.onClick = function () {
             syncUIState(ui);
-            updateExclusionPreviewFromUIState(ui);
+            refreshDialogPreview(ui);
         };
 
         ui.cbCenterLine.onClick = function () {
             syncUIState(ui);
-            updateExclusionPreviewFromUIState(ui);
+            refreshDialogPreview(ui);
         };
 
         ui.minShortSideSlider.onChanging = function () {
             ui.minShortSideInput.text = roundTo1(ui.minShortSideSlider.value).toFixed(1);
-            updateExclusionPreviewFromUIState(ui);
+            /* 結果のプレビューはドラッグ中は重いので、離したとき（onChange）に作る / build the heavy result preview on release */
+            if (!ui.cbPreview.value) refreshDialogPreview(ui);
+        };
+
+        ui.minShortSideSlider.onChange = function () {
+            if (ui.cbPreview.value) refreshDialogPreview(ui);
         };
 
         ui.minShortSideInput.onChange = function () {
@@ -1729,12 +1812,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0a1c70def387"; /* 紹�
             if (minShortSideValue > ui.SHORT_MAX) minShortSideValue = ui.SHORT_MAX;
             ui.minShortSideSlider.value = minShortSideValue;
             ui.minShortSideInput.text = roundTo1(minShortSideValue).toFixed(1);
-            updateExclusionPreviewFromUIState(ui);
+            refreshDialogPreview(ui);
         };
 
         ui.rbConnectNone.onClick = function () {
             selectConnectRadio(ui.rbConnectNone);
             syncUIState(ui);
+            refreshDialogPreview(ui);
         };
 
         ui.rbConnectAll.onClick = function () {
@@ -1746,6 +1830,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0a1c70def387"; /* 紹�
             ui.rbStrokeMax.value = false;
             ui.rbStrokeAvg.value = false;
             ui.rbStrokeCustom.value = false;
+            refreshDialogPreview(ui);
         };
 
         ui.rbConnectGrid.onClick = function () {
@@ -1754,15 +1839,31 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0a1c70def387"; /* 紹�
             ui.rbStrokeCustom.value = true;
             syncUIState(ui);
             ui.cbCommonStroke.value = true;
+            refreshDialogPreview(ui);
         };
 
-        ui.rbStrokeMax.onClick = function () { syncUIState(ui); };
-        ui.rbStrokeMin.onClick = function () { syncUIState(ui); };
-        ui.rbStrokeAvg.onClick = function () { syncUIState(ui); };
+        ui.rbStrokeMax.onClick = function () { syncUIState(ui); refreshDialogPreview(ui); };
+        ui.rbStrokeMin.onClick = function () { syncUIState(ui); refreshDialogPreview(ui); };
+        ui.rbStrokeAvg.onClick = function () { syncUIState(ui); refreshDialogPreview(ui); };
         ui.rbStrokeCustom.onClick = function () {
             syncUIState(ui);
             ui.cbCommonStroke.value = true;
+            refreshDialogPreview(ui);
         };
+
+        /* 見た目が変わる設定は、結果のプレビュー中なら作り直す（グループ化・元のレイヤーへ戻すは見た目が変わらない）
+           settings that change the result refresh the preview while it is on */
+        function refreshResultPreviewIfOn() {
+            if (ui.cbPreview.value) refreshDialogPreview(ui);
+        }
+        ui.cbAngleCorrect.onClick = refreshResultPreviewIfOn;
+        ui.cbOuterRect.onClick = refreshResultPreviewIfOn;
+        ui.cbPrintBlack.onClick = refreshResultPreviewIfOn;
+        ui.cbCommonStroke.onClick = refreshResultPreviewIfOn;
+        ui.customStrokeInput.onChange = refreshResultPreviewIfOn;
+        ui.customStrokeStepper.stepOptions.onStep = refreshResultPreviewIfOn;
+
+        ui.cbPreview.onClick = function () { refreshDialogPreview(ui); };
 
         ui.btnOutlineToggle.onClick = function () {
             try {
@@ -1789,7 +1890,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0a1c70def387"; /* 紹�
         prepareDialogWindow(dialog, SCRIPT_NAME);
         var dialogResult = dialog.show();
 
-        // Clean up preview layer and restore selection
+        /* プレビューを片付けて選択を戻す（隠した元を先に表示に戻さないと選択できない）
+           clean up the previews and restore the selection (hidden originals cannot be selected) */
+        clearResultPreview(ui);
         clearExclusionPreviewLayer();
         restoreSelectionSafely(ui.snapshotSelection);
         app.redraw();

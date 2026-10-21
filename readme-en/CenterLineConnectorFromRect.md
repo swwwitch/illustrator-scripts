@@ -16,6 +16,7 @@
 ### Main Features
 
 - Optional center-lining, rotation correction, exclusion rules, grid mode and outer-frame rectangles
+- Previews the result on the artboard while the dialog is open (on by default)
 - Stroke weight follows Illustrator's `strokeUnits` and the short-edge threshold follows `rulerType`, with display values and internal point conversion handled in one place
 - Finishing passes include unifying stroke weights, picking a representative value or a fixed one, converting to print black, and grouping
 - An IIFE structure separates UI construction, event wiring, value reading and the execution flow for maintainability
@@ -35,7 +36,8 @@
 - v1.7.5 (2026-10-01): Unified the window and panel margins and spacing with the shared layout part
 - v1.7.6 (2026-10-01): Added space below the button row to match Illustrator's own dialogs
 - v1.7.7 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
+- v1.8.0 (2026-10-21) Added Preview, which shows the result on the artboard while the dialog is open
 
 ### Script info
 
-- Version: v1.7.7
+- Version: v1.8.0
