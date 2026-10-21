@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.ArrangeLikeTableCells
 Name=ArrangeLikeTableCells
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.4.2
+Version=1.4.3
 Release-Date=2026-10-20
 Description-BEGIN
 外枠と罫線で区切った表で、外枠の大きさ・罫線の間隔・線幅を整え、各テキストをセルの中央に配置します（天地は欧文のベースラインをそろえる）。
@@ -43,7 +43,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ArrangeLik
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ArrangeLikeTableCells";        /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.4.2";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.4.3";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-20";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-21";                   /* 更新日 / last updated */
@@ -1180,7 +1180,71 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
                 }
             }
         }
+        /* 途中で止まった辺は、その先で交わる辺まで伸ばす（交わる辺は伸ばす前の位置で見る）
+           Extend edges that stop short to the next crossing edge (measured before extending) */
+        var verticalExtents = getExtendedEdgeEnds(edges.vertical, edges.horizontal);
+        var horizontalExtents = getExtendedEdgeEnds(edges.horizontal, edges.vertical);
+        applyEdgeEnds(edges.vertical, verticalExtents);
+        applyEdgeEnds(edges.horizontal, horizontalExtents);
         return edges;
+    }
+
+    /**
+     * 辺ごとに、両端の先でいちばん近く交わる辺の位置を求める
+     * （セルの途中から始まる短い罫線でも、そのセルを区切る辺として使えるようにする）
+     * @param {Object[]} edges - 伸ばす辺（collectEdges の vertical または horizontal）
+     * @param {Object[]} crossEdges - 直交する辺
+     * @returns {Object[]} 辺ごとの {startAlong, endAlong}。交わる辺が無い端はそのまま
+     */
+    function getExtendedEdgeEnds(edges, crossEdges) {
+        var extents = [];
+        for (var i = 0; i < edges.length; i++) {
+            var edge = edges[i];
+            var startAlong = edge.startAlong;
+            var endAlong = edge.endAlong;
+            var startTarget = null;
+            var endTarget = null;
+            for (var j = 0; j < crossEdges.length; j++) {
+                var crossEdge = crossEdges[j];
+                var crossAlong;
+                if (isCrossingEdge(crossEdge, edge.startPos)) {
+                    crossAlong = getEdgePosAt(crossEdge, edge.startPos);
+                    if (crossAlong <= startAlong + TOLERANCE && (startTarget === null || crossAlong > startTarget)) startTarget = crossAlong;
+                }
+                if (isCrossingEdge(crossEdge, edge.endPos)) {
+                    crossAlong = getEdgePosAt(crossEdge, edge.endPos);
+                    if (crossAlong >= endAlong - TOLERANCE && (endTarget === null || crossAlong < endTarget)) endTarget = crossAlong;
+                }
+            }
+            extents.push({
+                startAlong: startTarget === null ? startAlong : Math.min(startAlong, startTarget),
+                endAlong: endTarget === null ? endAlong : Math.max(endAlong, endTarget)
+            });
+        }
+        return extents;
+    }
+
+    /**
+     * 辺が、沿う軸の座標 along の位置を通っているかどうか
+     * @param {Object} edge - createEdge() の戻り値
+     * @param {number} along - 辺に沿う軸の座標
+     * @returns {boolean} 通っていれば true
+     */
+    function isCrossingEdge(edge, along) {
+        return along >= edge.startAlong - TOLERANCE && along <= edge.endAlong + TOLERANCE;
+    }
+
+    /**
+     * getExtendedEdgeEnds() で求めた両端を辺に書き込む
+     * @param {Object[]} edges - 書き込む辺
+     * @param {Object[]} extents - getExtendedEdgeEnds() の戻り値
+     * @returns {void}
+     */
+    function applyEdgeEnds(edges, extents) {
+        for (var i = 0; i < edges.length; i++) {
+            edges[i].startAlong = extents[i].startAlong;
+            edges[i].endAlong = extents[i].endAlong;
+        }
     }
 
     /**
@@ -1221,7 +1285,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
         var nearest = { lower: null, upper: null, lowerItem: null, upperItem: null };
         for (var i = 0; i < edges.length; i++) {
             var edge = edges[i];
-            if (along < edge.startAlong - TOLERANCE || along > edge.endAlong + TOLERANCE) continue;
+            if (!isCrossingEdge(edge, along)) continue;
             var edgePos = getEdgePosAt(edge, along);
             if (edgePos < pos - EPSILON && (nearest.lower === null || edgePos > nearest.lower)) {
                 nearest.lower = edgePos;
@@ -1351,21 +1415,31 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
         var geometricBounds = pathItem.geometricBounds;
         var pathWidth = Math.abs(geometricBounds[2] - geometricBounds[0]);
         var pathHeight = Math.abs(geometricBounds[1] - geometricBounds[3]);
-        var centerX = (geometricBounds[0] + geometricBounds[2]) / 2;
-        var centerY = (geometricBounds[1] + geometricBounds[3]) / 2;
 
-        /* 罫線の幅（傾いた罫線ならその振れ幅）ごと外枠の内側にあるものだけを罫線とする。外枠の辺に重なる線は辺とみなす
-           Only lines lying entirely inside the frame across their thickness (or tilt) are rules; lines on a frame edge count as the edge */
+        /* 罫線の幅（傾いた罫線ならその振れ幅）ごと外枠の内側にあるものだけを罫線とする。外枠の辺に重なる線は辺とみなす。
+           長さは外枠の内側に入っている部分で見る（外枠からはみ出した短い罫線は、中心が外枠の外に出ることがある）
+           Only lines lying entirely inside the frame across their thickness (or tilt) are rules; lines on a frame edge count as the edge.
+           The length is measured on the part inside the frame (a short rule sticking out may have its center outside) */
         if (isVertical) {
-            return hasRuleShape(pathHeight, pathWidth, rectBounds.height) &&
+            return hasRuleShape(getOverlapLength(geometricBounds[3], geometricBounds[1], rectBounds.bottom, rectBounds.top), pathWidth, rectBounds.height) &&
                 isInsideRange(geometricBounds[0], rectBounds.left, rectBounds.right) &&
-                isInsideRange(geometricBounds[2], rectBounds.left, rectBounds.right) &&
-                isNearRange(centerY, rectBounds.bottom, rectBounds.top);
+                isInsideRange(geometricBounds[2], rectBounds.left, rectBounds.right);
         }
-        return hasRuleShape(pathWidth, pathHeight, rectBounds.width) &&
+        return hasRuleShape(getOverlapLength(geometricBounds[0], geometricBounds[2], rectBounds.left, rectBounds.right), pathHeight, rectBounds.width) &&
             isInsideRange(geometricBounds[3], rectBounds.bottom, rectBounds.top) &&
-            isInsideRange(geometricBounds[1], rectBounds.bottom, rectBounds.top) &&
-            isNearRange(centerX, rectBounds.left, rectBounds.right);
+            isInsideRange(geometricBounds[1], rectBounds.bottom, rectBounds.top);
+    }
+
+    /**
+     * 2つの範囲が重なっている長さを返す
+     * @param {number} firstMin - 一方の範囲の最小値
+     * @param {number} firstMax - 一方の範囲の最大値
+     * @param {number} secondMin - もう一方の範囲の最小値
+     * @param {number} secondMax - もう一方の範囲の最大値
+     * @returns {number} 重なっている長さ（重ならなければ 0）
+     */
+    function getOverlapLength(firstMin, firstMax, secondMin, secondMax) {
+        return Math.max(0, Math.min(firstMax, secondMax) - Math.max(firstMin, secondMin));
     }
 
     /**
