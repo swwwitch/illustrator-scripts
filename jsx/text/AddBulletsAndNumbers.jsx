@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.AddBulletsAndNumbers
 Name=AddBulletsAndNumbers
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.4.9
+Version=1.4.10
 Release-Date=2026-05-30
 Description-BEGIN
 選択したテキストフレームの各行頭に、箇条書き記号または連番を付与します。マーカーの書式と段落設定（行送り・段落前後のアキ・行揃え・インデント）もあわせて指定できます。
@@ -47,7 +47,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AddBullets
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AddBulletsAndNumbers";         /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.4.9";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.4.10";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-05-30";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-22";                   /* 更新日 / last updated */
@@ -92,7 +92,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd738e3258989"; /* 紹�
     // tabストップ既定倍率（文字サイズ基準, 種類ごと）/ Default tab stop ratios (relative to font size, per type)
     var TAB_STOP_RATIO_1 = 1.2;          // 箇条書き・丸数字の1つ目／本文（1ストップ）/ bullet & circled: 1st stop / body (single stop)
     var NUMBERED_TAB_STOP_RATIO_1 = 1.5; // 数字の1つ目（番号列）/ numbers 1st stop (number column)
-    var ALPHA_TAB_STOP_RATIO_1 = 1.0;    // ABC/abc の1つ目（マーカー列）/ ABC/abc 1st stop (marker column)
+    var ALPHA_TAB_STOP_RATIO_1 = 1.0;    // ABC の1つ目（マーカー列）/ ABC 1st stop (marker column)
     var NUMBERED_TAB_STOP_RATIO_2 = 2.0; // 番号リストの2つ目（本文）/ numbered 2nd stop (text)
 
     // 行揃えボタンの選択肢（左から並ぶ順）/ Justification buttons, in the order they appear
@@ -210,14 +210,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd738e3258989"; /* 紹�
 
     // UIレイアウト（再利用パーツ）ここまで / End of the reusable UI layout
 
-    var WIDE_COLUMN_SPACING = 20;            /* 広めに空ける2カラムの間隔 / wide column gutter */
+    var POSITION_LABEL_WIDTH = 70;           /* 位置（タブストップ）ラベルの幅 / label width for the tab-stop rows */
     var DENSE_SPACING  = 6;                  /* ラジオ・入力行を詰めるパネルの間隔 / spacing for dense panels */
     var FIELD_LABEL_WIDTH = 100;             /* 書式・位置ラベルの幅 / label width for format & position rows */
     var PARAGRAPH_LABEL_WIDTH = 110;         /* 段落設定ラベルの幅 / label width for paragraph rows */
     var REORDER_BUTTON_HEIGHT = 22;          /* 並べ替えボタンの高さ / reorder button height */
+    var FONT_DROPDOWN_WIDTH = 170;           /* フォント・スタイルのポップアップの幅 / font family & style popup width */
     var SWATCH_SIZE = 20;                    /* カラースウォッチの一辺 / color swatch size */
     var JUSTIFY_BUTTON_SIZE = 26;            /* 行揃えボタンの一辺 / justification button size */
-    var PREVIEW_LIST_SIZE = [250, 350];      /* 行一覧の大きさ [幅,高さ] / preview list size */
+    var PREVIEW_LIST_SIZE = [250, 350];      /* 行一覧の大きさ [幅,高さ]（高さは約20pxで1行） / preview list size (about 20px per row) */
     var PREVIEW_LIST_NUMBER_COL = 40;        /* 行一覧の行番号カラム幅 / row-number column width */
     var PREVIEW_LIST_FONT_SIZE = 14;         /* 行一覧の文字サイズ / preview list font size */
 
@@ -1191,7 +1192,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd738e3258989"; /* 紹�
         checkbox: {
             jpOnly: { ja: "和文フォントのみ", en: "Japanese fonts only" },
             zeroPad: { ja: "ゼロ埋め", en: "Zero padding" },
-            hanging: { ja: "折り返し位置を揃える", en: "Align wrapped lines" },
+            hanging: { ja: "折り返し位置を揃える（ハンギング）", en: "Align wrapped lines (hanging indent)" },
             resetPerFrame: { ja: "フレームごとにリセット", en: "Restart each frame" }
         },
         delimiter: {
@@ -1277,16 +1278,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd738e3258989"; /* 紹�
                 en: "Numbers outside 1-20 fall back to plain digits."
             },
             tabStop1: {
-                ja: "箇条書き記号・丸数字では本文開始位置、数字／ABC／abcでは番号を置く位置です。",
-                en: "For bullets and circled numbers, this is where the body starts; for numbers / ABC / abc, this is where the marker is placed."
+                ja: "箇条書き記号・丸数字では本文開始位置、数字／ABCでは番号を置く位置です。",
+                en: "For bullets and circled numbers, this is where the body starts; for numbers / ABC, this is where the marker is placed."
             },
             tabStop2: {
-                ja: "本文の開始位置です。数字／ABC／abc の番号リストで使用します。",
-                en: "Where the body text starts. Used for number / ABC / abc lists."
+                ja: "本文の開始位置です。数字／ABC の番号リストで使用します。",
+                en: "Where the body text starts. Used for number / ABC lists."
             },
             tabAlign: {
-                ja: "数字／ABC／abc のマーカー位置での揃え方です。箇条書きと丸数字では使用しません。",
-                en: "Alignment at the marker position for number / ABC / abc lists. Not used for bullets or circled numbers."
+                ja: "数字／ABC のマーカー位置での揃え方です。箇条書きと丸数字では使用しません。",
+                en: "Alignment at the marker position for number / ABC lists. Not used for bullets or circled numbers."
             },
             scale: {
                 ja: "記号・番号の拡大率（水平・垂直を同率で適用）",
@@ -2825,7 +2826,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd738e3258989"; /* 紹�
         if (/^\t?[①-⑳][\t 　]/.test(line)) { state.type = "numbered"; state.numberStyle = "circledWhite"; state.delimiterIndex = 0; return state; }
         if (/^\t?(?:[❶-❿]|[⓫-⓴])[\t 　]/.test(line)) { state.type = "numbered"; state.numberStyle = "circledBlack"; state.delimiterIndex = 0; return state; }
 
-        // 数字 / ABC / abc / number / ABC / abc
+        // 数字 / ABC（abc の行も ABC として推定）/ number / ABC (lowercase lines are detected as ABC)
         // 先頭タブあり: 区切りは任意・タブまたはスペース / leading tab: delimiter optional, separated by tab or space
         // 先頭タブなし（手打ち）: 区切り必須・スペース/タブ（本文の誤検出を抑える）/ no leading tab (hand-typed): delimiter required + space/tab (avoids false positives in body text)
         var numberedMatch = line.match(/^\t([A-Z]+|[a-z]+|\d+)([.：:|]?)[\t 　]/) ||
@@ -2834,7 +2835,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd738e3258989"; /* 紹�
             var markerGlyph = numberedMatch[1];
             if (/^\d+$/.test(markerGlyph)) state.numberStyle = "number";
             else if (/^[A-Z]+$/.test(markerGlyph)) state.numberStyle = "upperAlpha";
-            else state.numberStyle = "lowerAlpha";
+            else state.numberStyle = "upperAlpha"; // abc は廃止したので ABC として続きを編集する / lowercase was dropped; continue as ABC
             state.type = "numbered";
             state.delimiterIndex = findDelimiterIndex(numberedMatch[2]);
             return state;
@@ -2926,7 +2927,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd738e3258989"; /* 紹�
 
         /**
          * 種類ごとの既定タブストップ（pt）を求める
-         * 数字はマーカー×1.5・本文×2.0、ABC/abc はマーカー×1.0・本文×2.0、
+         * 数字はマーカー×1.5・本文×2.0、ABC はマーカー×1.0・本文×2.0、
          * 箇条書きの本文は記号ごとの bodyRatio（既定×1.2、•/-=0.8）、丸数字・なしは×1.2
          * @param {string} type - "numbered" / "alpha" / "bullet" / "circled" / "none"
          * @returns {{stop1Pt: number, stop2Pt: number}} マーカー位置と本文位置（pt）
@@ -2999,14 +3000,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd738e3258989"; /* 紹�
 
         var rbStyleCircledWhite = numberStylePanel.add("radiobutton", undefined, getLabel('numberStyle.circledWhite'));
         var rbStyleCircledBlack = numberStylePanel.add("radiobutton", undefined, getLabel('numberStyle.circledBlack'));
-        // アルファベット大文字 / 小文字（ラベルはそのまま表示）/ Uppercase / lowercase alphabet (self-explanatory labels)
+        // アルファベット大文字（ラベルはそのまま表示）/ Uppercase alphabet (self-explanatory label)
         var rbStyleUpperAlpha = numberStylePanel.add("radiobutton", undefined, "ABC");
-        var rbStyleLowerAlpha = numberStylePanel.add("radiobutton", undefined, "abc");
         rbStyleNumber.value = true;
 
         // 「数字」を別グループ（行）へ移したため、ラジオの排他は手動で管理 / "Numbers" is in its own row, so manage radio exclusivity manually
-        var numberStyleRadios = [rbStyleNumber, rbStyleCircledWhite, rbStyleCircledBlack, rbStyleUpperAlpha, rbStyleLowerAlpha];
-        var numberStyleIds = ["number", "circledWhite", "circledBlack", "upperAlpha", "lowerAlpha"]; // 上の並びと対応 / matches the order above
+        var numberStyleRadios = [rbStyleNumber, rbStyleCircledWhite, rbStyleCircledBlack, rbStyleUpperAlpha];
+        var numberStyleIds = ["number", "circledWhite", "circledBlack", "upperAlpha"]; // 上の並びと対応 / matches the order above
 
         /**
          * 番号スタイルのラジオを排他選択にする
@@ -3046,26 +3046,22 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd738e3258989"; /* 紹�
         /* 位置調整パネル / Position panel */
         var positionPanel = addPanel(topLeftCol, getLabel('panel.position'), COLUMN_SPACING);
 
-        // 1行目: 1つ目／2つ目を左右2カラムに（それぞれ上揃え）/ Row 1: 1st / 2nd in two columns (each top-aligned)
-        var tabStopColumns = positionPanel.add("group");
-        setupRow(tabStopColumns, "left", WIDE_COLUMN_SPACING); // 1つ目／2つ目カラムのガターを広めに / wider gutter between the 1st / 2nd columns
-        tabStopColumns.alignChildren = ["left", "top"];
+        // 縦1列: マーカー（＋揃え種類）の下に本文 / One column: the body position sits below the marker (and its alignment)
+        var tabStopColumn = positionPanel.add("group");
+        setupColumn(tabStopColumn, DENSE_SPACING);
+        tabStopColumn.alignChildren = ["left", "top"];
+        tabStopColumn.alignment = ["left", "top"];
 
-        // 左: 1つ目のtabストップ（数字／箇条書きの位置）＋揃え種類 / Left column: 1st tab stop (number / bullet) + alignment type
-        var tabStopLeftCol = tabStopColumns.add("group");
-        setupColumn(tabStopLeftCol, DENSE_SPACING);
-        tabStopLeftCol.alignChildren = ["left", "top"];
-        tabStopLeftCol.alignment = ["left", "top"];
-
-        var tabStop1UI = addFieldRow(tabStopLeftCol, labelText('fieldLabel.tabStop1'), String(toDisplayUnit(initialStops.stop1Pt)), null, unitInfo.label);
+        // 1つ目のtabストップ（数字／箇条書きの位置）/ 1st tab stop (number / bullet)
+        var tabStop1UI = addFieldRow(tabStopColumn, labelText('fieldLabel.tabStop1'), String(toDisplayUnit(initialStops.stop1Pt)), POSITION_LABEL_WIDTH, unitInfo.label);
         var tabStopRow1 = tabStop1UI.row;
         var tabStopLabel1 = tabStop1UI.label;
         var inputTabStop1 = tabStop1UI.input;
 
         // 1つ目のタブストップの揃え種類（左／中央／右）/ Alignment type of the 1st tab stop (left/center/right)
-        var tabAlignRow = tabStopLeftCol.add("group");
+        var tabAlignRow = tabStopColumn.add("group");
         setupRow(tabAlignRow, "left", DENSE_SPACING);
-        tabAlignRow.margins = [0, 5, 0, 0]; // 1つ目入力との間に上マージン / top margin from the 1st-stop input
+        tabAlignRow.margins = [POSITION_LABEL_WIDTH + PANEL_SPACING, 0, 0, 0]; // 入力欄の列にそろえる / line up with the input column
         var rbAlignLeft = tabAlignRow.add("radiobutton", undefined, getLabel('tabAlign.left'));
         var rbAlignCenter = tabAlignRow.add("radiobutton", undefined, getLabel('tabAlign.center'));
         var rbAlignRight = tabAlignRow.add("radiobutton", undefined, getLabel('tabAlign.right'));
@@ -3073,8 +3069,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd738e3258989"; /* 紹�
         var tabAlignRadios = [rbAlignLeft, rbAlignCenter, rbAlignRight];
         var tabAlignIds = ["left", "center", "right"]; // 上の並びと対応 / matches the order above
 
-        // 右: 2つ目のtabストップ（本文の位置, 番号リストのみ）/ Right: 2nd tab stop (text column, numbered only)
-        var tabStop2UI = addFieldRow(tabStopColumns, labelText('fieldLabel.tabStop2'), String(toDisplayUnit(initialStops.stop2Pt)), null, unitInfo.label);
+        // 2つ目のtabストップ（本文の位置）/ 2nd tab stop (text column)
+        var tabStop2UI = addFieldRow(tabStopColumn, labelText('fieldLabel.tabStop2'), String(toDisplayUnit(initialStops.stop2Pt)), POSITION_LABEL_WIDTH, unitInfo.label);
+        tabStop2UI.row.margins = [0, 5, 0, 0]; // 揃え種類との間に上マージン / top margin from the alignment radios
         var tabStopRow2 = tabStop2UI.row;
         var tabStopLabel2 = tabStop2UI.label;
         var inputTabStop2 = tabStop2UI.input;
@@ -3153,14 +3150,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd738e3258989"; /* 紹�
         setupRow(fontRow);
         var fontLabel = addFieldLabel(fontRow, labelText('fieldLabel.font'), FIELD_LABEL_WIDTH);
         var fontFamilyDropdown = fontRow.add("dropdownlist", undefined, []);
-        fontFamilyDropdown.preferredSize.width = 200;
+        fontFamilyDropdown.preferredSize.width = FONT_DROPDOWN_WIDTH;
 
         // フォントスタイル（ポップアップ）/ Font style (popup)
         var fontStyleRow = formatPanel.add("group");
         setupRow(fontStyleRow);
         var fontStyleLabel = addFieldLabel(fontStyleRow, labelText('fieldLabel.fontStyle'), FIELD_LABEL_WIDTH);
         var fontStyleDropdown = fontStyleRow.add("dropdownlist", undefined, []);
-        fontStyleDropdown.preferredSize.width = 200;
+        fontStyleDropdown.preferredSize.width = FONT_DROPDOWN_WIDTH;
 
         // 和文フォントのみ / Japanese fonts only
         var jpOnlyRow = formatPanel.add("group");
@@ -3171,51 +3168,33 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd738e3258989"; /* 紹�
         populateFontFamilyDropdown(fontFamilyDropdown, baseFontName, chkJPOnly.value);
         populateFontStyleDropdown(fontStyleDropdown, fontFamilyDropdown.selection, baseFontName);
 
-        // 2カラム: 左=比率・ベースライン / 右=カラー / Two columns: left = scale & baseline shift, right = color
-        var formatColumns = formatPanel.add("group");
-        setupRow(formatColumns, "left", WIDE_COLUMN_SPACING);
-        formatColumns.alignChildren = ["left", "top"];
-
-        // 左カラム / Left column: scale & baseline shift
-        var formatLeftCol = formatColumns.add("group");
-        setupColumn(formatLeftCol, DENSE_SPACING);
-        formatLeftCol.alignChildren = ["left", "top"];
-        formatLeftCol.alignment = ["left", "top"];
-
         // 比率（水平・垂直を同率で適用, %）。初期は箇条書きの記号に合わせた比率 / Scale (applied equally to H and V, %), initialized for the default bullet glyph
-        var scaleUI = addFieldRow(formatLeftCol, labelText('fieldLabel.scale'), "120", FIELD_LABEL_WIDTH, "%");
+        var scaleUI = addFieldRow(formatPanel, labelText('fieldLabel.scale'), "120", FIELD_LABEL_WIDTH, "%");
         var scaleLabel = scaleUI.label;
         var inputScale = scaleUI.input;
 
         // ベースラインシフト / Baseline shift
-        var baselineUI = addFieldRow(formatLeftCol, labelText('fieldLabel.baselineShift'), "0", FIELD_LABEL_WIDTH, unitInfo.label);
+        var baselineUI = addFieldRow(formatPanel, labelText('fieldLabel.baselineShift'), "0", FIELD_LABEL_WIDTH, unitInfo.label);
         var baselineLabel = baselineUI.label;
         var inputBaseline = baselineUI.input;
 
-        // 右カラム / Right column: color
-        var formatRightCol = formatColumns.add("group");
-        setupColumn(formatRightCol, DENSE_SPACING);
-        formatRightCol.alignChildren = ["left", "top"];
-        formatRightCol.alignment = ["left", "top"];
-
-        // カラー（■をクリックでカラーピッカー）。記号／番号と区切り文字を別々に指定 / Color (click a swatch to open the picker). Marker/number and delimiter are set separately
+        // カラー（■をクリックでカラーピッカー）。記号／番号と区切り文字を別々に指定し、ベースラインの下に並べる
+        // Color (click a swatch to open the picker). Marker/number and delimiter are set separately, below the baseline shift
         var baseFillColor = getBaseFillColor(targetSelection);
 
-        // カラー行のラベル幅（比率・ベースラインの FIELD_LABEL_WIDTH とは独立）/ Color-row label width (independent of FIELD_LABEL_WIDTH used by scale/baseline)
-        var colorLabelWidth = (uiLang === "ja") ? 80 : 110;
-
         /**
-         * ラベル＋カラースウォッチの1行を追加する（スウォッチのクリックでピッカー→プレビュー）
-         * @param {Group|Panel} parent - 追加先
+         * ラベル＋カラースウォッチのひと組を行へ追加する（スウォッチのクリックでピッカー→プレビュー）
+         * @param {Group} row - 追加先の行
          * @param {string} labelString - ラベル文字列
          * @param {CMYKColor|RGBColor|GrayColor} initColor - 初期カラー
-         * @returns {{row: Group, label: StaticText, swatch: Group}} 生成した行と部品
+         * @param {number} [labelWidth] - ラベルの幅（指定すると右揃え。省略時は内容にフィット）
+         * @returns {{label: StaticText, swatch: Group}} 生成した部品
          */
-        function addColorRow(parent, labelString, initColor) {
-            var row = parent.add("group");
-            setupRow(row, "left", DENSE_SPACING);
-            var label = addFieldLabel(row, labelString, colorLabelWidth);
-            var swatch = createColorSwatch(row, initColor, SWATCH_SIZE);
+        function addColorField(row, labelString, initColor, labelWidth) {
+            var colorFieldGroup = row.add("group");
+            setupRow(colorFieldGroup, "left", DENSE_SPACING);
+            var label = addFieldLabel(colorFieldGroup, labelString, labelWidth);
+            var swatch = createColorSwatch(colorFieldGroup, initColor, SWATCH_SIZE);
             swatch.addEventListener("click", function () {
                 /* Illustrator 標準のカラーピッカー。OK なら選んだ色（ドキュメントのカラーモードの型）、キャンセルなら渡した色が返る
                    Standard color picker: OK returns the picked color in the document's color model, Cancel returns the given color */
@@ -3225,11 +3204,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd738e3258989"; /* 紹�
                 redrawSwatch(swatch);
                 updatePreview();
             });
-            return { row: row, label: label, swatch: swatch };
+            return { label: label, swatch: swatch };
         }
 
-        var markerColorUI = addColorRow(formatRightCol, labelText('fieldLabel.markerColor'), baseFillColor);
-        var delimiterColorUI = addColorRow(formatRightCol, labelText('delimiter.label'), baseFillColor);
+        // 記号・番号と区切り文字のカラーを横並びに。先頭のラベルは比率・ベースラインとラベル列をそろえる
+        // Marker/number and delimiter colors side by side; the first label shares the label column with scale and baseline
+        var colorRow = formatPanel.add("group");
+        setupRow(colorRow, "left", COLUMN_SPACING);
+        var markerColorUI = addColorField(colorRow, labelText('fieldLabel.markerColor'), baseFillColor, FIELD_LABEL_WIDTH);
+        var delimiterColorUI = addColorField(colorRow, labelText('delimiter.label'), baseFillColor);
         var colorSwatch = markerColorUI.swatch;             // 記号／番号のカラー / marker-number color
         var delimiterColorSwatch = delimiterColorUI.swatch; // 区切り文字のカラー / delimiter color
 
@@ -3371,7 +3354,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd738e3258989"; /* 紹�
 
         /**
          * 現在選択されている番号スタイルを取得する
-         * @returns {string} "number" / "circledWhite" / "circledBlack" / "upperAlpha" / "lowerAlpha"
+         * @returns {string} "number" / "circledWhite" / "circledBlack" / "upperAlpha"
          */
         function currentStyle() {
             return numberStyleIds[selectedIndexOf(numberStyleRadios)];
@@ -3503,14 +3486,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd738e3258989"; /* 紹�
         }
 
         /**
-         * タブストップ既定値を決めるための種類を取得する（丸数字は1ストップ、ABC/abc はマーカー×1.0）
+         * タブストップ既定値を決めるための種類を取得する（丸数字は1ストップ、ABC はマーカー×1.0）
          * @returns {string} "bullet" / "none" / "circled" / "alpha" / "numbered"
          */
         function currentStopType() {
             if (rbBullet.value) return "bullet";
             if (rbNone.value) return "none";
             if (rbStyleCircledWhite.value || rbStyleCircledBlack.value) return "circled";
-            if (rbStyleUpperAlpha.value || rbStyleLowerAlpha.value) return "alpha";
+            if (rbStyleUpperAlpha.value) return "alpha";
             return "numbered";
         }
 
@@ -3568,14 +3551,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd738e3258989"; /* 紹�
             rbStyleCircledWhite.value = (detectedState.numberStyle === "circledWhite");
             rbStyleCircledBlack.value = (detectedState.numberStyle === "circledBlack");
             rbStyleUpperAlpha.value = (detectedState.numberStyle === "upperAlpha");
-            rbStyleLowerAlpha.value = (detectedState.numberStyle === "lowerAlpha");
             // 区切り文字 / delimiter
             for (var i = 0; i < delimiterRadios.length; i++) delimiterRadios[i].value = (i === detectedState.delimiterIndex);
             // 比率 / scale
             if (detectedState.type === "bullet") inputScale.text = String(BULLET_SYMBOLS[detectedState.bulletIndex].scale);
             else if (detectedState.type === "numbered") inputScale.text = "100";
             // 1つ目タブストップの揃え / 1st-stop alignment
-            if (detectedState.type === "numbered" && (detectedState.numberStyle === "upperAlpha" || detectedState.numberStyle === "lowerAlpha")) rbAlignCenter.value = true;
+            if (detectedState.type === "numbered" && detectedState.numberStyle === "upperAlpha") rbAlignCenter.value = true;
             else if (detectedState.type === "numbered" && detectedState.numberStyle === "number") rbAlignRight.value = true;
             else rbAlignLeft.value = true; // 箇条書き・丸数字 / bullet & circled
             // 種類に応じたタブストップ既定値 / type-based default tab stops
@@ -3855,8 +3837,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd738e3258989"; /* 紹�
          * @returns {void}
          */
         function updateEnabledStates() {
-            // マーカー位置（番号列）は数字/ABC/abc のみ。本文位置は「なし」以外の全種類で使う。
-            // Marker position (number column) only for number/ABC/abc; body position is used by every type except "none".
+            // マーカー位置（番号列）は数字/ABC のみ。本文位置は「なし」以外の全種類で使う。
+            // Marker position (number column) only for number/ABC; body position is used by every type except "none".
             var twoStopNumbered = rbNumbered.value && !(rbStyleCircledWhite.value || rbStyleCircledBlack.value);
             positionPanel.enabled = !rbNone.value;
             tabAlignRow.enabled = twoStopNumbered;        // 揃え種類はマーカー位置に対応（箇条書き・丸数字は左固定）/ alignment applies to the marker column
@@ -3868,13 +3850,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd738e3258989"; /* 紹�
             formatPanel.enabled = !rbNone.value;          // 書式は「なし」では未使用 / Format unused for "none"
             justifyRow.enabled = !rbNone.value;           // 行揃えは「なし」では変更しない / justification is left alone for "none"
 
-            // 区切り文字カラーは「数字／ABC／abc かつ区切り文字あり」のときだけ有効 / Delimiter color only when number/ABC/abc with a delimiter
+            // 区切り文字カラーは「数字／ABC かつ区切り文字あり」のときだけ有効 / Delimiter color only when number/ABC with a delimiter
             var delimiterColorApplicable = twoStopNumbered && currentDelimiter() !== "";
             delimiterColorUI.label.enabled = delimiterColorApplicable;
             delimiterColorUI.swatch.enabled = delimiterColorApplicable;
 
-            // マーカー位置は数字/ABC/abc のみ有効、本文位置は全種類で有効（ハンギングON時のみ左インデント参照でディム）
-            // Marker position only for number/ABC/abc; body position for all types (dimmed under hanging since it follows the left indent)
+            // マーカー位置は数字/ABC のみ有効、本文位置は全種類で有効（ハンギングON時のみ左インデント参照でディム）
+            // Marker position only for number/ABC; body position for all types (dimmed under hanging since it follows the left indent)
             var hangingOn = chkHanging.value && !rbNone.value;
             tabStopRow1.enabled = twoStopNumbered;                 // マーカー位置 / marker position
             tabStopRow2.enabled = !rbNone.value && !hangingOn;     // 本文位置（ラベル・単位ごとディム）/ body position (label and unit dim together)
@@ -4009,17 +3991,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd738e3258989"; /* 紹�
          */
         function onStyleChange() {
             chkZeroPad.enabled = rbStyleNumber.value; // ゼロ埋めは「数字」のみ / zero padding only for the numbers style
-            // 区切り文字: 白丸・黒丸数字は「なし」, それ以外（数字・ABC・abc）は「.」/ Delimiter: "none" for circled (white/black), "." otherwise
+            // 区切り文字: 白丸・黒丸数字は「なし」, それ以外（数字・ABC）は「.」/ Delimiter: "none" for circled (white/black), "." otherwise
             var isCircled = rbStyleCircledWhite.value || rbStyleCircledBlack.value;
             var autoDelimIndex = isCircled ? 0 : 1; // 0="none" / 1="."
             delimiterRadios[autoDelimIndex].value = true;
-            // 揃え種類の既定: 数字=右 / ABC・abc=中央（丸数字は左固定でディム）/ Alignment default: number=right, ABC/abc=center (circled is fixed left & dimmed)
-            if (rbStyleUpperAlpha.value || rbStyleLowerAlpha.value) {
+            // 揃え種類の既定: 数字=右 / ABC=中央（丸数字は左固定でディム）/ Alignment default: number=right, ABC=center (circled is fixed left & dimmed)
+            if (rbStyleUpperAlpha.value) {
                 rbAlignCenter.value = true;
             } else if (rbStyleNumber.value) {
                 rbAlignRight.value = true;
             }
-            // タブストップ既定を種類に合わせて更新（数字/ABC/abc=1.5/2.0、白丸・黒丸数字=1.2の1ストップ）/ Reset tab stops to the style's defaults (number/ABC/abc = 1.5/2.0; circled = single ×1.2 stop)
+            // タブストップ既定を種類に合わせて更新（数字/ABC=1.5/2.0、白丸・黒丸数字=1.2の1ストップ）/ Reset tab stops to the style's defaults (number/ABC = 1.5/2.0; circled = single ×1.2 stop)
             applyTypeDefaults();
             updateEnabledStates(); // 丸数字は2つ目タブストップ・揃え種類をディム / circled dims the 2nd stop & alignment
             updatePreview();
@@ -4412,7 +4394,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd738e3258989"; /* 紹�
 
     /**
      * 種類に応じたタブストップの指定内容を求める
-     * 本文位置は「なし」以外の全種類で使い、マーカー位置は数字／ABC／abc のときだけ加える
+     * 本文位置は「なし」以外の全種類で使い、マーカー位置は数字／ABC のときだけ加える
      * @param {string} listType - "bullet" / "numbered" / "none"
      * @param {object} options - currentApplyOptions() が返す付与オプション
      * @returns {Array<{position: number, alignment: TabStopAlignment}>} タブストップの指定
@@ -4426,7 +4408,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd738e3258989"; /* 紹�
             return [bodyStop]; // 箇条書き・丸数字は1ストップ / bullets and circled numbers use a single stop
         }
 
-        // 数字/ABC/abc はマーカー位置（指定の揃え）を加えた2ストップ / number/ABC/abc add the marker column
+        // 数字/ABC はマーカー位置（指定の揃え）を加えた2ストップ / number/ABC add the marker column
         var markerAlignment = options.tab1Alignment || TabStopAlignment.Right;
         return [{ position: options.tabStop1Pt, alignment: markerAlignment }, bodyStop];
     }
@@ -4572,9 +4554,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd738e3258989"; /* 紹�
         } else if (style === "circledBlack") {
             markerText = toCircledBlack(numberValue);
         } else if (style === "upperAlpha") {
-            markerText = toAlphabet(numberValue, true);
-        } else if (style === "lowerAlpha") {
-            markerText = toAlphabet(numberValue, false);
+            markerText = toAlphabet(numberValue);
         } else {
             // 数字（ゼロ埋め指定があれば桁をそろえる）/ Plain numbers (zero-padded when requested)
             markerText = (padWidth && padWidth > 0) ? zeroPadNumber(numberValue, padWidth) : String(numberValue);
@@ -4658,13 +4638,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd738e3258989"; /* 紹�
     }
 
     /**
-     * 数値をアルファベット（A〜Z / a〜z）へ変換する
+     * 数値をアルファベット大文字（A〜Z）へ変換する
      * @param {number} numberValue - 変換する番号
-     * @param {boolean} useUpperCase - true で大文字
      * @returns {string} アルファベット（範囲外は素の数字）
      */
-    function toAlphabet(numberValue, useUpperCase) {
-        if (numberValue >= 1 && numberValue <= 26) return String.fromCharCode((useUpperCase ? 0x41 : 0x61) + (numberValue - 1));
+    function toAlphabet(numberValue) {
+        if (numberValue >= 1 && numberValue <= 26) return String.fromCharCode(0x41 + (numberValue - 1));
         return String(numberValue);
     }
 
@@ -4687,7 +4666,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd738e3258989"; /* 紹�
             return { start: 0, end: 1 };
         }
 
-        // 数字/ABC/abc: 先頭タブを飛ばし、次のタブまで / number/ABC/abc: skip the leading tab, up to the next tab
+        // 数字/ABC: 先頭タブを飛ばし、次のタブまで / number/ABC: skip the leading tab, up to the next tab
         if (paragraphText.charAt(0) !== "\t") return null; // 先頭タブが無い行（未付与）は対象外 / no leading tab = no marker
         var markerEnd = 1;
         while (markerEnd < paragraphText.length && paragraphText.charAt(markerEnd) !== "\t") markerEnd++;
@@ -4706,7 +4685,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd738e3258989"; /* 紹�
     function applyMarkerFormat(frame, listType, format, numberStyle, delimiter) {
         if (!format || listType === "none") return;
 
-        // 数字／ABC／abc では番号の末尾に区切り文字が付く（その分だけ別カラーにできる）/ For number/ABC/abc, the delimiter trails the number, so it can take a separate color
+        // 数字／ABC では番号の末尾に区切り文字が付く（その分だけ別カラーにできる）/ For number/ABC, the delimiter trails the number, so it can take a separate color
         var delimiterText = delimiter || "";
         var delimiterLen = (listType === "numbered" && !isCircledStyle(numberStyle)) ? delimiterText.length : 0;
 

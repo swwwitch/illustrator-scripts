@@ -24,7 +24,7 @@
   - Choose from • - ● ○ ◎ ■ □ ◆ ◇
   - Each glyph brings its own default scale and body position (•/- place the body at 0.8x the font size)
 - Number Style
-  - **Numbers** / **Circled (white)** (1-20) / **Circled (black)** (1-20) / **ABC** / **abc**
+  - **Numbers** / **Circled (white)** (1-20) / **Circled (black)** (1-20) / **ABC**
   - Circled numbers fall back to plain digits beyond 20, with a warning when you choose the style
   - "Zero padding" pads with leading zeros to the largest width (numbers style only)
   - "Start No." sets the first number (default: 1)
@@ -33,8 +33,8 @@
   - None / . / ： / | (switches to "None" automatically when a circled style is chosen)
 - Position (Tab Stops)
   - Adjust **Marker** (where the number sits) and **Body** (where the text starts), starting from font-size based defaults
-  - Defaults are derived per type: numbers = 1.5/2.0x, ABC/abc = 1.0/2.0x, bullets and circled = 1.2x
-  - Alignment of the marker column: left / center / right (numbers, ABC and abc only; numbers default to right, ABC/abc to center)
+  - Defaults are derived per type: numbers = 1.5/2.0x, ABC = 1.0/2.0x, bullets and circled = 1.2x
+  - Alignment of the marker column: left / center / right (numbers and ABC only; numbers default to right, ABC to center)
   - Bullets and circled numbers use a single tab stop (the body position)
 - Marker Format
   - Font family and style ("Japanese fonts only" narrows the list)
@@ -45,7 +45,7 @@
   - Leading is not written as a fixed value: the ratio to the font size is derived per paragraph and stored as the auto-leading amount (%), so the leading follows along if the font size changes later
   - "Justification" is chosen with icon buttons (left / center / right / justify with the last line left / justify all)
   - The default follows the text kind: left for point text, justified with the last line left for area text
-  - "Align wrapped lines" aligns the second and later lines with the body position
+  - "Align wrapped lines (hanging indent)" aligns the second and later lines with the body position
   - The indent value follows the body position automatically
 - Reorder Lines
   - Select several rows in the list and move them to the top, up, down, or to the bottom
@@ -82,6 +82,7 @@ Bullet and numbered lists made with Illustrator's Bullets and Numbering are turn
 
 ### Update History
 
+- v1.4.10 (2026-10-22) Moved the marker/number and delimiter colors in Marker Format below the baseline shift, side by side. Moved "Body" below "Marker" in Position (Tab Stops). Renamed "Align wrapped lines" to "Align wrapped lines (hanging indent)". Removed the "abc" number style (lowercase lines are detected as ABC)
 - v1.4.9 (2026-10-22) Added *Space Before* to the paragraph settings. Space before/after now start from the selection's current values, so opening the dialog no longer resets them to 0. The "Reset" description now lists the start number and space before/after
 - v1.4.8 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.4.7 (2026-10-01): Added space below the button row to match Illustrator's own dialogs
