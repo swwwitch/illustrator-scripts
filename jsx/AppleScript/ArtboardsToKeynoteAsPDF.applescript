@@ -17,6 +17,7 @@ property dialogArtboardMode : "all" -- "all"（すべて）/ "range"（番号で
 property dialogArtboardFromText : ""
 property dialogArtboardToText : ""
 property dialogPlacementMode : "overlay" -- "append"（末尾にスライドを追加）/ "overlay"（既存スライドにオーバーレイ）
+property dialogUseArtboardBounds : true -- true：アートボード全体を書き出す／false：アートワークの範囲だけを書き出す
 -- ラジオボタンの切り替えで入力欄をディムするため、表示中の部品を控える
 property dialogOverlayRadio : missing value
 property dialogSlideRow : missing value
@@ -69,7 +70,7 @@ end tell
 -- 貼り付け先：新規ドキュメントはスライド1から、既存ドキュメントは末尾に追加か指定スライドからを選ぶ
 -- startSlideIndex 以降は既存スライドに貼り、足りなくなったら末尾に追加する
 -- スケール（%）は100でアートボードと同じ大きさ（1pt＝1ポイント）。初期値は全アートボードがスライドに収まる最大の値
--- アートボードの範囲・スケール・配置方法・開始スライドは1つのダイアログボックスで受け取り、入力が不正なら値を残して開き直す
+-- アートボードの範囲・スケール・書き出し範囲・配置方法・開始スライドは1つのダイアログボックスで受け取り、入力が不正なら値を残して開き直す
 set dialogIsNewDocument to isNewDocument
 set dialogArtboardCount to artboardCount
 set dialogArtboardFromText to "1"
@@ -143,19 +144,23 @@ repeat with artboardIndex from firstArtboard to lastArtboard
 			app.executeMenuCommand('deselectall');
 			var rect = doc.artboards[" & (artboardIndex - 1) & "].artboardRect;
 			if (count > 0) {
-				// PDFの範囲がアートボード全体になるよう、一時レイヤーにアートボードサイズの長方形を描いてから書き出す
+				var useArtboardBounds = " & dialogUseArtboardBounds & ";
 				var originalLayer = doc.activeLayer;
-				var tempLayer = doc.layers.add();
+				var tempLayer = null;
 				try {
-					var boundsRect = tempLayer.pathItems.rectangle(rect[1], rect[0], rect[2] - rect[0], rect[1] - rect[3]);
-					boundsRect.filled = false;
-					boundsRect.stroked = false;
+					// PDFの範囲をアートボード全体にするときは、一時レイヤーにアートボードサイズの透明な長方形を描いてから書き出す
+					if (useArtboardBounds) {
+						tempLayer = doc.layers.add();
+						var boundsRect = tempLayer.pathItems.rectangle(rect[1], rect[0], rect[2] - rect[0], rect[1] - rect[3]);
+						boundsRect.filled = false;
+						boundsRect.stroked = false;
+					}
 					var exportItem = new ExportForScreensItemToExport();
 					exportItem.document = false;
 					exportItem.artboards = '" & artboardIndex & "';
 					doc.exportForScreens(new Folder('" & exportFolder & "'), ExportForScreensType.SE_PDF, new ExportForScreensPDFOptions(), exportItem, '');
 				} finally {
-					tempLayer.remove();
+					if (tempLayer) tempLayer.remove();
 					doc.activeLayer = originalLayer;
 				}
 			}
@@ -184,6 +189,12 @@ repeat with artboardIndex from firstArtboard to lastArtboard
 		set targetSlideIndex to startSlideIndex + pasteCount
 		set pasteCount to pasteCount + 1
 		set pdfFile to POSIX file pdfPath as alias
+		-- アートワークの範囲だけを書き出したときは、PDFのページの大きさ（pt）を画像の大きさにする
+		if not dialogUseArtboardBounds then
+			set pdfSize to (current application's NSImage's alloc()'s initWithContentsOfFile:pdfPath)'s |size|()
+			set artboardWidth to (width of pdfSize) as real
+			set artboardHeight to (height of pdfSize) as real
+		end if
 
 		tell application "Keynote Creator Studio"
 			tell keynoteDoc
@@ -193,7 +204,7 @@ repeat with artboardIndex from firstArtboard to lastArtboard
 					set targetSlide to make new slide at end of slides
 				end if
 
-				-- PDFを画像として挿入し、アートボードの大きさ（1pt＝1ポイント）にスケールを掛けてスライドの中央に置く
+				-- PDFを画像として挿入し、書き出した範囲の大きさ（1pt＝1ポイント）にスケールを掛けてスライドの中央に置く
 				set imageWidth to artboardWidth * scaleFactor
 				set imageHeight to artboardHeight * scaleFactor
 				tell targetSlide
@@ -236,9 +247,9 @@ else
 	display dialog "Keynoteへ挿入しました。" & return & "挿入しなかったアートボード（空または書き出しに失敗） : " & skippedText buttons {"OK"} default button "OK"
 end if
 
--- アートボードの範囲・スケール・配置方法（ラジオボタン）・開始スライドを並べたダイアログボックスを開く
+-- アートボードの範囲・スケール・書き出し範囲・配置方法（ラジオボタン）・開始スライドを並べたダイアログボックスを開く
 -- 結果は dialogButton・dialogArtboardMode・dialogArtboardFromText・dialogArtboardToText・
--- dialogScaleText・dialogPlacementMode・dialogSlideText に入る（NSAlertはメインスレッドで開く）
+-- dialogScaleText・dialogUseArtboardBounds・dialogPlacementMode・dialogSlideText に入る（NSAlertはメインスレッドで開く）
 on showSettingsDialog:unusedArgument
 	set settingsAlert to current application's NSAlert's alloc()'s init()
 	settingsAlert's setMessageText:"IllustratorのアートボードをKeynoteへ挿入"
@@ -249,12 +260,13 @@ on showSettingsDialog:unusedArgument
 	-- Escで［キャンセル］
 	lastButton's setKeyEquivalent:(character id 27)
 
-	-- 上から アートボード（すべて／範囲）／スケール／配置方法／開始スライド（新規ドキュメントは配置方法と開始スライドなし）
+	-- 上から アートボード（すべて／範囲）／スケール／書き出し範囲／配置方法／開始スライド（新規ドキュメントは配置方法と開始スライドなし）
 	if dialogIsNewDocument then
-		set scaleY to 0
+		set boundsY to 0
 	else
-		set scaleY to 86
+		set boundsY to 86
 	end if
+	set scaleY to boundsY + 26
 	set accessoryView to current application's NSView's alloc()'s initWithFrame:{{0, 0}, {300, scaleY + 78}}
 
 	-- アートボードの範囲（同じ親・同じアクションのラジオボタンは自動で排他になる）
@@ -290,6 +302,12 @@ on showSettingsDialog:unusedArgument
 	fromField's setNextKeyView:toField
 	toField's setNextKeyView:(inputField of scaleRow)
 	(inputField of scaleRow)'s setNextKeyView:fromField
+
+	-- オフにするとアートワークの範囲だけを書き出す（アートボード内の位置は保たれない）
+	set boundsCheckbox to current application's NSButton's checkboxWithTitle:"アートボード全体を書き出す" target:(missing value) action:(missing value)
+	boundsCheckbox's setFrame:{{96, boundsY + 2}, {204, 18}}
+	if dialogUseArtboardBounds then boundsCheckbox's setState:(current application's NSControlStateValueOn)
+	accessoryView's addSubview:boundsCheckbox
 
 	if not dialogIsNewDocument then
 		set appendRadio to current application's NSButton's radioButtonWithTitle:"末尾にスライドを追加して配置" target:me action:"placementModeChanged:"
@@ -330,6 +348,7 @@ on showSettingsDialog:unusedArgument
 	set dialogArtboardFromText to (fromField's stringValue()) as text
 	set dialogArtboardToText to (toField's stringValue()) as text
 	set dialogScaleText to ((inputField of scaleRow)'s stringValue()) as text
+	set dialogUseArtboardBounds to ((boundsCheckbox's state()) as integer) = 1
 	if not dialogIsNewDocument then
 		if ((overlayRadio's state()) as integer) = 1 then
 			set dialogPlacementMode to "overlay"
