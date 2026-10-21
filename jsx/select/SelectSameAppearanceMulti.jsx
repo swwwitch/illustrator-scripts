@@ -7,12 +7,12 @@ Script-ID=com.swwwitch.illustrator.SelectSameAppearanceMulti
 Name=SelectSameAppearanceMulti
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.1.1
+Version=1.2.0
 Release-Date=2026-09-06
 Description-BEGIN
-選択したオブジェクトそれぞれに「共通 > アピアランス」（シンボルインスタンスは「共通 > シンボルインスタンス」）を適用し、見つかったオブジェクトをまとめて選択し直します。標準機能では基準にできるオブジェクトが1つだけという制限を回避できます。
+選択したオブジェクトそれぞれに「共通 > アピアランス」（シンボルインスタンスは「共通 > シンボルインスタンス」）を適用し、見つかったオブジェクトをまとめて選択し直します。基準に〈塗り〉なし・〈線〉なしのパスがあれば、〈塗り〉なし・〈線〉なしのパスもあわせて選択します。標準機能では基準にできるオブジェクトが1つだけという制限を回避できます。
 
-Applies "Select > Same > Appearance" (or "Same > Symbol Instance" for symbol instances) to each selected object and reselects every object found. This works around the built-in limitation of using only one object as the reference.
+Applies "Select > Same > Appearance" (or "Same > Symbol Instance" for symbol instances) to each selected object and reselects every object found. If a reference path has no fill or no stroke, every path with no fill or no stroke is selected as well. This works around the built-in limitation of using only one object as the reference.
 Description-END
 SCRIPTMETA-END
 */
@@ -21,14 +21,14 @@ SCRIPTMETA-END
 
 ### 概要
 
-選択したオブジェクトそれぞれに「共通 > アピアランス」（シンボルインスタンスは「共通 > シンボルインスタンス」）を適用し、見つかったオブジェクトをまとめて選択し直します。標準機能では基準にできるオブジェクトが1つだけという制限を回避できます。
+選択したオブジェクトそれぞれに「共通 > アピアランス」（シンボルインスタンスは「共通 > シンボルインスタンス」）を適用し、見つかったオブジェクトをまとめて選択し直します。基準に〈塗り〉なし・〈線〉なしのパスがあれば、〈塗り〉なし・〈線〉なしのパスもあわせて選択します。標準機能では基準にできるオブジェクトが1つだけという制限を回避できます。
 
 詳細は README を参照してください。
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SelectSameAppearanceMulti.md
 
 ### Overview
 
-Applies "Select > Same > Appearance" (or "Same > Symbol Instance" for symbol instances) to each selected object and reselects every object found. This works around the built-in limitation of using only one object as the reference.
+Applies "Select > Same > Appearance" (or "Same > Symbol Instance" for symbol instances) to each selected object and reselects every object found. If a reference path has no fill or no stroke, every path with no fill or no stroke is selected as well. This works around the built-in limitation of using only one object as the reference.
 
 See the README for details.
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SelectSameAppearanceMulti.md
@@ -39,10 +39,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SelectSame
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SelectSameAppearanceMulti";    /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.2.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-09-06";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-21";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SelectSameAppearanceMulti.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SelectSameAppearanceMulti.md"; /* README (English) */
@@ -172,11 +172,82 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         return doc.selection;
     }
 
+    /**
+     * パスまたは複合パスの塗り・線の有無を返す。複合パスは先頭のパスの値を使う
+     * @param {PageItem} pageItem - 調べるページアイテム
+     * @returns {{filled: boolean, stroked: boolean}|null} 塗り・線の有無。パス・複合パス以外は null
+     */
+    function getFillStrokeState(pageItem) {
+        var pathItem = pageItem;
+        if (pageItem.typename === "CompoundPathItem") {
+            if (pageItem.pathItems.length === 0) return null;
+            pathItem = pageItem.pathItems[0];
+        } else if (pageItem.typename !== "PathItem") {
+            return null;
+        }
+        return { filled: pathItem.filled, stroked: pathItem.stroked };
+    }
+
+    /**
+     * ページアイテムが選択できる状態か（自身と親のグループ・レイヤーがロック・非表示でないか）を返す
+     * @param {PageItem} pageItem - 調べるページアイテム
+     * @returns {boolean} 選択できれば true
+     */
+    function isPageItemSelectable(pageItem) {
+        if (pageItem.locked || pageItem.hidden) return false;
+        var parentItem = pageItem.parent;
+        while (parentItem && parentItem.typename !== "Document") {
+            if (parentItem.typename === "Layer") {
+                if (parentItem.locked || !parentItem.visible) return false;
+            } else if (parentItem.locked || parentItem.hidden) {
+                return false;
+            }
+            parentItem = parentItem.parent;
+        }
+        return true;
+    }
+
+    /**
+     * 〈塗り〉なし、または〈線〉なしのパス・複合パスをドキュメントから集める。
+     * ガイド・クリッピングパス・複合パスの中のパス・ロックや非表示のものは除く
+     * @param {boolean} collectNoFill - 〈塗り〉なしを集めるか
+     * @param {boolean} collectNoStroke - 〈線〉なしを集めるか
+     * @returns {PageItem[]} 該当したページアイテムの配列
+     */
+    function findNoFillOrNoStrokePageItems(collectNoFill, collectNoStroke) {
+        var foundPageItems = [];
+        var candidateLists = [doc.pathItems, doc.compoundPathItems];
+        for (var listIndex = 0; listIndex < candidateLists.length; listIndex++) {
+            var candidateList = candidateLists[listIndex];
+            for (var itemIndex = 0; itemIndex < candidateList.length; itemIndex++) {
+                var candidateItem = candidateList[itemIndex];
+                if (candidateItem.typename === "PathItem") {
+                    if (candidateItem.guides || candidateItem.clipping) continue;
+                    if (candidateItem.parent.typename === "CompoundPathItem") continue;
+                }
+                var fillStrokeState = getFillStrokeState(candidateItem);
+                if (!fillStrokeState) continue;
+                var isMatch = (collectNoFill && !fillStrokeState.filled) || (collectNoStroke && !fillStrokeState.stroked);
+                if (!isMatch || !isPageItemSelectable(candidateItem)) continue;
+                foundPageItems.push(candidateItem);
+            }
+        }
+        return foundPageItems;
+    }
+
     /* 重複したまま集めてよい。選択し直す際に同じページアイテムを複数回指定しても結果は変わらない */
     var pageItemsToSelect = [];
+    /* 基準に〈塗り〉なし・〈線〉なしのパスがあるか / Whether any reference path has no fill or no stroke */
+    var hasNoFillReference = false;
+    var hasNoStrokeReference = false;
     /* 検索済みのシンボル名。同じシンボルのインスタンスは結果が同じなので1回だけ検索する / Symbol names already searched */
     var searchedSymbolNames = {};
     for (var i = 0; i < referencePageItems.length; i++) {
+        var referenceFillStroke = getFillStrokeState(referencePageItems[i]);
+        if (referenceFillStroke) {
+            if (!referenceFillStroke.filled) hasNoFillReference = true;
+            if (!referenceFillStroke.stroked) hasNoStrokeReference = true;
+        }
         if (referencePageItems[i].typename === "SymbolItem") {
             /* シンボル名はドキュメント内で一意 / Symbol names are unique within a document */
             var symbolNameKey = "#" + referencePageItems[i].symbol.name;
@@ -186,6 +257,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var samePageItems = findPageItemsWithSameAppearance(referencePageItems[i]);
         for (var j = 0; j < samePageItems.length; j++) {
             pageItemsToSelect.push(samePageItems[j]);
+        }
+    }
+
+    /* 〈塗り〉なし・〈線〉なしの基準があれば、該当するパスをすべて加える / Add every path with no fill or no stroke */
+    if (hasNoFillReference || hasNoStrokeReference) {
+        var noFillStrokePageItems = findNoFillOrNoStrokePageItems(hasNoFillReference, hasNoStrokeReference);
+        for (var m = 0; m < noFillStrokePageItems.length; m++) {
+            pageItemsToSelect.push(noFillStrokePageItems[m]);
         }
     }
 

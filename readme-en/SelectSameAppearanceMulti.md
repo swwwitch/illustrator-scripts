@@ -16,6 +16,7 @@ Runs Select > Same > Appearance once for each selected object and reselects ever
 
 - Uses every selected object, one at a time, as the reference for Same > Appearance
 - For symbol instances, runs Same > Symbol Instance instead, selecting only instances of the same symbol (searched once per symbol, however many instances are selected)
+- If a reference path has no fill, adds every path and compound path with no fill; likewise for no stroke
 - Combines the results of all passes and selects them together at the end
 - No dialog — just select and run
 - Japanese / English UI (alert messages only)
@@ -43,3 +44,4 @@ For example, selecting one red-stroked object and one blue-filled object selects
 - v1.1.0 (20261001) : Symbol instances now select the instances of the same symbol
 - v1.0.0 (20260906) : Initial release
 - v1.1.1 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
+- v1.2.0 (2026-10-21) Paths and compound paths with no fill or no stroke are also selected when a reference path has no fill or no stroke
