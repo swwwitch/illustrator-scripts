@@ -18,10 +18,11 @@ tell application "Keynote Creator Studio"
 		set keynoteDoc to front document
 	end if
 	-- 表示中のスライドにオーバーレイする（取れないときはスライド1）
+	-- slide number は非表示スライドを数えないので、番号ではなく参照で控える
 	try
-		set targetSlideIndex to slide number of current slide of keynoteDoc
+		set targetSlide to current slide of keynoteDoc
 	on error
-		set targetSlideIndex to 1
+		set targetSlide to missing value
 	end try
 	-- 画像をスライドに収めて中央に置くため、スライドの大きさを控える
 	set slideWidth to width of keynoteDoc
@@ -89,10 +90,12 @@ set imageHeight to artboardHeight * scaleFactor
 
 tell application "Keynote Creator Studio"
 	tell keynoteDoc
-		if targetSlideIndex ≤ (count of slides) then
-			set targetSlide to slide targetSlideIndex
-		else
-			set targetSlide to make new slide at end of slides
+		if targetSlide is missing value then
+			if (count of slides) > 0 then
+				set targetSlide to slide 1
+			else
+				set targetSlide to make new slide at end of slides
+			end if
 		end if
 		tell targetSlide
 			set pdfImage to make new image with properties {file:pdfFile}

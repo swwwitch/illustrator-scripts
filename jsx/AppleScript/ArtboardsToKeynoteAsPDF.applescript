@@ -56,7 +56,14 @@ tell application "Keynote Creator Studio"
 		set keynoteDoc to front document
 		set isNewDocument to false
 	end if
-	set slideCount to count of slides of keynoteDoc
+	-- slide number は非表示スライドを数えない番号（ナビゲータの番号）、slide N は非表示スライドも含めた並び順
+	-- 開始スライドは slide number で受け取るため、表示するスライドの並び順を控えて読み替える
+	set skippedFlags to skipped of slides of keynoteDoc
+	set visibleSlideIndexes to {}
+	repeat with i from 1 to count of skippedFlags
+		if not (item i of skippedFlags) then set end of visibleSlideIndexes to i
+	end repeat
+	set slideCount to count of visibleSlideIndexes
 	-- 指定スライドの入力欄の初期値にするため、表示中のスライド番号を控える
 	try
 		set currentSlideNumber to slide number of current slide of keynoteDoc
@@ -69,7 +76,7 @@ tell application "Keynote Creator Studio"
 end tell
 
 -- 貼り付け先：新規ドキュメントはスライド1から、既存ドキュメントは末尾に追加か指定スライドからを選ぶ
--- startSlideIndex 以降は既存スライドに貼り、足りなくなったら末尾に追加する
+-- startSlideIndex 以降は既存スライド（非表示スライドは飛ばす）に貼り、足りなくなったら末尾に追加する
 -- スケール（%）は100でアートボードと同じ大きさ（1pt＝1ポイント）。初期値は全アートボードがスライドに収まる最大の値
 -- アートボードの範囲・スケール・書き出し範囲・配置方法・開始スライドは1つのダイアログボックスで受け取り、入力が不正なら値を残して開き直す
 set dialogIsNewDocument to isNewDocument
@@ -203,11 +210,12 @@ repeat with artboardIndex from firstArtboard to lastArtboard
 
 		tell application "Keynote Creator Studio"
 			tell keynoteDoc
-				if targetSlideIndex ≤ (count of slides) then
-					set targetSlide to slide targetSlideIndex
+				if targetSlideIndex ≤ (count of visibleSlideIndexes) then
+					set targetSlide to slide (item targetSlideIndex of visibleSlideIndexes)
 				else
 					set targetSlide to make new slide at end of slides
 				end if
+				if pasteCount = 1 then set firstTargetSlide to targetSlide
 
 				-- PDFを画像として挿入し、書き出した範囲の大きさ（1pt＝1ポイント）にスケールを掛けてスライドの中央に置く
 				set imageWidth to artboardWidth * scaleFactor
@@ -236,7 +244,7 @@ end tell
 
 tell application "Keynote Creator Studio"
 	activate
-	if pasteCount > 0 then set current slide of keynoteDoc to slide startSlideIndex of keynoteDoc
+	if pasteCount > 0 then set current slide of keynoteDoc to firstTargetSlide
 end tell
 
 if (count of skippedArtboards) = 0 then
