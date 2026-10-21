@@ -18,7 +18,7 @@
 - Uses selected swatches from the Swatches panel or all process swatches
 - Colors individual characters for single text frame
 - Colors objects in order when multiple objects are selected
-- Colors the strokes when only lines (unfilled or open paths) are selected; zero stroke widths become 1 pt
+- Colors the fill, stroke, or both (in different colors) of each path and character, matching what it already has; zero stroke widths become 1 pt
 - Random shuffle if there are more than 3 colors
 - Japanese and English UI support
 
@@ -41,3 +41,4 @@ https://gist.github.com/shspage/02c6d8654cf6b3798b6c0b69d976a891
 - v1.0.2 (20260927): Internal cleanup (the Japanese error message now uses a full-width colon)
 - v1.0.3 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.1.0 (2026-10-20) When only lines are selected, colors are applied to the strokes (zero widths become 1 pt)
+- v1.2.1 (2026-10-21) Each object and text is colored on its fill only, stroke only, or both in different colors, matching what it already has
