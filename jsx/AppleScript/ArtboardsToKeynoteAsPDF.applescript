@@ -13,9 +13,10 @@ property dialogSlideText : ""
 property dialogScaleText : ""
 property dialogButton : ""
 property dialogArtboardCount : 0
-property dialogArtboardMode : "all" -- "all"（すべて）/ "range"（番号で範囲を指定）
+property dialogArtboardMode : "current" -- "current"（現在のアートボードのみ）/ "all"（すべて）/ "range"（番号で範囲を指定）
 property dialogArtboardFromText : ""
 property dialogArtboardToText : ""
+property dialogCurrentArtboard : 1
 property dialogPlacementMode : "overlay" -- "append"（末尾にスライドを追加）/ "overlay"（既存スライドにオーバーレイ）
 property dialogUseArtboardBounds : true -- true：アートボード全体を書き出す／false：アートワークの範囲だけを書き出す
 -- ラジオボタンの切り替えで入力欄をディムするため、表示中の部品を控える
@@ -73,6 +74,7 @@ end tell
 -- アートボードの範囲・スケール・書き出し範囲・配置方法・開始スライドは1つのダイアログボックスで受け取り、入力が不正なら値を残して開き直す
 set dialogIsNewDocument to isNewDocument
 set dialogArtboardCount to artboardCount
+set dialogCurrentArtboard to (originalArtboardIndex as integer) + 1
 set dialogArtboardFromText to "1"
 set dialogArtboardToText to artboardCount as text
 set dialogSlideCount to slideCount
@@ -95,6 +97,9 @@ repeat
 		on error
 			set errorText to "アートボードには1〜" & artboardCount & "の範囲を、小さい番号から入力してください。"
 		end try
+	else if dialogArtboardMode is "current" then
+		set firstArtboard to dialogCurrentArtboard
+		set lastArtboard to dialogCurrentArtboard
 	else
 		set firstArtboard to 1
 		set lastArtboard to artboardCount
@@ -235,7 +240,9 @@ tell application "Keynote Creator Studio"
 end tell
 
 if (count of skippedArtboards) = 0 then
-	if dialogArtboardMode is "range" then
+	if dialogArtboardMode is "current" then
+		display dialog "アートボード " & firstArtboard & " をKeynoteへ挿入しました。" buttons {"OK"} default button "OK"
+	else if dialogArtboardMode is "range" then
 		display dialog "アートボード " & firstArtboard & "〜" & lastArtboard & " をKeynoteへ挿入しました。" buttons {"OK"} default button "OK"
 	else
 		display dialog "全アートボードをKeynoteへ挿入しました。" buttons {"OK"} default button "OK"
@@ -260,20 +267,23 @@ on showSettingsDialog:unusedArgument
 	-- Escで［キャンセル］
 	lastButton's setKeyEquivalent:(character id 27)
 
-	-- 上から アートボード（すべて／範囲）／スケール／書き出し範囲／配置方法／開始スライド（新規ドキュメントは配置方法と開始スライドなし）
+	-- 上から アートボード（現在のみ／すべて／範囲）／スケール／書き出し範囲／配置方法／開始スライド（新規ドキュメントは配置方法と開始スライドなし）
 	if dialogIsNewDocument then
 		set boundsY to 0
 	else
 		set boundsY to 86
 	end if
 	set scaleY to boundsY + 26
-	set accessoryView to current application's NSView's alloc()'s initWithFrame:{{0, 0}, {300, scaleY + 78}}
+	set accessoryView to current application's NSView's alloc()'s initWithFrame:{{0, 0}, {300, scaleY + 104}}
 
 	-- アートボードの範囲（同じ親・同じアクションのラジオボタンは自動で排他になる）
 	set artboardLabel to current application's NSTextField's labelWithString:"アートボード :"
 	artboardLabel's setAlignment:(current application's NSTextAlignmentRight)
-	artboardLabel's setFrame:{{0, scaleY + 61}, {90, 17}}
+	artboardLabel's setFrame:{{0, scaleY + 87}, {90, 17}}
 	accessoryView's addSubview:artboardLabel
+	set currentRadio to current application's NSButton's radioButtonWithTitle:("現在のアートボードのみ（" & dialogCurrentArtboard & "）") target:me action:"artboardRangeChanged:"
+	currentRadio's setFrame:{{96, scaleY + 86}, {204, 18}}
+	accessoryView's addSubview:currentRadio
 	set allRadio to current application's NSButton's radioButtonWithTitle:"すべて" target:me action:"artboardRangeChanged:"
 	allRadio's setFrame:{{96, scaleY + 60}, {204, 18}}
 	accessoryView's addSubview:allRadio
@@ -291,6 +301,8 @@ on showSettingsDialog:unusedArgument
 	accessoryView's addSubview:toField
 	if dialogArtboardMode is "range" then
 		rangeRadio's setState:(current application's NSControlStateValueOn)
+	else if dialogArtboardMode is "current" then
+		currentRadio's setState:(current application's NSControlStateValueOn)
 	else
 		allRadio's setState:(current application's NSControlStateValueOn)
 	end if
@@ -342,6 +354,8 @@ on showSettingsDialog:unusedArgument
 	set dialogButton to item (response - 1000 + 1) of buttonTitles
 	if ((rangeRadio's state()) as integer) = 1 then
 		set dialogArtboardMode to "range"
+	else if ((currentRadio's state()) as integer) = 1 then
+		set dialogArtboardMode to "current"
 	else
 		set dialogArtboardMode to "all"
 	end if
