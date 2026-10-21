@@ -8,13 +8,13 @@ Script-ID=com.swwwitch.illustrator.AddBulletsAndNumbers
 Name=AddBulletsAndNumbers
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.4.8
+Version=1.4.9
 Release-Date=2026-05-30
 Description-BEGIN
-選択したテキストフレームの各行頭に、箇条書き記号または連番を付与します。
+選択したテキストフレームの各行頭に、箇条書き記号または連番を付与します。マーカーの書式と段落設定（行送り・段落前後のアキ・行揃え・インデント）もあわせて指定できます。
 ダイアログを開くと現在の行頭マーカーから設定を推定し、プレビューを見ながら「現状の続き」として編集できます。
 
-Adds a bullet or a sequence number to the start of each line in the selected text frames.
+Adds a bullet or a sequence number to the start of each line in the selected text frames, and also sets the marker format and paragraph settings (leading, space before/after, justification, indents).
 The dialog infers its settings from the markers already present, so you can carry on from the current state while watching a preview.
 Description-END
 SCRIPTMETA-END
@@ -24,7 +24,7 @@ SCRIPTMETA-END
 
 ### 概要
 
-選択したテキストフレームの各行頭に、箇条書き記号または連番を付与します。
+選択したテキストフレームの各行頭に、箇条書き記号または連番を付与します。マーカーの書式と段落設定（行送り・段落前後のアキ・行揃え・インデント）もあわせて指定できます。
 ダイアログを開くと現在の行頭マーカーから設定を推定し、プレビューを見ながら「現状の続き」として編集できます。
 
 詳細は README を参照してください。
@@ -35,7 +35,7 @@ https://note.com/dtp_tranist/n/nd738e3258989
 
 ### Overview
 
-Adds a bullet or a sequence number to the start of each line in the selected text frames.
+Adds a bullet or a sequence number to the start of each line in the selected text frames, and also sets the marker format and paragraph settings (leading, space before/after, justification, indents).
 The dialog infers its settings from the markers already present, so you can carry on from the current state while watching a preview.
 
 See the README for details.
@@ -47,10 +47,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AddBullets
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AddBulletsAndNumbers";         /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.4.8";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.4.9";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-05-30";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-22";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AddBulletsAndNumbers.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AddBulletsAndNumbers.md"; /* README (English) */
@@ -1224,6 +1224,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd738e3258989"; /* 紹�
             scale: { ja: "比率", en: "Scale" },
             baselineShift: { ja: "ベースライン", en: "Baseline" },
             leading: { ja: "行送り", en: "Leading" },
+            spaceBefore: { ja: "段落前のアキ", en: "Space Before" },
             spaceAfter: { ja: "段落後のアキ", en: "Space After" },
             leftIndent: { ja: "インデント", en: "Indent" },
             justify: { ja: "行揃え", en: "Justification" },
@@ -1319,6 +1320,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd738e3258989"; /* 紹�
                 ja: "行送り（空欄のままなら変更しません）。固定値ではなく、文字サイズに対する割合として自動行送りに設定します。",
                 en: "Line leading (left blank = leave unchanged). Applied as an auto-leading amount (% of the font size), not as a fixed value."
             },
+            spaceBefore: {
+                ja: "段落前のアキ（空欄のままなら変更しません）",
+                en: "Space before the paragraph (left blank = leave unchanged)"
+            },
             spaceAfter: {
                 ja: "段落後のアキ（空欄のままなら変更しません）",
                 en: "Space after the paragraph (left blank = leave unchanged)"
@@ -1344,8 +1349,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd738e3258989"; /* 紹�
                 en: "Color of the delimiter. Click the swatch to open the color picker."
             },
             reset: {
-                ja: "比率・ベースライン・カラー・インデント・タブストップをまとめてリセットします。行の並べ替えは元に戻りません。",
-                en: "Resets scale, baseline shift, color, indent, and tab stops at once. Line reordering is not undone."
+                ja: "比率・ベースライン・開始番号・カラー・段落前後のアキ・インデント・タブストップをまとめてリセットします。行の並べ替えは元に戻りません。",
+                en: "Resets scale, baseline shift, start number, color, space before/after, indent, and tab stops at once. Line reordering is not undone."
             },
             startNumber: {
                 ja: "連番の開始番号です。複数フレームを選択したときは、先頭のフレームから通しで番号を振ります。",
@@ -3242,8 +3247,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd738e3258989"; /* 紹�
         var leadingLabel = leadingUI.label;
         var inputLeading = leadingUI.input;
 
+        // 段落前後のアキ（初期値は選択テキストの現在値。開いただけで既存の値を上書きしないように）
+        // Space before/after (initialized to the selection's current values, so opening the dialog does not overwrite them)
+        var baseSpaceBeforePt = getBaseParagraphSpacing(targetSelection, "spaceBefore");
+        var baseSpaceAfterPt = getBaseParagraphSpacing(targetSelection, "spaceAfter");
+
+        // 段落前のアキ / Space before
+        var spaceBeforeUI = addFieldRow(paragraphPanel, labelText('fieldLabel.spaceBefore'), (baseSpaceBeforePt != null) ? String(toDisplayUnit(baseSpaceBeforePt)) : "", PARAGRAPH_LABEL_WIDTH, unitInfo.label);
+        var spaceBeforeLabel = spaceBeforeUI.label;
+        var inputSpaceBefore = spaceBeforeUI.input;
+
         // 段落後のアキ / Space after
-        var spaceAfterUI = addFieldRow(paragraphPanel, labelText('fieldLabel.spaceAfter'), "0", PARAGRAPH_LABEL_WIDTH, unitInfo.label);
+        var spaceAfterUI = addFieldRow(paragraphPanel, labelText('fieldLabel.spaceAfter'), (baseSpaceAfterPt != null) ? String(toDisplayUnit(baseSpaceAfterPt)) : "", PARAGRAPH_LABEL_WIDTH, unitInfo.label);
         var spaceAfterLabel = spaceAfterUI.label;
         var inputSpaceAfter = spaceAfterUI.input;
 
@@ -3415,8 +3430,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd738e3258989"; /* 紹�
         }
 
         /**
-         * 段落の書式（行送り・段落後のアキ・インデント）を取得する。空欄は null（＝変更しない）
-         * @returns {{leadingPt: (number|null), spaceAfterPt: (number|null), leftIndentPt: (number|null), firstLineIndentPt: (number|null)}} 段落の書式
+         * 段落の書式（行送り・段落前後のアキ・インデント）を取得する。空欄は null（＝変更しない）
+         * @returns {{leadingPt: (number|null), spaceBeforePt: (number|null), spaceAfterPt: (number|null), leftIndentPt: (number|null), firstLineIndentPt: (number|null)}} 段落の書式
          */
         function currentParagraphFormat() {
             /**
@@ -3438,6 +3453,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd738e3258989"; /* 紹�
             var firstLineIndentPt = (leftIndentPt != null) ? -leftIndentPt : null;
             return {
                 leadingPt: readOptionalPt(inputLeading),
+                spaceBeforePt: readOptionalPt(inputSpaceBefore),
                 spaceAfterPt: readOptionalPt(inputSpaceAfter),
                 leftIndentPt: leftIndentPt,
                 firstLineIndentPt: firstLineIndentPt
@@ -3590,6 +3606,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd738e3258989"; /* 紹�
                 markerColor: aiColorToPickerString(colorSwatch._aiColor),
                 delimiterColor: aiColorToPickerString(delimiterColorSwatch._aiColor),
                 leading: inputLeading.text,
+                spaceBefore: inputSpaceBefore.text,
                 spaceAfter: inputSpaceAfter.text,
                 justifyId: justifyState.activeId,
                 hanging: chkHanging.value,
@@ -3622,6 +3639,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd738e3258989"; /* 紹�
             if (state.scale != null) inputScale.text = state.scale;
             if (state.baselineShift != null) inputBaseline.text = state.baselineShift;
             if (state.leading != null) inputLeading.text = state.leading;
+            if (state.spaceBefore != null) inputSpaceBefore.text = state.spaceBefore;
             if (state.spaceAfter != null) inputSpaceAfter.text = state.spaceAfter;
             if (state.hanging != null) chkHanging.value = state.hanging;
             if (state.leftIndent != null) inputLeftIndent.text = state.leftIndent;
@@ -4023,7 +4041,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd738e3258989"; /* 紹�
         }
 
         /**
-         * 比率・ベースライン・カラー・インデント・タブストップをまとめてリセットする
+         * 比率・ベースライン・開始番号・カラー・段落前後のアキ・インデント・タブストップをまとめてリセットする
          * @returns {void}
          */
         function resetAllValues() {
@@ -4036,6 +4054,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd738e3258989"; /* 紹�
             delimiterColorSwatch._aiColor = resetColor;
             redrawSwatch(colorSwatch);
             redrawSwatch(delimiterColorSwatch);
+            inputSpaceBefore.text = "0";                               // 段落前のアキ / space before
             inputSpaceAfter.text = "0";                                // 段落後のアキ / space after
             inputLeftIndent.text = "0";                                // 左インデント（1行目は内部で正負反転）/ left indent (first-line derived internally)
             // ハンギングOFFでもインデントを0として適用する（控えは書き換えないので、キャンセルで原状復帰できる）
@@ -4118,6 +4137,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd738e3258989"; /* 紹�
             wirePreviewInput(inputScale, false);                          // 比率% は負値不可 / scale % cannot be negative
             wirePreviewInput(inputBaseline, true);                        // ベースラインシフトは負値可 / baseline shift allows negatives
             wirePreviewInput(inputLeading, false);                        // 行送りは負値不可 / leading cannot be negative
+            wirePreviewInput(inputSpaceBefore, false);                    // 段落前のアキは負値不可 / space before cannot be negative
             wirePreviewInput(inputSpaceAfter, false);                     // 段落後のアキは負値不可 / space after cannot be negative
             wirePreviewInput(inputLeftIndent, false, syncHangingTabStop); // インデント→本文タブストップ同期 / indent syncs the body tab stop
         }
@@ -4147,6 +4167,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd738e3258989"; /* 紹�
             markerColorUI.label.helpTip = markerColorUI.swatch.helpTip = getLabel('tooltip.color');
             delimiterColorUI.label.helpTip = delimiterColorUI.swatch.helpTip = getLabel('tooltip.delimiterColor');
             leadingLabel.helpTip = inputLeading.helpTip = getLabel('tooltip.leading');
+            spaceBeforeLabel.helpTip = inputSpaceBefore.helpTip = getLabel('tooltip.spaceBefore');
             spaceAfterLabel.helpTip = inputSpaceAfter.helpTip = getLabel('tooltip.spaceAfter');
             justifyLabel.helpTip = getLabel('tooltip.justify');
             chkHanging.helpTip = getLabel('tooltip.hanging');
@@ -4381,7 +4402,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd738e3258989"; /* 紹�
             // 行頭マーカーに書式（フォント・サイズ・ベースラインシフト）を適用 / Apply marker format
             applyMarkerFormat(targetFrame, listType, options.format, options.numberStyle, options.delimiter);
 
-            // 段落の書式（行送り・段落後のアキ・インデント）を適用 / Apply paragraph format (leading, space after, indents)
+            // 段落の書式（行送り・段落前後のアキ・インデント）を適用 / Apply paragraph format (leading, space before/after, indents)
             applyParagraphFormat(targetFrame, options.paragraphFormat);
 
             // 段落の行揃えを適用（「なし」では変更しない）/ Apply the paragraph justification (skipped for "none")
@@ -4411,17 +4432,20 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd738e3258989"; /* 紹�
     }
 
     /**
-     * 段落の書式（行送り・段落後のアキ・インデント）をフレーム全体へ適用する（null の項目は変更しない）
+     * 段落の書式（行送り・段落前後のアキ・インデント）をフレーム全体へ適用する（null の項目は変更しない）
      * @param {TextFrame} frame - 対象のテキストフレーム
-     * @param {{leadingPt: (number|null), spaceAfterPt: (number|null), leftIndentPt: (number|null), firstLineIndentPt: (number|null)}} paragraphFormat - 段落の書式
+     * @param {{leadingPt: (number|null), spaceBeforePt: (number|null), spaceAfterPt: (number|null), leftIndentPt: (number|null), firstLineIndentPt: (number|null)}} paragraphFormat - 段落の書式
      * @returns {void}
      */
     function applyParagraphFormat(frame, paragraphFormat) {
         if (!paragraphFormat) return;
-        // 各設定は個別に try で囲む。1項目（例: 行送り）の例外で後続（spaceAfter・インデント）が
+        // 各設定は個別に try で囲む。1項目（例: 行送り）の例外で後続（段落前後のアキ・インデント）が
         // 巻き込まれてスキップされるのを防ぐ / Guard each setter separately so a failure in one
-        // (e.g. leading) does not skip the rest (spaceAfter, indents)
+        // (e.g. leading) does not skip the rest (space before/after, indents)
         if (paragraphFormat.leadingPt != null) applyAutoLeading(frame, paragraphFormat.leadingPt);
+        if (paragraphFormat.spaceBeforePt != null) {
+            try { frame.textRange.paragraphAttributes.spaceBefore = paragraphFormat.spaceBeforePt; } catch (eSpaceBefore) { }
+        }
         if (paragraphFormat.spaceAfterPt != null) {
             try { frame.textRange.paragraphAttributes.spaceAfter = paragraphFormat.spaceAfterPt; } catch (eSpaceAfter) { }
         }
@@ -4934,6 +4958,23 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd738e3258989"; /* 紹�
     }
 
     /**
+     * 先頭テキストフレームの段落前・段落後のアキを取得する
+     * @param {Array<TextFrame>} selection - 対象のテキストフレーム配列
+     * @param {string} attributeName - "spaceBefore" または "spaceAfter"
+     * @returns {number|null} アキ（pt、取得できなければ null）
+     */
+    function getBaseParagraphSpacing(selection, attributeName) {
+        var frame = firstTextFrame(selection);
+        if (frame) {
+            try {
+                var spacing = frame.textRange.paragraphAttributes[attributeName];
+                if (spacing != null && !isNaN(spacing)) return spacing;
+            } catch (e) { }
+        }
+        return null;
+    }
+
+    /**
      * 指定の位置と揃えでタブストップを生成する
      * @param {number} positionPt - タブストップの位置（pt）
      * @param {TabStopAlignment} alignment - 揃え種類
@@ -4999,7 +5040,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd738e3258989"; /* 紹�
                     entry.tabStops.push({ position: existingTabs[tabIndex].position, alignment: existingTabs[tabIndex].alignment });
                 }
             } catch (e) { }
-            // 段落の書式（行送り・自動行送りとその値・揃え・段落後のアキ・インデント）を退避 / Snapshot paragraph format (leading, auto-leading and its amount, justification, space after, indents)
+            // 段落の書式（行送り・自動行送りとその値・揃え・段落前後のアキ・インデント）を退避 / Snapshot paragraph format (leading, auto-leading and its amount, justification, space before/after, indents)
             // 混在した値の読み取りは項目ごとに失敗しうるため、1項目の失敗で他を落とさないよう個別に囲む
             // Reading a mixed value can fail per item, so guard each one to keep the others
             entry.paraFormat = {};
@@ -5007,6 +5048,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd738e3258989"; /* 紹�
             try { entry.paraFormat.autoLeading = frame.textRange.characterAttributes.autoLeading; } catch (eAuto) { }
             try { entry.paraFormat.autoLeadingAmount = frame.textRange.paragraphAttributes.autoLeadingAmount; } catch (eAmount) { }
             try { entry.paraFormat.justification = frame.textRange.paragraphAttributes.justification; } catch (eJustify) { }
+            try { entry.paraFormat.spaceBefore = frame.textRange.paragraphAttributes.spaceBefore; } catch (eSpaceBefore) { }
             try { entry.paraFormat.spaceAfter = frame.textRange.paragraphAttributes.spaceAfter; } catch (eSpace) { }
             try { entry.paraFormat.leftIndent = frame.textRange.paragraphAttributes.leftIndent; } catch (eLeft) { }
             try { entry.paraFormat.firstLineIndent = frame.textRange.paragraphAttributes.firstLineIndent; } catch (eFirst) { }
@@ -5071,6 +5113,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd738e3258989"; /* 紹�
             if (entry.paraFormat.autoLeadingAmount != null) { try { entry.frame.textRange.paragraphAttributes.autoLeadingAmount = entry.paraFormat.autoLeadingAmount; } catch (eAmount) { } }
             if (entry.paraFormat.autoLeading != null) { try { entry.frame.textRange.characterAttributes.autoLeading = entry.paraFormat.autoLeading; } catch (eAuto) { } }
             if (entry.paraFormat.justification != null) { try { entry.frame.textRange.paragraphAttributes.justification = entry.paraFormat.justification; } catch (eJustify) { } }
+            if (entry.paraFormat.spaceBefore != null) { try { entry.frame.textRange.paragraphAttributes.spaceBefore = entry.paraFormat.spaceBefore; } catch (eSpaceBefore) { } }
             if (entry.paraFormat.spaceAfter != null) { try { entry.frame.textRange.paragraphAttributes.spaceAfter = entry.paraFormat.spaceAfter; } catch (eSpace) { } }
             if (entry.paraFormat.leftIndent != null) { try { entry.frame.textRange.paragraphAttributes.leftIndent = entry.paraFormat.leftIndent; } catch (eLeft) { } }
             if (entry.paraFormat.firstLineIndent != null) { try { entry.frame.textRange.paragraphAttributes.firstLineIndent = entry.paraFormat.firstLineIndent; } catch (eFirst) { } }

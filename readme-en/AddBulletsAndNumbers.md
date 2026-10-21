@@ -12,6 +12,7 @@
 
 - Script that adds a bullet symbol or sequential numbers to the head of each line in the selected text frames.
 - When the dialog opens, the type, glyph, number style and delimiter are detected from the existing leading markers, so you can carry on from what is already there.
+- The marker's font, scale and color, and the paragraph settings (leading, space before/after, justification, indents) are set in the same dialog.
 - Every setting is reflected in a live preview, and Cancel restores the original state.
 - Marker advance is driven by tab stops, so wrapped lines can be aligned with the body text.
 
@@ -24,7 +25,7 @@
   - Each glyph brings its own default scale and body position (•/- place the body at 0.8x the font size)
 - Number Style
   - **Numbers** / **Circled (white)** (1-20) / **Circled (black)** (1-20) / **ABC** / **abc**
-  - Circled numbers fall back to plain digits beyond 20, with a warning before you run
+  - Circled numbers fall back to plain digits beyond 20, with a warning when you choose the style
   - "Zero padding" pads with leading zeros to the largest width (numbers style only)
   - "Start No." sets the first number (default: 1)
   - "Restart each frame" restarts numbering at the head of every selected frame
@@ -40,7 +41,7 @@
   - Scale (applied equally to horizontal and vertical) and baseline shift
   - Separate colors for the marker/number and the delimiter (click a swatch to open Illustrator's standard color picker)
 - Paragraph Settings
-  - Leading and space after (left blank = leave unchanged)
+  - Leading, space before and space after (start from the selection's current values; left blank = leave unchanged)
   - Leading is not written as a fixed value: the ratio to the font size is derived per paragraph and stored as the auto-leading amount (%), so the leading follows along if the font size changes later
   - "Justification" is chosen with icon buttons (left / center / right / justify with the last line left / justify all)
   - The default follows the text kind: left for point text, justified with the last line left for area text
@@ -50,15 +51,17 @@
   - Select several rows in the list and move them to the top, up, down, or to the bottom
   - Sort all rows by name, by number, or by number descending (rows without a number go last)
 - "Show Hidden Characters" toggles display of tabs and line breaks
-- "Reset" clears scale, baseline shift, color, indent and tab stops at once
+- "Reset" clears scale, baseline shift, start number, color, space before/after, indent and tab stops at once
 - Numeric fields step with the stepper buttons and arrow keys to the next whole number (1.5 → 2; Shift = next multiple of 10, Option = ±0.1)
+- Dialog settings are remembered until you quit Illustrator and carried over the next time it opens (whether you close it with OK or Cancel)
+- The dialog opens where it was last closed, and moves aside when it would cover the selected objects
 - Automatic Japanese / English switching
 
 ### Workflow
 
 1. Collect text frames from the selection (recursing into groups) and order them top to bottom (then left to right)
 2. Snapshot the text, character attributes, paragraph settings and tab stops
-3. Show the dialog and initialize it from the markers already present
+3. Show the dialog and initialize it from the markers already present (settings used earlier in the same session take precedence)
 4. On every change, reset the paragraph settings and tab stops to the snapshot, rebuild the leading markers from the snapshot text and apply them (a change that leaves the text as is does not rewrite it)
 5. OK commits (what the preview shows is the result)
 6. Cancel, or closing the dialog, restores the original state from the snapshot
@@ -79,6 +82,7 @@ Bullet and numbered lists made with Illustrator's Bullets and Numbering are turn
 
 ### Update History
 
+- v1.4.9 (2026-10-22) Added *Space Before* to the paragraph settings. Space before/after now start from the selection's current values, so opening the dialog no longer resets them to 0. The "Reset" description now lists the start number and space before/after
 - v1.4.8 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.4.7 (2026-10-01): Added space below the button row to match Illustrator's own dialogs
 - v1.4.6 (2026-10-01): Unified the window and panel margins and spacing with the shared layout part
