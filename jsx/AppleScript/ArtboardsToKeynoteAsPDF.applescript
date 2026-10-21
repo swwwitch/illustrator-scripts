@@ -1,6 +1,21 @@
 -- アートボードごとにPDFを書き出し、Keynoteのスライドへ画像として挿入する
 -- クリップボードとキー操作を使わないので速い（貼られるのはPDF画像）
 
+-- =========================================
+-- 基本情報 / Basic info
+-- =========================================
+-- SCRIPT_NAME     : ArtboardsToKeynoteAsPDF
+-- SCRIPT_VERSION  : v1.0.1
+-- SCRIPT_AUTHOR   : Masahiro Takano (@swwwitch)
+-- SCRIPT_RELEASED : 2026-10-21
+-- SCRIPT_UPDATED  : 2026-10-22
+--
+-- SCRIPT_README_JA : https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ArtboardsToKeynoteAsPDF.md
+-- SCRIPT_README_EN : https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ArtboardsToKeynoteAsPDF.md
+--
+-- Released under the MIT license
+-- http://opensource.org/licenses/mit-license.php
+
 use AppleScript version "2.4"
 use framework "Foundation"
 use framework "AppKit"

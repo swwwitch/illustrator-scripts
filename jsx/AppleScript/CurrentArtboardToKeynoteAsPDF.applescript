@@ -1,6 +1,21 @@
 -- 作業中のアートボードをPDFで書き出し、Keynoteの表示中のスライドへ画像としてオーバーレイする
 -- ダイアログボックスを出さない版（ArtboardsToKeynoteAsPDF の既定の動作を、スライドに収まる大きさで行う）
 
+-- =========================================
+-- 基本情報 / Basic info
+-- =========================================
+-- SCRIPT_NAME     : CurrentArtboardToKeynoteAsPDF
+-- SCRIPT_VERSION  : v1.0.1
+-- SCRIPT_AUTHOR   : Masahiro Takano (@swwwitch)
+-- SCRIPT_RELEASED : 2026-10-21
+-- SCRIPT_UPDATED  : 2026-10-22
+--
+-- SCRIPT_README_JA : https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/CurrentArtboardToKeynoteAsPDF.md
+-- SCRIPT_README_EN : https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CurrentArtboardToKeynoteAsPDF.md
+--
+-- Released under the MIT license
+-- http://opensource.org/licenses/mit-license.php
+
 use AppleScript version "2.4"
 use scripting additions
 
