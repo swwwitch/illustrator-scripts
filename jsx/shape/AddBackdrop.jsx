@@ -9,7 +9,7 @@ Script-ID=com.swwwitch.illustrator.AddBackdrop
 Name=AddBackdrop
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.7.9
+Version=1.7.10
 Release-Date=2025-12-23
 Description-BEGIN
 選択したテキストやオブジェクトの背面に、正円・スーパー楕円・長方形の図形を敷きます。
@@ -48,10 +48,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AddBackdro
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AddBackdrop";                  /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.7.9";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.7.10";                      /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-12-23";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-23";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AddBackdrop.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AddBackdrop.md"; /* README (English) */
@@ -71,6 +71,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na8af4a7016ad"; /* 紹�
     var ONE_CHAR_DIAMETER_RATIO   = 1.5;   /* 1文字モードの直径（文字サイズに対する倍率） / Diameter per font size in single-character mode */
     var DEFAULT_MARGIN_DIVISOR    = 4;     /* マージンの初期値＝短辺÷この値 / Default margin = short side / this */
     var DEFAULT_ROUND_DIVISOR     = 5;     /* 角丸の初期値＝短辺÷この値 / Default corner radius = short side / this */
+    var OPACITY_SLIDER_SHIFT_STEP = 10;    /* 不透明度スライダーを shift＋ドラッグしたときの刻み（％） / Opacity slider step while Shift-dragging */
 
     // =========================================
     // レイアウト / Layout
@@ -155,11 +156,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na8af4a7016ad"; /* 紹�
 
     // UIレイアウト（再利用パーツ）ここまで / End of the reusable UI layout
 
-    var FIELD_CHARS             = 4;                 /* 数値欄の文字数 / Characters of numeric fields */
-    var SHAPE_ROW_BOTTOM_MARGIN = 5;                 /* 形状ラジオの下の余白 / Space below the shape radios */
-    var SHORT_FIELD_CHARS       = 3;                 /* 短い数値欄（CMYK）の文字数 / Characters of short fields */
-    var PERCENT_FIELD_CHARS     = 4;                 /* ％付きの数値欄（倍率・不透明度）の文字数 / Characters of percent fields */
-    var UNIT_FIELD_CHARS        = 5;                 /* 単位付きの数値欄（マージン・角丸・線幅）の文字数 / Characters of fields with a length unit */
+    var FIELD_CHARS              = 4;               /* 数値欄の文字数 / Characters of numeric fields */
+    var SHAPE_ROW_BOTTOM_MARGIN  = 5;               /* 形状ラジオの下の余白 / Space below the shape radios */
+    var SHORT_FIELD_CHARS        = 3;               /* 短い数値欄（CMYK）の文字数 / Characters of short fields */
+    var PERCENT_FIELD_CHARS      = 4;               /* ％付きの数値欄（倍率・不透明度）の文字数 / Characters of percent fields */
+    var UNIT_FIELD_CHARS         = 5;               /* 単位付きの数値欄（マージン・角丸・線幅）の文字数 / Characters of fields with a length unit */
+    var CMYK_LABEL_WIDTH         = 22;              /* CMYK の項目名（「C :」）の幅 / Width of the CMYK plate labels */
+    var CMYK_FIELD_SPACING       = 6;               /* CMYK 欄どうしの間隔 / Spacing between the CMYK fields */
+    var OPACITY_SLIDER_MIN_WIDTH = 80;              /* 不透明度スライダーの最小幅（パネル幅まで伸びる） / Minimum width of the opacity slider */
 
     /**
      * 縦並びのパネルを追加する
@@ -211,19 +215,70 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na8af4a7016ad"; /* 紹�
         field.helpTip = tooltipText;
         field.characters = FIELD_CHARS;
         field.stepOptions = fieldStepOptions;
-        field.stepperGroup = fieldStepper;
+        field.lastValidText = field.text;
         bindSteppedArrowKeys(field, fieldStepper);
+
+        /* 確定時に整数化・範囲・単位をそろえ、数値でなければ直前の値に戻す（計算式は bindSteppedArrowKeys が先に計算済み）
+           On commit, normalize the value; revert anything that is not a number */
+        field.onChange = function () {
+            var value = parseFloat(field.text);
+            if (isNaN(value)) {
+                field.text = field.lastValidText;
+            } else {
+                var normalizedValue = clampSteppedValue(fieldStepOptions.integer ? Math.round(value) : value, fieldStepOptions);
+                /* 入力どおりの値は桁を丸めずに残す / keep typed precision when nothing needs fixing */
+                if (normalizedValue !== value) writeSteppedValue(field, normalizedValue, fieldStepOptions);
+                else field.lastValidText = field.text;
+            }
+            /* 戻した値・計算式の結果がプレビューと違えば反映する / refresh the preview only when the committed text differs from the previewed one */
+            if (field.text !== field.previewedText && fieldStepOptions.onStep) fieldStepOptions.onStep(field);
+        };
         return field;
     }
 
     /**
-     * 数値に数値欄の単位を付けた文字列を返す（単位のない欄は数値のみ）
+     * 単位付きの数値欄（長さ）を追加する
+     * @param {Group} parentContainer - 追加先
+     * @param {number} initialValue - 初期値
+     * @param {{label: string, pointsPerUnit: number}} unitInfo - 欄の単位（getUnitInfo() の戻り値）
+     * @param {string} tooltipText - ツールチップ
+     * @returns {EditText} 追加した数値欄（.pointsPerUnit で pt への換算率を引ける）
+     */
+    function addLengthField(parentContainer, initialValue, unitInfo, tooltipText) {
+        var lengthField = addNumberField(parentContainer, initialValue + ' ' + unitInfo.label, tooltipText, { unit: ' ' + unitInfo.label });
+        lengthField.pointsPerUnit = unitInfo.pointsPerUnit;
+        return lengthField;
+    }
+
+    /**
+     * 長さの数値欄の値を pt で読む（欄は環境設定の単位で表示している）
+     * @param {EditText} lengthField - addLengthField() で作った数値欄
+     * @param {number} fallbackValue - 数値にならないときの値（欄の単位）
+     * @returns {number} pt の値
+     */
+    function readLengthPoints(lengthField, fallbackValue) {
+        return readFieldNumber(lengthField, fallbackValue) * lengthField.pointsPerUnit;
+    }
+
+    /**
+     * pt の長さを欄の単位に直して書き込む（小数第1位で丸める）
+     * @param {EditText} lengthField - addLengthField() で作った数値欄
+     * @param {number} points - pt の値
+     * @returns {void}
+     */
+    function setLengthPoints(lengthField, points) {
+        setFieldValue(lengthField, roundToTenth(points / lengthField.pointsPerUnit));
+    }
+
+    /**
+     * 数値欄に単位付きで値を書き込み、直前の正しい値としても控える
      * @param {EditText} field - addNumberField() で作った数値欄
      * @param {number|string} value - 値
-     * @returns {string} 欄に入れる文字列（例「2 mm」「90%」）
+     * @returns {void}
      */
-    function formatFieldText(field, value) {
-        return String(value) + (field.stepOptions.unit || '');
+    function setFieldValue(field, value) {
+        field.text = String(value) + (field.stepOptions.unit || '');
+        field.lastValidText = field.text;
     }
 
     /**
@@ -275,9 +330,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na8af4a7016ad"; /* 紹�
        「p」は「1p6」（1パイカ6ポイント）の形にも使う
        Units UnitValue lacks, mapped onto UnitValue units (how many of `unit` make one) */
     var STEPPER_UNIT_ALIASES = {
-        "q": { unit: "mm", amount: 0.25 }, /* 級 / Q */
-        "h": { unit: "mm", amount: 0.25 }, /* 歯 / H */
-        "p": { unit: "pc", amount: 1 }     /* パイカ / pica */
+        "q": { unit: "mm", amount: 0.25 },    /* 級 / Q */
+        "h": { unit: "mm", amount: 0.25 },    /* 歯 / H */
+        "p": { unit: "pc", amount: 1 },       /* パイカ / pica */
+        "ft/in": { unit: "ft", amount: 1 },   /* Illustrator の単位コード7の表示 / Illustrator unit code 7 */
+        "c": { unit: "ci", amount: 1 },       /* シセロ（InDesign の表示） / ciceros as InDesign shows them */
+        "ag": { unit: "in", amount: 1 / 14 }, /* アゲート / agates */
+        "ap": { unit: "tpt", amount: 1 }      /* アメリカンポイント / American points */
     };
 
     // -----------------------------------------
@@ -371,6 +430,28 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na8af4a7016ad"; /* 紹�
     }
 
     /**
+     * 数値欄の単位を差し替える（単位の設定やドロップダウンを切り替えたとき用）。
+     * shouldConvert が true なら値を新しい単位へ換算し（10 mm → 28.35 pt）、false なら数値はそのままで単位だけ付け替える
+     * @param {EditText} numberInput - addSteppedField() で作った入力欄、または bindSteppedArrowKeys() を呼んだ入力欄
+     * @param {string} unit - 新しい単位（例 " pt"。単位なしは ""）
+     * @param {boolean} [shouldConvert] - 値も換算するなら true
+     * @returns {void}
+     */
+    function setSteppedFieldUnit(numberInput, unit, shouldConvert) {
+        var stepOptions = numberInput.stepperGroup.stepOptions;
+        var oldUnit = stepOptions.unit || "";
+        var value = parseFloat(numberInput.text);
+        stepOptions.unit = unit;
+        if (isNaN(value)) return;
+        if (shouldConvert) {
+            var converted = evaluateArithmetic(String(value) + oldUnit, unit);
+            if (!isNaN(converted)) value = converted;
+        }
+        numberInput.text = formatStepperNumber(value) + unit;
+        numberInput.lastValidText = numberInput.text;
+    }
+
+    /**
      * 入力欄の値を増減する∧∨ボタンを、隙間なく縦に積んで追加する
      * @param {Group|Panel} parent - 追加先
      * @param {Function} getNumberInput - 対象の入力欄を返す関数（入力欄を∧∨より後に作れるよう、クリック時に引く）
@@ -441,9 +522,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na8af4a7016ad"; /* 紹�
             if (isNaN(value)) return; /* 計算できなければ各スクリプトの処理に任せる / leave it to the script's own handler */
             /* 式か、換算で値が変わったときだけ書き戻す（ただの数値は書式を崩さない） / rewrite only expressions and converted values */
             var hasOperator = /[*\/()\u00D7\u00F7\uFF0A\uFF0F\uFF08\uFF09]|[\d.\uFF10-\uFF19][^\d.\uFF10-\uFF19]*[+\-\u2212\uFF0B\uFF0D]/.test(numberInput.text);
-            if (!hasOperator && value === parseFloat(numberInput.text)) return;
+            if (!hasOperator && value === parseFloat(numberInput.text)) {
+                /* 単位を省いて入れた数値には、欄の単位だけ付け足す（桁は丸めない） / append the field unit to a bare number */
+                var trimmedText = numberInput.text.replace(/^\s+|\s+$/g, "");
+                if (fieldUnit && /[\d.]$/.test(trimmedText)) numberInput.text = trimmedText + fieldUnit;
+                return;
+            }
             numberInput.text = formatStepperNumber(value) + (fieldUnit || "");
         });
+        numberInput.stepperGroup = stepperGroup; /* setSteppedFieldUnit() から∧∨の設定を引けるようにする / lets setSteppedFieldUnit() find the options */
     }
 
     // -----------------------------------------
@@ -571,7 +658,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na8af4a7016ad"; /* 紹�
          * @returns {number} 欄の単位での値（換算できない単位なら NaN）
          */
         function readUnitSuffix(value) {
-            var unitMatch = /^([A-Za-z]+|%|°)/.exec(source.substring(position));
+            var unitMatch = /^(ft\/in|[A-Za-z]+|%|°)/i.exec(source.substring(position));
             if (!unitMatch) return value; /* 単位なしは欄の単位 / no unit means the field's unit */
             position += unitMatch[0].length;
             var unitKey = unitMatch[0].toLowerCase();
@@ -2157,15 +2244,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na8af4a7016ad"; /* 紹�
         panel: {
             scale:    { ja: "スケール", en: "Scale" },
             margin:   { ja: "マージン", en: "Margin" },
-            round:    { ja: "角丸", en: "Round" },
+            round:    { ja: "角丸", en: "Rounded Corners" },
             grouping: { ja: "グループ", en: "Group" },
             offset:   { ja: "位置の調整", en: "Offset" },
-            kind:     { ja: "塗りと線", en: "Fill & Stroke" },
+            fillStroke: { ja: "塗りと線", en: "Fill & Stroke" },
             color:    { ja: "カラー", en: "Color" },
             opacity:  { ja: "不透明度", en: "Opacity" }
         },
         fieldLabel: {
-            scale:   { ja: "倍率", en: "Size" },
+            scale:   { ja: "倍率", en: "Scale" },
             marginV: { ja: "上下", en: "Vertical" },
             marginH: { ja: "左右", en: "Horizontal" },
             offsetX: { ja: "X", en: "X" },
@@ -2185,7 +2272,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na8af4a7016ad"; /* 紹�
         checkbox: {
             oneChar:       { ja: "1文字", en: "Single Character" },
             square:        { ja: "正方形", en: "Square" },
-            pill:          { ja: "ピル形状", en: "Pill shape" },
+            pill:          { ja: "ピル形状", en: "Pill Shape" },
             groupWithText: { ja: "テキストとグループ化", en: "Group with Text" },
             exclude:       { ja: "中マド処理", en: "Exclude" }
         },
@@ -2196,13 +2283,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na8af4a7016ad"; /* 紹�
                 en: "Makes the backdrop a superellipse, between a circle and a rounded square. (S key)"
             },
             rectangle:     { ja: "背景を長方形にします。（R キー）", en: "Makes the backdrop a rectangle. (R key)" },
-            scale:         { ja: "文字に対する背景の大きさ（％）です。", en: "Size of the backdrop relative to the text, in percent." },
+            scale:         { ja: "対象に対する背景の大きさ（％）です。", en: "Size of the backdrop relative to the selection, in percent." },
             oneChar: {
                 ja: "文字サイズを基準に、1文字分の円を作ります。",
                 en: "Sizes the circle from the font size to fit a single character."
             },
-            marginV:       { ja: "文字の上下に足す余白です。", en: "Space added above and below the text." },
-            marginH:       { ja: "文字の左右に足す余白です。", en: "Space added left and right of the text." },
+            marginV:       { ja: "対象の上下に足す余白です。", en: "Space added above and below the selection." },
+            marginH:       { ja: "対象の左右に足す余白です。", en: "Space added left and right of the selection." },
             marginLink: {
                 ja: "上下と左右の余白を同じ値にそろえます。",
                 en: "Uses the same value for the vertical and horizontal margins."
@@ -2213,8 +2300,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na8af4a7016ad"; /* 紹�
                 en: "Rounds the corners of the backdrop. The field on the right sets the radius."
             },
             pill:          { ja: "左右の端を半円にして、丸いピル型にします。", en: "Rounds both ends into a pill shape." },
-            groupWithText: { ja: "背景と文字を1つのグループにまとめます。", en: "Groups the backdrop with the text." },
-            exclude:       { ja: "背景と文字を「中マド」にして、文字部分を抜きます。", en: "Knocks the text out of the backdrop using Exclude." },
+            groupWithText: {
+                ja: "背景と対象のテキスト（テキストが無いときは選択の先頭のオブジェクト）を1つのグループにまとめます。",
+                en: "Groups the backdrop with the text (or, without text, the frontmost selected object)."
+            },
+            exclude: {
+                ja: "背景と文字を「中マド」にして、文字部分を抜きます。グループ化と［文字の色］がオンになります。\nプレビューには表示されず、OK で適用されます。",
+                en: "Knocks the text out of the backdrop using Exclude. Turns on grouping and Text Color.\nNot shown in the preview; applied when you click OK."
+            },
             offset:        { ja: "背景の位置を、この値だけずらします。", en: "Nudges the backdrop by this amount." },
             fill:          { ja: "背景に塗りを付けます。", en: "Fills the backdrop." },
             stroke: {
@@ -2222,6 +2315,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na8af4a7016ad"; /* 紹�
                 en: "Strokes the backdrop. The field on the right sets the weight."
             },
             opacity:       { ja: "背景の不透明度（％）です。", en: "Opacity of the backdrop, in percent." },
+            opacitySlider: {
+                ja: "ドラッグで不透明度を変えます（shift＋ドラッグで{step}%刻み）。",
+                en: "Drag to change the opacity (Shift-drag in steps of {step}%)."
+            },
             textColor:     { ja: "文字の色をそのまま背景の色に使います。", en: "Uses the text color for the backdrop." },
             black:         { ja: "背景を黒にします。", en: "Makes the backdrop black." },
             white:         { ja: "背景を白にします。", en: "Makes the backdrop white." },
@@ -2363,23 +2460,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na8af4a7016ad"; /* 紹�
      * @returns {void}
      */
     function setFieldRange(editText, minValue, maxValue) {
-        editText.rangeMin = minValue;
-        editText.rangeMax = maxValue;
         /* ∧∨の範囲は undefined で「制限なし」 / the stepper treats undefined as unlimited */
         editText.stepOptions.min = (minValue === null) ? undefined : minValue;
         editText.stepOptions.max = (maxValue === null) ? undefined : maxValue;
-    }
-
-    /**
-     * 数値を数値欄の許容範囲に収める
-     * @param {EditText} editText - 対象の数値欄
-     * @param {number} value - 元の値
-     * @returns {number} 範囲内に収めた値
-     */
-    function clampToFieldRange(editText, value) {
-        if (typeof editText.rangeMin === 'number' && value < editText.rangeMin) return editText.rangeMin;
-        if (typeof editText.rangeMax === 'number' && value > editText.rangeMax) return editText.rangeMax;
-        return value;
     }
 
     /**
@@ -2389,14 +2472,21 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na8af4a7016ad"; /* 紹�
      * @returns {void}
      */
     function bindNumberField(editText, onUpdate) {
+        /**
+         * プレビューに使った文字列を控えてから更新処理を呼ぶ（確定時に同じ値で作り直さないため）
+         * @returns {void}
+         */
+        function notifyUpdate() {
+            editText.previewedText = editText.text;
+            onUpdate();
+        }
         editText.onChanging = function () {
             var value = parseFloat(editText.text);
-            if (!isNaN(value) && clampToFieldRange(editText, value) !== value) {
-                editText.text = formatFieldText(editText, clampToFieldRange(editText, value));
-            }
-            onUpdate();
+            var clampedValue = clampSteppedValue(value, editText.stepOptions);
+            if (!isNaN(value) && clampedValue !== value) setFieldValue(editText, clampedValue);
+            notifyUpdate();
         };
-        editText.stepOptions.onStep = function () { onUpdate(); };
+        editText.stepOptions.onStep = notifyUpdate;
     }
 
     // =========================================
@@ -2936,7 +3026,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na8af4a7016ad"; /* 紹�
      * @returns {{backdrop: PageItem, enclosingGroup: GroupItem, target: PageItem}} 見つからなければ各値は null
      */
     function findExistingBackdrop(selectionItems, textItem) {
-        var found = { backdrop: null, enclosingGroup: null, target: null };
+        var backdropMatch = { backdrop: null, enclosingGroup: null, target: null };
         var isTextMode = !!textItem;
 
         if (selectionItems.length === 1 && selectionItems[0].typename === 'GroupItem' && isTextMode) {
@@ -2944,9 +3034,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na8af4a7016ad"; /* 紹�
             for (var i = 0; i < outerGroup.pageItems.length; i++) {
                 var groupChild = outerGroup.pageItems[i];
                 if (groupChild === textItem || groupChild.typename === 'TextFrame') continue;
-                found.backdrop = groupChild;
-                found.enclosingGroup = outerGroup;
-                return found;
+                backdropMatch.backdrop = groupChild;
+                backdropMatch.enclosingGroup = outerGroup;
+                return backdropMatch;
             }
         }
 
@@ -2963,11 +3053,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na8af4a7016ad"; /* 紹�
                 }
             }
             if (shapeCandidates.length > 0 && (isTextMode || otherTargets.length > 0)) {
-                found.backdrop = shapeCandidates[0];
-                if (!isTextMode) found.target = otherTargets[0];
+                backdropMatch.backdrop = shapeCandidates[0];
+                if (!isTextMode) backdropMatch.target = otherTargets[0];
             }
         }
-        return found;
+        return backdropMatch;
     }
 
     /**
@@ -3027,27 +3117,49 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na8af4a7016ad"; /* 紹�
     // =========================================
 
     /**
-     * Undo でプレビューを巻き戻す管理役
-     * - プレビューの更新ごとに Undo 段数を数え、巻き戻しで消す
-     * - OK 時は巻き戻してから確定処理を1回だけ実行する（Undo 1段）
+     * プレビューの管理役。作った図形を控えて削除し、隠したオブジェクトを表示に戻して巻き戻す。
+     * app.undo() は段数がずれると、ダイアログを開く前の操作（文字の入力など）まで取り消してしまうので使わない
+     * Tracks what the preview creates and hides; app.undo() is avoided because a miscounted undo
+     * reverts the user's own edits made before the dialog opened
      * @constructor
      */
     function PreviewManager() {
-        this.undoDepth = 0;
+        this.createdItems = [];
+        this.hiddenItems = [];
 
         /**
-         * プレビューを1段分実行する
-         * @param {Function} previewAction - プレビューの処理
+         * プレビューを1回分実行する
+         * @param {Function} previewAction - プレビューの処理（作った図形は track()、隠すものは hideItem() に渡す）
          * @returns {void}
          */
         this.addStep = function (previewAction) {
             try {
                 previewAction();
-                this.undoDepth++;
-                app.redraw();
             } catch (e) {
                 alert(labelValueText("alert.previewError", e));
             }
+            app.redraw();
+        };
+
+        /**
+         * プレビューで作った図形を控える（巻き戻しで削除する）
+         * @param {PageItem} createdItem - 作った図形
+         * @returns {PageItem} 渡した図形
+         */
+        this.track = function (createdItem) {
+            this.createdItems.push(createdItem);
+            return createdItem;
+        };
+
+        /**
+         * オブジェクトを一時的に隠す（巻き戻しで表示に戻す。もともと隠れていたものは触らない）
+         * @param {PageItem} hiddenItem - 隠すオブジェクト
+         * @returns {void}
+         */
+        this.hideItem = function (hiddenItem) {
+            if (hiddenItem.hidden) return;
+            hiddenItem.hidden = true;
+            this.hiddenItems.push(hiddenItem);
         };
 
         /**
@@ -3055,15 +3167,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na8af4a7016ad"; /* 紹�
          * @returns {void}
          */
         this.rollback = function () {
-            while (this.undoDepth > 0) {
+            for (var i = 0; i < this.createdItems.length; i++) safeRemove(this.createdItems[i], 'previewItem');
+            for (var j = 0; j < this.hiddenItems.length; j++) {
                 try {
-                    app.undo();
+                    this.hiddenItems[j].hidden = false;
                 } catch (e) {
-                    logDebug('rollback undo failed: ' + e);
-                    break;
+                    logDebug('preview unhide failed: ' + e);
                 }
-                this.undoDepth--;
             }
+            this.createdItems = [];
+            this.hiddenItems = [];
             app.redraw();
         };
 
@@ -3075,7 +3188,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na8af4a7016ad"; /* 紹�
         this.confirm = function (finalAction) {
             this.rollback();
             finalAction();
-            this.undoDepth = 0;
         };
     }
 
@@ -3222,79 +3334,79 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na8af4a7016ad"; /* 紹�
     /**
      * 形状のラジオボタンを追加する（ダイアログ上部）
      * @param {Window} dialog - ダイアログ
-     * @param {Object} ui - コントロールの格納先
+     * @param {Object} dialogControls - コントロールの格納先
      * @returns {void}
      */
-    function addShapeRadios(dialog, ui) {
+    function addShapeRadios(dialog, dialogControls) {
         var shapeRadioGroup = dialog.add('group');
         shapeRadioGroup.orientation = 'row';
         shapeRadioGroup.alignChildren = ['center', 'center'];
         shapeRadioGroup.alignment = 'center';
         shapeRadioGroup.margins = [0, 0, 0, SHAPE_ROW_BOTTOM_MARGIN];
 
-        ui.rbCircle = shapeRadioGroup.add('radiobutton', undefined, getLabel("radio.circle"));
-        ui.rbCircle.helpTip = getLabel("tooltip.circle");
-        ui.rbSuperellipse = shapeRadioGroup.add('radiobutton', undefined, getLabel("radio.superellipse"));
-        ui.rbSuperellipse.helpTip = getLabel("tooltip.superellipse");
-        ui.rbRectangle = shapeRadioGroup.add('radiobutton', undefined, getLabel("radio.rectangle"));
-        ui.rbRectangle.helpTip = getLabel("tooltip.rectangle");
-        ui.rbCircle.value = true;
+        dialogControls.rbCircle = shapeRadioGroup.add('radiobutton', undefined, getLabel("radio.circle"));
+        dialogControls.rbCircle.helpTip = getLabel("tooltip.circle");
+        dialogControls.rbSuperellipse = shapeRadioGroup.add('radiobutton', undefined, getLabel("radio.superellipse"));
+        dialogControls.rbSuperellipse.helpTip = getLabel("tooltip.superellipse");
+        dialogControls.rbRectangle = shapeRadioGroup.add('radiobutton', undefined, getLabel("radio.rectangle"));
+        dialogControls.rbRectangle.helpTip = getLabel("tooltip.rectangle");
+        dialogControls.rbCircle.value = true;
 
-        ui.shapeRadios = { circle: ui.rbCircle, superellipse: ui.rbSuperellipse, rect: ui.rbRectangle };
+        dialogControls.shapeRadios = { circle: dialogControls.rbCircle, superellipse: dialogControls.rbSuperellipse, rect: dialogControls.rbRectangle };
     }
 
     /**
      * スケールパネルを追加する
-     * @param {Group} column - 追加先の列
-     * @param {Object} ui - コントロールの格納先
+     * @param {Group} parentColumn - 追加先の列
+     * @param {Object} dialogControls - コントロールの格納先
      * @returns {void}
      */
-    function addScalePanel(column, ui) {
-        ui.scalePanel = addPanel(column, getLabel("panel.scale"));
+    function addScalePanel(parentColumn, dialogControls) {
+        dialogControls.scalePanel = addPanel(parentColumn, getLabel("panel.scale"));
 
-        var scaleRow = ui.scalePanel.add('group');
+        var scaleRow = dialogControls.scalePanel.add('group');
         scaleRow.add('statictext', undefined, labelText("fieldLabel.scale"));
-        ui.scaleInput = addNumberField(scaleRow, '90%', getLabel("tooltip.scale"), { unit: '%' });
-        ui.scaleInput.characters = PERCENT_FIELD_CHARS;
+        dialogControls.scaleInput = addNumberField(scaleRow, '90%', getLabel("tooltip.scale"), { unit: '%' });
+        dialogControls.scaleInput.characters = PERCENT_FIELD_CHARS;
 
-        var oneCharRow = ui.scalePanel.add('group');
+        var oneCharRow = dialogControls.scalePanel.add('group');
         oneCharRow.orientation = 'row';
         oneCharRow.alignChildren = ['left', 'center'];
-        ui.cbOneChar = oneCharRow.add('checkbox', undefined, getLabel("checkbox.oneChar"));
-        ui.cbOneChar.helpTip = getLabel("tooltip.oneChar");
+        dialogControls.cbOneChar = oneCharRow.add('checkbox', undefined, getLabel("checkbox.oneChar"));
+        dialogControls.cbOneChar.helpTip = getLabel("tooltip.oneChar");
     }
 
     /**
      * マージンの1行（ラベル・単位付きの数値欄）を追加する
      * @param {Group} parentContainer - 追加先
      * @param {string} labelKey - fieldLabel / tooltip のキー
-     * @param {string} unitLabel - 単位
+     * @param {{label: string, pointsPerUnit: number}} rulerUnit - 定規の単位
      * @returns {EditText} 追加した数値欄
      */
-    function addMarginRow(parentContainer, labelKey, unitLabel) {
+    function addMarginRow(parentContainer, labelKey, rulerUnit) {
         var marginRow = parentContainer.add('group');
         marginRow.orientation = 'row';
         marginRow.alignChildren = ['left', 'center'];
         marginRow.spacing = 10;
         marginRow.margins = 0;
         marginRow.add('statictext', undefined, labelText("fieldLabel." + labelKey));
-        var marginInput = addNumberField(marginRow, '0 ' + unitLabel, getLabel("tooltip." + labelKey), { unit: ' ' + unitLabel });
+        var marginInput = addLengthField(marginRow, 0, rulerUnit, getLabel("tooltip." + labelKey));
         marginInput.characters = UNIT_FIELD_CHARS;
         return marginInput;
     }
 
     /**
      * マージンパネルを追加する
-     * @param {Group} column - 追加先の列
-     * @param {Object} ui - コントロールの格納先
-     * @param {string} rulerUnitLabel - 定規の単位
+     * @param {Group} parentColumn - 追加先の列
+     * @param {Object} dialogControls - コントロールの格納先
+     * @param {{label: string, pointsPerUnit: number}} rulerUnit - 定規の単位
      * @returns {void}
      */
-    function addMarginPanel(column, ui, rulerUnitLabel) {
-        ui.marginPanel = addPanel(column, getLabel("panel.margin"));
+    function addMarginPanel(parentColumn, dialogControls, rulerUnit) {
+        dialogControls.marginPanel = addPanel(parentColumn, getLabel("panel.margin"));
 
         /* 上下・左右の2行の右に連動アイコンを置く / Put the link icon to the right of the two margin rows */
-        var marginBodyRow = ui.marginPanel.add('group');
+        var marginBodyRow = dialogControls.marginPanel.add('group');
         marginBodyRow.orientation = 'row';
         marginBodyRow.alignChildren = ['left', 'center'];
         marginBodyRow.spacing = 10;
@@ -3303,173 +3415,195 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na8af4a7016ad"; /* 紹�
         var marginFieldsColumn = addColumnGroup(marginBodyRow, ['left', 'center']);
         marginFieldsColumn.spacing = 10;
         marginFieldsColumn.margins = 0;
-        ui.marginVInput = addMarginRow(marginFieldsColumn, 'marginV', rulerUnitLabel);
-        ui.marginHInput = addMarginRow(marginFieldsColumn, 'marginH', rulerUnitLabel);
+        dialogControls.marginVInput = addMarginRow(marginFieldsColumn, 'marginV', rulerUnit);
+        dialogControls.marginHInput = addMarginRow(marginFieldsColumn, 'marginH', rulerUnit);
 
         /* 切り替えたあとの処理は bindDialogEvents() で onToggle に入れる / The toggle handler is set in the event wiring */
-        ui.marginLinkToggle = addLinkToggle(marginBodyRow, true, function () {
-            if (ui.onMarginLinkToggle) ui.onMarginLinkToggle();
+        dialogControls.marginLinkToggle = addLinkToggle(marginBodyRow, true, function () {
+            if (dialogControls.onMarginLinkToggle) dialogControls.onMarginLinkToggle();
         });
-        ui.marginLinkToggle.helpTip = getLabel("tooltip.marginLink");
+        dialogControls.marginLinkToggle.helpTip = getLabel("tooltip.marginLink");
 
-        ui.cbSquare = ui.marginPanel.add('checkbox', undefined, getLabel("checkbox.square"));
-        ui.cbSquare.helpTip = getLabel("tooltip.square");
+        dialogControls.cbSquare = dialogControls.marginPanel.add('checkbox', undefined, getLabel("checkbox.square"));
+        dialogControls.cbSquare.helpTip = getLabel("tooltip.square");
     }
 
     /**
      * 角丸パネルを追加する
-     * @param {Group} column - 追加先の列
-     * @param {Object} ui - コントロールの格納先
-     * @param {string} rulerUnitLabel - 定規の単位
+     * @param {Group} parentColumn - 追加先の列
+     * @param {Object} dialogControls - コントロールの格納先
+     * @param {{label: string, pointsPerUnit: number}} rulerUnit - 定規の単位
      * @returns {void}
      */
-    function addRoundPanel(column, ui, rulerUnitLabel) {
-        ui.roundPanel = addPanel(column, getLabel("panel.round"), ['left', 'top'], 6);
+    function addRoundPanel(parentColumn, dialogControls, rulerUnit) {
+        dialogControls.roundPanel = addPanel(parentColumn, getLabel("panel.round"), ['left', 'top'], 6);
 
-        var roundRow = ui.roundPanel.add('group');
+        var roundRow = dialogControls.roundPanel.add('group');
         roundRow.orientation = 'row';
         roundRow.alignChildren = ['left', 'center'];
-        ui.cbRoundEnable = roundRow.add('checkbox', undefined, '');
-        ui.cbRoundEnable.helpTip = getLabel("tooltip.round");
-        ui.roundInput = addNumberField(roundRow, '2 ' + rulerUnitLabel, getLabel("tooltip.round"), { unit: ' ' + rulerUnitLabel });
-        ui.roundInput.characters = UNIT_FIELD_CHARS;
+        dialogControls.cbRoundEnable = roundRow.add('checkbox', undefined, '');
+        dialogControls.cbRoundEnable.helpTip = getLabel("tooltip.round");
+        dialogControls.roundInput = addLengthField(roundRow, 2, rulerUnit, getLabel("tooltip.round"));
+        dialogControls.roundInput.characters = UNIT_FIELD_CHARS;
         /* OFF→ON で戻す半径 / Radius restored when rounding is turned back on */
-        ui.lastRoundRadius = ui.roundInput.text;
+        dialogControls.lastRoundRadius = readFieldNumber(dialogControls.roundInput, 0);
 
-        var pillRow = ui.roundPanel.add('group');
+        var pillRow = dialogControls.roundPanel.add('group');
         pillRow.orientation = 'row';
         pillRow.alignChildren = ['left', 'center'];
-        ui.cbPill = pillRow.add('checkbox', undefined, getLabel("checkbox.pill"));
-        ui.cbPill.helpTip = getLabel("tooltip.pill");
+        dialogControls.cbPill = pillRow.add('checkbox', undefined, getLabel("checkbox.pill"));
+        dialogControls.cbPill.helpTip = getLabel("tooltip.pill");
     }
 
     /**
      * グループパネルを追加する
-     * @param {Group} column - 追加先の列
-     * @param {Object} ui - コントロールの格納先
+     * @param {Group} parentColumn - 追加先の列
+     * @param {Object} dialogControls - コントロールの格納先
      * @returns {void}
      */
-    function addGroupingPanel(column, ui) {
-        var groupingPanel = addPanel(column, getLabel("panel.grouping"), null, 6);
-        ui.cbGroupWithText = groupingPanel.add('checkbox', undefined, getLabel("checkbox.groupWithText"));
-        ui.cbGroupWithText.helpTip = getLabel("tooltip.groupWithText");
-        ui.cbGroupWithText.value = true;
+    function addGroupingPanel(parentColumn, dialogControls) {
+        var groupingPanel = addPanel(parentColumn, getLabel("panel.grouping"), null, 6);
+        dialogControls.cbGroupWithText = groupingPanel.add('checkbox', undefined, getLabel("checkbox.groupWithText"));
+        dialogControls.cbGroupWithText.helpTip = getLabel("tooltip.groupWithText");
+        dialogControls.cbGroupWithText.value = true;
 
-        ui.cbExclude = groupingPanel.add('checkbox', undefined, getLabel("checkbox.exclude"));
-        ui.cbExclude.helpTip = getLabel("tooltip.exclude");
+        dialogControls.cbExclude = groupingPanel.add('checkbox', undefined, getLabel("checkbox.exclude"));
+        dialogControls.cbExclude.helpTip = getLabel("tooltip.exclude");
     }
 
     /**
      * 座標パネル（X / Y のずらし量）を追加する
-     * @param {Group} column - 追加先の列
-     * @param {Object} ui - コントロールの格納先
-     * @param {string} rulerUnitLabel - 定規の単位
+     * @param {Group} parentColumn - 追加先の列
+     * @param {Object} dialogControls - コントロールの格納先
+     * @param {{label: string, pointsPerUnit: number}} rulerUnit - 定規の単位
      * @returns {void}
      */
-    function addOffsetPanel(column, ui, rulerUnitLabel) {
-        var offsetPanel = addPanel(column, getLabel("panel.offset"));
+    function addOffsetPanel(parentColumn, dialogControls, rulerUnit) {
+        var offsetPanel = addPanel(parentColumn, getLabel("panel.offset"));
 
         var offsetRow = offsetPanel.add('group');
         offsetRow.orientation = 'row';
         offsetRow.alignChildren = ['left', 'center'];
 
         offsetRow.add('statictext', undefined, labelText("fieldLabel.offsetX"));
-        ui.offsetXInput = addNumberField(offsetRow, '0 ' + rulerUnitLabel, getLabel("tooltip.offset"), { unit: ' ' + rulerUnitLabel });
+        dialogControls.offsetXInput = addLengthField(offsetRow, 0, rulerUnit, getLabel("tooltip.offset"));
         offsetRow.add('statictext', undefined, labelText("fieldLabel.offsetY"));
-        ui.offsetYInput = addNumberField(offsetRow, '0 ' + rulerUnitLabel, getLabel("tooltip.offset"), { unit: ' ' + rulerUnitLabel });
+        dialogControls.offsetYInput = addLengthField(offsetRow, 0, rulerUnit, getLabel("tooltip.offset"));
     }
 
     /**
      * 種別パネル（塗り / 線 / 線幅）を追加する
-     * @param {Group} column - 追加先の列
-     * @param {Object} ui - コントロールの格納先
-     * @param {string} strokeUnitLabel - 線幅の単位
+     * @param {Group} parentColumn - 追加先の列
+     * @param {Object} dialogControls - コントロールの格納先
+     * @param {{label: string, pointsPerUnit: number}} strokeUnit - 線幅の単位
      * @returns {void}
      */
-    function addKindPanel(column, ui, strokeUnitLabel) {
-        var kindPanel = addPanel(column, getLabel("panel.kind"));
+    function addFillStrokePanel(parentColumn, dialogControls, strokeUnit) {
+        var fillStrokePanel = addPanel(parentColumn, getLabel("panel.fillStroke"));
 
-        var kindRow = kindPanel.add('group');
-        kindRow.orientation = 'row';
-        kindRow.alignChildren = ['left', 'center'];
-        kindRow.spacing = 10;
+        var fillStrokeRow = fillStrokePanel.add('group');
+        fillStrokeRow.orientation = 'row';
+        fillStrokeRow.alignChildren = ['left', 'center'];
+        fillStrokeRow.spacing = 10;
 
-        ui.rbFill = kindRow.add('radiobutton', undefined, getLabel("radio.fill"));
-        ui.rbFill.helpTip = getLabel("tooltip.fill");
-        ui.rbStroke = kindRow.add('radiobutton', undefined, getLabel("radio.stroke"));
-        ui.rbStroke.helpTip = getLabel("tooltip.stroke");
-        ui.rbFill.value = true;
-        ui.kindRadios = { fill: ui.rbFill, stroke: ui.rbStroke };
+        dialogControls.rbFill = fillStrokeRow.add('radiobutton', undefined, getLabel("radio.fill"));
+        dialogControls.rbFill.helpTip = getLabel("tooltip.fill");
+        dialogControls.rbStroke = fillStrokeRow.add('radiobutton', undefined, getLabel("radio.stroke"));
+        dialogControls.rbStroke.helpTip = getLabel("tooltip.stroke");
+        dialogControls.rbFill.value = true;
+        dialogControls.fillStrokeRadios = { fill: dialogControls.rbFill, stroke: dialogControls.rbStroke };
 
-        ui.strokeWidthInput = addNumberField(kindRow, '1 ' + strokeUnitLabel, getLabel("tooltip.stroke"), { unit: ' ' + strokeUnitLabel });
-        ui.strokeWidthInput.characters = UNIT_FIELD_CHARS;
-        setFieldRange(ui.strokeWidthInput, 0, null);
+        dialogControls.strokeWidthInput = addLengthField(fillStrokeRow, 1, strokeUnit, getLabel("tooltip.stroke"));
+        dialogControls.strokeWidthInput.characters = UNIT_FIELD_CHARS;
+        setFieldRange(dialogControls.strokeWidthInput, 0, null);
     }
 
     /**
-     * CMYK の1版分（ラベルの下に数値欄）を追加する
-     * @param {Group} parentContainer - 追加先
+     * CMYK の1版分（項目名の右に数値欄）を追加する
+     * @param {Group} parentContainer - 追加先の行
      * @param {string} plateLabel - 版の名前（C / M / Y / K）
      * @returns {EditText} 追加した数値欄
      */
     function addCmykPlateField(parentContainer, plateLabel) {
-        var plateColumn = addColumnGroup(parentContainer, ['fill', 'top']);
-        var plateText = plateColumn.add('statictext', undefined, plateLabel);
-        plateText.justify = 'center';
-        var plateInput = addNumberField(plateColumn, '0', getLabel("tooltip.cmykValue"), { integer: true }); /* 読み取りは parseInt / read with parseInt */
+        var plateText = parentContainer.add('statictext', undefined, labelText({ ja: plateLabel, en: plateLabel }));
+        plateText.preferredSize.width = CMYK_LABEL_WIDTH;
+        plateText.justify = 'right';
+        var plateInput = addNumberField(parentContainer, '0', getLabel("tooltip.cmykValue"), { integer: true }); /* 読み取りは parseInt / read with parseInt */
         plateInput.characters = SHORT_FIELD_CHARS;
         setFieldRange(plateInput, 0, 100);
         return plateInput;
     }
 
     /**
+     * CMYK の2版分を横に並べた行を追加する
+     * @param {Group} parentContainer - 追加先
+     * @returns {Group} 追加した行
+     */
+    function addCmykPlateRow(parentContainer) {
+        var plateRow = parentContainer.add('group');
+        plateRow.orientation = 'row';
+        plateRow.alignChildren = ['left', 'center'];
+        plateRow.spacing = CMYK_FIELD_SPACING;
+        return plateRow;
+    }
+
+    /**
      * カラーパネルを追加する
-     * @param {Group} column - 追加先の列
-     * @param {Object} ui - コントロールの格納先
+     * @param {Group} parentColumn - 追加先の列
+     * @param {Object} dialogControls - コントロールの格納先
      * @returns {void}
      */
-    function addColorPanel(column, ui) {
-        var colorPanel = addPanel(column, getLabel("panel.color"));
+    function addColorPanel(parentColumn, dialogControls) {
+        var colorPanel = addPanel(parentColumn, getLabel("panel.color"));
 
         var colorModeColumn = addColumnGroup(colorPanel, ['left', 'top']);
-        ui.rbTextColor = colorModeColumn.add('radiobutton', undefined, getLabel("radio.textColor"));
-        ui.rbTextColor.helpTip = getLabel("tooltip.textColor");
-        ui.rbBlack = colorModeColumn.add('radiobutton', undefined, getLabel("radio.black"));
-        ui.rbBlack.helpTip = getLabel("tooltip.black");
-        ui.rbWhite = colorModeColumn.add('radiobutton', undefined, getLabel("radio.white"));
-        ui.rbWhite.helpTip = getLabel("tooltip.white");
-        ui.rbCmyk = colorModeColumn.add('radiobutton', undefined, getLabel("radio.cmyk"));
-        ui.rbCmyk.helpTip = getLabel("tooltip.cmyk");
-        ui.rbBlack.value = true;
-        ui.colorRadios = { text: ui.rbTextColor, black: ui.rbBlack, white: ui.rbWhite, cmyk: ui.rbCmyk };
+        dialogControls.rbTextColor = colorModeColumn.add('radiobutton', undefined, getLabel("radio.textColor"));
+        dialogControls.rbTextColor.helpTip = getLabel("tooltip.textColor");
+        dialogControls.rbBlack = colorModeColumn.add('radiobutton', undefined, getLabel("radio.black"));
+        dialogControls.rbBlack.helpTip = getLabel("tooltip.black");
+        dialogControls.rbWhite = colorModeColumn.add('radiobutton', undefined, getLabel("radio.white"));
+        dialogControls.rbWhite.helpTip = getLabel("tooltip.white");
+        dialogControls.rbCmyk = colorModeColumn.add('radiobutton', undefined, getLabel("radio.cmyk"));
+        dialogControls.rbCmyk.helpTip = getLabel("tooltip.cmyk");
+        dialogControls.rbBlack.value = true;
+        dialogControls.colorRadios = { text: dialogControls.rbTextColor, black: dialogControls.rbBlack, white: dialogControls.rbWhite, cmyk: dialogControls.rbCmyk };
 
-        ui.cmykGroup = colorPanel.add('group');
-        ui.cmykGroup.orientation = 'row';
-        ui.cmykGroup.alignChildren = ['center', 'top'];
+        /* 4版を1行に並べると列の幅が広がるので、C・M と Y・K の2行にする / Two rows of two keep the column narrow */
+        dialogControls.cmykGroup = addColumnGroup(colorPanel, ['left', 'top']);
+        dialogControls.cmykGroup.spacing = CMYK_FIELD_SPACING;
+        var cyanMagentaRow = addCmykPlateRow(dialogControls.cmykGroup);
+        var yellowBlackRow = addCmykPlateRow(dialogControls.cmykGroup);
         /* キーはセッション記憶の項目名と同じ / Keys match the session-memory fields */
-        ui.cmykInputs = {
-            cmykC: addCmykPlateField(ui.cmykGroup, 'C'),
-            cmykM: addCmykPlateField(ui.cmykGroup, 'M'),
-            cmykY: addCmykPlateField(ui.cmykGroup, 'Y'),
-            cmykK: addCmykPlateField(ui.cmykGroup, 'K')
+        dialogControls.cmykInputs = {
+            cmykC: addCmykPlateField(cyanMagentaRow, 'C'),
+            cmykM: addCmykPlateField(cyanMagentaRow, 'M'),
+            cmykY: addCmykPlateField(yellowBlackRow, 'Y'),
+            cmykK: addCmykPlateField(yellowBlackRow, 'K')
         };
     }
 
     /**
      * 不透明度パネルを追加する
-     * @param {Group} column - 追加先の列
-     * @param {Object} ui - コントロールの格納先
+     * @param {Group} parentColumn - 追加先の列
+     * @param {Object} dialogControls - コントロールの格納先
      * @returns {void}
      */
-    function addOpacityPanel(column, ui) {
-        var opacityPanel = addPanel(column, getLabel("panel.opacity"));
+    function addOpacityPanel(parentColumn, dialogControls) {
+        var opacityPanel = addPanel(parentColumn, getLabel("panel.opacity"));
 
         var opacityRow = opacityPanel.add('group');
         opacityRow.orientation = 'row';
-        ui.cbOpacityApply = opacityRow.add('checkbox', undefined, '');
-        ui.cbOpacityApply.helpTip = getLabel("tooltip.opacity");
-        ui.opacityInput = addNumberField(opacityRow, '60%', getLabel("tooltip.opacity"), { unit: '%' });
-        ui.opacityInput.characters = PERCENT_FIELD_CHARS;
+        dialogControls.cbOpacityApply = opacityRow.add('checkbox', undefined, '');
+        dialogControls.cbOpacityApply.helpTip = getLabel("tooltip.opacity");
+        dialogControls.opacityInput = addNumberField(opacityRow, '60%', getLabel("tooltip.opacity"), { unit: '%' });
+        dialogControls.opacityInput.characters = PERCENT_FIELD_CHARS;
+        setFieldRange(dialogControls.opacityInput, 0, 100);
+
+        /* 幅はパネルに合わせて伸ばす（スライダーでダイアログを広げない） / The slider fills the panel without widening the dialog */
+        dialogControls.opacitySlider = opacityPanel.add('slider', undefined, 60, 0, 100);
+        dialogControls.opacitySlider.preferredSize.width = OPACITY_SLIDER_MIN_WIDTH;
+        dialogControls.opacitySlider.alignment = ['fill', 'center'];
+        dialogControls.opacitySlider.helpTip = getLabel("tooltip.opacitySlider", { step: OPACITY_SLIDER_SHIFT_STEP });
     }
 
     /**
@@ -3477,15 +3611,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na8af4a7016ad"; /* 紹�
      * @returns {Object} ダイアログ（dialog）と各コントロール
      */
     function buildDialog() {
-        var ui = {};
-        var rulerUnitLabel = getUnitInfo('rulerType').label;
-        var strokeUnitLabel = getUnitInfo('strokeUnits').label;
+        var dialogControls = {};
+        var rulerUnit = getUnitInfo('rulerType');
+        var strokeUnit = getUnitInfo('strokeUnits');
 
         var dialog = new Window('dialog', getLabel("dialog.title") + ' ' + SCRIPT_VERSION);
         setupWindow(dialog);
-        ui.dialog = dialog;
+        dialogControls.dialog = dialog;
 
-        addShapeRadios(dialog, ui);
+        addShapeRadios(dialog, dialogControls);
 
         var columnsRow = dialog.add('group');
         columnsRow.orientation = 'row';
@@ -3493,25 +3627,25 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na8af4a7016ad"; /* 紹�
         var leftColumn = addColumnGroup(columnsRow, ['fill', 'top']);
         var rightColumn = addColumnGroup(columnsRow, ['fill', 'top']);
 
-        addScalePanel(leftColumn, ui);
-        addMarginPanel(leftColumn, ui, rulerUnitLabel);
-        addRoundPanel(leftColumn, ui, rulerUnitLabel);
-        addGroupingPanel(leftColumn, ui);
+        addScalePanel(leftColumn, dialogControls);
+        addMarginPanel(leftColumn, dialogControls, rulerUnit);
+        addRoundPanel(leftColumn, dialogControls, rulerUnit);
+        addGroupingPanel(leftColumn, dialogControls);
 
-        addOffsetPanel(rightColumn, ui, rulerUnitLabel);
-        addKindPanel(rightColumn, ui, strokeUnitLabel);
-        addColorPanel(rightColumn, ui);
-        addOpacityPanel(rightColumn, ui);
+        addOffsetPanel(rightColumn, dialogControls, rulerUnit);
+        addFillStrokePanel(rightColumn, dialogControls, strokeUnit);
+        addColorPanel(rightColumn, dialogControls);
+        addOpacityPanel(rightColumn, dialogControls);
 
         /* ボタンエリア（左・スペーサー・右） / Button row (left, spacer, right) */
         var buttonRow = addButtonRow(dialog);
-        ui.btnTransparencyGrid = buttonRow.leftGroup.add('button', undefined, getLabel("button.transparencyGrid"));
-        ui.btnTransparencyGrid.helpTip = getLabel("tooltip.transparencyGrid");
-        ui.btnCancel = buttonRow.rightGroup.add('button', undefined, getLabel("button.cancel"), { name: 'cancel' });
-        ui.btnOK = buttonRow.rightGroup.add('button', undefined, getLabel("button.ok"), { name: 'ok' });
+        dialogControls.btnTransparencyGrid = buttonRow.leftGroup.add('button', undefined, getLabel("button.transparencyGrid"));
+        dialogControls.btnTransparencyGrid.helpTip = getLabel("tooltip.transparencyGrid");
+        dialogControls.btnCancel = buttonRow.rightGroup.add('button', undefined, getLabel("button.cancel"), { name: 'cancel' });
+        dialogControls.btnOK = buttonRow.rightGroup.add('button', undefined, getLabel("button.ok"), { name: 'ok' });
         alignRightOnlyButtonRow(buttonRow);
 
-        return ui;
+        return dialogControls;
     }
 
     // =========================================
@@ -3520,127 +3654,138 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na8af4a7016ad"; /* 紹�
 
     /**
      * スケールパネルの有効／無効を切り替える（長方形は100%固定。ただし正方形ONのときは有効）
-     * @param {Object} ui - コントロール
+     * @param {Object} dialogControls - コントロール
      * @returns {void}
      */
-    function syncScalePanel(ui) {
-        if (ui.rbRectangle.value && !ui.cbSquare.value) {
-            ui.scaleInput.text = formatFieldText(ui.scaleInput, 100);
-            ui.cbOneChar.value = false;
-            ui.scalePanel.enabled = false;
+    function syncScalePanel(dialogControls) {
+        if (dialogControls.rbRectangle.value && !dialogControls.cbSquare.value) {
+            setFieldValue(dialogControls.scaleInput, 100);
+            dialogControls.cbOneChar.value = false;
+            dialogControls.scalePanel.enabled = false;
         } else {
-            ui.scalePanel.enabled = true;
+            dialogControls.scalePanel.enabled = true;
         }
-        redrawSteppersIn(ui.scalePanel);
+        redrawSteppersIn(dialogControls.scalePanel);
     }
 
     /**
      * マージンの「連動」を反映する（ONなら左右を上下にそろえて無効化）
-     * @param {Object} ui - コントロール
+     * @param {Object} dialogControls - コントロール
      * @returns {void}
      */
-    function syncMarginLink(ui) {
-        if (ui.marginLinkToggle.value) ui.marginHInput.text = String(ui.marginVInput.text);
-        setNumberFieldEnabled(ui.marginHInput, !ui.marginLinkToggle.value);
+    function syncMarginLink(dialogControls) {
+        if (dialogControls.marginLinkToggle.value) dialogControls.marginHInput.text = String(dialogControls.marginVInput.text);
+        setNumberFieldEnabled(dialogControls.marginHInput, !dialogControls.marginLinkToggle.value);
     }
 
     /**
      * マージンパネルは長方形のときだけ有効にする
-     * @param {Object} ui - コントロール
+     * @param {Object} dialogControls - コントロール
      * @returns {void}
      */
-    function syncMarginPanel(ui) {
-        ui.marginPanel.enabled = ui.rbRectangle.value;
-        redrawSteppersIn(ui.marginPanel);
+    function syncMarginPanel(dialogControls) {
+        dialogControls.marginPanel.enabled = dialogControls.rbRectangle.value;
+        redrawSteppersIn(dialogControls.marginPanel);
         /* 親の無効化は自作描画に出ないので描き直す / Parent disabling does not reach custom drawing, so redraw */
-        redrawLinkToggle(ui.marginLinkToggle);
+        redrawLinkToggle(dialogControls.marginLinkToggle);
     }
 
     /**
      * 角丸の数値欄の有効／無効を切り替える（ピル形状は半径が自動なので無効）
-     * @param {Object} ui - コントロール
+     * @param {Object} dialogControls - コントロール
      * @returns {void}
      */
-    function syncRoundInput(ui) {
-        if (ui.cbPill.value) {
-            setNumberFieldEnabled(ui.roundInput, false);
+    function syncRoundInput(dialogControls) {
+        if (dialogControls.cbPill.value) {
+            setNumberFieldEnabled(dialogControls.roundInput, false);
             return;
         }
-        if (ui.cbRoundEnable.value) {
+        if (dialogControls.cbRoundEnable.value) {
             /* OFF→ON で控えた値を戻す / Restore the saved value when turned on */
-            if (!ui.roundInput.enabled) ui.roundInput.text = String(ui.lastRoundRadius || ui.roundInput.text || formatFieldText(ui.roundInput, 0));
-            setNumberFieldEnabled(ui.roundInput, true);
+            if (!dialogControls.roundInput.enabled) setFieldValue(dialogControls.roundInput, dialogControls.lastRoundRadius);
+            setNumberFieldEnabled(dialogControls.roundInput, true);
         } else {
             /* ON→OFF で値を控えて無効化 / Save the value and disable when turned off */
-            ui.lastRoundRadius = String(ui.roundInput.text);
-            setNumberFieldEnabled(ui.roundInput, false);
+            dialogControls.lastRoundRadius = readFieldNumber(dialogControls.roundInput, 0);
+            setNumberFieldEnabled(dialogControls.roundInput, false);
         }
     }
 
     /**
      * 角丸パネルは長方形のときだけ有効にする
-     * @param {Object} ui - コントロール
+     * @param {Object} dialogControls - コントロール
      * @returns {void}
      */
-    function syncRoundPanel(ui) {
-        ui.roundPanel.enabled = ui.rbRectangle.value;
-        syncRoundInput(ui);
-        redrawSteppersIn(ui.roundPanel);
+    function syncRoundPanel(dialogControls) {
+        dialogControls.roundPanel.enabled = dialogControls.rbRectangle.value;
+        syncRoundInput(dialogControls);
+        redrawSteppersIn(dialogControls.roundPanel);
     }
 
     /**
      * 種別に合わせて線幅と中マド処理を切り替える（線のときは中マド処理を使えない）
-     * @param {Object} ui - コントロール
+     * @param {Object} dialogControls - コントロール
      * @returns {void}
      */
-    function syncKind(ui) {
-        var strokeOn = ui.rbStroke.value;
-        setNumberFieldEnabled(ui.strokeWidthInput, strokeOn);
-        if (strokeOn) ui.cbExclude.value = false;
-        ui.cbExclude.enabled = !strokeOn;
+    function syncFillStroke(dialogControls) {
+        var isStrokeSelected = dialogControls.rbStroke.value;
+        setNumberFieldEnabled(dialogControls.strokeWidthInput, isStrokeSelected);
+        if (isStrokeSelected) dialogControls.cbExclude.value = false;
+        dialogControls.cbExclude.enabled = !isStrokeSelected;
     }
 
     /**
      * CMYK 欄は CMYK を選んだときだけ有効にする
-     * @param {Object} ui - コントロール
+     * @param {Object} dialogControls - コントロール
      * @returns {void}
      */
-    function syncColor(ui) {
-        ui.cmykGroup.enabled = ui.rbCmyk.value;
-        redrawSteppersIn(ui.cmykGroup);
+    function syncColor(dialogControls) {
+        dialogControls.cmykGroup.enabled = dialogControls.rbCmyk.value;
+        redrawSteppersIn(dialogControls.cmykGroup);
     }
 
     /**
      * 不透明度の数値欄はチェックONのときだけ有効にする
-     * @param {Object} ui - コントロール
+     * @param {Object} dialogControls - コントロール
      * @returns {void}
      */
-    function syncOpacity(ui) {
-        setNumberFieldEnabled(ui.opacityInput, ui.cbOpacityApply.value);
+    function syncOpacity(dialogControls) {
+        setNumberFieldEnabled(dialogControls.opacityInput, dialogControls.cbOpacityApply.value);
+        dialogControls.opacitySlider.enabled = dialogControls.cbOpacityApply.value;
+        syncOpacitySlider(dialogControls);
+    }
+
+    /**
+     * 不透明度のスライダーを数値欄の値に合わせる
+     * @param {Object} dialogControls - コントロール
+     * @returns {void}
+     */
+    function syncOpacitySlider(dialogControls) {
+        dialogControls.opacitySlider.value = readPercentField(dialogControls.opacityInput, 100);
     }
 
     /**
      * 形状に連動するパネルをまとめて切り替える
-     * @param {Object} ui - コントロール
+     * @param {Object} dialogControls - コントロール
      * @returns {void}
      */
-    function syncShapeDependentPanels(ui) {
-        syncRoundPanel(ui);
-        syncMarginPanel(ui);
-        syncScalePanel(ui);
+    function syncShapeDependentPanels(dialogControls) {
+        syncRoundPanel(dialogControls);
+        syncMarginPanel(dialogControls);
+        syncScalePanel(dialogControls);
     }
 
     /**
      * すべての連動をまとめて反映する
-     * @param {Object} ui - コントロール
+     * @param {Object} dialogControls - コントロール
      * @returns {void}
      */
-    function syncAllPanels(ui) {
-        syncColor(ui);
-        syncKind(ui);
-        syncMarginLink(ui);
-        syncOpacity(ui);
-        syncShapeDependentPanels(ui);
+    function syncAllPanels(dialogControls) {
+        syncColor(dialogControls);
+        syncFillStroke(dialogControls);
+        syncMarginLink(dialogControls);
+        syncOpacity(dialogControls);
+        syncShapeDependentPanels(dialogControls);
     }
 
     // =========================================
@@ -3649,49 +3794,49 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na8af4a7016ad"; /* 紹�
 
     /**
      * 数値欄とセッション記憶の項目の対応表を返す
-     * @param {Object} ui - コントロール
+     * @param {Object} dialogControls - コントロール
      * @returns {Object} 項目名 → EditText
      */
-    function getTextFieldMap(ui) {
+    function getTextFieldMap(dialogControls) {
         var fieldMap = {
-            scale: ui.scaleInput,
-            marginV: ui.marginVInput,
-            marginH: ui.marginHInput,
-            roundValue: ui.roundInput,
-            offsetX: ui.offsetXInput,
-            offsetY: ui.offsetYInput,
-            strokeWidth: ui.strokeWidthInput,
-            opacity: ui.opacityInput
+            scale: dialogControls.scaleInput,
+            marginV: dialogControls.marginVInput,
+            marginH: dialogControls.marginHInput,
+            roundValue: dialogControls.roundInput,
+            offsetX: dialogControls.offsetXInput,
+            offsetY: dialogControls.offsetYInput,
+            strokeWidth: dialogControls.strokeWidthInput,
+            opacity: dialogControls.opacityInput
         };
-        for (var key in ui.cmykInputs) fieldMap[key] = ui.cmykInputs[key];
+        for (var key in dialogControls.cmykInputs) fieldMap[key] = dialogControls.cmykInputs[key];
         return fieldMap;
     }
 
     /**
      * チェックボックスとセッション記憶の項目の対応表を返す
-     * @param {Object} ui - コントロール
+     * @param {Object} dialogControls - コントロール
      * @returns {Object} 項目名 → Checkbox
      */
-    function getCheckboxMap(ui) {
+    function getCheckboxMap(dialogControls) {
         return {
-            oneChar: ui.cbOneChar,
-            marginSquare: ui.cbSquare,
-            roundEnable: ui.cbRoundEnable,
-            pill: ui.cbPill,
-            groupWithText: ui.cbGroupWithText,
-            exclude: ui.cbExclude,
-            opacityApply: ui.cbOpacityApply
+            oneChar: dialogControls.cbOneChar,
+            marginSquare: dialogControls.cbSquare,
+            roundEnable: dialogControls.cbRoundEnable,
+            pill: dialogControls.cbPill,
+            groupWithText: dialogControls.cbGroupWithText,
+            exclude: dialogControls.cbExclude,
+            opacityApply: dialogControls.cbOpacityApply
         };
     }
 
     /**
      * ダイアログの値をセッション記憶に控える
-     * @param {Object} ui - コントロール
+     * @param {Object} dialogControls - コントロール
      * @returns {void}
      */
-    function saveDialogState(ui) {
-        var fieldMap = getTextFieldMap(ui);
-        var checkboxMap = getCheckboxMap(ui);
+    function saveDialogState(dialogControls) {
+        var fieldMap = getTextFieldMap(dialogControls);
+        var checkboxMap = getCheckboxMap(dialogControls);
         var key;
         /* 単位は付けず数値だけを控える（復元時に欄の単位を付け直す）/ Save the number only; the unit is added back on restore */
         for (key in fieldMap) {
@@ -3699,35 +3844,35 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na8af4a7016ad"; /* 紹�
             dialogState[key] = isNaN(fieldValue) ? DEFAULT_SETTINGS[key] : String(fieldValue);
         }
         for (key in checkboxMap) dialogState[key] = !!checkboxMap[key].value;
-        dialogState.marginLink = !!ui.marginLinkToggle.value;
-        dialogState.shape = getSelectedRadioKey(ui.shapeRadios, 'circle');
-        dialogState.kind = getSelectedRadioKey(ui.kindRadios, 'fill');
-        dialogState.colorMode = getSelectedRadioKey(ui.colorRadios, 'black');
+        dialogState.marginLink = !!dialogControls.marginLinkToggle.value;
+        dialogState.shape = getSelectedRadioKey(dialogControls.shapeRadios, 'circle');
+        dialogState.kind = getSelectedRadioKey(dialogControls.fillStrokeRadios, 'fill');
+        dialogState.colorMode = getSelectedRadioKey(dialogControls.colorRadios, 'black');
         dialogState._hasSaved = true;
         settingsStore.save(dialogState);
     }
 
     /**
      * セッション記憶の値をダイアログに戻す
-     * @param {Object} ui - コントロール
+     * @param {Object} dialogControls - コントロール
      * @returns {void}
      */
-    function restoreDialogState(ui) {
+    function restoreDialogState(dialogControls) {
         if (!dialogState._hasSaved) return;
-        var fieldMap = getTextFieldMap(ui);
-        var checkboxMap = getCheckboxMap(ui);
+        var fieldMap = getTextFieldMap(dialogControls);
+        var checkboxMap = getCheckboxMap(dialogControls);
         var key;
         for (key in fieldMap) {
             var savedValue = parseFloat(dialogState[key]);
             if (isNaN(savedValue)) savedValue = parseFloat(DEFAULT_SETTINGS[key]);
-            fieldMap[key].text = formatFieldText(fieldMap[key], savedValue);
+            setFieldValue(fieldMap[key], savedValue);
         }
         for (key in checkboxMap) checkboxMap[key].value = !!dialogState[key];
-        setLinkToggleValue(ui.marginLinkToggle, !!dialogState.marginLink);
-        selectRadioKey(ui.shapeRadios, dialogState.shape, 'circle');
-        selectRadioKey(ui.kindRadios, dialogState.kind, 'fill');
-        selectRadioKey(ui.colorRadios, dialogState.colorMode, 'black');
-        ui.lastRoundRadius = ui.roundInput.text;
+        setLinkToggleValue(dialogControls.marginLinkToggle, !!dialogState.marginLink);
+        selectRadioKey(dialogControls.shapeRadios, dialogState.shape, 'circle');
+        selectRadioKey(dialogControls.fillStrokeRadios, dialogState.kind, 'fill');
+        selectRadioKey(dialogControls.colorRadios, dialogState.colorMode, 'black');
+        dialogControls.lastRoundRadius = readFieldNumber(dialogControls.roundInput, 0);
     }
 
     // =========================================
@@ -3736,76 +3881,76 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na8af4a7016ad"; /* 紹�
 
     /**
      * テキストの見た目の境界を測る（複製をアウトライン化して測り、結果は控えて使い回す）
-     * @param {Object} context - 対象の情報
+     * @param {Object} targetContext - 対象の情報
      * @returns {{left: number, top: number, right: number, bottom: number, w: number, h: number}} 矩形情報
      */
-    function measureTextVisualBounds(context) {
-        if (context.textVisualRect) return context.textVisualRect;
+    function measureTextVisualBounds(targetContext) {
+        if (targetContext.textVisualRect) return targetContext.textVisualRect;
         var textDuplicate = null;
         var outlinedGroup = null;
         try {
-            textDuplicate = context.textItem.duplicate();
+            textDuplicate = targetContext.textItem.duplicate();
             outlinedGroup = textDuplicate.createOutline();
-            context.textVisualRect = boundsToRect(outlinedGroup.geometricBounds);
+            targetContext.textVisualRect = boundsToRect(outlinedGroup.geometricBounds);
         } catch (e) {
             /* アウトライン化できないときはフレームの境界 / Fall back to the frame bounds */
-            context.textVisualRect = boundsToRect(context.textItem.geometricBounds);
+            targetContext.textVisualRect = boundsToRect(targetContext.textItem.geometricBounds);
         } finally {
             safeRemove(outlinedGroup, 'outlinedGroup');
             safeRemove(textDuplicate, 'textDuplicate');
         }
-        return context.textVisualRect;
+        return targetContext.textVisualRect;
     }
 
     /**
      * 選択オブジェクト全体の境界を測る（置き換える既存の背面図形は除く）
-     * @param {Object} context - 対象の情報
+     * @param {Object} targetContext - 対象の情報
      * @returns {{left: number, top: number, right: number, bottom: number, w: number, h: number}} 矩形情報
      */
-    function measureSelectionRect(context) {
+    function measureSelectionRect(targetContext) {
         var measuredItems = [];
-        for (var i = 0; i < context.selectionItems.length; i++) {
-            var item = context.selectionItems[i];
-            if (!item || item === context.existingBackdrop) continue;
+        for (var i = 0; i < targetContext.selectionItems.length; i++) {
+            var item = targetContext.selectionItems[i];
+            if (!item || item === targetContext.existingBackdrop) continue;
             measuredItems.push(item);
         }
         /* プレビュー境界で測る（クリップグループはマスクの範囲） / Measure preview bounds (clip groups by their mask) */
         var unionBounds = getClipAwareUnionBounds(measuredItems, true);
-        return boundsToRect(unionBounds || getClipAwareBounds(context.targetItem, true));
+        return boundsToRect(unionBounds || getClipAwareBounds(targetContext.targetItem, true));
     }
 
     /**
      * 背面図形の基準にする矩形を返す
      * - テキスト：見た目の境界（1文字モードではフレームの境界）
      * - テキスト以外：選択全体の境界
-     * @param {Object} ui - コントロール
-     * @param {Object} context - 対象の情報
+     * @param {Object} dialogControls - コントロール
+     * @param {Object} targetContext - 対象の情報
      * @returns {{left: number, top: number, right: number, bottom: number, w: number, h: number}} 矩形情報
      */
-    function measureBaseRect(ui, context) {
-        if (!context.isTextMode) return measureSelectionRect(context);
-        if (ui.cbOneChar.value) return boundsToRect(context.textItem.geometricBounds);
-        return measureTextVisualBounds(context);
+    function measureBaseRect(dialogControls, targetContext) {
+        if (!targetContext.isTextMode) return measureSelectionRect(targetContext);
+        if (dialogControls.cbOneChar.value) return boundsToRect(targetContext.textItem.geometricBounds);
+        return measureTextVisualBounds(targetContext);
     }
 
     /**
      * マージンとスケールの初期値を、対象の短辺から決める（前回の値が無いときだけ呼ぶ）
-     * @param {Object} ui - コントロール
-     * @param {Object} context - 対象の情報
+     * @param {Object} dialogControls - コントロール
+     * @param {Object} targetContext - 対象の情報
      * @returns {void}
      */
-    function applyDefaultsFromTarget(ui, context) {
-        var baseRect = context.isTextMode ? measureTextVisualBounds(context) : measureSelectionRect(context);
+    function applyDefaultsFromTarget(dialogControls, targetContext) {
+        var baseRect = targetContext.isTextMode ? measureTextVisualBounds(targetContext) : measureSelectionRect(targetContext);
         var shortSide = Math.min(Math.abs(baseRect.w), Math.abs(baseRect.h));
         if (!isFinite(shortSide) || shortSide <= 0) return;
 
-        var defaultMargin = roundToTenth(shortSide / DEFAULT_MARGIN_DIVISOR);
-        ui.marginVInput.text = formatFieldText(ui.marginVInput, defaultMargin);
-        ui.marginHInput.text = formatFieldText(ui.marginHInput, defaultMargin);
-        syncMarginLink(ui);
+        /* 短辺は pt なので、欄の単位に直して入れる / The short side is in points; convert to the field unit */
+        setLengthPoints(dialogControls.marginVInput, shortSide / DEFAULT_MARGIN_DIVISOR);
+        setLengthPoints(dialogControls.marginHInput, shortSide / DEFAULT_MARGIN_DIVISOR);
+        syncMarginLink(dialogControls);
 
-        ui.roundInput.text = formatFieldText(ui.roundInput, roundToTenth(shortSide / DEFAULT_ROUND_DIVISOR));
-        ui.lastRoundRadius = ui.roundInput.text;
+        setLengthPoints(dialogControls.roundInput, shortSide / DEFAULT_ROUND_DIVISOR);
+        dialogControls.lastRoundRadius = readFieldNumber(dialogControls.roundInput, 0);
     }
 
     /**
@@ -3814,38 +3959,48 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na8af4a7016ad"; /* 紹�
      * @param {number} fallbackValue - 数値にならないときの値
      * @returns {number} 読み取った値
      */
-    function readNumber(editText, fallbackValue) {
+    function readFieldNumber(editText, fallbackValue) {
         var value = parseFloat(editText.text);
         return isNaN(value) ? fallbackValue : value;
     }
 
     /**
+     * ％の数値欄の値を 0〜100 に収めて読む
+     * @param {EditText} editText - 数値欄
+     * @param {number} fallbackValue - 数値にならないときの値
+     * @returns {number} 0〜100 の値
+     */
+    function readPercentField(editText, fallbackValue) {
+        return clampSteppedValue(readFieldNumber(editText, fallbackValue), { min: 0, max: 100 });
+    }
+
+    /**
      * ダイアログの値から、背面図形の中心と寸法を求める
-     * @param {Object} ui - コントロール
-     * @param {Object} context - 対象の情報
+     * @param {Object} dialogControls - コントロール
+     * @param {Object} targetContext - 対象の情報
      * @returns {{cx: number, cy: number, diameter: number, rectW: number, rectH: number, baseW: number, scaleRatio: number}} 図形の寸法
      */
-    function computeBackdropGeometry(ui, context) {
-        var baseRect = measureBaseRect(ui, context);
+    function computeBackdropGeometry(dialogControls, targetContext) {
+        var baseRect = measureBaseRect(dialogControls, targetContext);
 
-        var marginY = readNumber(ui.marginVInput, 0);
-        var marginX = ui.marginLinkToggle.value ? marginY : readNumber(ui.marginHInput, 0);
+        var marginY = readLengthPoints(dialogControls.marginVInput, 0);
+        var marginX = dialogControls.marginLinkToggle.value ? marginY : readLengthPoints(dialogControls.marginHInput, 0);
         var paddedW = baseRect.w + marginX * 2;
         var paddedH = baseRect.h + marginY * 2;
 
         var cx = baseRect.left + baseRect.w / 2;
         var cy = baseRect.top - baseRect.h / 2;
 
-        var scalePercent = readNumber(ui.scaleInput, 100);
+        var scalePercent = readFieldNumber(dialogControls.scaleInput, 100);
         if (scalePercent <= 0) scalePercent = 100;
         var scaleRatio = scalePercent / 100;
 
         var diameter;
-        if (context.isTextMode && ui.cbOneChar.value) {
+        if (targetContext.isTextMode && dialogControls.cbOneChar.value) {
             /* 1文字モード：文字サイズを基準に、上端から文字サイズの半分を中心にする / Size from the font size */
             var fontSize;
             try {
-                fontSize = context.textItem.textRange.characterAttributes.size;
+                fontSize = targetContext.textItem.textRange.characterAttributes.size;
             } catch (e) {
                 fontSize = Math.max(baseRect.w, baseRect.h);
             }
@@ -3856,17 +4011,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na8af4a7016ad"; /* 紹�
             diameter = Math.max(paddedW, paddedH) * Math.SQRT2 * scaleRatio;
         }
 
-        cx += readNumber(ui.offsetXInput, 0);
-        cy += readNumber(ui.offsetYInput, 0);
+        cx += readLengthPoints(dialogControls.offsetXInput, 0);
+        cy += readLengthPoints(dialogControls.offsetYInput, 0);
 
         /* 正方形ONのときは正円と同じ直径を一辺にする / A square uses the circle's diameter as its side */
-        var squareOn = ui.cbSquare.value;
+        var isSquareOn = dialogControls.cbSquare.value;
         return {
             cx: cx,
             cy: cy,
             diameter: diameter,
-            rectW: squareOn ? diameter : paddedW * scaleRatio,
-            rectH: squareOn ? diameter : paddedH * scaleRatio,
+            rectW: isSquareOn ? diameter : paddedW * scaleRatio,
+            rectH: isSquareOn ? diameter : paddedH * scaleRatio,
             baseW: baseRect.w,
             scaleRatio: scaleRatio
         };
@@ -3878,25 +4033,25 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na8af4a7016ad"; /* 紹�
 
     /**
      * 背面図形のカラーを決める
-     * @param {Object} ui - コントロール
-     * @param {Object} context - 対象の情報
+     * @param {Object} dialogControls - コントロール
+     * @param {Object} targetContext - 対象の情報
      * @returns {Color} カラー
      */
-    function resolveBackdropColor(ui, context) {
-        if (ui.rbTextColor.value) {
+    function resolveBackdropColor(dialogControls, targetContext) {
+        if (dialogControls.rbTextColor.value) {
             /* 混在した書式などで読めないことがある。そのときはブラック / Falls back to black when unreadable */
             try {
-                var textColor = context.textItem.textRange.characterAttributes.fillColor;
+                var textColor = targetContext.textItem.textRange.characterAttributes.fillColor;
                 if (textColor) return textColor;
             } catch (e) { }
         }
-        if (ui.rbWhite.value) return makeGrayColor(0);
-        if (ui.rbCmyk.value) {
+        if (dialogControls.rbWhite.value) return makeGrayColor(0);
+        if (dialogControls.rbCmyk.value) {
             var cmykColor = new CMYKColor();
-            cmykColor.cyan = Math.min(100, Math.max(0, parseInt(ui.cmykInputs.cmykC.text, 10) || 0));
-            cmykColor.magenta = Math.min(100, Math.max(0, parseInt(ui.cmykInputs.cmykM.text, 10) || 0));
-            cmykColor.yellow = Math.min(100, Math.max(0, parseInt(ui.cmykInputs.cmykY.text, 10) || 0));
-            cmykColor.black = Math.min(100, Math.max(0, parseInt(ui.cmykInputs.cmykK.text, 10) || 0));
+            cmykColor.cyan = readPercentField(dialogControls.cmykInputs.cmykC, 0);
+            cmykColor.magenta = readPercentField(dialogControls.cmykInputs.cmykM, 0);
+            cmykColor.yellow = readPercentField(dialogControls.cmykInputs.cmykY, 0);
+            cmykColor.black = readPercentField(dialogControls.cmykInputs.cmykK, 0);
             return cmykColor;
         }
         return makeGrayColor(100);
@@ -3904,49 +4059,58 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na8af4a7016ad"; /* 紹�
 
     /**
      * 背面図形に塗り／線と不透明度を設定する
-     * @param {PageItem} item - 背面図形
-     * @param {Object} ui - コントロール
-     * @param {Object} context - 対象の情報
+     * @param {PageItem} backdropItem - 背面図形
+     * @param {Object} dialogControls - コントロール
+     * @param {Object} targetContext - 対象の情報
      * @returns {void}
      */
-    function applyBackdropStyle(item, ui, context) {
+    function applyBackdropStyle(backdropItem, dialogControls, targetContext) {
         /* 図形の変換後などに色を受け付けないことがある。そのときは薄いグレーの塗り / Falls back to a light gray fill */
         try {
-            var backdropColor = resolveBackdropColor(ui, context);
-            if (ui.rbFill.value) {
-                item.filled = true;
-                item.stroked = false;
-                item.fillColor = backdropColor;
+            var backdropColor = resolveBackdropColor(dialogControls, targetContext);
+            if (dialogControls.rbFill.value) {
+                backdropItem.filled = true;
+                backdropItem.stroked = false;
+                backdropItem.fillColor = backdropColor;
             } else {
-                item.filled = false;
-                item.stroked = true;
-                var strokeWidth = readNumber(ui.strokeWidthInput, 1);
-                item.strokeWidth = (strokeWidth < 0) ? 1 : strokeWidth;
-                item.strokeColor = backdropColor;
+                backdropItem.filled = false;
+                backdropItem.stroked = true;
+                var strokeWidth = readLengthPoints(dialogControls.strokeWidthInput, 1);
+                backdropItem.strokeWidth = (strokeWidth < 0) ? 1 : strokeWidth;
+                backdropItem.strokeColor = backdropColor;
             }
         } catch (e) {
             try {
-                item.fillColor = makeGrayColor(20);
-                item.filled = true;
-                item.stroked = false;
+                backdropItem.fillColor = makeGrayColor(20);
+                backdropItem.filled = true;
+                backdropItem.stroked = false;
             } catch (eFallback) { }
         }
 
-        var opacityPercent = Math.max(0, Math.min(100, readNumber(ui.opacityInput, 100)));
-        item.opacity = ui.cbOpacityApply.value ? opacityPercent : 100;
+        applyBackdropOpacity(backdropItem, dialogControls);
+    }
+
+    /**
+     * 背面図形に不透明度を設定する（チェックがオフなら100%）
+     * @param {PageItem} backdropItem - 背面図形
+     * @param {Object} dialogControls - コントロール
+     * @returns {void}
+     */
+    function applyBackdropOpacity(backdropItem, dialogControls) {
+        backdropItem.opacity = dialogControls.cbOpacityApply.value ? readPercentField(dialogControls.opacityInput, 100) : 100;
     }
 
     /**
      * 長方形の背面図形を作る（角丸・ピル形状はライブ効果）
      * @param {Document} doc - 対象ドキュメント
-     * @param {Object} ui - コントロール
+     * @param {Object} dialogControls - コントロール
      * @param {Object} geometry - 図形の寸法
      * @returns {PathItem} 作った図形
      */
-    function createRectangleBackdrop(doc, ui, geometry) {
+    function createRectangleBackdrop(doc, dialogControls, geometry) {
         var rectTop = geometry.cy + geometry.rectH / 2;
 
-        if (ui.cbPill.value) {
+        if (dialogControls.cbPill.value) {
             /* ピル形状：高さの半分を半径にし、幅は少なくとも「元の幅＋高さ」 / Pill: radius is half the height */
             var minPillWidth = Math.abs(geometry.baseW) * geometry.scaleRatio + geometry.rectH;
             var pillWidth = Math.max(geometry.rectW, minPillWidth);
@@ -3956,32 +4120,35 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na8af4a7016ad"; /* 紹�
         }
 
         var rectShape = doc.pathItems.rectangle(rectTop, geometry.cx - geometry.rectW / 2, geometry.rectW, geometry.rectH);
-        if (ui.cbRoundEnable.value) applyRoundCornersLive(rectShape, readNumber(ui.roundInput, 0));
+        if (dialogControls.cbRoundEnable.value) applyRoundCornersLive(rectShape, readLengthPoints(dialogControls.roundInput, 0));
         return rectShape;
     }
 
     /**
      * 背面図形を作り、対象の背面に置いて色を付ける
      * @param {Document} doc - 対象ドキュメント
-     * @param {Object} ui - コントロール
-     * @param {Object} context - 対象の情報
+     * @param {Object} dialogControls - コントロール
+     * @param {Object} targetContext - 対象の情報
+     * @param {PreviewManager} [previewManager] - プレビューのときに渡す（作った図形を巻き戻しの対象に控える）
      * @returns {PathItem} 作った図形
      */
-    function createBackdrop(doc, ui, context) {
-        var geometry = computeBackdropGeometry(ui, context);
+    function createBackdrop(doc, dialogControls, targetContext, previewManager) {
+        var geometry = computeBackdropGeometry(dialogControls, targetContext);
         var backdropShape;
 
-        if (ui.rbRectangle.value) {
-            backdropShape = createRectangleBackdrop(doc, ui, geometry);
+        if (dialogControls.rbRectangle.value) {
+            backdropShape = createRectangleBackdrop(doc, dialogControls, geometry);
         } else {
             var diameter = geometry.diameter;
             backdropShape = doc.pathItems.ellipse(geometry.cy + diameter / 2, geometry.cx - diameter / 2, diameter, diameter);
-            if (ui.rbSuperellipse.value) morphPathToSuperellipse(backdropShape, geometry.cx, geometry.cy, diameter, diameter);
+            if (dialogControls.rbSuperellipse.value) morphPathToSuperellipse(backdropShape, geometry.cx, geometry.cy, diameter, diameter);
         }
+        /* 途中で失敗しても消せるよう、作った直後に控える / Track it right away so a later failure still cleans up */
+        if (previewManager) previewManager.track(backdropShape);
 
         /* 対象の直後（背面）へ。移動できない位置なら最背面へ / Place behind the target, or send to back */
         try {
-            backdropShape.move(context.targetItem, ElementPlacement.PLACEAFTER);
+            backdropShape.move(targetContext.targetItem, ElementPlacement.PLACEAFTER);
         } catch (e) {
             try {
                 backdropShape.zOrder(ZOrderMethod.SENDTOBACK);
@@ -3990,7 +4157,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na8af4a7016ad"; /* 紹�
             }
         }
 
-        applyBackdropStyle(backdropShape, ui, context);
+        applyBackdropStyle(backdropShape, dialogControls, targetContext);
         return backdropShape;
     }
 
@@ -3998,16 +4165,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na8af4a7016ad"; /* 紹�
      * 確定時の仕上げ：正円は「シェイプに変換」、長方形は「ライブパスファインダー（合体）」
      * @param {Document} doc - 対象ドキュメント
      * @param {PathItem} backdropShape - 背面図形
-     * @param {Object} ui - コントロール
-     * @param {Object} context - 対象の情報
+     * @param {Object} dialogControls - コントロール
+     * @param {Object} targetContext - 対象の情報
      * @returns {PageItem} 仕上げたオブジェクト
      */
-    function finalizeBackdropShape(doc, backdropShape, ui, context) {
-        if (ui.rbSuperellipse.value) return backdropShape;
-        var menuCommand = ui.rbCircle.value ? 'Convert to Shape' : 'Live Pathfinder Add';
+    function finalizeBackdropShape(doc, backdropShape, dialogControls, targetContext) {
+        if (dialogControls.rbSuperellipse.value) return backdropShape;
+        var menuCommand = dialogControls.rbCircle.value ? 'Convert to Shape' : 'Live Pathfinder Add';
         try {
             var finalizedShape = runMenuCommandOnItem(doc, backdropShape, menuCommand);
-            applyBackdropStyle(finalizedShape, ui, context);
+            applyBackdropStyle(finalizedShape, dialogControls, targetContext);
             return finalizedShape;
         } catch (e) {
             logDebug(menuCommand + ' failed: ' + e);
@@ -4039,13 +4206,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na8af4a7016ad"; /* 紹�
             } catch (eMoveGroup) {
                 logDebug('group move failed: ' + eMoveGroup);
             }
-            backdropShape.move(resultGroup, ElementPlacement.PLACEATEND);
+            /* 対象を先に入れ、背面図形をその後ろ（最背面）に足す / Add the target first so the backdrop lands behind it */
             targetItem.move(resultGroup, ElementPlacement.PLACEATEND);
-            try {
-                backdropShape.zOrder(ZOrderMethod.SENDTOBACK);
-            } catch (eSendToBack) {
-                logDebug('grouped backdrop zOrder failed: ' + eSendToBack);
-            }
+            backdropShape.move(resultGroup, ElementPlacement.PLACEATEND);
             return resultGroup;
         } catch (eGroup) {
             alert(labelValueText("alert.groupFailed", eGroup));
@@ -4074,45 +4237,32 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na8af4a7016ad"; /* 紹�
     // =========================================
 
     /**
-     * プレビュー用：既存の背面図形を隠す（グループはいったん解除して隠す。Undo で戻る）
-     * @param {Object} context - 対象の情報
+     * プレビュー用：既存の背面図形を隠す（グループは解除せず、背面図形だけを隠す。巻き戻しで表示に戻る）
+     * @param {Object} targetContext - 対象の情報
+     * @param {PreviewManager} previewManager - プレビューの管理役
      * @returns {void}
      */
-    function hideReplacedBackdrop(context) {
-        if (context.enclosingGroup) {
-            try {
-                releaseGroupChildren(context.enclosingGroup, context.existingBackdrop);
-                context.enclosingGroup.hidden = true;
-            } catch (e) {
-                logDebug('hideReplacedBackdrop ungroup failed: ' + e);
-            }
-        }
-        if (context.existingBackdrop) {
-            try {
-                context.existingBackdrop.hidden = true;
-            } catch (e) {
-                logDebug('hideReplacedBackdrop hide failed: ' + e);
-            }
-        }
+    function hideReplacedBackdrop(targetContext, previewManager) {
+        if (targetContext.existingBackdrop) previewManager.hideItem(targetContext.existingBackdrop);
     }
 
     /**
      * 確定用：既存の背面図形を削除する（グループは中身を出してから削除）
-     * @param {Object} context - 対象の情報
+     * @param {Object} targetContext - 対象の情報
      * @returns {void}
      */
-    function removeReplacedBackdrop(context) {
-        if (context.enclosingGroup) {
+    function removeReplacedBackdrop(targetContext) {
+        if (targetContext.enclosingGroup) {
             try {
-                releaseGroupChildren(context.enclosingGroup, context.existingBackdrop);
+                releaseGroupChildren(targetContext.enclosingGroup, targetContext.existingBackdrop);
             } catch (e) {
                 logDebug('removeReplacedBackdrop ungroup failed: ' + e);
             }
         }
-        safeRemove(context.existingBackdrop, 'existingBackdrop');
-        safeRemove(context.enclosingGroup, 'enclosingGroup');
-        context.existingBackdrop = null;
-        context.enclosingGroup = null;
+        safeRemove(targetContext.existingBackdrop, 'existingBackdrop');
+        safeRemove(targetContext.enclosingGroup, 'enclosingGroup');
+        targetContext.existingBackdrop = null;
+        targetContext.enclosingGroup = null;
     }
 
     // =========================================
@@ -4126,163 +4276,246 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na8af4a7016ad"; /* 紹�
      */
     function resolveContext(selectionItems) {
         var textItem = collectSelectionTextFrames(selectionItems)[0] || null;
-        var found = findExistingBackdrop(selectionItems, textItem);
+        var backdropMatch = findExistingBackdrop(selectionItems, textItem);
         return {
             selectionItems: selectionItems,
             textItem: textItem,
             isTextMode: !!textItem,
             /* テキストが無いときは、グループなど選択の先頭を配置の基準にする / Without text, the first selected item is the anchor */
-            targetItem: textItem || found.target || selectionItems[0],
-            existingBackdrop: found.backdrop,
-            enclosingGroup: found.enclosingGroup,
+            targetItem: textItem || backdropMatch.target || selectionItems[0],
+            existingBackdrop: backdropMatch.backdrop,
+            enclosingGroup: backdropMatch.enclosingGroup,
             textVisualRect: null
         };
     }
 
     /**
      * 対象に合わせてダイアログの初期状態を調整する
-     * @param {Object} ui - コントロール
-     * @param {Object} context - 対象の情報
+     * @param {Object} dialogControls - コントロール
+     * @param {Object} targetContext - 対象の情報
      * @returns {void}
      */
-    function adjustDialogForTarget(ui, context) {
+    function adjustDialogForTarget(dialogControls, targetContext) {
         /* 既存の背面図形があれば形状を合わせる / Match the shape of an existing backdrop */
-        if (context.existingBackdrop) {
-            selectRadioKey(ui.shapeRadios, detectShapeType(context.existingBackdrop), 'rect');
-            syncShapeDependentPanels(ui);
+        if (targetContext.existingBackdrop) {
+            selectRadioKey(dialogControls.shapeRadios, detectShapeType(targetContext.existingBackdrop), 'rect');
+            syncShapeDependentPanels(dialogControls);
         }
 
-        if (!context.isTextMode) {
+        if (!targetContext.isTextMode) {
             /* テキストが無いときは「1文字」と「テキストカラー」を使わない / No single-character or text color without text */
-            ui.cbOneChar.value = false;
-            ui.cbOneChar.enabled = false;
-            if (ui.rbTextColor.value) selectRadioKey(ui.colorRadios, 'black', 'black');
-            ui.rbTextColor.enabled = false;
+            dialogControls.cbOneChar.value = false;
+            dialogControls.cbOneChar.enabled = false;
+            if (dialogControls.rbTextColor.value) selectRadioKey(dialogControls.colorRadios, 'black', 'black');
+            dialogControls.rbTextColor.enabled = false;
             return;
         }
 
         /* 空白を除いて1文字だけなら「1文字」をON / Turn on single-character mode for a single visible character */
-        if (String(context.textItem.contents || '').replace(/\s+/g, '').length === 1) {
-            ui.cbOneChar.value = true;
+        if (String(targetContext.textItem.contents || '').replace(/\s+/g, '').length === 1) {
+            dialogControls.cbOneChar.value = true;
         }
     }
 
     /**
      * キー入力で形状を切り替える（E: 正円 / S: スーパー楕円 / R: 長方形）
      * 数値欄にフォーカスがあっても効く（押した文字は欄に入らない）
-     * @param {Object} ui - コントロール
+     * @param {Object} dialogControls - コントロール
      * @returns {void}
      */
-    function addShapeKeyHandler(ui) {
+    function addShapeKeyHandler(dialogControls) {
         /* ダイアログの入力欄はすべて数値 / Every field in this dialog is numeric */
         var numericFields = [
-            ui.scaleInput, ui.marginVInput, ui.marginHInput, ui.roundInput,
-            ui.offsetXInput, ui.offsetYInput, ui.strokeWidthInput, ui.opacityInput
+            dialogControls.scaleInput, dialogControls.marginVInput, dialogControls.marginHInput, dialogControls.roundInput,
+            dialogControls.offsetXInput, dialogControls.offsetYInput, dialogControls.strokeWidthInput, dialogControls.opacityInput
         ];
-        for (var plateKey in ui.cmykInputs) numericFields.push(ui.cmykInputs[plateKey]);
+        for (var plateKey in dialogControls.cmykInputs) numericFields.push(dialogControls.cmykInputs[plateKey]);
         /* ラジオを選んで onClick（形状に応じたパネルの同期とプレビュー）/ Select the radio and run its onClick */
-        addKeyShortcuts(ui.dialog, {
-            "E": ui.shapeRadios.circle,
-            "S": ui.shapeRadios.superellipse,
-            "R": ui.shapeRadios.rect
+        addKeyShortcuts(dialogControls.dialog, {
+            "E": dialogControls.shapeRadios.circle,
+            "S": dialogControls.shapeRadios.superellipse,
+            "R": dialogControls.shapeRadios.rect
         }, { numericFields: numericFields });
     }
 
     /**
-     * ダイアログのイベントをつなぐ
-     * @param {Object} ui - コントロール
+     * 形状・スケールのイベントをつなぐ
+     * @param {Object} dialogControls - コントロール
      * @param {Function} updatePreview - プレビューを更新する処理
      * @returns {void}
      */
-    function bindDialogEvents(ui, updatePreview) {
-        /* 形状 / Shape */
+    function bindShapeEvents(dialogControls, updatePreview) {
         var onShapeChanged = function () {
-            syncShapeDependentPanels(ui);
+            syncShapeDependentPanels(dialogControls);
             updatePreview();
         };
-        for (var shapeKey in ui.shapeRadios) ui.shapeRadios[shapeKey].onClick = onShapeChanged;
-        addShapeKeyHandler(ui);
+        for (var shapeKey in dialogControls.shapeRadios) dialogControls.shapeRadios[shapeKey].onClick = onShapeChanged;
+        addShapeKeyHandler(dialogControls);
 
-        /* スケール / Scale */
-        bindNumberField(ui.scaleInput, updatePreview);
-        ui.cbOneChar.onClick = updatePreview;
+        bindNumberField(dialogControls.scaleInput, updatePreview);
+        dialogControls.cbOneChar.onClick = updatePreview;
+    }
 
-        /* マージン / Margin */
-        bindNumberField(ui.marginVInput, function () {
-            syncMarginLink(ui);
-            updatePreview();
-        });
-        bindNumberField(ui.marginHInput, updatePreview);
-        ui.onMarginLinkToggle = function () {
-            syncMarginLink(ui);
+    /**
+     * マージンのイベントをつなぐ
+     * @param {Object} dialogControls - コントロール
+     * @param {Function} updatePreview - プレビューを更新する処理
+     * @returns {void}
+     */
+    function bindMarginEvents(dialogControls, updatePreview) {
+        var onMarginLinkChanged = function () {
+            syncMarginLink(dialogControls);
             updatePreview();
         };
-        ui.cbSquare.onClick = function () {
+        bindNumberField(dialogControls.marginVInput, onMarginLinkChanged);
+        bindNumberField(dialogControls.marginHInput, updatePreview);
+        dialogControls.onMarginLinkToggle = onMarginLinkChanged;
+        dialogControls.cbSquare.onClick = function () {
             /* 正方形ONでピル形状をOFFにし、スケールを使えるようにする / Square turns pill off and enables scale */
-            if (ui.cbSquare.value) {
-                ui.cbPill.value = false;
-                syncRoundInput(ui);
+            if (dialogControls.cbSquare.value) {
+                dialogControls.cbPill.value = false;
+                syncRoundInput(dialogControls);
             }
-            syncScalePanel(ui);
-            if (ui.cbSquare.value) ui.scaleInput.active = true;
+            syncScalePanel(dialogControls);
+            if (dialogControls.cbSquare.value) dialogControls.scaleInput.active = true;
             updatePreview();
         };
+    }
 
-        /* 角丸 / Round */
-        bindNumberField(ui.roundInput, function () {
-            ui.lastRoundRadius = String(ui.roundInput.text);
+    /**
+     * 角丸のイベントをつなぐ
+     * @param {Object} dialogControls - コントロール
+     * @param {Function} updatePreview - プレビューを更新する処理
+     * @returns {void}
+     */
+    function bindRoundEvents(dialogControls, updatePreview) {
+        bindNumberField(dialogControls.roundInput, function () {
+            dialogControls.lastRoundRadius = readFieldNumber(dialogControls.roundInput, 0);
             updatePreview();
         });
-        ui.cbRoundEnable.onClick = function () {
-            syncRoundInput(ui);
-            if (ui.cbRoundEnable.value && !ui.cbPill.value) ui.roundInput.active = true;
+        dialogControls.cbRoundEnable.onClick = function () {
+            syncRoundInput(dialogControls);
+            if (dialogControls.cbRoundEnable.value && !dialogControls.cbPill.value) dialogControls.roundInput.active = true;
             updatePreview();
         };
-        ui.cbPill.onClick = function () {
-            syncRoundInput(ui);
+        dialogControls.cbPill.onClick = function () {
+            syncRoundInput(dialogControls);
             updatePreview();
         };
+    }
 
-        /* グループ / Grouping */
-        ui.cbExclude.onClick = function () {
+    /**
+     * グループ化・中マド処理のイベントをつなぐ
+     * @param {Object} dialogControls - コントロール
+     * @param {Function} updatePreview - プレビューを更新する処理
+     * @returns {void}
+     */
+    function bindGroupingEvents(dialogControls, updatePreview) {
+        dialogControls.cbExclude.onClick = function () {
             /* 中マド処理にはグループ化とテキストカラーが要る / Exclude needs grouping and the text color */
-            if (ui.cbExclude.value) {
-                ui.cbGroupWithText.value = true;
-                selectRadioKey(ui.colorRadios, 'text', 'text');
-                syncColor(ui);
+            if (dialogControls.cbExclude.value) {
+                dialogControls.cbGroupWithText.value = true;
+                /* テキストが無いときは［文字の色］が無効なので選ばない / Text Color is disabled without text */
+                if (dialogControls.rbTextColor.enabled) selectRadioKey(dialogControls.colorRadios, 'text', 'text');
+                syncColor(dialogControls);
             }
             updatePreview();
         };
-        ui.cbGroupWithText.onClick = function () {
-            if (!ui.cbGroupWithText.value) ui.cbExclude.value = false;
+        dialogControls.cbGroupWithText.onClick = function () {
+            if (!dialogControls.cbGroupWithText.value) dialogControls.cbExclude.value = false;
             updatePreview();
         };
+    }
 
-        /* 座標 / Offset */
-        bindNumberField(ui.offsetXInput, updatePreview);
-        bindNumberField(ui.offsetYInput, updatePreview);
+    /**
+     * 位置・塗りと線・カラーのイベントをつなぐ
+     * @param {Object} dialogControls - コントロール
+     * @param {Function} updatePreview - プレビューを更新する処理
+     * @returns {void}
+     */
+    function bindAppearanceEvents(dialogControls, updatePreview) {
+        bindNumberField(dialogControls.offsetXInput, updatePreview);
+        bindNumberField(dialogControls.offsetYInput, updatePreview);
 
-        /* 種別 / Kind */
-        ui.rbFill.onClick = ui.rbStroke.onClick = function () {
-            syncKind(ui);
+        dialogControls.rbFill.onClick = dialogControls.rbStroke.onClick = function () {
+            syncFillStroke(dialogControls);
             updatePreview();
         };
-        bindNumberField(ui.strokeWidthInput, updatePreview);
+        bindNumberField(dialogControls.strokeWidthInput, updatePreview);
 
-        /* カラー / Color */
         var onColorChanged = function () {
-            syncColor(ui);
+            syncColor(dialogControls);
             updatePreview();
         };
-        for (var colorKey in ui.colorRadios) ui.colorRadios[colorKey].onClick = onColorChanged;
-        for (var plateKey in ui.cmykInputs) bindNumberField(ui.cmykInputs[plateKey], updatePreview);
+        for (var colorKey in dialogControls.colorRadios) dialogControls.colorRadios[colorKey].onClick = onColorChanged;
+        for (var plateKey in dialogControls.cmykInputs) bindNumberField(dialogControls.cmykInputs[plateKey], updatePreview);
+    }
 
-        /* 不透明度 / Opacity */
-        ui.cbOpacityApply.onClick = function () {
-            syncOpacity(ui);
+    /**
+     * 不透明度のイベントをつなぐ（数値欄とスライダーを連動させる）
+     * @param {Object} dialogControls - コントロール
+     * @param {Function} updatePreview - プレビューを更新する処理
+     * @param {Function} updateOpacityPreview - プレビューの不透明度だけを更新する処理
+     * @returns {void}
+     */
+    function bindOpacityEvents(dialogControls, updatePreview, updateOpacityPreview) {
+        dialogControls.cbOpacityApply.onClick = function () {
+            syncOpacity(dialogControls);
             updatePreview();
         };
-        bindNumberField(ui.opacityInput, updatePreview);
+        bindNumberField(dialogControls.opacityInput, function () {
+            syncOpacitySlider(dialogControls);
+            updateOpacityPreview();
+            saveDialogState(dialogControls);
+        });
+        dialogControls.opacitySlider.onChanging = function () {
+            /* shift を押しながらのドラッグは OPACITY_SLIDER_SHIFT_STEP 刻み / Shift-drag snaps to OPACITY_SLIDER_SHIFT_STEP */
+            var sliderStep = ScriptUI.environment.keyboardState.shiftKey ? OPACITY_SLIDER_SHIFT_STEP : 1;
+            var opacityPercent = Math.round(dialogControls.opacitySlider.value / sliderStep) * sliderStep;
+            dialogControls.opacitySlider.value = opacityPercent;
+            setFieldValue(dialogControls.opacityInput, opacityPercent);
+            updateOpacityPreview();
+        };
+        /* 値を控えるのはドラッグを終えたときだけ / Save the value once the drag ends */
+        dialogControls.opacitySlider.onChange = function () { saveDialogState(dialogControls); };
+    }
+
+    /**
+     * ダイアログのイベントをつなぐ
+     * @param {Object} dialogControls - コントロール
+     * @param {Function} updatePreview - プレビューを更新する処理
+     * @param {Function} updateOpacityPreview - プレビューの不透明度だけを更新する処理
+     * @returns {void}
+     */
+    function bindDialogEvents(dialogControls, updatePreview, updateOpacityPreview) {
+        bindShapeEvents(dialogControls, updatePreview);
+        bindMarginEvents(dialogControls, updatePreview);
+        bindRoundEvents(dialogControls, updatePreview);
+        bindGroupingEvents(dialogControls, updatePreview);
+        bindAppearanceEvents(dialogControls, updatePreview);
+        bindOpacityEvents(dialogControls, updatePreview, updateOpacityPreview);
+    }
+
+    /**
+     * 確定処理：既存の背面図形を消し、背面図形を作って仕上げ、対象の背面に置く
+     * @param {Document} doc - 対象ドキュメント
+     * @param {Object} dialogControls - コントロール
+     * @param {Object} targetContext - 対象の情報
+     * @returns {void}
+     */
+    function commitBackdrop(doc, dialogControls, targetContext) {
+        removeReplacedBackdrop(targetContext);
+        var backdropShape = createBackdrop(doc, dialogControls, targetContext);
+        backdropShape = finalizeBackdropShape(doc, backdropShape, dialogControls, targetContext);
+        var resultItem = placeBackdrop(backdropShape, targetContext.targetItem, dialogControls.cbGroupWithText.value);
+        if (dialogControls.cbExclude.value) resultItem = applyExclude(doc, resultItem);
+        doc.selection = null;
+        /* メニューコマンドの結果は選択できないことがある / The result of a menu command may refuse selection */
+        try {
+            resultItem.selected = true;
+        } catch (e) {
+            logDebug('result selection failed: ' + e);
+        }
     }
 
     /**
@@ -4301,48 +4534,64 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na8af4a7016ad"; /* 紹�
             return;
         }
 
-        var context = resolveContext(selectionItems);
+        var targetContext = resolveContext(selectionItems);
         dialogState = settingsStore.load(DEFAULT_SETTINGS);
         var hadSavedState = dialogState._hasSaved;
         var previewManager = new PreviewManager();
 
-        var ui = buildDialog();
-        restoreDialogState(ui);
-        syncAllPanels(ui);
-        adjustDialogForTarget(ui, context);
+        var dialogControls = buildDialog();
+        restoreDialogState(dialogControls);
+        syncAllPanels(dialogControls);
+        adjustDialogForTarget(dialogControls, targetContext);
 
         /**
          * プレビューを作り直し、ダイアログの値を控える
          * @returns {void}
          */
+        var previewBackdrop = null;
+
         function updatePreview() {
             previewManager.rollback();
+            previewBackdrop = null;
             previewManager.addStep(function () {
-                hideReplacedBackdrop(context);
-                createBackdrop(doc, ui, context);
+                hideReplacedBackdrop(targetContext, previewManager);
+                previewBackdrop = createBackdrop(doc, dialogControls, targetContext, previewManager);
             });
-            saveDialogState(ui);
+            saveDialogState(dialogControls);
         }
 
-        bindDialogEvents(ui, updatePreview);
+        /**
+         * プレビューの図形の不透明度だけを変える（スライダーのドラッグ中に図形を作り直さない）
+         * @returns {void}
+         */
+        function updateOpacityPreview() {
+            if (!previewBackdrop) {
+                updatePreview();
+                return;
+            }
+            applyBackdropOpacity(previewBackdrop, dialogControls);
+            app.redraw();
+        }
 
-        ui.btnTransparencyGrid.onClick = function () {
+        bindDialogEvents(dialogControls, updatePreview, updateOpacityPreview);
+
+        dialogControls.btnTransparencyGrid.onClick = function () {
             /* 表示の切り替えなので Undo 履歴には残らない / A view toggle, so it adds no undo step */
             app.executeMenuCommand('TransparencyGrid Menu Item');
             app.redraw();
         };
 
-        ui.btnCancel.onClick = function () {
+        dialogControls.btnCancel.onClick = function () {
             previewManager.rollback();
-            ui.dialog.close(0);
+            dialogControls.dialog.close(0);
         };
 
-        ui.dialog.onShow = function () {
-            ui.scaleInput.active = true;
+        dialogControls.dialog.onShow = function () {
+            dialogControls.scaleInput.active = true;
             if (!hadSavedState) {
                 /* 計測に失敗しても初期値のまま開く / Keep the stock values if measuring fails */
                 try {
-                    applyDefaultsFromTarget(ui, context);
+                    applyDefaultsFromTarget(dialogControls, targetContext);
                 } catch (e) {
                     logDebug('applyDefaultsFromTarget failed: ' + e);
                 }
@@ -4350,9 +4599,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na8af4a7016ad"; /* 紹�
             updatePreview();
         };
 
-        prepareDialogWindow(ui.dialog, SCRIPT_NAME);
-        var dialogResult = ui.dialog.show();
-        saveDialogState(ui);
+        prepareDialogWindow(dialogControls.dialog, SCRIPT_NAME);
+        var dialogResult = dialogControls.dialog.show();
+        saveDialogState(dialogControls);
         if (dialogResult !== 1) {
             previewManager.rollback();
             return;
@@ -4360,17 +4609,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na8af4a7016ad"; /* 紹�
 
         /* プレビューを巻き戻し、確定処理を1回だけ実行（Undo 1段）/ Roll back, then run the final action once */
         previewManager.confirm(function () {
-            removeReplacedBackdrop(context);
-            var backdropShape = createBackdrop(doc, ui, context);
-            backdropShape = finalizeBackdropShape(doc, backdropShape, ui, context);
-            var resultItem = placeBackdrop(backdropShape, context.targetItem, ui.cbGroupWithText.value);
-            if (ui.cbExclude.value) resultItem = applyExclude(doc, resultItem);
-            doc.selection = null;
-            try {
-                resultItem.selected = true;
-            } catch (e) {
-                logDebug('result selection failed: ' + e);
-            }
+            commitBackdrop(doc, dialogControls, targetContext);
         });
     }
 

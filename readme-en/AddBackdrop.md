@@ -47,21 +47,21 @@ With either of these selections, the script treats the shape as the existing bac
 
 | Option | What it does |
 | --- | --- |
-| Scale: Size | Size of the shape relative to the base bounds, in percent. Defaults to 90%. Fixed at 100% for rectangles (except squares) |
+| Scale: Scale | Size of the shape relative to the base bounds, in percent. Defaults to 90%. Fixed at 100% for rectangles (except squares) |
 | Scale: Single Character | Draws a circle whose diameter is 1.5 times the font size. Turned on automatically for text with a single non-space character |
 | Margin: Vertical / Horizontal | Space added above/below and left/right of the base bounds. Defaults to a quarter of the short side on first use |
 | Margin: Link (link icon) | Uses the vertical value for the horizontal margin too |
 | Margin: Square | Makes a square whose side equals the circle's diameter |
-| Round | Corner radius, applied with the Round Corners live effect. Defaults to a fifth of the short side on first use |
-| Pill shape | Uses half the height as the radius so both ends become semicircles |
+| Rounded Corners | Corner radius, applied with the Round Corners live effect. Defaults to a fifth of the short side on first use |
+| Pill Shape | Uses half the height as the radius so both ends become semicircles |
 | Group with Text | Groups the backdrop with the target |
-| Exclude | Knocks the text out with Live Pathfinder Exclude. Also turns on grouping and Text Color. Unavailable for strokes |
+| Exclude | Knocks the text out with Live Pathfinder Exclude. Also turns on grouping and Text Color. Unavailable for strokes. Not shown in the preview; applied when you click OK |
 | Offset: X / Y | Nudges the shape, in ruler units |
 | Fill & Stroke | Fill or stroke the shape; set the weight for a stroke |
 | Color | Text Color / Black / White / CMYK |
-| Opacity | When on, sets the opacity of the shape |
+| Opacity | When on, sets the opacity of the shape. A slider also changes it; Shift-drag moves in steps of 10% |
 
-Margins, Square, Round and Pill shape apply to rectangles only.
+Margins, Square, Rounded Corners and Pill Shape apply to rectangles only.
 
 The Show Transparency Grid button toggles the transparency grid, handy for checking a white backdrop.
 
@@ -87,6 +87,7 @@ https://note.com/dtp_tranist/n/na8af4a7016ad
 
 ### Update History
 
+- v1.7.10 (2026-10-23): Fixed text and other objects on the canvas sometimes disappearing while the dialog was open (the preview no longer rolls back with Undo). Margins, corner radius, offset and stroke weight now use the unit shown in the field (such as mm); they were treated as points before. Added an opacity slider (Shift-drag in steps of 10%). Arranged the CMYK fields in two rows of two to narrow the dialog. Committed expressions and out-of-range values now update the preview too, and non-numeric input reverts to the previous value. Labels and tooltips adjusted
 - v1.7.9 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.7.8 (2026-10-03): Units now appear inside the number fields; removed the unit from the panel title and beside the fields
 - v1.7.7 (2026-10-01): Added space below the button row to match Illustrator's own dialogs
