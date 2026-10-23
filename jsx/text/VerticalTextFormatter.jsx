@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.VerticalTextFormatter
 Name=VerticalTextFormatter
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.25.3
+Version=1.26.0
 Release-Date=2026-10-15
 Description-BEGIN
 選択したテキストを縦組みにし、欧文回転・縦中横・数字の書き換え（全角・漢数字・和暦）・禁則・文字組みなどをまとめて適用します。
@@ -49,10 +49,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/VerticalTe
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "VerticalTextFormatter";        /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.25.3";                      /* バージョン / version */
+var SCRIPT_VERSION  = "v1.26.0";                      /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-15";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-16";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-23";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/VerticalTextFormatter.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/VerticalTextFormatter.md"; /* README (English) */
@@ -81,6 +81,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
         singleDigitFullwidth: false,
         nonTcyDigitsFullwidth: false,
         japaneseEra: false,
+        kanjiToArabic: false,
         kanji: false,
         kanjiMinDigits: 4,
         kanjiMaxDigits: 20,
@@ -117,7 +118,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
 
     /* ダイアログの真偽値の項目（設定のキーとコントロール名が同じ） / Boolean dialog options (setting key = control name) */
     var CHECKBOX_SETTING_KEYS = ["rotateRoman", "tcyNumbers", "tcyDigits2", "tcyDigits3", "tcyDigits4", "tcyExcludeAdjacent", "tcyCapitals",
-        "tcyExclamation", "tcyGlyphByLength", "singleDigitFullwidth", "nonTcyDigitsFullwidth", "japaneseEra", "kanji", "kanjiZeroRei", "kanjiIchiSen", "halfwidthAlnum",
+        "tcyExclamation", "tcyGlyphByLength", "singleDigitFullwidth", "nonTcyDigitsFullwidth", "japaneseEra", "kanjiToArabic", "kanji", "kanjiZeroRei", "kanjiIchiSen", "halfwidthAlnum",
         "colorCheck", "areaAutoSize", "areaHeightToSize", "periodToNakaguro", "symbolsFullwidth", "quotesToChonchon", "rangeToWave", "exclamFullwidth", "singleLetterFullwidth",
         "unitsKumimoji", "proportionalFullwidthLatin", "rotateSkipLongLatin", "shortWordFullwidth"];
 
@@ -1242,6 +1243,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
             singleDigitFullwidth: { ja: "1桁の数字を全角に", en: "Single digits to full-width" },
             nonTcyDigitsFullwidth: { ja: "縦中横以外の数字を全角に", en: "Non-TCY digits to full-width" },
             japaneseEra: { ja: "西暦を和暦に", en: "Western years to Japanese era" },
+            kanjiToArabic: { ja: "漢数字を算用数字にそろえる", en: "Kanji numerals to Arabic digits" },
             kanjiZeroRei: { ja: "0を「零」に", en: "0 as 零" },
             kanjiIchiSen: { ja: "千を「一千」に", en: "千 as 一千" },
             unitsKumimoji: { ja: "単位を組文字に（cm → ㌢）", en: "Units to squares (cm → ㌢)" },
@@ -1448,6 +1450,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
             japaneseEra: {
                 ja: "「2026年」を「令和8年」にします。月日があれば改元の前後を月日で判定します",
                 en: "2026年 → 令和8年; a following month and day decide the era at a change"
+            },
+            kanjiToArabic: {
+                ja: "混じった漢数字を算用数字にしてから縦中横・全角を決めます（2019年四月30日 → 2019年4月30日）。2字以上の漢数字と、月・日・時・分・秒の前の1字が対象（「一緒」「数十万」は変えません）。漢数字に変換するときは使えません",
+                en: "Turns stray kanji numerals into digits before Tate-Chu-Yoko and full-width are decided (2019年四月30日 → 2019年4月30日). Covers runs of two or more and a single one before 月 日 時 分 秒 (一緒 and 数十万 stay); unavailable with kanji numerals"
             },
             kanjiZeroRei: { ja: "0を「〇」ではなく「零」にします（二〇二六 → 二零二六）", en: "Writes 0 as 零 instead of 〇" },
             kanjiIchiSen: { ja: "十・百・千を入れるとき、千を「一千」と書きます（1500 → 一千五百）", en: "Writes 1000 as 一千 when using 十・百・千" },
@@ -3055,6 +3061,40 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
         }
     }
 
+    /**
+     * 数字のまとまり（桁区切り・小数を含む）を、漢数字・縦中横・全角・そのままのどれかにして出力に足す
+     * @param {string} numberText - まとまりの文字列
+     * @param {Object} numberToken - readNumberToken() の戻り値
+     * @param {string} nextChar - まとまりの直後の文字
+     * @param {Object} formatOptions - 変換の設定
+     * @param {function(string, boolean): void} emit - 出力に足す関数
+     * @returns {void}
+     */
+    function emitNumberToken(numberText, numberToken, nextChar, formatOptions, emit) {
+        var isMergedComma = numberToken.hasComma && !numberToken.hasDecimal && formatOptions.commaStyle === "remove";
+        if (formatOptions.kanji && numberToken.integerDigits >= formatOptions.kanjiMinDigits && numberToken.integerDigits <= formatOptions.kanjiMaxDigits) {
+            /* 西暦の年（直後が「年」）は書き方によらず1字ずつ / A year (followed by 年) is always digit by digit */
+            emit(convertNumberToKanji(numberToken, formatOptions, nextChar === "年"), false);
+        } else if (!numberToken.hasSeparator || isMergedComma) {
+            /* 桁区切りを取ったときは、つないだ数字を1つの数として扱う / With separators removed, the joined digits are one number */
+            emitDigitRun(numberText.replace(/[,，]/g, ""), formatOptions, emit);
+        } else if (formatOptions.tcyExcludeAdjacent) {
+            /* 桁区切り・小数点の隣の数字は縦中横にしない（全角は［縦中横以外の数字を全角に］のときだけ）
+               Numbers next to separators get no TCY (full-width only with "Non-TCY digits to full-width") */
+            for (var p = 0; p < numberToken.parts.length; p++) {
+                var part = numberToken.parts[p];
+                if (part.type !== "digits") emit(convertNumberMark(part, formatOptions), false);
+                else emit(formatOptions.nonTcyDigitsFullwidth ? toFullwidthAscii(part.text) : part.text, false);
+            }
+        } else {
+            for (var q = 0; q < numberToken.parts.length; q++) {
+                var numberPart = numberToken.parts[q];
+                if (numberPart.type === "digits") emitDigitRun(numberPart.text, formatOptions, emit);
+                else emit(convertNumberMark(numberPart, formatOptions), false);
+            }
+        }
+    }
+
     /* 元号と開始日（YYYYMMDD）。新しい順 / Japanese eras and their start dates (YYYYMMDD), newest first */
     var JAPANESE_ERAS = [
         { name: "令和", start: 20190501 },
@@ -3190,6 +3230,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
             /* 数字の直後の単位。数字との間の半角スペースは詰める / A unit right after digits; a space between them is removed */
             var unitGap = (isUnitGapSpace(currentChar) && isAnyDigitChar(text.charAt(i - 1))) ? 1 : 0;
             var unitMatch = (!phraseText && formatOptions.unitsKumimoji && isAnyDigitChar(text.charAt(i - 1))) ? matchUnitKumimoji(text, i + unitGap) : null;
+            var kanjiNumeral = (formatOptions.kanjiToArabic && !formatOptions.kanji) ? matchKanjiNumeral(text, i) : null;
             if (westernYear) {
                 emit(westernYear.eraName, false);
                 /* 1年は「元年」 / The first year is written 元 */
@@ -3212,33 +3253,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
                 var phoneOutput = convertPhoneHyphens(phoneText, formatOptions);
                 emit(formatOptions.nonTcyDigitsFullwidth ? phoneOutput.replace(/[0-9]+/g, toFullwidthAscii) : phoneOutput, false);
                 i += phoneText.length;
+            } else if (kanjiNumeral) {
+                /* 漢数字は算用数字に読み替えてから、数字と同じに扱う / Kanji numerals are read as digits, then handled like digits */
+                emitNumberToken(kanjiNumeral.text, readNumberToken(kanjiNumeral.text, 0), text.charAt(i + kanjiNumeral.length), formatOptions, emit);
+                i += kanjiNumeral.length;
             } else if (isDigitChar(currentChar)) {
                 var numberToken = readNumberToken(text, i);
-                var tokenEnd = i + numberToken.length;
-                var isMergedComma = numberToken.hasComma && !numberToken.hasDecimal && formatOptions.commaStyle === "remove";
-                if (formatOptions.kanji && numberToken.integerDigits >= formatOptions.kanjiMinDigits && numberToken.integerDigits <= formatOptions.kanjiMaxDigits) {
-                    /* 西暦の年（直後が「年」）は書き方によらず1字ずつ / A year (followed by 年) is always digit by digit */
-                    emit(convertNumberToKanji(numberToken, formatOptions, text.charAt(tokenEnd) === "年"), false);
-                } else if (!numberToken.hasSeparator || isMergedComma) {
-                    /* 桁区切りを取ったときは、つないだ数字を1つの数として扱う / With separators removed, the joined digits are one number */
-                    var plainDigits = numberToken.hasSeparator ? text.substring(i, tokenEnd).replace(/[,，]/g, "") : text.substring(i, tokenEnd);
-                    emitDigitRun(plainDigits, formatOptions, emit);
-                } else if (formatOptions.tcyExcludeAdjacent) {
-                    /* 桁区切り・小数点の隣の数字は縦中横にしない（全角は［縦中横以外の数字を全角に］のときだけ）
-                       Numbers next to separators get no TCY (full-width only with "Non-TCY digits to full-width") */
-                    for (var p = 0; p < numberToken.parts.length; p++) {
-                        var part = numberToken.parts[p];
-                        if (part.type !== "digits") emit(convertNumberMark(part, formatOptions), false);
-                        else emit(formatOptions.nonTcyDigitsFullwidth ? toFullwidthAscii(part.text) : part.text, false);
-                    }
-                } else {
-                    for (var q = 0; q < numberToken.parts.length; q++) {
-                        var numberPart = numberToken.parts[q];
-                        if (numberPart.type === "digits") emitDigitRun(numberPart.text, formatOptions, emit);
-                        else emit(convertNumberMark(numberPart, formatOptions), false);
-                    }
-                }
-                i = tokenEnd;
+                emitNumberToken(text.substr(i, numberToken.length), numberToken, text.charAt(i + numberToken.length), formatOptions, emit);
+                i += numberToken.length;
             } else if (isLatinLetter(currentChar)) {
                 /* 1語は半角だけを変換する（全角の英字はそのままでよい） / Single words: only half-width letters need converting */
                 while (i < text.length && isLatinLetter(text.charAt(i))) i++;
@@ -3368,6 +3390,40 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
     }
 
     /**
+     * その位置から始まる漢数字を算用数字（半角）にして返す。2字以上の並び、1字は月・日・時・分・秒の前だけ（「一緒」「十分」は変えない）。
+     * 読点で3桁ずつ区切ったもの（三、〇〇〇 → 3,000）と小数（一二・五 → 12.5）も読む。「数十万」「何百」などの概数は読まない
+     * Reads kanji numerals at the position as half-width digits: runs of two or more, or a single one before 月 日 時 分 秒 (一緒 stays).
+     * Also reads groups split by 、 and decimals; approximate numbers such as 数十万 and 何百 are left
+     * @param {string} sourceText - 対象の文字列
+     * @param {number} index - 調べる位置
+     * @returns {{length: number, text: string}|null} 元の文字数と算用数字（該当しなければ null）
+     */
+    function matchKanjiNumeral(sourceText, index) {
+        var previousChar = sourceText.charAt(index - 1);
+        /* 概数の続き（「数十万」の「万」など）も読まない / Not the rest of an approximate number either */
+        if (previousChar !== "" && "数何幾〇零一二三四五六七八九十百千万億兆".indexOf(previousChar) >= 0) return null;
+        var restText = sourceText.substr(index, 40);
+        var matched;
+        /* 読点で3桁ずつ区切った漢数字（三、〇〇〇） / Kanji digits grouped by 、 every three */
+        if ((matched = /^[〇零一二三四五六七八九]+(?:、[〇零一二三四五六七八九]{3})+(?![〇零一二三四五六七八九])/.exec(restText))) {
+            var groupedDigits = matched[0].split("、");
+            for (var g = 0; g < groupedDigits.length; g++) groupedDigits[g] = parseKanjiNumber(groupedDigits[g]);
+            return { length: matched[0].length, text: groupedDigits.join(",") };
+        }
+        /* 漢数字の小数（一二・五） / Kanji decimals */
+        if ((matched = /^[〇零一二三四五六七八九十百千万億兆]+・[〇零一二三四五六七八九]+/.exec(restText))) {
+            var decimalParts = matched[0].split("・");
+            return { length: matched[0].length, text: parseKanjiNumber(decimalParts[0]) + "." + parseKanjiNumber(decimalParts[1]) };
+        }
+        matched = /^[〇零一二三四五六七八九十百千万億兆]{2,}/.exec(restText);
+        if (!matched && isSingleKanjiTimeUnit(sourceText, index)) matched = [sourceText.charAt(index)];
+        if (!matched) return null;
+        var kanjiValue = parseKanjiNumber(matched[0]);
+        if (kanjiValue === null || kanjiValue === "NaN") return null;
+        return { length: matched[0].length, text: kanjiValue };
+    }
+
+    /**
      * 元号の開始年（西暦）を返す
      * @param {string} eraName - 元号
      * @returns {number} 開始年（見つからなければ 0）
@@ -3412,33 +3468,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
                 addSegment(matched[0].length, (getEraStartYear(matched[1]) + eraYear - 1) + "年");
                 continue;
             }
-            /* 「数十万」「何百」などの概数は戻さない / Leave approximate numbers such as 数十万 and 何百 */
-            var previousChar = sourceText.charAt(i - 1);
-            if (resetOptions.kanji && (previousChar === "" || "数何幾".indexOf(previousChar) < 0)) {
-                /* 読点で3桁ずつ区切った漢数字（三、〇〇〇） / Kanji digits grouped by 、 every three */
-                if ((matched = /^[〇零一二三四五六七八九]+(?:、[〇零一二三四五六七八九]{3})+(?![〇零一二三四五六七八九])/.exec(restText))) {
-                    var groupedDigits = matched[0].split("、");
-                    for (var g = 0; g < groupedDigits.length; g++) groupedDigits[g] = parseKanjiNumber(groupedDigits[g]);
-                    addSegment(matched[0].length, groupedDigits.join(","));
-                    continue;
-                }
-                /* 漢数字の小数（一二・五） / Kanji decimals */
-                if ((matched = /^[〇零一二三四五六七八九十百千万億兆]+・[〇零一二三四五六七八九]+/.exec(restText))) {
-                    var decimalParts = matched[0].split("・");
-                    addSegment(matched[0].length, parseKanjiNumber(decimalParts[0]) + "." + parseKanjiNumber(decimalParts[1]));
-                    continue;
-                }
-                /* 2字以上の漢数字の並び。1字は月・日・時・分・秒の前だけ（「一緒」「十分」は変えない）
-                   Runs of two or more kanji numerals; a single one only before 月 日 時 分 秒 (一緒 stays) */
-                matched = /^[〇零一二三四五六七八九十百千万億兆]{2,}/.exec(restText);
-                if (!matched && isSingleKanjiTimeUnit(sourceText, i)) matched = [currentChar];
-                if (matched) {
-                    var kanjiValue = parseKanjiNumber(matched[0]);
-                    if (kanjiValue !== null && kanjiValue !== "NaN") {
-                        addSegment(matched[0].length, kanjiValue);
-                        continue;
-                    }
-                }
+            var kanjiNumeral = resetOptions.kanji ? matchKanjiNumeral(sourceText, i) : null;
+            if (kanjiNumeral) {
+                addSegment(kanjiNumeral.length, kanjiNumeral.text);
+                continue;
             }
             /* 電話番号・郵便番号のハイフン → 「-」、数字は半角に / Phone and postal hyphens → "-", digits half-width */
             if (isAnyDigitChar(currentChar) && !isAnyDigitChar(sourceText.charAt(i - 1))) {
@@ -4963,6 +4996,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
         dialogControls.nonTcyDigitsFullwidth = addOptionCheckbox(numberPanel, "checkbox.nonTcyDigitsFullwidth", settings.nonTcyDigitsFullwidth);
         dialogControls.unitsKumimoji = addOptionCheckbox(numberPanel, "checkbox.unitsKumimoji", settings.unitsKumimoji);
         dialogControls.japaneseEra = addOptionCheckbox(numberPanel, "checkbox.japaneseEra", settings.japaneseEra);
+        dialogControls.kanjiToArabic = addOptionCheckbox(numberPanel, "checkbox.kanjiToArabic", settings.kanjiToArabic);
         dialogControls.kanji = addOptionCheckbox(numberPanel, "checkbox.kanji", settings.kanji);
         var kanjiGroup = addIndentedGroup(numberPanel);
         var kanjiRange = addDigitRangeRow(kanjiGroup);
@@ -5404,6 +5438,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
             setEnabledIfExists("singleDigitFullwidth", !dialogControls.nonTcyDigitsFullwidth.value);
             /* 漢数字の項目は詳細モードだけ / Kanji options exist only in the detailed mode */
             if (dialogControls.kanji) {
+                setEnabledIfExists("kanjiToArabic", !dialogControls.kanji.value);
                 setSteppedFieldEnabled(dialogControls.kanjiMinInput, dialogControls.kanji.value);
                 setSteppedFieldEnabled(dialogControls.kanjiMaxInput, dialogControls.kanji.value);
                 setEnabledIfExists("kanjiDigitRadio", dialogControls.kanji.value);

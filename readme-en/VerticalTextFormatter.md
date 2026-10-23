@@ -69,6 +69,7 @@
   - **Non-TCY digits to full-width**: makes every digit not in Tate-Chu-Yoko full-width so it stands upright, including digits next to separators and in phone numbers, but not those made kanji (off by default; dims "Single digits to full-width" when on)
   - **Units to squares**: turns mm, cm, km, m, mg, g, kg, t, ml, dL, kL, L, cal, kcal, cc right after digits into ㍉ ㌢ ㌖ ㍍ ㍉㌘ ㌘ ㌕ ㌧ ㍉㍑ ㌥㍑ ㌔㍑ ㍑ ㌍ ㌔㌍ ㏄ (10cm → 10㌢), and m2, cm3, m² etc. into ㎡ ㎤. A space between the digits and the unit is removed (5 mm → 5㍉), and full-width units count too. Units followed by letters or / (km/h, mmHg) are left. Off by default because some fonts lack these glyphs
   - **Western years to Japanese era**: 2026年 → 令和8年. When the month and day follow, they decide which side of an era change the date falls on (2019年4月30日 → 平成31年, 2019年5月1日 → 令和元年); a bare year of an era change uses the new era. Year 1 is written 元年
+  - **Kanji numerals to Arabic digits**: turns stray kanji numerals into digits before Tate-Chu-Yoko and full-width are decided (2019年四月30日 → 2019年4月30日, 三十日 → 30日). Covers runs of two or more kanji numerals and a single one before 月 日 時 分 秒; 一緒, 十分, 数十万, 何百 and the like stay. Unavailable while Convert to kanji numerals is on (to unify toward kanji, set its digit range to start at 1). Off by default
   - **Convert to kanji numerals**: numbers within the digit range (4–20 by default)
     - **Digit by digit**: 2026 → 二〇二六, 3,000 → 三、〇〇〇
     - **With 十・百・千**: 2000 → 二千, 3,000 → 三千, 1234 → 千二百三十四 (also 万・億・兆・京; decimals stay digit by digit)
@@ -104,7 +105,7 @@
 2. Turn horizontal text vertical (always)
 3. Paragraph settings (Solid mojikumi, Soft v2 kinsoku, justify with last line top)
 4. Apply rotation to all of the text (rewritten characters inherit the rotated formatting)
-5. Rewrite characters (full-width to half-width, separators, full-width digits, era years, kanji numerals)
+5. Rewrite characters (full-width to half-width, kanji numerals to digits, separators, full-width digits, era years, kanji numerals)
 6. Apply Tate-Chu-Yoko to each target
 
 ### Notes
@@ -121,6 +122,7 @@ https://note.com/dtp_tranist/n/ndb55c5516fd6
 
 ### Update History
 
+- v1.26.0 (2026-10-23) Added "Kanji numerals to Arabic digits" to Numbers in the Detailed mode: stray kanji numerals as in 2019年四月30日 become digits before Tate-Chu-Yoko and full-width are decided
 - v1.25.3 (2026-10-16) Wizard fixes: loading a preset in the Detailed mode no longer resets the wizard checks, and 零 / 一千 now follow the Detailed-mode settings. Renamed "Turn Roman text sideways" to "Rotate Roman text upright". Turning on kanji numerals dims the Tate-Chu-Yoko and full-width digit goals, and OK is unavailable when no usable goal is checked
 - v1.25.2 (2026-10-16) Option-clicking in the Wizard now turns all on, and a second option-click keeps only the clicked one on
 - v1.25.1 (2026-10-16) Option-clicking a Wizard checkbox turns all of them on or off
