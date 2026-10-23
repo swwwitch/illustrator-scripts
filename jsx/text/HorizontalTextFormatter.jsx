@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.HorizontalTextFormatter
 Name=HorizontalTextFormatter
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.1.0
+Version=1.2.0
 Release-Date=2026-10-16
 Description-BEGIN
 縦組み用に整えたテキストを横組み用に戻します。縦組みを横組みにし、欧文回転・縦中横を外して、
@@ -44,10 +44,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/Horizontal
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "HorizontalTextFormatter";      /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.2.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-16";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-16";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-23";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/HorizontalTextFormatter.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/HorizontalTextFormatter.md"; /* README (English) */
@@ -321,8 +321,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             waveToHyphen: { ja: "数字の間の「〜」「～」を「-」にします（10〜20 → 10-20）", en: "Turns 〜 between digits into - (10〜20 → 10-20)" },
             eraToWestern: { ja: "「令和8年」を「2026年」にします（元年・漢数字の年も）", en: "Turns 令和8年 into 2026年 (元年 and kanji years too)" },
             kanjiToArabic: {
-                ja: "2字以上の漢数字の並びを算用数字にします（二〇二六 → 2026、二千二十六 → 2026、三、〇〇〇 → 3,000）。1字の「一」「十」などは変えません",
-                en: "Turns runs of two or more kanji numerals into Arabic (二千二十六 → 2026, 三、〇〇〇 → 3,000); single characters are left"
+                ja: "2字以上の漢数字の並びと、月・日・時・分・秒の前の1字を算用数字にします（二〇二六 → 2026、二千二十六 → 2026、三、〇〇〇 → 3,000、四月 → 4月）。「一緒」「十分」「数十万」「何百」などは変えません",
+                en: "Turns runs of two or more kanji numerals, and a single one before 月 日 時 分 秒, into Arabic (二千二十六 → 2026, 三、〇〇〇 → 3,000, 四月 → 4月); 一緒, 十分, 数十万, 何百 and the like are left"
             }
         }
     };
@@ -1412,6 +1412,24 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /**
+     * 1字の漢数字が日付・時刻の数か（一月・七日・三時・五秒、「五分」は後ろに数字か「秒」が続くか末尾のときだけ。「十分」「一緒」は除く）
+     * ExtendScript は選択を含む先読みを誤評価することがあるので、文字で調べる
+     * @param {string} sourceText - 対象の文字列
+     * @param {number} index - 漢数字の位置
+     * @returns {boolean} 該当すれば true
+     */
+    function isSingleKanjiTimeUnit(sourceText, index) {
+        if ("〇一二三四五六七八九十".indexOf(sourceText.charAt(index)) < 0) return false;
+        var unitChar = sourceText.charAt(index + 1);
+        if ("月日時秒".indexOf(unitChar) >= 0) return true;
+        if (unitChar !== "分") return false;
+        var afterChar = sourceText.charAt(index + 2);
+        /* 「九分九厘」は除く / Not 九分九厘 */
+        if (sourceText.charAt(index + 3) === "厘") return false;
+        return afterChar === "" || afterChar === "秒" || isAnyDigit(afterChar) || KANJI_NUMERAL_DIGITS.indexOf(afterChar) >= 0;
+    }
+
+    /**
      * テキストの変換内容を決める。書き換え（後ろから順）と、確認の一覧用の変化（前から順）を返す
      * @param {string} sourceText - 元の文字列
      * @param {Object} formatOptions - 変換の設定
@@ -1457,9 +1475,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 i += matched[0].length;
                 continue;
             }
+            /* 「数十万」「何百」などの概数とその続きは変えない / Leave approximate numbers such as 数十万 and 何百, and their rest */
+            var isKanjiStart = formatOptions.kanjiToArabic && (previousChar === "" || "数何幾〇一二三四五六七八九十百千万億兆".indexOf(previousChar) < 0);
             /* 漢数字 → 算用数字。読点で3桁ずつ区切った並び（三、〇〇〇）は1つの数として扱う
                Kanji numerals → Arabic; digits grouped by 、 every three (三、〇〇〇) are one number */
-            if (formatOptions.kanjiToArabic && (matched = /^[〇一二三四五六七八九]+(?:、[〇一二三四五六七八九]{3})+(?![〇一二三四五六七八九])/.exec(restText))) {
+            if (isKanjiStart && (matched = /^[〇一二三四五六七八九]+(?:、[〇一二三四五六七八九]{3})+(?![〇一二三四五六七八九])/.exec(restText))) {
                 var groupedDigits = matched[0].split("、");
                 for (var g = 0; g < groupedDigits.length; g++) groupedDigits[g] = parseKanjiNumber(groupedDigits[g]);
                 addSegment(i, matched[0].length, groupedDigits.join(formatOptions.toutenToComma ? "," : "、"));
@@ -1467,14 +1487,19 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 continue;
             }
             /* 漢数字の小数（一二・五）も1つの数として扱う / Kanji decimals (一二・五) are one number */
-            if (formatOptions.kanjiToArabic && (matched = /^[〇一二三四五六七八九]+・[〇一二三四五六七八九]+/.exec(restText))) {
+            if (isKanjiStart && (matched = /^[〇一二三四五六七八九]+・[〇一二三四五六七八九]+/.exec(restText))) {
                 var decimalParts = matched[0].split("・");
                 addSegment(i, matched[0].length, parseKanjiNumber(decimalParts[0]) + (formatOptions.nakaguroToPeriod ? "." : "・") + parseKanjiNumber(decimalParts[1]));
                 i += matched[0].length;
                 continue;
             }
-            /* 2字以上の漢数字の並びだけ（「一緒」「十」のような1字は変えない） / Runs of two or more only (single characters such as 一 are left) */
-            if (formatOptions.kanjiToArabic && (matched = /^[〇一二三四五六七八九十百千万億兆]{2,}/.exec(restText))) {
+            /* 2字以上の漢数字の並び。1字は月・日・時・分・秒の前だけ（「一緒」「十分」は変えない）
+               Runs of two or more kanji numerals; a single one only before 月 日 時 分 秒 (一緒 stays) */
+            if (isKanjiStart) {
+                matched = /^[〇一二三四五六七八九十百千万億兆]{2,}/.exec(restText);
+                if (!matched && isSingleKanjiTimeUnit(sourceText, i)) matched = [currentChar];
+            }
+            if (matched) {
                 var kanjiValue = parseKanjiNumber(matched[0]);
                 if (kanjiValue !== null && kanjiValue !== "NaN") {
                     addSegment(i, matched[0].length, kanjiValue);

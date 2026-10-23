@@ -32,7 +32,7 @@
   - **Unit squares to letters**: ㍉ ㌢ ㌖ ㍍ ㍉㌘ ㌘ ㌕ ㌧ ㍉㍑ ㌥㍑ ㌔㍑ ㍑ ㌍ ㌔㌍ ㏄ → mm cm km m mg g kg t ml dL kL L cal kcal cc, ㎟ ㎠ ㎡ ㎢ ㎣ ㎤ ㎥ ㎦ → mm² cm² m² km² mm³ cm³ m³ km³ (on by default)
   - **Range 〜 → -**: 10〜20 → 10-20 (off by default)
   - **Japanese era to Western year**: 令和8年 → 2026年, 令和元年 → 2019年 (off by default)
-  - **Kanji numerals to Arabic**: runs of two or more kanji numerals (二〇二六 → 2026, 二千二十六 → 2026, 二万五〇〇〇 → 25000, 三、〇〇〇 → 3,000, 一二・五 → 12.5); single characters such as 一 are left (off by default)
+  - **Kanji numerals to Arabic**: runs of two or more kanji numerals (二〇二六 → 2026, 二千二十六 → 2026, 二万五〇〇〇 → 25000, 三、〇〇〇 → 3,000, 一二・五 → 12.5); a single one only before 月 日 時 分 秒 (2019年四月30日 → 2019年4月30日, 午後三時 → 午後3時). 一緒, 十分, 数十万, 何百 and the like are left (off by default)
 - **Conversion Check**: lists what will change and updates whenever an option changes
 - A progress bar shows how far processing has gone
 - Settings are saved and restored the next time
@@ -60,5 +60,6 @@
 
 ### Update History
 
+- v1.2.0 (2026-10-23) "Kanji numerals to Arabic" now also converts a single kanji numeral before 月 日 時 分 秒 (2019年四月30日 → 2019年4月30日), and leaves approximate numbers such as 数十万 and 何百
 - v1.1.0 (2026-10-16) "Unit squares to letters" now also covers ㌥㍑ ㌔㍑ ㌍ ㌔㌍ ㏄ and ㎟ ㎠ ㎡ ㎢ ㎣ ㎤ ㎥ ㎦ (to match VerticalTextFormatter v1.22.0)
 - v1.0.0 (2026-10-16) Initial release

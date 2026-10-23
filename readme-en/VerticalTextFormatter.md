@@ -44,6 +44,7 @@
     - **Kanji with 十・百・千 (literature)**: 25000 → 二万五千
     - **Kanji digit by digit with 、**: 3,000 → 三、〇〇〇
     - **Rotation only**
+    - The Standard and Arabic presets turn on "Kanji numerals to Arabic digits" (2019年四月30日 → 2019年4月30日)
     - In the kanji presets too, years stay digit by digit (二〇二六年) and phone / postal numbers stay Arabic
   - Save the current settings under a name with the save icon, and delete a saved preset with the trash icon (built-ins cannot be deleted)
 - Rotation and Tate-Chu-Yoko
@@ -122,6 +123,7 @@ https://note.com/dtp_tranist/n/ndb55c5516fd6
 
 ### Update History
 
+- v1.26.1 (2026-10-23) The built-in presets Standard, "Arabic, TCY for 2 digits only" and "Arabic, TCY for 2–3 digits (magazines, ads)" now turn on "Kanji numerals to Arabic digits"
 - v1.26.0 (2026-10-23) Added "Kanji numerals to Arabic digits" to Numbers in the Detailed mode: stray kanji numerals as in 2019年四月30日 become digits before Tate-Chu-Yoko and full-width are decided
 - v1.25.3 (2026-10-16) Wizard fixes: loading a preset in the Detailed mode no longer resets the wizard checks, and 零 / 一千 now follow the Detailed-mode settings. Renamed "Turn Roman text sideways" to "Rotate Roman text upright". Turning on kanji numerals dims the Tate-Chu-Yoko and full-width digit goals, and OK is unavailable when no usable goal is checked
 - v1.25.2 (2026-10-16) Option-clicking in the Wizard now turns all on, and a second option-click keeps only the clicked one on

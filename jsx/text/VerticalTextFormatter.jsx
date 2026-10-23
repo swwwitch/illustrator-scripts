@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.VerticalTextFormatter
 Name=VerticalTextFormatter
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.26.0
+Version=1.26.1
 Release-Date=2026-10-15
 Description-BEGIN
 選択したテキストを縦組みにし、欧文回転・縦中横・数字の書き換え（全角・漢数字・和暦）・禁則・文字組みなどをまとめて適用します。
@@ -49,7 +49,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/VerticalTe
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "VerticalTextFormatter";        /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.26.0";                      /* バージョン / version */
+var SCRIPT_VERSION  = "v1.26.1";                      /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-15";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-23";                   /* 更新日 / last updated */
@@ -166,16 +166,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb55c5516fd6"; /* 紹�
        校正視点「縦書き数字の表記方法」（A：漢数字が原則、B：算用数字が原則） */
     var KANJI_ALL_DIGITS = { tcyNumbers: false, kanji: true, kanjiMinDigits: 1, kanjiMaxDigits: 20 };   /* すべて漢数字にする共通の値 / shared values for all-kanji presets */
     var BUILTIN_PRESETS = [
-        /* 初期値のまま：2〜3桁を縦中横、字数に合わせた等幅字形、「、」「・」 / Defaults: 2–3 digit TCY, fixed-width forms, 、 and ・ */
-        { labelKey: "standard", data: {} },
+        /* 初期値のまま：2〜3桁を縦中横、字数に合わせた等幅字形、「、」「・」、混じった漢数字は算用数字に
+           Defaults: 2–3 digit TCY, fixed-width forms, 、 and ・, stray kanji numerals to digits */
+        { labelKey: "standard", data: { kanjiToArabic: true } },
         /* 校正視点 B：2桁は縦中横、1桁と3桁以上は1字ずつ縦に / Kousei B: TCY for 2 digits only, others upright one by one */
-        { labelKey: "arabicTcy2", data: { tcyDigits3: false, singleDigitFullwidth: true } },
+        { labelKey: "arabicTcy2", data: { tcyDigits3: false, singleDigitFullwidth: true, kanjiToArabic: true } },
         /* 東洋美術印刷・モリサワ：2〜3桁を縦中横（3桁は三分）、単位は組文字、短い略称は全角で縦・長い欧文は横（縦中横は数字だけ）
            Toyobijutsu / Morisawa: 2–3 digit TCY, unit squares, short abbreviations full-width upright, long Roman text sideways (TCY for numbers only) */
         {
             labelKey: "arabicMagazine",
             data: {
-                singleDigitFullwidth: true, unitsKumimoji: true,
+                singleDigitFullwidth: true, unitsKumimoji: true, kanjiToArabic: true,
                 rotateSkipLongLatin: true, shortWordFullwidth: true
             }
         },
