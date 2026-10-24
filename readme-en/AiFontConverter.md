@@ -20,6 +20,7 @@ Switches font variants (character set, P, UD, N, NT, weight) in bulk.
 - G-OTF Gakusan faces (Jokai / Gakusan / K) can be merged into A-OTF with a checkbox
 - Special series such as A1 Mincho are mapped by equivalent weight (A-OTF A1 Mincho Std B = A P-OTF A1 Mincho StdN R)
 - CID fonts and the pre-run confirmation are controlled by switches at the top of the script (hidden from the UI)
+- Paragraph and character styles (when the target is the whole document) and locked or hidden objects can be included
 - Changes are applied per textRange for speed
 - The convertible families are generated from a font database (`FONT_FAMILIES`), covering the core Morisawa faces plus the Tsukushi series, UD faces and Fontworks-derived designs (Cezanne, Matisse, Rodin, and so on)
 
@@ -38,6 +39,7 @@ https://sttk3.com/blog/tips/illustrator/unify-character-set.html
 - v1.1.5: Fixed an error when running with characters selected by the Type tool
 - v1.1.6 (2026-10-01) Unified the window and panel margins and spacing with the shared layout part
 - v1.1.7 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
+- v1.1.8 (2026-10-24) Fixed an error when running with characters selected by the Type tool. Fixed locked objects inside a locked layer not being changed. Fixed missing fonts being treated as installed conversion targets. "Also update paragraph/character styles" is now available only when the target is the whole document (it used to change text outside the scope). The confirmation dialog now scrolls when there are many items. Fonts are read only once, for speed. The button row now uses the shared part
 
 ### Article
 
@@ -45,4 +47,4 @@ https://note.com/dtp_tranist/n/n261c771b4b41
 
 ### Script info
 
-- Version: v1.1.7
+- Version: v1.1.8

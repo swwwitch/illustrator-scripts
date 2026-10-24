@@ -8,7 +8,8 @@ Script-ID=com.swwwitch.illustrator.AiFontConverter
 Name=AiFontConverter
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.1.7
+Version=1.1.8
+Release-Date=2026-06-16
 Description-BEGIN
 フォントの種別（文字セット・P・UD・N・NT・ウェイト）をまとめて変更します。
 対象は選択オブジェクト／ドキュメント全体／アクティブアートボードから選べます。
@@ -46,10 +47,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiFontConv
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AiFontConverter";              /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.7";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.8";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
-var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last updated */
+var SCRIPT_RELEASED = "2026-06-16";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-10-24";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiFontConverter.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiFontConverter.md"; /* README (English) */
@@ -60,6 +61,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n261c771b4b41"; /* 紹�
 
 (function () {
 
+    // =========================================
     // ユーザー設定 / User settings
     // =========================================
 
@@ -187,226 +189,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n261c771b4b41"; /* 紹�
     };
 
     // =========================================
-    // ローカライズ / Localization
+    // レイアウト / Layout
     // =========================================
 
-    // ローカライズ（再利用パーツ） / Localization (reusable)
-
-    /**
-     * UI の言語を返す（"ja" で始まるロケールは日本語、それ以外は英語）
-     * @returns {string} "ja" または "en"
-     */
-    function getCurrentLang() {
-        return (String($.locale || "").indexOf("ja") === 0) ? "ja" : "en";
-    }
-
-    var uiLang = getCurrentLang();
-
-    /**
-     * LABELS から今の UI 言語の文言を取り出す。
-     * @param {string|Object} labelRef - "dialog.title" のようなパス、または { ja, en }
-     * @param {Object|Array} [placeholderValues] - { name: 値 } なら {name} を、[値, …] なら %1, %2 … を差し込む
-     * @returns {string} 文言。パスが見つからなければパスの文字列、{ ja, en } が無ければ空文字
-     */
-    function getLabel(labelRef, placeholderValues) {
-        var labelEntry = labelRef;
-        if (typeof labelRef === "string") {
-            var labelPathKeys = labelRef.split(".");
-            labelEntry = LABELS;
-            for (var i = 0; i < labelPathKeys.length && labelEntry != null; i++) {
-                labelEntry = labelEntry[labelPathKeys[i]];
-            }
-        }
-        var labelString;
-        if (typeof labelEntry === "string") labelString = labelEntry;
-        else if (labelEntry != null && labelEntry[uiLang] != null) labelString = labelEntry[uiLang];
-        else if (labelEntry != null && labelEntry.en != null) labelString = labelEntry.en;
-        else return (typeof labelRef === "string") ? labelRef : "";
-        return fillLabelPlaceholders(String(labelString), placeholderValues);
-    }
-
-    /**
-     * 項目名の文言の末尾にコロンを付ける（日本語は半角スペース＋半角コロン「 :」、英語は「:」。Illustrator の線パネルなどの項目名に合わせる）
-     * @param {string|Object} labelRef - getLabel と同じ
-     * @param {Object|Array} [placeholderValues] - getLabel と同じ
-     * @returns {string} コロン付きの文言
-     */
-    function labelText(labelRef, placeholderValues) {
-        return getLabel(labelRef, placeholderValues) + (uiLang === "ja" ? " :" : ":");
-    }
-
-    /**
-     * 「項目名 : 値」の1行を返す（日本語は「件数 : 5」、英語は「Count: 5」。どちらもコロンのあとに空白を入れる）
-     * @param {string|Object} labelRef - getLabel と同じ
-     * @param {string|number} value - コロンのあとに続ける値
-     * @returns {string} 項目名と値をつないだ文字列
-     */
-    function labelValueText(labelRef, value) {
-        return labelText(labelRef) + " " + value;
-    }
-
-    /**
-     * 文言の {name} や %1 に値を差し込む
-     * @param {string} labelString - 文言
-     * @param {Object|Array} [placeholderValues] - { name: 値 } または [値, …]
-     * @returns {string} 差し込んだ文言
-     */
-    function fillLabelPlaceholders(labelString, placeholderValues) {
-        if (placeholderValues == null) return labelString;
-        if (placeholderValues instanceof Array) {
-            /* 大きい番号から置き換え、%1 が %10 の一部を置き換えないようにする / Replace from the highest index so %1 does not eat into %10 */
-            for (var i = placeholderValues.length; i >= 1; i--) {
-                labelString = labelString.split("%" + i).join(String(placeholderValues[i - 1]));
-            }
-            return labelString;
-        }
-        for (var placeholderKey in placeholderValues) {
-            if (!placeholderValues.hasOwnProperty(placeholderKey)) continue;
-            labelString = labelString.split("{" + placeholderKey + "}").join(String(placeholderValues[placeholderKey]));
-        }
-        return labelString;
-    }
-
-    // ローカライズ（再利用パーツ）ここまで / End of the reusable localization
-
-    var LABELS = {
-        dialog: {
-            title: { ja: "フォント種別変更", en: "Font Variant Switcher" }
-        },
-        panel: {
-            target: { ja: "対象範囲", en: "Target Scope" },
-            conversion: { ja: "変換設定", en: "Conversion Settings" },
-            charset: { ja: "文字セット", en: "Character Set" },
-            nSetting: { ja: "N（JIS2004対応）", en: "N (JIS2004)" },
-            ntSetting: { ja: "新ゴ / 新ゴNT", en: "ShinGo / ShinGo NT" },
-            udSetting: { ja: "UD", en: "UD" },
-            pSetting: { ja: "AP版", en: "AP (Proportional)" },
-            options: { ja: "処理オプション", en: "Processing Options" }
-        },
-        radio: {
-            targetSelection: { ja: "選択オブジェクト", en: "Selected objects" },
-            targetDocument: { ja: "ドキュメント全体", en: "Entire document" },
-            targetArtboard: { ja: "アクティブアートボード", en: "Active artboard" },
-            keep: { ja: "現状維持", en: "Keep current" },
-            nOff: { ja: "Nなし", en: "Without N" },
-            nOn: { ja: "Nあり", en: "With N" },
-            ntOff: { ja: "NTなし", en: "Without NT" },
-            ntOn: { ja: "NTあり", en: "With NT" },
-            udOff: { ja: "UDなし", en: "Without UD" },
-            udOn: { ja: "UDあり", en: "With UD" },
-            pOff: { ja: "Pなし", en: "Without P" },
-            pOn: { ja: "Pあり", en: "With P" }
-        },
-        checkbox: {
-            integrateGakusan: {
-                ja: "G-OTF学参書体をA-OTFに統合",
-                en: "Merge G-OTF Gakusan fonts into A-OTF"
-            },
-            includeStyles: {
-                ja: "段落/文字スタイルも変更",
-                en: "Also update paragraph/character styles"
-            },
-            includeLocked: {
-                ja: "ロックされたオブジェクトも対象にする",
-                en: "Include locked objects"
-            },
-            includeHidden: {
-                ja: "非表示オブジェクトも対象にする",
-                en: "Include hidden objects"
-            }
-        },
-        button: {
-            cancel: { ja: "キャンセル", en: "Cancel" },
-            run: { ja: "実行", en: "Run" }
-        },
-        confirm: {
-            title: { ja: "変更内容の確認", en: "Confirm Changes" },
-            willChange: {
-                ja: "以下のフォントを変更します。",
-                en: "The following fonts will be changed."
-            },
-            nearWeight: {
-                ja: "同じウェイトのフォントが見つかりません。近いウェイトに置換します。",
-                en: "Exact weight not found. The nearest weight will be substituted."
-            },
-            notInstalled: {
-                ja: "次のフォントはインストールされていないため変更されません。",
-                en: "The following fonts are not installed and will not be changed."
-            },
-            prompt: { ja: "実行しますか？", en: "Run now?" }
-        },
-        alert: {
-            noDocument: { ja: "ドキュメントが開かれていません。", en: "No document is open." },
-            noSelection: {
-                ja: "テキストオブジェクトを選択してください。",
-                en: "Please select text objects."
-            },
-            noTarget: {
-                ja: "対象となるテキストが見つかりませんでした。",
-                en: "No target text was found."
-            },
-            noChange: {
-                ja: "変更対象のフォントが見つかりませんでした。",
-                en: "No fonts to change were found."
-            },
-            done: { ja: "処理が完了しました。", en: "Done." },
-            changedCount: { ja: "変更数", en: "Changed" }
-        },
-        tooltip: {
-            target: {
-                ja: "フォント種別を変更する範囲を選びます。選択オブジェクト、ドキュメント全体、アクティブアートボード内から選択できます。",
-                en: "Choose the scope for changing font variants: selected objects, the entire document, or the active artboard."
-            },
-            charset: {
-                ja: "文字セットを Std / Pro / Pr5 / Pr6 から選びます。N の有無は別の「N設定」で切り替えます。",
-                en: "Choose the character set: Std, Pro, Pr5, or Pr6. Toggle the N variant separately under N Variant."
-            },
-            nSetting: {
-                ja: "N あり/なしを切り替えます。例：Pr6 → Pr6N。現状維持では現在の N 状態を保ちます。",
-                en: "Toggle the N variant on or off, for example Pr6 -> Pr6N. Keep current preserves the current N state."
-            },
-            udSetting: {
-                ja: "UD 書体があるファミリーだけ、UD あり/なしを切り替えます。対応しないファミリーでは無視されます。",
-                en: "Toggle the UD variant only for families that support it. Unsupported families are ignored."
-            },
-            pSetting: {
-                ja: "AP版書体",
-                en: "A P-OTF (proportional) version"
-            },
-            includeLocked: {
-                ja: "ロック中のオブジェクトも一時的に解除して変更し、処理後に元のロック状態へ戻します。",
-                en: "Temporarily unlock locked objects, update them, then restore the original lock state."
-            },
-            includeHidden: {
-                ja: "非表示のオブジェクトも一時的に表示して変更し、処理後に元の表示状態へ戻します。",
-                en: "Temporarily show hidden objects, update them, then restore the original visibility state."
-            },
-            nt: {
-                ja: "新ゴと新ゴNTを切り替えます。対象は新ゴ系ファミリーのみです。",
-                en: "Switch between ShinGo and ShinGo NT. This applies only to ShinGo families."
-            },
-            integrateGakusan: {
-                ja: "G-OTF の学参・常改・K書体を、通常の A-OTF 書体として扱って変換します。",
-                en: "Treat G-OTF Gakusan, revised, and K fonts as standard A-OTF fonts before conversion."
-            },
-            includeStyles: {
-                ja: "段落スタイル・文字スタイルに設定されたフォントも、同じ条件で変更します。",
-                en: "Also update fonts assigned in paragraph and character styles using the same conversion settings."
-            },
-            presetMax: {
-                ja: "N なしで収録文字数が最も多い文字セットを選び、UD・P・NT をありにします。",
-                en: "Select the richest available character set without N, and turn on UD, P, and NT."
-            },
-            presetMaxN: {
-                ja: "N ありを含めて収録文字数が最も多い文字セットを選び、UD・P・NT をありにします。",
-                en: "Select the richest available character set including N variants, and turn on UD, P, and NT."
-            }
-        }
-    };
-
-    // =========================================
-    // UI 共通 / UI helpers
-    // =========================================
+    var CONFIRM_VISIBLE_ROWS = 16; /* 確認ダイアログに一度に並べる行数（見出しを含む）/ rows shown at once in the confirmation dialog, headings included */
+    var CONFIRM_SCROLLBAR_WIDTH = 16; /* 確認ダイアログのスクロールバーの幅 / width of the confirmation dialog scrollbar */
+    var CONFIRM_ROW_SPACING = 12; /* 確認ダイアログの行の間隔 / spacing between rows of the confirmation dialog */
+    var CONFIRM_COLUMN_GAP = 4; /* 確認ダイアログの「変更前」と「変更後」の間隔 / gap between the before and after columns of the confirmation dialog */
 
     // UIレイアウト（再利用パーツ） / UI layout (reusable)
 
@@ -487,7 +276,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n261c771b4b41"; /* 紹�
 
     // UIレイアウト（再利用パーツ）ここまで / End of the reusable UI layout
 
-    /* グループの共通設定（row/column で整列を切り替え）/ Apply shared group layout (alignChildren switches by orientation) */
+    /**
+     * グループの共通設定（row は縦中央、column は左揃えで子を並べる）
+     * @param {Group} group - 対象のグループ
+     * @param {string} [orientation] - "row" または "column"（省略時は "column"）
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
     function setupGroup(group, orientation, spacing) {
         var groupOrientation = orientation || "column";
         group.orientation = groupOrientation;
@@ -496,6 +291,83 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n261c771b4b41"; /* 紹�
         group.alignment = "fill";
         group.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
     }
+
+    // ボタン行（再利用パーツ） / Button row (reusable)
+
+    var BUTTON_ROW_TOP_MARGIN = 5; /* ボタン行の上の余白 / top margin of the button row */
+    var BUTTON_ROW_BOTTOM_MARGIN = 14; /* ボタン行の下の余白。ダイアログの下余白と合わせて約30px（Illustrator 標準のダイアログに合わせる） / bottom margin; with the dialog margin about 30px, like Illustrator's own dialogs */
+    var BUTTON_ROW_SPACING = 10;   /* ボタンどうしの間隔 / spacing between buttons */
+    var BUTTON_ROW_CENTER_MAX_WIDTH = 240; /* 右のボタンだけの行を中央に置く、ダイアログの内側の最大幅（px、左右の余白を除く）。広いダイアログは右揃え / max inner dialog width (px, margins excluded) that centers a right-only row; wider dialogs keep it right-aligned */
+
+    /**
+     * ダイアログ下部のボタン行を作る。
+     * 通常は「左のグループ・伸びるスペーサー・右のグループ」、centered なら行そのものを左右中央に置く
+     * @param {Window|Group|Panel} parent - 行を足す先（ふつうはダイアログ）
+     * @param {Object} [rowOptions] - { centered: true } で左右中央に並べる
+     * @returns {{rowGroup: Group, leftGroup: Group|null, rightGroup: Group|null}} 行と左右のグループ（centered のときは左右が null）
+     */
+    function addButtonRow(parent, rowOptions) {
+        var isCentered = !!(rowOptions && rowOptions.centered);
+        var btnRowGroup = parent.add("group");
+        btnRowGroup.orientation = "row";
+        btnRowGroup.margins = [0, BUTTON_ROW_TOP_MARGIN, 0, BUTTON_ROW_BOTTOM_MARGIN];
+        btnRowGroup.spacing = BUTTON_ROW_SPACING;
+
+        if (isCentered) {
+            btnRowGroup.alignment = ["center", "bottom"];
+            btnRowGroup.alignChildren = ["center", "center"];
+            return { rowGroup: btnRowGroup, leftGroup: null, rightGroup: null };
+        }
+
+        btnRowGroup.alignment = ["fill", "bottom"];
+
+        var btnLeftGroup = btnRowGroup.add("group");
+        btnLeftGroup.alignChildren = ["left", "center"];
+        btnLeftGroup.spacing = BUTTON_ROW_SPACING;
+
+        /* 余りの幅を吸って、右のグループを右端に寄せる / Absorbs the extra width so the right group sits at the right edge */
+        var spacer = btnRowGroup.add("group");
+        spacer.alignment = ["fill", "fill"];
+        spacer.minimumSize.width = 0;
+
+        var btnRightGroup = btnRowGroup.add("group");
+        btnRightGroup.alignChildren = ["right", "center"];
+        btnRightGroup.spacing = BUTTON_ROW_SPACING;
+
+        return { rowGroup: btnRowGroup, leftGroup: btnLeftGroup, rightGroup: btnRightGroup };
+    }
+
+    /**
+     * 左のグループにボタンが無い（右のボタンだけの）行を、ダイアログの幅に合わせて揃える。
+     * 内側の幅（左右の余白を除く）が BUTTON_ROW_CENTER_MAX_WIDTH 以下なら左右中央、それより広ければ右揃えのまま。
+     * 幅はレイアウトが決まるまで分からないので、ダイアログを表示した時点（show イベント）で判定する。
+     * ボタンをすべて足したあと、show() の前に呼ぶ。centered で作った行や、左にボタンがある行はそのまま
+     * @param {{rowGroup: Group, leftGroup: Group|null, rightGroup: Group|null}} buttonRow - addButtonRow() の戻り値
+     * @returns {void}
+     */
+    function alignRightOnlyButtonRow(buttonRow) {
+        if (!buttonRow.leftGroup || buttonRow.leftGroup.children.length > 0) return;
+        var dialogWindow = buttonRow.rowGroup.window;
+        dialogWindow.addEventListener("show", function () {
+            if (!buttonRow.leftGroup) return;
+            var btnRowGroup = buttonRow.rowGroup;
+            /* 行の幅＝ダイアログの内側の幅（左右の余白を除く）/ The row spans the dialog's inner width (margins excluded) */
+            if (!btnRowGroup.size || btnRowGroup.size.width > BUTTON_ROW_CENTER_MAX_WIDTH) return;
+            /* 左のグループとスペーサーを外し、右のグループだけを中央に置く / Drop the left group and the spacer so only the right group remains, centered */
+            btnRowGroup.remove(buttonRow.leftGroup);
+            btnRowGroup.remove(btnRowGroup.children[0]); /* 左のグループを外すと先頭はスペーサー / the spacer is first once the left group is gone */
+            btnRowGroup.alignment = ["center", "bottom"];
+            btnRowGroup.alignChildren = ["center", "center"];
+            buttonRow.leftGroup = null;
+            dialogWindow.layout.layout(true);
+        });
+    }
+
+    // ボタン行（再利用パーツ）ここまで / End of the reusable button row
+
+    // =========================================
+    // ダイアログの位置 / Dialog position
+    // =========================================
 
     // ダイアログの位置と不透明度（再利用パーツ） / Dialog position and opacity (reusable)
 
@@ -634,6 +506,225 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n261c771b4b41"; /* 紹�
     // ダイアログの位置と不透明度（再利用パーツ）ここまで / End of the reusable dialog position and opacity
 
     // =========================================
+    // ローカライズ / Localization
+    // =========================================
+
+    // ローカライズ（再利用パーツ） / Localization (reusable)
+
+    /**
+     * UI の言語を返す（"ja" で始まるロケールは日本語、それ以外は英語）
+     * @returns {string} "ja" または "en"
+     */
+    function getCurrentLang() {
+        return (String($.locale || "").indexOf("ja") === 0) ? "ja" : "en";
+    }
+
+    var uiLang = getCurrentLang();
+
+    /**
+     * LABELS から今の UI 言語の文言を取り出す。
+     * @param {string|Object} labelRef - "dialog.title" のようなパス、または { ja, en }
+     * @param {Object|Array} [placeholderValues] - { name: 値 } なら {name} を、[値, …] なら %1, %2 … を差し込む
+     * @returns {string} 文言。パスが見つからなければパスの文字列、{ ja, en } が無ければ空文字
+     */
+    function getLabel(labelRef, placeholderValues) {
+        var labelEntry = labelRef;
+        if (typeof labelRef === "string") {
+            var labelPathKeys = labelRef.split(".");
+            labelEntry = LABELS;
+            for (var i = 0; i < labelPathKeys.length && labelEntry != null; i++) {
+                labelEntry = labelEntry[labelPathKeys[i]];
+            }
+        }
+        var labelString;
+        if (typeof labelEntry === "string") labelString = labelEntry;
+        else if (labelEntry != null && labelEntry[uiLang] != null) labelString = labelEntry[uiLang];
+        else if (labelEntry != null && labelEntry.en != null) labelString = labelEntry.en;
+        else return (typeof labelRef === "string") ? labelRef : "";
+        return fillLabelPlaceholders(String(labelString), placeholderValues);
+    }
+
+    /**
+     * 項目名の文言の末尾にコロンを付ける（日本語は半角スペース＋半角コロン「 :」、英語は「:」。Illustrator の線パネルなどの項目名に合わせる）
+     * @param {string|Object} labelRef - getLabel と同じ
+     * @param {Object|Array} [placeholderValues] - getLabel と同じ
+     * @returns {string} コロン付きの文言
+     */
+    function labelText(labelRef, placeholderValues) {
+        return getLabel(labelRef, placeholderValues) + (uiLang === "ja" ? " :" : ":");
+    }
+
+    /**
+     * 「項目名 : 値」の1行を返す（日本語は「件数 : 5」、英語は「Count: 5」。どちらもコロンのあとに空白を入れる）
+     * @param {string|Object} labelRef - getLabel と同じ
+     * @param {string|number} value - コロンのあとに続ける値
+     * @returns {string} 項目名と値をつないだ文字列
+     */
+    function labelValueText(labelRef, value) {
+        return labelText(labelRef) + " " + value;
+    }
+
+    /**
+     * 文言の {name} や %1 に値を差し込む
+     * @param {string} labelString - 文言
+     * @param {Object|Array} [placeholderValues] - { name: 値 } または [値, …]
+     * @returns {string} 差し込んだ文言
+     */
+    function fillLabelPlaceholders(labelString, placeholderValues) {
+        if (placeholderValues == null) return labelString;
+        if (placeholderValues instanceof Array) {
+            /* 大きい番号から置き換え、%1 が %10 の一部を置き換えないようにする / Replace from the highest index so %1 does not eat into %10 */
+            for (var i = placeholderValues.length; i >= 1; i--) {
+                labelString = labelString.split("%" + i).join(String(placeholderValues[i - 1]));
+            }
+            return labelString;
+        }
+        for (var placeholderKey in placeholderValues) {
+            if (!placeholderValues.hasOwnProperty(placeholderKey)) continue;
+            labelString = labelString.split("{" + placeholderKey + "}").join(String(placeholderValues[placeholderKey]));
+        }
+        return labelString;
+    }
+
+    // ローカライズ（再利用パーツ）ここまで / End of the reusable localization
+
+    var LABELS = {
+        dialog: {
+            title: { ja: "フォント種別変更", en: "Font Variant Switcher" }
+        },
+        panel: {
+            target: { ja: "対象範囲", en: "Target Scope" },
+            conversion: { ja: "変換設定", en: "Conversion Settings" },
+            charset: { ja: "文字セット", en: "Character Set" },
+            nSetting: { ja: "N（JIS2004対応）", en: "N (JIS2004)" },
+            ntSetting: { ja: "新ゴ / 新ゴNT", en: "ShinGo / ShinGo NT" },
+            udSetting: { ja: "UD", en: "UD" },
+            pSetting: { ja: "AP版", en: "AP (Proportional)" },
+            options: { ja: "処理オプション", en: "Processing Options" }
+        },
+        radio: {
+            targetSelection: { ja: "選択オブジェクト", en: "Selected objects" },
+            targetDocument: { ja: "ドキュメント全体", en: "Entire document" },
+            targetArtboard: { ja: "アクティブアートボード", en: "Active artboard" },
+            keep: { ja: "現状維持", en: "Keep current" },
+            nOff: { ja: "Nなし", en: "Without N" },
+            nOn: { ja: "Nあり", en: "With N" },
+            ntOff: { ja: "NTなし", en: "Without NT" },
+            ntOn: { ja: "NTあり", en: "With NT" },
+            udOff: { ja: "UDなし", en: "Without UD" },
+            udOn: { ja: "UDあり", en: "With UD" },
+            pOff: { ja: "Pなし", en: "Without P" },
+            pOn: { ja: "Pあり", en: "With P" }
+        },
+        checkbox: {
+            integrateGakusan: {
+                ja: "G-OTF学参書体をA-OTFに統合",
+                en: "Merge G-OTF Gakusan fonts into A-OTF"
+            },
+            includeStyles: {
+                ja: "段落/文字スタイルも変更",
+                en: "Also update paragraph/character styles"
+            },
+            includeLocked: {
+                ja: "ロックされたオブジェクトも対象にする",
+                en: "Include locked objects"
+            },
+            includeHidden: {
+                ja: "非表示オブジェクトも対象にする",
+                en: "Include hidden objects"
+            }
+        },
+        button: {
+            cancel: { ja: "キャンセル", en: "Cancel" },
+            ok: { ja: "OK", en: "OK" },
+            run: { ja: "実行", en: "Run" }
+        },
+        confirm: {
+            title: { ja: "変更内容の確認", en: "Confirm Changes" },
+            willChange: {
+                ja: "以下のフォントを変更します。",
+                en: "The following fonts will be changed."
+            },
+            nearWeight: {
+                ja: "同じウェイトのフォントが見つかりません。近いウェイトに置換します。",
+                en: "Exact weight not found. The nearest weight will be substituted."
+            },
+            notInstalled: {
+                ja: "次のフォントはインストールされていないため変更されません。",
+                en: "The following fonts are not installed and will not be changed."
+            },
+            prompt: { ja: "実行しますか？", en: "Run now?" }
+        },
+        alert: {
+            noDocument: { ja: "ドキュメントが開かれていません。", en: "No document is open." },
+            noSelection: {
+                ja: "テキストオブジェクトを選択してください。",
+                en: "Please select text objects."
+            },
+            noTarget: {
+                ja: "対象となるテキストが見つかりませんでした。",
+                en: "No target text was found."
+            },
+            noChange: {
+                ja: "変更対象のフォントが見つかりませんでした。",
+                en: "No fonts to change were found."
+            },
+            done: { ja: "処理が完了しました。", en: "Done." },
+            changedCount: { ja: "変更数", en: "Changed" }
+        },
+        tooltip: {
+            target: {
+                ja: "フォント種別を変更する範囲を選びます。選択オブジェクト、ドキュメント全体、アクティブアートボード内から選択できます。",
+                en: "Choose the scope for changing font variants: selected objects, the entire document, or the active artboard."
+            },
+            charset: {
+                ja: "文字セットを Std / Pro / Pr5 / Pr6 から選びます。N の有無は別の「N設定」で切り替えます。",
+                en: "Choose the character set: Std, Pro, Pr5, or Pr6. Toggle the N variant separately under N Variant."
+            },
+            nSetting: {
+                ja: "N あり/なしを切り替えます。例：Pr6 → Pr6N。現状維持では現在の N 状態を保ちます。",
+                en: "Toggle the N variant on or off, for example Pr6 -> Pr6N. Keep current preserves the current N state."
+            },
+            udSetting: {
+                ja: "UD 書体があるファミリーだけ、UD あり/なしを切り替えます。対応しないファミリーでは無視されます。",
+                en: "Toggle the UD variant only for families that support it. Unsupported families are ignored."
+            },
+            pSetting: {
+                ja: "AP版書体",
+                en: "A P-OTF (proportional) version"
+            },
+            includeLocked: {
+                ja: "ロック中のオブジェクトも一時的に解除して変更し、処理後に元のロック状態へ戻します。",
+                en: "Temporarily unlock locked objects, update them, then restore the original lock state."
+            },
+            includeHidden: {
+                ja: "非表示のオブジェクトも一時的に表示して変更し、処理後に元の表示状態へ戻します。",
+                en: "Temporarily show hidden objects, update them, then restore the original visibility state."
+            },
+            nt: {
+                ja: "新ゴと新ゴNTを切り替えます。対象は新ゴ系ファミリーのみです。",
+                en: "Switch between ShinGo and ShinGo NT. This applies only to ShinGo families."
+            },
+            integrateGakusan: {
+                ja: "G-OTF の学参・常改・K書体を、通常の A-OTF 書体として扱って変換します。",
+                en: "Treat G-OTF Gakusan, revised, and K fonts as standard A-OTF fonts before conversion."
+            },
+            includeStyles: {
+                ja: "段落スタイル・文字スタイルに設定されたフォントも、同じ条件で変更します。",
+                en: "Also update fonts assigned in paragraph and character styles using the same conversion settings."
+            },
+            presetMax: {
+                ja: "N なしで収録文字数が最も多い文字セットを選び、UD・P・NT をありにします。",
+                en: "Select the richest available character set without N, and turn on UD, P, and NT."
+            },
+            presetMaxN: {
+                ja: "N ありを含めて収録文字数が最も多い文字セットを選び、UD・P・NT をありにします。",
+                en: "Select the richest available character set including N variants, and turn on UD, P, and NT."
+            }
+        }
+    };
+
+    // =========================================
     // メイン / Main
     // =========================================
 
@@ -725,7 +816,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n261c771b4b41"; /* 紹�
             Std: rbCharsetStd
         };
 
-        /* ランキング順に、最初に選べる文字セット（＋N）を UI へ反映 / Apply the richest available charset (+N) to the UI */
+        /**
+         * ランキング順に、最初に選べる文字セット（＋N）をラジオに反映する
+         * @param {string[]} rankList - 文字セットのランキング（CHARSET_RANK_NO_N / CHARSET_RANK_WITH_N）
+         * @returns {void}
+         */
         function applyRichestCharset(rankList) {
             for (var i = 0; i < rankList.length; i++) {
                 var token = rankList[i];
@@ -751,8 +846,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n261c771b4b41"; /* 紹�
 
         /* プリセット（Max=収録最多のNなし＋UD＋P、MaxN=収録最多のNあり込み＋UD＋P）/ Presets (Max / MaxN) */
         var presetRow = conversionPanel.add("group");
-        setupGroup(presetRow, "row");
-        presetRow.alignment = ["center", "top"]; // 左右中央 / horizontally centered
+        setupRow(presetRow, "center"); // 左右中央 / horizontally centered
         presetRow.margins = [0, 5, 0, 0]; // 上に 5px の余白 / 5px top margin
         var presetMaxButton = presetRow.add("button", undefined, "Max");
         presetMaxButton.helpTip = getLabel("tooltip.presetMax");
@@ -788,15 +882,27 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n261c771b4b41"; /* 紹�
         cbIncludeHidden.helpTip = getLabel("tooltip.includeHidden");
         cbIncludeHidden.value = false;
 
-        /* ボタン（Mac 規約: キャンセル → OK、OK は非ローカライズ）/ Buttons (Mac order: Cancel then OK, OK is not localized) */
-        var buttonRow = mainDialog.add("group");
-        buttonRow.orientation = "row";
-        buttonRow.alignment = "right";
-        var cancelButton = buttonRow.add("button", undefined, getLabel("button.cancel"));
-        var okButton = buttonRow.add("button", undefined, "OK");
+        /**
+         * スタイルの変更は、対象がドキュメント全体のときだけ有効にする（範囲外で同じスタイルを使うテキストまで変わるため）
+         * @returns {void}
+         */
+        function updateIncludeStylesEnabled() {
+            cbIncludeStyles.enabled = rbTargetDocument.value;
+        }
+        rbTargetSelection.onClick = updateIncludeStylesEnabled;
+        rbTargetDocument.onClick = updateIncludeStylesEnabled;
+        rbTargetArtboard.onClick = updateIncludeStylesEnabled;
+        /* 表示前は value を読み戻せないので、既定の対象（選択オブジェクト）に合わせて直接決める / value cannot be read back before show, so set it from the default scope (selection) */
+        cbIncludeStyles.enabled = false;
 
-        cancelButton.onClick = function () { mainDialog.close(0); };
-        okButton.onClick = function () { mainDialog.close(1); };
+        /* ボタン（Mac 規約: キャンセル → OK）/ Buttons (Mac order: Cancel then OK) */
+        var buttonRow = addButtonRow(mainDialog);
+        var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+        var btnOK = buttonRow.rightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+
+        btnCancel.onClick = function () { mainDialog.close(0); };
+        btnOK.onClick = function () { mainDialog.close(1); };
+        alignRightOnlyButtonRow(buttonRow);
 
         prepareDialogWindow(mainDialog, SCRIPT_NAME);
         if (mainDialog.show() !== 1) {
@@ -824,13 +930,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n261c771b4b41"; /* 紹�
         var maxPreset = maxPresetActive; // Max/MaxN プリセット中か（AXIS を ProN へ寄せる）/ whether a Max/MaxN preset is active (forces AXIS to ProN)
 
         var integrateGakusan = cbIntegrateGakusan.value;
-        var includeStyles = cbIncludeStyles.value;
+        var includeStyles = (targetMode === "document") && cbIncludeStyles.value;
         var includeLocked = cbIncludeLocked.value;
         var includeHidden = cbIncludeHidden.value;
         var confirmBeforeRun = CONFIRM_BEFORE_RUN;
 
         /* 選択モードなのに未選択ならエラー / Error if selection mode but nothing selected */
-        if (targetMode === "selection" && documentRef.selection.length === 0) {
+        var selectedItems = getSelectedItems();
+        if (targetMode === "selection" && selectedItems.length === 0) {
             alert(getLabel("alert.noSelection"));
             return;
         }
@@ -839,10 +946,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n261c771b4b41"; /* 紹�
         // 対象テキストフレームの収集 / Collect target text frames
         // -----------------------------------------
 
-        var targetFrames = collectTargetTextFrames(targetMode);
-
         // カンバス上の位置（上→下、同じ高さは左→右）で並べ替え / Sort by canvas position (top→bottom, then left→right)
-        sortFramesByCanvasPosition(targetFrames);
+        var targetFrames = sortFramesByCanvasPosition(collectTargetTextFrames(targetMode));
 
         if (targetFrames.length === 0 && !includeStyles) {
             alert(getLabel("alert.noTarget"));
@@ -861,11 +966,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n261c771b4b41"; /* 紹�
         var weightSubChanges = [];  // {oldName, newName, oldWeight, newWeight}
         var missingChanges = [];    // {oldName, newName}
 
-        /* 対象フレームをスキャンして変換候補を収集 / Scan frames to collect change candidates */
+        /* 対象フレームをスキャンして変換候補を収集。区間は適用でも使い回す
+           Scan frames to collect change candidates; the runs are reused when applying */
+        var frameFontRuns = [];
         for (var fi = 0; fi < targetFrames.length; fi++) {
-            forEachFontRun(targetFrames[fi], function (fontName) {
-                if (fontName) classifyFontChange(fontName);
-            });
+            var fontRuns = collectFontRuns(targetFrames[fi]);
+            frameFontRuns.push(fontRuns);
+            for (var ri = 0; ri < fontRuns.length; ri++) {
+                if (fontRuns[ri].fontName) classifyFontChange(fontRuns[ri].fontName);
+            }
         }
 
         /* 段落・文字スタイルもスキャン / Scan paragraph and character styles too */
@@ -906,7 +1015,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n261c771b4b41"; /* 紹�
 
         var changedCount = 0;
         for (var fj = 0; fj < targetFrames.length; fj++) {
-            changedCount += applyChangesToFrame(targetFrames[fj], fontNameMap);
+            changedCount += applyChangesToFrame(targetFrames[fj], frameFontRuns[fj], fontNameMap);
         }
         // スタイルは適用のみ（テキストオブジェクト数には数えない）/ Styles are applied but not counted as text objects
         if (includeStyles) {
@@ -914,23 +1023,66 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n261c771b4b41"; /* 紹�
             applyChangesToStyles(documentRef.characterStyles, fontNameMap);
         }
 
-        alert(getLabel("alert.done") + "\n\n" + labelText("alert.changedCount") + changedCount);
+        alert(getLabel("alert.done") + "\n\n" + labelValueText("alert.changedCount", changedCount));
 
         // =========================================
         // 対象収集 / Target collection
         // =========================================
 
-        /* テキストフレームをカンバス上の位置順（上→下、同じ高さは左→右）に並べ替え / Sort frames by canvas position */
-        function sortFramesByCanvasPosition(frames) {
-            frames.sort(function (a, b) {
-                var ba = a.geometricBounds; // [left, top, right, bottom]
-                var bb = b.geometricBounds;
-                if (Math.abs(bb[1] - ba[1]) > 1.0) return bb[1] - ba[1]; // top が大きい方が上 / larger top = higher
-                return ba[0] - bb[0];                                     // left が小さい方が先 / smaller left first
-            });
+        /**
+         * 選択中のアイテムを配列で返す。文字ツールで文字を選択しているときは、そのストーリーのテキストフレームを返す
+         * @returns {PageItem[]} 選択中のアイテム
+         */
+        function getSelectedItems() {
+            var selection = documentRef.selection;
+            var items = [];
+            if (!selection) return items;
+            /* 文字の選択中は TextRange になり [0] が無い（length は文字数）/ While characters are selected, selection is a TextRange with no [0] (length is the character count) */
+            if (selection.typename === "TextRange") {
+                var storyFrames = selection.story.textFrames;
+                for (var i = 0; i < storyFrames.length; i++) {
+                    items.push(storyFrames[i]);
+                }
+                return items;
+            }
+            for (var j = 0; j < selection.length; j++) {
+                items.push(selection[j]);
+            }
+            return items;
         }
 
-        /* 対象モードに応じてテキストフレームを集める / Gather text frames by target mode */
+        /**
+         * テキストフレームをカンバス上の位置順（上→下、同じ高さは左→右）に並べ替えた配列を返す。
+         * 比較関数つきの sort() は遅く並びも狂うことがあるので、文字列キーを引数なしの sort() で並べる
+         * @param {TextFrame[]} frames - 並べ替えるテキストフレーム
+         * @returns {TextFrame[]} 並べ替えた配列
+         */
+        function sortFramesByCanvasPosition(frames) {
+            var COORD_OFFSET = 100000; /* 座標を正の数にそろえる / shifts coordinates to positive numbers */
+            var KEY_SEPARATOR = "\u0001";
+            var sortKeys = [];
+            for (var i = 0; i < frames.length; i++) {
+                var frameBounds = frames[i].geometricBounds; // [left, top, right, bottom]
+                /* top は 1pt 単位に丸め、大きい方（上）を先に。left は小さい方を先に / top rounded to 1pt, higher first; then smaller left first */
+                sortKeys.push(
+                    padNumber(Math.round(COORD_OFFSET - frameBounds[1]), 7) + KEY_SEPARATOR +
+                    padNumber(Math.round((frameBounds[0] + COORD_OFFSET) * 100), 9) + KEY_SEPARATOR +
+                    padNumber(i, 7)
+                );
+            }
+            sortKeys.sort();
+            var sortedFrames = [];
+            for (var k = 0; k < sortKeys.length; k++) {
+                sortedFrames.push(frames[parseInt(sortKeys[k].split(KEY_SEPARATOR)[2], 10)]);
+            }
+            return sortedFrames;
+        }
+
+        /**
+         * 対象モードに応じてテキストフレームを集める
+         * @param {string} mode - "selection" / "document" / "artboard"
+         * @returns {TextFrame[]} 対象のテキストフレーム
+         */
         function collectTargetTextFrames(mode) {
             if (mode === "document") {
                 return collectDocumentFrames(null);
@@ -940,11 +1092,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n261c771b4b41"; /* 紹�
                 return collectDocumentFrames(documentRef.artboards[activeIndex].artboardRect);
             }
             var selectedFrames = [];
-            collectFramesFromSelection(documentRef.selection, selectedFrames);
+            collectFramesFromSelection(selectedItems, selectedFrames);
             return selectedFrames;
         }
 
-        /* ドキュメント内の全テキストフレームをロック/非表示フィルタ付きで集める / Collect document frames with lock/hidden filtering */
+        /**
+         * ドキュメント内の全テキストフレームを、ロック・非表示の設定に従って集める
+         * @param {number[]|null} artboardRect - この範囲に重なるものだけを集める。null なら全体
+         * @returns {TextFrame[]} 集めたテキストフレーム
+         */
         function collectDocumentFrames(artboardRect) {
             var collected = [];
             for (var i = 0; i < documentRef.textFrames.length; i++) {
@@ -957,7 +1113,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n261c771b4b41"; /* 紹�
             return collected;
         }
 
-        /* 選択アイテム（グループ内も再帰）からテキストフレームを集める / Collect text frames from selection recursively */
+        /**
+         * 選択アイテム（グループ内も再帰）からテキストフレームを集める
+         * @param {PageItem[]|PageItems} items - 選択アイテム、またはグループの pageItems
+         * @param {TextFrame[]} collected - 集めたフレームを足す配列
+         * @returns {void}
+         */
         function collectFramesFromSelection(items, collected) {
             for (var i = 0; i < items.length; i++) {
                 var item = items[i];
@@ -969,7 +1130,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n261c771b4b41"; /* 紹�
             }
         }
 
-        /* 2 つの矩形が交差するか / Whether two bounds rectangles intersect */
+        /**
+         * 2 つの矩形が交差するか
+         * @param {number[]} boundsA - [left, top, right, bottom]
+         * @param {number[]} boundsB - [left, top, right, bottom]
+         * @returns {boolean} 交差すれば true
+         */
         function boundsIntersect(boundsA, boundsB) {
             // bounds: [left, top, right, bottom]（Illustrator 座標は上が大きい）
             if (boundsA[2] < boundsB[0]) return false; // A.right  < B.left
@@ -983,7 +1149,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n261c771b4b41"; /* 紹�
         // ロック・非表示判定 / Lock & hidden checks
         // =========================================
 
-        /* 自身または祖先がロックされているか / Whether the item or an ancestor is locked */
+        /**
+         * 自身または祖先がロックされているか
+         * @param {PageItem} item - 対象のアイテム
+         * @returns {boolean} ロックされていれば true
+         */
         function isLockedEffective(item) {
             if (item.locked) return true;
             var containers = collectAncestorContainers(item);
@@ -993,7 +1163,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n261c771b4b41"; /* 紹�
             return false;
         }
 
-        /* 自身または祖先が非表示か / Whether the item or an ancestor is hidden */
+        /**
+         * 自身または祖先が非表示か
+         * @param {PageItem} item - 対象のアイテム
+         * @returns {boolean} 非表示なら true
+         */
         function isHiddenEffective(item) {
             if (isContainerHidden(item)) return true;
             var containers = collectAncestorContainers(item);
@@ -1003,7 +1177,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n261c771b4b41"; /* 紹�
             return false;
         }
 
-        /* レイヤー・グループの祖先を集める / Collect ancestor layers and groups */
+        /**
+         * レイヤー・グループの祖先を内側から順に集める
+         * @param {PageItem} item - 対象のアイテム
+         * @returns {Array} 祖先のグループとレイヤー（内側が先頭）
+         */
         function collectAncestorContainers(item) {
             var containers = [];
             var parent = item.parent;
@@ -1014,17 +1192,31 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n261c771b4b41"; /* 紹�
             return containers;
         }
 
-        /* コンテナの非表示状態を取得（レイヤーは visible の反転）/ Get hidden state (layer uses inverted visible) */
+        /**
+         * 非表示かどうかを返す（レイヤーは visible の反転）
+         * @param {Layer|PageItem} container - レイヤーまたはアイテム
+         * @returns {boolean} 非表示なら true
+         */
         function isContainerHidden(container) {
             return (container.typename === "Layer") ? !container.visible : container.hidden;
         }
 
-        /* コンテナのロック状態を設定 / Set lock state of a container */
+        /**
+         * ロック状態を設定する（失敗しても続ける）
+         * @param {Layer|PageItem} container - レイヤーまたはアイテム
+         * @param {boolean} locked - ロックするなら true
+         * @returns {void}
+         */
         function setContainerLocked(container, locked) {
             try { container.locked = locked; } catch (e) { }
         }
 
-        /* コンテナの非表示状態を設定 / Set hidden state of a container */
+        /**
+         * 非表示状態を設定する（レイヤーは visible の反転。失敗しても続ける）
+         * @param {Layer|PageItem} container - レイヤーまたはアイテム
+         * @param {boolean} hidden - 非表示にするなら true
+         * @returns {void}
+         */
         function setContainerHidden(container, hidden) {
             try {
                 if (container.typename === "Layer") { container.visible = !hidden; }
@@ -1036,7 +1228,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n261c771b4b41"; /* 紹�
         // 変更内容のスキャン / Change scanning
         // =========================================
 
-        /* スタイルコレクションのフォントを変換候補に分類 / Classify fonts used by a style collection */
+        /**
+         * スタイルコレクションのフォントを変換候補に分類する
+         * @param {ParagraphStyles|CharacterStyles} styles - スタイルのコレクション
+         * @returns {void}
+         */
         function scanStylesForChanges(styles) {
             for (var k = 0; k < styles.length; k++) {
                 var fontName = styleFontName(styles[k]);
@@ -1044,7 +1240,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n261c771b4b41"; /* 紹�
             }
         }
 
-        /* スタイルに設定されたフォント名を取得（無ければ null）/ Font name set in a style (null if none) */
+        /**
+         * スタイルに設定されたフォント名を返す
+         * @param {ParagraphStyle|CharacterStyle} style - 対象のスタイル
+         * @returns {string|null} フォント名。無ければ null
+         */
         function styleFontName(style) {
             try {
                 var font = style.characterAttributes.textFont;
@@ -1054,7 +1254,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n261c771b4b41"; /* 紹�
             }
         }
 
-        /* 旧フォント名を direct / weightSub / missing に分類（重複は 1 回だけ）/ Classify an old font name */
+        /**
+         * 旧フォント名を direct / weightSub / missing に分類する（同じ名前は 1 回だけ）
+         * @param {string} oldName - 旧フォントの PostScript 名
+         * @returns {void}
+         */
         function classifyFontChange(oldName) {
             if (processedFontNames[oldName]) return;
             processedFontNames[oldName] = true;
@@ -1084,7 +1288,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n261c771b4b41"; /* 紹�
             classifyByDesired(oldName, buildConvertedNameHead(parsed), parsed.weight);
         }
 
-        /* 変換後の先頭（ウェイト除く）＋ウェイトから direct / weightSub / missing へ分類 / Classify by desired name head + weight */
+        /**
+         * 変換後の先頭（ウェイト除く）とウェイトから direct / weightSub / missing へ分類する
+         * @param {string} oldName - 旧フォントの PostScript 名
+         * @param {string|null} nameHead - 変換後の名前の先頭（末尾は「-」）。null なら変換しない
+         * @param {string} weight - ウェイト
+         * @returns {void}
+         */
         function classifyByDesired(oldName, nameHead, weight) {
             if (nameHead === null) return; // 変換対象外（CID 非変換など）/ not convertible
 
@@ -1114,8 +1324,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n261c771b4b41"; /* 紹�
         // フォント名の分解・組み立て / Parse & build font names
         // =========================================
 
-        /* 特殊シリーズの対応を解決 / Resolve special series mapping
-           戻り値: 文字列=変換先名 / null=該当するが対応なし・変更不要 / undefined=特殊シリーズではない */
+        /**
+         * 特殊シリーズの対応を解決する
+         * @param {string} oldName - 旧フォントの PostScript 名
+         * @returns {string|null|undefined} 変換先の名前。該当するが対応なし・変更不要なら null、特殊シリーズでなければ undefined
+         */
         function resolveSpecialSeries(oldName) {
             for (var seriesIndex = 0; seriesIndex < SPECIAL_SERIES.length; seriesIndex++) {
                 var members = SPECIAL_SERIES[seriesIndex].members;
@@ -1140,7 +1353,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n261c771b4b41"; /* 紹�
             return undefined;
         }
 
-        /* 設定から特殊シリーズの目標キー（文字セット[+N]）を算出 / Compute target charset key for special series */
+        /**
+         * 設定から特殊シリーズの目標キー（文字セット[+N]）を求める
+         * @param {string} sourceKey - 元のキー（"Std" / "StdN" など）
+         * @returns {string} 目標のキー
+         */
         function computeSeriesTargetKey(sourceKey) {
             var sourceHasN = sourceKey.charAt(sourceKey.length - 1) === "N";
             var sourceBaseCharset = sourceHasN ? sourceKey.substring(0, sourceKey.length - 1) : sourceKey;
@@ -1154,7 +1371,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n261c771b4b41"; /* 紹�
             return targetBaseCharset + (targetHasN ? "N" : "");
         }
 
-        /* AXIS の PostScript 名を分解（AXIS でなければ null）/ Decompose an AXIS PostScript name (null if not AXIS) */
+        /**
+         * AXIS の PostScript 名を分解する
+         * @param {string} name - PostScript 名
+         * @returns {{width: string, charset: string, hasN: boolean, weight: string}|null} 分解結果。AXIS でなければ null
+         */
         function parseAxisName(name) {
             var matched = name.match(AXIS_FAMILY.regex);
             if (!matched) return null;
@@ -1166,8 +1387,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n261c771b4b41"; /* 紹�
             };
         }
 
-        /* AXIS の変換後フォント名の先頭（ウェイト除く）を組み立て / Build the converted AXIS name head (without weight)
-           幅と Joyo は保持し、N と Std⇄Pro のみ反映。AXIS に無い Pr5/Pr6 は現状維持。 */
+        /**
+         * AXIS の変換後フォント名の先頭（ウェイト除く）を組み立てる。
+         * 幅と Joyo は保持し、N と Std⇄Pro のみ反映。AXIS に無い Pr5/Pr6 は現状維持
+         * @param {{width: string, charset: string, hasN: boolean, weight: string}} axis - parseAxisName() の結果
+         * @returns {string} 名前の先頭（末尾は「-」）
+         */
         function buildAxisNameHead(axis) {
             // Max/MaxN プリセット時は、設定に関わらず ProN（AXIS の収録最多）へ寄せる。AXIS は Std と ProN しか無いため。
             // Under a Max/MaxN preset, force ProN (the richest AXIS charset) regardless of settings; AXIS only has Std & ProN.
@@ -1193,7 +1418,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n261c771b4b41"; /* 紹�
             return AXIS_FAMILY.baseName + axis.width + charsetCore + "-";
         }
 
-        /* 旧フォント名を分解（必要なら G-OTF 学参を A-OTF に読み替えて再試行）/ Decompose an old name (retry as A-OTF for G-OTF Gakusan) */
+        /**
+         * 旧フォント名を分解する（必要なら G-OTF 学参を A-OTF に読み替えて再試行）
+         * @param {string} name - PostScript 名
+         * @returns {Object|null} parseKnownFamily() の結果。既知のファミリーでなければ null
+         */
         function parseFontName(name) {
             var parsed = parseKnownFamily(name);
             if (parsed) return parsed;
@@ -1210,7 +1439,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n261c771b4b41"; /* 紹�
             return null;
         }
 
-        /* 既知ファミリーの正規表現で旧名を P/UD/charset/N/weight に分解 / Decompose against known family regexes */
+        /**
+         * 既知ファミリーの正規表現で旧名を P / UD / NT / 文字セット / N / ウェイトに分解する
+         * @param {string} name - PostScript 名
+         * @returns {{family: Object, isProportional: boolean, isUD: boolean, isNT: boolean, charset: string, hasN: boolean, weight: string}|null} 分解結果。当てはまらなければ null
+         */
         function parseKnownFamily(name) {
             for (var i = 0; i < FONT_FAMILIES.length; i++) {
                 var family = FONT_FAMILIES[i];
@@ -1245,7 +1478,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n261c771b4b41"; /* 紹�
             return null;
         }
 
-        /* 設定に基づき変換後フォント名の先頭（ウェイト除く）を組み立て / Build the converted name head (without weight) */
+        /**
+         * 設定に基づき、変換後フォント名の先頭（ウェイト除く）を組み立てる
+         * @param {Object} parsed - parseKnownFamily() の結果
+         * @returns {string|null} 名前の先頭（末尾は「-」）。変換しないときは null
+         */
         function buildConvertedNameHead(parsed) {
             var family = parsed.family;
             var supportsProportional = family.regex.source.indexOf("(P)") !== -1;
@@ -1306,7 +1543,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n261c771b4b41"; /* 紹�
             return prefix + baseName + charsetCore + "-";
         }
 
-        /* 同名ウェイトが無い場合に近いウェイトを探す / Find the nearest available weight */
+        /**
+         * 同名のウェイトが無いときに、近いウェイトを探す（同じ距離なら重い方を先に）
+         * @param {string} nameHead - 名前の先頭（末尾は「-」）
+         * @param {string} weight - 元のウェイト
+         * @returns {string|null} 見つかったウェイト。無ければ null
+         */
         function findNearestWeight(nameHead, weight) {
             var weightIndex = indexOfArray(WEIGHT_ORDER, weight);
             if (weightIndex < 0) return null;
@@ -1328,13 +1570,19 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n261c771b4b41"; /* 紹�
         // フォント存在判定 / Font availability
         // =========================================
 
-        /* 指定名のフォントがインストール済みか（キャッシュ付き）/ Whether a font is installed (cached) */
+        /**
+         * 指定名のフォントがインストール済みか（キャッシュ付き）。
+         * 環境にないフォントも app.textFonts に仮エントリ（style が空で family が PostScript 名）として並ぶので除く
+         * @param {string} name - PostScript 名
+         * @returns {boolean} インストール済みなら true
+         */
         function fontExists(name) {
             if (fontExistsCache.hasOwnProperty(name)) return fontExistsCache[name];
             var exists = false;
             try {
-                fontObjectCache[name] = app.textFonts.getByName(name);
-                exists = true;
+                var fontObject = app.textFonts.getByName(name);
+                exists = !(fontObject.style === "" && fontObject.family === fontObject.name);
+                if (exists) fontObjectCache[name] = fontObject;
             } catch (e) {
                 exists = false;
             }
@@ -1342,7 +1590,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n261c771b4b41"; /* 紹�
             return exists;
         }
 
-        /* フォントオブジェクトを取得（キャッシュ付き）/ Get a Font object (cached) */
+        /**
+         * フォントオブジェクトを返す（キャッシュ付き）。見つからなければ例外
+         * @param {string} name - PostScript 名
+         * @returns {TextFont} フォント
+         */
         function getFontObject(name) {
             if (fontObjectCache.hasOwnProperty(name)) return fontObjectCache[name];
             var fontObject = app.textFonts.getByName(name);
@@ -1354,43 +1606,96 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n261c771b4b41"; /* 紹�
         // 確認ダイアログ / Confirmation dialog
         // =========================================
 
-        /* 変更プレビューを表示し、各項目を ON/OFF させて結果を返す / Show preview with per-item ON/OFF and return the result */
+        /**
+         * 変更内容を一覧にして、項目ごとに ON/OFF させる。
+         * 行が CONFIRM_VISIBLE_ROWS を超えるときは、その行数だけを描いてスクロールバーで表示位置をずらす
+         * @returns {{ok: boolean, selected: Object|null}} ok は［実行］で閉じたか、selected はチェックした旧フォント名の集合
+         */
         function showConfirmDialog() {
             var confirmDialog = new Window("dialog", getLabel("confirm.title"));
             setupWindow(confirmDialog);
             // 左右マージンを +10 / Add 10 to left & right margins
             confirmDialog.margins = [WINDOW_MARGINS + 10, WINDOW_MARGINS, WINDOW_MARGINS + 10, WINDOW_MARGINS];
 
-            var itemCheckboxes = []; // {checkbox, oldName}
+            var confirmEntries = buildConfirmEntries();
 
             // 「変更前」列の幅を全項目でそろえ、→ の位置を一定にする / Fix the "before" column width so arrows line up
             var beforeWidth = computeBeforeColumnWidth(confirmDialog, [directChanges, weightSubChanges]);
+            var afterWidth = 0;
+            var plainWidth = 0;
+            for (var i = 0; i < confirmEntries.length; i++) {
+                var entry = confirmEntries[i];
+                if (entry.kind === "change") {
+                    afterWidth = Math.max(afterWidth, measureTextWidth(confirmDialog, entry.afterText));
+                } else {
+                    plainWidth = Math.max(plainWidth, measureTextWidth(confirmDialog, entry.text));
+                }
+            }
+            var rowWidth = Math.max(beforeWidth + CONFIRM_COLUMN_GAP + afterWidth, plainWidth);
 
-            if (directChanges.length > 0) {
-                confirmDialog.add("statictext", undefined, getLabel("confirm.willChange"));
-                addChangeCheckboxes(confirmDialog, directChanges, itemCheckboxes, beforeWidth);
+            /* ScriptUI のグループはスクロールしないので、決まった数の行を使い回して表示位置をずらす
+               ScriptUI groups do not scroll, so a fixed set of rows is reused and shifted */
+            var visibleRowCount = Math.min(confirmEntries.length, CONFIRM_VISIBLE_ROWS);
+            var listRow = confirmDialog.add("group");
+            setupRow(listRow, ["fill", "top"], CONFIRM_COLUMN_GAP * 2);
+            listRow.alignChildren = ["left", "fill"];
+            var rowsHost = listRow.add("group");
+            rowsHost.orientation = "column";
+            rowsHost.alignChildren = ["left", "top"];
+            rowsHost.spacing = CONFIRM_ROW_SPACING;
+
+            var rowSlots = [];
+            for (var s = 0; s < visibleRowCount; s++) {
+                rowSlots.push(addConfirmRowSlot(rowsHost, beforeWidth, afterWidth, rowWidth));
             }
-            if (weightSubChanges.length > 0) {
-                confirmDialog.add("statictext", undefined, getLabel("confirm.nearWeight"));
-                addChangeCheckboxes(confirmDialog, weightSubChanges, itemCheckboxes, beforeWidth);
-            }
-            if (missingChanges.length > 0) {
-                confirmDialog.add("statictext", undefined, getLabel("confirm.notInstalled"));
-                var missingNames = uniqueArray(extractNewFontNames(missingChanges));
-                for (var k = 0; k < missingNames.length; k++) {
-                    confirmDialog.add("statictext", undefined, "　" + missingNames[k]);
+
+            var scrollOffset = 0;
+
+            /**
+             * 表示位置から行に項目を割り当てる
+             * @returns {void}
+             */
+            function showConfirmEntries() {
+                for (var slotIndex = 0; slotIndex < rowSlots.length; slotIndex++) {
+                    var slot = rowSlots[slotIndex];
+                    var slotEntry = confirmEntries[scrollOffset + slotIndex];
+                    var isChange = (slotEntry.kind === "change");
+                    slot.entry = slotEntry;
+                    slot.changeRow.visible = isChange;
+                    slot.plainText.visible = !isChange;
+                    if (isChange) {
+                        slot.checkbox.text = slotEntry.beforeText;
+                        slot.checkbox.value = slotEntry.checked;
+                        slot.afterText.text = slotEntry.afterText;
+                    } else {
+                        slot.plainText.text = slotEntry.text;
+                    }
                 }
             }
 
+            if (confirmEntries.length > visibleRowCount) {
+                var listScrollbar = listRow.add("scrollbar", undefined, 0, 0, confirmEntries.length - visibleRowCount);
+                listScrollbar.preferredSize.width = CONFIRM_SCROLLBAR_WIDTH;
+                listScrollbar.alignment = ["right", "fill"];
+                listScrollbar.stepdelta = 1;
+                listScrollbar.jumpdelta = visibleRowCount;
+                listScrollbar.onChanging = listScrollbar.onChange = function () {
+                    var newOffset = Math.round(listScrollbar.value);
+                    if (newOffset === scrollOffset) return;
+                    scrollOffset = newOffset;
+                    showConfirmEntries();
+                };
+            }
+            showConfirmEntries();
+
             confirmDialog.add("statictext", undefined, getLabel("confirm.prompt"));
 
-            var confirmButtonRow = confirmDialog.add("group");
-            confirmButtonRow.orientation = "row";
-            confirmButtonRow.alignment = "right";
-            var confirmCancelButton = confirmButtonRow.add("button", undefined, getLabel("button.cancel"));
-            var confirmRunButton = confirmButtonRow.add("button", undefined, getLabel("button.run"));
-            confirmCancelButton.onClick = function () { confirmDialog.close(0); };
-            confirmRunButton.onClick = function () { confirmDialog.close(1); };
+            var confirmButtonRow = addButtonRow(confirmDialog);
+            var btnConfirmCancel = confirmButtonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+            var btnConfirmRun = confirmButtonRow.rightGroup.add("button", undefined, getLabel("button.run"), { name: "ok" });
+            btnConfirmCancel.onClick = function () { confirmDialog.close(0); };
+            btnConfirmRun.onClick = function () { confirmDialog.close(1); };
+            alignRightOnlyButtonRow(confirmButtonRow);
 
             prepareDialogWindow(confirmDialog, SCRIPT_NAME + "_confirm");
             if (confirmDialog.show() !== 1) {
@@ -1399,39 +1704,95 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n261c771b4b41"; /* 紹�
 
             // チェックが ON の項目だけ採用 / Keep only checked items
             var selected = {};
-            for (var i = 0; i < itemCheckboxes.length; i++) {
-                if (itemCheckboxes[i].checkbox.value) {
-                    selected[itemCheckboxes[i].oldName] = true;
+            for (var k = 0; k < confirmEntries.length; k++) {
+                if (confirmEntries[k].kind === "change" && confirmEntries[k].checked) {
+                    selected[confirmEntries[k].oldName] = true;
                 }
             }
             return { ok: true, selected: selected };
         }
 
-        /* 変更項目をチェックボックス（既定 ON）として追加 / Add change items as checkboxes (on by default) */
-        function addChangeCheckboxes(parent, changes, itemCheckboxes, beforeWidth) {
+        /**
+         * 確認ダイアログに並べる項目（見出し・変更・未インストールのフォント名）を作る
+         * @returns {Object[]} 項目。kind は "change"（チェックボックス付き）または "text"
+         */
+        function buildConfirmEntries() {
+            var entries = [];
+            addChangeEntries(entries, directChanges, getLabel("confirm.willChange"));
+            addChangeEntries(entries, weightSubChanges, getLabel("confirm.nearWeight"));
+            if (missingChanges.length > 0) {
+                entries.push({ kind: "text", text: getLabel("confirm.notInstalled") });
+                var missingNames = uniqueArray(extractNewFontNames(missingChanges));
+                for (var k = 0; k < missingNames.length; k++) {
+                    entries.push({ kind: "text", text: "　" + missingNames[k] });
+                }
+            }
+            return entries;
+        }
+
+        /**
+         * 見出しと変更の項目（既定 ON）を足す
+         * @param {Object[]} entries - 足す先の項目
+         * @param {Object[]} changes - 変更の一覧
+         * @param {string} headingText - 見出し
+         * @returns {void}
+         */
+        function addChangeEntries(entries, changes, headingText) {
+            if (changes.length === 0) return;
+            entries.push({ kind: "text", text: headingText });
             for (var i = 0; i < changes.length; i++) {
                 var change = changes[i];
-                var row = parent.add("group");
-                row.orientation = "row";
-                row.alignChildren = ["left", "center"];
-                row.spacing = 4;
-
-                // 「変更前」はチェックボックス。幅を固定して → の位置をそろえる / "Before" is the checkbox; fixed width aligns the arrow
-                var checkbox = row.add("checkbox", undefined, toDisplayFontName(change.oldName));
-                checkbox.value = true;
-                checkbox.preferredSize.width = beforeWidth;
-
                 var afterLabel = "→ " + toDisplayFontName(change.newName);
                 if (change.oldWeight) {
                     afterLabel += "（" + change.oldWeight + " → " + change.newWeight + "）";
                 }
-                row.add("statictext", undefined, afterLabel);
-
-                itemCheckboxes.push({ checkbox: checkbox, oldName: change.oldName });
+                entries.push({
+                    kind: "change",
+                    oldName: change.oldName,
+                    beforeText: toDisplayFontName(change.oldName),
+                    afterText: afterLabel,
+                    checked: true
+                });
             }
         }
 
-        /* PostScript 名を和文表示名（family + style）に変換。未インストール時は元の名前 / Convert PostScript name to Japanese display name (falls back to the PostScript name) */
+        /**
+         * 確認ダイアログの 1 行を作る。変更の行（チェックボックス＋変更後）と文字だけの行を重ねて持ち、表示を切り替える
+         * @param {Group} parent - 行を足す先
+         * @param {number} beforeWidth - 「変更前」列（チェックボックス）の幅
+         * @param {number} afterWidth - 「変更後」列の幅
+         * @param {number} rowWidth - 文字だけの行の幅
+         * @returns {{changeRow: Group, checkbox: Checkbox, afterText: StaticText, plainText: StaticText, entry: Object|null}} 行の部品
+         */
+        function addConfirmRowSlot(parent, beforeWidth, afterWidth, rowWidth) {
+            var slotGroup = parent.add("group");
+            slotGroup.orientation = "stack";
+            slotGroup.alignChildren = ["left", "center"];
+
+            /* 高さが決まるよう仮の文字を入れておく（表示前に差し替える）/ Placeholder text so the height is set (replaced before show) */
+            var changeRow = slotGroup.add("group");
+            changeRow.orientation = "row";
+            changeRow.alignChildren = ["left", "center"];
+            changeRow.spacing = CONFIRM_COLUMN_GAP;
+            var checkbox = changeRow.add("checkbox", undefined, "M");
+            checkbox.preferredSize.width = beforeWidth;
+            var afterText = changeRow.add("statictext", undefined, "M");
+            afterText.preferredSize.width = afterWidth;
+            var plainText = slotGroup.add("statictext", undefined, "M");
+            plainText.preferredSize.width = rowWidth;
+
+            var slot = { changeRow: changeRow, checkbox: checkbox, afterText: afterText, plainText: plainText, entry: null };
+            checkbox.onClick = function () {
+                if (slot.entry) slot.entry.checked = checkbox.value;
+            };
+            return slot;
+        }
+
+        /**
+         * PostScript 名を和文表示名（family + style）に変換する
+         * @param {string} psName - PostScript 名
+         * @returns {string} 表示名。見つからなければ PostScript 名
+         */
         function toDisplayFontName(psName) {
             try {
                 var fontObject = getFontObject(psName);
@@ -1441,7 +1802,23 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n261c771b4b41"; /* 紹�
             }
         }
 
-        /* 「変更前」列に必要な最大幅（チェックボックスのボックス幅＋余白を加味）/ Max width needed for the "before" column, incl. checkbox box & margin */
+        /**
+         * 文字列の表示幅を測る（切れないよう少し余裕を足す）
+         * @param {Window} dialog - 測るダイアログ
+         * @param {string} text - 文字列
+         * @returns {number} 幅（px）
+         */
+        function measureTextWidth(dialog, text) {
+            var graphics = dialog.graphics;
+            return graphics.measureString(text, graphics.font).width + 10;
+        }
+
+        /**
+         * 「変更前」列に必要な最大幅（チェックボックスのボックス幅＋余白を加味）を返す
+         * @param {Window} dialog - 測るダイアログ
+         * @param {Object[][]} changeLists - 変更の一覧の配列
+         * @returns {number} 幅（px）
+         */
         function computeBeforeColumnWidth(dialog, changeLists) {
             var graphics = dialog.graphics;
             var maxTextWidth = 0;
@@ -1456,7 +1833,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n261c771b4b41"; /* 紹�
             return maxTextWidth + 30; // チェックボックスのボックス＋すき間 / checkbox box + gap
         }
 
-        /* 選択された（または全件の）変更を変換マップに追加 / Add selected (or all) changes to the name map */
+        /**
+         * 選択された（または全件の）変更を変換マップに追加する
+         * @param {Object[]} changes - 変更の一覧
+         * @param {Object} nameMap - 旧名 → 新名のマップ
+         * @param {Object|null} selectedOldNames - 採用する旧名の集合。null なら全件
+         * @returns {void}
+         */
         function addSelectedChanges(changes, nameMap, selectedOldNames) {
             for (var i = 0; i < changes.length; i++) {
                 var change = changes[i];
@@ -1466,7 +1849,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n261c771b4b41"; /* 紹�
             }
         }
 
-        /* 変更リストから新フォント名だけを取り出す / Extract new font names from a change list */
+        /**
+         * 変更の一覧から新フォント名だけを取り出す
+         * @param {Object[]} changes - 変更の一覧
+         * @returns {string[]} 新フォント名
+         */
         function extractNewFontNames(changes) {
             var newNames = [];
             for (var i = 0; i < changes.length; i++) {
@@ -1479,14 +1866,31 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n261c771b4b41"; /* 紹�
         // 適用 / Apply
         // =========================================
 
-        /* テキストフレームにフォント変更を適用（ロック/非表示は一時解除）/ Apply font changes to a frame */
-        function applyChangesToFrame(frame, nameMap) {
-            var containers = [frame].concat(collectAncestorContainers(frame));
+        /**
+         * テキストフレームにフォント変更を適用する（ロック・非表示は一時的に解除）
+         * @param {TextFrame} frame - 対象のフレーム
+         * @param {Object[]} fontRuns - collectFontRuns() で集めた区間
+         * @param {Object} nameMap - 旧名 → 新名のマップ
+         * @returns {number} 変更したら 1、しなければ 0
+         */
+        function applyChangesToFrame(frame, fontRuns, nameMap) {
+            /* 変える区間が無ければ、ロック・表示の切り替えもしない / Skip the lock/visibility toggling when nothing changes */
+            var hasMappedRun = false;
+            for (var r = 0; r < fontRuns.length; r++) {
+                if (fontRuns[r].fontName && nameMap[fontRuns[r].fontName]) {
+                    hasMappedRun = true;
+                    break;
+                }
+            }
+            if (!hasMappedRun) return 0;
+
+            var containers = [frame].concat(collectAncestorContainers(frame)); /* 内側が先頭 / innermost first */
             var savedLocked = [];
             var savedHidden = [];
 
-            // ロック/非表示を一時解除 / Temporarily clear lock & hidden
-            for (var i = 0; i < containers.length; i++) {
+            /* 外側（レイヤー）から解除する。ロックされたレイヤーの中のアイテムは解除できないため
+               Clear from the outside in, since items inside a locked layer cannot be unlocked */
+            for (var i = containers.length - 1; i >= 0; i--) {
                 savedLocked[i] = containers[i].locked;
                 if (includeLocked && savedLocked[i]) setContainerLocked(containers[i], false);
                 savedHidden[i] = isContainerHidden(containers[i]);
@@ -1497,21 +1901,22 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n261c771b4b41"; /* 紹�
             var storyOffset = frame.textRange.start;
 
             // textRange 単位でまとめて適用 / Apply per run (textRange) for speed
-            forEachFontRun(frame, function (fontName, startIndex, endIndex) {
-                if (!fontName) return;
-                var newName = nameMap[fontName];
-                if (!newName) return;
+            for (var runIndex = 0; runIndex < fontRuns.length; runIndex++) {
+                var fontRun = fontRuns[runIndex];
+                if (!fontRun.fontName) continue;
+                var newName = nameMap[fontRun.fontName];
+                if (!newName) continue;
                 var runRange = frame.textRange;
-                runRange.start = storyOffset + startIndex;
-                runRange.end = storyOffset + endIndex;
+                runRange.start = storyOffset + fontRun.start;
+                runRange.end = storyOffset + fontRun.end;
                 try {
                     runRange.characterAttributes.textFont = getFontObject(newName);
                     frameChanged = true;
                 } catch (e) { }
-            });
+            }
 
-            // 状態を復元 / Restore states
-            for (var restoreIndex = containers.length - 1; restoreIndex >= 0; restoreIndex--) {
+            /* 内側から戻し、外側のレイヤーを最後にロックする / Restore from the inside out so the outer layer is locked last */
+            for (var restoreIndex = 0; restoreIndex < containers.length; restoreIndex++) {
                 if (includeHidden && savedHidden[restoreIndex]) setContainerHidden(containers[restoreIndex], true);
                 if (includeLocked && savedLocked[restoreIndex]) setContainerLocked(containers[restoreIndex], true);
             }
@@ -1520,7 +1925,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n261c771b4b41"; /* 紹�
             return frameChanged ? 1 : 0;
         }
 
-        /* スタイルコレクションにフォント変更を適用 / Apply font changes to a style collection */
+        /**
+         * スタイルコレクションにフォント変更を適用する
+         * @param {ParagraphStyles|CharacterStyles} styles - スタイルのコレクション
+         * @param {Object} nameMap - 旧名 → 新名のマップ
+         * @returns {number} 変更したスタイルの数
+         */
         function applyChangesToStyles(styles, nameMap) {
             var changed = 0;
             for (var k = 0; k < styles.length; k++) {
@@ -1536,8 +1946,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n261c771b4b41"; /* 紹�
             return changed;
         }
 
-        /* 同一フォントの連続範囲（run）ごとにコールバック / Invoke callback per same-font run */
-        function forEachFontRun(frame, callback) {
+        /**
+         * 同じフォントが続く区間（run）を集める
+         * @param {TextFrame} frame - 対象のフレーム
+         * @returns {{fontName: string, start: number, end: number}[]} 区間。start と end はフレーム内の文字番号（end は含まない）
+         */
+        function collectFontRuns(frame) {
+            var fontRuns = [];
             var frameChars = frame.characters;
             var charCount = frameChars.length;
             var i = 0;
@@ -1550,30 +1965,47 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n261c771b4b41"; /* 紹�
                     if ((nextFont ? nextFont.name : "") !== runName) break;
                     j++;
                 }
-                callback(runName, i, j);
+                fontRuns.push({ fontName: runName, start: i, end: j });
                 i = j;
             }
+            return fontRuns;
         }
 
         // =========================================
         // ユーティリティ / Utilities
         // =========================================
 
-        /* ダイアログにパネルを追加（共通設定）/ Add a panel to the dialog (shared setup) */
+        /**
+         * ダイアログにパネルを追加する（共通設定）
+         * @param {Window|Group|Panel} parent - 追加先
+         * @param {string} labelPath - パネル名のラベルキー
+         * @param {number} [spacing] - 要素間隔
+         * @returns {Panel} 追加したパネル
+         */
         function addPanel(parent, labelPath, spacing) {
             var panel = parent.add("panel", undefined, getLabel(labelPath));
             setupPanel(panel, spacing);
             return panel;
         }
 
-        /* ラジオ 3 択（あり/なし/現状維持）の状態を返す / Return tri-state radio mode (on/off/keep) */
+        /**
+         * ラジオ 3 択（あり / なし / 現状維持）の状態を返す
+         * @param {RadioButton} onRadio - 「あり」のラジオ
+         * @param {RadioButton} offRadio - 「なし」のラジオ
+         * @returns {string} "on" / "off" / "keep"
+         */
         function radioMode(onRadio, offRadio) {
             if (onRadio.value) return "on";
             if (offRadio.value) return "off";
             return "keep";
         }
 
-        /* 配列中の位置を返す（ES3 互換）/ indexOf for arrays (ES3 compatible) */
+        /**
+         * 配列中の位置を返す（ES3 互換）
+         * @param {Array} arr - 配列
+         * @param {*} value - 探す値
+         * @returns {number} 位置。無ければ -1
+         */
         function indexOfArray(arr, value) {
             for (var i = 0; i < arr.length; i++) {
                 if (arr[i] === value) return i;
@@ -1581,7 +2013,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n261c771b4b41"; /* 紹�
             return -1;
         }
 
-        /* 重複を除いた配列を返す / Return array with duplicates removed */
+        /**
+         * 重複を除いた配列を返す
+         * @param {string[]} arr - 配列
+         * @returns {string[]} 重複を除いた配列
+         */
         function uniqueArray(arr) {
             var seen = {};
             var unique = [];
@@ -1592,6 +2028,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n261c771b4b41"; /* 紹�
                 }
             }
             return unique;
+        }
+
+        /**
+         * 0 埋めした数字の文字列を返す
+         * @param {number} value - 0 以上の整数
+         * @param {number} digits - 桁数
+         * @returns {string} 0 埋めした文字列
+         */
+        function padNumber(value, digits) {
+            var text = String(value);
+            while (text.length < digits) text = "0" + text;
+            return text;
         }
 
     })();
