@@ -23,6 +23,7 @@ It can also round the frame corners and fill the cells with random gray tints.
 #### Frame
 
 - "Convert frame to rectangle" replaces the four rules forming the frame with a single rectangle in the same place (the stroke is taken from the top rule)
+- "Convert frame to four lines" replaces the frame rectangle with four lines (top, right, bottom, left) in the same place (the stroke is taken from the rectangle; the fill is not kept)
 - "Round corners" applies the Round Corners effect with the given radius to the frame rectangle
 
 #### Vertical / Horizontal Rule Spacing
@@ -91,6 +92,7 @@ It can also round the frame corners and fill the cells with random gray tints.
 
 ### Update History
 
+- v1.5.0 (2026-10-25) Added "Convert frame to four lines" (the reverse of "Convert frame to rectangle"; available when the frame is a four-point rectangle)
 - v1.4.3 (2026-10-21) Short rules that stick out of the frame or start partway through a cell are now recognized (a rule whose center lay outside the frame was not treated as a rule, and a rule not reaching the text height did not divide cells)
 - v1.4.2 (2026-10-21) "Center in cells" now centers vertically by the band from the baseline to the cap height instead of the glyph outlines (baselines in adjacent cells no longer mismatch because of ascenders or descenders, as with "Lorem" and "Lorem ip")
 - v1.4.0 (2026-10-20) Added the Stroke Color and Weight panel, replacing "Match stroke weights" with "Adjust stroke weight". Added "Stroke color" (change the stroke color in the Color Picker). The stroke weight can now be set to "Max", "Min", "Average" (the average is shown next to it) or "Specified". Removed "Match rule lengths to frame" from the dialog; it is now always on (configurable with `MATCH_RULE_LENGTHS`). Moved the Text panel to the bottom of the right column. Moved Width and Height from the Frame panel to a new Size panel and added "Preview bounds" (Width and Height include the stroke weight). Replaced the Rules panel ("Adjust vertical / horizontal rule spacing" and "Spacing") with the Vertical Rule Spacing and Horizontal Rule Spacing panels of radio buttons ("Even", "Fit to text", "Keep"), so each direction can be placed differently. Edges are hidden while the script runs (restored on exit)

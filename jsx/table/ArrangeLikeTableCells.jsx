@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.ArrangeLikeTableCells
 Name=ArrangeLikeTableCells
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.4.3
+Version=1.5.0
 Release-Date=2026-10-20
 Description-BEGIN
 外枠と罫線で区切った表で、外枠の大きさ・罫線の間隔・線幅を整え、各テキストをセルの中央に配置します（天地は欧文のベースラインをそろえる）。
@@ -43,10 +43,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ArrangeLik
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ArrangeLikeTableCells";        /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.4.3";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.5.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-20";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-21";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-25";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ArrangeLikeTableCells.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ArrangeLikeTableCells.md"; /* README (English) */
@@ -83,6 +83,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
 
     /* ［外枠を長方形に変換］の初期値 / Initial value of "Convert frame to rectangle" */
     var CONVERT_FRAME_TO_RECT = false;
+
+    /* ［外枠を4本の線に変換］の初期値 / Initial value of "Convert frame to four lines" */
+    var CONVERT_FRAME_TO_LINES = false;
 
     /* ［角を丸くする］の初期値と、半径の初期値（pt） / Initial value of "Round corners" and the initial radius (pt) */
     var ROUND_CORNERS = false;
@@ -979,6 +982,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
             previewBounds: { ja: "プレビュー境界", en: "Preview bounds" },
             applyStrokeColor: { ja: "線のカラー", en: "Stroke color" },
             convertFrame: { ja: "外枠を長方形に変換", en: "Convert frame to rectangle" },
+            convertFrameToLines: { ja: "外枠を4本の線に変換", en: "Convert frame to four lines" },
             roundCorners: { ja: "角を丸くする", en: "Round corners" },
             matchStrokeWidths: { ja: "線幅を調整", en: "Adjust stroke weight" },
             createCellShapes: { ja: "図形を作成", en: "Create cell shapes" },
@@ -1074,6 +1078,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
             convertFrame: {
                 ja: "外枠を作っている罫線4本を、同じ位置の長方形1つに置き換えます。線の設定は上辺の罫線から引き継ぎます。長方形を使わず罫線で囲んだ枠のときだけ使えます。",
                 en: "Replaces the four rules forming the frame with a single rectangle in the same place, taking the stroke from the top rule. Available only when the frame is drawn with rules."
+            },
+            convertFrameToLines: {
+                ja: "外枠の長方形を、同じ位置の線4本（上・右・下・左）に置き換えます。線の設定は長方形から引き継ぎます（塗りは引き継ぎません）。外枠が4点の長方形のときだけ使えます。",
+                en: "Replaces the frame rectangle with four lines (top, right, bottom, left) in the same place, taking the stroke from the rectangle (the fill is not kept). Available only when the frame is a four-point rectangle."
             },
             centerInCells: {
                 ja: "テキストを、枠・罫線で区切られたセルの中央へ移動します。左右は字形の見た目、天地は欧文のベースラインからキャップハイトまでを基準にします。",
@@ -2041,6 +2049,51 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
         for (var i = 0; i < lines.length; i++) lines[i].remove();
     }
 
+    /**
+     * 外枠を線4本に置き換えられるか（4点の閉じたパスのとき）
+     * @param {PathItem|null} outerRect - 外枠のパス
+     * @returns {boolean} 置き換えられるなら true
+     */
+    function canConvertFrameToLines(outerRect) {
+        return !!outerRect && outerRect.pathPoints.length === 4;
+    }
+
+    /**
+     * 外枠の長方形と同じ位置に線4本（上・右・下・左）を作り、長方形を隠す（プレビュー中は隠すだけで、確定時に削除する）
+     * @param {PathItem} outerRect - 外枠の長方形
+     * @param {Object} rectBounds - 枠の範囲
+     * @returns {PathItem[]} 作った線
+     */
+    function createFrameLinesFromRect(outerRect, rectBounds) {
+        var corners = [
+            [rectBounds.left, rectBounds.top],
+            [rectBounds.right, rectBounds.top],
+            [rectBounds.right, rectBounds.bottom],
+            [rectBounds.left, rectBounds.bottom]
+        ];
+        var lines = [];
+        for (var i = 0; i < corners.length; i++) {
+            var line = outerRect.parent.pathItems.add();
+            line.setEntirePath([corners[i], corners[(i + 1) % corners.length]]);
+            line.move(outerRect, ElementPlacement.PLACEBEFORE);
+            line.filled = false;
+            line.stroked = outerRect.stroked;
+            if (outerRect.stroked) {
+                line.strokeColor = outerRect.strokeColor;
+                line.strokeWidth = outerRect.strokeWidth;
+                line.strokeDashes = outerRect.strokeDashes;
+                line.strokeDashOffset = outerRect.strokeDashOffset;
+                line.strokeOverprint = outerRect.strokeOverprint;
+                /* 角が欠けないように突出線端にする / Use projecting caps so the corners close */
+                line.strokeCap = StrokeCap.PROJECTINGENDCAP;
+            }
+            line.opacity = outerRect.opacity;
+            lines.push(line);
+        }
+        outerRect.hidden = true;
+        return lines;
+    }
+
     // =========================================
     // 角丸とセルの塗り / Rounded corners and cell fills
     // =========================================
@@ -2512,6 +2565,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
         var pathState = savePathState(pathItems);
         var textState = saveTextState(textFrames);
         var frameRectangle = null; /* ［外枠を長方形に変換］で作った長方形 / rectangle made by "Convert frame to rectangle" */
+        var convertedFrameLines = []; /* ［外枠を4本の線に変換］で作った線 / lines made by "Convert frame to four lines" */
         var roundedFramePreview = null; /* 角丸のプレビュー用に作った外枠の複製（効果は取り消せないので、元は隠しておく） / duplicate of the frame for the round-corner preview (effects cannot be removed, so the original stays hidden) */
         var cellFillItems = [];    /* ［図形を作成］で作ったグループ、またはばらの長方形 / group or loose rectangles made by "Create cell shapes" */
         var cellTints = [];        /* セルごとの塗りの濃さ / fill tint of each cell */
@@ -2535,6 +2589,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
                 frameRectangle.remove();
                 frameRectangle = null;
                 setFrameLinesHidden(rules.frameLines, false);
+            }
+            if (convertedFrameLines.length) {
+                for (var lineIndex = 0; lineIndex < convertedFrameLines.length; lineIndex++) convertedFrameLines[lineIndex].remove();
+                convertedFrameLines = [];
+                rules.outerRect.hidden = false;
             }
             restorePathState(pathState);
             restoreTextState(textState);
@@ -2597,7 +2656,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
 
         /**
          * 元の状態に戻したうえで、設定どおりに均等化・配置する
-         * @param {{frameWidth: number, frameHeight: number, usePreviewBounds: boolean, verticalSpacing: string, horizontalSpacing: string, matchRuleLengths: boolean, convertFrame: boolean, roundCorners: boolean, cornerRadius: number, matchStrokeWidths: boolean, strokeWidthMode: string, strokeWidth: number, applyStrokeColor: boolean, strokeColor: Color, createCellShapes: boolean, fillMode: string, groupFills: boolean, centerInCells: boolean, justifyCenter: boolean}} settings - 設定（frameWidth・frameHeight・cornerRadius・strokeWidth は pt）
+         * @param {{frameWidth: number, frameHeight: number, usePreviewBounds: boolean, verticalSpacing: string, horizontalSpacing: string, matchRuleLengths: boolean, convertFrame: boolean, convertFrameToLines: boolean, roundCorners: boolean, cornerRadius: number, matchStrokeWidths: boolean, strokeWidthMode: string, strokeWidth: number, applyStrokeColor: boolean, strokeColor: Color, createCellShapes: boolean, fillMode: string, groupFills: boolean, centerInCells: boolean, justifyCenter: boolean}} settings - 設定（frameWidth・frameHeight・cornerRadius・strokeWidth は pt）
          * @param {boolean} [isFinal] - ［OK］で確定するとき true（角丸の効果を複製ではなく外枠そのものに適用する）
          * @returns {number} セルが見つからず移動しなかったテキストの数
          */
@@ -2615,17 +2674,19 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
             var positionMap = adjustRuleSpacing(rules, settings);
             if (settings.convertFrame && rules && rules.frameLines) {
                 frameRectangle = createFrameRectangle(rules.frameLines, rules.rectBounds);
+            } else if (settings.convertFrameToLines && rules && canConvertFrameToLines(rules.outerRect)) {
+                convertedFrameLines = createFrameLinesFromRect(rules.outerRect, rules.rectBounds);
             } else if (rules && rules.frameLines) {
                 /* 罫線で囲んだ外枠は、角が欠けないよう突出線端にする / A frame drawn with rules gets projecting caps so the corners close */
                 setStrokeCaps(rules.frameLines.vertical.concat(rules.frameLines.horizontal), StrokeCap.PROJECTINGENDCAP);
             }
             /* 線幅・カラーは角丸の複製より先に掛け、複製にも引き継がせる / Set before the round-corner duplicate so it inherits them */
-            var strokedPathItems = frameRectangle ? tablePathItems.concat([frameRectangle]) : tablePathItems;
+            var strokedPathItems = frameRectangle ? tablePathItems.concat([frameRectangle]) : tablePathItems.concat(convertedFrameLines);
             if (settings.matchStrokeWidths && rules) setStrokeWidths(strokedPathItems, getTargetStrokeWidth(settings));
             if (settings.applyStrokeColor && settings.strokeColor && rules) setStrokeColors(strokedPathItems, settings.strokeColor);
 
-            /* 角丸は外枠が長方形のときだけ / Round corners only when the frame is a rectangle */
-            var frameShape = frameRectangle || (rules ? rules.outerRect : null);
+            /* 角丸は外枠が長方形のときだけ（線4本にしたときは掛けない） / Round corners only when the frame is a rectangle (not after converting it to lines) */
+            var frameShape = frameRectangle || ((rules && !convertedFrameLines.length) ? rules.outerRect : null);
             var cornerRadius = (settings.roundCorners && frameShape) ? settings.cornerRadius : 0;
             if (cornerRadius > 0) {
                 /* 作った長方形は消せば戻るので直接、元からある外枠はプレビュー中だけ複製に掛ける
@@ -2667,6 +2728,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
             horizontalSpacing: horizontalRuleCount > 0 ? initialSpacingMode : "keep",
             matchRuleLengths: MATCH_RULE_LENGTHS,
             convertFrame: CONVERT_FRAME_TO_RECT && !!(rules && rules.frameLines),
+            convertFrameToLines: CONVERT_FRAME_TO_LINES && !!rules && canConvertFrameToLines(rules.outerRect),
             roundCorners: ROUND_CORNERS,
             cornerRadius: CORNER_RADIUS_PT,
             matchStrokeWidths: MATCH_STROKE_WIDTHS && tablePathItems.length > 0,
@@ -2698,6 +2760,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
         var verticalSpacingRadios = dialogControls.verticalSpacingRadios;
         var horizontalSpacingRadios = dialogControls.horizontalSpacingRadios;
         var convertFrameCheckbox = dialogControls.convertFrameCheckbox;
+        var convertFrameToLinesCheckbox = dialogControls.convertFrameToLinesCheckbox;
         var cornerRow = dialogControls.cornerRow;
         var roundCornersCheckbox = dialogControls.roundCornersCheckbox;
         var cornerRadiusInput = dialogControls.cornerRadiusInput;
@@ -2730,6 +2793,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
                 horizontalSpacing: getCheckedKey(horizontalSpacingRadios, "keep"),
                 matchRuleLengths: MATCH_RULE_LENGTHS,
                 convertFrame: convertFrameCheckbox.value,
+                convertFrameToLines: convertFrameToLinesCheckbox.value,
                 roundCorners: roundCornersCheckbox.value,
                 cornerRadius: cornerRadiusPt,
                 matchStrokeWidths: matchStrokeCheckbox.value,
@@ -2762,12 +2826,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
            Enabling helpers take the state as an argument, since checkbox.value cannot be read back before show() */
 
         /**
-         * ［角を丸くする］は、外枠が長方形のとき（閉じたパスか、［外枠を長方形に変換］がオン）だけ操作できるようにする
+         * ［角を丸くする］は、外枠が長方形のとき（閉じたパスで［外枠を4本の線に変換］がオフか、［外枠を長方形に変換］がオン）だけ操作できるようにする
          * @param {boolean} isConvertingFrame - ［外枠を長方形に変換］がオンなら true
+         * @param {boolean} isConvertingToLines - ［外枠を4本の線に変換］がオンなら true
          * @returns {void}
          */
-        function updateCornerRowEnabled(isConvertingFrame) {
-            cornerRow.enabled = !!(rules && (rules.outerRect || (rules.frameLines && isConvertingFrame)));
+        function updateCornerRowEnabled(isConvertingFrame, isConvertingToLines) {
+            cornerRow.enabled = !!(rules && ((rules.outerRect && !isConvertingToLines) || (rules.frameLines && isConvertingFrame)));
             /* ∧∨は自作描画なので、描き直してディム表示を切り替える / Redraw the custom-drawn stepper to update its dimming */
             redrawSteppersIn(cornerRow);
         }
@@ -2795,7 +2860,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
             redrawSteppersIn(strokeWidthInputGroup);
         }
 
-        updateCornerRowEnabled(initialSettings.convertFrame);
+        updateCornerRowEnabled(initialSettings.convertFrame, initialSettings.convertFrameToLines);
         updateCellShapeOptionsEnabled(initialSettings.createCellShapes);
         updateStrokeOptionsEnabled(initialSettings.matchStrokeWidths, initialSettings.strokeWidthMode === "specified");
 
@@ -2886,7 +2951,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
         wireSpacingRadios(verticalSpacingRadios, horizontalSpacingRadios);
         wireSpacingRadios(horizontalSpacingRadios, verticalSpacingRadios);
         convertFrameCheckbox.onClick = function () {
-            updateCornerRowEnabled(convertFrameCheckbox.value);
+            updateCornerRowEnabled(convertFrameCheckbox.value, convertFrameToLinesCheckbox.value);
+            updatePreview();
+        };
+        convertFrameToLinesCheckbox.onClick = function () {
+            updateCornerRowEnabled(convertFrameCheckbox.value, convertFrameToLinesCheckbox.value);
             updatePreview();
         };
         roundCornersCheckbox.onClick = updatePreview;
@@ -3023,8 +3092,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
             return;
         }
 
-        /* 変換を確定したら、隠しておいた枠の罫線を削除する / Once the conversion is confirmed, delete the hidden frame rules */
+        /* 変換を確定したら、隠しておいた枠の罫線・長方形を削除する / Once the conversion is confirmed, delete the hidden frame rules or rectangle */
         if (frameRectangle) removeFrameLines(rules.frameLines);
+        if (convertedFrameLines.length) rules.outerRect.remove();
 
         if (skippedCount) alert(getLabel("alert.skipped", { count: skippedCount }));
     }
@@ -3250,8 +3320,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
      * @param {boolean} hasText - テキストを選択しているなら true（false なら［テキスト］パネルと［テキストに合わせる］を無効にする）
      * @param {{label: string, pointsPerUnit: number}} unitInfo - 定規の単位
      * @param {{label: string, pointsPerUnit: number}} strokeUnitInfo - 線の単位
-     * @param {{frameWidth: number, frameHeight: number, usePreviewBounds: boolean, verticalSpacing: string, horizontalSpacing: string, matchRuleLengths: boolean, convertFrame: boolean, roundCorners: boolean, cornerRadius: number, matchStrokeWidths: boolean, strokeWidthMode: string, strokeWidth: number, averageStrokeWidth: number, applyStrokeColor: boolean, strokeColor: Color, createCellShapes: boolean, fillMode: string, groupFills: boolean, centerInCells: boolean, justifyCenter: boolean}} initialSettings - コントロールの初期値（strokeWidth・averageStrokeWidth は pt。strokeColor は線のあるパスが無ければ null）
-     * @returns {{mainDialog: Window, frameWidthInput: EditText, frameHeightInput: EditText, previewBoundsCheckbox: Checkbox, verticalSpacingRadios: Object, horizontalSpacingRadios: Object, convertFrameCheckbox: Checkbox, cornerRow: Group, roundCornersCheckbox: Checkbox, cornerRadiusInput: EditText, matchStrokeCheckbox: Checkbox, strokeModeRow: Group, strokeModeRadios: Object, strokeWidthInputGroup: Group, strokeWidthInput: EditText, applyStrokeColorCheckbox: Checkbox, strokeColorSwatch: Group, createCellShapesCheckbox: Checkbox, fillModeGroup: Group, uniformFillRadio: RadioButton, randomFillRadio: RadioButton, groupFillsCheckbox: Checkbox, centerInCellsCheckbox: Checkbox, justifyCenterCheckbox: Checkbox, btnCancel: Button, btnOK: Button}} ダイアログとコントロール
+     * @param {{frameWidth: number, frameHeight: number, usePreviewBounds: boolean, verticalSpacing: string, horizontalSpacing: string, matchRuleLengths: boolean, convertFrame: boolean, convertFrameToLines: boolean, roundCorners: boolean, cornerRadius: number, matchStrokeWidths: boolean, strokeWidthMode: string, strokeWidth: number, averageStrokeWidth: number, applyStrokeColor: boolean, strokeColor: Color, createCellShapes: boolean, fillMode: string, groupFills: boolean, centerInCells: boolean, justifyCenter: boolean}} initialSettings - コントロールの初期値（strokeWidth・averageStrokeWidth は pt。strokeColor は線のあるパスが無ければ null）
+     * @returns {{mainDialog: Window, frameWidthInput: EditText, frameHeightInput: EditText, previewBoundsCheckbox: Checkbox, verticalSpacingRadios: Object, horizontalSpacingRadios: Object, convertFrameCheckbox: Checkbox, convertFrameToLinesCheckbox: Checkbox, cornerRow: Group, roundCornersCheckbox: Checkbox, cornerRadiusInput: EditText, matchStrokeCheckbox: Checkbox, strokeModeRow: Group, strokeModeRadios: Object, strokeWidthInputGroup: Group, strokeWidthInput: EditText, applyStrokeColorCheckbox: Checkbox, strokeColorSwatch: Group, createCellShapesCheckbox: Checkbox, fillModeGroup: Group, uniformFillRadio: RadioButton, randomFillRadio: RadioButton, groupFillsCheckbox: Checkbox, centerInCellsCheckbox: Checkbox, justifyCenterCheckbox: Checkbox, btnCancel: Button, btnOK: Button}} ダイアログとコントロール
      */
     function buildDialog(verticalRuleCount, horizontalRuleCount, rules, hasText, unitInfo, strokeUnitInfo, initialSettings) {
         var hasFrameLines = !!(rules && rules.frameLines);
@@ -3289,6 +3359,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
         setupPanel(framePanel, 6);
         var convertFrameCheckbox = addOptionCheckbox(framePanel,
             "checkbox.convertFrame", "tooltip.convertFrame", hasFrameLines, initialSettings.convertFrame);
+        var convertFrameToLinesCheckbox = addOptionCheckbox(framePanel,
+            "checkbox.convertFrameToLines", "tooltip.convertFrameToLines", !!rules && canConvertFrameToLines(rules.outerRect), initialSettings.convertFrameToLines);
         var cornerRowControls = addCheckboxLengthRow(framePanel, "checkbox.roundCorners", "tooltip.roundCorners",
             initialSettings.roundCorners, initialSettings.cornerRadius, unitInfo);
         var cornerRow = cornerRowControls.row;
@@ -3395,6 +3467,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
             verticalSpacingRadios: verticalSpacingRadios,
             horizontalSpacingRadios: horizontalSpacingRadios,
             convertFrameCheckbox: convertFrameCheckbox,
+            convertFrameToLinesCheckbox: convertFrameToLinesCheckbox,
             cornerRow: cornerRow,
             roundCornersCheckbox: cornerRowControls.checkbox,
             cornerRadiusInput: cornerRowControls.input,
