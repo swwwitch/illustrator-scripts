@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.ArrangeLikeTableCells
 Name=ArrangeLikeTableCells
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.5.0
+Version=1.5.1
 Release-Date=2026-10-20
 Description-BEGIN
 外枠と罫線で区切った表で、外枠の大きさ・罫線の間隔・線幅を整え、各テキストをセルの中央に配置します（天地は欧文のベースラインをそろえる）。
@@ -43,7 +43,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ArrangeLik
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ArrangeLikeTableCells";        /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.5.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.5.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-20";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-25";                   /* 更新日 / last updated */
@@ -2050,12 +2050,36 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
     }
 
     /**
-     * 外枠を線4本に置き換えられるか（4点の閉じたパスのとき）
+     * 外枠を線4本に置き換えられるか（傾いていない4点の長方形で、複合パスの中でもクリッピングパスでもないとき）
      * @param {PathItem|null} outerRect - 外枠のパス
      * @returns {boolean} 置き換えられるなら true
      */
     function canConvertFrameToLines(outerRect) {
-        return !!outerRect && outerRect.pathPoints.length === 4;
+        if (!outerRect || outerRect.pathPoints.length !== 4) return false;
+        if (outerRect.clipping || outerRect.parent.typename === "CompoundPathItem") return false;
+
+        /* アンカーがすべて外接矩形の角にあり、ハンドルが出ていないこと（ひし形や曲線は除く）
+           Every anchor must sit on a corner of the bounds with no handles (rules out diamonds and curves) */
+        var geometricBounds = outerRect.geometricBounds;
+        for (var i = 0; i < outerRect.pathPoints.length; i++) {
+            var pathPoint = outerRect.pathPoints[i];
+            var anchor = pathPoint.anchor;
+            var isOnCornerX = Math.abs(anchor[0] - geometricBounds[0]) <= TOLERANCE || Math.abs(anchor[0] - geometricBounds[2]) <= TOLERANCE;
+            var isOnCornerY = Math.abs(anchor[1] - geometricBounds[1]) <= TOLERANCE || Math.abs(anchor[1] - geometricBounds[3]) <= TOLERANCE;
+            if (!isOnCornerX || !isOnCornerY) return false;
+            if (!isSamePoint(pathPoint.leftDirection, anchor) || !isSamePoint(pathPoint.rightDirection, anchor)) return false;
+        }
+        return true;
+    }
+
+    /**
+     * 2点が許容値の範囲で同じ位置かどうか
+     * @param {number[]} firstPoint - 一方の座標
+     * @param {number[]} secondPoint - もう一方の座標
+     * @returns {boolean} 同じ位置なら true
+     */
+    function isSamePoint(firstPoint, secondPoint) {
+        return Math.abs(firstPoint[0] - secondPoint[0]) <= EPSILON && Math.abs(firstPoint[1] - secondPoint[1]) <= EPSILON;
     }
 
     /**

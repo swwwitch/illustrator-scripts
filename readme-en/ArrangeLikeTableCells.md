@@ -92,6 +92,7 @@ It can also round the frame corners and fill the cells with random gray tints.
 
 ### Update History
 
+- v1.5.1 (2026-10-25) "Convert frame to four lines" is now available only for an unrotated rectangle (disabled for diamonds or curved four-point paths, paths inside a compound path, and clipping paths)
 - v1.5.0 (2026-10-25) Added "Convert frame to four lines" (the reverse of "Convert frame to rectangle"; available when the frame is a four-point rectangle)
 - v1.4.3 (2026-10-21) Short rules that stick out of the frame or start partway through a cell are now recognized (a rule whose center lay outside the frame was not treated as a rule, and a rule not reaching the text height did not divide cells)
 - v1.4.2 (2026-10-21) "Center in cells" now centers vertically by the band from the baseline to the cap height instead of the glyph outlines (baselines in adjacent cells no longer mismatch because of ascenders or descenders, as with "Lorem" and "Lorem ip")
