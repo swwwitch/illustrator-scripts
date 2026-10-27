@@ -8,16 +8,16 @@ Script-ID=com.swwwitch.illustrator.PatternSwatchSquares
 Name=PatternSwatchSquares
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.1.0
+Version=1.1.1
 Release-Date=2026-10-27
 Description-BEGIN
 長方形を描き、パターンまたはグラデーションのスウォッチを適用します。
 Illustrator 付属のスウォッチライブラリ（複数可）、またはドキュメントのスウォッチから、スウォッチごとに1つずつ並べて作ります。ライブラリごとのブロックは縦に並びます。
-長方形の幅・高さ（連動可）・マージン、線の線幅・カラー、ライブラリ名・スウォッチ名のテキストも設定でき、プレビューで確かめられます。
+長方形の幅・高さ（連動可）・間隔、線の線幅・カラー、ライブラリ名・スウォッチ名のテキストも設定でき、プレビューで確かめられます。
 
 Draws rectangles and fills them with pattern or gradient swatches.
 One rectangle is created for each swatch in the checked bundled swatch libraries (one block per library, stacked vertically) or in the document's swatches.
-The width, height (optionally linked) and margin of the rectangles, the stroke weight and color, and library and swatch name labels can be set, with a preview.
+The width, height (optionally linked) and spacing of the rectangles, the stroke weight and color, and library and swatch name labels can be set, with a preview.
 Description-END
 SCRIPTMETA-END
 */
@@ -28,16 +28,19 @@ SCRIPTMETA-END
 
 長方形を描き、パターンまたはグラデーションのスウォッチを適用します。
 Illustrator 付属のスウォッチライブラリ（複数可）、またはドキュメントのスウォッチから、スウォッチごとに1つずつ並べて作ります。ライブラリごとのブロックは縦に並びます。
-長方形の幅・高さ（連動可）・マージン、線の線幅・カラー、ライブラリ名・スウォッチ名のテキストも設定でき、プレビューで確かめられます。
+長方形の幅・高さ（連動可）・間隔、線の線幅・カラー、ライブラリ名・スウォッチ名のテキストも設定でき、プレビューで確かめられます。
 
 詳細は README を参照してください。
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/PatternSwatchSquares.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/nbf88198f1581
 
 ### Overview
 
 Draws rectangles and fills them with pattern or gradient swatches.
 One rectangle is created for each swatch in the checked bundled swatch libraries (one block per library, stacked vertically) or in the document's swatches.
-The width, height (optionally linked) and margin of the rectangles, the stroke weight and color, and library and swatch name labels can be set, with a preview.
+The width, height (optionally linked) and spacing of the rectangles, the stroke weight and color, and library and swatch name labels can be set, with a preview.
 
 See the README for details.
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PatternSwatchSquares.md
@@ -48,13 +51,14 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PatternSwa
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "PatternSwatchSquares";         /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-27";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-27";                   /* 更新日 / last updated */
 
-var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/PatternSwatchSquares.md"; /* README（日本語） */
-var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PatternSwatchSquares.md"; /* README (English) */
+var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/PatternSwatchSquares.md"; /* README（日本語） */
+var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PatternSwatchSquares.md"; /* README (English) */
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nbf88198f1581"; /* 紹介記事 / article URL */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
@@ -77,6 +81,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     var TITLE_GAP = 10;               /* 長方形（スウォッチ名）の上端とタイトルの下端の間隔（pt） / Gap below the title */
     var SWATCH_NAME_FONT_SIZE = 5;    /* スウォッチ名の文字サイズ（pt） / Swatch name font size */
     var SWATCH_NAME_GAP = 2;          /* 長方形の上端とスウォッチ名の下端の間隔（pt） / Gap between a square and its name */
+    var APPLY_TEXT_MOJIKUMI = true;   /* 日本語環境でテキストに文字組みアキ量設定を適用するか / apply the mojikumi set in Japanese UIs */
     var TEXT_MOJIKUMI_INDEX = 5;      /* 日本語環境で使う文字組みアキ量設定（mojikumiSet の番号。5 = 詰め組み） / mojikumi set for Japanese UIs (5 = Tsume-gumi) */
     var TEXT_FONT_NAME = "HiraginoSans-W3"; /* タイトル・スウォッチ名のフォント（PostScript 名）。無ければ既定のまま / Font for the title and names; the default is kept if missing */
 
@@ -1518,18 +1523,18 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             gradientClassic: { ja: "グラデーション（クラシック）", en: "Gradients (Classic)" },
             library: { ja: "ライブラリ", en: "Library" },
             document: { ja: "ドキュメント", en: "Document" },
-            selectedSwatches: { ja: "選択しているスウォッチ", en: "Selected Swatches" },
+            selectedSwatches: { ja: "選択したスウォッチ", en: "Selected Swatches" },
             allSwatches: { ja: "すべてのスウォッチ", en: "All Swatches" }
         },
         checkbox: {
-            libraryName: { ja: "ライブラリ名", en: "Library Name" },
+            libraryName: { ja: "ライブラリ名（ドキュメント名）", en: "Library Name (Document Name)" },
             swatchName: { ja: "スウォッチ名", en: "Swatch Name" },
             preview: { ja: "プレビュー（長方形のみ）", en: "Preview (Rectangles Only)" }
         },
         fieldLabel: {
             width: { ja: "幅", en: "Width" },
             height: { ja: "高さ", en: "Height" },
-            margin: { ja: "マージン", en: "Margin" },
+            margin: { ja: "間隔", en: "Spacing" },
             strokeWidth: { ja: "線幅", en: "Weight" },
             strokeColor: { ja: "カラー", en: "Color" },
             count: { ja: "件数", en: "Count" }
@@ -1539,8 +1544,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             documentSource: { ja: "このドキュメントのスウォッチを、種類を問わず（カラー・パターン・グラデーション）使います", en: "Use this document's swatches of any kind (colors, patterns, gradients)" },
             selectedSwatches: { ja: "スウォッチパネルで選択しているスウォッチだけを使います", en: "Use only the swatches selected in the Swatches panel" },
             libraryList: { ja: "チェックを入れたライブラリごとに見本のブロックを作り、縦に並べます", en: "One block of samples is created for each checked library, stacked vertically" },
+            libraryCheckbox: { ja: "option＋クリックで、これだけにチェック（もう一度ですべてにチェック）", en: "Option-click to check only this one (again to check all)" },
             linkToggle: { ja: "幅と高さを連動", en: "Link width and height" },
-            margin: { ja: "長方形どうしの間隔。ライブラリのブロックの間はこの2倍", en: "Gap between the rectangles; blocks of libraries are spaced twice this" },
+            margin: { ja: "長方形どうしの間隔。ライブラリのブロックの間はこの2倍", en: "Spacing between the rectangles; blocks of libraries are spaced twice this" },
             strokeWidth: { ja: "0 にすると線なし", en: "0 for no stroke" },
             strokeColor: { ja: "クリックしてカラーピッカーを開く", en: "Click to open the Color Picker" },
             libraryName: {
@@ -1561,8 +1567,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             stepDownInteger: { ja: "値を減らす（shift＋クリックで10の倍数へ）", en: "Decrease (Shift-click to snap to 10s)" }
         },
         button: {
-            selectAll: { ja: "すべて選択", en: "Select All" },
-            deselectAll: { ja: "選択解除", en: "Deselect All" },
+            selectAll: { ja: "すべてを選択", en: "Select All" },
+            deselectAll: { ja: "選択を解除", en: "Deselect All" },
             cancel: { ja: "キャンセル", en: "Cancel" },
             ok: { ja: "OK", en: "OK" }
         },
@@ -1770,7 +1776,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * @returns {boolean} 使えるなら true
      */
     function isFillableSwatch(swatch) {
-        var swatchColor = swatch.color;
+        var swatchColor;
+        /* 色を読むと MRAP エラーになるスウォッチがあるので、読めないものは使わない
+           Some swatches throw MRAP when their color is read; skip those */
+        try {
+            swatchColor = swatch.color;
+        } catch (e) {
+            return false;
+        }
         if (swatchColor.typename === "NoColor") return false;
         return !(swatchColor.typename === "SpotColor" && swatchColor.spot.colorType === ColorModel.REGISTRATION);
     }
@@ -1862,6 +1875,19 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     var textFont; /* 初めて文字を置くときに引く / looked up when the first text is placed */
 
     /**
+     * テキストの段落に文字組みアキ量設定（TEXT_MOJIKUMI_INDEX、詰め組み）を適用する。
+     * textRange にまとめて代入すると MRAP エラーの元になったので、段落ごとに代入する（mojikumiSet の要素は内部 ID の文字列）
+     * @param {TextFrame} pointText - 対象のテキスト
+     * @param {Document} doc - テキストのあるドキュメント
+     * @returns {void}
+     */
+    function applyTextMojikumi(pointText, doc) {
+        var mojikumiValue = doc.mojikumiSet[TEXT_MOJIKUMI_INDEX];
+        var textParagraphs = pointText.paragraphs;
+        for (var i = 0; i < textParagraphs.length; i++) textParagraphs[i].paragraphAttributes.mojikumi = mojikumiValue;
+    }
+
+    /**
      * ポイント文字を作り、左端と下端をそろえて置く（フォントは TEXT_FONT_NAME）
      * @param {Layer} targetLayer - 置く先のレイヤー
      * @param {string} textContents - 文字列
@@ -1877,8 +1903,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var textAttributes = pointText.textRange.characterAttributes;
         if (textFont) textAttributes.textFont = textFont;
         textAttributes.size = fontSize;
-        /* 日本語環境だけ詰め組みにする（mojikumiSet の要素は内部 ID の文字列） / Tsume-gumi only in Japanese UIs (set elements are id strings) */
-        if (uiLang === "ja") pointText.textRange.paragraphAttributes.mojikumi = getParentDocument(targetLayer).mojikumiSet[TEXT_MOJIKUMI_INDEX];
+        textAttributes.kerningMethod = AutoKernType.AUTO; /* カーニング：メトリクス / Kerning: Metrics */
+        textAttributes.proportionalMetrics = true;        /* プロポーショナルメトリクス / Proportional metrics */
+        if (APPLY_TEXT_MOJIKUMI && uiLang === "ja") applyTextMojikumi(pointText, getParentDocument(targetLayer));
         var textBounds = pointText.geometricBounds;
         pointText.translate(left - textBounds[0], bottom - textBounds[3]);
         return pointText;
@@ -1999,59 +2026,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /**
-     * ドキュメントのスウォッチ・パターン・グラデーションの名前を控える
-     * @param {Document} doc - 対象のドキュメント
-     * @returns {{swatches: Object, patterns: Object, gradients: Object}} それぞれの名前の集合（{ 名前: true }）
-     */
-    function snapshotResourceNames(doc) {
-        var resourceNames = { swatches: {}, patterns: {}, gradients: {} };
-        for (var collectionKey in resourceNames) {
-            if (!resourceNames.hasOwnProperty(collectionKey)) continue;
-            var resourceList = doc[collectionKey];
-            for (var i = 0; i < resourceList.length; i++) resourceNames[collectionKey][resourceList[i].name] = true;
-        }
-        return resourceNames;
-    }
-
-    /**
-     * 控えたときから増えたスウォッチ・パターン・グラデーションの名前を返す
-     * @param {Document} doc - 対象のドキュメント
-     * @param {{swatches: Object, patterns: Object, gradients: Object}} namesBefore - snapshotResourceNames() の戻り値
-     * @returns {{swatches: string[], patterns: string[], gradients: string[]}} 増えた名前
-     */
-    function diffResourceNames(doc, namesBefore) {
-        var addedNames = { swatches: [], patterns: [], gradients: [] };
-        for (var collectionKey in addedNames) {
-            if (!addedNames.hasOwnProperty(collectionKey)) continue;
-            var resourceList = doc[collectionKey];
-            for (var i = 0; i < resourceList.length; i++) {
-                if (!namesBefore[collectionKey][resourceList[i].name]) addedNames[collectionKey].push(resourceList[i].name);
-            }
-        }
-        return addedNames;
-    }
-
-    /**
-     * 取り込んだスウォッチ・パターン・グラデーションを削除する（スウォッチを先に消す）
-     * @param {Document} doc - 対象のドキュメント
-     * @param {{swatches: string[], patterns: string[], gradients: string[]}} addedNames - diffResourceNames() の戻り値
-     * @returns {void}
-     */
-    function removeAddedResources(doc, addedNames) {
-        var collectionKeys = ["swatches", "patterns", "gradients"];
-        for (var i = 0; i < collectionKeys.length; i++) {
-            var resourceNames = addedNames[collectionKeys[i]];
-            for (var j = 0; j < resourceNames.length; j++) {
-                /* スウォッチと一緒にパターン・グラデーションが消えていると getByName が例外になる
-                   getByName throws when the pattern or gradient went away with its swatch */
-                try {
-                    doc[collectionKeys[i]].getByName(resourceNames[j]).remove();
-                } catch (e) { /* すでに無い / already gone */ }
-            }
-        }
-    }
-
-    /**
      * @typedef {Object} SwatchEntry
      * @property {string} name - スウォッチ名
      * @property {Color} color - 描く先のドキュメントで使える色
@@ -2065,10 +2039,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * @param {Layer} targetLayer - 複製を一時的に置くレイヤー
      * @param {File} libraryFile - スウォッチライブラリのファイル
      * @param {string} colorTypename - 使うスウォッチの色の typename
-     * @returns {{entries: SwatchEntry[], addedNames: Object}} 取り込んだスウォッチと、増えた名前（取り消し用）
+     * @returns {SwatchEntry[]} 取り込んだスウォッチ
      */
     function importLibrarySwatchEntries(targetDoc, targetLayer, libraryFile, colorTypename) {
-        var namesBefore = snapshotResourceNames(targetDoc);
         var openedLibrary = openLibraryDocument(libraryFile);
         var libraryDoc = openedLibrary.doc;
         var swatchEntries = [];
@@ -2092,7 +2065,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         } finally {
             closeLibraryDocument(openedLibrary, targetDoc);
         }
-        return { entries: swatchEntries, addedNames: diffResourceNames(targetDoc, namesBefore) };
+        return swatchEntries;
     }
 
     /**
@@ -2329,6 +2302,38 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /**
+     * 種類のライブラリの一覧（チェックボックスと区切り線）を作る。前回チェックしたものにチェックを入れ、無ければ先頭だけにする
+     * @param {Group} host - 重ねる先
+     * @param {Array<File|null>} libraryFiles - ライブラリのファイル（切れ目は null）
+     * @param {Object} [checkedNames] - 前回チェックした fsName（{ fsName: true }）
+     * @param {Function} onCheckboxClick - クリックしたチェックボックスを受け取って呼ぶ関数
+     * @returns {{group: Group, entries: Array<{file: File, checkbox: Checkbox}>}} 一覧
+     */
+    function addLibraryCheckboxList(host, libraryFiles, checkedNames, onCheckboxClick) {
+        var kindGroup = host.add("group");
+        kindGroup.orientation = "column";
+        kindGroup.alignChildren = ["left", "top"];
+        kindGroup.spacing = 4;
+        var listEntries = [];
+        var hasChecked = false;
+        for (var i = 0; i < libraryFiles.length; i++) {
+            if (libraryFiles[i] === null) {
+                addDivider(kindGroup).preferredSize.width = LIBRARY_LIST_WIDTH;
+                continue;
+            }
+            var entryCheckbox = kindGroup.add("checkbox", undefined, getLibraryDisplayName(libraryFiles[i]));
+            entryCheckbox.preferredSize.width = LIBRARY_LIST_WIDTH;
+            entryCheckbox.helpTip = getLabel("tooltip.libraryCheckbox");
+            entryCheckbox.value = !!(checkedNames && checkedNames[libraryFiles[i].fsName]);
+            entryCheckbox.onClick = function () { onCheckboxClick(this); };
+            hasChecked = hasChecked || entryCheckbox.value;
+            listEntries.push({ file: libraryFiles[i], checkbox: entryCheckbox });
+        }
+        if (!hasChecked && listEntries.length > 0) listEntries[0].checkbox.value = true;
+        return { group: kindGroup, entries: listEntries };
+    }
+
+    /**
      * ［ライブラリ］パネル（右カラム）を作る。種類ごとのチェックボックスの一覧を最初にすべて作って重ねておき、
      * 種類を切り替えたら表示する一覧だけを入れ替える（表示後に足したコントロールは描かれないことがあるため）
      * @param {Group} parent - 追加先
@@ -2349,7 +2354,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var kindLists = {};
         for (var i = 0; i < SWATCH_KIND_KEYS.length; i++) {
             var kindKey = SWATCH_KIND_KEYS[i];
-            kindLists[kindKey] = addKindList(kindListsHost, getKindLibraryFiles(kindKey), settings.checkedLibraries[kindKey]);
+            kindLists[kindKey] = addLibraryCheckboxList(kindListsHost, getKindLibraryFiles(kindKey), settings.checkedLibraries[kindKey], handleCheckboxClick);
         }
 
         var countText = libraryPanel.add("statictext", undefined, "");
@@ -2363,36 +2368,24 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var currentKindKey = SWATCH_KIND_KEYS[0];
 
         /**
-         * 種類の一覧（チェックボックスと区切り線）を作る。前回チェックしたものにチェックを入れ、無ければ先頭だけにする
-         * @param {Group} host - 重ねる先
-         * @param {Array<File|null>} libraryFiles - ライブラリのファイル（切れ目は null）
-         * @param {Object} [checkedNames] - 前回チェックした fsName（{ fsName: true }）
-         * @returns {{group: Group, entries: Array<{file: File, checkbox: Checkbox}>}} 一覧
+         * チェックボックスをクリックしたあとの処理。option＋クリックなら、クリックしたものだけにするか、すべてにチェックを入れる
+         * （クリックしたものだけがオンだったときは、すべてオン）
+         * @param {Checkbox} clickedCheckbox - クリックしたチェックボックス
+         * @returns {void}
          */
-        function addKindList(host, libraryFiles, checkedNames) {
-            var kindGroup = host.add("group");
-            kindGroup.orientation = "column";
-            kindGroup.alignChildren = ["left", "top"];
-            kindGroup.spacing = 4;
-            var listEntries = [];
-            var hasChecked = false;
-            for (var j = 0; j < libraryFiles.length; j++) {
-                if (libraryFiles[j] === null) {
-                    addDivider(kindGroup).preferredSize.width = LIBRARY_LIST_WIDTH;
-                    continue;
+        function handleCheckboxClick(clickedCheckbox) {
+            if (ScriptUI.environment.keyboardState.altKey) {
+                var listEntries = kindLists[currentKindKey].entries;
+                var hasOtherChecked = false;
+                for (var j = 0; j < listEntries.length; j++) {
+                    if (listEntries[j].checkbox !== clickedCheckbox && listEntries[j].checkbox.value) hasOtherChecked = true;
                 }
-                var entryCheckbox = kindGroup.add("checkbox", undefined, getLibraryDisplayName(libraryFiles[j]));
-                entryCheckbox.preferredSize.width = LIBRARY_LIST_WIDTH;
-                entryCheckbox.value = !!(checkedNames && checkedNames[libraryFiles[j].fsName]);
-                entryCheckbox.onClick = function () {
-                    updateCountText();
-                    onSettingsChange();
-                };
-                hasChecked = hasChecked || entryCheckbox.value;
-                listEntries.push({ file: libraryFiles[j], checkbox: entryCheckbox });
+                for (var k = 0; k < listEntries.length; k++) {
+                    listEntries[k].checkbox.value = !hasOtherChecked || listEntries[k].checkbox === clickedCheckbox;
+                }
             }
-            if (!hasChecked && listEntries.length > 0) listEntries[0].checkbox.value = true;
-            return { group: kindGroup, entries: listEntries };
+            updateCountText();
+            onSettingsChange();
         }
 
         /**
@@ -2568,7 +2561,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /**
-     * ［長方形］パネル（幅・高さ・連動・マージン）を作る
+     * ［長方形］パネル（幅・高さ・連動・間隔）を作る
      * @param {Group} parent - 追加先
      * @param {DialogSettings} settings - 前回の設定
      * @param {{label: string, pointsPerUnit: number}} rulerUnitInfo - 定規の単位
@@ -2701,6 +2694,36 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /**
+     * ダイアログ下部のボタン行（左に［プレビュー（長方形のみ）］、右に［キャンセル］［OK］）を作る
+     * @param {Window} dialog - ダイアログ
+     * @param {Object} sampleSession - createSampleSession() の戻り値
+     * @param {Function} updatePreview - プレビューを描き直す関数
+     * @param {Function} canClose - ［OK］で閉じてよいかを返す関数
+     * @returns {Checkbox} ［プレビュー（長方形のみ）］のチェックボックス
+     */
+    function buildDialogButtonRow(dialog, sampleSession, updatePreview, canClose) {
+        var buttonRow = addButtonRow(dialog);
+        var previewCheckbox = buttonRow.leftGroup.add("checkbox", undefined, getLabel("checkbox.preview"));
+        previewCheckbox.helpTip = getLabel("tooltip.preview");
+        previewCheckbox.value = DEFAULT_PREVIEW;
+        previewCheckbox.onClick = function () {
+            if (previewCheckbox.value) {
+                updatePreview();
+                return;
+            }
+            sampleSession.clear();
+            app.redraw();
+        };
+        buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+        var okButton = buttonRow.rightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+        okButton.onClick = function () {
+            if (canClose()) dialog.close(1);
+        };
+        alignRightOnlyButtonRow(buttonRow);
+        return previewCheckbox;
+    }
+
+    /**
      * 2カラムの片側の group を作る
      * @param {Group} columnsGroup - 左右を並べる group
      * @returns {Group} 縦に積む group
@@ -2745,28 +2768,28 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             showSwatchNames: settings.showSwatchNames
         };
 
+        var createdItems = [];
+        var blockTop = 0;
+
+        /**
+         * 1ブロックを描いて足し、次のブロックの上端を進める
+         * @param {Array<Swatch|SwatchEntry>} fillSwatches - 塗るスウォッチ
+         * @param {string} titleText - ライブラリ名（ドキュメント名）
+         * @returns {void}
+         */
+        function appendBlock(fillSwatches, titleText) {
+            if (fillSwatches.length === 0) return;
+            var blockItems = drawSwatchSquareGrid(targetLayer, fillSwatches, squareLayout);
+            if (settings.addTitle) blockItems.push(addGridTitle(targetLayer, blockItems[0], titleText, squareLayout));
+            /* ブロックの間は長方形の間隔の2倍 / Blocks are spaced twice the spacing */
+            blockTop = placeBlockAt(blockItems, blockTop) - squareLayout.margin * 2;
+            createdItems = createdItems.concat(blockItems);
+        }
+
         var previousCoordinateSystem = app.coordinateSystem;
         app.coordinateSystem = CoordinateSystem.DOCUMENTCOORDINATESYSTEM;
         /* 途中で失敗しても座標系を戻す / Restore the coordinate system even on failure */
         try {
-            var createdItems = [];
-            var blockTop = 0;
-
-            /**
-             * 1ブロックを描いて足し、次のブロックの上端を進める
-             * @param {Array<Swatch|SwatchEntry>} fillSwatches - 塗るスウォッチ
-             * @param {string} titleText - ライブラリ名（ドキュメント名）
-             * @returns {void}
-             */
-            function appendBlock(fillSwatches, titleText) {
-                if (fillSwatches.length === 0) return;
-                var blockItems = drawSwatchSquareGrid(targetLayer, fillSwatches, squareLayout);
-                if (settings.addTitle) blockItems.push(addGridTitle(targetLayer, blockItems[0], titleText, squareLayout));
-                /* ブロックの間は長方形の間隔の2倍 / Blocks are spaced twice the margin */
-                blockTop = placeBlockAt(blockItems, blockTop) - squareLayout.margin * 2;
-                createdItems = createdItems.concat(blockItems);
-            }
-
             if (settings.useDocument) {
                 var documentSwatches = getDocumentSwatches(doc, null, settings.selectedSwatchesOnly);
                 if (isOutlineOnly) documentSwatches = toOutlineEntries(getSwatchNames(documentSwatches));
@@ -2792,19 +2815,18 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /**
-     * 見本を描く作業をまとめる（プレビューの描き直しと、ライブラリから取り込んだスウォッチの後始末）。
+     * 見本を描く作業をまとめる（プレビューの描き直しと、取り消したときの後始末）。
      * プレビューはライブラリのスウォッチ名だけを読んで長方形を描き、確定したときにだけスウォッチを取り込んで塗る
      * @param {Document} doc - 対象のドキュメント
-     * @returns {{render: Function, clear: Function, finish: Function}} 描く・消す・終える関数
+     * @returns {{render: Function, clear: Function, cancel: Function}} 描く・消す・取り消す関数
      */
     function createSampleSession(doc) {
         var layerCountBefore = doc.layers.length;
         var artboardIndex = doc.artboards.getActiveArtboardIndex(); /* 実行した時点の作業中のアートボード / the active artboard when run */
         var targetLayer = null;
         var drawnItems = [];
-        var importsByKey = {};   /* ライブラリごとの取り込み結果 / imports per library */
+        var importsByKey = {};   /* ライブラリごとに取り込んだスウォッチ / swatches imported per library */
         var namesByKey = {};     /* プレビュー用に読んだライブラリごとのスウォッチ名 / swatch names read for the preview */
-        var usedImportKeys = {}; /* 直近の描画で使ったライブラリ / libraries used by the last render */
 
         /**
          * 描く先のレイヤーを返す（初めて描くときに決める）
@@ -2824,8 +2846,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         function getLibraryEntries(libraryFile, colorTypename) {
             var importKey = libraryFile.fsName + "|" + colorTypename;
             if (!importsByKey[importKey]) importsByKey[importKey] = importLibrarySwatchEntries(doc, getTargetLayer(), libraryFile, colorTypename);
-            usedImportKeys[importKey] = true;
-            return importsByKey[importKey].entries;
+            return importsByKey[importKey];
         }
 
         /**
@@ -2857,42 +2878,22 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
          */
         function render(sampleRequest, isPreview) {
             clear();
-            usedImportKeys = {};
             var getEntries = isPreview ? getLibraryOutlineEntries : getLibraryEntries;
             drawnItems = drawSampleBlocks(doc, getTargetLayer(), sampleRequest, getEntries, isPreview, artboardIndex);
             return drawnItems;
         }
 
         /**
-         * 取り込んだスウォッチのうち、keepKeys に無いライブラリのものを削除する
-         * @param {Object} keepKeys - 残すライブラリ（{ キー: true }）
+         * ［キャンセル］で閉じたときの後始末。プレビューを消し、ロック中のために足したレイヤーが空なら消す
+         * （プレビューはスウォッチを取り込まないので、スウォッチパネルは変わっていない）
          * @returns {void}
          */
-        function discardImports(keepKeys) {
-            for (var importKey in importsByKey) {
-                if (!importsByKey.hasOwnProperty(importKey) || keepKeys[importKey]) continue;
-                removeAddedResources(doc, importsByKey[importKey].addedNames);
-                delete importsByKey[importKey];
-            }
-        }
-
-        /**
-         * 作業を終える。確定なら描いたものと使ったスウォッチだけを残し、取り消しならすべて元に戻す
-         * @param {boolean} isAccepted - 確定なら true
-         * @returns {void}
-         */
-        function finish(isAccepted) {
-            if (isAccepted) {
-                discardImports(usedImportKeys);
-                return;
-            }
+        function cancel() {
             clear();
-            discardImports({});
-            /* ロック中のために足したレイヤーが空なら消す / Remove the layer added for a locked one if it is empty */
             if (targetLayer && doc.layers.length > layerCountBefore && targetLayer.pageItems.length === 0) targetLayer.remove();
         }
 
-        return { render: render, clear: clear, finish: finish };
+        return { render: render, clear: clear, cancel: cancel };
     }
 
     // =========================================
@@ -2964,35 +2965,19 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             };
         }
 
-        var buttonRow = addButtonRow(dialog);
-        previewCheckbox = buttonRow.leftGroup.add("checkbox", undefined, getLabel("checkbox.preview"));
-        previewCheckbox.helpTip = getLabel("tooltip.preview");
-        previewCheckbox.value = DEFAULT_PREVIEW;
-        previewCheckbox.onClick = function () {
-            if (previewCheckbox.value) {
-                updatePreview();
-                return;
-            }
-            sampleSession.clear();
-            app.redraw();
-        };
-        buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
-        var okButton = buttonRow.rightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
-        okButton.onClick = function () {
+        previewCheckbox = buildDialogButtonRow(dialog, sampleSession, updatePreview, function () {
             /* ライブラリのとき、一覧が空かチェックが無ければ閉じない / For libraries, stay open when the list is empty or nothing is checked */
-            if (swatchControls.isLibrarySource()) {
-                if (libraryList.getEntryCount() === 0) {
-                    alert(getLabel("alert.noLibraryFolder"));
-                    return;
-                }
-                if (libraryList.getCheckedFiles().length === 0) {
-                    alert(getLabel("alert.noCheckedLibrary"));
-                    return;
-                }
+            if (!swatchControls.isLibrarySource()) return true;
+            if (libraryList.getEntryCount() === 0) {
+                alert(getLabel("alert.noLibraryFolder"));
+                return false;
             }
-            dialog.close(1);
-        };
-        alignRightOnlyButtonRow(buttonRow);
+            if (libraryList.getCheckedFiles().length === 0) {
+                alert(getLabel("alert.noCheckedLibrary"));
+                return false;
+            }
+            return true;
+        });
 
         /* 開いたときに最初のプレビューを描く（onShow は prepareDialogWindow の前に入れ、その中から呼ばせる）
            Draw the first preview when the dialog opens (set before prepareDialogWindow, which chains it) */
@@ -3034,14 +3019,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var sampleSession = createSampleSession(doc);
         var sampleRequest = showSettingsDialog(doc, sampleSession);
         if (sampleRequest === null) {
-            sampleSession.finish(false);
+            sampleSession.cancel();
             app.redraw();
             return;
         }
 
         /* プレビューの有無にかかわらず、確定した内容で描き直す / Redraw with the final settings whether or not previewing */
         var createdItems = sampleSession.render(sampleRequest, false);
-        sampleSession.finish(true);
         if (createdItems.length === 0) {
             alert(getLabel(getEmptyAlertPath(sampleRequest.settings)));
             return;

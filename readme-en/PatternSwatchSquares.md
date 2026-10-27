@@ -24,13 +24,14 @@ Several libraries can be chosen; one block per library is stacked vertically.
 #### Libraries (right column)
 
 - The libraries of the chosen kind are listed with checkboxes, in the same order as Illustrator's Open Swatch Library menu (the classic kinds have dividers between groups such as Basic, Nature and Decorative)
-- One block of samples is created for each checked library, stacked vertically (blocks are spaced twice the margin)
+- One block of samples is created for each checked library, stacked vertically (blocks are spaced twice the Spacing)
+- Option-click a library to check only that one (Option-click again to check all)
 - Select All / Deselect All toggle the checkboxes of the list shown. The count shows "checked / total"
 
 #### Rectangle
 
 - Set the size with Width and Height (the link icon links them)
-- Set the gap between the rectangles with Margin
+- Set the gap between the rectangles with Spacing
 - Ten rectangles per row, then wrap
 
 #### Stroke
@@ -40,14 +41,14 @@ Several libraries can be chosen; one block per library is stacked vertically.
 
 #### Add Text
 
-- Library Name adds the library name (the document name for document swatches) above the top-left rectangle of each block (14 pt)
+- Library Name (Document Name) adds the library name (the document name for document swatches) above the top-left rectangle of each block (14 pt)
 - Swatch Name adds the swatch name above each rectangle (5 pt)
-- The font is Hiragino Sans W3 (HiraginoSans-W3), or the default font if it is not installed. In Japanese versions the mojikumi set is Tsume-gumi
+- The font is Hiragino Sans W3 (HiraginoSans-W3), or the default font if it is not installed. Kerning is set to Metrics with proportional metrics on. In Japanese versions the mojikumi set is Tsume-gumi
 
 #### General
 
 - Preview (Rectangles Only) draws the layout of the rectangles in the document as you change the settings (on by default). The preview does not fill them; it draws only the rectangles, strokes and text (a 0.5 pt stroke when the weight is 0)
-- Number fields can be changed with the up/down buttons and the arrow keys (Shift snaps to 10s, Option steps by 0.1). Width, height and margin use the ruler units; the weight uses the stroke units
+- Number fields can be changed with the up/down buttons and the arrow keys (Shift snaps to 10s, Option steps by 0.1). Width, height and spacing use the ruler units; the weight uses the stroke units
 - The samples are centered on the active artboard and left selected
 - The settings are kept until Illustrator quits (library checkboxes per kind)
 
@@ -65,7 +66,12 @@ Several libraries can be chosen; one block per library is stacked vertically.
 - The names of the classic folders in English versions of Illustrator (Patterns (Classic) and so on) have not been verified.
 - The defaults can be changed at the top of the script: `DEFAULT_SQUARE_WIDTH`, `DEFAULT_SQUARE_HEIGHT`, `DEFAULT_SIZE_LINKED`, `DEFAULT_SQUARE_MARGIN`, `DEFAULT_STROKE_WIDTH`, `DEFAULT_ADD_TITLE`, `DEFAULT_SHOW_SWATCH_NAMES`, `DEFAULT_PREVIEW`; the count per row and the text with `SQUARES_PER_ROW`, `TITLE_FONT_SIZE`, `SWATCH_NAME_FONT_SIZE`, `TEXT_FONT_NAME`.
 
+### Article
+
+[Introduction article (Japanese)｜DTP Transit 別館](https://note.com/dtp_tranist/n/nbf88198f1581)
+
 ### Update History
 
-- v1.1.0 (2026-10-27) Added a dialog box. Several of Illustrator's bundled swatch libraries (patterns and gradients, each with its classic set) can be checked in the list in the right column (one block per library, stacked vertically). Document swatches can be limited to Selected Swatches or All Swatches and are used regardless of kind. Added Width, Height (linked) and Margin for the rectangles, Weight and Color for the stroke, Add Text (Library Name, Swatch Name) and Preview (Rectangles Only). Fixed the position when the rulers use artboard coordinates
+- v1.1.1 (2026-10-27) Option-click in the library list checks only that library (again to check all). The checkboxes of kinds not shown are now remembered too. The text uses Metrics kerning with proportional metrics on, and the Tsume-gumi mojikumi set in Japanese versions. Fixed an MRAP error that could occur on OK. Renamed Margin to Spacing and Library Name to Library Name (Document Name)
+- v1.1.0 (2026-10-27) Added a dialog box. Several of Illustrator's bundled swatch libraries (patterns and gradients, each with its classic set) can be checked in the list in the right column (one block per library, stacked vertically). Document swatches can be limited to Selected Swatches or All Swatches and are used regardless of kind. Added Width, Height (linked) and Spacing for the rectangles, Weight and Color for the stroke, Add Text (Library Name (Document Name), Swatch Name) and Preview (Rectangles Only). Fixed the position when the rulers use artboard coordinates
 - v1.0.0 (2026-10-27) Initial release
