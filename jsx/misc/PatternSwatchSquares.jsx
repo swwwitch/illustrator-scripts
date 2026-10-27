@@ -11,13 +11,11 @@ Target-App=Illustrator
 Version=1.1.2
 Release-Date=2026-10-27
 Description-BEGIN
-長方形を描き、パターンまたはグラデーションのスウォッチを適用します。
-Illustrator 付属のスウォッチライブラリ（複数可）、またはドキュメントのスウォッチから、スウォッチごとに1つずつ並べて作ります。ライブラリごとのブロックは縦に並びます。
-長方形の幅・高さ（連動可）・間隔、線の線幅・カラー、ライブラリ名・スウォッチ名のテキストも設定でき、プレビューで確かめられます。
+Illustrator 付属のスウォッチライブラリ（パターン・グラデーション）やドキュメントのスウォッチを、長方形に1つずつ適用して並べた見本を作ります。
+ライブラリは複数選べ、ライブラリごとのブロックを縦に並べて、作業中のアートボードの中央に置きます。
 
-Draws rectangles and fills them with pattern or gradient swatches.
-One rectangle is created for each swatch in the checked bundled swatch libraries (one block per library, stacked vertically) or in the document's swatches.
-The width, height (optionally linked) and spacing of the rectangles, the stroke weight and color, and library and swatch name labels can be set, with a preview.
+Creates samples by filling rectangles, one per swatch, with Illustrator's bundled swatch libraries (patterns and gradients) or the document's swatches.
+Several libraries can be chosen; one block per library is stacked vertically and centered on the active artboard.
 Description-END
 SCRIPTMETA-END
 */
@@ -26,9 +24,8 @@ SCRIPTMETA-END
 
 ### 概要
 
-長方形を描き、パターンまたはグラデーションのスウォッチを適用します。
-Illustrator 付属のスウォッチライブラリ（複数可）、またはドキュメントのスウォッチから、スウォッチごとに1つずつ並べて作ります。ライブラリごとのブロックは縦に並びます。
-長方形の幅・高さ（連動可）・間隔、線の線幅・カラー、ライブラリ名・スウォッチ名のテキストも設定でき、プレビューで確かめられます。
+Illustrator 付属のスウォッチライブラリ（パターン・グラデーション）やドキュメントのスウォッチを、長方形に1つずつ適用して並べた見本を作ります。
+ライブラリは複数選べ、ライブラリごとのブロックを縦に並べて、作業中のアートボードの中央に置きます。
 
 詳細は README を参照してください。
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/PatternSwatchSquares.md
@@ -38,9 +35,8 @@ https://note.com/dtp_tranist/n/nbf88198f1581
 
 ### Overview
 
-Draws rectangles and fills them with pattern or gradient swatches.
-One rectangle is created for each swatch in the checked bundled swatch libraries (one block per library, stacked vertically) or in the document's swatches.
-The width, height (optionally linked) and spacing of the rectangles, the stroke weight and color, and library and swatch name labels can be set, with a preview.
+Creates samples by filling rectangles, one per swatch, with Illustrator's bundled swatch libraries (patterns and gradients) or the document's swatches.
+Several libraries can be chosen; one block per library is stacked vertically and centered on the active artboard.
 
 See the README for details.
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PatternSwatchSquares.md

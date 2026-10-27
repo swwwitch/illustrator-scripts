@@ -60,11 +60,12 @@ Illustrator 付属のスウォッチライブラリ（パターン・グラデ�
 
 ### 注意点
 
-- ライブラリのスウォッチは、ライブラリの .ai を開いて読み込み、保存せずに閉じます。その間、ウインドウが一瞬開きます。読み込んだスウォッチは作業中のドキュメントのスウォッチパネルに追加されます。
-- ［プレビュー（長方形のみ）］では、ライブラリのスウォッチ名だけを読み（ライブラリを開くのは、Illustrator を起動してから初めて表示したときだけです）、スウォッチは取り込みません。取り込んで塗るのは［OK］で確定したときだけです。［キャンセル］で閉じると、プレビューで描いたものを削除します。
+- ライブラリのスウォッチは、ライブラリの .ai を開いて読み込み、保存せずに閉じます。その間、ウインドウが一瞬開きます（Illustrator には、画面の再描画を止めたり、ドキュメントを隠して開いたりする機能がありません）。読み込んだスウォッチは作業中のドキュメントのスウォッチパネルに追加されます。
+- 作業中のドキュメントに同じ名前・同じ種類のスウォッチがすでにあるときは、読み込まずにそのスウォッチを使います（内容がライブラリと異なっていても置き換えません）。
+- ［プレビュー（長方形のみ）］では、ライブラリのスウォッチ名だけを読み、スウォッチは取り込みません。読んだ名前は Illustrator を終了するまで覚えるので、ライブラリを開くのは起動後に初めて表示したときだけです（ライブラリのファイルが更新されたら読み直します）。取り込んで塗るのは［OK］で確定したときだけです。［キャンセル］で閉じると、プレビューで描いたものを削除します。
 - 作業中のレイヤー（またはその親）がロック・非表示のときは、新しいレイヤーに描きます。
 - 英語版の Illustrator で、クラシックのフォルダー名（Patterns (Classic) など）は確認できていません。
-- 各項目の初期値は、スクリプト冒頭の `DEFAULT_SQUARE_WIDTH`・`DEFAULT_SQUARE_HEIGHT`・`DEFAULT_SIZE_LINKED`・`DEFAULT_SQUARE_MARGIN`・`DEFAULT_STROKE_WIDTH`・`DEFAULT_ADD_TITLE`・`DEFAULT_SHOW_SWATCH_NAMES`・`DEFAULT_PREVIEW`、並べる数や文字の大きさは `SQUARES_PER_ROW`・`TITLE_FONT_SIZE`・`SWATCH_NAME_FONT_SIZE`・`TEXT_FONT_NAME` で変更できます。
+- 各項目の初期値は、スクリプト冒頭の `DEFAULT_SQUARE_WIDTH`・`DEFAULT_SQUARE_HEIGHT`・`DEFAULT_SIZE_LINKED`・`DEFAULT_SQUARE_MARGIN`・`DEFAULT_STROKE_WIDTH`・`DEFAULT_ADD_TITLE`・`DEFAULT_SHOW_SWATCH_NAMES`・`DEFAULT_PREVIEW`、並べる数や文字は `SQUARES_PER_ROW`・`TITLE_FONT_SIZE`・`SWATCH_NAME_FONT_SIZE`・`TEXT_FONT_NAME`・`APPLY_TEXT_MOJIKUMI`（日本語環境でツメ組みにするか）で変更できます。
 
 ### 紹介記事
 

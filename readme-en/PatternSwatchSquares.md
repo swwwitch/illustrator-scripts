@@ -60,11 +60,12 @@ Several libraries can be chosen; one block per library is stacked vertically.
 
 ### Notes
 
-- Library swatches are read by opening the library .ai and closing it without saving, so a window opens briefly. The swatches read are added to the Swatches panel of the current document.
-- Preview reads only the swatch names of the libraries (a library is opened only the first time it is shown after Illustrator starts) and imports no swatches. The swatches are imported and applied only on OK. Cancel removes everything drawn for the preview.
+- Library swatches are read by opening the library .ai and closing it without saving, so a window opens briefly (Illustrator cannot suspend screen redraws or open a document hidden). The swatches read are added to the Swatches panel of the current document.
+- When the document already has a swatch of the same name and kind, that swatch is used instead of importing (it is not replaced even if it differs from the library).
+- Preview reads only the swatch names of the libraries and imports no swatches. The names are kept until Illustrator quits, so a library is opened only the first time it is shown after Illustrator starts (it is read again when the file changes). The swatches are imported and applied only on OK. Cancel removes everything drawn for the preview.
 - When the current layer (or its parent) is locked or hidden, the samples are drawn on a new layer.
 - The names of the classic folders in English versions of Illustrator (Patterns (Classic) and so on) have not been verified.
-- The defaults can be changed at the top of the script: `DEFAULT_SQUARE_WIDTH`, `DEFAULT_SQUARE_HEIGHT`, `DEFAULT_SIZE_LINKED`, `DEFAULT_SQUARE_MARGIN`, `DEFAULT_STROKE_WIDTH`, `DEFAULT_ADD_TITLE`, `DEFAULT_SHOW_SWATCH_NAMES`, `DEFAULT_PREVIEW`; the count per row and the text with `SQUARES_PER_ROW`, `TITLE_FONT_SIZE`, `SWATCH_NAME_FONT_SIZE`, `TEXT_FONT_NAME`.
+- The defaults can be changed at the top of the script: `DEFAULT_SQUARE_WIDTH`, `DEFAULT_SQUARE_HEIGHT`, `DEFAULT_SIZE_LINKED`, `DEFAULT_SQUARE_MARGIN`, `DEFAULT_STROKE_WIDTH`, `DEFAULT_ADD_TITLE`, `DEFAULT_SHOW_SWATCH_NAMES`, `DEFAULT_PREVIEW`; the count per row and the text with `SQUARES_PER_ROW`, `TITLE_FONT_SIZE`, `SWATCH_NAME_FONT_SIZE`, `TEXT_FONT_NAME`, `APPLY_TEXT_MOJIKUMI` (Tsume-gumi in Japanese versions).
 
 ### Article
 
