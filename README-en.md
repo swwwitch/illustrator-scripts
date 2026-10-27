@@ -355,6 +355,7 @@ After release, we continue to fix bugs and make adjustments through daily use.
 - [Registers the appearance of the selected object as a g…](readme-en/register-temp-style.md)
 - [Renames artboards, layers, symbols and graphic styles…](readme-en/renamer.md)
 - [Look up code for menu commands, tools and preferences](readme-en/AiCommandPrefLookup.md)
+- [Create samples of pattern and gradient swatches](readme-en/PatternSwatchSquares.md)
 - [Draw connectors from the key object to each object](readme-en/AiConnectorBuilder.md)
 - [Filter scripts by keyword and run them](readme-en/AiScriptLauncher.md)
 - [Apply saved text attributes to the selection](readme-en/ApplyTextAttributesFromClipboard.md)

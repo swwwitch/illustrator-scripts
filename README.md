@@ -358,6 +358,7 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 - [選択中のオブジェクトの見た目を「名称未設定」で登録する Illustrator 標準の挙動を回避し、固定名の…](readme-ja/register-temp-style.md)
 - [アートボード／レイヤー／シンボル／グラフィックスタイルの名前を、検索置換とナンバリングでまとめて変更します](readme-ja/renamer.md)
 - [メニューコマンド・ツール・環境設定のコードを引く](readme-ja/AiCommandPrefLookup.md)
+- [パターン・グラデーションのスウォッチの見本を作成](readme-ja/PatternSwatchSquares.md)
 - [キーオブジェクトから各図形へコネクターを引く](readme-ja/AiConnectorBuilder.md)
 - [スクリプトをキーワードで絞り込んで実行](readme-ja/AiScriptLauncher.md)
 - [保存した文字属性をテキストに適用](readme-ja/ApplyTextAttributesFromClipboard.md)
