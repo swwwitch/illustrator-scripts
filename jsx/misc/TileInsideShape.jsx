@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.PatternFill
 Name=TileInsideShape
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.7.0
+Version=1.8.0
 Release-Date=2025-10-26
 Description-BEGIN
 2つのオブジェクトを選択し、小さい方を大きい方の形の内側に、等間隔の格子状に複製して敷き詰めます。
@@ -47,7 +47,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TileInside
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "TileInsideShape";              /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.7.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.8.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-10-26";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-27";                   /* 更新日 / last updated */
@@ -68,8 +68,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne393f59cbb77"; /* 紹�
     /* 間隔の初期値を決める比率（タイルの幅に掛ける）/ Initial spacing as a ratio of the tile width */
     var DEFAULT_GAP_RATIO = 0.2;
 
-    /* ［レンガ状］［シンボル化］の初期値 / Initial state of Brick pattern and Symbolize */
-    var DEFAULT_BRICK = true;
+    /* 並べ方の初期値（"grid" グリッド / "brick" レンガ状 / "random" ランダム）/ Initial layout: "grid", "brick" or "random" */
+    var DEFAULT_LAYOUT_TYPE = "brick";
+
+    /* ［シンボル化］の初期値 / Initial state of Symbolize */
     var DEFAULT_SYMBOLIZE = true;
 
     /* ［大きいオブジェクト］の初期値（"opacity" 不透明度 / "remove" 削除 / "guide" ガイド化）
@@ -93,7 +95,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne393f59cbb77"; /* 紹�
 
     /**
      * 前回［OK］で確定した設定を返す
-     * @returns {{scale: number, gap: number, offset: number, shiftX: number, shiftY: number, isBrick: boolean, symbolize: boolean, containerAction: string, containerOpacity: number}|null} 設定。まだ無ければ null
+     * @returns {{scale: number, gap: number, offset: number, shiftX: number, shiftY: number, layoutType: string, symbolize: boolean, containerAction: string, containerOpacity: number}|null} 設定。まだ無ければ null
      */
     function loadLastSettings() {
         return $.global[LAST_SETTINGS_KEY] || null;
@@ -101,7 +103,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne393f59cbb77"; /* 紹�
 
     /**
      * ［OK］で確定した設定を控える
-     * @param {{scale: number, gap: number, offset: number, shiftX: number, shiftY: number, isBrick: boolean, symbolize: boolean, containerAction: string, containerOpacity: number}} fillSettings - 設定（スケールは%、ほかは pt）
+     * @param {{scale: number, gap: number, offset: number, shiftX: number, shiftY: number, layoutType: string, symbolize: boolean, containerAction: string, containerOpacity: number}} fillSettings - 設定（スケールは%、ほかは pt）
      * @returns {void}
      */
     function saveLastSettings(fillSettings) {
@@ -111,7 +113,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne393f59cbb77"; /* 紹�
             offset: fillSettings.offset,
             shiftX: fillSettings.shiftX,
             shiftY: fillSettings.shiftY,
-            isBrick: fillSettings.isBrick,
+            layoutType: fillSettings.layoutType,
             symbolize: fillSettings.symbolize,
             containerAction: fillSettings.containerAction,
             containerOpacity: fillSettings.containerOpacity
@@ -210,12 +212,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne393f59cbb77"; /* 紹�
 
     /**
      * 右揃えの項目名と入力欄を並べる行を作る
-     * @param {Window} parentDialog - 親ダイアログ
+     * @param {Window|Group} parentContainer - 追加先
      * @param {string} labelPath - 項目名のラベルのパス
      * @returns {Group} 項目名を追加済みの行
      */
-    function addFieldRow(parentDialog, labelPath) {
-        var fieldRow = parentDialog.add('group');
+    function addFieldRow(parentContainer, labelPath) {
+        var fieldRow = parentContainer.add('group');
         fieldRow.alignment = ['fill', 'top'];
         fieldRow.alignChildren = ['left', 'center'];
         var fieldLabel = fieldRow.add('statictext', undefined, labelText(labelPath));
@@ -1088,15 +1090,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne393f59cbb77"; /* 紹�
             shiftY: { ja: "調整Y", en: "Adjust Y" }
         },
         panel: {
+            layout: { ja: "並べ方", en: "Layout" },
             containerAction: { ja: "大きいオブジェクト", en: "Larger Object" }
         },
         radio: {
+            grid: { ja: "グリッド", en: "Grid" },
+            brick: { ja: "レンガ状", en: "Brick pattern" },
+            random: { ja: "ランダム", en: "Random" },
             opacityContainer: { ja: "不透明度", en: "Opacity" },
             removeContainer: { ja: "削除", en: "Delete" },
             guideContainer: { ja: "ガイド化", en: "Make Guides" }
         },
         checkbox: {
-            brick: { ja: "レンガ状", en: "Brick pattern" },
             symbolize: { ja: "シンボル化", en: "Symbolize" }
         },
         tooltip: {
@@ -1120,9 +1125,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne393f59cbb77"; /* 紹�
                 ja: "敷き詰める位置を下へずらします。負の値で上へずらします。",
                 en: "Shifts the tiles down. Negative values shift them up."
             },
+            grid: {
+                ja: "縦横にそろえて並べます。",
+                en: "Lines the tiles up in rows and columns."
+            },
             brick: {
                 ja: "1行おきに半個分ずらして、レンガのように並べます。",
                 en: "Offsets every other row by half a tile, like brickwork."
+            },
+            random: {
+                ja: "間隔を空けて重ならないように、ランダムな位置に並べます。実行するたびに並びが変わります。［調整X］［調整Y］は使いません。",
+                en: "Places the tiles at random positions without overlapping, keeping the spacing. The arrangement changes on every run. Adjust X and Y are not used."
             },
             symbolize: {
                 ja: "タイルをシンボルとして複製します。あとからまとめて差し替えられます。",
@@ -1244,6 +1257,111 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne393f59cbb77"; /* 紹�
                 var xLeft = gridLayout.left + columnIndex * stepX + (isShiftedRow ? stepX * 0.5 : 0);
                 visitCell(xLeft, yTop);
             }
+        }
+    }
+
+    /* ランダムに並べるとき、グリッドのマス1つあたりに位置を試す回数 / Positions tried per grid cell when placing at random */
+    var RANDOM_ATTEMPTS_PER_CELL = 20;
+
+    /**
+     * 種から毎回同じ順に 0 以上 1 未満の乱数を返す関数を作る（プレビューと実行で同じ並びにする）
+     * @param {number} seed - 種（1〜2147483646 の整数）
+     * @returns {Function} 呼ぶたびに次の乱数を返す関数
+     */
+    function createSeededRandom(seed) {
+        var state = seed;
+        return function () {
+            /* Park-Miller 法。積は 2^53 未満なので誤差は出ない / Park-Miller; the product stays below 2^53, so it is exact */
+            state = (state * 16807) % 2147483647;
+            return (state - 1) / 2147483646;
+        };
+    }
+
+    /**
+     * 並べ方に応じて、容器に収まるタイルの左上座標を順に渡す
+     * @param {Object} containerInfo - 容器の境界情報
+     * @param {Object} containerShape - buildContainerShape() の結果
+     * @param {Object} tileOffsets - measurePlacedTile() の結果
+     * @param {number} stepX - 横の送り（pt）
+     * @param {number} stepY - 縦の送り（pt）
+     * @param {Object} fillSettings - showFillDialog() と同じ形の設定（layoutType / shiftX / shiftY / offset / randomSeed を使う）
+     * @param {Function} visitPosition - (xLeft, yTop) を受け取る関数
+     * @returns {void}
+     */
+    function forEachFittingPosition(containerInfo, containerShape, tileOffsets, stepX, stepY, fillSettings, visitPosition) {
+        var expandBy = Math.max(0, fillSettings.offset);
+        if (fillSettings.layoutType === 'random') {
+            forEachRandomPosition(containerInfo, containerShape, tileOffsets, stepX, stepY, expandBy, fillSettings.randomSeed, visitPosition);
+            return;
+        }
+        var isBrick = (fillSettings.layoutType === 'brick');
+        var gridLayout = computeGridLayout(containerInfo, stepX, stepY, isBrick, fillSettings.shiftX, fillSettings.shiftY, expandBy);
+        forEachGridCell(gridLayout, stepX, stepY, isBrick, function(xLeft, yTop) {
+            if (isTileInside(getPlacedTileBounds(tileOffsets, xLeft, yTop), containerShape)) visitPosition(xLeft, yTop);
+        });
+    }
+
+    /**
+     * 容器の外接矩形の中にランダムな位置を選び、置いたタイルと間隔を空けて重ならず、容器に収まる位置の左上座標を渡す
+     * @param {Object} containerInfo - 容器の境界情報
+     * @param {Object} containerShape - buildContainerShape() の結果
+     * @param {Object} tileOffsets - measurePlacedTile() の結果
+     * @param {number} stepX - 横の送り（タイルの幅＋間隔、pt）
+     * @param {number} stepY - 縦の送り（タイルの高さ＋間隔、pt）
+     * @param {number} expandBy - 範囲を上下左右に広げる量（pt。正のオフセット）
+     * @param {number} randomSeed - 乱数の種
+     * @param {Function} visitPosition - (xLeft, yTop) を受け取る関数
+     * @returns {void}
+     */
+    function forEachRandomPosition(containerInfo, containerShape, tileOffsets, stepX, stepY, expandBy, randomSeed, visitPosition) {
+        var nextRandom = createSeededRandom(randomSeed);
+
+        /* タイル全体が範囲に入る左上の位置の範囲 / Top-left positions that keep the whole tile inside the area */
+        var minX = containerInfo.left - expandBy - tileOffsets.left;
+        var maxX = Math.max(minX, containerInfo.right + expandBy - tileOffsets.right);
+        var maxY = containerInfo.top + expandBy - tileOffsets.top;
+        var minY = Math.min(maxY, containerInfo.bottom - expandBy - tileOffsets.bottom);
+
+        var cellCount = Math.ceil((containerInfo.width + expandBy * 2) / stepX) * Math.ceil((containerInfo.height + expandBy * 2) / stepY);
+        var attemptCount = Math.max(1, cellCount) * RANDOM_ATTEMPTS_PER_CELL;
+
+        /* 置いた位置を送りの大きさのマスに振り分け、重なりは周りの9マスだけ調べる
+           Bucket placed positions by step-sized cells so overlaps are checked against the 9 neighbors only */
+        var placedByCell = {};
+
+        /**
+         * 置いたタイルのどれかと、間隔を含めて重なるか判定する
+         * @param {number} xLeft - 左端の X 座標
+         * @param {number} yTop - 上端の Y 座標
+         * @param {number} column - マスの列
+         * @param {number} row - マスの行
+         * @returns {boolean} 重なれば true
+         */
+        function overlapsPlacedTile(xLeft, yTop, column, row) {
+            for (var i = column - 1; i <= column + 1; i++) {
+                for (var j = row - 1; j <= row + 1; j++) {
+                    var placedPositions = placedByCell[i + ',' + j];
+                    if (!placedPositions) continue;
+                    for (var k = 0; k < placedPositions.length; k++) {
+                        if (Math.abs(placedPositions[k][0] - xLeft) < stepX && Math.abs(placedPositions[k][1] - yTop) < stepY) return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        for (var attemptIndex = 0; attemptIndex < attemptCount; attemptIndex++) {
+            var xLeft = minX + (maxX - minX) * nextRandom();
+            var yTop = minY + (maxY - minY) * nextRandom();
+            var column = Math.floor((xLeft - minX) / stepX);
+            var row = Math.floor((maxY - yTop) / stepY);
+            /* 軽い重なりの判定を先にする / Run the cheap overlap check first */
+            if (overlapsPlacedTile(xLeft, yTop, column, row)) continue;
+            if (!isTileInside(getPlacedTileBounds(tileOffsets, xLeft, yTop), containerShape)) continue;
+            var cellKey = column + ',' + row;
+            if (!placedByCell[cellKey]) placedByCell[cellKey] = [];
+            placedByCell[cellKey].push([xLeft, yTop]);
+            visitPosition(xLeft, yTop);
         }
     }
 
@@ -1686,7 +1804,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne393f59cbb77"; /* 紹�
      * 敷き詰め設定のダイアログを表示する
      * @param {number} tileWidthPt - タイルの幅（pt）。間隔の初期値に使う
      * @param {Function} onPreview - 入力が変わるたびに設定（pt 換算済み）を受け取る関数
-     * @returns {{scale: number, gap: number, offset: number, shiftX: number, shiftY: number, isBrick: boolean, symbolize: boolean, containerAction: string, containerOpacity: number}|null} 設定（スケールは%、ほかは pt）。キャンセル時は null
+     * @returns {{scale: number, gap: number, offset: number, shiftX: number, shiftY: number, layoutType: string, randomSeed: number, symbolize: boolean, containerAction: string, containerOpacity: number}|null} 設定（スケールは%、ほかは pt）。キャンセル時は null
      */
     function showFillDialog(tileWidthPt, onPreview) {
         /* ダイアログのタイトルはラベル＋バージョン / Dialog title = label + version */
@@ -1710,35 +1828,58 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne393f59cbb77"; /* 紹�
         var initialShiftX = (lastSettings && lastSettings.shiftX) ? formatStepperNumber(lastSettings.shiftX / rulerUnit.pointsPerUnit) : 0;
         var initialShiftY = (lastSettings && lastSettings.shiftY) ? formatStepperNumber(lastSettings.shiftY / rulerUnit.pointsPerUnit) : 0;
 
+        /* 2カラム：左＝数値の欄とシンボル化、右＝並べ方と大きいオブジェクト
+           Two columns: number fields and Symbolize on the left, layout and the larger object on the right */
+        var columnsRow = fillDialog.add('group');
+        columnsRow.orientation = 'row';
+        columnsRow.alignChildren = ['fill', 'top'];
+        columnsRow.spacing = COLUMN_SPACING;
+
+        var leftColumn = columnsRow.add('group');
+        leftColumn.orientation = 'column';
+        leftColumn.alignChildren = ['fill', 'top'];
+        leftColumn.spacing = WINDOW_SPACING;
+
+        var rightColumn = columnsRow.add('group');
+        rightColumn.orientation = 'column';
+        rightColumn.alignChildren = ['fill', 'top'];
+        rightColumn.spacing = WINDOW_SPACING;
+
         /* スケール（縦横比は固定）/ Scale (aspect ratio kept) */
-        var scaleRow = addFieldRow(fillDialog, 'fieldLabel.scale');
+        var scaleRow = addFieldRow(leftColumn, 'fieldLabel.scale');
         var scaleField = addNumberField(scaleRow, formatStepperNumber(initialScale) + PERCENT_UNIT, 'tooltip.scale',
             { min: 1, unit: PERCENT_UNIT, onStep: updatePreviewFromFields });
         scaleField.characters = LENGTH_FIELD_CHARACTERS;
 
         /* 間隔 / Spacing */
-        var spacingRow = addFieldRow(fillDialog, 'fieldLabel.spacing');
+        var spacingRow = addFieldRow(leftColumn, 'fieldLabel.spacing');
         var gapField = addNumberField(spacingRow, initialGap + lengthUnit, 'tooltip.spacing',
             { min: 0, unit: lengthUnit, onStep: updatePreviewFromFields });
         gapField.characters = LENGTH_FIELD_CHARACTERS;
         gapField.active = true;
 
         /* オフセット（負で内側、正で外側）/ Offset (negative inward, positive outward) */
-        var offsetRow = addFieldRow(fillDialog, 'fieldLabel.offset');
+        var offsetRow = addFieldRow(leftColumn, 'fieldLabel.offset');
         var offsetField = addNumberField(offsetRow, initialOffset + lengthUnit, 'tooltip.offset', { unit: lengthUnit, onStep: updatePreviewFromFields });
         offsetField.characters = LENGTH_FIELD_CHARACTERS;
 
         /* 調整X・Y（敷き詰める位置を少しずらす）/ Adjust X and Y: nudge the tile positions */
-        var shiftXRow = addFieldRow(fillDialog, 'fieldLabel.shiftX');
+        var shiftXRow = addFieldRow(leftColumn, 'fieldLabel.shiftX');
         var shiftXField = addNumberField(shiftXRow, initialShiftX + lengthUnit, 'tooltip.shiftX', { unit: lengthUnit, onStep: updatePreviewFromFields });
         shiftXField.characters = LENGTH_FIELD_CHARACTERS;
-        var shiftYRow = addFieldRow(fillDialog, 'fieldLabel.shiftY');
+        var shiftYRow = addFieldRow(leftColumn, 'fieldLabel.shiftY');
         shiftYRow.margins = [0, 0, 0, SHIFT_ROW_BOTTOM_MARGIN];
         var shiftYField = addNumberField(shiftYRow, initialShiftY + lengthUnit, 'tooltip.shiftY', { unit: lengthUnit, onStep: updatePreviewFromFields });
         shiftYField.characters = LENGTH_FIELD_CHARACTERS;
 
-        /* チェックボックスの状態は変数に控える（表示前の value は読み戻せない）/ Track checkbox state; value cannot be read back before show() */
-        var isBrickOn = lastSettings ? lastSettings.isBrick : DEFAULT_BRICK;
+        /* ラジオ・チェックボックスの状態は変数に控える（表示前の value は読み戻せない）/ Track radio and checkbox state; value cannot be read back before show() */
+        var layoutType = DEFAULT_LAYOUT_TYPE;
+        /* v1.7.0 で控えた isBrick も読む / Also read isBrick kept by v1.7.0 */
+        if (lastSettings) layoutType = lastSettings.layoutType || (lastSettings.isBrick ? 'brick' : 'grid');
+        if (!/^(grid|brick|random)$/.test(layoutType)) layoutType = DEFAULT_LAYOUT_TYPE;
+        /* ランダムの並びはダイアログを開くたびに変え、開いている間は固定する（プレビューと実行をそろえる）
+           Pick a new random arrangement per dialog and keep it while open, so the preview matches the result */
+        var randomSeed = Math.floor(Math.random() * 2147483646) + 1;
         var isSymbolizeOn = lastSettings ? lastSettings.symbolize : DEFAULT_SYMBOLIZE;
         var containerAction = (lastSettings && lastSettings.containerAction) || DEFAULT_CONTAINER_ACTION;
         /* 以前の「何もしない」（keep）などは初期値に戻す / Fall back for choices that no longer exist, such as the old "keep" */
@@ -1747,7 +1888,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne393f59cbb77"; /* 紹�
 
         /**
          * 入力欄の値を pt に換算して読む
-         * @returns {{scale: number, gap: number, offset: number, shiftX: number, shiftY: number, isBrick: boolean, symbolize: boolean, containerAction: string, containerOpacity: number}} 設定（スケールは%、ほかは pt）
+         * @returns {{scale: number, gap: number, offset: number, shiftX: number, shiftY: number, layoutType: string, randomSeed: number, symbolize: boolean, containerAction: string, containerOpacity: number}} 設定（スケールは%、ほかは pt）
          */
         function readFillSettings() {
             var pointsPerUnit = getUnitInfo("rulerType").pointsPerUnit;
@@ -1764,7 +1905,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne393f59cbb77"; /* 紹�
                 offset: offsetValue * pointsPerUnit,
                 shiftX: shiftXValue * pointsPerUnit,
                 shiftY: shiftYValue * pointsPerUnit,
-                isBrick: isBrickOn,
+                layoutType: layoutType,
+                randomSeed: randomSeed,
                 symbolize: isSymbolizeOn,
                 containerAction: containerAction,
                 containerOpacity: readContainerOpacity()
@@ -1794,32 +1936,58 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne393f59cbb77"; /* 紹�
         shiftXField.onChanging = updatePreviewFromFields;
         shiftYField.onChanging = updatePreviewFromFields;
 
-        /* レンガ状・シンボル化は中央にまとめる / Brick pattern and Symbolize sit centered */
-        var optionRow = fillDialog.add('group');
-        optionRow.alignment = ['fill', 'top'];
-        optionRow.alignChildren = ['center', 'center'];
+        /* 並べ方（グリッド・レンガ状・ランダム）/ Layout: Grid, Brick pattern or Random */
+        var layoutPanel = rightColumn.add('panel', undefined, getLabel('panel.layout'));
+        setupPanel(layoutPanel, 6);
 
-        /* レンガ状 / Brick pattern */
-        var brickGroup = optionRow.add('group');
-        brickGroup.alignChildren = ['left', 'center'];
-        var brickCheckbox = brickGroup.add('checkbox', undefined, getLabel('checkbox.brick'));
-        brickCheckbox.helpTip = getLabel('tooltip.brick');
-        brickCheckbox.value = isBrickOn;
-        brickCheckbox.onClick = function () {
-            isBrickOn = brickCheckbox.value;
-            updatePreviewFromFields();
-        };
+        /**
+         * 並べ方のラジオボタンを1つ足す（同じパネルに入れるので排他は自動）
+         * @param {string} radioLayoutType - "grid" / "brick" / "random"
+         * @param {string} labelPath - ラベルのパス
+         * @param {string} tooltipPath - helpTip のラベルのパス
+         * @returns {RadioButton} 追加したラジオボタン
+         */
+        function addLayoutRadio(radioLayoutType, labelPath, tooltipPath) {
+            var layoutRadio = layoutPanel.add('radiobutton', undefined, getLabel(labelPath));
+            layoutRadio.helpTip = getLabel(tooltipPath);
+            layoutRadio.value = (layoutType === radioLayoutType);
+            layoutRadio.onClick = function () {
+                layoutType = radioLayoutType;
+                updateShiftFieldsEnabled();
+                updatePreviewFromFields();
+            };
+            return layoutRadio;
+        }
+        addLayoutRadio('grid', 'radio.grid', 'tooltip.grid');
+        addLayoutRadio('brick', 'radio.brick', 'tooltip.brick');
+        addLayoutRadio('random', 'radio.random', 'tooltip.random');
 
-        /* シンボル化して複製 / Duplicate as Symbol */
-        var symbolizeGroup = optionRow.add('group');
-        symbolizeGroup.alignChildren = ['left', 'center'];
-        var symbolizeCheckbox = symbolizeGroup.add('checkbox', undefined, getLabel('checkbox.symbolize'));
+        /**
+         * ランダムでは使わない［調整X］［調整Y］をディムにする
+         * @returns {void}
+         */
+        function updateShiftFieldsEnabled() {
+            var isShiftUsed = (layoutType !== 'random');
+            shiftXRow.enabled = isShiftUsed;
+            shiftYRow.enabled = isShiftUsed;
+            redrawSteppersIn(shiftXRow);
+            redrawSteppersIn(shiftYRow);
+        }
+        updateShiftFieldsEnabled();
+
+        /* シンボル化して複製（項目名の幅だけ空けて入力欄の列にそろえる）/ Duplicate as Symbol, lined up with the field column */
+        var symbolizeRow = leftColumn.add('group');
+        symbolizeRow.alignment = ['fill', 'top'];
+        symbolizeRow.alignChildren = ['left', 'center'];
+        var symbolizeIndent = symbolizeRow.add('group');
+        symbolizeIndent.preferredSize.width = LABEL_WIDTH;
+        var symbolizeCheckbox = symbolizeRow.add('checkbox', undefined, getLabel('checkbox.symbolize'));
         symbolizeCheckbox.helpTip = getLabel('tooltip.symbolize');
         symbolizeCheckbox.value = isSymbolizeOn;
         symbolizeCheckbox.onClick = function () { isSymbolizeOn = symbolizeCheckbox.value; };
 
         /* 大きいオブジェクト（敷き詰めたあとの大きいオブジェクトの扱い）/ What to do with the larger object after tiling */
-        var containerActionPanel = fillDialog.add('panel', undefined, getLabel('panel.containerAction'));
+        var containerActionPanel = rightColumn.add('panel', undefined, getLabel('panel.containerAction'));
         setupPanel(containerActionPanel, 6);
         /* ラジオは行ごとに別のグループに入るので、排他は手で切り替える / Radios sit in separate rows, so exclusivity is handled by hand */
         var containerActionRadios = [];
@@ -2022,13 +2190,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne393f59cbb77"; /* 紹�
      * @returns {void}
      */
     function renderPreview(fillTarget, previewSettings) {
-        var isBrick = !!previewSettings.isBrick;
         clearPreview(fillTarget);
 
         var stepX = fillTarget.tileInfo.width * previewSettings.scale / 100 + previewSettings.gap;
         var stepY = fillTarget.tileInfo.height * previewSettings.scale / 100 + previewSettings.gap;
         if (stepX <= 0 || stepY <= 0) return;
-        var gridLayout = computeGridLayout(fillTarget.containerInfo, stepX, stepY, isBrick, previewSettings.shiftX, previewSettings.shiftY, Math.max(0, previewSettings.offset));
 
         var previewGroup = fillTarget.container.layer.groupItems.add();
         previewGroup.name = PREVIEW_GROUP_NAME;
@@ -2038,8 +2204,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne393f59cbb77"; /* 紹�
         var tileOffsets = measurePlacedTile(fillTarget.tile.duplicate(previewGroup, ElementPlacement.PLACEATBEGINNING), previewSettings.scale);
 
         /* 収まるマスにだけ複製する（複製してから消すより速い）/ Duplicate only into cells that fit; faster than duplicating and removing */
-        forEachGridCell(gridLayout, stepX, stepY, isBrick, function(xLeft, yTop) {
-            if (!isTileInside(getPlacedTileBounds(tileOffsets, xLeft, yTop), containerShape)) return;
+        forEachFittingPosition(fillTarget.containerInfo, containerShape, tileOffsets, stepX, stepY, previewSettings, function(xLeft, yTop) {
             var tileCopy = fillTarget.tile.duplicate(previewGroup, ElementPlacement.PLACEATBEGINNING);
             scaleAndPlaceTile(tileCopy, previewSettings.scale, xLeft, yTop);
         });
@@ -2099,7 +2264,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne393f59cbb77"; /* 紹�
         /* 配置数を計算 / Compute counts */
         var stepX = tileInfo.width * fillSettings.scale / 100 + fillSettings.gap;
         var stepY = tileInfo.height * fillSettings.scale / 100 + fillSettings.gap;
-        var gridLayout = computeGridLayout(containerInfo, stepX, stepY, fillSettings.isBrick, fillSettings.shiftX, fillSettings.shiftY, Math.max(0, fillSettings.offset));
 
         app.userInteractionLevel = UserInteractionLevel.DONTDISPLAYALERTS;
         app.redraw();
@@ -2123,10 +2287,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne393f59cbb77"; /* 紹�
         var tileOffsets = measurePlacedTile(addTileCopy(), fillSettings.scale);
 
         /* 収まるマスにだけ複製する（マスクは使わない）/ Duplicate only into cells that fit; no mask */
-        forEachGridCell(gridLayout, stepX, stepY, fillSettings.isBrick, function(xLeft, yTop) {
+        forEachFittingPosition(containerInfo, containerShape, tileOffsets, stepX, stepY, fillSettings, function(xLeft, yTop) {
             /* 等倍で元タイルと同じ場所はスキップ / Skip the original tile's own spot at 100% */
             if (fillSettings.scale === 100 && Math.abs(xLeft - tileInfo.left) < 0.01 && Math.abs(yTop - tileInfo.top) < 0.01) return;
-            if (!isTileInside(getPlacedTileBounds(tileOffsets, xLeft, yTop), containerShape)) return;
             scaleAndPlaceTile(addTileCopy(), fillSettings.scale, xLeft, yTop);
         });
 

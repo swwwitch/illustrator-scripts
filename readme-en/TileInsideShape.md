@@ -18,11 +18,12 @@ With two objects selected, duplicates the smaller one in an evenly spaced grid i
 
 - Only copies that fit inside the path are kept; no mask is used. Works with curves, concave shapes and holes in compound paths. Groups use the shape of each object in the group (a clipping group uses its clipping path). Text uses the shapes of its outlined glyphs (a duplicate is outlined for measuring and then deleted, so the text itself is unchanged). Other objects such as placed images use their bounding box
 - Both original objects are left in place. With Larger Object, its opacity can be lowered, or it can be deleted or turned into guides
-- Adjust X and Adjust Y nudge the tile positions (positive values move right and down)
+- Adjust X and Adjust Y nudge the tile positions (positive values move right and down; not used with Random)
 - Spacing units follow the current ruler settings
 - Scale for the placed tiles (aspect ratio kept)
 - Fit inside the larger object's path offset by a set amount (negative shrinks inward, positive lets tiles stick out)
-- Brick layout, and duplication as a symbol (both on by default)
+- Choose the layout from Grid, Brick pattern and Random (Brick pattern by default). Random places tiles without overlapping, keeping the spacing, and the arrangement changes each time the dialog opens
+- Duplication as a symbol (on by default)
 - Remembers the settings confirmed with OK until Illustrator quits and uses them as the defaults next time
 
 ### Usage
@@ -37,6 +38,7 @@ With two objects selected, duplicates the smaller one in an evenly spaced grid i
 
 ### Update History
 
+- v1.8.0 (2026-10-27) Replaced the Brick pattern checkbox with layout radio buttons: Grid, Brick pattern and Random. Added Random, which places tiles at random positions without overlapping, keeping the spacing. The arrangement changes each time the dialog opens and stays the same between the preview and the result while it is open. Adjust X and Adjust Y are dimmed because Random does not use them. The dialog now has two columns, with the Layout and Larger Object panels on the right
 - v1.7.0 (2026-10-27) The settings confirmed with OK (scale, spacing, offset, brick pattern, symbolize) are remembered until Illustrator quits and used as the defaults next time. When the larger object is a group, tiles now fill the shape of each object in the group instead of the group's bounding box (a clipping group uses its clipping path). When it is text, tiles fill the glyphs of an outlined duplicate, which is then deleted. Added the Larger Object panel to choose what happens to the larger object after tiling: Opacity (100% by default), Delete or Make Guides. Added Adjust X and Adjust Y to nudge the tile positions (also remembered). Whether a tile fits is now worked out before it is duplicated, which makes the preview and the run faster. Edges are hidden while the script runs and restored afterwards
 - v1.6.0 (2026-10-27) Added Scale. Replaced Margin with Offset (same sign as Offset Path: negative shrinks inward, positive lets tiles stick out; distance from slanted edges and curves is now measured exactly). Removed Grid count (columns and rows); tiles now always fill as much of the shape as fits. Brick pattern and Symbolize are now on by default
 - v1.5.12 (2026-10-27) Renamed the script from PatternFill to TileInsideShape. Tiles that stick out of the path are now removed for any shape, not only rectangles and ellipses (previously a tile was kept when its center was inside the bounding box)
