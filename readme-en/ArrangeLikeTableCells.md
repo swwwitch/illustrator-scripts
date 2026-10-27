@@ -11,6 +11,7 @@
 ### Overview
 
 In a table drawn with an outer frame and rules, adjusts the frame size, the rule spacing and the stroke weights, then centers each text in its cell, keeping Latin baselines aligned.
+With only texts selected, it draws the frame and rules from their layout.
 It can also round the frame corners and fill the cells with random gray tints.
 
 ### Features

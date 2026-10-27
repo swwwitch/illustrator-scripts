@@ -11,9 +11,9 @@ Target-App=Illustrator
 Version=1.6.0
 Release-Date=2026-10-20
 Description-BEGIN
-外枠と罫線で区切った表で、外枠の大きさ・罫線の間隔・線幅を整え、各テキストをセルの中央に配置します（天地は欧文のベースラインをそろえる）。
+外枠と罫線で区切った表で、外枠の大きさ・罫線の間隔・線幅を整え、各テキストをセルの中央に配置します（天地は欧文のベースラインをそろえる）。テキストだけを選択したときは、テキストの並びから外枠と罫線を作ります。
 
-In a table drawn with an outer frame and rules, adjusts the frame size, the rule spacing and the stroke weights, then centers each text in its cell, keeping Latin baselines aligned.
+In a table drawn with an outer frame and rules, adjusts the frame size, the rule spacing and the stroke weights, then centers each text in its cell, keeping Latin baselines aligned. With only texts selected, it draws the frame and rules from their layout.
 Description-END
 SCRIPTMETA-END
 */
@@ -22,7 +22,7 @@ SCRIPTMETA-END
 
 ### 概要
 
-外枠と罫線で区切った表で、外枠の大きさ・罫線の間隔・線幅を整え、各テキストをセルの中央に配置します（天地は欧文のベースラインをそろえる）。
+外枠と罫線で区切った表で、外枠の大きさ・罫線の間隔・線幅を整え、各テキストをセルの中央に配置します（天地は欧文のベースラインをそろえる）。テキストだけを選択したときは、テキストの並びから外枠と罫線を作ります。
 
 詳細は README を参照してください。
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ArrangeLikeTableCells.md
@@ -32,7 +32,7 @@ https://note.com/dtp_tranist/n/n22aa0e767930
 
 ### Overview
 
-In a table drawn with an outer frame and rules, adjusts the frame size, the rule spacing and the stroke weights, then centers each text in its cell, keeping Latin baselines aligned.
+In a table drawn with an outer frame and rules, adjusts the frame size, the rule spacing and the stroke weights, then centers each text in its cell, keeping Latin baselines aligned. With only texts selected, it draws the frame and rules from their layout.
 
 See the README for details.
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ArrangeLikeTableCells.md
