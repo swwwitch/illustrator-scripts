@@ -8,12 +8,12 @@ Script-ID=com.swwwitch.illustrator.ArrangeLikeTableCells
 Name=ArrangeLikeTableCells
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.7.2
+Version=1.7.3
 Release-Date=2026-10-20
 Description-BEGIN
-外枠と罫線で区切った表で、外枠の大きさ・罫線の間隔・線幅を整え、各テキストをセルの中央に配置します（天地は欧文のベースラインをそろえる）。テキストだけ、または縦罫だけ・横罫だけを選択したときは、足りない外枠と罫線を作ります。
+外枠と罫線で区切った表で、外枠の大きさ・罫線の間隔・線幅を整え、各テキストをセルの中央に配置します（天地は欧文のベースラインをそろえる）。テキストだけ、縦罫だけ・横罫だけ、または縦罫と横罫1本（横罫と縦罫1本）だけを選択したときは、足りない外枠と罫線を作ります。
 
-In a table drawn with an outer frame and rules, adjusts the frame size, the rule spacing and the stroke weights, then centers each text in its cell, keeping Latin baselines aligned. With only texts, or only vertical or horizontal rules, selected, it draws the missing frame and rules.
+In a table drawn with an outer frame and rules, adjusts the frame size, the rule spacing and the stroke weights, then centers each text in its cell, keeping Latin baselines aligned. With only texts, only vertical or horizontal rules, or rules crossed by a single rule in the other direction selected, it draws the missing frame and rules.
 Description-END
 SCRIPTMETA-END
 */
@@ -22,7 +22,7 @@ SCRIPTMETA-END
 
 ### 概要
 
-外枠と罫線で区切った表で、外枠の大きさ・罫線の間隔・線幅を整え、各テキストをセルの中央に配置します（天地は欧文のベースラインをそろえる）。テキストだけ、または縦罫だけ・横罫だけを選択したときは、足りない外枠と罫線を作ります。
+外枠と罫線で区切った表で、外枠の大きさ・罫線の間隔・線幅を整え、各テキストをセルの中央に配置します（天地は欧文のベースラインをそろえる）。テキストだけ、縦罫だけ・横罫だけ、または縦罫と横罫1本（横罫と縦罫1本）だけを選択したときは、足りない外枠と罫線を作ります。
 
 詳細は README を参照してください。
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ArrangeLikeTableCells.md
@@ -32,7 +32,7 @@ https://note.com/dtp_tranist/n/n22aa0e767930
 
 ### Overview
 
-In a table drawn with an outer frame and rules, adjusts the frame size, the rule spacing and the stroke weights, then centers each text in its cell, keeping Latin baselines aligned. With only texts, or only vertical or horizontal rules, selected, it draws the missing frame and rules.
+In a table drawn with an outer frame and rules, adjusts the frame size, the rule spacing and the stroke weights, then centers each text in its cell, keeping Latin baselines aligned. With only texts, only vertical or horizontal rules, or rules crossed by a single rule in the other direction selected, it draws the missing frame and rules.
 
 See the README for details.
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ArrangeLikeTableCells.md
@@ -43,7 +43,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ArrangeLik
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ArrangeLikeTableCells";        /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.7.2";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.7.3";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-20";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-27";                   /* 更新日 / last updated */
@@ -1620,23 +1620,27 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
     }
 
     /**
-     * 縦罫だけ（横罫だけ）で閉じたパスも無いとき、外側の罫線の両端を結ぶ線を2本足して、罫線4本で囲んだ枠にする。
-     * 縦罫なら上端・下端を結ぶ横線、横罫なら左端・右端を結ぶ縦線を作る（線の設定は外側の罫線から引き継ぐ）
+     * 閉じたパスが無く、縦罫2本以上に横罫が0〜1本（横罫2本以上に縦罫が0〜1本）のとき、線を足して罫線4本で囲んだ枠にする。
+     * 横罫が無ければ、外側の縦罫の上端・下端を結ぶ横線を2本作る（線の設定は外側の罫線から引き継ぐ）。
+     * 横罫が1本なら、それを枠の1辺とし、縦罫がより長く伸びている側の端を結ぶ横線を1本作る（線の設定はその横罫から引き継ぐ）。
+     * 横罫だけ（縦罫1本）のときは縦横を入れ替えて同じように作る
      * @param {PathItem[]} pathItems - 選択中のパス
-     * @returns {PathItem[]} 作った線。足す必要が無ければ空
+     * @returns {{lines: PathItem[], startsAsRectangle: boolean}} 作った線（足す必要が無ければ空）と、［外枠を長方形に変換］をオンにして開くかどうか
      */
     function addMissingFrameLines(pathItems) {
+        var noLines = { lines: [], startsAsRectangle: false };
         for (var i = 0; i < pathItems.length; i++) {
-            if (pathItems[i].closed) return [];
+            if (pathItems[i].closed) return noLines;
         }
         var straightLines = splitStraightLines(pathItems);
         var isVertical;
-        if (straightLines.vertical.length >= 2 && !straightLines.horizontal.length) isVertical = true;
-        else if (straightLines.horizontal.length >= 2 && !straightLines.vertical.length) isVertical = false;
-        else return [];
+        if (straightLines.vertical.length >= 2 && straightLines.horizontal.length <= 1) isVertical = true;
+        else if (straightLines.horizontal.length >= 2 && straightLines.vertical.length <= 1) isVertical = false;
+        else return noLines;
 
         /* 縦罫は「並ぶ方向＝X、長さ＝Y」、横罫はその逆として同じ処理で見る / Vertical rules line up along X and run along Y; horizontal ones the other way round */
         var lines = isVertical ? straightLines.vertical : straightLines.horizontal;
+        var crossLines = isVertical ? straightLines.horizontal : straightLines.vertical;
         var firstLine = lines[0];
         var lastLine = lines[0];
         var alongMin = Infinity;
@@ -1651,15 +1655,28 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
         }
         var posMin = isVertical ? getCenterX(firstLine) : getCenterY(firstLine);
         var posMax = isVertical ? getCenterX(lastLine) : getCenterY(lastLine);
-        if (posMax - posMin <= TOLERANCE) return [];
+        if (posMax - posMin <= TOLERANCE) return noLines;
+
+        var alongEnds = [alongMin, alongMax];
+        var styleSource = firstLine;
+        if (crossLines.length) {
+            /* 罫線がはみ出している短い側は捨て、長く伸びている側の端だけに線を足す
+               Drop the shorter overhang and add a line only at the end of the longer side */
+            var crossPos = isVertical ? getCenterY(crossLines[0]) : getCenterX(crossLines[0]);
+            var farEnd = (alongMax - crossPos >= crossPos - alongMin) ? alongMax : alongMin;
+            if (Math.abs(farEnd - crossPos) <= TOLERANCE) return noLines;
+            alongEnds = [farEnd];
+            styleSource = crossLines[0];
+        }
 
         var createdLines = [];
-        var alongEnds = [alongMin, alongMax];
         for (i = 0; i < alongEnds.length; i++) {
             var points = isVertical ? [[posMin, alongEnds[i]], [posMax, alongEnds[i]]] : [[alongEnds[i], posMin], [alongEnds[i], posMax]];
-            createdLines.push(addLineLike(firstLine, points));
+            createdLines.push(addLineLike(styleSource, points));
         }
-        return createdLines;
+        /* 線を2本足して閉じた枠は長方形にした形で開く。罫線を1辺に使った枠は、線のまま開く
+           A frame closed with two added lines starts as a rectangle; one that uses an existing rule as a side stays as lines */
+        return { lines: createdLines, startsAsRectangle: !crossLines.length };
     }
 
     /**
@@ -1726,7 +1743,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
 
     /**
      * 縦罫・横罫を、設定に従って並べ直す
-     * @param {Object|null} rules - findRules() の戻り値（columnSizes・rowSizes を足したもの）
+     * @param {Object|null} rules - findRules() の戻り値（columnSizes・rowSizes・hasAddedFrameLines を足したもの）
      * @param {{verticalSpacing: string, horizontalSpacing: string, matchRuleLengths: boolean}} settings - 設定（間隔は "even" / "content" / "keep"）
      * @returns {{vertical: Object[], horizontal: Object[]}} 罫線ごとの {from: 前の位置, to: 後の位置}
      */
@@ -1746,7 +1763,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
                 settings.horizontalSpacing === "content" ? rules.rowSizes : null);
             positionMap.horizontal = redistributeHorizontalRules(rules.horizontal, rules.rectBounds, settings.matchRuleLengths, rowOffsets);
         }
-        if (rules.frameLines && settings.matchRuleLengths && (adjustsVertical || adjustsHorizontal)) {
+        /* 線を足して閉じた枠は、間隔を動かさなくても、はみ出した罫線を枠の角まで詰める / A frame closed with added lines is trimmed to its corners even when the spacing is kept */
+        if (rules.frameLines && settings.matchRuleLengths && (adjustsVertical || adjustsHorizontal || rules.hasAddedFrameLines)) {
             matchFrameLineLengths(rules.frameLines, rules.rectBounds);
         }
         return positionMap;
@@ -3125,7 +3143,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
 
         /* 縦罫だけ（横罫だけ）なら、両端を結ぶ線を足して枠にする（［OK］以外で閉じたら削除する）
            With only vertical (or horizontal) rules, add lines joining their ends to close the frame (removed unless confirmed with OK) */
-        var addedFrameLines = autoTablePaths.length ? [] : addMissingFrameLines(pathItems);
+        var missingFrameLines = autoTablePaths.length ? { lines: [], startsAsRectangle: false } : addMissingFrameLines(pathItems);
+        var addedFrameLines = missingFrameLines.lines;
         pathItems = pathItems.concat(addedFrameLines);
         var createdPaths = autoTablePaths.concat(addedFrameLines); /* ［OK］以外で閉じたら削除するパス / paths removed unless confirmed with OK */
 
@@ -3145,6 +3164,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
             /* ［テキストに合わせる］で使う区画ごとの大きさは、動かす前に測っておく / Measure section sizes for "Fit to text" before anything moves */
             rules.columnSizes = measureContentSizes(textCells, rules, true);
             rules.rowSizes = measureContentSizes(textCells, rules, false);
+            rules.hasAddedFrameLines = addedFrameLines.length > 0;
         }
         var verticalRuleCount = rules ? rules.vertical.length : 0;
         var horizontalRuleCount = rules ? rules.horizontal.length : 0;
@@ -3323,8 +3343,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
             verticalSpacing: verticalRuleCount > 0 ? initialSpacingMode : "keep",
             horizontalSpacing: horizontalRuleCount > 0 ? initialSpacingMode : "keep",
             matchRuleLengths: MATCH_RULE_LENGTHS,
-            /* 線を足して閉じた枠は、長方形にした形で開く / A frame closed with added lines starts as a rectangle */
-            convertFrame: (CONVERT_FRAME_TO_RECT || addedFrameLines.length > 0) && !!(rules && rules.frameLines),
+            /* 線を2本足して閉じた枠は、長方形にした形で開く / A frame closed with two added lines starts as a rectangle */
+            convertFrame: (CONVERT_FRAME_TO_RECT || missingFrameLines.startsAsRectangle) && !!(rules && rules.frameLines),
             convertFrameToLines: CONVERT_FRAME_TO_LINES && !!rules && canConvertFrameToLines(rules.outerRect),
             roundCorners: ROUND_CORNERS,
             cornerRadius: CORNER_RADIUS_PT,

@@ -11,7 +11,7 @@
 ### Overview
 
 In a table drawn with an outer frame and rules, adjusts the frame size, the rule spacing and the stroke weights, then centers each text in its cell, keeping Latin baselines aligned.
-With only texts, or only vertical or horizontal rules, selected, it draws the missing frame and rules.
+With only texts, only vertical or horizontal rules, or rules crossed by a single rule in the other direction selected, it draws the missing frame and rules.
 It can also round the frame corners, fill the cells with random gray tints, and turn each text into area type the size of its cell.
 
 ### Features
@@ -26,6 +26,7 @@ It can also round the frame corners, fill the cells with random gray tints, and 
 
 - Select two or more vertical rules without horizontal ones (or the other way round) together with the texts, and the script adds two lines joining the ends of the outermost rules to close the frame (the stroke is taken from an outer rule)
 - The dialog opens with "Convert frame to rectangle" on, so OK turns the frame into a single rectangle (turn it off to keep the added lines)
+- When a single horizontal rule crosses two or more vertical rules (or a single vertical rule crosses horizontal ones), that rule becomes one side of the frame and one line is added across the ends on the side where the vertical rules run longer (its stroke is taken from the crossing rule). The vertical rules sticking out on the other side and the horizontal rule sticking out past the outer vertical rules are trimmed to the frame corners. The frame stays as lines
 - Closing with Cancel or Esc removes the added lines
 
 #### Size
@@ -108,6 +109,7 @@ It can also round the frame corners, fill the cells with random gray tints, and 
 
 ### Update History
 
+- v1.7.3 (2026-10-27) The script now also runs with two or more vertical rules crossed by a single horizontal rule (or the other way round): the horizontal rule becomes one side of the frame, a line is added across the ends on the side where the vertical rules run longer, and the overhanging rules are trimmed to the frame corners (the frame stays as lines)
 - v1.7.2 (2026-10-27) "Convert to area type per cell" now warns when Auto Size cannot be turned off or the text cannot be centered vertically. Fixed lines and rectangles made from rules inside a compound path becoming part of that compound path
 - v1.7.1 (2026-10-27) "Convert to area type per cell" now also rebuilds existing area type the size of its cell, converting it to point type first (frames that are not threaded)
 - v1.7.0 (2026-10-27) Added "Convert to area type per cell" to the Cells panel (replaces each text with vertically centered area type the size of its cell). Moved the Text panel to the bottom of the left column. The script now also runs with only vertical (or only horizontal) rules (it adds lines joining their ends to close the frame and opens with "Convert frame to rectangle" on)
