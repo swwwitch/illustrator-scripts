@@ -4,6 +4,8 @@
 
 ### 調整
 
+- [大きいオブジェクトの形の内側に小さいオブジェクトを敷き詰める](readme-ja/TileInsideShape.md)（v1.6.0）：［スケール］を追加。［マージン］を［オフセット］に変更（負の値で内側に縮め、正の値ではみ出しを許す）。［グリッド数］（列・行）を削除し、常に形に収まるだけ並べるようにした。［レンガ状］［シンボル化］を初期値でオンにした
+- [大きいオブジェクトの形の内側に小さいオブジェクトを敷き詰める](readme-ja/TileInsideShape.md)（v1.5.12）：スクリプト名を PatternFill から TileInsideShape に変更。長方形・楕円以外の形でも、パスからはみ出すタイルを残さないようにした
 - [パターン・グラデーションのスウォッチの見本を作成](readme-ja/PatternSwatchSquares.md)（v1.1.2）：［OK］で「Target layer cannot be modified」のエラーになることがある問題を修正（同じ名前のスウォッチがドキュメントにあればそれを使い、無いものだけ一時レイヤーを通して取り込む）。プレビューで読んだスウォッチ名を Illustrator の終了まで覚え、次の実行からはライブラリを開かない
 - [パターン・グラデーションのスウォッチの見本を作成](readme-ja/PatternSwatchSquares.md)（v1.1.1）：ライブラリの一覧で option＋クリックでクリックしたものだけにチェック（もう一度ですべてにチェック）。表示していない種類のチェックも覚える。テキストはカーニングをメトリクス、プロポーショナルメトリクスをオン、日本語環境ではツメ組みに。［OK］で MRAP エラーになることがある問題を修正。項目名を［選択したスウォッチ］［間隔］［ライブラリ名（ドキュメント名）］［すべてを選択］［選択を解除］に変更
 
@@ -657,7 +659,7 @@
 - [PDF/AIの各ページを見開き分割してアートボードに配置（PDFAIImporter に統合）](readme-ja/PDFAISpreadImporter.md)（v1.1.1）：紹介記事へのリンクを追加、各項目にツールチップを追加。内部の命名と構造を整理
 - [開いているすべてのドキュメントへ同じ位置にペースト](readme-ja/PasteInAllDocs.md)（v1.1.0）：メッセージを日本語／英語に対応。コピー元への複製、アートボード違いによる位置ずれ、ペースト失敗を検知できない問題を修正。紹介記事へのリンクを追加
 - [複合パスを解除して合体し拡張](readme-ja/PathUnite.md)（v1.0.1）：内部の命名を整理（動作は変わらない）
-- [容器の中にタイルを等間隔で敷き詰める](readme-ja/PatternFill.md)（v1.4.2）：`fillinger-pattern.jsx` を統合。グリッド数（列・行）の指定を追加
+- [容器の中にタイルを等間隔で敷き詰める](readme-ja/TileInsideShape.md)（v1.4.2）：`fillinger-pattern.jsx` を統合。グリッド数（列・行）の指定を追加
 - [各種環境設定をダイアログから変更](readme-ja/PreferenceManager-unit.md)（v1.2.2）：機能が重複していた `PreferenceManager.jsx` を統合。全項目にツールチップを追加 / Merged the overlapping `PreferenceManager.jsx`; added tooltips to every item
 - [アートボード名と枠線の表示設定を切り替える](readme-ja/PresetManagerArtboard.md)（v1.0.1）：パレット版 PresetManager-artboards.jsx を統合
 - [決めておいた環境設定一式をダイアログなしで適用](readme-ja/PresetManagerNoDialog.md)（v1.0）：PresetManagerNoDialogFull / PresetManagerPreset1 を統合し、`ACTIVE_PRESET` での切り替え方式に変更

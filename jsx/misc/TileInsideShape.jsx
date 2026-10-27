@@ -1,21 +1,21 @@
 #target illustrator
-#targetengine "PatternFillEngine"
+#targetengine "TileInsideShapeEngine"
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
 SCRIPTMETA-BEGIN
 Script-ID=com.swwwitch.illustrator.PatternFill
-Name=PatternFill
+Name=TileInsideShape
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.5.11
+Version=1.6.0
 Release-Date=2025-10-26
 Description-BEGIN
-2つのオブジェクトを選択し、大きい方を「容器」、小さい方を「タイル」として、容器のバウンディングボックス内にタイルを等間隔で敷き詰めます。
-完全に内側に収まるタイルのみを残し、元の2オブジェクトはそのまま残します。
+2つのオブジェクトを選択し、小さい方を大きい方の形の内側に、等間隔の格子状に複製して敷き詰めます。
+形からはみ出すものは残さず、元の2つのオブジェクトはそのまま残します。
 
-With two objects selected, treats the larger as the container and the smaller as the tile, then fills the container's bounding box with an even grid of tiles.
-Only the tiles that fit entirely inside are kept, and both originals are left in place.
+With two objects selected, duplicates the smaller one in an evenly spaced grid inside the shape of the larger one.
+Copies that stick out of the shape are removed, and both originals are left in place.
 Description-END
 SCRIPTMETA-END
 */
@@ -24,33 +24,37 @@ SCRIPTMETA-END
 
 ### 概要
 
-2つのオブジェクトを選択し、大きい方を「容器」、小さい方を「タイル」として、容器のバウンディングボックス内にタイルを等間隔で敷き詰めます。
-完全に内側に収まるタイルのみを残し、元の2オブジェクトはそのまま残します。
+2つのオブジェクトを選択し、小さい方を大きい方の形の内側に、等間隔の格子状に複製して敷き詰めます。
+形からはみ出すものは残さず、元の2つのオブジェクトはそのまま残します。
 
 詳細は README を参照してください。
-https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/PatternFill.md
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TileInsideShape.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/ne393f59cbb77
 
 ### Overview
 
-With two objects selected, treats the larger as the container and the smaller as the tile, then fills the container's bounding box with an even grid of tiles.
-Only the tiles that fit entirely inside are kept, and both originals are left in place.
+With two objects selected, duplicates the smaller one in an evenly spaced grid inside the shape of the larger one.
+Copies that stick out of the shape are removed, and both originals are left in place.
 
 See the README for details.
-https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PatternFill.md
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TileInsideShape.md
 
 */
 
 // =========================================
 // 基本情報 / Basic info
 // =========================================
-var SCRIPT_NAME     = "PatternFill";                  /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.5.11";                      /* バージョン / version */
+var SCRIPT_NAME     = "TileInsideShape";              /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.6.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-10-26";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-16";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-27";                   /* 更新日 / last updated */
 
-var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/PatternFill.md"; /* README（日本語） */
-var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PatternFill.md"; /* README (English) */
+var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TileInsideShape.md"; /* README（日本語） */
+var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TileInsideShape.md"; /* README (English) */
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne393f59cbb77"; /* 紹介記事 / article URL */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
@@ -63,6 +67,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /* 間隔の初期値を決める比率（タイルの幅に掛ける）/ Initial spacing as a ratio of the tile width */
     var DEFAULT_GAP_RATIO = 0.2;
+
+    /* ［レンガ状］［シンボル化］の初期値 / Initial state of Brick pattern and Symbolize */
+    var DEFAULT_BRICK = true;
+    var DEFAULT_SYMBOLIZE = true;
 
     /* プレビューの不透明度（%）/ Opacity of the preview (%) */
     var PREVIEW_OPACITY = 60;
@@ -155,9 +163,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // UIレイアウト（再利用パーツ）ここまで / End of the reusable UI layout
 
     /* ダイアログ固有の寸法 / Dialog-specific sizes */
-    var LABEL_WIDTH = 60;         /* 項目名の幅 / Field label width */
+    var LABEL_WIDTH = 80;       /* 項目名の幅 / Field label width */
     var FIELD_CHARACTERS = 4;     /* 数値入力欄の桁数 / Width of the number fields in characters */
-    var LENGTH_FIELD_CHARACTERS = 6; /* 単位付きの数値入力欄（間隔・マージン）の桁数 / Width of the fields that show a unit */
+    var LENGTH_FIELD_CHARACTERS = 6; /* 単位付きの数値入力欄（スケール・間隔・オフセット）の桁数 / Width of the fields that show a unit */
+    var PERCENT_UNIT = ' %';         /* スケールの欄の中に付ける単位 / Unit shown inside the scale field */
 
     /**
      * 右揃えの項目名と入力欄を並べる行を作る
@@ -1032,34 +1041,26 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             title: { ja: "敷き詰め設定", en: "Tile Fill Settings" }
         },
         fieldLabel: {
-            gridCount: { ja: "グリッド数", en: "Grid count" },
+            scale: { ja: "スケール", en: "Scale" },
             spacing: { ja: "間隔", en: "Spacing" },
-            margin: { ja: "マージン", en: "Margin" }
-        },
-        unit: {
-            columns: { ja: "列", en: "Columns" },
-            rows: { ja: "行", en: "Rows" }
+            offset: { ja: "オフセット", en: "Offset" }
         },
         checkbox: {
             brick: { ja: "レンガ状", en: "Brick pattern" },
             symbolize: { ja: "シンボル化", en: "Symbolize" }
         },
         tooltip: {
-            columns: {
-                ja: "横に並べる数です。0 のときは容器に収まるだけ自動で並べます。",
-                en: "How many tiles to place horizontally. 0 fills the container automatically."
-            },
-            rows: {
-                ja: "縦に並べる数です。0 のときは容器に収まるだけ自動で並べます。",
-                en: "How many tiles to place vertically. 0 fills the container automatically."
+            scale: {
+                ja: "敷き詰めるタイルの大きさです。縦横比はそのままで拡大・縮小します。",
+                en: "Size of the placed tiles, scaled with the aspect ratio kept."
             },
             spacing: {
                 ja: "隣り合うタイルのアキです。縦横とも同じ値になります。",
                 en: "Space between neighbouring tiles, applied both horizontally and vertically."
             },
-            margin: {
-                ja: "容器の内側に空ける余白です。負の値も入力できます。",
-                en: "Inset kept inside the container. Negative values are allowed."
+            offset: {
+                ja: "大きいオブジェクトのパスをこの量だけオフセットした形に収めます。負の値で内側に縮め、正の値でははみ出しを許します。",
+                en: "Fits the tiles inside the larger object's path offset by this amount. Negative values shrink it; positive values let tiles stick out."
             },
             brick: {
                 ja: "1行おきに半個分ずらして、レンガのように並べます。",
@@ -1111,55 +1112,17 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /**
-     * 4点の閉じたパスで、すべてのアンカーが指定の種類か判定する
-     * @param {PageItem} pageItem - 対象オブジェクト
-     * @param {PointType} pointType - アンカーの種類
-     * @returns {boolean} 当てはまれば true
-     */
-    function isFourPointPathOfType(pageItem, pointType) {
-        if (pageItem.typename !== 'PathItem' || !pageItem.closed || pageItem.pathPoints.length !== 4) return false;
-        for (var i = 0; i < 4; i++) {
-            if (pageItem.pathPoints[i].pointType !== pointType) return false;
-        }
-        return true;
-    }
-
-    /**
-     * 長方形のパス（4点すべてがコーナー）か判定する
-     * @param {PageItem} pageItem - 対象オブジェクト
-     * @returns {boolean} 長方形なら true
-     */
-    function isRectanglePath(pageItem) {
-        return isFourPointPathOfType(pageItem, PointType.CORNER);
-    }
-
-    /**
-     * 楕円らしいパス（4点すべてがスムーズ）か判定する
-     * @param {PageItem} pageItem - 対象オブジェクト
-     * @returns {boolean} 楕円らしければ true
-     */
-    function isEllipseLikePath(pageItem) {
-        return isFourPointPathOfType(pageItem, PointType.SMOOTH);
-    }
-
-    /**
-     * 並べる列数と行数を決める。指定が 0 のときは容器に収まるだけ並べる
+     * 容器の外接矩形を覆う列数と行数を決める
      * @param {Object} containerInfo - 容器の境界情報
      * @param {number} stepX - 横の送り（pt）
      * @param {number} stepY - 縦の送り（pt）
      * @param {boolean} isBrick - レンガ状に並べるか
-     * @param {number} fixedColumns - 指定の列数（0 で自動）
-     * @param {number} fixedRows - 指定の行数（0 で自動）
      * @returns {{columns: number, rows: number}} 列数と行数
      */
-    function computeGridSize(containerInfo, stepX, stepY, isBrick, fixedColumns, fixedRows) {
+    function computeGridSize(containerInfo, stepX, stepY, isBrick) {
         return {
-            columns: (fixedColumns > 0)
-                ? Math.round(fixedColumns)
-                : Math.max(1, Math.ceil((containerInfo.width + (isBrick ? stepX * 0.5 : 0)) / stepX)),
-            rows: (fixedRows > 0)
-                ? Math.round(fixedRows)
-                : Math.max(1, Math.ceil(containerInfo.height / stepY))
+            columns: Math.max(1, Math.ceil((containerInfo.width + (isBrick ? stepX * 0.5 : 0)) / stepX)),
+            rows: Math.max(1, Math.ceil(containerInfo.height / stepY))
         };
     }
 
@@ -1183,60 +1146,217 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
     }
 
+    /* 曲線の区間を折れ線に分ける数 / Line segments per curved segment when flattening */
+    var CURVE_FLATTEN_STEPS = 16;
+
+    /* 輪郭にちょうど接するタイルを残すための許容値（pt）/ Tolerance (pt) so tiles that just touch the outline are kept */
+    var EDGE_TOLERANCE = 0.001;
+
     /**
-     * タイルを残すかどうかの判定に使う、容器の形とマージンを差し引いた範囲をまとめる
-     * @param {PageItem} container - 容器
-     * @param {Object} containerInfo - 容器の境界情報
-     * @param {number} marginPt - マージン（pt）
-     * @returns {Object} 容器の形（isRect / isEllipse）と判定に使う範囲
+     * パスを折れ線の頂点列に分ける（開いたパスは塗りと同じく始点と終点を結んで扱う）
+     * @param {PathItem} pathItem - 対象のパス
+     * @returns {number[][]} 頂点の [x, y] の配列
      */
-    function buildContainerShape(container, containerInfo, marginPt) {
-        var isPath = (container.typename === 'PathItem');
-        return {
-            isRect: isPath && isRectanglePath(container),
-            isEllipse: isPath && isEllipseLikePath(container),
-            left: containerInfo.left + marginPt,
-            right: containerInfo.right - marginPt,
-            top: containerInfo.top - marginPt,
-            bottom: containerInfo.bottom + marginPt,
-            centerX: (containerInfo.left + containerInfo.right) / 2.0,
-            centerY: (containerInfo.top + containerInfo.bottom) / 2.0,
-            radiusX: Math.max(0, Math.abs(containerInfo.right - containerInfo.left) / 2.0 - marginPt),
-            radiusY: Math.max(0, Math.abs(containerInfo.top - containerInfo.bottom) / 2.0 - marginPt)
-        };
+    function flattenPath(pathItem) {
+        var pathPoints = pathItem.pathPoints;
+        var pointCount = pathPoints.length;
+        var vertices = [];
+        for (var i = 0; i < pointCount; i++) {
+            /* 始点・始点の方向線・終点の方向線・終点 / start, its handle, end handle, end */
+            var startAnchor = pathPoints[i].anchor;
+            var startHandle = pathPoints[i].rightDirection;
+            var endHandle = pathPoints[(i + 1) % pointCount].leftDirection;
+            var endAnchor = pathPoints[(i + 1) % pointCount].anchor;
+            var isStraight = (startHandle[0] === startAnchor[0] && startHandle[1] === startAnchor[1] &&
+                endHandle[0] === endAnchor[0] && endHandle[1] === endAnchor[1]);
+            var stepCount = isStraight ? 1 : CURVE_FLATTEN_STEPS;
+            for (var j = 0; j < stepCount; j++) {
+                var t = j / stepCount;
+                var u = 1 - t;
+                var w0 = u * u * u, w1 = 3 * u * u * t, w2 = 3 * u * t * t, w3 = t * t * t;
+                vertices.push([
+                    w0 * startAnchor[0] + w1 * startHandle[0] + w2 * endHandle[0] + w3 * endAnchor[0],
+                    w0 * startAnchor[1] + w1 * startHandle[1] + w2 * endHandle[1] + w3 * endAnchor[1]
+                ]);
+            }
+        }
+        return vertices;
     }
 
     /**
-     * タイルが容器の内側に収まっているか判定する。
-     * 長方形は外接矩形が丸ごと内側、楕円は4隅が楕円の内側、それ以外は中心が内側なら残す
+     * 容器の輪郭を折れ線の辺に分け、判定用にまとめる。
+     * パスと複合パスは形そのもの、それ以外（グループ・テキストなど）は外接矩形を輪郭にする
+     * @param {PageItem} container - 容器
+     * @param {Object} containerInfo - 容器の境界情報
+     * @param {number} offsetPt - オフセット（pt。負で内側、正で外側）
+     * @returns {{edges: Object[], offset: number}} 輪郭の辺（端点と外接矩形）とオフセット
+     */
+    function buildContainerShape(container, containerInfo, offsetPt) {
+        var outlines = [];
+        if (container.typename === 'PathItem') {
+            outlines.push(flattenPath(container));
+        } else if (container.typename === 'CompoundPathItem') {
+            for (var i = 0; i < container.pathItems.length; i++) outlines.push(flattenPath(container.pathItems[i]));
+        } else {
+            outlines.push([
+                [containerInfo.left, containerInfo.top],
+                [containerInfo.right, containerInfo.top],
+                [containerInfo.right, containerInfo.bottom],
+                [containerInfo.left, containerInfo.bottom]
+            ]);
+        }
+
+        var edges = [];
+        for (var k = 0; k < outlines.length; k++) {
+            var vertices = outlines[k];
+            if (vertices.length < 3) continue; /* 面を作らない線 / a line encloses nothing */
+            for (var j = 0; j < vertices.length; j++) {
+                var fromPoint = vertices[j];
+                var toPoint = vertices[(j + 1) % vertices.length];
+                edges.push({
+                    x1: fromPoint[0], y1: fromPoint[1], x2: toPoint[0], y2: toPoint[1],
+                    minX: Math.min(fromPoint[0], toPoint[0]), maxX: Math.max(fromPoint[0], toPoint[0]),
+                    minY: Math.min(fromPoint[1], toPoint[1]), maxY: Math.max(fromPoint[1], toPoint[1])
+                });
+            }
+        }
+        return { edges: edges, offset: offsetPt || 0 };
+    }
+
+    /**
+     * 点が輪郭の内側にあるか判定する（偶奇規則。複合パスの穴は外側になる）
+     * @param {number} x - X 座標
+     * @param {number} y - Y 座標
+     * @param {Object[]} edges - buildContainerShape() の辺
+     * @returns {boolean} 内側なら true
+     */
+    function isPointInsideOutline(x, y, edges) {
+        var isInside = false;
+        for (var i = 0; i < edges.length; i++) {
+            var edge = edges[i];
+            if ((edge.y1 > y) !== (edge.y2 > y) &&
+                x < edge.x1 + (y - edge.y1) * (edge.x2 - edge.x1) / (edge.y2 - edge.y1)) {
+                isInside = !isInside;
+            }
+        }
+        return isInside;
+    }
+
+    /**
+     * 輪郭の辺が矩形に触れるか判定する（Liang–Barsky の線分クリップ）
+     * @param {Object} edge - 辺（端点と外接矩形）
+     * @param {{left: number, top: number, right: number, bottom: number}} rect - 矩形
+     * @returns {boolean} 触れていれば true
+     */
+    function isEdgeTouchingRect(edge, rect) {
+        if (edge.maxX < rect.left || edge.minX > rect.right || edge.maxY < rect.bottom || edge.minY > rect.top) return false;
+        var dx = edge.x2 - edge.x1;
+        var dy = edge.y2 - edge.y1;
+        var directions = [-dx, dx, -dy, dy];
+        var distances = [edge.x1 - rect.left, rect.right - edge.x1, edge.y1 - rect.bottom, rect.top - edge.y1];
+        var enterT = 0;
+        var exitT = 1;
+        for (var k = 0; k < 4; k++) {
+            if (directions[k] === 0) {
+                if (distances[k] < 0) return false;
+                continue;
+            }
+            var t = distances[k] / directions[k];
+            if (directions[k] < 0) {
+                if (t > exitT) return false;
+                if (t > enterT) enterT = t;
+            } else {
+                if (t < enterT) return false;
+                if (t < exitT) exitT = t;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * 点から線分までの距離を返す
+     * @param {number} x - 点の X 座標
+     * @param {number} y - 点の Y 座標
+     * @param {Object} edge - 辺（端点と外接矩形）
+     * @returns {number} 距離（pt）
+     */
+    function getPointToEdgeDistance(x, y, edge) {
+        var dx = edge.x2 - edge.x1;
+        var dy = edge.y2 - edge.y1;
+        var lengthSquared = dx * dx + dy * dy;
+        var t = (lengthSquared > 0) ? ((x - edge.x1) * dx + (y - edge.y1) * dy) / lengthSquared : 0;
+        t = Math.max(0, Math.min(1, t));
+        var nearestX = edge.x1 + t * dx;
+        var nearestY = edge.y1 + t * dy;
+        return Math.sqrt((x - nearestX) * (x - nearestX) + (y - nearestY) * (y - nearestY));
+    }
+
+    /**
+     * 点から矩形までの距離を返す（内側なら 0）
+     * @param {number} x - 点の X 座標
+     * @param {number} y - 点の Y 座標
+     * @param {{left: number, top: number, right: number, bottom: number}} rect - 矩形
+     * @returns {number} 距離（pt）
+     */
+    function getPointToRectDistance(x, y, rect) {
+        var dx = Math.max(rect.left - x, 0, x - rect.right);
+        var dy = Math.max(rect.bottom - y, 0, y - rect.top);
+        return Math.sqrt(dx * dx + dy * dy);
+    }
+
+    /**
+     * 輪郭の辺が矩形から指定の距離より近いか判定する
+     * @param {Object} edge - 辺（端点と外接矩形）
+     * @param {{left: number, top: number, right: number, bottom: number}} rect - 矩形
+     * @param {number} clearance - 空けたい距離（pt）
+     * @returns {boolean} 近ければ true
+     */
+    function isEdgeCloserThan(edge, rect, clearance) {
+        if (edge.maxX < rect.left - clearance || edge.minX > rect.right + clearance ||
+            edge.maxY < rect.bottom - clearance || edge.minY > rect.top + clearance) return false;
+        if (isEdgeTouchingRect(edge, rect)) return true;
+        /* 交わらない線分と矩形の距離は、端点か矩形の角のどれかで決まる / The gap is set by an endpoint or a rectangle corner */
+        return (getPointToRectDistance(edge.x1, edge.y1, rect) < clearance ||
+            getPointToRectDistance(edge.x2, edge.y2, rect) < clearance ||
+            getPointToEdgeDistance(rect.left, rect.top, edge) < clearance ||
+            getPointToEdgeDistance(rect.right, rect.top, edge) < clearance ||
+            getPointToEdgeDistance(rect.left, rect.bottom, edge) < clearance ||
+            getPointToEdgeDistance(rect.right, rect.bottom, edge) < clearance);
+    }
+
+    /**
+     * タイルが、容器のパスをオフセットした形の内側に収まっているか判定する。
+     * 負のオフセットはタイルの外接矩形と輪郭の距離で測り、正のオフセットは外接矩形をその分縮めて判定する
      * @param {Object} tileBounds - タイルの境界情報
      * @param {Object} containerShape - buildContainerShape() の結果
      * @returns {boolean} 残すなら true
      */
     function isTileInside(tileBounds, containerShape) {
-        if (containerShape.isRect) {
-            return (tileBounds.left >= containerShape.left && tileBounds.right <= containerShape.right &&
-                tileBounds.top <= containerShape.top && tileBounds.bottom >= containerShape.bottom);
+        var edges = containerShape.edges;
+        if (!edges.length) return false;
+
+        /* はみ出しを許す分だけ縮める。潰れたときはタイルの中心で判定 / Shrink by the allowed overhang; a collapsed box becomes the tile center */
+        var shrinkBy = Math.max(0, containerShape.offset) + EDGE_TOLERANCE;
+        var rect = {
+            left: tileBounds.left + shrinkBy,
+            right: tileBounds.right - shrinkBy,
+            top: tileBounds.top - shrinkBy,
+            bottom: tileBounds.bottom + shrinkBy
+        };
+        if (rect.left > rect.right) rect.left = rect.right = (tileBounds.left + tileBounds.right) / 2.0;
+        if (rect.bottom > rect.top) rect.top = rect.bottom = (tileBounds.top + tileBounds.bottom) / 2.0;
+
+        if (!isPointInsideOutline(rect.left, rect.top, edges) ||
+            !isPointInsideOutline(rect.right, rect.top, edges) ||
+            !isPointInsideOutline(rect.left, rect.bottom, edges) ||
+            !isPointInsideOutline(rect.right, rect.bottom, edges)) return false;
+
+        /* 内側へのオフセットは輪郭から空ける距離になる / An inward offset is the clearance from the outline */
+        var clearance = Math.max(0, -containerShape.offset - EDGE_TOLERANCE);
+        for (var i = 0; i < edges.length; i++) {
+            if (clearance > 0 ? isEdgeCloserThan(edges[i], rect, clearance) : isEdgeTouchingRect(edges[i], rect)) return false;
         }
-        if (containerShape.isEllipse) {
-            if (!(containerShape.radiusX > 0 && containerShape.radiusY > 0)) return false;
-            var corners = [
-                [tileBounds.left, tileBounds.top],
-                [tileBounds.right, tileBounds.top],
-                [tileBounds.left, tileBounds.bottom],
-                [tileBounds.right, tileBounds.bottom]
-            ];
-            for (var k = 0; k < 4; k++) {
-                var dx = (corners[k][0] - containerShape.centerX) / containerShape.radiusX;
-                var dy = (corners[k][1] - containerShape.centerY) / containerShape.radiusY;
-                if (!((dx * dx + dy * dy) <= 1.000001)) return false;
-            }
-            return true;
-        }
-        var tileCenterX = (tileBounds.left + tileBounds.right) / 2.0;
-        var tileCenterY = (tileBounds.top + tileBounds.bottom) / 2.0;
-        return (tileCenterX >= containerShape.left && tileCenterX <= containerShape.right &&
-            tileCenterY <= containerShape.top && tileCenterY >= containerShape.bottom);
+        return true;
     }
 
     /**
@@ -1333,7 +1453,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * 敷き詰め設定のダイアログを表示する
      * @param {number} tileWidthPt - タイルの幅（pt）。間隔の初期値に使う
      * @param {Function} onPreview - 入力が変わるたびに設定（pt 換算済み）を受け取る関数
-     * @returns {{gap: number, margin: number, isBrick: boolean, symbolize: boolean, columns: number, rows: number}|null} 設定（pt）。キャンセル時は null
+     * @returns {{scale: number, gap: number, offset: number, isBrick: boolean, symbolize: boolean}|null} 設定（スケールは%、ほかは pt）。キャンセル時は null
      */
     function showFillDialog(tileWidthPt, onPreview) {
         /* ダイアログのタイトルはラベル＋バージョン / Dialog title = label + version */
@@ -1343,17 +1463,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         setupWindow(fillDialog);
 
         var rulerUnit = getUnitInfo("rulerType");
-        /* 間隔・マージンの欄の中に付ける単位（「10 mm」の形）/ Unit shown inside the spacing and margin fields */
+        /* 間隔・オフセットの欄の中に付ける単位（「10 mm」の形）/ Unit shown inside the spacing and offset fields */
         var lengthUnit = ' ' + rulerUnit.label;
 
-        /* グリッド数（0 で容器に合わせて自動）/ Grid count (0 fits the container automatically) */
-        var gridCountRow = addFieldRow(fillDialog, 'fieldLabel.gridCount');
-        var columnsField = addNumberField(gridCountRow, '0', 'tooltip.columns',
-            { min: 0, integer: true, onStep: updatePreviewFromFields });
-        gridCountRow.add('statictext', undefined, getLabel('unit.columns'));
-        var rowsField = addNumberField(gridCountRow, '0', 'tooltip.rows',
-            { min: 0, integer: true, onStep: updatePreviewFromFields });
-        gridCountRow.add('statictext', undefined, getLabel('unit.rows'));
+        /* スケール（縦横比は固定）/ Scale (aspect ratio kept) */
+        var scaleRow = addFieldRow(fillDialog, 'fieldLabel.scale');
+        var scaleField = addNumberField(scaleRow, '100' + PERCENT_UNIT, 'tooltip.scale',
+            { min: 1, unit: PERCENT_UNIT, onStep: updatePreviewFromFields });
+        scaleField.characters = LENGTH_FIELD_CHARACTERS;
 
         /* 間隔 / Spacing */
         var spacingRow = addFieldRow(fillDialog, 'fieldLabel.spacing');
@@ -1363,28 +1480,32 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         gapField.characters = LENGTH_FIELD_CHARACTERS;
         gapField.active = true;
 
-        /* マージン / Margin */
-        var marginRow = addFieldRow(fillDialog, 'fieldLabel.margin');
-        /* マージンは負OK / margin can be negative */
-        var marginField = addNumberField(marginRow, '0' + lengthUnit, 'tooltip.margin', { unit: lengthUnit, onStep: updatePreviewFromFields });
-        marginField.characters = LENGTH_FIELD_CHARACTERS;
+        /* オフセット（負で内側、正で外側）/ Offset (negative inward, positive outward) */
+        var offsetRow = addFieldRow(fillDialog, 'fieldLabel.offset');
+        var offsetField = addNumberField(offsetRow, '0' + lengthUnit, 'tooltip.offset', { unit: lengthUnit, onStep: updatePreviewFromFields });
+        offsetField.characters = LENGTH_FIELD_CHARACTERS;
+
+        /* チェックボックスの状態は変数に控える（表示前の value は読み戻せない）/ Track checkbox state; value cannot be read back before show() */
+        var isBrickOn = DEFAULT_BRICK;
+        var isSymbolizeOn = DEFAULT_SYMBOLIZE;
 
         /**
-         * 入力欄の値を pt に換算して読む（チェックボックスは作成前なら false として扱う）
-         * @returns {{gap: number, margin: number, isBrick: boolean, symbolize: boolean, columns: number, rows: number}} 設定（pt）
+         * 入力欄の値を pt に換算して読む
+         * @returns {{scale: number, gap: number, offset: number, isBrick: boolean, symbolize: boolean}} 設定（スケールは%、ほかは pt）
          */
         function readFillSettings() {
             var pointsPerUnit = getUnitInfo("rulerType").pointsPerUnit;
+            var scaleValue = parseFloat(scaleField.text);
+            if (!(scaleValue > 0)) scaleValue = 100;
             var gapValue = Math.max(0, parseFloat(gapField.text) || 0);
-            var marginValue = parseFloat(marginField.text);
-            if (isNaN(marginValue)) marginValue = 0;
+            var offsetValue = parseFloat(offsetField.text);
+            if (isNaN(offsetValue)) offsetValue = 0;
             return {
+                scale: scaleValue,
                 gap: gapValue * pointsPerUnit,
-                margin: marginValue * pointsPerUnit,
-                isBrick: !!(brickCheckbox && brickCheckbox.value),
-                symbolize: !!(symbolizeCheckbox && symbolizeCheckbox.value),
-                columns: Math.max(0, parseInt(columnsField.text, 10) || 0),
-                rows: Math.max(0, parseInt(rowsField.text, 10) || 0)
+                offset: offsetValue * pointsPerUnit,
+                isBrick: isBrickOn,
+                symbolize: isSymbolizeOn
             };
         }
 
@@ -1395,9 +1516,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         function updatePreviewFromFields() {
             onPreview(readFillSettings());
         }
+        scaleField.onChanging = updatePreviewFromFields;
         gapField.onChanging = updatePreviewFromFields;
-        columnsField.onChanging = updatePreviewFromFields;
-        rowsField.onChanging = updatePreviewFromFields;
+        offsetField.onChanging = updatePreviewFromFields;
         updatePreviewFromFields();
 
         /* レンガ状・シンボル化は中央にまとめる / Brick pattern and Symbolize sit centered */
@@ -1410,15 +1531,19 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         brickGroup.alignChildren = ['left', 'center'];
         var brickCheckbox = brickGroup.add('checkbox', undefined, getLabel('checkbox.brick'));
         brickCheckbox.helpTip = getLabel('tooltip.brick');
-        brickCheckbox.value = false;
-        brickCheckbox.onClick = updatePreviewFromFields;
+        brickCheckbox.value = isBrickOn;
+        brickCheckbox.onClick = function () {
+            isBrickOn = brickCheckbox.value;
+            updatePreviewFromFields();
+        };
 
         /* シンボル化して複製 / Duplicate as Symbol */
         var symbolizeGroup = optionRow.add('group');
         symbolizeGroup.alignChildren = ['left', 'center'];
         var symbolizeCheckbox = symbolizeGroup.add('checkbox', undefined, getLabel('checkbox.symbolize'));
         symbolizeCheckbox.helpTip = getLabel('tooltip.symbolize');
-        symbolizeCheckbox.value = false;
+        symbolizeCheckbox.value = isSymbolizeOn;
+        symbolizeCheckbox.onClick = function () { isSymbolizeOn = symbolizeCheckbox.value; };
 
         /* ボタン / Buttons */
         var buttonRow = addButtonRow(fillDialog);
@@ -1516,28 +1641,27 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     /**
      * プレビューを描画する（半透明のグループにタイルを複製し、はみ出すものを削除）
      * @param {Object} fillTarget - 容器・タイル・プレビューの参照
-     * @param {Object} previewSettings - showFillDialog() と同じ形の設定（pt）
+     * @param {Object} previewSettings - showFillDialog() と同じ形の設定（スケールは%、ほかは pt）
      * @returns {void}
      */
     function renderPreview(fillTarget, previewSettings) {
-        var marginPt = previewSettings.margin || 0;
         var isBrick = !!previewSettings.isBrick;
         clearPreview(fillTarget);
 
-        var stepX = fillTarget.tileInfo.width + previewSettings.gap;
-        var stepY = fillTarget.tileInfo.height + previewSettings.gap;
+        var stepX = fillTarget.tileInfo.width * previewSettings.scale / 100 + previewSettings.gap;
+        var stepY = fillTarget.tileInfo.height * previewSettings.scale / 100 + previewSettings.gap;
         if (stepX <= 0 || stepY <= 0) return;
-        var gridSize = computeGridSize(fillTarget.containerInfo, stepX, stepY, isBrick, previewSettings.columns, previewSettings.rows);
+        var gridSize = computeGridSize(fillTarget.containerInfo, stepX, stepY, isBrick);
 
         var previewGroup = fillTarget.container.layer.groupItems.add();
         previewGroup.name = PREVIEW_GROUP_NAME;
         fillTarget.previewGroup = previewGroup;
 
-        var containerShape = buildContainerShape(fillTarget.container, fillTarget.containerInfo, marginPt);
+        var containerShape = buildContainerShape(fillTarget.container, fillTarget.containerInfo, previewSettings.offset);
 
         forEachGridCell(fillTarget.containerInfo, stepX, stepY, gridSize, isBrick, function(xLeft, yTop) {
             var tileCopy = fillTarget.tile.duplicate(previewGroup, ElementPlacement.PLACEATBEGINNING);
-            tileCopy.position = [xLeft, yTop];
+            scaleAndPlaceTile(tileCopy, previewSettings.scale, xLeft, yTop);
         });
 
         /* プレビューもトリム / Trim preview too */
@@ -1547,6 +1671,19 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             previewGroup.opacity = PREVIEW_OPACITY;
         } catch (e) {}
         app.redraw();
+    }
+
+    /**
+     * 複製したタイルを縦横同じ比率で拡大・縮小し（線幅・パターン・グラデーションも）、左上を指定の位置に置く
+     * @param {PageItem} tileCopy - 複製したタイル
+     * @param {number} scalePercent - スケール（%）
+     * @param {number} xLeft - 左端の X 座標
+     * @param {number} yTop - 上端の Y 座標
+     * @returns {void}
+     */
+    function scaleAndPlaceTile(tileCopy, scalePercent, xLeft, yTop) {
+        if (scalePercent !== 100) tileCopy.resize(scalePercent, scalePercent, true, true, true, true, scalePercent);
+        tileCopy.position = [xLeft, yTop];
     }
 
     /**
@@ -1571,7 +1708,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * 確定した設定でタイルを敷き詰め、容器からはみ出すものを削除する
      * @param {Document} doc - 対象ドキュメント
      * @param {Object} fillTarget - 容器・タイルの参照
-     * @param {Object} fillSettings - showFillDialog() の結果（pt）
+     * @param {Object} fillSettings - showFillDialog() の結果（スケールは%、ほかは pt）
      * @returns {void}
      */
     function placeTileGrid(doc, fillTarget, fillSettings) {
@@ -1583,9 +1720,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var symbolDefinition = fillSettings.symbolize ? createTileSymbol(doc, tile) : null;
 
         /* 配置数を計算 / Compute counts */
-        var stepX = tileInfo.width + fillSettings.gap;
-        var stepY = tileInfo.height + fillSettings.gap;
-        var gridSize = computeGridSize(containerInfo, stepX, stepY, fillSettings.isBrick, fillSettings.columns, fillSettings.rows);
+        var stepX = tileInfo.width * fillSettings.scale / 100 + fillSettings.gap;
+        var stepY = tileInfo.height * fillSettings.scale / 100 + fillSettings.gap;
+        var gridSize = computeGridSize(containerInfo, stepX, stepY, fillSettings.isBrick);
 
         app.userInteractionLevel = UserInteractionLevel.DONTDISPLAYALERTS;
         app.redraw();
@@ -1596,20 +1733,20 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         /* 敷き詰め実行 / Duplicate and place in grid */
         forEachGridCell(containerInfo, stepX, stepY, gridSize, fillSettings.isBrick, function(xLeft, yTop) {
-            /* 同じ場所に元タイルがある場合はスキップ / Skip if same as original tile */
-            if (Math.abs(xLeft - tileInfo.left) < 0.01 && Math.abs(yTop - tileInfo.top) < 0.01) return;
+            /* 等倍で元タイルと同じ場所はスキップ / Skip the original tile's own spot at 100% */
+            if (fillSettings.scale === 100 && Math.abs(xLeft - tileInfo.left) < 0.01 && Math.abs(yTop - tileInfo.top) < 0.01) return;
+            var tileCopy;
             if (fillSettings.symbolize && symbolDefinition) {
-                var symbolItem = doc.symbolItems.add(symbolDefinition);
-                symbolItem.move(gridGroup, ElementPlacement.PLACEATBEGINNING);
-                symbolItem.position = [xLeft, yTop];
+                tileCopy = doc.symbolItems.add(symbolDefinition);
+                tileCopy.move(gridGroup, ElementPlacement.PLACEATBEGINNING);
             } else {
-                var tileCopy = tile.duplicate(gridGroup, ElementPlacement.PLACEATBEGINNING);
-                tileCopy.position = [xLeft, yTop];
+                tileCopy = tile.duplicate(gridGroup, ElementPlacement.PLACEATBEGINNING);
             }
+            scaleAndPlaceTile(tileCopy, fillSettings.scale, xLeft, yTop);
         });
 
         /* マスクなしトリム / Trim without mask */
-        trimTilesOutside(gridGroup, buildContainerShape(fillTarget.container, containerInfo, fillSettings.margin));
+        trimTilesOutside(gridGroup, buildContainerShape(fillTarget.container, containerInfo, fillSettings.offset));
 
         app.userInteractionLevel = UserInteractionLevel.DISPLAYALERTS;
         app.redraw();
@@ -1623,7 +1760,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         try {
             main();
         } catch (e) {
-            alert('[TileSmallIntoLarge] Error:\n' + e);
+            alert('[' + SCRIPT_NAME + '] Error:\n' + e);
         }
     }
 

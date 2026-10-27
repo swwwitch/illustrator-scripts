@@ -35,6 +35,7 @@ ID_OVERRIDES = {
     "AutoLeadingStep+10": "AutoLeadingStepPlus10",
     "段落スタイル": "ParagraphStyles",
     "AutoApplySwatches": "ApplySwatchesToSelection",
+    "TileInsideShape": "PatternFill",
     "AiDistributeColors": "AiApplySwatchesToSelection",
 }
 
