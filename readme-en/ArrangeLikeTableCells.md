@@ -39,6 +39,7 @@ It can also round the frame corners, fill the cells with random gray tints, and 
 - "Convert frame to rectangle" replaces the four rules forming the frame with a single rectangle in the same place (the stroke is taken from the top rule)
 - "Convert frame to four lines" replaces the frame rectangle with four lines (top, right, bottom, left) in the same place (the stroke is taken from the rectangle; the fill is not kept)
 - "Round corners" applies the Round Corners effect with the given radius to the frame rectangle
+- "Capsule shape" applies the Round Corners effect with half the shorter side of the frame as the radius, making both ends semicircles (overrides "Round corners")
 
 #### Vertical / Horizontal Rule Spacing
 
@@ -97,11 +98,12 @@ It can also round the frame corners, fill the cells with random gray tints, and 
 - Only rules with two anchor points are snapped to the frame. To keep the rule lengths (for example, when the rules are drawn with gaps from the frame), set `MATCH_RULE_LENGTHS` at the top of the script to `false`.
 - "Convert frame to rectangle" is available only when there is no closed path and the frame is drawn with four rules. The rectangle has no fill and takes the stroke color, weight and dashes from the top rule (if the four sides differ in color, the top one is used).
 - "Round corners" is available when the frame is a rectangle (a closed-path frame, or with "Convert frame to rectangle" on). It is applied as an effect, leaving the path shape unchanged. Cell fills are rounded by the same radius at the frame corners only.
+- "Capsule shape" is available under the same condition as "Round corners". The radius is half the shorter side of the frame path (without the stroke) after "Width" / "Height" are applied. Rules are not trimmed to the curve, so rules within the semicircular ends stick out of the frame.
 - "Stroke color" only changes paths that have a stroke. "Adjust stroke weight" also adds a stroke to paths without one (in the color of the "Stroke color" swatch). Max, min and average are taken from the stroke weights of the frame and rules at launch.
 - Cell shapes use a K-only CMYK color in CMYK documents and grayscale in RGB documents. With "Random tints", each cell gets a random tint that stays the same while the preview updates. The fills are sent to the back of the layer (or group) holding the backmost selected item. If the frame rectangle has a fill, the cell fills are hidden behind it.
 - With only texts selected, texts whose glyph bounds overlap horizontally form a column and texts that overlap vertically form a row; a rule is drawn in the middle of the gap between neighboring columns (rows). A long text spanning several columns merges them into one. The frame and rules are placed just in front of the frontmost selected item, in its layer (or group). The margin ratio and the stroke weight can be changed with `AUTO_TABLE_PADDING_EM` and `AUTO_TABLE_STROKE_WIDTH_PT` at the top of the script.
 - "Convert to area type per cell" applies to horizontal point type and area type with a cell found (vertical type and type on a path are left as they are). Point type is converted to area type. Area type is first converted to point type and then rebuilt (only frames that are not threaded; the original frame shape and inset spacing are not kept). The frame runs between the cell edges (the stroke centers) with an inset spacing of 0. Text wider than the cell wraps, and text that does not fit overflows and is hidden. The vertical centering and turning off Auto Size are set with actions after OK. While previewing, the text is shown with a Fixed first baseline at its centered position, so it may shift slightly once confirmed. After OK, the new area type is selected.
-- The initial values can be changed with `RULE_SPACING_MODE`, `CONVERT_FRAME_TO_RECT`, `ROUND_CORNERS`, `CORNER_RADIUS_PT`, `APPLY_STROKE_COLOR`, `MATCH_STROKE_WIDTHS`, `STROKE_WIDTH_MODE`, `CREATE_CELL_SHAPES`, `CELL_FILL_MODE`, `FILL_UNIFORM_TINT`, `GROUP_CELL_FILLS`, `CONVERT_TO_AREA_TEXT`, `FILL_TINT_MIN`, `FILL_TINT_MAX`, `CENTER_IN_CELLS` and `JUSTIFY_CENTER` at the top of the script.
+- The initial values can be changed with `RULE_SPACING_MODE`, `CONVERT_FRAME_TO_RECT`, `ROUND_CORNERS`, `CORNER_RADIUS_PT`, `CAPSULE_SHAPE`, `APPLY_STROKE_COLOR`, `MATCH_STROKE_WIDTHS`, `STROKE_WIDTH_MODE`, `CREATE_CELL_SHAPES`, `CELL_FILL_MODE`, `FILL_UNIFORM_TINT`, `GROUP_CELL_FILLS`, `CONVERT_TO_AREA_TEXT`, `FILL_TINT_MIN`, `FILL_TINT_MAX`, `CENTER_IN_CELLS` and `JUSTIFY_CENTER` at the top of the script.
 
 ### Article
 
@@ -109,6 +111,7 @@ It can also round the frame corners, fill the cells with random gray tints, and 
 
 ### Update History
 
+- v1.8.0 (2026-10-27) Added "Capsule shape" to the Frame panel (applies the Round Corners effect with half the shorter side of the frame as the radius, making both ends semicircles). Fixed cell fills not being rounded by more than half their shorter side (a cell rounded only at a frame corner can now be rounded across its full side)
 - v1.7.3 (2026-10-27) The script now also runs with two or more vertical rules crossed by a single horizontal rule (or the other way round): the horizontal rule becomes one side of the frame, a line is added across the ends on the side where the vertical rules run longer, and the overhanging rules are trimmed to the frame corners (the frame stays as lines)
 - v1.7.2 (2026-10-27) "Convert to area type per cell" now warns when Auto Size cannot be turned off or the text cannot be centered vertically. Fixed lines and rectangles made from rules inside a compound path becoming part of that compound path
 - v1.7.1 (2026-10-27) "Convert to area type per cell" now also rebuilds existing area type the size of its cell, converting it to point type first (frames that are not threaded)
