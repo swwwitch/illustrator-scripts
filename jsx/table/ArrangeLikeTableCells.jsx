@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.ArrangeLikeTableCells
 Name=ArrangeLikeTableCells
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.5.1
+Version=1.6.0
 Release-Date=2026-10-20
 Description-BEGIN
 外枠と罫線で区切った表で、外枠の大きさ・罫線の間隔・線幅を整え、各テキストをセルの中央に配置します（天地は欧文のベースラインをそろえる）。
@@ -43,10 +43,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ArrangeLik
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ArrangeLikeTableCells";        /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.5.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.6.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-20";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-25";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-27";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ArrangeLikeTableCells.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ArrangeLikeTableCells.md"; /* README (English) */
@@ -135,6 +135,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
 
     /* ［中央揃えにする］の初期値 / Initial value of "Align center" */
     var JUSTIFY_CENTER = true;
+
+    /* テキストだけを選択したときに作る表の、テキストの上下左右の余白（文字サイズに対する割合）と線幅（pt）
+       Space around each text in a table made from texts alone (ratio to the text size) and its stroke weight (pt) */
+    var AUTO_TABLE_PADDING_EM = 0.4;
+    var AUTO_TABLE_STROKE_WIDTH_PT = 1;
 
     /* 縦・横の辺・罫線とみなす傾きの許容値（pt） / Tolerance for treating a segment or rule as vertical or horizontal (pt) */
     var TOLERANCE = 0.5;
@@ -1894,14 +1899,19 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
     }
 
     /**
-     * 線のあるパスの線幅をそろえる（線の無いパスはそのまま）
+     * パスの線幅をそろえる。線の無いパスには、指定のカラーで線を付ける
      * @param {PathItem[]} targetPathItems - 対象のパス
      * @param {number} strokeWidth - 線幅（pt）
+     * @param {Color} strokeColor - 線の無いパスに付ける線のカラー
      * @returns {void}
      */
-    function setStrokeWidths(targetPathItems, strokeWidth) {
+    function setStrokeWidths(targetPathItems, strokeWidth, strokeColor) {
         for (var i = 0; i < targetPathItems.length; i++) {
-            if (targetPathItems[i].stroked) targetPathItems[i].strokeWidth = strokeWidth;
+            if (!targetPathItems[i].stroked) {
+                targetPathItems[i].stroked = true;
+                targetPathItems[i].strokeColor = strokeColor;
+            }
+            targetPathItems[i].strokeWidth = strokeWidth;
         }
     }
 
@@ -2363,7 +2373,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
     /**
      * テキストの中心と大きさを求める（左右と大きさは字形の外形、天地の中心はキャップハイトの範囲）
      * @param {TextFrame} textFrame - 対象のテキスト
-     * @returns {{center: number[], size: number[]}|null} 中心 [X, Y] と大きさ [幅, 高さ]。字形が無ければ null
+     * @returns {{center: number[], size: number[], bounds: number[]}|null} 中心 [X, Y]、大きさ [幅, 高さ]、字形の範囲 [左, 上, 右, 下]。字形が無ければ null
      */
     function getTextGeometry(textFrame) {
         var bounds = getGlyphBounds(textFrame);
@@ -2372,20 +2382,33 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
         var verticalBounds = capBounds || bounds;
         return {
             center: [(bounds[0] + bounds[2]) / 2, (verticalBounds[1] + verticalBounds[3]) / 2],
-            size: [bounds[2] - bounds[0], bounds[1] - bounds[3]]
+            size: [bounds[2] - bounds[0], bounds[1] - bounds[3]],
+            bounds: bounds
         };
+    }
+
+    /**
+     * テキストごとに getTextGeometry() で測る
+     * @param {TextFrame[]} textFrames - 対象のテキスト
+     * @returns {Array} テキストと同じ順の getTextGeometry() の戻り値（字形が無ければ null）
+     */
+    function measureTextGeometries(textFrames) {
+        var textGeometries = [];
+        for (var i = 0; i < textFrames.length; i++) textGeometries.push(getTextGeometry(textFrames[i]));
+        return textGeometries;
     }
 
     /**
      * テキストごとに、字形の中心・大きさと、それを囲むセルの辺を集める
      * @param {TextFrame[]} textFrames - 対象のテキスト
+     * @param {Array} textGeometries - measureTextGeometries() の戻り値
      * @param {{vertical: Object[], horizontal: Object[]}} cellEdges - collectEdges() の戻り値
      * @returns {Object[]} テキストごとの {textFrame, glyphCenter, glyphSize, column, row}（字形やセルが無ければ null）
      */
-    function collectTextCells(textFrames, cellEdges) {
+    function collectTextCells(textFrames, textGeometries, cellEdges) {
         var textCells = [];
         for (var i = 0; i < textFrames.length; i++) {
-            var glyphGeometry = getTextGeometry(textFrames[i]);
+            var glyphGeometry = textGeometries[i];
             var glyphCenter = glyphGeometry ? glyphGeometry.center : null;
             textCells.push({
                 textFrame: textFrames[i],
@@ -2449,13 +2472,140 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
     }
 
     // =========================================
+    // テキストだけの表 / Tables from texts alone
+    // =========================================
+
+    /**
+     * テキストの並びから列・行を割り出し、外枠の長方形と罫線を作る（パスを選択していないとき）。
+     * 字形の範囲が左右（天地）に重なるテキストを同じ列（行）とし、隣り合う列（行）のすき間の中央に罫線を引く
+     * @param {Array} textGeometries - measureTextGeometries() の戻り値
+     * @param {number} padding - 外枠とテキストの間の余白（pt）
+     * @param {PageItem} frontmostItem - 選択でいちばん前面のオブジェクト（この直前に作る）
+     * @returns {PathItem[]} 作った外枠と罫線。字形のあるテキストが無ければ空
+     */
+    function createTableFromTexts(textGeometries, padding, frontmostItem) {
+        var columnSpans = [];
+        var rowSpans = [];
+        var i;
+        for (i = 0; i < textGeometries.length; i++) {
+            if (!textGeometries[i]) continue;
+            var bounds = textGeometries[i].bounds;
+            columnSpans.push({ min: bounds[0], max: bounds[2] });
+            rowSpans.push({ min: bounds[3], max: bounds[1] });
+        }
+        if (!columnSpans.length) return [];
+
+        /* 列は左から右、行は下から上に並ぶ / Columns run left to right, rows bottom to top */
+        var columns = mergeOverlappingSpans(columnSpans);
+        var rows = mergeOverlappingSpans(rowSpans);
+        var left = columns[0].min - padding;
+        var right = columns[columns.length - 1].max + padding;
+        var bottom = rows[0].min - padding;
+        var top = rows[rows.length - 1].max + padding;
+
+        var tablePaths = [addAutoTablePath(frontmostItem, [[left, top], [right, top], [right, bottom], [left, bottom]], true)];
+        for (i = 1; i < columns.length; i++) {
+            var ruleX = (columns[i - 1].max + columns[i].min) / 2;
+            tablePaths.push(addAutoTablePath(frontmostItem, [[ruleX, top], [ruleX, bottom]], false));
+        }
+        for (i = 1; i < rows.length; i++) {
+            var ruleY = (rows[i - 1].max + rows[i].min) / 2;
+            tablePaths.push(addAutoTablePath(frontmostItem, [[left, ruleY], [right, ruleY]], false));
+        }
+        return tablePaths;
+    }
+
+    /**
+     * 重なり合う範囲をまとめ、小さい順に並べて返す
+     * （比較関数つきの sort() は ExtendScript で並びが狂うことがあるので、挿入で並べる）
+     * @param {Object[]} spans - {min, max} の配列
+     * @returns {Object[]} まとめた {min, max} の配列（min の小さい順）
+     */
+    function mergeOverlappingSpans(spans) {
+        var sortedSpans = [];
+        var i;
+        for (i = 0; i < spans.length; i++) {
+            var insertIndex = sortedSpans.length;
+            while (insertIndex > 0 && sortedSpans[insertIndex - 1].min > spans[i].min) insertIndex--;
+            sortedSpans.splice(insertIndex, 0, spans[i]);
+        }
+
+        var mergedSpans = [];
+        for (i = 0; i < sortedSpans.length; i++) {
+            var lastSpan = mergedSpans.length ? mergedSpans[mergedSpans.length - 1] : null;
+            if (lastSpan && sortedSpans[i].min < lastSpan.max) {
+                lastSpan.max = Math.max(lastSpan.max, sortedSpans[i].max);
+            } else {
+                mergedSpans.push({ min: sortedSpans[i].min, max: sortedSpans[i].max });
+            }
+        }
+        return mergedSpans;
+    }
+
+    /**
+     * 塗りなし・黒い線のパスを、選択のいちばん前面のオブジェクトの直前に作る
+     * @param {PageItem} frontmostItem - 選択でいちばん前面のオブジェクト
+     * @param {number[][]} points - アンカーポイントの座標
+     * @param {boolean} isClosed - 閉じたパスにするなら true
+     * @returns {PathItem} 作ったパス
+     */
+    function addAutoTablePath(frontmostItem, points, isClosed) {
+        var pathItem = frontmostItem.parent.pathItems.add();
+        pathItem.setEntirePath(points);
+        pathItem.closed = isClosed;
+        pathItem.move(frontmostItem, ElementPlacement.PLACEBEFORE);
+        pathItem.filled = false;
+        pathItem.stroked = true;
+        pathItem.strokeColor = createBlackColor();
+        pathItem.strokeWidth = AUTO_TABLE_STROKE_WIDTH_PT;
+        /* 角が欠けないようにマイター結合にする / Use miter joins so the corners stay square */
+        pathItem.strokeJoin = StrokeJoin.MITERENDJOIN;
+        return pathItem;
+    }
+
+    /**
+     * テキストのうち、いちばん大きい文字サイズを返す（テキストごとに先頭の文字のサイズで見る）
+     * @param {TextFrame[]} textFrames - 対象のテキスト
+     * @returns {number} 文字サイズ（pt）。文字が無ければ 0
+     */
+    function getMaxTextSize(textFrames) {
+        var maxSize = 0;
+        for (var i = 0; i < textFrames.length; i++) {
+            if (!textFrames[i].characters.length) continue;
+            var textSize = textFrames[i].characters[0].characterAttributes.size;
+            if (textSize > maxSize) maxSize = textSize;
+        }
+        return maxSize;
+    }
+
+    /**
+     * 数値の合計を返す
+     * @param {number[]} values - 足す数値
+     * @returns {number} 合計
+     */
+    function sumNumbers(values) {
+        var total = 0;
+        for (var i = 0; i < values.length; i++) total += values[i];
+        return total;
+    }
+
+    /**
+     * パスを削除する（テキストだけの表をキャンセルしたとき）
+     * @param {PathItem[]} targetPathItems - 削除するパス
+     * @returns {void}
+     */
+    function removePathItems(targetPathItems) {
+        for (var i = 0; i < targetPathItems.length; i++) targetPathItems[i].remove();
+    }
+
+    // =========================================
     // 状態の保存と復元 / Saving and restoring state
     // =========================================
 
     /**
-     * 編集前のパスの座標・線幅・線端・線のカラーを保存する
+     * 編集前のパスの座標・線の有無・線幅・線端・線のカラーを保存する
      * @param {PathItem[]} targetPathItems - 保存するパス
-     * @returns {Object[]} パスごとのアンカーポイントの状態・線幅・線端・線のカラー（線が無ければ null）
+     * @returns {Object[]} パスごとのアンカーポイントの状態・線の有無・線幅・線端・線のカラー（線が無ければ null）
      */
     function savePathState(targetPathItems) {
         var pathStates = [];
@@ -2476,7 +2626,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
             }
 
             pathStates.push({
-                pathItem: pathItem, pointStates: pointStates, strokeWidth: pathItem.strokeWidth, strokeCap: pathItem.strokeCap,
+                pathItem: pathItem, pointStates: pointStates, stroked: pathItem.stroked, strokeWidth: pathItem.strokeWidth, strokeCap: pathItem.strokeCap,
                 strokeColor: pathItem.stroked ? pathItem.strokeColor : null
             });
         }
@@ -2485,7 +2635,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
     }
 
     /**
-     * 保存しておいた座標・線幅・線端・線のカラーへ戻す
+     * 保存しておいた座標・線の有無・線幅・線端・線のカラーへ戻す
      * @param {Object[]} pathStates - savePathState() の戻り値
      * @returns {void}
      */
@@ -2503,6 +2653,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
                 pathPoint.rightDirection = [pointState.rightDirection[0], pointState.rightDirection[1]];
                 pathPoint.pointType = pointState.pointType;
             }
+            /* ［線幅を調整］で付けた線を外す / Remove the stroke added by "Adjust stroke weight" */
+            pathItem.stroked = pathStates[pathIndex].stroked;
             pathItem.strokeWidth = pathStates[pathIndex].strokeWidth;
             pathItem.strokeCap = pathStates[pathIndex].strokeCap;
             if (pathStates[pathIndex].strokeColor) pathItem.strokeColor = pathStates[pathIndex].strokeColor;
@@ -2567,16 +2719,28 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
         var pathItems = [];
         for (var i = 0; i < selectedItems.length; i++) collectItems(selectedItems[i], textFrames, pathItems);
         var hasText = textFrames.length > 0;
+        var textGeometries = measureTextGeometries(textFrames);
+
+        /* パスを選ばずテキストだけなら、テキストの並びから外枠と罫線を作る（［OK］以外で閉じたら削除する）
+           With texts alone, make a frame and rules from their layout (removed unless confirmed with OK) */
+        var autoTablePadding = 0;
+        var autoTablePaths = [];
+        if (!pathItems.length && hasText) {
+            autoTablePadding = getMaxTextSize(textFrames) * AUTO_TABLE_PADDING_EM;
+            autoTablePaths = createTableFromTexts(textGeometries, autoTablePadding, selectedItems[0]);
+            pathItems = autoTablePaths;
+        }
 
         var cellEdges = collectEdges(pathItems);
         if (!cellEdges.vertical.length || !cellEdges.horizontal.length) {
+            removePathItems(autoTablePaths);
             alert(getLabel("alert.noRule"));
             return;
         }
 
         /* 罫線を動かすとセルの判定がずれるので、先に今のセルを決めておく
            Find each text's cell before moving rules, since moving them changes the result */
-        var textCells = collectTextCells(textFrames, cellEdges);
+        var textCells = collectTextCells(textFrames, textGeometries, cellEdges);
 
         var rules = findRules(pathItems);
         if (rules) {
@@ -2673,9 +2837,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
                 extents = { x: topWidth, y: topWidth };
             }
             if (!settings.matchStrokeWidths) return extents;
-            /* 線の無い辺は 0 のまま / Sides without a stroke stay 0 */
+            /* 線の無いパスにも線を付けるので、どの辺も線幅の分 / Paths without a stroke get one too, so every side adds the width */
             var targetWidth = getTargetStrokeWidth(settings);
-            return { x: extents.x > 0 ? targetWidth : 0, y: extents.y > 0 ? targetWidth : 0 };
+            return { x: targetWidth, y: targetWidth };
         }
 
         /**
@@ -2706,7 +2870,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
             }
             /* 線幅・カラーは角丸の複製より先に掛け、複製にも引き継がせる / Set before the round-corner duplicate so it inherits them */
             var strokedPathItems = frameRectangle ? tablePathItems.concat([frameRectangle]) : tablePathItems.concat(convertedFrameLines);
-            if (settings.matchStrokeWidths && rules) setStrokeWidths(strokedPathItems, getTargetStrokeWidth(settings));
+            if (settings.matchStrokeWidths && rules) setStrokeWidths(strokedPathItems, getTargetStrokeWidth(settings), settings.strokeColor || createBlackColor());
             if (settings.applyStrokeColor && settings.strokeColor && rules) setStrokeColors(strokedPathItems, settings.strokeColor);
 
             /* 角丸は外枠が長方形のときだけ（線4本にしたときは掛けない） / Round corners only when the frame is a rectangle (not after converting it to lines) */
@@ -2739,8 +2903,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
             frameStrokeExtents = { x: getAverageStrokeWidth(rules.frameLines.vertical), y: getAverageStrokeWidth(rules.frameLines.horizontal) };
         }
 
-        /* 合わせるテキストが無ければ等間隔にする / Without texts there is nothing to fit, so space evenly */
+        /* 合わせるテキストが無ければ等間隔にする。テキストから作った表は、テキストに合わせる
+           Without texts there is nothing to fit, so space evenly; a table made from texts fits them */
         var initialSpacingMode = (RULE_SPACING_MODE === "content" && !hasText) ? "even" : RULE_SPACING_MODE;
+        if (autoTablePaths.length) initialSpacingMode = "content";
 
         /* 開いた時点の設定 / Initial settings */
         var initialSettings = {
@@ -2767,6 +2933,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
             centerInCells: CENTER_IN_CELLS,
             justifyCenter: JUSTIFY_CENTER
         };
+
+        if (rules && autoTablePaths.length) {
+            /* テキストから作った表は、列（行）ごとに「テキスト＋両側の余白」の大きさに詰める
+               A table made from texts starts packed: each column (row) is its text plus the padding on both sides */
+            initialSettings.frameWidth = sumNumbers(rules.columnSizes) + rules.columnSizes.length * autoTablePadding * 2;
+            initialSettings.frameHeight = sumNumbers(rules.rowSizes) + rules.rowSizes.length * autoTablePadding * 2;
+        }
 
         if (rules && initialSettings.usePreviewBounds) {
             /* 欄には線を含めた大きさを入れる / The fields show the size including the stroke */
@@ -3112,6 +3285,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
         /* Esc など［OK］以外で閉じたときも元に戻す / Restore however the dialog is closed, unless by OK */
         if (dialogControls.mainDialog.show() !== 1) {
             restoreOriginalState();
+            removePathItems(autoTablePaths);
             app.redraw();
             return;
         }

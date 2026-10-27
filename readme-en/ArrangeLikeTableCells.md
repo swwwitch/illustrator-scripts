@@ -15,6 +15,12 @@ It can also round the frame corners and fill the cells with random gray tints.
 
 ### Features
 
+#### Tables from texts alone
+
+- Run the script with only texts selected (no frame or rules) to work out the columns and rows from their layout and draw a frame rectangle and rules (no fill, 1 pt black stroke)
+- The new table opens with "Fit to text" for both rule spacings, and Width and Height packed to the texts plus a margin of 0.4 times the text size on every side
+- Closing with Cancel or Esc removes the frame and rules that were drawn
+
 #### Size
 
 - "Width" / "Height" change the size of the frame (prefilled with its current size; the frame and rules are scaled from the top-left corner, keeping stroke widths and text sizes)
@@ -66,7 +72,7 @@ It can also round the frame corners and fill the cells with random gray tints.
 
 ### Usage
 
-1. Select the texts together with the outer frame and the rules (the frame and rules alone also work).
+1. Select the texts together with the outer frame and the rules (the frame and rules alone also work). Selecting only texts without any rules draws the frame and rules for them.
 2. Run the script. The dialog opens and the preview is shown.
 3. Set the frame, rule, text and cell options, then confirm with OK.
 
@@ -82,8 +88,9 @@ It can also round the frame corners and fill the cells with random gray tints.
 - Only rules with two anchor points are snapped to the frame. To keep the rule lengths (for example, when the rules are drawn with gaps from the frame), set `MATCH_RULE_LENGTHS` at the top of the script to `false`.
 - "Convert frame to rectangle" is available only when there is no closed path and the frame is drawn with four rules. The rectangle has no fill and takes the stroke color, weight and dashes from the top rule (if the four sides differ in color, the top one is used).
 - "Round corners" is available when the frame is a rectangle (a closed-path frame, or with "Convert frame to rectangle" on). It is applied as an effect, leaving the path shape unchanged. Cell fills are rounded by the same radius at the frame corners only.
-- "Stroke color" and "Adjust stroke weight" only change paths that have a stroke. Max, min and average are taken from the stroke weights of the frame and rules at launch.
+- "Stroke color" only changes paths that have a stroke. "Adjust stroke weight" also adds a stroke to paths without one (in the color of the "Stroke color" swatch). Max, min and average are taken from the stroke weights of the frame and rules at launch.
 - Cell shapes use a K-only CMYK color in CMYK documents and grayscale in RGB documents. With "Random tints", each cell gets a random tint that stays the same while the preview updates. The fills are sent to the back of the layer (or group) holding the backmost selected item. If the frame rectangle has a fill, the cell fills are hidden behind it.
+- With only texts selected, texts whose glyph bounds overlap horizontally form a column and texts that overlap vertically form a row; a rule is drawn in the middle of the gap between neighboring columns (rows). A long text spanning several columns merges them into one. The frame and rules are placed just in front of the frontmost selected item, in its layer (or group). The margin ratio and the stroke weight can be changed with `AUTO_TABLE_PADDING_EM` and `AUTO_TABLE_STROKE_WIDTH_PT` at the top of the script.
 - The initial values can be changed with `RULE_SPACING_MODE`, `CONVERT_FRAME_TO_RECT`, `ROUND_CORNERS`, `CORNER_RADIUS_PT`, `APPLY_STROKE_COLOR`, `MATCH_STROKE_WIDTHS`, `STROKE_WIDTH_MODE`, `CREATE_CELL_SHAPES`, `CELL_FILL_MODE`, `FILL_UNIFORM_TINT`, `GROUP_CELL_FILLS`, `FILL_TINT_MIN`, `FILL_TINT_MAX`, `CENTER_IN_CELLS` and `JUSTIFY_CENTER` at the top of the script.
 
 ### Article
@@ -92,6 +99,7 @@ It can also round the frame corners and fill the cells with random gray tints.
 
 ### Update History
 
+- v1.6.0 (2026-10-27) The script now also runs with only texts selected, without a frame or rules (it works out the columns and rows from their layout, draws a frame rectangle and rules, and opens with the table packed to the texts). "Adjust stroke weight" now also adds a stroke to a frame or rules without one (the weight was not applied to them)
 - v1.5.1 (2026-10-25) "Convert frame to four lines" is now available only for an unrotated rectangle (disabled for diamonds or curved four-point paths, paths inside a compound path, and clipping paths)
 - v1.5.0 (2026-10-25) Added "Convert frame to four lines" (the reverse of "Convert frame to rectangle"; available when the frame is a four-point rectangle)
 - v1.4.3 (2026-10-21) Short rules that stick out of the frame or start partway through a cell are now recognized (a rule whose center lay outside the frame was not treated as a rule, and a rule not reaching the text height did not divide cells)
