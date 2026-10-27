@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.ArrangeLikeTableCells
 Name=ArrangeLikeTableCells
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.7.1
+Version=1.7.2
 Release-Date=2026-10-20
 Description-BEGIN
 外枠と罫線で区切った表で、外枠の大きさ・罫線の間隔・線幅を整え、各テキストをセルの中央に配置します（天地は欧文のベースラインをそろえる）。テキストだけ、または縦罫だけ・横罫だけを選択したときは、足りない外枠と罫線を作ります。
@@ -43,7 +43,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ArrangeLik
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ArrangeLikeTableCells";        /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.7.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.7.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-20";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-27";                   /* 更新日 / last updated */
@@ -1121,6 +1121,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
             cancel: { ja: "キャンセル", en: "Cancel" }
         },
         alert: {
+            areaTextActionFailed: {
+                ja: "エリア内文字の［自動サイズ調整］のオフと、天地中央の設定ができませんでした。",
+                en: "Could not turn off Auto Size or center the area type vertically."
+            },
             noRule: {
                 ja: "セルの枠・罫線が選択されていません。",
                 en: "No cell frame or rules are selected."
@@ -1665,11 +1669,22 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
      * @returns {PathItem} 作った線
      */
     function addLineLike(styleSource, points) {
-        var line = styleSource.parent.pathItems.add();
+        var placementTarget = getPlacementTarget(styleSource);
+        var line = placementTarget.parent.pathItems.add();
         line.setEntirePath(points);
-        line.move(styleSource, ElementPlacement.PLACEBEFORE);
+        line.move(placementTarget, ElementPlacement.PLACEBEFORE);
         copyStrokeStyle(styleSource, line);
         return line;
+    }
+
+    /**
+     * 新しいパスを置く基準のオブジェクトを返す（複合パスの中のパスなら、複合パスそのもの）
+     * （複合パスの中に作ると、その複合パスの一部になってしまうため）
+     * @param {PathItem} pathItem - 基準にしたいパス
+     * @returns {PageItem} この直前に新しいパスを置くオブジェクト
+     */
+    function getPlacementTarget(pathItem) {
+        return pathItem.parent.typename === "CompoundPathItem" ? pathItem.parent : pathItem;
     }
 
     /**
@@ -2115,8 +2130,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
         /* 線の設定は上辺の罫線から引き継ぐ / Take the stroke from the top rule */
         var styleSource = getTopFrameLine(frameLines);
 
-        var frameRect = styleSource.parent.pathItems.rectangle(rectBounds.top, rectBounds.left, rectBounds.width, rectBounds.height);
-        frameRect.move(styleSource, ElementPlacement.PLACEBEFORE);
+        var placementTarget = getPlacementTarget(styleSource);
+        var frameRect = placementTarget.parent.pathItems.rectangle(rectBounds.top, rectBounds.left, rectBounds.width, rectBounds.height);
+        frameRect.move(placementTarget, ElementPlacement.PLACEBEFORE);
         copyStrokeStyle(styleSource, frameRect);
         /* 角が欠けないようにマイター結合にする / Use miter joins so the corners stay square */
         if (frameRect.stroked) frameRect.strokeJoin = StrokeJoin.MITERENDJOIN;
@@ -3690,7 +3706,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
         if (convertedFrameLines.length) rules.outerRect.remove();
         /* エリア内文字にしたテキストの元を削除し、枠をセルに合わせて天地を中央にする / Delete the source texts of the area type, fit it to the cells and center it vertically */
         for (var areaIndex = 0; areaIndex < cellAreaTexts.length; areaIndex++) cellAreaTexts[areaIndex].sourceText.remove();
-        if (cellAreaTexts.length) finishCellAreaTexts(cellAreaTexts);
+        if (cellAreaTexts.length && !finishCellAreaTexts(cellAreaTexts)) alert(getLabel("alert.areaTextActionFailed"));
 
         if (skippedCount) alert(getLabel("alert.skipped", { count: skippedCount }));
     }

@@ -108,6 +108,7 @@ It can also round the frame corners, fill the cells with random gray tints, and 
 
 ### Update History
 
+- v1.7.2 (2026-10-27) "Convert to area type per cell" now warns when Auto Size cannot be turned off or the text cannot be centered vertically. Fixed lines and rectangles made from rules inside a compound path becoming part of that compound path
 - v1.7.1 (2026-10-27) "Convert to area type per cell" now also rebuilds existing area type the size of its cell, converting it to point type first (frames that are not threaded)
 - v1.7.0 (2026-10-27) Added "Convert to area type per cell" to the Cells panel (replaces each text with vertically centered area type the size of its cell). Moved the Text panel to the bottom of the left column. The script now also runs with only vertical (or only horizontal) rules (it adds lines joining their ends to close the frame and opens with "Convert frame to rectangle" on)
 - v1.6.0 (2026-10-27) The script now also runs with only texts selected, without a frame or rules (it works out the columns and rows from their layout, draws a frame rectangle and rules, and opens with the table packed to the texts). "Adjust stroke weight" now also adds a stroke to a frame or rules without one (the weight was not applied to them)
