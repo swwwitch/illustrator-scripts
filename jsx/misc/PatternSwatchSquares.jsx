@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.PatternSwatchSquares
 Name=PatternSwatchSquares
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.1.1
+Version=1.1.2
 Release-Date=2026-10-27
 Description-BEGIN
 長方形を描き、パターンまたはグラデーションのスウォッチを適用します。
@@ -51,7 +51,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PatternSwa
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "PatternSwatchSquares";         /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-27";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-27";                   /* 更新日 / last updated */
@@ -2026,6 +2026,19 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nbf88198f1581"; /* 紹�
     }
 
     /**
+     * ドキュメントの指定した種類のスウォッチを、名前で引ける表にする
+     * @param {Document} doc - 対象のドキュメント
+     * @param {string} colorTypename - 色の typename
+     * @returns {Object} { スウォッチ名: Swatch }
+     */
+    function mapSwatchesByName(doc, colorTypename) {
+        var swatchesByName = {};
+        var matchedSwatches = filterSwatchesByColorType(doc.swatches, colorTypename);
+        for (var i = 0; i < matchedSwatches.length; i++) swatchesByName[matchedSwatches[i].name] = matchedSwatches[i];
+        return swatchesByName;
+    }
+
+    /**
      * @typedef {Object} SwatchEntry
      * @property {string} name - スウォッチ名
      * @property {Color} color - 描く先のドキュメントで使える色
@@ -2034,14 +2047,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nbf88198f1581"; /* 紹�
     /**
      * ライブラリのスウォッチを、描く先のドキュメントに取り込む。
      * パターン・グラデーションは別のドキュメントの色として代入できないので、ライブラリ側で塗った長方形を複製して
-     * スウォッチを持ち込み、複製の塗りの色を控えてから複製を消す。ライブラリは開いていなかったときだけ保存せずに閉じる
+     * スウォッチを持ち込み、複製の塗りの色を控えてから複製を消す。ライブラリは開いていなかったときだけ保存せずに閉じる。
+     * 複製先は、作業中のレイヤーの状態（ロック・テンプレートなど）に左右されないよう、一時的に足したレイヤーにする
      * @param {Document} targetDoc - 描く先のドキュメント
-     * @param {Layer} targetLayer - 複製を一時的に置くレイヤー
      * @param {File} libraryFile - スウォッチライブラリのファイル
      * @param {string} colorTypename - 使うスウォッチの色の typename
      * @returns {SwatchEntry[]} 取り込んだスウォッチ
      */
-    function importLibrarySwatchEntries(targetDoc, targetLayer, libraryFile, colorTypename) {
+    function importLibrarySwatchEntries(targetDoc, libraryFile, colorTypename) {
+        var importLayer = targetDoc.layers.add();
         var openedLibrary = openLibraryDocument(libraryFile);
         var libraryDoc = openedLibrary.doc;
         var swatchEntries = [];
@@ -2052,18 +2066,28 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nbf88198f1581"; /* 紹�
                 /* 作業中のドキュメントがそのライブラリなら、そのまま使う / Use the swatches as is when the document is the library itself */
                 swatchEntries = librarySwatches;
             } else {
+                /* 同じ名前・種類のスウォッチが作業中のドキュメントにあれば、複製せずにそれを使う。
+                   名前が重なるものを複製すると、スウォッチの競合でレイヤーを変更できないエラーになる
+                   Reuse a swatch of the same name and kind in the document; duplicating one that conflicts fails with "Target layer cannot be modified" */
+                var existingSwatches = mapSwatchesByName(targetDoc, colorTypename);
                 var workLayer = libraryDoc.layers.add();
                 for (var i = 0; i < librarySwatches.length; i++) {
+                    var swatchName = librarySwatches[i].name;
+                    if (existingSwatches[swatchName]) {
+                        swatchEntries.push({ name: swatchName, color: existingSwatches[swatchName].color });
+                        continue;
+                    }
                     var carrierSquare = workLayer.pathItems.rectangle(0, 0, 10, 10);
                     carrierSquare.fillColor = librarySwatches[i].color;
-                    var importedSquare = carrierSquare.duplicate(targetLayer, ElementPlacement.PLACEATEND);
-                    swatchEntries.push({ name: librarySwatches[i].name, color: importedSquare.fillColor });
+                    var importedSquare = carrierSquare.duplicate(importLayer, ElementPlacement.PLACEATEND);
+                    swatchEntries.push({ name: swatchName, color: importedSquare.fillColor });
                     importedSquare.remove();
                 }
                 if (openedLibrary.wasAlreadyOpen) workLayer.remove();
             }
         } finally {
             closeLibraryDocument(openedLibrary, targetDoc);
+            importLayer.remove();
         }
         return swatchEntries;
     }
@@ -2128,6 +2152,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nbf88198f1581"; /* 紹�
 
     /* 前回の設定（Illustrator 終了まで） / Last settings (kept until Illustrator quits) */
     var DIALOG_SETTINGS_KEY = "__" + SCRIPT_NAME + "_DialogSettings";
+    /* プレビュー用に読んだライブラリのスウォッチ名（Illustrator 終了まで） / Library swatch names read for the preview (kept until Illustrator quits) */
+    var LIBRARY_NAMES_CACHE_KEY = "__" + SCRIPT_NAME + "_LibrarySwatchNames";
 
     /**
      * @typedef {Object} DialogSettings
@@ -2826,7 +2852,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nbf88198f1581"; /* 紹�
         var targetLayer = null;
         var drawnItems = [];
         var importsByKey = {};   /* ライブラリごとに取り込んだスウォッチ / swatches imported per library */
-        var namesByKey = {};     /* プレビュー用に読んだライブラリごとのスウォッチ名 / swatch names read for the preview */
 
         /**
          * 描く先のレイヤーを返す（初めて描くときに決める）
@@ -2845,20 +2870,25 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nbf88198f1581"; /* 紹�
          */
         function getLibraryEntries(libraryFile, colorTypename) {
             var importKey = libraryFile.fsName + "|" + colorTypename;
-            if (!importsByKey[importKey]) importsByKey[importKey] = importLibrarySwatchEntries(doc, getTargetLayer(), libraryFile, colorTypename);
+            if (!importsByKey[importKey]) importsByKey[importKey] = importLibrarySwatchEntries(doc, libraryFile, colorTypename);
             return importsByKey[importKey];
         }
 
         /**
-         * プレビュー用に、ライブラリのスウォッチ名だけを返す（初めてのときだけライブラリを開いて読む。取り込まない）
+         * プレビュー用に、ライブラリのスウォッチ名だけを返す（取り込まない）。
+         * 読んだ名前は Illustrator の終了まで $.global に控え、次の実行からはライブラリを開かない
          * @param {File} libraryFile - スウォッチライブラリのファイル
          * @param {string} colorTypename - 色の typename
          * @returns {SwatchEntry[]} 色が null の見本
          */
         function getLibraryOutlineEntries(libraryFile, colorTypename) {
-            var namesKey = libraryFile.fsName + "|" + colorTypename;
-            if (!namesByKey[namesKey]) namesByKey[namesKey] = readLibrarySwatchNames(doc, libraryFile, colorTypename);
-            return toOutlineEntries(namesByKey[namesKey]);
+            var namesCache = $.global[LIBRARY_NAMES_CACHE_KEY];
+            if (!namesCache) namesCache = $.global[LIBRARY_NAMES_CACHE_KEY] = {};
+            /* 更新日時を含めて、ライブラリが更新されたら読み直す / Include the modified time so an updated library is read again */
+            var modifiedTime = libraryFile.modified ? libraryFile.modified.getTime() : 0;
+            var namesKey = libraryFile.fsName + "|" + modifiedTime + "|" + colorTypename;
+            if (!namesCache[namesKey]) namesCache[namesKey] = readLibrarySwatchNames(doc, libraryFile, colorTypename);
+            return toOutlineEntries(namesCache[namesKey]);
         }
 
         /**

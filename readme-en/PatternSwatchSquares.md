@@ -61,7 +61,7 @@ Several libraries can be chosen; one block per library is stacked vertically.
 ### Notes
 
 - Library swatches are read by opening the library .ai and closing it without saving, so a window opens briefly. The swatches read are added to the Swatches panel of the current document.
-- Preview reads only the swatch names of the libraries (opening a library the first time it is chosen) and imports no swatches. The swatches are imported and applied only on OK. Cancel removes everything drawn for the preview.
+- Preview reads only the swatch names of the libraries (a library is opened only the first time it is shown after Illustrator starts) and imports no swatches. The swatches are imported and applied only on OK. Cancel removes everything drawn for the preview.
 - When the current layer (or its parent) is locked or hidden, the samples are drawn on a new layer.
 - The names of the classic folders in English versions of Illustrator (Patterns (Classic) and so on) have not been verified.
 - The defaults can be changed at the top of the script: `DEFAULT_SQUARE_WIDTH`, `DEFAULT_SQUARE_HEIGHT`, `DEFAULT_SIZE_LINKED`, `DEFAULT_SQUARE_MARGIN`, `DEFAULT_STROKE_WIDTH`, `DEFAULT_ADD_TITLE`, `DEFAULT_SHOW_SWATCH_NAMES`, `DEFAULT_PREVIEW`; the count per row and the text with `SQUARES_PER_ROW`, `TITLE_FONT_SIZE`, `SWATCH_NAME_FONT_SIZE`, `TEXT_FONT_NAME`.
@@ -72,6 +72,7 @@ Several libraries can be chosen; one block per library is stacked vertically.
 
 ### Update History
 
+- v1.1.2 (2026-10-27) Fixed a "Target layer cannot be modified" error that could occur on OK (a swatch already in the document with the same name is reused; the others are imported through a temporary layer). The swatch names read for the preview are kept until Illustrator quits, so libraries are not opened again on later runs
 - v1.1.1 (2026-10-27) Option-click in the library list checks only that library (again to check all). The checkboxes of kinds not shown are now remembered too. The text uses Metrics kerning with proportional metrics on, and the Tsume-gumi mojikumi set in Japanese versions. Fixed an MRAP error that could occur on OK. Renamed Margin to Spacing and Library Name to Library Name (Document Name)
 - v1.1.0 (2026-10-27) Added a dialog box. Several of Illustrator's bundled swatch libraries (patterns and gradients, each with its classic set) can be checked in the list in the right column (one block per library, stacked vertically). Document swatches can be limited to Selected Swatches or All Swatches and are used regardless of kind. Added Width, Height (linked) and Spacing for the rectangles, Weight and Color for the stroke, Add Text (Library Name (Document Name), Swatch Name) and Preview (Rectangles Only). Fixed the position when the rulers use artboard coordinates
 - v1.0.0 (2026-10-27) Initial release
