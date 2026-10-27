@@ -70,8 +70,9 @@ Option-click *At Specified Characters* or *At Character Count* to run *Merge All
 | Split by Line Breaks (Keep Style) | Same, keeping character formatting and position |
 | Split by Visual Lines | Split area text at each wrapped line |
 | Split by Tabs | Split each paragraph at its tab positions |
-| Keep Style (split by character) | One frame per character, formatting kept |
-| Ignore Style (split by character) | One frame per character, formatting reset |
+| Keep Style (split by character / word) | One frame per character, formatting kept |
+| Ignore Style (split by character / word) | One frame per character, formatting reset |
+| Split by Word | One frame per word (separated by spaces, tabs or line breaks), formatting kept; the spaces between words are removed |
 
 The two line-break splits work differently under the hood. The first duplicates the frame, replaces its contents and positions the copies from the leading value. The second duplicates each paragraph with `TextRange.duplicate` and re-aligns it against the bottom edge (left edge for vertical text) recorded before the split. Use the second one when formatting matters.
 
@@ -81,11 +82,13 @@ The two line-break splits work differently under the hood. The first duplicates 
 
 Character-level splitting duplicates the frame, converts it to outlines, reads the bounding box of each glyph, and fits a new frame to it. If outlining fails it falls back to accumulating character widths. Breaks, tabs and spaces (half- and full-width) never become frames.
 
-Split results are left as separate frames. **Hold Option (Alt) while clicking to collect them into a single group** — this applies to all six split buttons.
+*Split by Word* measures positions the same way and fits each new frame to the combined bounds of the word's glyphs. Words are separated by half- and full-width spaces, tabs and line breaks, and the separators are dropped. Japanese text without spaces becomes one frame per line.
+
+Split results are left as separate frames. **Hold Option (Alt) while clicking to collect them into a single group** — this applies to all seven split buttons.
 
 *Ignore Style* is not a full reset: **the font and size of the first character are kept.** Fill becomes black, baseline shift / rotation / tracking go to 0, and horizontal/vertical scale return to 100%.
 
-With *Merge Area Text* turned on under *Split by Character*, the one-character frames are converted to area type and threaded together in the original character order. Each character stays where it was, but the text flows as one story (each source frame gets its own thread).
+With *Merge Area Text* turned on under *Split by Character / Word*, the split frames are converted to area type and threaded together in the original order. Each piece stays where it was, but the text flows as one story (each source frame gets its own thread).
 
 ### Concatenate
 
@@ -258,6 +261,7 @@ Split and merge results are left ungrouped (Option-click a split button to group
 
 ### Update History
 
+- v1.11.0 (2026-10-27) Renamed *Split by Character* to *Split by Character / Word* and added *Split by Word* (spaces between words are removed)
 - v1.10.3 (2026-10-10) Fixed the palette operating on another Illustrator version when several versions are running
 - v1.10.2 (2026-10-06) Confirmation dialogs for deleting or overwriting now default to No (Enter cancels)
 - v1.10.1 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)

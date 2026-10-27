@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.TextProcessingPalette
 Name=TextProcessingPalette
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.10.3
+Version=1.11.0
 Release-Date=2026-03-18
 Description-BEGIN
 改行・分割・連結・整形に加えて、行の入れ替えや英字のケース変換、かな変換までを1つのパレットに集約し、選択中のテキストへ即時に適用します。
@@ -47,10 +47,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TextProces
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "TextProcessingPalette";        /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.10.3";                      /* バージョン / version */
+var SCRIPT_VERSION  = "v1.11.0";                      /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-03-18";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-10";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-27";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TextProcessingPalette.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TextProcessingPalette.md"; /* README (English) */
@@ -910,7 +910,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf6f34559ba46"; /* 紹�
             convertBreak: { ja: "切り換え", en: "Convert" },
             splitGroup: { ja: "分割", en: "Split" },
             splitByBreak: { ja: "改行で分割", en: "Split by Line Breaks" },
-            splitByChar: { ja: "文字で分割", en: "Split by Character" },
+            splitByChar: { ja: "文字・単語で分割", en: "Split by Character / Word" },
             sort: { ja: "ソート", en: "Sort" },
             lineEdit: { ja: "編集", en: "Edit" },
             lineDelete: { ja: "行削除", en: "Delete Lines" },
@@ -947,6 +947,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf6f34559ba46"; /* 紹�
             splitByTab: { ja: "タブで分割", en: "Split by Tabs" },
             splitKeepStyle: { ja: "書式を保持", en: "Keep Style" },
             splitIgnoreStyle: { ja: "書式を無視", en: "Ignore Style" },
+            splitByWord: { ja: "単語で分割", en: "Split by Word" },
             concatV: { ja: "縦方向に連結", en: "Vertical" },
             concatHOnly: { ja: "横連結（行維持）", en: "Merge Horizontally (Keep Rows)" },
             concatH: { ja: "横連結（行統合）", en: "Merge Horizontally (Merge Rows)" },
@@ -1053,9 +1054,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf6f34559ba46"; /* 紹�
                 ja: "1文字ずつ別フレームに分割し、書式をリセットします",
                 en: "Split into one frame per character, resetting formatting"
             },
+            splitByWord: {
+                ja: "スペース・タブ・改行で区切った単語ごとに別フレームに分割し、書式を保持します（単語間のスペースは削除）",
+                en: "Split into one frame per word (separated by spaces, tabs or line breaks), keeping formatting; the spaces between words are removed"
+            },
             mergeAreaText: {
-                ja: "分割した文字をエリア内文字にして、元の文字順にスレッドでつなげます",
-                en: "Converts the split characters to area type and threads them in the original order"
+                ja: "分割した文字・単語をエリア内文字にして、元の順にスレッドでつなげます",
+                en: "Converts the split characters or words to area type and threads them in the original order"
             },
             trimSpaces: {
                 ja: "各行の行頭・行末のスペースを削除します",
@@ -2790,18 +2795,140 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf6f34559ba46"; /* 紹�
             return splitByChar(objects, false, mergeAreaText);
         }
 
-        /* 1文字分割の共通処理。keepStyle=false のときは先頭フォント以外の書式をリセットしてから分割。
-           mergeAreaText=true のときは元のフレームごとにエリア内文字へ変換してスレッドでつなぐ */
+        /* 1文字分割の共通処理。keepStyle=false のときは先頭フォント以外の書式をリセットしてから分割 */
         function splitByChar(objects, keepStyle, mergeAreaText) {
+            return splitEachFrame(objects, function (textFrame) {
+                if (!keepStyle) stripStyleKeepFirstFont(textFrame);
+                return splitCharHighPrecision(textFrame, keepStyle);
+            }, mergeAreaText);
+        }
+
+        /* =========================================
+         * 単語ごとにテキストフレームを分割（書式保持）
+         * スペース・タブ・改行で区切った並びを1語とし、区切りの文字は捨てる
+         * ========================================= */
+        function splitByWord(objects, mergeAreaText) {
+            return splitEachFrame(objects, splitWordHighPrecision, mergeAreaText);
+        }
+
+        /* フレームごとに splitFrame で分割して結果をまとめる。
+           mergeAreaText=true のときは元のフレームごとにエリア内文字へ変換してスレッドでつなぐ */
+        function splitEachFrame(objects, splitFrame, mergeAreaText) {
             var frames = getTextFrames(objects);
             var resultFrames = [];
             for (var i = 0; i < frames.length; i++) {
-                if (!keepStyle) stripStyleKeepFirstFont(frames[i]);
-                var made = splitCharHighPrecision(frames[i], keepStyle);
+                var made = splitFrame(frames[i]);
                 if (mergeAreaText) made = threadAreaTextFrames(convertTextFramesToAreaText(made));
                 for (var j = 0; j < made.length; j++) resultFrames.push(made[j]);
             }
             return resultFrames;
+        }
+
+        /* 区切り（スペース・タブ・改行）を除いた語の範囲を返す。
+           start / end は contents 上の位置（end は含まない）、glyphStart はアウトラインのグリフ番号 */
+        function collectWordRanges(txt) {
+            var text = String(txt || "");
+            var ranges = [];
+            var currentRange = null;
+            var glyphIndex = 0;
+            for (var i = 0; i < text.length; i++) {
+                if (isNonSplittableChar(text.charAt(i))) {
+                    currentRange = null;
+                    continue;
+                }
+                if (currentRange) currentRange.end = i + 1;
+                else {
+                    currentRange = { start: i, end: i + 1, glyphStart: glyphIndex };
+                    ranges.push(currentRange);
+                }
+                glyphIndex++;
+            }
+            return ranges;
+        }
+
+        /* boundsList の start から count 個を合わせた範囲を返す */
+        function unionBoundsRange(boundsList, start, count) {
+            var first = boundsList[start];
+            var merged = [first[0], first[1], first[2], first[3]];
+            for (var i = start + 1; i < start + count; i++) {
+                var bounds = boundsList[i];
+                if (bounds[0] < merged[0]) merged[0] = bounds[0];
+                if (bounds[1] > merged[1]) merged[1] = bounds[1];
+                if (bounds[2] > merged[2]) merged[2] = bounds[2];
+                if (bounds[3] < merged[3]) merged[3] = bounds[3];
+            }
+            return merged;
+        }
+
+        /* 単語ごとに別フレームへ分割する（書式は1文字ずつ写す）。
+           位置はアウトライン化したグリフの範囲に合わせ、グリフ数が文字数と合わなければ文字幅の積算で並べる */
+        function splitWordHighPrecision(textFrame) {
+            if (!textFrame || textFrame.typename !== "TextFrame") return [];
+
+            var txt, chars, targetLayer;
+            try {
+                txt = String(textFrame.contents || "");
+                chars = textFrame.textRange.characters;
+                targetLayer = textFrame.layer;
+            } catch (e) { debugLog("splitWordHighPrecision: read frame", e); return []; }
+
+            var wordRanges = collectWordRanges(txt);
+            if (wordRanges.length === 0) return [];
+
+            var outlineInfo = null;
+            try { outlineInfo = buildOutlineCharBounds(textFrame); } catch (e) { debugLog("splitWordHighPrecision: outline bounds", e); }
+            if (outlineInfo && outlineInfo.outlinedRoot) removeItems([outlineInfo.outlinedRoot]);
+            var boundsList = (outlineInfo && outlineInfo.ok && countSplittableChars(txt) === outlineInfo.boundsList.length)
+                ? outlineInfo.boundsList : null;
+
+            /* フォールバック：回転しているフレームでも並びが崩れないよう、回転角に沿ってオフセットを掛ける */
+            var offsetsX = null;
+            var angleRad = 0;
+            if (!boundsList) {
+                debugLog("splitWordHighPrecision: glyph count mismatch");
+                offsetsX = measureCharOffsetsX(textFrame, targetLayer);
+                try { angleRad = Math.atan2(textFrame.matrix.mValueB, textFrame.matrix.mValueA); } catch (e) { }
+            }
+
+            var madeFrames = [];
+            for (var i = 0; i < wordRanges.length; i++) {
+                var range = wordRanges[i];
+                var newFrame = null;
+                try {
+                    newFrame = targetLayer.textFrames.add();
+                    newFrame.contents = txt.substring(range.start, range.end);
+                } catch (e) {
+                    debugLog("splitWordHighPrecision: add frame", e);
+                    removeItems([newFrame]);
+                    continue;
+                }
+
+                /* 書式と変形の引き継ぎは失敗しても続行する */
+                var newChars = newFrame.textRange.characters;
+                for (var k = range.start; k < range.end; k++) {
+                    try { copyCharacterAttributes(newChars[k - range.start], chars[k]); } catch (e) { }
+                }
+                try {
+                    newFrame.matrix = textFrame.matrix;
+                    newFrame.left = textFrame.left;
+                    newFrame.top = textFrame.top;
+                } catch (e) { debugLog("splitWordHighPrecision: copy transform", e); }
+
+                try {
+                    if (boundsList) {
+                        moveFrameToMatchBounds(newFrame, unionBoundsRange(boundsList, range.glyphStart, range.end - range.start));
+                    } else {
+                        var offsetX = offsetsX[range.start] || 0;
+                        newFrame.left = textFrame.left + offsetX * Math.cos(angleRad);
+                        newFrame.top = textFrame.top - offsetX * Math.sin(angleRad);
+                    }
+                } catch (e) { debugLog("splitWordHighPrecision: place frame", e); }
+
+                madeFrames.push(newFrame);
+            }
+
+            removeItems([textFrame]);
+            return madeFrames;
         }
 
         /* エリア内文字かを返す（種類が読めなければ false）*/
@@ -2830,7 +2957,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf6f34559ba46"; /* 紹�
                 }
 
                 safeSet(areaFrame, "contents", sourceFrame.contents);
-                copyCharacterAttributes(areaFrame, sourceFrame.textRange);
+                copyCharacterAttributes(areaFrame.textRange, sourceFrame.textRange);
                 removeItems([sourceFrame]);
                 return areaFrame;
             } catch (e) {
@@ -3009,7 +3136,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf6f34559ba46"; /* 紹�
 
                 /* 書式と変形の引き継ぎは失敗しても続行する */
                 try {
-                    if (keepStyle) copyCharacterAttributes(newFrame, charItem);
+                    if (keepStyle) copyCharacterAttributes(newFrame.textRange, charItem);
                     else copyBaseFontAttributes(newFrame, textFrame);
                     newFrame.matrix = textFrame.matrix;
                     newFrame.left = textFrame.left;
@@ -3144,12 +3271,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf6f34559ba46"; /* 紹�
             return (rowThreshold < 2) ? 2 : rowThreshold;
         }
 
-        /* 1文字分の文字属性を新しいフレームへコピーする */
-        function copyCharacterAttributes(dstFrame, srcChar) {
+        /* 1文字分の文字属性を新しいテキスト範囲へコピーする */
+        function copyCharacterAttributes(dstRange, srcChar) {
             var srcAttrs, dstAttrs;
             try {
                 srcAttrs = srcChar.characterAttributes;
-                dstAttrs = dstFrame.textRange.characterAttributes;
+                dstAttrs = dstRange.characterAttributes;
             } catch (e) { debugLog("copyCharacterAttributes: read attributes", e); return; }
 
             var copiedProps = ["textFont", "size", "horizontalScale", "verticalScale",
@@ -3263,7 +3390,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf6f34559ba46"; /* 紹�
 
                     var newFrame = targetLayer.textFrames.add();
                     newFrame.contents = content;
-                    if (keepStyle) copyCharacterAttributes(newFrame, charItem);
+                    if (keepStyle) copyCharacterAttributes(newFrame.textRange, charItem);
                     else copyBaseFontAttributes(newFrame, textFrame);
                     try { newFrame.matrix = textFrame.matrix; } catch (e) { debugLog("splitCharFallback: matrix", e); }
 
@@ -3556,6 +3683,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf6f34559ba46"; /* 紹�
             collectVisualLines, splitByVisualLine,
             trimTrailingBreaks, getTailAxis, splitFrameKeepStyle, splitByLineBreakKeepStyle,
             splitByCharKeepStyle, splitByCharIgnoreStyle, splitByChar, stripStyleKeepFirstFont, splitCharHighPrecision,
+            splitByWord, splitEachFrame, collectWordRanges, unionBoundsRange, splitWordHighPrecision,
             isAreaTextSafely, rebuildAsAreaText, convertTextFramesToAreaText, threadAreaTextFrames,
             buildOutlineCharBounds, sortOutlineItems, estimateCharRowThreshold, copyCharacterAttributes,
             copyBaseFontAttributes, moveFrameToMatchBounds, measureCharOffsetsX, splitCharFallback,
@@ -3667,6 +3795,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf6f34559ba46"; /* 紹�
                 case "splitByTab": return applySplitGrouping(splitByTab(targets), params.group);
                 case "splitByCharKeepStyle": return applySplitGrouping(splitByCharKeepStyle(targets, params.mergeAreaText), params.group);
                 case "splitByCharIgnoreStyle": return applySplitGrouping(splitByCharIgnoreStyle(targets, params.mergeAreaText), params.group);
+                case "splitByWord": return applySplitGrouping(splitByWord(targets, params.mergeAreaText), params.group);
                 case "concatVertical": return concatVertical(targets);
                 case "concatHorizontalOnly": return concatHorizontalOnly(targets);
                 case "concatH": return concatHorizontal(targets, detectTextFrameType(targets));
@@ -4204,7 +4333,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf6f34559ba46"; /* 紹�
                 executeAction("splitByTab", { group: isAltPressed() });
             };
 
-            /* 1文字ずつ分割 */
+            /* 1文字ずつ・単語ごとに分割 */
             var panelSplitByChar = addPanel(panelSplitGroup, getLabel(LABELS.panel.splitByChar));
 
             var btnSplitKeepStyle = panelSplitByChar.add("button", undefined, getLabel(LABELS.button.splitKeepStyle));
@@ -4217,6 +4346,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf6f34559ba46"; /* 紹�
             btnSplitIgnoreStyle.helpTip = getSplitTooltip(LABELS.tooltip.splitIgnoreStyle);
             btnSplitIgnoreStyle.onClick = function () {
                 executeAction("splitByCharIgnoreStyle", { group: isAltPressed(), mergeAreaText: chkMergeAreaText.value });
+            };
+
+            var btnSplitByWord = panelSplitByChar.add("button", undefined, getLabel(LABELS.button.splitByWord));
+            btnSplitByWord.helpTip = getSplitTooltip(LABELS.tooltip.splitByWord);
+            btnSplitByWord.onClick = function () {
+                executeAction("splitByWord", { group: isAltPressed(), mergeAreaText: chkMergeAreaText.value });
             };
 
             var chkMergeAreaText = panelSplitByChar.add("checkbox", undefined, getLabel(LABELS.checkbox.mergeAreaText));
