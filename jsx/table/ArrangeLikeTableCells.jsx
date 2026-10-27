@@ -8,12 +8,12 @@ Script-ID=com.swwwitch.illustrator.ArrangeLikeTableCells
 Name=ArrangeLikeTableCells
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.7.0
+Version=1.7.1
 Release-Date=2026-10-20
 Description-BEGIN
-外枠と罫線で区切った表で、外枠の大きさ・罫線の間隔・線幅を整え、各テキストをセルの中央に配置します（天地は欧文のベースラインをそろえる）。テキストだけを選択したときは、テキストの並びから外枠と罫線を作ります。
+外枠と罫線で区切った表で、外枠の大きさ・罫線の間隔・線幅を整え、各テキストをセルの中央に配置します（天地は欧文のベースラインをそろえる）。テキストだけ、または縦罫だけ・横罫だけを選択したときは、足りない外枠と罫線を作ります。
 
-In a table drawn with an outer frame and rules, adjusts the frame size, the rule spacing and the stroke weights, then centers each text in its cell, keeping Latin baselines aligned. With only texts selected, it draws the frame and rules from their layout.
+In a table drawn with an outer frame and rules, adjusts the frame size, the rule spacing and the stroke weights, then centers each text in its cell, keeping Latin baselines aligned. With only texts, or only vertical or horizontal rules, selected, it draws the missing frame and rules.
 Description-END
 SCRIPTMETA-END
 */
@@ -22,7 +22,7 @@ SCRIPTMETA-END
 
 ### 概要
 
-外枠と罫線で区切った表で、外枠の大きさ・罫線の間隔・線幅を整え、各テキストをセルの中央に配置します（天地は欧文のベースラインをそろえる）。テキストだけを選択したときは、テキストの並びから外枠と罫線を作ります。
+外枠と罫線で区切った表で、外枠の大きさ・罫線の間隔・線幅を整え、各テキストをセルの中央に配置します（天地は欧文のベースラインをそろえる）。テキストだけ、または縦罫だけ・横罫だけを選択したときは、足りない外枠と罫線を作ります。
 
 詳細は README を参照してください。
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ArrangeLikeTableCells.md
@@ -32,7 +32,7 @@ https://note.com/dtp_tranist/n/n22aa0e767930
 
 ### Overview
 
-In a table drawn with an outer frame and rules, adjusts the frame size, the rule spacing and the stroke weights, then centers each text in its cell, keeping Latin baselines aligned. With only texts selected, it draws the frame and rules from their layout.
+In a table drawn with an outer frame and rules, adjusts the frame size, the rule spacing and the stroke weights, then centers each text in its cell, keeping Latin baselines aligned. With only texts, or only vertical or horizontal rules, selected, it draws the missing frame and rules.
 
 See the README for details.
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ArrangeLikeTableCells.md
@@ -43,7 +43,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ArrangeLik
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ArrangeLikeTableCells";        /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.7.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.7.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-20";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-27";                   /* 更新日 / last updated */
@@ -1070,8 +1070,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
                 en: "Sets the stroke weight to the given value."
             },
             convertToAreaText: {
-                ja: "各テキストを、セルと同じ大きさのエリア内文字にします（左右は中央揃え、天地は［テキストの配置］を中央）。横組みのポイント文字だけが対象です。",
-                en: "Turns each text into area type the size of its cell (centered horizontally, with the vertical alignment set to Center). Only horizontal point type is converted."
+                ja: "各テキストを、セルと同じ大きさのエリア内文字にします（左右は中央揃え、天地は［テキストの配置］を中央）。横組みのポイント文字とエリア内文字が対象です。",
+                en: "Turns each text into area type the size of its cell (centered horizontally, with the vertical alignment set to Center). Applies to horizontal point type and area type."
             },
             groupFills: {
                 ja: "セルの図形を1つのグループにまとめます。オフにすると、図形を1つずつ最背面に置きます。",
@@ -2154,12 +2154,19 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
     function canConvertFrameToLines(outerRect) {
         if (!outerRect || outerRect.pathPoints.length !== 4) return false;
         if (outerRect.clipping || outerRect.parent.typename === "CompoundPathItem") return false;
+        return isUprightRectangle(outerRect.pathPoints, outerRect.geometricBounds);
+    }
 
-        /* アンカーがすべて外接矩形の角にあり、ハンドルが出ていないこと（ひし形や曲線は除く）
-           Every anchor must sit on a corner of the bounds with no handles (rules out diamonds and curves) */
-        var geometricBounds = outerRect.geometricBounds;
-        for (var i = 0; i < outerRect.pathPoints.length; i++) {
-            var pathPoint = outerRect.pathPoints[i];
+    /**
+     * 4点のアンカーがすべて外接矩形の角にあり、ハンドルが出ていないか（傾いていない長方形か。ひし形や曲線は除く）
+     * @param {PathPoints} pathPoints - パスのアンカーポイント（4点）
+     * @param {number[]} geometricBounds - パスの外接矩形 [左, 上, 右, 下]
+     * @returns {boolean} 傾いていない長方形なら true
+     */
+    function isUprightRectangle(pathPoints, geometricBounds) {
+        if (pathPoints.length !== 4) return false;
+        for (var i = 0; i < pathPoints.length; i++) {
+            var pathPoint = pathPoints[i];
             var anchor = pathPoint.anchor;
             var isOnCornerX = Math.abs(anchor[0] - geometricBounds[0]) <= TOLERANCE || Math.abs(anchor[0] - geometricBounds[2]) <= TOLERANCE;
             var isOnCornerY = Math.abs(anchor[1] - geometricBounds[1]) <= TOLERANCE || Math.abs(anchor[1] - geometricBounds[3]) <= TOLERANCE;
@@ -2552,7 +2559,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
     }
 
     /**
-     * セルのある横組みのポイント文字を、セルと同じ大きさのエリア内文字に置き換える（元のテキストは隠し、［OK］で削除する）
+     * セルのある横組みのテキストを、セルと同じ大きさのエリア内文字に置き換える（元のテキストは隠し、［OK］で削除する）。
+     * エリア内文字は、いったんポイント文字にしてからエリア内文字に作り直す
      * @param {Object[]} textCells - collectTextCells() の戻り値
      * @param {{vertical: Object[], horizontal: Object[]}} positionMap - adjustRuleSpacing() の戻り値
      * @param {{vertical: Object, horizontal: Object}} frameScale - 外枠の伸縮（mapPosition() に渡す）
@@ -2565,9 +2573,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
             var textCell = textCells[i];
             var sourceText = textCell.textFrame;
             if (!textCell.column || !textCell.row) continue;
-            if (sourceText.kind !== TextType.POINTTEXT || sourceText.orientation !== TextOrientation.HORIZONTAL) continue;
+            if (sourceText.orientation !== TextOrientation.HORIZONTAL) continue;
+            var isPointText = sourceText.kind === TextType.POINTTEXT;
+            if (!isPointText && !isUnthreadedAreaText(sourceText)) continue;
             var cellBounds = getMappedCellBounds(textCell, positionMap, frameScale);
-            var areaText = createAreaTextInCell(sourceText, cellBounds, !isFinal);
+            /* エリア内文字は、いったんポイント文字にした複製から作り直す / Area type is rebuilt from a point-type duplicate */
+            var pointText = isPointText ? sourceText : convertAreaTextToPointText(sourceText);
+            var areaText = createAreaTextInCell(pointText, cellBounds, !isFinal);
+            if (!isPointText) pointText.remove();
             /* duplicate() は hidden を引き継ぐので、複製してから隠す / duplicate() inherits hidden, so hide after duplicating */
             sourceText.hidden = true;
             cellAreaTexts.push({ areaText: areaText, sourceText: sourceText, cellBounds: cellBounds });
@@ -2601,6 +2614,32 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
             areaText.firstBaselineMin = Math.max(cellBounds.top - baselineY, 0);
         }
         return areaText;
+    }
+
+    /**
+     * スレッドでつながっていないエリア内文字か
+     * @param {TextFrame} textFrame - 対象のテキスト
+     * @returns {boolean} 1つの枠だけのエリア内文字なら true
+     */
+    function isUnthreadedAreaText(textFrame) {
+        return textFrame.kind === TextType.AREATEXT && textFrame.story.textFrames.length === 1;
+    }
+
+    /**
+     * エリア内文字の複製をポイント文字に変換して返す（元のエリア内文字は変えない）
+     * @param {TextFrame} areaText - 元のエリア内文字
+     * @returns {TextFrame} 変換したポイント文字（使い終わったら呼び出し側で削除する）
+     */
+    function convertAreaTextToPointText(areaText) {
+        /* convertAreaObjectToPointObject() は null を返し、参照も置き換わるので、一時グループの中で変換して拾う
+           convertAreaObjectToPointObject() returns null and replaces the reference, so convert inside a temporary group and pick it up */
+        var holderGroup = areaText.parent.groupItems.add();
+        holderGroup.move(areaText, ElementPlacement.PLACEBEFORE);
+        areaText.duplicate(holderGroup, ElementPlacement.PLACEATEND).convertAreaObjectToPointObject();
+        var pointText = holderGroup.textFrames[0];
+        pointText.move(holderGroup, ElementPlacement.PLACEBEFORE);
+        holderGroup.remove();
+        return pointText;
     }
 
     /**
