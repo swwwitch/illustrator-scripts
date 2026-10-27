@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.PatternFill
 Name=TileInsideShape
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.6.0
+Version=1.7.0
 Release-Date=2025-10-26
 Description-BEGIN
 2つのオブジェクトを選択し、小さい方を大きい方の形の内側に、等間隔の格子状に複製して敷き詰めます。
@@ -47,7 +47,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TileInside
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "TileInsideShape";              /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.6.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.7.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-10-26";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-27";                   /* 更新日 / last updated */
@@ -72,12 +72,51 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne393f59cbb77"; /* 紹�
     var DEFAULT_BRICK = true;
     var DEFAULT_SYMBOLIZE = true;
 
+    /* ［大きいオブジェクト］の初期値（"opacity" 不透明度 / "remove" 削除 / "guide" ガイド化）
+       Initial choice for the larger object: "opacity", "remove" or "guide" */
+    var DEFAULT_CONTAINER_ACTION = "opacity";
+
     /* プレビューの不透明度（%）/ Opacity of the preview (%) */
     var PREVIEW_OPACITY = 60;
 
     /* 敷き詰めたタイルを入れるグループ名（プレビューは名前で探して消す）/ Group names; previews are found and removed by name */
     var GRID_GROUP_NAME = 'TiledGrid';
     var PREVIEW_GROUP_NAME = 'TiledGrid_preview';
+
+    // =========================================
+    // セッション記憶 / Session memory
+    // =========================================
+
+    /* ［OK］で確定した設定を Illustrator の終了まで覚えるキー（間隔・オフセットは pt で控える）
+       Key for the settings confirmed with OK, kept until Illustrator quits (spacing and offset in pt) */
+    var LAST_SETTINGS_KEY = "__" + SCRIPT_NAME + "_LastSettings";
+
+    /**
+     * 前回［OK］で確定した設定を返す
+     * @returns {{scale: number, gap: number, offset: number, shiftX: number, shiftY: number, isBrick: boolean, symbolize: boolean, containerAction: string, containerOpacity: number}|null} 設定。まだ無ければ null
+     */
+    function loadLastSettings() {
+        return $.global[LAST_SETTINGS_KEY] || null;
+    }
+
+    /**
+     * ［OK］で確定した設定を控える
+     * @param {{scale: number, gap: number, offset: number, shiftX: number, shiftY: number, isBrick: boolean, symbolize: boolean, containerAction: string, containerOpacity: number}} fillSettings - 設定（スケールは%、ほかは pt）
+     * @returns {void}
+     */
+    function saveLastSettings(fillSettings) {
+        $.global[LAST_SETTINGS_KEY] = {
+            scale: fillSettings.scale,
+            gap: fillSettings.gap,
+            offset: fillSettings.offset,
+            shiftX: fillSettings.shiftX,
+            shiftY: fillSettings.shiftY,
+            isBrick: fillSettings.isBrick,
+            symbolize: fillSettings.symbolize,
+            containerAction: fillSettings.containerAction,
+            containerOpacity: fillSettings.containerOpacity
+        };
+    }
 
     // =========================================
     // レイアウト / Layout
@@ -167,6 +206,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne393f59cbb77"; /* 紹�
     var FIELD_CHARACTERS = 4;     /* 数値入力欄の桁数 / Width of the number fields in characters */
     var LENGTH_FIELD_CHARACTERS = 6; /* 単位付きの数値入力欄（スケール・間隔・オフセット）の桁数 / Width of the fields that show a unit */
     var PERCENT_UNIT = ' %';         /* スケールの欄の中に付ける単位 / Unit shown inside the scale field */
+    var SHIFT_ROW_BOTTOM_MARGIN = 5; /* ［調整Y］の行の下の余白 / Bottom margin under the Adjust Y row */
 
     /**
      * 右揃えの項目名と入力欄を並べる行を作る
@@ -1038,12 +1078,22 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne393f59cbb77"; /* 紹�
     /* 日英ラベル定義 / Japanese-English label definitions */
     var LABELS = {
         dialog: {
-            title: { ja: "敷き詰め設定", en: "Tile Fill Settings" }
+            title: { ja: "形の内側に敷き詰め", en: "Tile Inside Shape" }
         },
         fieldLabel: {
             scale: { ja: "スケール", en: "Scale" },
             spacing: { ja: "間隔", en: "Spacing" },
-            offset: { ja: "オフセット", en: "Offset" }
+            offset: { ja: "オフセット", en: "Offset" },
+            shiftX: { ja: "調整X", en: "Adjust X" },
+            shiftY: { ja: "調整Y", en: "Adjust Y" }
+        },
+        panel: {
+            containerAction: { ja: "大きいオブジェクト", en: "Larger Object" }
+        },
+        radio: {
+            opacityContainer: { ja: "不透明度", en: "Opacity" },
+            removeContainer: { ja: "削除", en: "Delete" },
+            guideContainer: { ja: "ガイド化", en: "Make Guides" }
         },
         checkbox: {
             brick: { ja: "レンガ状", en: "Brick pattern" },
@@ -1055,12 +1105,20 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne393f59cbb77"; /* 紹�
                 en: "Size of the placed tiles, scaled with the aspect ratio kept."
             },
             spacing: {
-                ja: "隣り合うタイルのアキです。縦横とも同じ値になります。",
-                en: "Space between neighbouring tiles, applied both horizontally and vertically."
+                ja: "隣り合うタイルの間隔です。縦横とも同じ値になります。",
+                en: "Space between neighboring tiles, applied both horizontally and vertically."
             },
             offset: {
-                ja: "大きいオブジェクトのパスをこの量だけオフセットした形に収めます。負の値で内側に縮め、正の値でははみ出しを許します。",
-                en: "Fits the tiles inside the larger object's path offset by this amount. Negative values shrink it; positive values let tiles stick out."
+                ja: "大きいオブジェクトの形をこの量だけオフセットした内側に収めます。負の値で内側に縮め、正の値でははみ出しを許します。",
+                en: "Fits the tiles inside the larger object's shape offset by this amount. Negative values shrink it; positive values let tiles stick out."
+            },
+            shiftX: {
+                ja: "敷き詰める位置を右へずらします。負の値で左へずらします。",
+                en: "Shifts the tiles to the right. Negative values shift them to the left."
+            },
+            shiftY: {
+                ja: "敷き詰める位置を下へずらします。負の値で上へずらします。",
+                en: "Shifts the tiles down. Negative values shift them up."
             },
             brick: {
                 ja: "1行おきに半個分ずらして、レンガのように並べます。",
@@ -1069,6 +1127,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne393f59cbb77"; /* 紹�
             symbolize: {
                 ja: "タイルをシンボルとして複製します。あとからまとめて差し替えられます。",
                 en: "Duplicates the tile as a symbol, so every copy can be swapped later at once."
+            },
+            opacityContainer: {
+                ja: "敷き詰めたあと、大きいオブジェクトの不透明度をこの値にします。100% なら何も変えません。",
+                en: "Sets the larger object's opacity to this value after tiling. At 100% it is left unchanged."
+            },
+            removeContainer: {
+                ja: "敷き詰めたあと、大きいオブジェクトを削除します。",
+                en: "Deletes the larger object after tiling."
+            },
+            guideContainer: {
+                ja: "敷き詰めたあと、大きいオブジェクトをガイドに変換します。",
+                en: "Converts the larger object into guides after tiling."
             },
             stepUp: {
                 ja: "値を増やす（shift＋クリックで10の倍数へ、option＋クリックで0.1ずつ）",
@@ -1080,6 +1150,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne393f59cbb77"; /* 紹�
             },
             stepUpInteger: { ja: "値を増やす（shift＋クリックで10の倍数へ）", en: "Increase (Shift-click to snap to 10s)" },
             stepDownInteger: { ja: "値を減らす（shift＋クリックで10の倍数へ）", en: "Decrease (Shift-click to snap to 10s)" }
+        },
+        alert: {
+            noDocument: { ja: "ドキュメントが開いていません。", en: "No document is open." },
+            selectTwo: {
+                ja: "大きいオブジェクトと小さいオブジェクトを1つずつ選択してください。",
+                en: "Select one larger object and one smaller object."
+            },
+            emptyTile: { ja: "小さいオブジェクトの幅か高さが0です。", en: "The smaller object has no width or height." }
         },
         button: {
             ok: { ja: "OK", en: "OK" },
@@ -1112,35 +1190,58 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne393f59cbb77"; /* 紹�
     }
 
     /**
-     * 容器の外接矩形を覆う列数と行数を決める
+     * 容器の外接矩形を覆うグリッドの起点と列数・行数を決める。
+     * 位置をずらしたときや範囲を広げたときは、左上に隙間ができないよう起点を1マス単位で手前に戻す
      * @param {Object} containerInfo - 容器の境界情報
      * @param {number} stepX - 横の送り（pt）
      * @param {number} stepY - 縦の送り（pt）
      * @param {boolean} isBrick - レンガ状に並べるか
-     * @returns {{columns: number, rows: number}} 列数と行数
+     * @param {number} shiftX - 右へずらす量（pt）
+     * @param {number} shiftY - 下へずらす量（pt）
+     * @param {number} expandBy - 覆う範囲を上下左右に広げる量（pt。正のオフセット）
+     * @returns {{left: number, top: number, columns: number, rows: number, rowParity: number}} 起点・列数・行数と、レンガ状の行の偶奇の補正
      */
-    function computeGridSize(containerInfo, stepX, stepY, isBrick) {
+    function computeGridLayout(containerInfo, stepX, stepY, isBrick, shiftX, shiftY, expandBy) {
+        /* 覆う範囲（正のオフセットの分だけ上下左右に広げる）/ Area to cover, grown on every side by a positive offset */
+        var coverLeft = containerInfo.left - expandBy;
+        var coverTop = containerInfo.top + expandBy;
+        var coverRight = containerInfo.right + expandBy;
+        var coverBottom = containerInfo.bottom - expandBy;
+
+        /* ずらす量は並びの周期で割った余りにする（レンガ状の縦は2行で1周期）/ Reduce the shift to one period of the pattern (two rows for brick) */
+        var periodY = isBrick ? stepY * 2 : stepY;
+        var anchorLeft = containerInfo.left + ((shiftX % stepX) + stepX) % stepX;
+        var anchorTop = containerInfo.top - ((shiftY % periodY) + periodY) % periodY;
+
+        /* 起点を1マス単位で戻して、覆う範囲の左上に隙間を作らない / Step the origin back whole cells so the top-left of the area is covered */
+        var prependColumns = Math.max(0, Math.ceil((anchorLeft - coverLeft) / stepX));
+        var prependRows = Math.max(0, Math.ceil((coverTop - anchorTop) / stepY));
+        var gridLeft = anchorLeft - prependColumns * stepX;
+        var gridTop = anchorTop + prependRows * stepY;
         return {
-            columns: Math.max(1, Math.ceil((containerInfo.width + (isBrick ? stepX * 0.5 : 0)) / stepX)),
-            rows: Math.max(1, Math.ceil(containerInfo.height / stepY))
+            left: gridLeft,
+            top: gridTop,
+            columns: Math.max(1, Math.ceil((coverRight - gridLeft + (isBrick ? stepX * 0.5 : 0)) / stepX)),
+            rows: Math.max(1, Math.ceil((gridTop - coverBottom) / stepY)),
+            rowParity: prependRows % 2 /* 起点の行を偶数行にそろえる / keep the anchor row as an even (unshifted) row */
         };
     }
 
     /**
      * グリッドの各マスの左上座標を、行ごとに左から順に渡す（レンガ状なら奇数行を半個ずらす）
-     * @param {Object} containerInfo - 容器の境界情報
+     * @param {Object} gridLayout - computeGridLayout() の結果
      * @param {number} stepX - 横の送り（pt）
      * @param {number} stepY - 縦の送り（pt）
-     * @param {{columns: number, rows: number}} gridSize - 列数と行数
      * @param {boolean} isBrick - レンガ状に並べるか
      * @param {Function} visitCell - (xLeft, yTop) を受け取る関数
      * @returns {void}
      */
-    function forEachGridCell(containerInfo, stepX, stepY, gridSize, isBrick, visitCell) {
-        for (var rowIndex = 0; rowIndex < gridSize.rows; rowIndex++) {
-            var yTop = containerInfo.top - rowIndex * stepY;
-            for (var columnIndex = 0; columnIndex < gridSize.columns; columnIndex++) {
-                var xLeft = containerInfo.left + columnIndex * stepX + ((isBrick && (rowIndex % 2 === 1)) ? stepX * 0.5 : 0);
+    function forEachGridCell(gridLayout, stepX, stepY, isBrick, visitCell) {
+        for (var rowIndex = 0; rowIndex < gridLayout.rows; rowIndex++) {
+            var yTop = gridLayout.top - rowIndex * stepY;
+            var isShiftedRow = isBrick && ((rowIndex + gridLayout.rowParity) % 2 === 1);
+            for (var columnIndex = 0; columnIndex < gridLayout.columns; columnIndex++) {
+                var xLeft = gridLayout.left + columnIndex * stepX + (isShiftedRow ? stepX * 0.5 : 0);
                 visitCell(xLeft, yTop);
             }
         }
@@ -1184,28 +1285,89 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne393f59cbb77"; /* 紹�
     }
 
     /**
-     * 容器の輪郭を折れ線の辺に分け、判定用にまとめる。
-     * パスと複合パスは形そのもの、それ以外（グループ・テキストなど）は外接矩形を輪郭にする
-     * @param {PageItem} container - 容器
-     * @param {Object} containerInfo - 容器の境界情報
-     * @param {number} offsetPt - オフセット（pt。負で内側、正で外側）
-     * @returns {{edges: Object[], offset: number}} 輪郭の辺（端点と外接矩形）とオフセット
+     * オブジェクトの輪郭を折れ線の頂点列にして配列に足す。
+     * パスと複合パスは形そのもの、テキストは複製をアウトライン化した字形、
+     * それ以外（配置画像など）は外接矩形を輪郭にする
+     * @param {PageItem} pageItem - 対象オブジェクト
+     * @param {number[][][]} outlines - 輪郭を足していく配列
+     * @returns {number[][][]} outlines（輪郭ごとの頂点の [x, y] の配列）
      */
-    function buildContainerShape(container, containerInfo, offsetPt) {
-        var outlines = [];
-        if (container.typename === 'PathItem') {
-            outlines.push(flattenPath(container));
-        } else if (container.typename === 'CompoundPathItem') {
-            for (var i = 0; i < container.pathItems.length; i++) outlines.push(flattenPath(container.pathItems[i]));
+    function appendItemOutlines(pageItem, outlines) {
+        if (pageItem.typename === 'PathItem') {
+            outlines.push(flattenPath(pageItem));
+        } else if (pageItem.typename === 'CompoundPathItem') {
+            for (var i = 0; i < pageItem.pathItems.length; i++) outlines.push(flattenPath(pageItem.pathItems[i]));
+        } else if (pageItem.typename === 'TextFrame') {
+            var textOutlines = getTextOutlines(pageItem);
+            for (var j = 0; j < textOutlines.length; j++) outlines.push(textOutlines[j]);
         } else {
+            var itemInfo = getBoundsInfo(pageItem);
             outlines.push([
-                [containerInfo.left, containerInfo.top],
-                [containerInfo.right, containerInfo.top],
-                [containerInfo.right, containerInfo.bottom],
-                [containerInfo.left, containerInfo.bottom]
+                [itemInfo.left, itemInfo.top],
+                [itemInfo.right, itemInfo.top],
+                [itemInfo.right, itemInfo.bottom],
+                [itemInfo.left, itemInfo.bottom]
             ]);
         }
+        return outlines;
+    }
 
+    /**
+     * テキストの複製をアウトライン化し、字形の輪郭を返す（アウトライン化したものは削除する）
+     * @param {TextFrame} textFrame - 対象のテキスト
+     * @returns {number[][][]} 輪郭ごとの頂点の [x, y] の配列
+     */
+    function getTextOutlines(textFrame) {
+        /* createOutline() は複製を消費し、アウトラインのグループだけが残る。失敗したら複製を片付けて形なしとする
+           createOutline() consumes the duplicate; on failure remove the duplicate and treat it as having no shape */
+        var textCopy = textFrame.duplicate();
+        var outlineGroup;
+        try {
+            outlineGroup = textCopy.createOutline();
+        } catch (e) {
+            try { textCopy.remove(); } catch (removeError) {}
+            return [];
+        }
+        var outlines = [];
+        try {
+            var glyphParts = collectContainerParts(outlineGroup, []);
+            for (var i = 0; i < glyphParts.length; i++) appendItemOutlines(glyphParts[i], outlines);
+        } finally {
+            outlineGroup.remove();
+        }
+        return outlines;
+    }
+
+    /**
+     * 容器を形の単位に分ける。グループは構成するオブジェクトごと（入れ子も展開）、
+     * クリップグループはクリッピングパスだけを形にする。非表示のものは除く
+     * @param {PageItem} container - 容器
+     * @param {PageItem[]} parts - 見つけたオブジェクトを足していく配列
+     * @returns {PageItem[]} parts（形として扱うオブジェクトの配列）
+     */
+    function collectContainerParts(container, parts) {
+        if (container.typename !== 'GroupItem') {
+            parts.push(container);
+            return parts;
+        }
+        var groupMembers = container.pageItems;
+        /* クリップグループはマスクだけ。マスクは先頭（テキストのマスクには clipping が無い）/ Only the mask; it is the first member (text masks have no clipping flag) */
+        if (container.clipped && groupMembers.length) {
+            parts.push(groupMembers[0]);
+            return parts;
+        }
+        for (var i = 0; i < groupMembers.length; i++) {
+            if (!groupMembers[i].hidden) collectContainerParts(groupMembers[i], parts);
+        }
+        return parts;
+    }
+
+    /**
+     * 頂点列を判定用の辺に変換する
+     * @param {number[][][]} outlines - 輪郭ごとの頂点の [x, y] の配列
+     * @returns {Object[]} 辺（端点と外接矩形）の配列
+     */
+    function outlinesToEdges(outlines) {
         var edges = [];
         for (var k = 0; k < outlines.length; k++) {
             var vertices = outlines[k];
@@ -1220,8 +1382,48 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne393f59cbb77"; /* 紹�
                 });
             }
         }
-        return { edges: edges, offset: offsetPt || 0 };
+        return edges;
     }
+
+    /**
+     * 容器の輪郭を、形ごとに折れ線の辺に分けて判定用にまとめる
+     * @param {PageItem} container - 容器
+     * @param {number} offsetPt - オフセット（pt。負で内側、正で外側）
+     * @returns {{parts: Object[], offset: number}} 形ごとの辺と外接矩形（makeShapePart() の結果）とオフセット
+     */
+    function buildContainerShape(container, offsetPt) {
+        /* 形はオフセットに関係しないので、同じ容器なら作り直さない（テキストのアウトライン化を繰り返さない）
+           The outline does not depend on the offset, so reuse it for the same container (avoids re-outlining text) */
+        if (containerPartsCache.container !== container) {
+            var containerParts = collectContainerParts(container, []);
+            var parts = [];
+            for (var i = 0; i < containerParts.length; i++) {
+                var edges = outlinesToEdges(appendItemOutlines(containerParts[i], []));
+                if (edges.length) parts.push(makeShapePart(edges));
+            }
+            containerPartsCache = { container: container, parts: parts };
+        }
+        return { parts: containerPartsCache.parts, offset: offsetPt || 0 };
+    }
+
+    /**
+     * 形の辺に外接矩形を添える（タイルと重ならない形を先に除くため）
+     * @param {Object[]} edges - 辺（端点と外接矩形）の配列
+     * @returns {{edges: Object[], minX: number, maxX: number, minY: number, maxY: number}} 辺と外接矩形
+     */
+    function makeShapePart(edges) {
+        var shapePart = { edges: edges, minX: edges[0].minX, maxX: edges[0].maxX, minY: edges[0].minY, maxY: edges[0].maxY };
+        for (var i = 1; i < edges.length; i++) {
+            if (edges[i].minX < shapePart.minX) shapePart.minX = edges[i].minX;
+            if (edges[i].maxX > shapePart.maxX) shapePart.maxX = edges[i].maxX;
+            if (edges[i].minY < shapePart.minY) shapePart.minY = edges[i].minY;
+            if (edges[i].maxY > shapePart.maxY) shapePart.maxY = edges[i].maxY;
+        }
+        return shapePart;
+    }
+
+    /* buildContainerShape() で作った形の控え（実行ごとに main() で空にする）/ Shape cache, cleared by main() on every run */
+    var containerPartsCache = { container: null, parts: [] };
 
     /**
      * 点が輪郭の内側にあるか判定する（偶奇規則。複合パスの穴は外側になる）
@@ -1325,18 +1527,33 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne393f59cbb77"; /* 紹�
     }
 
     /**
-     * タイルが、容器のパスをオフセットした形の内側に収まっているか判定する。
-     * 負のオフセットはタイルの外接矩形と輪郭の距離で測り、正のオフセットは外接矩形をその分縮めて判定する
+     * タイルが、容器のどれか1つの形をオフセットした内側に収まっているか判定する
      * @param {Object} tileBounds - タイルの境界情報
      * @param {Object} containerShape - buildContainerShape() の結果
      * @returns {boolean} 残すなら true
      */
     function isTileInside(tileBounds, containerShape) {
-        var edges = containerShape.edges;
-        if (!edges.length) return false;
+        for (var i = 0; i < containerShape.parts.length; i++) {
+            var shapePart = containerShape.parts[i];
+            /* 外接矩形が重ならない形は調べない / Skip shapes whose bounding box does not overlap the tile */
+            if (tileBounds.right < shapePart.minX || tileBounds.left > shapePart.maxX ||
+                tileBounds.top < shapePart.minY || tileBounds.bottom > shapePart.maxY) continue;
+            if (isTileInsidePart(tileBounds, shapePart.edges, containerShape.offset)) return true;
+        }
+        return false;
+    }
 
+    /**
+     * タイルが、1つの形をオフセットした内側に収まっているか判定する。
+     * 負のオフセットはタイルの外接矩形と輪郭の距離で測り、正のオフセットは外接矩形をその分縮めて判定する
+     * @param {Object} tileBounds - タイルの境界情報
+     * @param {Object[]} edges - 形の辺（端点と外接矩形）
+     * @param {number} offsetPt - オフセット（pt。負で内側、正で外側）
+     * @returns {boolean} 収まっていれば true
+     */
+    function isTileInsidePart(tileBounds, edges, offsetPt) {
         /* はみ出しを許す分だけ縮める。潰れたときはタイルの中心で判定 / Shrink by the allowed overhang; a collapsed box becomes the tile center */
-        var shrinkBy = Math.max(0, containerShape.offset) + EDGE_TOLERANCE;
+        var shrinkBy = Math.max(0, offsetPt) + EDGE_TOLERANCE;
         var rect = {
             left: tileBounds.left + shrinkBy,
             right: tileBounds.right - shrinkBy,
@@ -1352,7 +1569,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne393f59cbb77"; /* 紹�
             !isPointInsideOutline(rect.right, rect.bottom, edges)) return false;
 
         /* 内側へのオフセットは輪郭から空ける距離になる / An inward offset is the clearance from the outline */
-        var clearance = Math.max(0, -containerShape.offset - EDGE_TOLERANCE);
+        var clearance = Math.max(0, -offsetPt - EDGE_TOLERANCE);
         for (var i = 0; i < edges.length; i++) {
             if (clearance > 0 ? isEdgeCloserThan(edges[i], rect, clearance) : isEdgeTouchingRect(edges[i], rect)) return false;
         }
@@ -1360,16 +1577,32 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne393f59cbb77"; /* 紹�
     }
 
     /**
-     * グループ内のタイルのうち、容器に収まらないものを削除する（マスクは使わない）
-     * @param {GroupItem} tileGroup - タイルを入れたグループ
-     * @param {Object} containerShape - buildContainerShape() の結果
-     * @returns {void}
+     * 置いたタイルの表示上の境界を、左上の位置からの差分で測る（見本を1つ置いて測り、すぐ削除する）
+     * @param {PageItem} sampleTile - 測るために作った複製（測ったあと削除する）
+     * @param {number} scalePercent - スケール（%）
+     * @returns {{left: number, top: number, right: number, bottom: number}} 位置 (0, 0) に置いたときの境界
      */
-    function trimTilesOutside(tileGroup, containerShape) {
-        for (var i = tileGroup.pageItems.length - 1; i >= 0; i--) {
-            var gridItem = tileGroup.pageItems[i];
-            if (!isTileInside(getBoundsInfo(gridItem), containerShape)) gridItem.remove();
-        }
+    function measurePlacedTile(sampleTile, scalePercent) {
+        scaleAndPlaceTile(sampleTile, scalePercent, 0, 0);
+        var sampleBounds = getBoundsInfo(sampleTile);
+        sampleTile.remove();
+        return sampleBounds;
+    }
+
+    /**
+     * 左上の位置に置いたときのタイルの境界を返す
+     * @param {Object} tileOffsets - measurePlacedTile() の結果
+     * @param {number} xLeft - 左端の X 座標
+     * @param {number} yTop - 上端の Y 座標
+     * @returns {{left: number, top: number, right: number, bottom: number}} 境界
+     */
+    function getPlacedTileBounds(tileOffsets, xLeft, yTop) {
+        return {
+            left: xLeft + tileOffsets.left,
+            top: yTop + tileOffsets.top,
+            right: xLeft + tileOffsets.right,
+            bottom: yTop + tileOffsets.bottom
+        };
     }
 
     // ボタン行（再利用パーツ） / Button row (reusable)
@@ -1453,7 +1686,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne393f59cbb77"; /* 紹�
      * 敷き詰め設定のダイアログを表示する
      * @param {number} tileWidthPt - タイルの幅（pt）。間隔の初期値に使う
      * @param {Function} onPreview - 入力が変わるたびに設定（pt 換算済み）を受け取る関数
-     * @returns {{scale: number, gap: number, offset: number, isBrick: boolean, symbolize: boolean}|null} 設定（スケールは%、ほかは pt）。キャンセル時は null
+     * @returns {{scale: number, gap: number, offset: number, shiftX: number, shiftY: number, isBrick: boolean, symbolize: boolean, containerAction: string, containerOpacity: number}|null} 設定（スケールは%、ほかは pt）。キャンセル時は null
      */
     function showFillDialog(tileWidthPt, onPreview) {
         /* ダイアログのタイトルはラベル＋バージョン / Dialog title = label + version */
@@ -1466,32 +1699,55 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne393f59cbb77"; /* 紹�
         /* 間隔・オフセットの欄の中に付ける単位（「10 mm」の形）/ Unit shown inside the spacing and offset fields */
         var lengthUnit = ' ' + rulerUnit.label;
 
+        /* 前回の設定があれば初期値にする（間隔・オフセットは今の単位に換算）
+           Start from the last settings if any (spacing and offset converted to the current unit) */
+        var lastSettings = loadLastSettings();
+        var initialScale = lastSettings ? lastSettings.scale : 100;
+        var initialGap = lastSettings
+            ? formatStepperNumber(lastSettings.gap / rulerUnit.pointsPerUnit)
+            : Math.round(tileWidthPt / rulerUnit.pointsPerUnit * DEFAULT_GAP_RATIO);
+        var initialOffset = lastSettings ? formatStepperNumber(lastSettings.offset / rulerUnit.pointsPerUnit) : 0;
+        var initialShiftX = (lastSettings && lastSettings.shiftX) ? formatStepperNumber(lastSettings.shiftX / rulerUnit.pointsPerUnit) : 0;
+        var initialShiftY = (lastSettings && lastSettings.shiftY) ? formatStepperNumber(lastSettings.shiftY / rulerUnit.pointsPerUnit) : 0;
+
         /* スケール（縦横比は固定）/ Scale (aspect ratio kept) */
         var scaleRow = addFieldRow(fillDialog, 'fieldLabel.scale');
-        var scaleField = addNumberField(scaleRow, '100' + PERCENT_UNIT, 'tooltip.scale',
+        var scaleField = addNumberField(scaleRow, formatStepperNumber(initialScale) + PERCENT_UNIT, 'tooltip.scale',
             { min: 1, unit: PERCENT_UNIT, onStep: updatePreviewFromFields });
         scaleField.characters = LENGTH_FIELD_CHARACTERS;
 
         /* 間隔 / Spacing */
         var spacingRow = addFieldRow(fillDialog, 'fieldLabel.spacing');
-        var defaultGapValue = Math.round(tileWidthPt / rulerUnit.pointsPerUnit * DEFAULT_GAP_RATIO);
-        var gapField = addNumberField(spacingRow, defaultGapValue + lengthUnit, 'tooltip.spacing',
+        var gapField = addNumberField(spacingRow, initialGap + lengthUnit, 'tooltip.spacing',
             { min: 0, unit: lengthUnit, onStep: updatePreviewFromFields });
         gapField.characters = LENGTH_FIELD_CHARACTERS;
         gapField.active = true;
 
         /* オフセット（負で内側、正で外側）/ Offset (negative inward, positive outward) */
         var offsetRow = addFieldRow(fillDialog, 'fieldLabel.offset');
-        var offsetField = addNumberField(offsetRow, '0' + lengthUnit, 'tooltip.offset', { unit: lengthUnit, onStep: updatePreviewFromFields });
+        var offsetField = addNumberField(offsetRow, initialOffset + lengthUnit, 'tooltip.offset', { unit: lengthUnit, onStep: updatePreviewFromFields });
         offsetField.characters = LENGTH_FIELD_CHARACTERS;
 
+        /* 調整X・Y（敷き詰める位置を少しずらす）/ Adjust X and Y: nudge the tile positions */
+        var shiftXRow = addFieldRow(fillDialog, 'fieldLabel.shiftX');
+        var shiftXField = addNumberField(shiftXRow, initialShiftX + lengthUnit, 'tooltip.shiftX', { unit: lengthUnit, onStep: updatePreviewFromFields });
+        shiftXField.characters = LENGTH_FIELD_CHARACTERS;
+        var shiftYRow = addFieldRow(fillDialog, 'fieldLabel.shiftY');
+        shiftYRow.margins = [0, 0, 0, SHIFT_ROW_BOTTOM_MARGIN];
+        var shiftYField = addNumberField(shiftYRow, initialShiftY + lengthUnit, 'tooltip.shiftY', { unit: lengthUnit, onStep: updatePreviewFromFields });
+        shiftYField.characters = LENGTH_FIELD_CHARACTERS;
+
         /* チェックボックスの状態は変数に控える（表示前の value は読み戻せない）/ Track checkbox state; value cannot be read back before show() */
-        var isBrickOn = DEFAULT_BRICK;
-        var isSymbolizeOn = DEFAULT_SYMBOLIZE;
+        var isBrickOn = lastSettings ? lastSettings.isBrick : DEFAULT_BRICK;
+        var isSymbolizeOn = lastSettings ? lastSettings.symbolize : DEFAULT_SYMBOLIZE;
+        var containerAction = (lastSettings && lastSettings.containerAction) || DEFAULT_CONTAINER_ACTION;
+        /* 以前の「何もしない」（keep）などは初期値に戻す / Fall back for choices that no longer exist, such as the old "keep" */
+        if (!/^(opacity|remove|guide)$/.test(containerAction)) containerAction = DEFAULT_CONTAINER_ACTION;
+        var initialContainerOpacity = (lastSettings && lastSettings.containerOpacity !== undefined) ? lastSettings.containerOpacity : 100;
 
         /**
          * 入力欄の値を pt に換算して読む
-         * @returns {{scale: number, gap: number, offset: number, isBrick: boolean, symbolize: boolean}} 設定（スケールは%、ほかは pt）
+         * @returns {{scale: number, gap: number, offset: number, shiftX: number, shiftY: number, isBrick: boolean, symbolize: boolean, containerAction: string, containerOpacity: number}} 設定（スケールは%、ほかは pt）
          */
         function readFillSettings() {
             var pointsPerUnit = getUnitInfo("rulerType").pointsPerUnit;
@@ -1500,13 +1756,29 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne393f59cbb77"; /* 紹�
             var gapValue = Math.max(0, parseFloat(gapField.text) || 0);
             var offsetValue = parseFloat(offsetField.text);
             if (isNaN(offsetValue)) offsetValue = 0;
+            var shiftXValue = parseFloat(shiftXField.text) || 0;
+            var shiftYValue = parseFloat(shiftYField.text) || 0;
             return {
                 scale: scaleValue,
                 gap: gapValue * pointsPerUnit,
                 offset: offsetValue * pointsPerUnit,
+                shiftX: shiftXValue * pointsPerUnit,
+                shiftY: shiftYValue * pointsPerUnit,
                 isBrick: isBrickOn,
-                symbolize: isSymbolizeOn
+                symbolize: isSymbolizeOn,
+                containerAction: containerAction,
+                containerOpacity: readContainerOpacity()
             };
+        }
+
+        /**
+         * ［不透明度］の欄を 0〜100 の数値で読む
+         * @returns {number} 不透明度（%）
+         */
+        function readContainerOpacity() {
+            var opacityValue = parseFloat(opacityField.text);
+            if (isNaN(opacityValue)) return 100;
+            return Math.max(0, Math.min(100, opacityValue));
         }
 
         /**
@@ -1519,7 +1791,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne393f59cbb77"; /* 紹�
         scaleField.onChanging = updatePreviewFromFields;
         gapField.onChanging = updatePreviewFromFields;
         offsetField.onChanging = updatePreviewFromFields;
-        updatePreviewFromFields();
+        shiftXField.onChanging = updatePreviewFromFields;
+        shiftYField.onChanging = updatePreviewFromFields;
 
         /* レンガ状・シンボル化は中央にまとめる / Brick pattern and Symbolize sit centered */
         var optionRow = fillDialog.add('group');
@@ -1545,6 +1818,59 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne393f59cbb77"; /* 紹�
         symbolizeCheckbox.value = isSymbolizeOn;
         symbolizeCheckbox.onClick = function () { isSymbolizeOn = symbolizeCheckbox.value; };
 
+        /* 大きいオブジェクト（敷き詰めたあとの大きいオブジェクトの扱い）/ What to do with the larger object after tiling */
+        var containerActionPanel = fillDialog.add('panel', undefined, getLabel('panel.containerAction'));
+        setupPanel(containerActionPanel, 6);
+        /* ラジオは行ごとに別のグループに入るので、排他は手で切り替える / Radios sit in separate rows, so exclusivity is handled by hand */
+        var containerActionRadios = [];
+
+        /**
+         * ［大きいオブジェクト］のラジオボタンを1つ足す
+         * @param {Group|Panel} parent - 追加先
+         * @param {string} action - "opacity" / "remove" / "guide"
+         * @param {string} labelPath - ラベルのパス
+         * @param {string} tooltipPath - helpTip のラベルのパス
+         * @returns {RadioButton} 追加したラジオボタン
+         */
+        function addContainerActionRadio(parent, action, labelPath, tooltipPath) {
+            var actionRadio = parent.add('radiobutton', undefined, getLabel(labelPath));
+            actionRadio.helpTip = getLabel(tooltipPath);
+            actionRadio.value = (containerAction === action);
+            actionRadio.onClick = function () {
+                containerAction = action;
+                for (var i = 0; i < containerActionRadios.length; i++) {
+                    containerActionRadios[i].value = (containerActionRadios[i] === actionRadio);
+                }
+                updateOpacityFieldEnabled();
+            };
+            containerActionRadios.push(actionRadio);
+            return actionRadio;
+        }
+
+        /* 不透明度（下げるだけ。100% なら何もしない）/ Opacity; at 100% nothing changes */
+        var opacityRow = containerActionPanel.add('group');
+        setupRow(opacityRow, ['left', 'center']);
+        addContainerActionRadio(opacityRow, 'opacity', 'radio.opacityContainer', 'tooltip.opacityContainer');
+        var opacityField = addNumberField(opacityRow, formatStepperNumber(initialContainerOpacity) + PERCENT_UNIT, 'tooltip.opacityContainer',
+            { min: 0, max: 100, unit: PERCENT_UNIT });
+        opacityField.characters = LENGTH_FIELD_CHARACTERS;
+        addContainerActionRadio(containerActionPanel, 'remove', 'radio.removeContainer', 'tooltip.removeContainer');
+        addContainerActionRadio(containerActionPanel, 'guide', 'radio.guideContainer', 'tooltip.guideContainer');
+
+        /**
+         * ［不透明度］を選んでいるときだけ入力欄を使えるようにする
+         * @returns {void}
+         */
+        function updateOpacityFieldEnabled() {
+            var opacityFieldGroup = opacityField.parent;
+            opacityFieldGroup.enabled = (containerAction === 'opacity');
+            redrawSteppersIn(opacityFieldGroup);
+        }
+        updateOpacityFieldEnabled();
+
+        /* 欄がすべてそろってから最初のプレビューを描く / Draw the first preview once every field exists */
+        updatePreviewFromFields();
+
         /* ボタン / Buttons */
         var buttonRow = addButtonRow(fillDialog);
         var btnCancel = buttonRow.rightGroup.add('button', undefined, getLabel('button.cancel'), { name: 'cancel' });
@@ -1554,8 +1880,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne393f59cbb77"; /* 紹�
         prepareDialogWindow(fillDialog, SCRIPT_NAME);
         if (fillDialog.show() !== 1) return null;
 
-        /* OKで確定値をptに変換 / Convert to pt on OK */
-        return readFillSettings();
+        /* OKで確定値をptに変換し、次回のために控える / Convert to pt on OK and keep it for the next run */
+        var confirmedSettings = readFillSettings();
+        saveLastSettings(confirmedSettings);
+        return confirmedSettings;
     }
 
     // =========================================
@@ -1567,14 +1895,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne393f59cbb77"; /* 紹�
      * @returns {void}
      */
     function main() {
+        containerPartsCache = { container: null, parts: [] };
         var doc = app.documents.length ? app.activeDocument : null;
         if (!doc) {
-            alert('ドキュメントが開いていません / No active document.');
+            alert(getLabel('alert.noDocument'));
             return;
         }
 
         if (!doc.selection || doc.selection.length !== 2) {
-            alert('ちょうど2つを選択してください。/ Please select exactly two objects.');
+            alert(getLabel('alert.selectTwo'));
             return;
         }
 
@@ -1593,7 +1922,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne393f59cbb77"; /* 紹�
         };
 
         if (fillTarget.tileInfo.width <= 0 || fillTarget.tileInfo.height <= 0) {
-            alert('タイルのサイズが不正です / Invalid tile size.');
+            alert(getLabel('alert.emptyTile'));
             return;
         }
 
@@ -1607,6 +1936,54 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne393f59cbb77"; /* 紹�
         }
 
         placeTileGrid(doc, fillTarget, fillSettings);
+        applyContainerAction(doc, fillTarget.container, fillSettings);
+    }
+
+    /**
+     * 敷き詰めたあと、大きいオブジェクトの不透明度を変える・削除する・ガイド化する
+     * @param {Document} doc - 対象ドキュメント
+     * @param {PageItem} container - 大きいオブジェクト
+     * @param {Object} fillSettings - showFillDialog() の結果（containerAction は "opacity" / "remove" / "guide"）
+     * @returns {void}
+     */
+    function applyContainerAction(doc, container, fillSettings) {
+        var containerAction = fillSettings.containerAction;
+        if (containerAction === 'opacity') {
+            if (fillSettings.containerOpacity < 100) container.opacity = fillSettings.containerOpacity;
+        } else if (containerAction === 'remove') {
+            container.remove();
+        } else if (containerAction === 'guide') {
+            /* メニューコマンド makeGuide は yeKB で失敗するので DOM で変換する / makeGuide fails with yeKB, so convert through the DOM */
+            convertToGuides(container);
+            doc.selection = null;
+        }
+    }
+
+    /**
+     * パスをガイドに変換する。グループは中まで（クリップグループはマスクを解除して）、
+     * 複合パスは構成するパスを外に出してから、テキストはアウトライン化してから変換する。
+     * 画像・シンボルなどガイドにできないものはそのまま残す
+     * @param {PageItem} pageItem - 対象オブジェクト
+     * @returns {void}
+     */
+    function convertToGuides(pageItem) {
+        if (pageItem.typename === 'PathItem') {
+            if (pageItem.clipping) pageItem.clipping = false; /* クリッピングパスのままではガイドにできない / a clipping path cannot become a guide */
+            pageItem.guides = true;
+        } else if (pageItem.typename === 'CompoundPathItem') {
+            for (var i = pageItem.pathItems.length - 1; i >= 0; i--) {
+                var memberPath = pageItem.pathItems[i];
+                memberPath.move(pageItem, ElementPlacement.PLACEBEFORE);
+                convertToGuides(memberPath);
+            }
+            pageItem.remove();
+        } else if (pageItem.typename === 'TextFrame') {
+            /* テキストはアウトライン化してからガイドにする / Outline text first */
+            convertToGuides(pageItem.createOutline());
+        } else if (pageItem.typename === 'GroupItem') {
+            if (pageItem.clipped) pageItem.clipped = false;
+            for (var j = pageItem.pageItems.length - 1; j >= 0; j--) convertToGuides(pageItem.pageItems[j]);
+        }
     }
 
     /**
@@ -1651,21 +2028,21 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne393f59cbb77"; /* 紹�
         var stepX = fillTarget.tileInfo.width * previewSettings.scale / 100 + previewSettings.gap;
         var stepY = fillTarget.tileInfo.height * previewSettings.scale / 100 + previewSettings.gap;
         if (stepX <= 0 || stepY <= 0) return;
-        var gridSize = computeGridSize(fillTarget.containerInfo, stepX, stepY, isBrick);
+        var gridLayout = computeGridLayout(fillTarget.containerInfo, stepX, stepY, isBrick, previewSettings.shiftX, previewSettings.shiftY, Math.max(0, previewSettings.offset));
 
         var previewGroup = fillTarget.container.layer.groupItems.add();
         previewGroup.name = PREVIEW_GROUP_NAME;
         fillTarget.previewGroup = previewGroup;
 
-        var containerShape = buildContainerShape(fillTarget.container, fillTarget.containerInfo, previewSettings.offset);
+        var containerShape = buildContainerShape(fillTarget.container, previewSettings.offset);
+        var tileOffsets = measurePlacedTile(fillTarget.tile.duplicate(previewGroup, ElementPlacement.PLACEATBEGINNING), previewSettings.scale);
 
-        forEachGridCell(fillTarget.containerInfo, stepX, stepY, gridSize, isBrick, function(xLeft, yTop) {
+        /* 収まるマスにだけ複製する（複製してから消すより速い）/ Duplicate only into cells that fit; faster than duplicating and removing */
+        forEachGridCell(gridLayout, stepX, stepY, isBrick, function(xLeft, yTop) {
+            if (!isTileInside(getPlacedTileBounds(tileOffsets, xLeft, yTop), containerShape)) return;
             var tileCopy = fillTarget.tile.duplicate(previewGroup, ElementPlacement.PLACEATBEGINNING);
             scaleAndPlaceTile(tileCopy, previewSettings.scale, xLeft, yTop);
         });
-
-        /* プレビューもトリム / Trim preview too */
-        trimTilesOutside(previewGroup, containerShape);
 
         try {
             previewGroup.opacity = PREVIEW_OPACITY;
@@ -1705,7 +2082,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne393f59cbb77"; /* 紹�
     }
 
     /**
-     * 確定した設定でタイルを敷き詰め、容器からはみ出すものを削除する
+     * 確定した設定で、容器に収まるマスにだけタイルを敷き詰める
      * @param {Document} doc - 対象ドキュメント
      * @param {Object} fillTarget - 容器・タイルの参照
      * @param {Object} fillSettings - showFillDialog() の結果（スケールは%、ほかは pt）
@@ -1722,7 +2099,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne393f59cbb77"; /* 紹�
         /* 配置数を計算 / Compute counts */
         var stepX = tileInfo.width * fillSettings.scale / 100 + fillSettings.gap;
         var stepY = tileInfo.height * fillSettings.scale / 100 + fillSettings.gap;
-        var gridSize = computeGridSize(containerInfo, stepX, stepY, fillSettings.isBrick);
+        var gridLayout = computeGridLayout(containerInfo, stepX, stepY, fillSettings.isBrick, fillSettings.shiftX, fillSettings.shiftY, Math.max(0, fillSettings.offset));
 
         app.userInteractionLevel = UserInteractionLevel.DONTDISPLAYALERTS;
         app.redraw();
@@ -1731,22 +2108,27 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne393f59cbb77"; /* 紹�
         var gridGroup = fillTarget.container.layer.groupItems.add();
         gridGroup.name = GRID_GROUP_NAME;
 
-        /* 敷き詰め実行 / Duplicate and place in grid */
-        forEachGridCell(containerInfo, stepX, stepY, gridSize, fillSettings.isBrick, function(xLeft, yTop) {
+        /**
+         * タイルを1つ複製してグリッドのグループに入れる（シンボル化するならシンボルのインスタンス）
+         * @returns {PageItem} 複製したタイル
+         */
+        function addTileCopy() {
+            if (!symbolDefinition) return tile.duplicate(gridGroup, ElementPlacement.PLACEATBEGINNING);
+            var symbolCopy = doc.symbolItems.add(symbolDefinition);
+            symbolCopy.move(gridGroup, ElementPlacement.PLACEATBEGINNING);
+            return symbolCopy;
+        }
+
+        var containerShape = buildContainerShape(fillTarget.container, fillSettings.offset);
+        var tileOffsets = measurePlacedTile(addTileCopy(), fillSettings.scale);
+
+        /* 収まるマスにだけ複製する（マスクは使わない）/ Duplicate only into cells that fit; no mask */
+        forEachGridCell(gridLayout, stepX, stepY, fillSettings.isBrick, function(xLeft, yTop) {
             /* 等倍で元タイルと同じ場所はスキップ / Skip the original tile's own spot at 100% */
             if (fillSettings.scale === 100 && Math.abs(xLeft - tileInfo.left) < 0.01 && Math.abs(yTop - tileInfo.top) < 0.01) return;
-            var tileCopy;
-            if (fillSettings.symbolize && symbolDefinition) {
-                tileCopy = doc.symbolItems.add(symbolDefinition);
-                tileCopy.move(gridGroup, ElementPlacement.PLACEATBEGINNING);
-            } else {
-                tileCopy = tile.duplicate(gridGroup, ElementPlacement.PLACEATBEGINNING);
-            }
-            scaleAndPlaceTile(tileCopy, fillSettings.scale, xLeft, yTop);
+            if (!isTileInside(getPlacedTileBounds(tileOffsets, xLeft, yTop), containerShape)) return;
+            scaleAndPlaceTile(addTileCopy(), fillSettings.scale, xLeft, yTop);
         });
-
-        /* マスクなしトリム / Trim without mask */
-        trimTilesOutside(gridGroup, buildContainerShape(fillTarget.container, containerInfo, fillSettings.offset));
 
         app.userInteractionLevel = UserInteractionLevel.DISPLAYALERTS;
         app.redraw();
@@ -1757,10 +2139,29 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne393f59cbb77"; /* 紹�
      * @returns {void}
      */
     function runMainWithErrorAlert() {
+        /* 実行中は境界線を隠し、終わったら（キャンセル・エラーでも）切り替え直す
+           Hide edges while running and toggle them back afterwards, even on cancel or error */
+        var isEdgeToggled = toggleEdges();
         try {
             main();
         } catch (e) {
             alert('[' + SCRIPT_NAME + '] Error:\n' + e);
+        } finally {
+            if (isEdgeToggled) toggleEdges();
+        }
+    }
+
+    /**
+     * ［境界線を隠す／表示］を切り替える（ドキュメントが無いときは何もしない）
+     * @returns {boolean} 切り替えたら true
+     */
+    function toggleEdges() {
+        if (!app.documents.length) return false;
+        try {
+            app.executeMenuCommand('edge');
+            return true;
+        } catch (e) {
+            return false;
         }
     }
 
