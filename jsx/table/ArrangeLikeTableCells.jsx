@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.ArrangeLikeTableCells
 Name=ArrangeLikeTableCells
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.6.0
+Version=1.7.0
 Release-Date=2026-10-20
 Description-BEGIN
 外枠と罫線で区切った表で、外枠の大きさ・罫線の間隔・線幅を整え、各テキストをセルの中央に配置します（天地は欧文のベースラインをそろえる）。テキストだけを選択したときは、テキストの並びから外枠と罫線を作ります。
@@ -43,7 +43,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ArrangeLik
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ArrangeLikeTableCells";        /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.6.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.7.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-20";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-27";                   /* 更新日 / last updated */
@@ -130,6 +130,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
     /* ［グループ化］の初期値（セルの図形を1つのグループにまとめる） / Initial value of "Group" (group the cell shapes) */
     var GROUP_CELL_FILLS = true;
 
+    /* ［セルごとにエリア内文字にする］の初期値 / Initial value of "Convert to area type per cell" */
+    var CONVERT_TO_AREA_TEXT = false;
+
     /* ［セルの中央に配置］の初期値 / Initial value of "Center in cells" */
     var CENTER_IN_CELLS = true;
 
@@ -163,6 +166,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
     var SUB_OPTION_INDENT         = 12;  /* チェックボックスの下に置く項目（塗り方・線幅のラジオボタン）の字下げ / indent of items placed under a checkbox (fill radios, stroke weight options) */
     var COLOR_SWATCH_SIZE         = [40, 20];  /* 線のカラーの色見本の大きさ / stroke color swatch size */
     var CORNER_RADIUS_FIELD_CHARS = 4;   /* ［角を丸くする］の欄の幅（文字数） / width of the "Round corners" field (characters) */
+    var AREA_TEXT_TOP_GAP         = 10;  /* ［セルごとにエリア内文字にする］の上に足す余白 / extra space above "Convert to area type per cell" */
 
     // UIレイアウト（再利用パーツ） / UI layout (reusable)
 
@@ -992,6 +996,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
             matchStrokeWidths: { ja: "線幅を調整", en: "Adjust stroke weight" },
             createCellShapes: { ja: "図形を作成", en: "Create cell shapes" },
             groupFills: { ja: "グループ化", en: "Group" },
+            convertToAreaText: { ja: "セルごとにエリア内文字にする", en: "Convert to area type per cell" },
             centerInCells: { ja: "セルの中央に配置", en: "Center in cells" },
             justifyCenter: { ja: "中央揃えにする", en: "Align center" }
         },
@@ -1063,6 +1068,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
             strokeWidthSpecified: {
                 ja: "線幅を数値で指定します。",
                 en: "Sets the stroke weight to the given value."
+            },
+            convertToAreaText: {
+                ja: "各テキストを、セルと同じ大きさのエリア内文字にします（左右は中央揃え、天地は［テキストの配置］を中央）。横組みのポイント文字だけが対象です。",
+                en: "Turns each text into area type the size of its cell (centered horizontally, with the vertical alignment set to Center). Only horizontal point type is converted."
             },
             groupFills: {
                 ja: "セルの図形を1つのグループにまとめます。オフにすると、図形を1つずつ最背面に置きます。",
@@ -1549,18 +1558,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
      * @returns {{bounds: Object, vertical: PathItem[], horizontal: PathItem[]}|null} 枠の範囲と、枠になる縦罫・横罫。縦・横とも2本以上なければ null
      */
     function findLineFrame(pathItems) {
-        var verticalLines = [];
-        var horizontalLines = [];
+        var straightLines = splitStraightLines(pathItems);
+        var verticalLines = straightLines.vertical;
+        var horizontalLines = straightLines.horizontal;
         var i;
-        for (i = 0; i < pathItems.length; i++) {
-            if (pathItems[i].closed) continue;
-            var geometricBounds = pathItems[i].geometricBounds;
-            var pathWidth = geometricBounds[2] - geometricBounds[0];
-            var pathHeight = geometricBounds[1] - geometricBounds[3];
-            /* セルの辺と同じく、SLOPE_TOLERANCE までの傾きは縦・横とみなす / Allow the same slope as cell edges */
-            if (pathHeight > TOLERANCE && pathWidth <= Math.max(TOLERANCE, pathHeight * SLOPE_TOLERANCE)) verticalLines.push(pathItems[i]);
-            else if (pathWidth > TOLERANCE && pathHeight <= Math.max(TOLERANCE, pathWidth * SLOPE_TOLERANCE)) horizontalLines.push(pathItems[i]);
-        }
         if (verticalLines.length < 2 || horizontalLines.length < 2) return null;
 
         var left = Infinity;
@@ -1593,6 +1594,101 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
             vertical: frameVertical,
             horizontal: frameHorizontal
         };
+    }
+
+    /**
+     * 開いたパスのうち、垂直・水平の線を振り分ける（SLOPE_TOLERANCE までの傾きは垂直・水平とみなす）
+     * @param {PathItem[]} pathItems - 選択中のパス
+     * @returns {{vertical: PathItem[], horizontal: PathItem[]}} 垂直の線と水平の線
+     */
+    function splitStraightLines(pathItems) {
+        var straightLines = { vertical: [], horizontal: [] };
+        for (var i = 0; i < pathItems.length; i++) {
+            if (pathItems[i].closed) continue;
+            var geometricBounds = pathItems[i].geometricBounds;
+            var pathWidth = geometricBounds[2] - geometricBounds[0];
+            var pathHeight = geometricBounds[1] - geometricBounds[3];
+            /* セルの辺と同じく、SLOPE_TOLERANCE までの傾きは縦・横とみなす / Allow the same slope as cell edges */
+            if (pathHeight > TOLERANCE && pathWidth <= Math.max(TOLERANCE, pathHeight * SLOPE_TOLERANCE)) straightLines.vertical.push(pathItems[i]);
+            else if (pathWidth > TOLERANCE && pathHeight <= Math.max(TOLERANCE, pathWidth * SLOPE_TOLERANCE)) straightLines.horizontal.push(pathItems[i]);
+        }
+        return straightLines;
+    }
+
+    /**
+     * 縦罫だけ（横罫だけ）で閉じたパスも無いとき、外側の罫線の両端を結ぶ線を2本足して、罫線4本で囲んだ枠にする。
+     * 縦罫なら上端・下端を結ぶ横線、横罫なら左端・右端を結ぶ縦線を作る（線の設定は外側の罫線から引き継ぐ）
+     * @param {PathItem[]} pathItems - 選択中のパス
+     * @returns {PathItem[]} 作った線。足す必要が無ければ空
+     */
+    function addMissingFrameLines(pathItems) {
+        for (var i = 0; i < pathItems.length; i++) {
+            if (pathItems[i].closed) return [];
+        }
+        var straightLines = splitStraightLines(pathItems);
+        var isVertical;
+        if (straightLines.vertical.length >= 2 && !straightLines.horizontal.length) isVertical = true;
+        else if (straightLines.horizontal.length >= 2 && !straightLines.vertical.length) isVertical = false;
+        else return [];
+
+        /* 縦罫は「並ぶ方向＝X、長さ＝Y」、横罫はその逆として同じ処理で見る / Vertical rules line up along X and run along Y; horizontal ones the other way round */
+        var lines = isVertical ? straightLines.vertical : straightLines.horizontal;
+        var firstLine = lines[0];
+        var lastLine = lines[0];
+        var alongMin = Infinity;
+        var alongMax = -Infinity;
+        for (i = 0; i < lines.length; i++) {
+            var geometricBounds = lines[i].geometricBounds;
+            alongMin = Math.min(alongMin, isVertical ? geometricBounds[3] : geometricBounds[0]);
+            alongMax = Math.max(alongMax, isVertical ? geometricBounds[1] : geometricBounds[2]);
+            var linePos = isVertical ? getCenterX(lines[i]) : getCenterY(lines[i]);
+            if (linePos < (isVertical ? getCenterX(firstLine) : getCenterY(firstLine))) firstLine = lines[i];
+            if (linePos > (isVertical ? getCenterX(lastLine) : getCenterY(lastLine))) lastLine = lines[i];
+        }
+        var posMin = isVertical ? getCenterX(firstLine) : getCenterY(firstLine);
+        var posMax = isVertical ? getCenterX(lastLine) : getCenterY(lastLine);
+        if (posMax - posMin <= TOLERANCE) return [];
+
+        var createdLines = [];
+        var alongEnds = [alongMin, alongMax];
+        for (i = 0; i < alongEnds.length; i++) {
+            var points = isVertical ? [[posMin, alongEnds[i]], [posMax, alongEnds[i]]] : [[alongEnds[i], posMin], [alongEnds[i], posMax]];
+            createdLines.push(addLineLike(firstLine, points));
+        }
+        return createdLines;
+    }
+
+    /**
+     * 線の設定を引き継いだ、塗りなしの線を元の線の直前に作る
+     * @param {PathItem} styleSource - 線の設定を引き継ぐパス
+     * @param {number[][]} points - 両端の座標
+     * @returns {PathItem} 作った線
+     */
+    function addLineLike(styleSource, points) {
+        var line = styleSource.parent.pathItems.add();
+        line.setEntirePath(points);
+        line.move(styleSource, ElementPlacement.PLACEBEFORE);
+        copyStrokeStyle(styleSource, line);
+        return line;
+    }
+
+    /**
+     * 塗りをなしにし、線の有無・カラー・線幅・破線・オーバープリントと不透明度を写す
+     * @param {PathItem} sourcePath - 写す元のパス
+     * @param {PathItem} targetPath - 写す先のパス
+     * @returns {void}
+     */
+    function copyStrokeStyle(sourcePath, targetPath) {
+        targetPath.filled = false;
+        targetPath.stroked = sourcePath.stroked;
+        if (sourcePath.stroked) {
+            targetPath.strokeColor = sourcePath.strokeColor;
+            targetPath.strokeWidth = sourcePath.strokeWidth;
+            targetPath.strokeDashes = sourcePath.strokeDashes;
+            targetPath.strokeDashOffset = sourcePath.strokeDashOffset;
+            targetPath.strokeOverprint = sourcePath.strokeOverprint;
+        }
+        targetPath.opacity = sourcePath.opacity;
     }
 
     /**
@@ -2021,18 +2117,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
 
         var frameRect = styleSource.parent.pathItems.rectangle(rectBounds.top, rectBounds.left, rectBounds.width, rectBounds.height);
         frameRect.move(styleSource, ElementPlacement.PLACEBEFORE);
-        frameRect.filled = false;
-        frameRect.stroked = styleSource.stroked;
-        if (styleSource.stroked) {
-            frameRect.strokeColor = styleSource.strokeColor;
-            frameRect.strokeWidth = styleSource.strokeWidth;
-            frameRect.strokeDashes = styleSource.strokeDashes;
-            frameRect.strokeDashOffset = styleSource.strokeDashOffset;
-            frameRect.strokeOverprint = styleSource.strokeOverprint;
-            /* 角が欠けないようにマイター結合にする / Use miter joins so the corners stay square */
-            frameRect.strokeJoin = StrokeJoin.MITERENDJOIN;
-        }
-        frameRect.opacity = styleSource.opacity;
+        copyStrokeStyle(styleSource, frameRect);
+        /* 角が欠けないようにマイター結合にする / Use miter joins so the corners stay square */
+        if (frameRect.stroked) frameRect.strokeJoin = StrokeJoin.MITERENDJOIN;
 
         setFrameLinesHidden(frameLines, true);
         return frameRect;
@@ -2107,21 +2194,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
         ];
         var lines = [];
         for (var i = 0; i < corners.length; i++) {
-            var line = outerRect.parent.pathItems.add();
-            line.setEntirePath([corners[i], corners[(i + 1) % corners.length]]);
-            line.move(outerRect, ElementPlacement.PLACEBEFORE);
-            line.filled = false;
-            line.stroked = outerRect.stroked;
-            if (outerRect.stroked) {
-                line.strokeColor = outerRect.strokeColor;
-                line.strokeWidth = outerRect.strokeWidth;
-                line.strokeDashes = outerRect.strokeDashes;
-                line.strokeDashOffset = outerRect.strokeDashOffset;
-                line.strokeOverprint = outerRect.strokeOverprint;
-                /* 角が欠けないように突出線端にする / Use projecting caps so the corners close */
-                line.strokeCap = StrokeCap.PROJECTINGENDCAP;
-            }
-            line.opacity = outerRect.opacity;
+            var line = addLineLike(outerRect, [corners[i], corners[(i + 1) % corners.length]]);
+            /* 角が欠けないように突出線端にする / Use projecting caps so the corners close */
+            if (line.stroked) line.strokeCap = StrokeCap.PROJECTINGENDCAP;
             lines.push(line);
         }
         outerRect.hidden = true;
@@ -2451,15 +2526,277 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
                 skippedCount++;
                 continue;
             }
-            var column = textCell.column;
-            var row = textCell.row;
-            var cellCenterX = (mapPosition(positionMap.vertical, column.lower, column.lowerItem, frameScale.vertical) +
-                mapPosition(positionMap.vertical, column.upper, column.upperItem, frameScale.vertical)) / 2;
-            var cellCenterY = (mapPosition(positionMap.horizontal, row.lower, row.lowerItem, frameScale.horizontal) +
-                mapPosition(positionMap.horizontal, row.upper, row.upperItem, frameScale.horizontal)) / 2;
-            textCell.textFrame.translate(cellCenterX - currentCenter[0], cellCenterY - currentCenter[1]);
+            var cellBounds = getMappedCellBounds(textCell, positionMap, frameScale);
+            textCell.textFrame.translate((cellBounds.left + cellBounds.right) / 2 - currentCenter[0],
+                (cellBounds.top + cellBounds.bottom) / 2 - currentCenter[1]);
         }
         return skippedCount;
+    }
+
+    /**
+     * テキストを囲むセルの、罫線を動かしたあとの範囲を返す
+     * @param {Object} textCell - collectTextCells() の要素（column・row があるもの）
+     * @param {{vertical: Object[], horizontal: Object[]}} positionMap - adjustRuleSpacing() の戻り値
+     * @param {{vertical: Object, horizontal: Object}} frameScale - 外枠の伸縮（mapPosition() に渡す）
+     * @returns {{left: number, top: number, right: number, bottom: number}} セルの範囲（辺は線の中心）
+     */
+    function getMappedCellBounds(textCell, positionMap, frameScale) {
+        var column = textCell.column;
+        var row = textCell.row;
+        return {
+            left: mapPosition(positionMap.vertical, column.lower, column.lowerItem, frameScale.vertical),
+            right: mapPosition(positionMap.vertical, column.upper, column.upperItem, frameScale.vertical),
+            bottom: mapPosition(positionMap.horizontal, row.lower, row.lowerItem, frameScale.horizontal),
+            top: mapPosition(positionMap.horizontal, row.upper, row.upperItem, frameScale.horizontal)
+        };
+    }
+
+    /**
+     * セルのある横組みのポイント文字を、セルと同じ大きさのエリア内文字に置き換える（元のテキストは隠し、［OK］で削除する）
+     * @param {Object[]} textCells - collectTextCells() の戻り値
+     * @param {{vertical: Object[], horizontal: Object[]}} positionMap - adjustRuleSpacing() の戻り値
+     * @param {{vertical: Object, horizontal: Object}} frameScale - 外枠の伸縮（mapPosition() に渡す）
+     * @param {boolean} isFinal - ［OK］で確定するとき true（天地はあとで［テキストの配置］の中央にするので、先頭ベースラインを固定しない）
+     * @returns {Object[]} 置き換えたテキストごとの {areaText: 作ったエリア内文字, sourceText: 隠した元のテキスト, cellBounds: セルの範囲}
+     */
+    function createCellAreaTexts(textCells, positionMap, frameScale, isFinal) {
+        var cellAreaTexts = [];
+        for (var i = 0; i < textCells.length; i++) {
+            var textCell = textCells[i];
+            var sourceText = textCell.textFrame;
+            if (!textCell.column || !textCell.row) continue;
+            if (sourceText.kind !== TextType.POINTTEXT || sourceText.orientation !== TextOrientation.HORIZONTAL) continue;
+            var cellBounds = getMappedCellBounds(textCell, positionMap, frameScale);
+            var areaText = createAreaTextInCell(sourceText, cellBounds, !isFinal);
+            /* duplicate() は hidden を引き継ぐので、複製してから隠す / duplicate() inherits hidden, so hide after duplicating */
+            sourceText.hidden = true;
+            cellAreaTexts.push({ areaText: areaText, sourceText: sourceText, cellBounds: cellBounds });
+        }
+        return cellAreaTexts;
+    }
+
+    /**
+     * ポイント文字の複製をエリア内文字に変換し、セルの範囲に合わせる
+     * @param {TextFrame} pointText - 元のポイント文字（横組み）
+     * @param {{left: number, top: number, right: number, bottom: number}} cellBounds - セルの範囲
+     * @param {boolean} usesFixedBaseline - true なら先頭ベースラインを［固定］にして、元のテキストのベースラインの位置に置く
+     *     （プレビュー用。［テキストの配置］のアクションはダイアログボックスを開いている間は実行できないので、見た目だけ天地中央に合わせる）
+     * @returns {TextFrame} 作ったエリア内文字
+     */
+    function createAreaTextInCell(pointText, cellBounds, usesFixedBaseline) {
+        var baselineY = pointText.anchor[1];
+        /* 変換で参照が置き換わっても拾えるよう、複製を一時グループの中で変換する / Convert inside a temporary group so the result can be found even if the reference is replaced */
+        var holderGroup = pointText.parent.groupItems.add();
+        holderGroup.move(pointText, ElementPlacement.PLACEBEFORE);
+        pointText.duplicate(holderGroup, ElementPlacement.PLACEATEND).convertPointObjectToAreaObject();
+        var areaText = holderGroup.textFrames[0];
+        areaText.move(holderGroup, ElementPlacement.PLACEBEFORE);
+        holderGroup.remove();
+
+        areaText.spacing = 0;
+        fitAreaTextToCell(areaText, cellBounds);
+        areaText.textRange.paragraphAttributes.justification = Justification.CENTER;
+        if (usesFixedBaseline) {
+            areaText.firstBaseline = FirstBaselineType.BASELINEFIXED;
+            areaText.firstBaselineMin = Math.max(cellBounds.top - baselineY, 0);
+        }
+        return areaText;
+    }
+
+    /**
+     * エリア内文字の枠を、セルの範囲と同じ大きさ・位置にする
+     * @param {TextFrame} areaText - 対象のエリア内文字
+     * @param {{left: number, top: number, right: number, bottom: number}} cellBounds - セルの範囲
+     * @returns {void}
+     */
+    function fitAreaTextToCell(areaText, cellBounds) {
+        areaText.textPath.width = Math.max(cellBounds.right - cellBounds.left, MIN_FRAME_SIZE_PT);
+        areaText.textPath.height = Math.max(cellBounds.top - cellBounds.bottom, MIN_FRAME_SIZE_PT);
+        /* エリア内文字の geometricBounds は枠のパスの範囲 / The geometricBounds of area type is its frame path */
+        var frameBounds = areaText.geometricBounds;
+        areaText.translate(cellBounds.left - frameBounds[0], cellBounds.top - frameBounds[1]);
+    }
+
+    // =========================================
+    // 一時アクション / Temporary action
+    // =========================================
+
+    // 一時アクション（再利用パーツ） / Temporary action (reusable)
+
+    /**
+     * 文字列を UTF-8 のバイト列の16進にする（アクション定義の /name・/localizedName 用）
+     * @param {string} sourceText - 変換する文字列
+     * @returns {string} 16進の文字列（2文字で1バイト）
+     */
+    function toActionHex(sourceText) {
+        var utf8Text = unescape(encodeURIComponent(String(sourceText)));
+        var hexText = "";
+        for (var i = 0; i < utf8Text.length; i++) {
+            var hexByte = utf8Text.charCodeAt(i).toString(16);
+            hexText += (hexByte.length < 2 ? "0" : "") + hexByte;
+        }
+        return hexText;
+    }
+
+    /**
+     * アクション定義の「/name [ バイト数 16進 ]」の3行を返す
+     * @param {string} indent - 行頭の字下げ（"\t" など）
+     * @param {string} nameText - 名前
+     * @param {string} [fieldName] - 項目名（既定は "name"。"localizedName" など）
+     * @returns {string[]} 3行ぶんの配列
+     */
+    function buildActionNameLines(indent, nameText, fieldName) {
+        var nameHex = toActionHex(nameText);
+        return [
+            indent + "/" + (fieldName || "name") + " [ " + (nameHex.length / 2),
+            indent + "\t" + nameHex,
+            indent + "]"
+        ];
+    }
+
+    /**
+     * アクション定義を一時ファイルに書き出してセットを読み込む。読み込んだら一時ファイルは消す
+     * （読み込んだ時点で解釈済みなので、以降の失敗でファイルが残らない）
+     * @param {string} actionSource - アクション定義のテキスト
+     * @param {string} setName - アクションセット名
+     * @returns {boolean} 読み込めたら true
+     */
+    function loadTemporaryActionSet(actionSource, setName) {
+        var actionFile = new File(Folder.temp + "/" + setName + "_" + new Date().getTime() + ".aia");
+        try {
+            actionFile.encoding = "UTF-8";
+            if (!actionFile.open("w")) throw new Error("cannot open " + actionFile.fsName);
+            actionFile.write(actionSource);
+            actionFile.close();
+            /* 前回の失敗で同じ名前のセットが残っていれば外す / Remove a same-name set left by an earlier failure */
+            unloadTemporaryActionSet(setName);
+            app.loadAction(actionFile);
+            return true;
+        } catch (e) {
+            $.writeln("loadTemporaryActionSet: " + e);
+            return false;
+        } finally {
+            try { actionFile.close(); } catch (closeError) { /* 閉じ済み / already closed */ }
+            try { actionFile.remove(); } catch (removeError) { /* 消せなくても続ける / keep going */ }
+        }
+    }
+
+    /**
+     * 一時アクションのセットを解除する（読み込まれていなくてもエラーにしない）
+     * @param {string} setName - アクションセット名
+     * @returns {void}
+     */
+    function unloadTemporaryActionSet(setName) {
+        try {
+            app.unloadAction(setName, "");
+        } catch (e) {
+            /* 読み込まれていない / not loaded */
+        }
+    }
+
+    /**
+     * アクション定義を読み込んで1回実行し、解除する。途中で失敗しても解除は必ず試みる
+     * @param {string} actionSource - アクション定義のテキスト
+     * @param {string} setName - アクションセット名
+     * @param {string} actionName - 実行するアクション名
+     * @returns {boolean} 実行できたら true
+     */
+    function runTemporaryAction(actionSource, setName, actionName) {
+        if (!loadTemporaryActionSet(actionSource, setName)) return false;
+        try {
+            app.doScript(actionName, setName);
+            return true;
+        } catch (e) {
+            $.writeln("runTemporaryAction: " + e);
+            return false;
+        } finally {
+            unloadTemporaryActionSet(setName);
+        }
+    }
+
+    // 一時アクション（再利用パーツ）ここまで / End of the reusable temporary action
+
+    var AREA_TEXT_ACTION_SET_NAME = "ArrangeLikeTableCells_AreaText"; /* アクションセット名 / action set name */
+
+    /* エリア内文字のアクション（AreaTypeToolkit と同じイベント）。自動サイズ調整は 2=オフ、テキストの配置は 1=中央
+       Area type actions (the same events as AreaTypeToolkit): auto size 2 = off, vertical alignment 1 = center */
+    var AREA_TEXT_ACTIONS = {
+        autoSizeOff: { name: "AutoSizeOff", internalName: "adobe_SLOAreaTextDialog", localizedName: "エリア内文字オプション", key: 1952539754, value: 2 },
+        alignCenter: { name: "AlignCenter", internalName: "adobe_frameAlignment", localizedName: "エリア内文字のフレーム整列", key: 1717660782, value: 1 }
+    };
+
+    /**
+     * AREA_TEXT_ACTIONS の2つのアクションを持つセットの定義を返す
+     * @returns {string} アクション定義のテキスト
+     */
+    function buildAreaTextActionSet() {
+        var actionKeys = ["autoSizeOff", "alignCenter"];
+        var actionLines = ["/version 3"].concat(
+            buildActionNameLines("", AREA_TEXT_ACTION_SET_NAME),
+            ["/isOpen 1", "/actionCount " + actionKeys.length]
+        );
+        for (var i = 0; i < actionKeys.length; i++) {
+            var actionDef = AREA_TEXT_ACTIONS[actionKeys[i]];
+            actionLines = actionLines.concat(
+                ["/action-" + (i + 1) + " {"],
+                buildActionNameLines("\t", actionDef.name),
+                [
+                    "\t/keyIndex 0",
+                    "\t/colorIndex 0",
+                    "\t/isOpen 1",
+                    "\t/eventCount 1",
+                    "\t/event-1 {",
+                    "\t\t/useRulersIn1stQuadrant 0",
+                    "\t\t/internalName (" + actionDef.internalName + ")"
+                ],
+                buildActionNameLines("\t\t", actionDef.localizedName, "localizedName"),
+                [
+                    "\t\t/isOpen 0",
+                    "\t\t/isOn 1",
+                    "\t\t/hasDialog 0",
+                    "\t\t/parameterCount 1",
+                    "\t\t/parameter-1 {",
+                    "\t\t\t/key " + actionDef.key,
+                    "\t\t\t/showInPalette 4294967295",
+                    "\t\t\t/type (integer)",
+                    "\t\t\t/value " + actionDef.value,
+                    "\t\t}",
+                    "\t}",
+                    "}"
+                ]
+            );
+        }
+        return actionLines.concat([""]).join("\n");
+    }
+
+    /**
+     * エリア内文字をまとめて選択し、自動サイズ調整をオフにして枠をセルに合わせ直し、［テキストの配置］を天地中央にする
+     * （ダイアログボックスを閉じてから呼ぶ。変換したエリア内文字は自動サイズ調整がオンで、枠が文字に合わせて縮むため）
+     * @param {Object[]} cellAreaTexts - createCellAreaTexts() の戻り値
+     * @returns {boolean} アクションを実行できたら true
+     */
+    function finishCellAreaTexts(cellAreaTexts) {
+        var areaTexts = [];
+        var i;
+        for (i = 0; i < cellAreaTexts.length; i++) areaTexts.push(cellAreaTexts[i].areaText);
+        var doc = app.activeDocument;
+        doc.selection = null;
+        doc.selection = areaTexts;
+        /* Illustrator に選択状態を確定させる / Let Illustrator commit the selection */
+        app.redraw();
+
+        if (!loadTemporaryActionSet(buildAreaTextActionSet(), AREA_TEXT_ACTION_SET_NAME)) return false;
+        try {
+            app.doScript(AREA_TEXT_ACTIONS.autoSizeOff.name, AREA_TEXT_ACTION_SET_NAME, false);
+            for (i = 0; i < cellAreaTexts.length; i++) fitAreaTextToCell(cellAreaTexts[i].areaText, cellAreaTexts[i].cellBounds);
+            app.doScript(AREA_TEXT_ACTIONS.alignCenter.name, AREA_TEXT_ACTION_SET_NAME, false);
+            return true;
+        } catch (e) {
+            $.writeln("finishCellAreaTexts: " + e);
+            return false;
+        } finally {
+            unloadTemporaryActionSet(AREA_TEXT_ACTION_SET_NAME);
+        }
     }
 
     /**
@@ -2590,7 +2927,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
     }
 
     /**
-     * パスを削除する（テキストだけの表をキャンセルしたとき）
+     * パスを削除する（作った外枠・罫線をキャンセルで消すとき）
      * @param {PathItem[]} targetPathItems - 削除するパス
      * @returns {void}
      */
@@ -2731,9 +3068,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
             pathItems = autoTablePaths;
         }
 
+        /* 縦罫だけ（横罫だけ）なら、両端を結ぶ線を足して枠にする（［OK］以外で閉じたら削除する）
+           With only vertical (or horizontal) rules, add lines joining their ends to close the frame (removed unless confirmed with OK) */
+        var addedFrameLines = autoTablePaths.length ? [] : addMissingFrameLines(pathItems);
+        pathItems = pathItems.concat(addedFrameLines);
+        var createdPaths = autoTablePaths.concat(addedFrameLines); /* ［OK］以外で閉じたら削除するパス / paths removed unless confirmed with OK */
+
         var cellEdges = collectEdges(pathItems);
         if (!cellEdges.vertical.length || !cellEdges.horizontal.length) {
-            removePathItems(autoTablePaths);
+            removePathItems(createdPaths);
             alert(getLabel("alert.noRule"));
             return;
         }
@@ -2757,6 +3100,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
         var roundedFramePreview = null; /* 角丸のプレビュー用に作った外枠の複製（効果は取り消せないので、元は隠しておく） / duplicate of the frame for the round-corner preview (effects cannot be removed, so the original stays hidden) */
         var cellFillItems = [];    /* ［図形を作成］で作ったグループ、またはばらの長方形 / group or loose rectangles made by "Create cell shapes" */
         var cellTints = [];        /* セルごとの塗りの濃さ / fill tint of each cell */
+        var cellAreaTexts = [];    /* ［セルごとにエリア内文字にする］で作ったエリア内文字と、隠した元のテキスト / area type made by "Convert to area type per cell" and the hidden source texts */
         var backmostItem = selectedItems[selectedItems.length - 1]; /* 選択は前面→背面の順 / the selection runs front to back */
         var originalBounds = rules ? rules.rectBounds : null; /* 大きさを変える前の外枠の範囲 / frame bounds before resizing */
         var tablePathItems = rules ? getTablePathItems(rules) : []; /* 外枠の大きさに合わせて伸縮するパス / paths scaled with the frame size */
@@ -2783,6 +3127,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
                 convertedFrameLines = [];
                 rules.outerRect.hidden = false;
             }
+            for (var areaIndex = 0; areaIndex < cellAreaTexts.length; areaIndex++) {
+                cellAreaTexts[areaIndex].areaText.remove();
+                cellAreaTexts[areaIndex].sourceText.hidden = false;
+            }
+            cellAreaTexts = [];
             restorePathState(pathState);
             restoreTextState(textState);
             if (rules) rules.rectBounds = originalBounds;
@@ -2844,7 +3193,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
 
         /**
          * 元の状態に戻したうえで、設定どおりに均等化・配置する
-         * @param {{frameWidth: number, frameHeight: number, usePreviewBounds: boolean, verticalSpacing: string, horizontalSpacing: string, matchRuleLengths: boolean, convertFrame: boolean, convertFrameToLines: boolean, roundCorners: boolean, cornerRadius: number, matchStrokeWidths: boolean, strokeWidthMode: string, strokeWidth: number, applyStrokeColor: boolean, strokeColor: Color, createCellShapes: boolean, fillMode: string, groupFills: boolean, centerInCells: boolean, justifyCenter: boolean}} settings - 設定（frameWidth・frameHeight・cornerRadius・strokeWidth は pt）
+         * @param {{frameWidth: number, frameHeight: number, usePreviewBounds: boolean, verticalSpacing: string, horizontalSpacing: string, matchRuleLengths: boolean, convertFrame: boolean, convertFrameToLines: boolean, roundCorners: boolean, cornerRadius: number, matchStrokeWidths: boolean, strokeWidthMode: string, strokeWidth: number, applyStrokeColor: boolean, strokeColor: Color, createCellShapes: boolean, fillMode: string, groupFills: boolean, convertToAreaText: boolean, centerInCells: boolean, justifyCenter: boolean}} settings - 設定（frameWidth・frameHeight・cornerRadius・strokeWidth は pt）
          * @param {boolean} [isFinal] - ［OK］で確定するとき true（角丸の効果を複製ではなく外枠そのものに適用する）
          * @returns {number} セルが見つからず移動しなかったテキストの数
          */
@@ -2890,7 +3239,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
             if (settings.createCellShapes && rules) {
                 cellFillItems = createCellFills(rules, cornerRadius, settings.fillMode, cellTints, backmostItem, settings.groupFills);
             }
-            return placeTextsInCells(textCells, settings, positionMap, frameScale);
+            var skippedCount = placeTextsInCells(textCells, settings, positionMap, frameScale);
+            if (settings.convertToAreaText && rules) cellAreaTexts = createCellAreaTexts(textCells, positionMap, frameScale, !!isFinal);
+            return skippedCount;
         }
 
         var strokeWidthStats = getStrokeWidthStats(tablePathItems);
@@ -2917,7 +3268,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
             verticalSpacing: verticalRuleCount > 0 ? initialSpacingMode : "keep",
             horizontalSpacing: horizontalRuleCount > 0 ? initialSpacingMode : "keep",
             matchRuleLengths: MATCH_RULE_LENGTHS,
-            convertFrame: CONVERT_FRAME_TO_RECT && !!(rules && rules.frameLines),
+            /* 線を足して閉じた枠は、長方形にした形で開く / A frame closed with added lines starts as a rectangle */
+            convertFrame: (CONVERT_FRAME_TO_RECT || addedFrameLines.length > 0) && !!(rules && rules.frameLines),
             convertFrameToLines: CONVERT_FRAME_TO_LINES && !!rules && canConvertFrameToLines(rules.outerRect),
             roundCorners: ROUND_CORNERS,
             cornerRadius: CORNER_RADIUS_PT,
@@ -2930,6 +3282,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
             createCellShapes: CREATE_CELL_SHAPES && !!rules,
             fillMode: CELL_FILL_MODE,
             groupFills: GROUP_CELL_FILLS,
+            convertToAreaText: CONVERT_TO_AREA_TEXT && hasText && !!rules,
             centerInCells: CENTER_IN_CELLS,
             justifyCenter: JUSTIFY_CENTER
         };
@@ -2974,6 +3327,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
         var uniformFillRadio = dialogControls.uniformFillRadio;
         var randomFillRadio = dialogControls.randomFillRadio;
         var groupFillsCheckbox = dialogControls.groupFillsCheckbox;
+        var convertToAreaTextCheckbox = dialogControls.convertToAreaTextCheckbox;
         var centerInCellsCheckbox = dialogControls.centerInCellsCheckbox;
         var justifyCenterCheckbox = dialogControls.justifyCenterCheckbox;
 
@@ -3001,6 +3355,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
                 createCellShapes: createCellShapesCheckbox.value,
                 fillMode: randomFillRadio.value ? "random" : "uniform",
                 groupFills: groupFillsCheckbox.value,
+                convertToAreaText: convertToAreaTextCheckbox.value,
                 centerInCells: centerInCellsCheckbox.value,
                 justifyCenter: justifyCenterCheckbox.value
             };
@@ -3255,6 +3610,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
             updatePreview();
         };
         groupFillsCheckbox.onClick = updatePreview;
+        convertToAreaTextCheckbox.onClick = updatePreview;
         centerInCellsCheckbox.onClick = updatePreview;
         justifyCenterCheckbox.onClick = updatePreview;
 
@@ -3285,7 +3641,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
         /* Esc など［OK］以外で閉じたときも元に戻す / Restore however the dialog is closed, unless by OK */
         if (dialogControls.mainDialog.show() !== 1) {
             restoreOriginalState();
-            removePathItems(autoTablePaths);
+            removePathItems(createdPaths);
             app.redraw();
             return;
         }
@@ -3293,6 +3649,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
         /* 変換を確定したら、隠しておいた枠の罫線・長方形を削除する / Once the conversion is confirmed, delete the hidden frame rules or rectangle */
         if (frameRectangle) removeFrameLines(rules.frameLines);
         if (convertedFrameLines.length) rules.outerRect.remove();
+        /* エリア内文字にしたテキストの元を削除し、枠をセルに合わせて天地を中央にする / Delete the source texts of the area type, fit it to the cells and center it vertically */
+        for (var areaIndex = 0; areaIndex < cellAreaTexts.length; areaIndex++) cellAreaTexts[areaIndex].sourceText.remove();
+        if (cellAreaTexts.length) finishCellAreaTexts(cellAreaTexts);
 
         if (skippedCount) alert(getLabel("alert.skipped", { count: skippedCount }));
     }
@@ -3526,7 +3885,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
         var mainDialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
         setupWindow(mainDialog);
 
-        /* 2カラム：左に［縦罫の間隔］［横罫の間隔］［線のカラーと線幅］、右に［大きさ］［外枠］［セル］［テキスト］ / Two columns: Vertical / Horizontal Rule Spacing and Stroke Color and Weight on the left, Size, Frame, Cells and Text on the right */
+        /* 2カラム：左に［縦罫の間隔］［横罫の間隔］［線のカラーと線幅］［テキスト］、右に［大きさ］［外枠］［セル］ / Two columns: Vertical / Horizontal Rule Spacing, Stroke Color and Weight and Text on the left, Size, Frame and Cells on the right */
         var columnsGroup = mainDialog.add("group");
         columnsGroup.orientation = "row";
         columnsGroup.alignChildren = ["fill", "top"];
@@ -3642,8 +4001,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
         uniformFillRadio.value = !randomFillRadio.value;
         var groupFillsCheckbox = addOptionCheckbox(cellsPanel,
             "checkbox.groupFills", "tooltip.groupFills", true, initialSettings.groupFills);
+        /* 塗りの項目と離す（コントロールには margins が無いのでグループで包む）
+           Set apart from the fill options (controls have no margins, so wrap it in a group) */
+        var areaTextGroup = cellsPanel.add("group");
+        areaTextGroup.alignChildren = ["left", "center"];
+        areaTextGroup.margins = [0, AREA_TEXT_TOP_GAP, 0, 0];
+        var convertToAreaTextCheckbox = addOptionCheckbox(areaTextGroup,
+            "checkbox.convertToAreaText", "tooltip.convertToAreaText", hasText && !!rules, initialSettings.convertToAreaText);
 
-        var textPanel = rightColumn.add("panel", undefined, getLabel("panel.text"));
+        var textPanel = leftColumn.add("panel", undefined, getLabel("panel.text"));
         setupPanel(textPanel, 6);
         textPanel.enabled = hasText;
 
@@ -3681,6 +4047,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
             uniformFillRadio: uniformFillRadio,
             randomFillRadio: randomFillRadio,
             groupFillsCheckbox: groupFillsCheckbox,
+            convertToAreaTextCheckbox: convertToAreaTextCheckbox,
             centerInCellsCheckbox: centerInCellsCheckbox,
             justifyCenterCheckbox: justifyCenterCheckbox,
             btnCancel: btnCancel,

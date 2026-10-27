@@ -22,6 +22,12 @@ It can also round the frame corners and fill the cells with random gray tints.
 - The new table opens with "Fit to text" for both rule spacings, and Width and Height packed to the texts plus a margin of 0.4 times the text size on every side
 - Closing with Cancel or Esc removes the frame and rules that were drawn
 
+#### Tables with only vertical or horizontal rules
+
+- Select two or more vertical rules without horizontal ones (or the other way round) together with the texts, and the script adds two lines joining the ends of the outermost rules to close the frame (the stroke is taken from an outer rule)
+- The dialog opens with "Convert frame to rectangle" on, so OK turns the frame into a single rectangle (turn it off to keep the added lines)
+- Closing with Cancel or Esc removes the added lines
+
 #### Size
 
 - "Width" / "Height" change the size of the frame (prefilled with its current size; the frame and rules are scaled from the top-left corner, keeping stroke widths and text sizes)
@@ -62,6 +68,7 @@ It can also round the frame corners and fill the cells with random gray tints.
   - Same tint (K15): every cell is filled with K15
   - Random tints: each cell gets a random tint from K10 to K60
 - "Group" puts the cell shapes in one group (when off, they stay separate)
+- "Convert to area type per cell" replaces each text with area type the size of its cell (centered horizontally, with the vertical alignment in Area Type Options set to Center)
 
 #### General
 
@@ -73,7 +80,7 @@ It can also round the frame corners and fill the cells with random gray tints.
 
 ### Usage
 
-1. Select the texts together with the outer frame and the rules (the frame and rules alone also work). Selecting only texts without any rules draws the frame and rules for them.
+1. Select the texts together with the outer frame and the rules (the frame and rules alone also work). Selecting only texts without any rules draws the frame and rules for them. With only vertical or only horizontal rules, the missing two sides of the frame are added.
 2. Run the script. The dialog opens and the preview is shown.
 3. Set the frame, rule, text and cell options, then confirm with OK.
 
@@ -92,7 +99,8 @@ It can also round the frame corners and fill the cells with random gray tints.
 - "Stroke color" only changes paths that have a stroke. "Adjust stroke weight" also adds a stroke to paths without one (in the color of the "Stroke color" swatch). Max, min and average are taken from the stroke weights of the frame and rules at launch.
 - Cell shapes use a K-only CMYK color in CMYK documents and grayscale in RGB documents. With "Random tints", each cell gets a random tint that stays the same while the preview updates. The fills are sent to the back of the layer (or group) holding the backmost selected item. If the frame rectangle has a fill, the cell fills are hidden behind it.
 - With only texts selected, texts whose glyph bounds overlap horizontally form a column and texts that overlap vertically form a row; a rule is drawn in the middle of the gap between neighboring columns (rows). A long text spanning several columns merges them into one. The frame and rules are placed just in front of the frontmost selected item, in its layer (or group). The margin ratio and the stroke weight can be changed with `AUTO_TABLE_PADDING_EM` and `AUTO_TABLE_STROKE_WIDTH_PT` at the top of the script.
-- The initial values can be changed with `RULE_SPACING_MODE`, `CONVERT_FRAME_TO_RECT`, `ROUND_CORNERS`, `CORNER_RADIUS_PT`, `APPLY_STROKE_COLOR`, `MATCH_STROKE_WIDTHS`, `STROKE_WIDTH_MODE`, `CREATE_CELL_SHAPES`, `CELL_FILL_MODE`, `FILL_UNIFORM_TINT`, `GROUP_CELL_FILLS`, `FILL_TINT_MIN`, `FILL_TINT_MAX`, `CENTER_IN_CELLS` and `JUSTIFY_CENTER` at the top of the script.
+- "Convert to area type per cell" applies to horizontal point type with a cell found (vertical type, area type and type on a path are left as they are). The frame runs between the cell edges (the stroke centers) with an inset spacing of 0. Text wider than the cell wraps, and text that does not fit overflows and is hidden. The vertical centering and turning off Auto Size are set with actions after OK. While previewing, the text is shown with a Fixed first baseline at its centered position, so it may shift slightly once confirmed. After OK, the new area type is selected.
+- The initial values can be changed with `RULE_SPACING_MODE`, `CONVERT_FRAME_TO_RECT`, `ROUND_CORNERS`, `CORNER_RADIUS_PT`, `APPLY_STROKE_COLOR`, `MATCH_STROKE_WIDTHS`, `STROKE_WIDTH_MODE`, `CREATE_CELL_SHAPES`, `CELL_FILL_MODE`, `FILL_UNIFORM_TINT`, `GROUP_CELL_FILLS`, `CONVERT_TO_AREA_TEXT`, `FILL_TINT_MIN`, `FILL_TINT_MAX`, `CENTER_IN_CELLS` and `JUSTIFY_CENTER` at the top of the script.
 
 ### Article
 
@@ -100,6 +108,7 @@ It can also round the frame corners and fill the cells with random gray tints.
 
 ### Update History
 
+- v1.7.0 (2026-10-27) Added "Convert to area type per cell" to the Cells panel (replaces each text with vertically centered area type the size of its cell). Moved the Text panel to the bottom of the left column. The script now also runs with only vertical (or only horizontal) rules (it adds lines joining their ends to close the frame and opens with "Convert frame to rectangle" on)
 - v1.6.0 (2026-10-27) The script now also runs with only texts selected, without a frame or rules (it works out the columns and rows from their layout, draws a frame rectangle and rules, and opens with the table packed to the texts). "Adjust stroke weight" now also adds a stroke to a frame or rules without one (the weight was not applied to them)
 - v1.5.1 (2026-10-25) "Convert frame to four lines" is now available only for an unrotated rectangle (disabled for diamonds or curved four-point paths, paths inside a compound path, and clipping paths)
 - v1.5.0 (2026-10-25) Added "Convert frame to four lines" (the reverse of "Convert frame to rectangle"; available when the frame is a four-point rectangle)
