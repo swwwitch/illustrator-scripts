@@ -12,7 +12,7 @@
 
 With two objects selected, duplicates the smaller one in an evenly spaced grid inside the shape of the larger one.
 
-<img alt="The Tile Fill Settings dialog" src="../png/ss-666-698-144-20261027-122648-s.png" width="35%" />
+<img alt="The Tile Inside Shape dialog" src="../png/ss-724-1090-144-20261027-130407-s.png" width="35%" />
 
 ### Features
 
