@@ -59,6 +59,7 @@ var SCRIPT_README_JA     = "https://github.com/swwwitch/illustrator-scripts/blob
 var SCRIPT_README_EN     = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FillStrokeSwitcher.md"; /* README (English) */
 var SCRIPT_ARTICLE_URL   = "https://note.com/dtp_tranist/n/n81ee3a9e09b4"; /* 紹介記事 / article URL */
 var SCRIPT_REFERENCE_URL = "https://note.com/shibumi/n/n5229b4357dd3";     /* 参照記事（しぶやみゃむ） / reference article */
+var SCRIPT_SOURCE_URL    = "https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/color/FillStrokeSwitcher.jsx"; /* 最新版のソース / latest source */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php

@@ -38,6 +38,7 @@ var SCRIPT_RELEASED = "2026-06-23";                   /* 最初のリリース�
 var SCRIPT_UPDATED  = "2026-10-16";                   /* 更新日 / last updated */
 
 var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb9c089e378d2"; /* 紹介記事 / article URL */
+var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/single-function/ApplyMojikumi.jsx"; /* 最新版のソース / latest source */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php

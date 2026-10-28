@@ -52,6 +52,8 @@ var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-09";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-09";                   /* 更新日 / last updated */
 
+var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/preference/InfiniteArtboard.jsx"; /* 最新版のソース / latest source */
+
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
 

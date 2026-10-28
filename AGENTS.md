@@ -65,9 +65,9 @@ Bare URLs are safe inside this `/* */` block; the Error 11 label problem only af
 ## Basic info block
 
 `=` aligns at column 20 (16 characters after `var `), comments at column 54.
-The README links and `SCRIPT_ARTICLE_URL` are exempt from that alignment: put them in a separate
-group after a blank line and align `=` across those lines only (one space when `SCRIPT_ARTICLE_URL`
-is absent).
+The README links, `SCRIPT_ARTICLE_URL` and `SCRIPT_SOURCE_URL` are exempt from that alignment: put them
+in a separate group after a blank line and align `=` across those lines only. `SCRIPT_SOURCE_URL` is
+always the last line and is written by `helpers/sync-scriptmeta.py` (see SCRIPTMETA below).
 
 Hold the README links in string variables, not in line comments. Two consecutive
 `// https://…` lines make ExtendScript read `https:` as a duplicate label and the script dies with
@@ -86,6 +86,7 @@ var SCRIPT_UPDATED  = "2026-07-26";                   /* 更新日 / last update
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/<ScriptName>.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/<ScriptName>.md"; /* README (English) */
 var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記事 / article URL */
+var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/<category>/<ScriptName>.jsx"; /* 最新版のソース / latest source */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
@@ -114,8 +115,10 @@ Every script carries a [SCRIPTMETA](https://github.com/Yamonov/SCRIPTMETA) block
 the header comment. It is generated from the basic info block and the 概要 / Overview text — do not edit it by hand.
 Update checking is not used: write no `Meta-URL` and no `SCRIPTMETA.txt`.
 
-- After bumping `SCRIPT_VERSION`, editing the overview, or adding a script, run `python3 helpers/sync-scriptmeta.py`
-  (`--check` reports files out of sync)
+- After bumping `SCRIPT_VERSION`, editing the overview, or adding, moving or renaming a script, run
+  `python3 helpers/sync-scriptmeta.py` (`--check` reports files out of sync)
+- The same tool writes `SCRIPT_SOURCE_URL` (the GitHub link to the latest source) as the last line of the README /
+  article group in the basic info block, from the file's path, and realigns that group's `=`. Do not edit it by hand
 - Script-ID is `com.swwwitch.illustrator.<SCRIPT_NAME>`. Never change a published Script-ID, even when renaming a script;
   names with characters other than `A-Z a-z 0-9 . _ -` get an entry in `ID_OVERRIDES`
 - `jsx/_templates/` is excluded

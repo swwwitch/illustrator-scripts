@@ -5,23 +5,27 @@ SCRIPTMETA（https://github.com/Yamonov/SCRIPTMETA）の同期ツール。
 各 .jsx の基本情報ブロック（SCRIPT_NAME / SCRIPT_VERSION / SCRIPT_AUTHOR / SCRIPT_RELEASED）と
 ヘッダーの「### 概要」「### Overview」から SCRIPTMETA ブロック（Local Subset）を作り直す。
 更新確認は使わないので Meta-URL は書かない。
+あわせて基本情報ブロックの SCRIPT_SOURCE_URL（GitHub 上の最新版へのリンク）をファイルの置き場所から書き直す。
 
-SCRIPT_VERSION を上げたり概要を書き換えたりしたら、コミット前に実行する。
+SCRIPT_VERSION を上げたり概要を書き換えたり、スクリプトを追加・移動・改名したりしたら、コミット前に実行する。
 
     python3 helpers/sync-scriptmeta.py          # 書き換える
     python3 helpers/sync-scriptmeta.py --check  # 差分があれば一覧を出して終了コード1
 
 Syncs the SCRIPTMETA block (Local Subset, no Meta-URL) in every .jsx from its basic info block
-and header overview. Run it before committing.
+and header overview, and rewrites SCRIPT_SOURCE_URL from the file's location. Run it before committing.
 """
 import glob
 import os
 import re
 import sys
+import unicodedata
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ID_PREFIX = "com.swwwitch.illustrator."
 TARGET_APP = "Illustrator"
+SOURCE_URL_BASE = "https://github.com/swwwitch/illustrator-scripts/blob/master/"
+SOURCE_URL_COMMENT = "/* 最新版のソース / latest source */"
 EXCLUDE_DIRS = ("/_templates/",)
 
 # Script-ID に使えない文字（A-Z a-z 0-9 . _ - 以外）を含む SCRIPT_NAME と、改名したスクリプトの旧名の ID。
@@ -112,6 +116,39 @@ def insert_block(text, block):
     return text[:pos] + block + text[pos:]
 
 
+def sync_source_url(text, rel):
+    """基本情報ブロックの URL の組（README・記事など）の末尾に SCRIPT_SOURCE_URL を置き、組の = をそろえ直す"""
+    lines = text.split("\n")
+    try:
+        start = lines.index("// 基本情報 / Basic info") + 2
+    except ValueError:
+        raise ValueError("基本情報ブロックがありません")
+    end = start
+    while end < len(lines) and lines[end].startswith("var SCRIPT_"):
+        end += 1
+    if end == start:
+        raise ValueError("基本情報ブロックに変数がありません")
+
+    # 空行をはさんだ2組目があればそこへ足し、無ければ2組目を作る
+    if end + 1 < len(lines) and lines[end] == "" and lines[end + 1].startswith("var SCRIPT_"):
+        group_start = group_end = end + 1
+        while group_end < len(lines) and lines[group_end].startswith("var SCRIPT_"):
+            group_end += 1
+        group = [l for l in lines[group_start:group_end] if not l.startswith("var SCRIPT_SOURCE_URL ")]
+    else:
+        group_start = group_end = end
+        group = []
+
+    url = SOURCE_URL_BASE + unicodedata.normalize("NFC", rel.replace(os.sep, "/"))
+    group.append('var SCRIPT_SOURCE_URL = "%s"; %s' % (url, SOURCE_URL_COMMENT))
+    pairs = [re.match(r"var (\w+)\s*=(.*)$", l).groups() for l in group]
+    width = max(len(name) for name, _ in pairs)
+    group = ["var %s =%s" % (name.ljust(width), rest) for name, rest in pairs]
+    if group_start == end:
+        group = [""] + group
+    return "\n".join(lines[:group_start] + group + lines[group_end:])
+
+
 def main():
     check = "--check" in sys.argv
     files = sorted(
@@ -132,7 +169,11 @@ def main():
             errors.append(rel + ": Script-ID が " + seen[script_id] + " と重複しています")
             continue
         seen[script_id] = rel
-        new_text = insert_block(text, block)
+        try:
+            new_text = sync_source_url(insert_block(text, block), rel)
+        except ValueError as e:
+            errors.append(rel + ": " + str(e))
+            continue
         if new_text != text:
             changed.append(rel)
             if not check:

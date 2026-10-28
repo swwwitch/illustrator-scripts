@@ -50,6 +50,7 @@ var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last update
 
 var SCRIPT_ARTICLE_URL   = "https://note.com/dtp_tranist/n/n81ee3a9e09b4"; /* 紹介記事 / article URL */
 var SCRIPT_REFERENCE_URL = "https://note.com/shibumi/n/n5229b4357dd3";     /* 参照記事（しぶやみゃむ） / reference article */
+var SCRIPT_SOURCE_URL    = "https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/color/single-function/RemoveFillAndStroke.jsx"; /* 最新版のソース / latest source */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
