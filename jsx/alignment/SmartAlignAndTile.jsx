@@ -1600,6 +1600,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf426908d8bcd"; /* 紹�
         return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
+    /**
+     * 単位の値を pt に換算する
+     * @param {number} value - 単位の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} pt の値
+     */
+    function unitToPt(value, unit) {
+        return value * unit.pointsPerUnit;
+    }
+
     // 選択の収集と境界（再利用パーツ） / Selection items and bounds (reusable)
 
     /* 座標を同じと見なす許容値（pt） / Tolerance for treating coordinates as equal, in points */
@@ -2595,7 +2605,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf426908d8bcd"; /* 紹�
      * @returns {object} 配置設定
      */
     function readArrangeSettings(dialogControls, keyObject, keyOrigin) {
-        var unitFactor = getUnitInfo().pointsPerUnit;
+        var rulerUnit = getUnitInfo();
 
         var hMarginValue = parseFloat(dialogControls.hMarginInput.text);
         if (isNaN(hMarginValue)) hMarginValue = 0;
@@ -2607,8 +2617,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf426908d8bcd"; /* 紹�
         return {
             direction: dialogControls.horizontalRadio.value ? "horizontal" : "vertical",
             laneCount: laneCount,
-            hMarginPt: hMarginValue * unitFactor,
-            vMarginPt: vMarginValue * unitFactor,
+            hMarginPt: unitToPt(hMarginValue, rulerUnit),
+            vMarginPt: unitToPt(vMarginValue, rulerUnit),
             /* 揃えは軸に依らない形（start / center / end / none）で持つ / Align values are axis-neutral */
             vAlign: getAlignValue(dialogControls.vAlignRadios),
             hAlign: getAlignValue(dialogControls.hAlignRadios),

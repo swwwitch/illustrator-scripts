@@ -1234,6 +1234,26 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6f35bd4000ec"; /* 紹�
         return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
+    /**
+     * 単位の値を pt に換算する
+     * @param {number} value - 単位の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} pt の値
+     */
+    function unitToPt(value, unit) {
+        return value * unit.pointsPerUnit;
+    }
+
+    /**
+     * pt の値を単位の値に換算する
+     * @param {number} ptValue - pt の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} 単位の値
+     */
+    function ptToUnit(ptValue, unit) {
+        return ptValue / unit.pointsPerUnit;
+    }
+
     // 選択の収集と境界（再利用パーツ） / Selection items and bounds (reusable)
 
     /* 座標を同じと見なす許容値（pt） / Tolerance for treating coordinates as equal, in points */
@@ -2151,7 +2171,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6f35bd4000ec"; /* 紹�
                 totalWidth += getReferenceBounds(targetItems[i], true).width;
             }
             var avgWidthPt = targetItems.length > 0 ? (totalWidth / targetItems.length) : 100;
-            var avgWidth = avgWidthPt / rulerUnit.pointsPerUnit;
+            var avgWidth = ptToUnit(avgWidthPt, rulerUnit);
             /* ∧∨と入力欄は隙間0で突き合わせる / butt the stepper against the field */
             var sizeStepperGroup = sizeInputGroup.add("group");
             sizeStepperGroup.orientation = "row";
@@ -2755,7 +2775,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6f35bd4000ec"; /* 紹�
             if (mode.isFixed) {
                 var parsedSize = parseFloat(fixedSizeInput.text);
                 if (isNaN(parsedSize) || parsedSize <= 0) return null;
-                return parsedSize * rulerUnit.pointsPerUnit;
+                return unitToPt(parsedSize, rulerUnit);
             }
             if (mode.isArtboard) {
                 var artboardRect = getActiveArtboardRect();
@@ -2764,7 +2784,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6f35bd4000ec"; /* 紹�
             if (mode.isBleed) {
                 var bleedBase = getActiveArtboardRect();
                 var sideLength = mode.isWidth ? (bleedBase[2] - bleedBase[0]) : (bleedBase[1] - bleedBase[3]);
-                return sideLength + BLEED_OFFSET_MM * UNITS[1].pointsPerUnit;
+                return sideLength + unitToPt(BLEED_OFFSET_MM, UNITS[1]);
             }
             /* 最大／最小／長辺／短辺: 全アイテムから基準値を集計 / Max, min, long, short: aggregate over all items */
             var referenceValue = null;

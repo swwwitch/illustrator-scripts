@@ -574,8 +574,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n33d152e73f35"; /* 紹�
         { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
     ];
 
-    /* 行の指定に書かれた「Q」は環境設定によらず常に級として換算する / "Q" in a line is always read as kyu, regardless of preferences */
-    var POINTS_PER_Q = UNITS[5].pointsPerUnit;
+    /**
+     * 単位の値を pt に換算する
+     * @param {number} value - 単位の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} pt の値
+     */
+    function unitToPt(value, unit) {
+        return value * unit.pointsPerUnit;
+    }
 
     // 選択の収集と境界（再利用パーツ） / Selection items and bounds (reusable)
 
@@ -1266,14 +1273,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n33d152e73f35"; /* 紹�
         var name = String(matched[1]).replace(/[\s　]+$/g, "");
         if (name === "") return fontSpec; /* 名前が空ならサイズ扱いしない / Not a size when the name is empty */
 
-        var sizePt = unitToPoints(matched[2], matched[3]);
+        var sizePt = parseSizeWithUnit(matched[2], matched[3]);
         if (sizePt === null) return fontSpec;
 
         fontSpec.name = name;
         fontSpec.size = sizePt;
 
         /* サイズが確定したときだけ行送りを見る / Read the leading only once the size is settled */
-        if (matched[4]) fontSpec.leading = unitToPoints(matched[4], matched[5]);
+        if (matched[4]) fontSpec.leading = parseSizeWithUnit(matched[4], matched[5]);
 
         return fontSpec;
     }
@@ -1284,11 +1291,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n33d152e73f35"; /* 紹�
      * @param {string} unitText - 単位（pt / px / q / 未指定）
      * @returns {number} ポイント値。正の値でなければ null
      */
-    function unitToPoints(numberText, unitText) {
+    function parseSizeWithUnit(numberText, unitText) {
         var value = parseFloat(numberText);
         if (!(value > 0)) return null;
+        /* 行の指定に書かれた「Q」は環境設定によらず常に級として換算する / "Q" in a line is always read as kyu, regardless of preferences */
         if (unitText && String(unitText).toLowerCase() === "q") {
-            return value * POINTS_PER_Q; /* 1Q = 0.25mm → pt */
+            return unitToPt(value, UNITS[5]); /* 1Q = 0.25mm → pt */
         }
         return value;
     }

@@ -1645,11 +1645,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6e4a6a2b175f"; /* 紹�
 
     /**
      * 前回のダイアログ設定を取得する（初回は既定値）
-     * @param {number} unitFactor - 表示単位1つあたりの pt 数
+     * @param {{label: string, pointsPerUnit: number}} rulerUnit - 定規の単位
      * @returns {object} 保存済みの設定
      */
-    function getSessionState(unitFactor) {
-        var defaultPadding = formatUnitValue(DEFAULT_PADDING_PT, unitFactor);
+    function getSessionState(rulerUnit) {
+        var defaultPadding = formatUnitValue(DEFAULT_PADDING_PT, rulerUnit);
         return settingsStore.load({
             addW: defaultPadding,
             addH: defaultPadding,
@@ -1920,7 +1920,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6e4a6a2b175f"; /* 紹�
     // 単位 / Units
     // =========================================
 
-    /* 単位テーブル（配列の添字が rulerType コードと一致：0=in, 1=mm, 2=pt …）/ Unit table; the array index equals the rulerType code */
+    /* 単位コードに対応する表示ラベルと、1単位あたりのポイント数
+       Unit code -> display label and points per unit */
     var UNITS = [
         { label: "in",    pointsPerUnit: 72 },                /* 0 */
         { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
@@ -1935,30 +1936,53 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6e4a6a2b175f"; /* 紹�
         { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
     ];
 
-    /* Q ではなく H と表示する設定キー / Preference keys that display H instead of Q */
+    /* 単位コード5を「歯（H）」と表示する環境設定キー。文字サイズ（text/units）だけ「級（Q）」
+       Preference keys that show unit code 5 as H; only the type size (text/units) shows Q */
     var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
 
     /**
-     * 設定キーごとの単位情報を取得する
-     * @param {string} prefKey - 環境設定キー（省略時は "rulerType"）
-     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位情報（不明なら pt）
+     * 環境設定キーの単位を返す
+     * @param {string} [prefKey] - "rulerType"（既定）/ "strokeUnits" / "text/units" / "text/asianunits"
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位の情報
      */
     function getUnitInfo(prefKey) {
         var unitKey = prefKey || "rulerType";
         var unitCode = app.preferences.getIntegerPreference(unitKey);
+        /* 未知のコードは pt に寄せる / unknown codes fall back to points */
         var unit = UNITS[unitCode] || UNITS[2];
+        /* 級（Q）と歯（H）は同じ長さだが、文字サイズは「Q」、距離は「H」と呼び分ける */
         var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
         return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
     /**
+     * 単位の値を pt に換算する
+     * @param {number} value - 単位の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} pt の値
+     */
+    function unitToPt(value, unit) {
+        return value * unit.pointsPerUnit;
+    }
+
+    /**
+     * pt の値を単位の値に換算する
+     * @param {number} ptValue - pt の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} 単位の値
+     */
+    function ptToUnit(ptValue, unit) {
+        return ptValue / unit.pointsPerUnit;
+    }
+
+    /**
      * pt 値を表示単位の文字列に変換する（小数第2位まで）
      * @param {number} valueInPt - pt 単位の値
-     * @param {number} unitFactor - 表示単位1つあたりの pt 数
+     * @param {{label: string, pointsPerUnit: number}} rulerUnit - 定規の単位
      * @returns {string} 表示用の文字列
      */
-    function formatUnitValue(valueInPt, unitFactor) {
-        return String(Math.round((valueInPt / unitFactor) * 100) / 100);
+    function formatUnitValue(valueInPt, rulerUnit) {
+        return String(Math.round(ptToUnit(valueInPt, rulerUnit) * 100) / 100);
     }
 
     // =========================================
@@ -2514,10 +2538,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6e4a6a2b175f"; /* 紹�
      * UI の入力値から、プレビューに使う実値（pt）と表示用テキストを求める
      * @param {{adjustEnabled:boolean, radiusEnabled:boolean, pill:boolean, addW:number, addH:number, radius:number}} uiValues - 入力欄の状態（数値は pt）
      * @param {ContentBounds} bounds - コンテンツの境界情報
-     * @param {number} unitFactor - 表示単位1つあたりの pt 数
+     * @param {{label: string, pointsPerUnit: number}} rulerUnit - 定規の単位
      * @returns {{addW:number, addH:number, radius:number, widthText:string, heightText:string, radiusText:string}} 計算結果
      */
-    function computePreviewValues(uiValues, bounds, unitFactor) {
+    function computePreviewValues(uiValues, bounds, rulerUnit) {
         var addW = uiValues.addW;
         var addH = uiValues.addH;
         var radius = (uiValues.radius < 0) ? 0 : uiValues.radius;
@@ -2540,9 +2564,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6e4a6a2b175f"; /* 紹�
             addW: addW,
             addH: addH,
             radius: radius,
-            widthText: formatUnitValue(addW, unitFactor),
-            heightText: formatUnitValue(addH, unitFactor),
-            radiusText: formatUnitValue(radius, unitFactor)
+            widthText: formatUnitValue(addW, rulerUnit),
+            heightText: formatUnitValue(addH, rulerUnit),
+            radiusText: formatUnitValue(radius, rulerUnit)
         };
     }
 
@@ -2573,10 +2597,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6e4a6a2b175f"; /* 紹�
      * @param {ContentBounds} bounds - コンテンツの境界情報
      * @param {PreviewTemplates} templates - プレビュー元の複製図形
      * @param {{isUndo: boolean}} previewState - プレビューの undo 状態
-     * @param {number} unitFactor - 入力欄の単位1つあたりの pt 数
+     * @param {{label: string, pointsPerUnit: number}} rulerUnit - 入力欄の単位（定規の単位）
      * @returns {{reflectEnabled: function, refresh: function, getFinalValues: function, commitFinal: function}} コントローラ
      */
-    function createPreviewController(widgets, bounds, templates, previewState, unitFactor) {
+    function createPreviewController(widgets, bounds, templates, previewState, rulerUnit) {
 
         /**
          * チェック状態から各ウィジェットの有効／無効を反映する
@@ -2612,9 +2636,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6e4a6a2b175f"; /* 紹�
                 adjustEnabled: widgets.chkAdjustEnabled.value,
                 radiusEnabled: widgets.chkRadiusEnabled.value,
                 pill: widgets.chkPill.value,
-                addW: parseNumberOrDefault(widgets.inputW.text, 0) * unitFactor,
-                addH: parseNumberOrDefault(widgets.inputH.text, 0) * unitFactor,
-                radius: parseNumberOrDefault(widgets.inputR.text, 0) * unitFactor
+                addW: unitToPt(parseNumberOrDefault(widgets.inputW.text, 0), rulerUnit),
+                addH: unitToPt(parseNumberOrDefault(widgets.inputH.text, 0), rulerUnit),
+                radius: unitToPt(parseNumberOrDefault(widgets.inputR.text, 0), rulerUnit)
             };
         }
 
@@ -2644,7 +2668,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6e4a6a2b175f"; /* 紹�
          * @returns {void}
          */
         function process() {
-            var previewValues = computePreviewValues(readUIValues(), bounds, unitFactor);
+            var previewValues = computePreviewValues(readUIValues(), bounds, rulerUnit);
             applyDerivedUIValues(previewValues);
 
             var doc = app.activeDocument;
@@ -3075,7 +3099,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6e4a6a2b175f"; /* 紹�
      */
     function showDialog(dialogContext) {
         var rulerUnit = getUnitInfo("rulerType");
-        var sessionState = getSessionState(rulerUnit.pointsPerUnit);
+        var sessionState = getSessionState(rulerUnit);
         var previewState = { isUndo: false };
         var confirmedValues = null;
         var finalPreviewItem = null;
@@ -3092,7 +3116,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6e4a6a2b175f"; /* 紹�
                 previewBaseShapeItem: dialogContext.previewBaseShapeItem
             },
             previewState,
-            rulerUnit.pointsPerUnit
+            rulerUnit
         );
         bindDialogEvents(widgets, ctrl);
 

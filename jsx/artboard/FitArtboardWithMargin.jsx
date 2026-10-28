@@ -1577,7 +1577,40 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_transit/n/n15d3c6c5a1e5"; /* 紹�
     }
 
     /**
-     * 現在の定規単位を UnitValue に渡せる文字列で返す（UnitValue が扱えない単位は pt に寄せる）
+     * 単位の値を pt に換算する
+     * @param {number} value - 単位の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} pt の値
+     */
+    function unitToPt(value, unit) {
+        return value * unit.pointsPerUnit;
+    }
+
+    /**
+     * pt の値を単位の値に換算する
+     * @param {number} ptValue - pt の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} 単位の値
+     */
+    function ptToUnit(ptValue, unit) {
+        return ptValue / unit.pointsPerUnit;
+    }
+
+    /**
+     * 表示ラベルから単位を探す（「H」は「Q」と同じ単位）
+     * @param {string} label - 単位の表示ラベル（"mm" など）
+     * @returns {{label: string, pointsPerUnit: number}|null} UNITS の要素（見つからなければ null）
+     */
+    function findUnitByLabel(label) {
+        var unitLabel = (label === "H") ? "Q" : label;
+        for (var i = 0; i < UNITS.length; i++) {
+            if (UNITS[i].label === unitLabel) return UNITS[i];
+        }
+        return null;
+    }
+
+    /**
+     * 現在の定規単位を単位ラベルで返す（in〜px 以外の単位は pt に寄せる）
      * @returns {string} 単位の文字列
      */
     function getRulerUnitString() {
@@ -1594,27 +1627,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_transit/n/n15d3c6c5a1e5"; /* 紹�
         return DIALOG_DEFAULTS.marginByUnit.hasOwnProperty(unit) ?
             DIALOG_DEFAULTS.marginByUnit[unit] :
             DIALOG_DEFAULTS.marginByUnit._fallback;
-    }
-
-    /**
-     * 数値＋単位を pt に変換する
-     * @param {number|string} value - 値
-     * @param {string} unit - 単位の文字列
-     * @returns {number} pt。変換できなければ NaN
-     */
-    function toPt(value, unit) {
-        var numericValue = Number(value);
-        if (isNaN(numericValue)) return NaN;
-        // 歯/Q は UnitValue が非対応のため単位表から換算（1H = 1Q = 0.25mm） / H and Q are unsupported by UnitValue
-        if (unit === "H" || unit === "Q") {
-            return numericValue * UNITS[5].pointsPerUnit;
-        }
-        /* UnitValue が単位を受け付けないときに備える / guard against units UnitValue rejects */
-        try {
-            return new UnitValue(numericValue, unit).as('pt');
-        } catch (e) {
-            return NaN;
-        }
     }
 
     // =========================================
@@ -2709,12 +2721,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_transit/n/n15d3c6c5a1e5"; /* 紹�
      * @returns {number[]} 丸めた矩形
      */
     function snapRectToUnitGrid(rect, unit) {
-        var ptPerUnit = toPt(1, unit);
-        if (isNaN(ptPerUnit) || ptPerUnit === 0) return snapRectToPixelGrid(rect);
-        var x = Math.round(rect[0] / ptPerUnit) * ptPerUnit;
-        var y = Math.round(rect[1] / ptPerUnit) * ptPerUnit;
-        var width = Math.round((rect[2] - rect[0]) / ptPerUnit) * ptPerUnit;
-        var height = Math.round((rect[1] - rect[3]) / ptPerUnit) * ptPerUnit;
+        var fieldUnit = findUnitByLabel(unit);
+        if (!fieldUnit) return snapRectToPixelGrid(rect);
+        var x = unitToPt(Math.round(ptToUnit(rect[0], fieldUnit)), fieldUnit);
+        var y = unitToPt(Math.round(ptToUnit(rect[1], fieldUnit)), fieldUnit);
+        var width = unitToPt(Math.round(ptToUnit(rect[2] - rect[0], fieldUnit)), fieldUnit);
+        var height = unitToPt(Math.round(ptToUnit(rect[1] - rect[3], fieldUnit)), fieldUnit);
         return [x, y, x + width, y - height];
     }
 
@@ -3289,7 +3301,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_transit/n/n15d3c6c5a1e5"; /* 紹�
      * @returns {number} pt。数値でなければ NaN
      */
     function marginTextToPoints(axisEnabled, marginText, unit) {
-        return axisEnabled ? toPt(parseFloat(marginText), unit) : 0;
+        return axisEnabled ? unitToPt(parseFloat(marginText), findUnitByLabel(unit)) : 0;
     }
 
     /**

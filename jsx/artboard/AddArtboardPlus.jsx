@@ -986,6 +986,26 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/naf239a44b8ff"; /* 紹�
     }
 
     /**
+     * 単位の値を pt に換算する
+     * @param {number} value - 単位の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} pt の値
+     */
+    function unitToPt(value, unit) {
+        return value * unit.pointsPerUnit;
+    }
+
+    /**
+     * pt の値を単位の値に換算する
+     * @param {number} ptValue - pt の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} 単位の値
+     */
+    function ptToUnit(ptValue, unit) {
+        return ptValue / unit.pointsPerUnit;
+    }
+
+    /**
      * 間隔を表示用に小数第2位までに丸める
      * @param {number} valueInUnit - 定規単位の値
      * @returns {string} 表示用の文字列
@@ -1462,19 +1482,19 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/naf239a44b8ff"; /* 紹�
            定規単位に変換して初期表示し、編集可能にする
            For 2+ artboards use the spacing inferred from the existing layout, otherwise the
            Rearrange Artboards spacing (pt); shown in the ruler unit and editable */
-        var rulerUnitInfo = getUnitInfo();
+        var rulerUnit = getUnitInfo();
         var spacingPreferencePt = app.preferences.getRealPreference('plugin/ArtboardRearrange/ArtboardSpacing');
         var estimatedSpacingPt = estimateArtboardSpacingPt(spacingPreferencePt);
-        var initialSpacingText = formatSpacingForDisplay(estimatedSpacingPt / rulerUnitInfo.pointsPerUnit);
+        var initialSpacingText = formatSpacingForDisplay(ptToUnit(estimatedSpacingPt, rulerUnit));
 
-        var dialogControls = buildInsertDialog(initialSpacingText, rulerUnitInfo.label);
+        var dialogControls = buildInsertDialog(initialSpacingText, rulerUnit.label);
         prepareDialogWindow(dialogControls.insertDialog, SCRIPT_NAME);
         if (dialogControls.insertDialog.show() != 1) return null;
 
         return readInsertSettings(dialogControls, {
             initialSpacingText: initialSpacingText,
             estimatedSpacingPt: estimatedSpacingPt,
-            pointsPerUnit: rulerUnitInfo.pointsPerUnit
+            rulerUnit: rulerUnit
         });
     }
 
@@ -1650,7 +1670,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/naf239a44b8ff"; /* 紹�
     /**
      * 閉じたダイアログから挿入の設定を読み取る
      * @param {object} dialogControls - buildInsertDialog() の戻り値
-     * @param {object} spacingContext - initialSpacingText / estimatedSpacingPt / pointsPerUnit
+     * @param {object} spacingContext - initialSpacingText / estimatedSpacingPt / rulerUnit
      * @returns {object} 挿入の設定
      */
     function readInsertSettings(dialogControls, spacingContext) {
@@ -1674,7 +1694,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/naf239a44b8ff"; /* 紹�
             /* 追加方向：0=右（横並び）/ 1=下（縦並び）/ Add direction: 0 = right (horizontal), 1 = down (vertical) */
             directionAxisIndex: dialogControls.directionDownRadio.value ? 1 : 0,
             spacingPt: useManualSpacing
-                ? Math.max(0, spacingInputValue * spacingContext.pointsPerUnit)
+                ? Math.max(0, unitToPt(spacingInputValue, spacingContext.rulerUnit))
                 : spacingContext.estimatedSpacingPt,
             estimatedSpacingPt: spacingContext.estimatedSpacingPt,
             useManualSpacing: useManualSpacing,

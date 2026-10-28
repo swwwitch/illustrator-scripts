@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.SmartObjectExporter
 Name=SmartObjectExporter
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.2.3
+Version=1.2.4
 Release-Date=2025-06-19
 Description-BEGIN
 選択したオブジェクトを一時アートボードに収め、背景・マージン・枠線・書き出しサイズ・ファイル名を指定してPNG書き出しします。
@@ -47,10 +47,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartObjec
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SmartObjectExporter";          /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.2.3";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.2.4";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-06-19";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-16";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-29";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartObjectExporter.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartObjectExporter.md"; /* README (English) */
@@ -1530,12 +1530,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/necf308c39f5d"; /* 紹�
         }
     };
 
-    /* プリセットのマージン・線幅はmmで持ち、適用時に現在の定規単位へ換算する
-       / Preset margins and border widths are stored in mm and converted to the ruler unit on apply */
-    var PRESET_UNIT_FACTOR = 72.0 / 25.4;
-
     /* 初期プリセット（値の書式は background / margin / round / border / location / delimiter / suffix / size）
-       / Built-in presets, encoded the same way as a saved preset file */
+       マージン・線幅はmmで持ち、適用時に現在の定規単位へ換算する
+       / Built-in presets, encoded the same way as a saved preset file;
+         margins and border widths are stored in mm and converted to the ruler unit on apply */
     var PRESETS = [
         {
             label: LABELS.preset.transparent200,
@@ -1794,16 +1792,43 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/necf308c39f5d"; /* 紹�
         { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
     ];
 
+    /* 単位コード5を「歯（H）」と表示する環境設定キー。文字サイズ（text/units）だけ「級（Q）」
+       Preference keys that show unit code 5 as H; only the type size (text/units) shows Q */
+    var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
+
     /**
      * 環境設定キーの単位を返す
      * @param {string} [prefKey] - "rulerType"（既定）/ "strokeUnits" / "text/units" / "text/asianunits"
      * @returns {{code: number, label: string, pointsPerUnit: number}} 単位の情報
      */
     function getUnitInfo(prefKey) {
-        var unitCode = app.preferences.getIntegerPreference(prefKey || "rulerType");
+        var unitKey = prefKey || "rulerType";
+        var unitCode = app.preferences.getIntegerPreference(unitKey);
         /* 未知のコードは pt に寄せる / unknown codes fall back to points */
         var unit = UNITS[unitCode] || UNITS[2];
-        return { code: unitCode, label: unit.label, pointsPerUnit: unit.pointsPerUnit };
+        /* 級（Q）と歯（H）は同じ長さだが、文字サイズは「Q」、距離は「H」と呼び分ける */
+        var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
+        return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
+    }
+
+    /**
+     * 単位の値を pt に換算する
+     * @param {number} value - 単位の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} pt の値
+     */
+    function unitToPt(value, unit) {
+        return value * unit.pointsPerUnit;
+    }
+
+    /**
+     * pt の値を単位の値に換算する
+     * @param {number} ptValue - pt の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} 単位の値
+     */
+    function ptToUnit(ptValue, unit) {
+        return ptValue / unit.pointsPerUnit;
     }
 
     /**
@@ -1819,21 +1844,21 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/necf308c39f5d"; /* 紹�
     /**
      * プリセットのmm値を現在の定規単位に換算する
      * @param {number} valueMm - mm値
-     * @param {number} unitFactor - 1単位あたりのpt数
+     * @param {{code: number, label: string, pointsPerUnit: number}} rulerUnit - 定規の単位情報
      * @returns {number} 現在の定規単位での値（小数第3位まで）
      */
-    function fromPresetUnit(valueMm, unitFactor) {
-        return Math.round(valueMm * PRESET_UNIT_FACTOR / unitFactor * 1000) / 1000;
+    function fromPresetUnit(valueMm, rulerUnit) {
+        return Math.round(ptToUnit(unitToPt(valueMm, UNITS[1]), rulerUnit) * 1000) / 1000;
     }
 
     /**
      * 現在の定規単位の値をプリセット用のmmに換算する
      * @param {number} value - 現在の定規単位での値
-     * @param {number} unitFactor - 1単位あたりのpt数
+     * @param {{code: number, label: string, pointsPerUnit: number}} rulerUnit - 定規の単位情報
      * @returns {number} mm値（小数第3位まで）
      */
-    function toPresetUnit(value, unitFactor) {
-        return Math.round(value * unitFactor / PRESET_UNIT_FACTOR * 1000) / 1000;
+    function toPresetUnit(value, rulerUnit) {
+        return Math.round(ptToUnit(unitToPt(value, rulerUnit), UNITS[1]) * 1000) / 1000;
     }
 
     /**
@@ -2626,27 +2651,27 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/necf308c39f5d"; /* 紹�
     /**
      * マージン指定（"上,下,左,右" 形式の "3,3,0,0" など）をpt値に展開する
      * @param {string} marginSpec - マージン指定
-     * @param {number} unitFactor - 1単位あたりのpt数
+     * @param {{code: number, label: string, pointsPerUnit: number}} rulerUnit - 定規の単位情報
      * @returns {{top: number, bottom: number, left: number, right: number}} 各辺のマージン（pt）
      */
-    function resolveMarginOffsets(marginSpec, unitFactor) {
+    function resolveMarginOffsets(marginSpec, rulerUnit) {
         var marginValues = String(marginSpec).split(",");
         return {
-            top: toNumber(marginValues[0]) * unitFactor,
-            bottom: toNumber(marginValues[1]) * unitFactor,
-            left: toNumber(marginValues[2]) * unitFactor,
-            right: toNumber(marginValues[3]) * unitFactor
+            top: unitToPt(toNumber(marginValues[0]), rulerUnit),
+            bottom: unitToPt(toNumber(marginValues[1]), rulerUnit),
+            left: unitToPt(toNumber(marginValues[2]), rulerUnit),
+            right: unitToPt(toNumber(marginValues[3]), rulerUnit)
         };
     }
 
     /**
      * 丸めモードから、書き出し範囲を合わせるグリッドの間隔を求める
      * @param {string} roundMode - 丸めモード（pixelGrid / currentUnit / none）
-     * @param {number} unitFactor - 1単位あたりのpt数
+     * @param {{code: number, label: string, pointsPerUnit: number}} rulerUnit - 定規の単位情報
      * @returns {number} グリッド間隔（pt）。丸めないときは 0
      */
-    function resolveSnapStep(roundMode, unitFactor) {
-        if (roundMode === "currentUnit") return unitFactor;
+    function resolveSnapStep(roundMode, rulerUnit) {
+        if (roundMode === "currentUnit") return unitToPt(1, rulerUnit);
         if (roundMode === "none") return 0;
         /* 既定はピクセルグリッド。倍率100%で 1pt＝1px / Pixel grid by default; at 100% one pt equals one px */
         return 1;
@@ -2657,17 +2682,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/necf308c39f5d"; /* 紹�
      * @param {number[]} selectionBounds - 選択オブジェクトの外接範囲 [左, 上, 右, 下]
      * @param {string} marginSpec - マージン指定（上,下,左,右 / 現在の定規単位）
      * @param {string} roundMode - 丸めモード（pixelGrid / currentUnit / none）
-     * @param {number} unitFactor - 1単位あたりのpt数
+     * @param {{code: number, label: string, pointsPerUnit: number}} rulerUnit - 定規の単位情報
      * @returns {{left: number, top: number, right: number, bottom: number, width: number, height: number}} 書き出し範囲
      */
-    function buildExportRect(selectionBounds, marginSpec, roundMode, unitFactor) {
-        var marginOffsets = resolveMarginOffsets(marginSpec, unitFactor);
+    function buildExportRect(selectionBounds, marginSpec, roundMode, rulerUnit) {
+        var marginOffsets = resolveMarginOffsets(marginSpec, rulerUnit);
         var left = selectionBounds[0] - marginOffsets.left;
         var top = selectionBounds[1] + marginOffsets.top;
         var right = selectionBounds[2] + marginOffsets.right;
         var bottom = selectionBounds[3] - marginOffsets.bottom;
 
-        var snapStep = resolveSnapStep(roundMode, unitFactor);
+        var snapStep = resolveSnapStep(roundMode, rulerUnit);
         if (snapStep > 0) {
             left = Math.floor(left / snapStep) * snapStep;
             top = Math.ceil(top / snapStep) * snapStep;
@@ -2687,13 +2712,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/necf308c39f5d"; /* 紹�
     /**
      * 枠線指定（"none" / "0.1,black" など）から線幅（pt、最小1px）を求める
      * @param {string} borderSpec - 枠線指定
-     * @param {number} unitFactor - 1単位あたりのpt数
+     * @param {{code: number, label: string, pointsPerUnit: number}} rulerUnit - 定規の単位情報
      * @returns {number} 線幅（pt）。枠線なしなら 0
      */
-    function resolveBorderWidth(borderSpec, unitFactor) {
+    function resolveBorderWidth(borderSpec, rulerUnit) {
         if (!borderSpec || borderSpec === "none") return 0;
         /* 細くても消えないよう1pxまで切り上げる / Round up so a hairline never disappears */
-        var borderWidth = Math.ceil(toNumber(borderSpec.split(",")[0]) * unitFactor);
+        var borderWidth = Math.ceil(unitToPt(toNumber(borderSpec.split(",")[0]), rulerUnit));
         return (borderWidth > 0) ? borderWidth : 0;
     }
 
@@ -3024,14 +3049,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/necf308c39f5d"; /* 紹�
     /**
      * 現在の設定をプリセット定義としてデスクトップに書き出す
      * @param {Object} dialogControls - ダイアログのコントロール一式
-     * @param {number} unitFactor - 1単位あたりのpt数
+     * @param {{code: number, label: string, pointsPerUnit: number}} rulerUnit - 定規の単位情報
      * @returns {void}
      */
-    function savePresetToFile(dialogControls, unitFactor) {
+    function savePresetToFile(dialogControls, rulerUnit) {
         /* プリセットはmmで持つ約束なので、現在の定規単位から換算して書き出す
            / Presets are kept in mm, so convert from the current ruler unit on the way out */
         function toMm(value) {
-            return toPresetUnit(value, unitFactor);
+            return toPresetUnit(value, rulerUnit);
         }
 
         var presetName = prompt(getLabel(LABELS.prompt.presetName), getLabel(LABELS.prompt.defaultPresetName));
@@ -3084,11 +3109,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/necf308c39f5d"; /* 紹�
      * 透明グリッドは数千個の矩形を作り直すので、見た目が変わらないときは何もしない
      * @param {Object} dialogControls - ダイアログのコントロール一式
      * @param {number[]} selectionBounds - 選択オブジェクトの外接範囲
-     * @param {number} unitFactor - 1単位あたりのpt数
+     * @param {{code: number, label: string, pointsPerUnit: number}} rulerUnit - 定規の単位情報
      * @returns {void}
      */
-    function renderPreview(dialogControls, selectionBounds, unitFactor) {
-        var exportRect = buildExportRect(selectionBounds, getMarginSpec(dialogControls), getRoundMode(dialogControls), unitFactor);
+    function renderPreview(dialogControls, selectionBounds, rulerUnit) {
+        var exportRect = buildExportRect(selectionBounds, getMarginSpec(dialogControls), getRoundMode(dialogControls), rulerUnit);
         var backgroundChoice = getBackgroundChoice(dialogControls);
         var checkerPercent = getCheckerPercent(dialogControls);
         var borderSpec = getBorderSpec(dialogControls);
@@ -3100,7 +3125,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/necf308c39f5d"; /* 紹�
 
         removePreviewArtwork();
         createExportBackground(backgroundChoice, exportRect, checkerPercent);
-        drawBorderRectangle(exportRect, resolveBorderWidth(borderSpec, unitFactor), resolveBorderColor(borderSpec));
+        drawBorderRectangle(exportRect, resolveBorderWidth(borderSpec, rulerUnit), resolveBorderColor(borderSpec));
         app.redraw();
     }
 
@@ -3121,13 +3146,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/necf308c39f5d"; /* 紹�
 
         /* 現在のマージン設定を含めた書き出し範囲 / Export rect including the current margin */
         function getExportRectFromUI() {
-            return buildExportRect(selectionBounds, getMarginSpec(dialogControls), getRoundMode(dialogControls), rulerUnit.pointsPerUnit);
+            return buildExportRect(selectionBounds, getMarginSpec(dialogControls), getRoundMode(dialogControls), rulerUnit);
         }
 
         /* 設定が変わるたびにプレビューと倍率ラベルを描き直す / Redraw the preview and the scale labels on every change */
         function refreshPreview() {
             if (dialogControls.size) updateScaleLabels();
-            renderPreview(dialogControls, selectionBounds, rulerUnit.pointsPerUnit);
+            renderPreview(dialogControls, selectionBounds, rulerUnit);
         }
 
         /* ファイル名プレビューを更新する / Refresh the filename preview */
@@ -3739,7 +3764,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/necf308c39f5d"; /* 紹�
             /* プリセットはmmで持っているので、現在の定規単位へ換算して反映する
                / Presets are stored in mm, so convert them to the current ruler unit */
             function toRulerUnit(valueMm) {
-                return fromPresetUnit(valueMm, rulerUnit.pointsPerUnit);
+                return fromPresetUnit(valueMm, rulerUnit);
             }
             dialogControls.background.select(preset.background);
             dialogControls.margin.select(convertMarginSpec(preset.margin, toRulerUnit));
@@ -3759,7 +3784,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/necf308c39f5d"; /* 紹�
             if (selectedIndex > 0) applyPreset(PRESETS[selectedIndex - 1]);
         };
         btnSavePreset.onClick = function() {
-            savePresetToFile(dialogControls, rulerUnit.pointsPerUnit);
+            savePresetToFile(dialogControls, rulerUnit);
         };
 
         var buttonRow = addButtonRow(exportDialog);
@@ -3837,7 +3862,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/necf308c39f5d"; /* 紹�
             var backgroundItem = createExportBackground(exportSettings.backgroundChoice, exportRect, exportSettings.checkerPercent);
             var borderRect = drawBorderRectangle(
                 exportRect,
-                resolveBorderWidth(exportSettings.borderSpec, rulerUnit.pointsPerUnit),
+                resolveBorderWidth(exportSettings.borderSpec, rulerUnit),
                 resolveBorderColor(exportSettings.borderSpec)
             );
             if (borderRect) borderRect.zOrder(ZOrderMethod.BRINGTOFRONT);
@@ -3935,7 +3960,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/necf308c39f5d"; /* 紹�
         var exportSettings = showExportOptionsDialog(selectionBounds, rulerUnit, documentBaseName);
         if (!exportSettings) return null;
 
-        var exportRect = buildExportRect(selectionBounds, exportSettings.marginSpec, exportSettings.roundMode, rulerUnit.pointsPerUnit);
+        var exportRect = buildExportRect(selectionBounds, exportSettings.marginSpec, exportSettings.roundMode, rulerUnit);
         if (exportRect.width <= 0 || exportRect.height <= 0) {
             alert(getLabel(LABELS.alert.invalidSize));
             return null;

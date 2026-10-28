@@ -1417,6 +1417,26 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nbf88198f1581"; /* 紹�
         return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
+    /**
+     * 単位の値を pt に換算する
+     * @param {number} value - 単位の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} pt の値
+     */
+    function unitToPt(value, unit) {
+        return value * unit.pointsPerUnit;
+    }
+
+    /**
+     * pt の値を単位の値に換算する
+     * @param {number} ptValue - pt の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} 単位の値
+     */
+    function ptToUnit(ptValue, unit) {
+        return ptValue / unit.pointsPerUnit;
+    }
+
     // =========================================
     // ローカライズ / Localization
     // =========================================
@@ -2263,30 +2283,30 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nbf88198f1581"; /* 紹�
      * @param {Group|Panel} parent - 追加先
      * @param {string} labelPath - 項目名の LABELS のパス
      * @param {number} valuePt - 初期値（pt）
-     * @param {{label: string, pointsPerUnit: number}} unitInfo - 欄の単位
+     * @param {{label: string, pointsPerUnit: number}} fieldUnit - 欄の単位
      * @param {number} minValue - 下限（欄の単位）
      * @returns {EditText} 入力欄
      */
-    function addUnitField(parent, labelPath, valuePt, unitInfo, minValue) {
+    function addUnitField(parent, labelPath, valuePt, fieldUnit, minValue) {
         return addSteppedField(parent, {
             label: labelText(labelPath),
             labelWidth: FIELD_LABEL_WIDTH,
-            text: formatStepperNumber(Math.round(valuePt / unitInfo.pointsPerUnit * 1000) / 1000) + " " + unitInfo.label,
+            text: formatStepperNumber(Math.round(ptToUnit(valuePt, fieldUnit) * 1000) / 1000) + " " + fieldUnit.label,
             characters: FIELD_CHARACTERS,
             step: 1,
             min: minValue,
-            unit: " " + unitInfo.label
+            unit: " " + fieldUnit.label
         });
     }
 
     /**
      * 入力欄の値を pt で読む
      * @param {EditText} unitField - addUnitField() で作った入力欄
-     * @param {{pointsPerUnit: number}} unitInfo - 欄の単位
+     * @param {{pointsPerUnit: number}} fieldUnit - 欄の単位
      * @returns {number} 値（pt）
      */
-    function readUnitFieldPt(unitField, unitInfo) {
-        return parseFloat(unitField.text) * unitInfo.pointsPerUnit;
+    function readUnitFieldPt(unitField, fieldUnit) {
+        return unitToPt(parseFloat(unitField.text), fieldUnit);
     }
 
     /**
@@ -2586,11 +2606,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nbf88198f1581"; /* 紹�
      * ［長方形］パネル（幅・高さ・連動・間隔）を作る
      * @param {Group} parent - 追加先
      * @param {DialogSettings} settings - 前回の設定
-     * @param {{label: string, pointsPerUnit: number}} rulerUnitInfo - 定規の単位
+     * @param {{label: string, pointsPerUnit: number}} rulerUnit - 定規の単位
      * @param {Function} onSettingsChange - 値を変えたあとに呼ぶ関数
      * @returns {{widthField: EditText, heightField: EditText, marginField: EditText, linkToggle: Group}} 入力欄と連動アイコン
      */
-    function buildSquarePanel(parent, settings, rulerUnitInfo, onSettingsChange) {
+    function buildSquarePanel(parent, settings, rulerUnit, onSettingsChange) {
         var squarePanel = parent.add("panel", undefined, getLabel("panel.square"));
         setupPanel(squarePanel, 6);
 
@@ -2601,8 +2621,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nbf88198f1581"; /* 紹�
         sizeFieldsColumn.orientation = "column";
         sizeFieldsColumn.alignChildren = ["left", "center"];
         sizeFieldsColumn.spacing = 6;
-        var widthField = addUnitField(sizeFieldsColumn, "fieldLabel.width", settings.width, rulerUnitInfo, 0.01);
-        var heightField = addUnitField(sizeFieldsColumn, "fieldLabel.height", settings.height, rulerUnitInfo, 0.01);
+        var widthField = addUnitField(sizeFieldsColumn, "fieldLabel.width", settings.width, rulerUnit, 0.01);
+        var heightField = addUnitField(sizeFieldsColumn, "fieldLabel.height", settings.height, rulerUnit, 0.01);
 
         /**
          * 連動中は、変えた側の値をもう一方へ写す
@@ -2623,7 +2643,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nbf88198f1581"; /* 紹�
         linkSizeFields(widthField, heightField, copyLinkedSize);
         linkSizeFields(heightField, widthField, copyLinkedSize);
 
-        var marginField = addUnitField(squarePanel, "fieldLabel.margin", settings.margin, rulerUnitInfo, 0);
+        var marginField = addUnitField(squarePanel, "fieldLabel.margin", settings.margin, rulerUnit, 0);
         marginField.helpTip = getLabel("tooltip.margin");
         watchUnitField(widthField, onSettingsChange);
         watchUnitField(heightField, onSettingsChange);
@@ -2672,14 +2692,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nbf88198f1581"; /* 紹�
      * ［線］パネル（線幅・カラー）を作る
      * @param {Group} parent - 追加先
      * @param {DialogSettings} settings - 前回の設定
-     * @param {{label: string, pointsPerUnit: number}} strokeUnitInfo - 線の単位
+     * @param {{label: string, pointsPerUnit: number}} strokeUnit - 線の単位
      * @param {Function} onSettingsChange - 値を変えたあとに呼ぶ関数
      * @returns {{strokeWidthField: EditText, strokeColorSwatch: Image}} 入力欄と色見本
      */
-    function buildStrokePanel(parent, settings, strokeUnitInfo, onSettingsChange) {
+    function buildStrokePanel(parent, settings, strokeUnit, onSettingsChange) {
         var strokePanel = parent.add("panel", undefined, getLabel("panel.stroke"));
         setupPanel(strokePanel, 6);
-        var strokeWidthField = addUnitField(strokePanel, "fieldLabel.strokeWidth", settings.strokeWidth, strokeUnitInfo, 0);
+        var strokeWidthField = addUnitField(strokePanel, "fieldLabel.strokeWidth", settings.strokeWidth, strokeUnit, 0);
         strokeWidthField.helpTip = getLabel("tooltip.strokeWidth");
         watchUnitField(strokeWidthField, onSettingsChange);
 
@@ -2934,8 +2954,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nbf88198f1581"; /* 紹�
      */
     function showSettingsDialog(doc, sampleSession) {
         var settings = loadDialogSettings(doc);
-        var rulerUnitInfo = getUnitInfo();
-        var strokeUnitInfo = getUnitInfo("strokeUnits");
+        var rulerUnit = getUnitInfo();
+        var strokeUnit = getUnitInfo("strokeUnits");
         var previewCheckbox = null; /* 作り終えるまでは描き直さない / no redraw until the dialog is built */
 
         /**
@@ -2961,8 +2981,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nbf88198f1581"; /* 紹�
         /* 一覧は先に作る（左の種類の切り替えで入れ替えるため） / Build the list first so the kind radios can switch it */
         var libraryList = buildLibraryListPanel(rightColumn, settings, updatePreview);
         var swatchControls = buildSwatchPanel(leftColumn, settings, libraryList, updatePreview);
-        var squareControls = buildSquarePanel(leftColumn, settings, rulerUnitInfo, updatePreview);
-        var strokeControls = buildStrokePanel(leftColumn, settings, strokeUnitInfo, updatePreview);
+        var squareControls = buildSquarePanel(leftColumn, settings, rulerUnit, updatePreview);
+        var strokeControls = buildStrokePanel(leftColumn, settings, strokeUnit, updatePreview);
         var textControls = buildTextPanel(leftColumn, settings, updatePreview);
 
         /**
@@ -2976,11 +2996,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nbf88198f1581"; /* 紹�
                 useDocument: !swatchControls.isLibrarySource(),
                 selectedSwatchesOnly: swatchControls.isSelectedOnly(),
                 checkedLibraries: settings.checkedLibraries,
-                width: readUnitFieldPt(squareControls.widthField, rulerUnitInfo),
-                height: readUnitFieldPt(squareControls.heightField, rulerUnitInfo),
+                width: readUnitFieldPt(squareControls.widthField, rulerUnit),
+                height: readUnitFieldPt(squareControls.heightField, rulerUnit),
                 isSizeLinked: squareControls.linkToggle.value,
-                margin: readUnitFieldPt(squareControls.marginField, rulerUnitInfo),
-                strokeWidth: readUnitFieldPt(strokeControls.strokeWidthField, strokeUnitInfo),
+                margin: readUnitFieldPt(squareControls.marginField, rulerUnit),
+                strokeWidth: readUnitFieldPt(strokeControls.strokeWidthField, strokeUnit),
                 strokeColor: strokeControls.strokeColorSwatch.swatchColor,
                 addTitle: textControls.libraryNameCheckbox.value,
                 showSwatchNames: textControls.swatchNameCheckbox.value

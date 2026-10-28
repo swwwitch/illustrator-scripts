@@ -567,6 +567,26 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5f25ed17b123"; /* 紹�
         return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
+    /**
+     * 単位の値を pt に換算する
+     * @param {number} value - 単位の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} pt の値
+     */
+    function unitToPt(value, unit) {
+        return value * unit.pointsPerUnit;
+    }
+
+    /**
+     * pt の値を単位の値に換算する
+     * @param {number} ptValue - pt の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} 単位の値
+     */
+    function ptToUnit(ptValue, unit) {
+        return ptValue / unit.pointsPerUnit;
+    }
+
     // =========================================
     // ステップボタン / Stepper buttons
     // =========================================
@@ -1157,7 +1177,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5f25ed17b123"; /* 紹�
     var targetDigitLength = 0;    /* 増分対象の元の桁数 / original width of the target */
     var weekdayInfo = { has: false }; /* 曜日表記の有無と囲み記号 / weekday notation, if any */
     var sourceFontSizePt = FALLBACK_FONT_SIZE_PT; /* 送り・行送りの基準 / base for the pitch and leading */
-    var textUnitInfo = null;      /* 環境設定の文字の単位 / text unit from the preferences */
+    var textUnit = null;          /* 環境設定の文字の単位 / text unit from the preferences */
     var dialogControls = null;    /* buildIncrementDialog() の戻り値 / controls of the dialog */
     var previewItems = [];        /* プレビューで作った複製 / copies made for the preview */
     var previewSuspended = false; /* 復帰中はプレビューを作らない / no preview while restoring */
@@ -1529,7 +1549,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5f25ed17b123"; /* 紹�
      * @returns {number} アキ（pt。数値でなければ NaN）
      */
     function readGapPt() {
-        return parseFloat(dialogControls.gapInput.text) * textUnitInfo.pointsPerUnit;
+        return unitToPt(parseFloat(dialogControls.gapInput.text), textUnit);
     }
 
     /**
@@ -1936,9 +1956,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5f25ed17b123"; /* 紹�
 
         /* アキ（文字サイズに足す量、0以上） / Gap added on top of the font size (0 or more) */
         var defaultGapPt = Math.max(0, sourceFontSizePt * (DEFAULT_PITCH_RATIO - 1));
-        var gapRow = addNumberFieldRow(settingsGroup, LABELS.fieldLabel.gap, (defaultGapPt / textUnitInfo.pointsPerUnit).toFixed(1),
+        var gapRow = addNumberFieldRow(settingsGroup, LABELS.fieldLabel.gap, ptToUnit(defaultGapPt, textUnit).toFixed(1),
             { min: 0 }, LABELS.tooltip.gap);
-        gapRow.fieldRow.add("statictext", undefined, textUnitInfo.label);
+        gapRow.fieldRow.add("statictext", undefined, textUnit.label);
 
         /* 増分対象 / Increment target */
         var targetRadios = addTargetRadioRow(settingsGroup, targetRadioLabels);
@@ -2097,7 +2117,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5f25ed17b123"; /* 紹�
         weekdayInfo = detectWeekdayInfo(sourceText);
         /* 複製の送りと結合時の行送りの基準 / base for the pitch and the merged leading */
         sourceFontSizePt = readFontSizePt(sourceTextFrame, FALLBACK_FONT_SIZE_PT);
-        textUnitInfo = getUnitInfo("text/units");
+        textUnit = getUnitInfo("text/units");
 
         dialogControls = buildIncrementDialog(incrementTargets.radioLabels);
         bindDialogEvents();

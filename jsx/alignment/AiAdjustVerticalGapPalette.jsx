@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.AiAdjustVerticalGapPalette
 Name=AiAdjustVerticalGapPalette
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.4.7
+Version=1.4.8
 Release-Date=2026-06-28
 Description-BEGIN
 選択した2つのオブジェクトの上下の間隔を、指定した値にそろえる常駐パレットです。
@@ -47,10 +47,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiAdjustVe
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AiAdjustVerticalGapPalette";   /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.4.7";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.4.8";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-06-28";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-16";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-29";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiAdjustVerticalGapPalette.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiAdjustVerticalGapPalette.md"; /* README (English) */
@@ -1224,16 +1224,43 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8201294835f9"; /* 紹�
         { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
     ];
 
+    /* 単位コード5を「歯（H）」と表示する環境設定キー。文字サイズ（text/units）だけ「級（Q）」
+       Preference keys that show unit code 5 as H; only the type size (text/units) shows Q */
+    var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
+
     /**
      * 環境設定キーの単位を返す
      * @param {string} [prefKey] - "rulerType"（既定）/ "strokeUnits" / "text/units" / "text/asianunits"
      * @returns {{code: number, label: string, pointsPerUnit: number}} 単位の情報
      */
     function getUnitInfo(prefKey) {
-        var unitCode = app.preferences.getIntegerPreference(prefKey || "rulerType");
+        var unitKey = prefKey || "rulerType";
+        var unitCode = app.preferences.getIntegerPreference(unitKey);
         /* 未知のコードは pt に寄せる / unknown codes fall back to points */
         var unit = UNITS[unitCode] || UNITS[2];
-        return { code: unitCode, label: unit.label, pointsPerUnit: unit.pointsPerUnit };
+        /* 級（Q）と歯（H）は同じ長さだが、文字サイズは「Q」、距離は「H」と呼び分ける */
+        var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
+        return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
+    }
+
+    /**
+     * 単位の値を pt に換算する
+     * @param {number} value - 単位の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} pt の値
+     */
+    function unitToPt(value, unit) {
+        return value * unit.pointsPerUnit;
+    }
+
+    /**
+     * pt の値を単位の値に換算する
+     * @param {number} ptValue - pt の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} 単位の値
+     */
+    function ptToUnit(ptValue, unit) {
+        return ptValue / unit.pointsPerUnit;
     }
 
     // =========================================
@@ -2053,9 +2080,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8201294835f9"; /* 紹�
 
         return {
             anchorTop: resolveAnchorTop(paletteControls.anchor),
-            gapPoints: gapValue * rulerUnit.pointsPerUnit,
+            gapPoints: unitToPt(gapValue, rulerUnit),
             align: selectedRadioKey(paletteControls.align, ["none", "left", "center", "right"]),
-            adjustPoints: adjustValue * rulerUnit.pointsPerUnit,
+            adjustPoints: unitToPt(adjustValue, rulerUnit),
             justify: selectedRadioKey(paletteControls.justify, ["none", "link", "full"]),
             usePreviewBounds: paletteControls.gap.previewBoundsCheckbox.value
         };
@@ -2153,7 +2180,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8201294835f9"; /* 紹�
             }
             /* 重なり（負の間隔）もそのまま取り込む。pt → 定規単位、0.1単位（小数1桁）に丸め /
                Keep negative gaps (overlap) as-is; pt → ruler unit, rounded to 0.1 (1 decimal) */
-            var gapValue = Math.round((gapPoints / rulerUnit.pointsPerUnit) * 10) / 10;
+            var gapValue = Math.round(ptToUnit(gapPoints, rulerUnit) * 10) / 10;
             paletteControls.gap.gapValueInput.text = String(gapValue);
             return true;
         }

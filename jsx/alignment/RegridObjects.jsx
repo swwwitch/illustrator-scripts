@@ -2266,6 +2266,26 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n08861d0e40c3"; /* 紹�
         return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
+    /**
+     * 単位の値を pt に換算する
+     * @param {number} value - 単位の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} pt の値
+     */
+    function unitToPt(value, unit) {
+        return value * unit.pointsPerUnit;
+    }
+
+    /**
+     * pt の値を単位の値に換算する
+     * @param {number} ptValue - pt の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} 単位の値
+     */
+    function ptToUnit(ptValue, unit) {
+        return ptValue / unit.pointsPerUnit;
+    }
+
     // =========================================
     // ローカライズ / Localization
     // =========================================
@@ -2499,7 +2519,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n08861d0e40c3"; /* 紹�
 
         // 初期値は pt を表示単位に換算して表示 / show initial value converted from pt to the display unit
         var horizontalGapInput = addGapField(gapInputColumn, 'fieldLabel.horizontal',
-            (initialGapX / rulerUnit.pointsPerUnit).toFixed(1) + unitSuffix, 'tooltip.horizontal', unitSuffix);
+            ptToUnit(initialGapX, rulerUnit).toFixed(1) + unitSuffix, 'tooltip.horizontal', unitSuffix);
         // 連動ONで始めるので上下は左右と同じ値 / Link starts on, so vertical mirrors horizontal
         var verticalGapInput = addGapField(gapInputColumn, 'fieldLabel.vertical', horizontalGapInput.text, 'tooltip.vertical', unitSuffix);
 
@@ -2562,15 +2582,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n08861d0e40c3"; /* 紹�
     /**
      * 左右・上下の入力値を pt で読む（数値でなければ 0）。［連動］がONなら上下は左右と同じ値
      * @param {object} dialogControls - buildGridSpacingDialog() の戻り値
-     * @param {number} pointsPerUnit - 表示単位1あたりのポイント数
+     * @param {{label: string, pointsPerUnit: number}} rulerUnit - 定規の単位
      * @returns {{gapX: number, gapY: number}} 左右・上下の間隔（pt）
      */
-    function readGapsInPoints(dialogControls, pointsPerUnit) {
+    function readGapsInPoints(dialogControls, rulerUnit) {
         var gapX = parseFloat(dialogControls.horizontalGapInput.text);
         var gapY = dialogControls.linkToggle.value ? gapX : parseFloat(dialogControls.verticalGapInput.text);
         if (isNaN(gapX)) gapX = 0;
         if (isNaN(gapY)) gapY = 0;
-        return { gapX: gapX * pointsPerUnit, gapY: gapY * pointsPerUnit };
+        return { gapX: unitToPt(gapX, rulerUnit), gapY: unitToPt(gapY, rulerUnit) };
     }
 
     /**
@@ -2693,7 +2713,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n08861d0e40c3"; /* 紹�
             if (dialogControls.linkToggle.value) {
                 dialogControls.verticalGapInput.text = dialogControls.horizontalGapInput.text;
             }
-            applyLayoutFromDialog(layoutActions, dialogControls, readGapsInPoints(dialogControls, rulerUnit.pointsPerUnit), true);
+            applyLayoutFromDialog(layoutActions, dialogControls, readGapsInPoints(dialogControls, rulerUnit), true);
         }
 
         bindDialogEvents(dialogControls, updatePreview);
@@ -2710,7 +2730,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n08861d0e40c3"; /* 紹�
         if (dialogResult == 1) {
             // OK：最終値で確定適用 / OK: apply with the final values
             layoutActions.resetBaselineToCurrent();
-            applyLayoutFromDialog(layoutActions, dialogControls, readGapsInPoints(dialogControls, rulerUnit.pointsPerUnit), false);
+            applyLayoutFromDialog(layoutActions, dialogControls, readGapsInPoints(dialogControls, rulerUnit), false);
         } else {
             // キャンセル：ダイアログ開始時点へ戻す / Cancel: restore the initial positions
             layoutActions.restoreInitialPositions();

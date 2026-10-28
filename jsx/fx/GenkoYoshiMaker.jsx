@@ -350,25 +350,24 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n036c34760079"; /* 紹�
         { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
     ];
 
-    /* 原稿用紙の寸法は常に mm で扱う / manuscript dimensions are always handled in mm */
-    var POINTS_PER_MM = UNITS[1].pointsPerUnit;
-
     /**
-     * ミリメートルをポイントに変換する
-     * @param {number} mm ミリメートル
-     * @return {number} ポイント
+     * 単位の値を pt に換算する
+     * @param {number} value - 単位の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} pt の値
      */
-    function mmToPt(mm) {
-        return mm * POINTS_PER_MM;
+    function unitToPt(value, unit) {
+        return value * unit.pointsPerUnit;
     }
 
     /**
-     * ポイントをミリメートルに変換する
-     * @param {number} pt ポイント
-     * @return {number} ミリメートル
+     * pt の値を単位の値に換算する
+     * @param {number} ptValue - pt の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} 単位の値
      */
-    function ptToMm(pt) {
-        return pt / POINTS_PER_MM;
+    function ptToUnit(ptValue, unit) {
+        return ptValue / unit.pointsPerUnit;
     }
 
     /**
@@ -377,7 +376,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n036c34760079"; /* 紹�
      * @return {number} 伸張（mm）
      */
     function getDefaultExtensionMM(fontSize) {
-        return Math.round(ptToMm(fontSize / 4) * 10) / 10;
+        return Math.round(ptToUnit(fontSize / 4, UNITS[1]) * 10) / 10;
     }
 
     // =========================================
@@ -2627,7 +2626,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n036c34760079"; /* 紹�
      */
     function drawCrosshairs(group, rect, grid, settings, color) {
         var cellSize = grid.cellSize;
-        var strokeWidth = mmToPt(LAYOUT.crossStrokeMM);
+        var strokeWidth = unitToPt(LAYOUT.crossStrokeMM, UNITS[1]);
         var dashes = getCrossDashes(settings, cellSize);
 
         var columnCount = Math.round((rect.right - rect.left) / cellSize);
@@ -2751,7 +2750,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n036c34760079"; /* 紹�
      * @return {number} 線幅（pt）
      */
     function getRuleWidth(settings, isEmphasized) {
-        var ruleWidth = mmToPt(LAYOUT.cellStrokeMM);
+        var ruleWidth = unitToPt(LAYOUT.cellStrokeMM, UNITS[1]);
 
         return isEmphasized ? ruleWidth * settings.emphasisRatio / 100 : ruleWidth;
     }
@@ -2766,7 +2765,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n036c34760079"; /* 紹�
             return [];
         }
 
-        return [mmToPt(LAYOUT.cellDashMM[0]), mmToPt(LAYOUT.cellDashMM[1])];
+        return [unitToPt(LAYOUT.cellDashMM[0], UNITS[1]), unitToPt(LAYOUT.cellDashMM[1], UNITS[1])];
     }
 
     /**
@@ -3686,7 +3685,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n036c34760079"; /* 紹�
             adjustSize: values.adjustSize,
             scale: values.scale,
             autoLeading: values.autoLeading,
-            extension: mmToPt(values.extensionMM),
+            extension: unitToPt(values.extensionMM, UNITS[1]),
             dashedCellRules: values.dashedCellRules,
             emphasisEvery: values.emphasisEnabled ? values.emphasisEvery : 0,
             showSideRules: values.showSideRules,

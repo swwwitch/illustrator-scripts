@@ -1385,6 +1385,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹�
         var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
         return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
+
+    /**
+     * 単位の値を pt に換算する
+     * @param {number} value - 単位の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} pt の値
+     */
+    function unitToPt(value, unit) {
+        return value * unit.pointsPerUnit;
+    }
     // 設定の保存（再利用パーツ） / Settings store (reusable)
 
     var SETTINGS_STORE_FOLDER_NAME = "illustrator-scripts"; /* Folder.userData の下に作るフォルダー / folder created under Folder.userData */
@@ -2984,11 +2994,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹�
 
     /**
      * 設定ダイアログを表示し、OKが押されたら確定用の状態を整える。
-     * @param {object} rulerUnitInfo - 定規単位の情報 {label, pointsPerUnit}
-     * @param {object} strokeUnitInfo - 線の単位情報 {label, pointsPerUnit}
+     * @param {{label: string, pointsPerUnit: number}} rulerUnit - 定規の単位
+     * @param {{label: string, pointsPerUnit: number}} strokeUnit - 線の単位
      * @returns {boolean} OKで確定できたときtrue、キャンセルや失敗時はfalse
      */
-    function showInputDialog(rulerUnitInfo, strokeUnitInfo) {
+    function showInputDialog(rulerUnit, strokeUnit) {
         var shapeDialog = new Window("dialog", getLabel(LABELS.dialog.title) + " " + SCRIPT_VERSION);
         var previewManager = new PreviewManager();
         var doc = app.activeDocument;
@@ -3174,7 +3184,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹�
             /* 線幅は［線］と同じ行に置く（ラベルなし） / The stroke width sits on the stroke row, without a label */
             strokeWidthInput = addNumberField(strokeRow, SHAPE_DEFAULTS.strokeWidth, 4, { min: 0 });
             strokeWidthInput.helpTip = getLabel(LABELS.tooltip.strokeWidth);
-            strokeWidthUnitLabel = strokeRow.add("statictext", undefined, strokeUnitInfo.label);
+            strokeWidthUnitLabel = strokeRow.add("statictext", undefined, strokeUnit.label);
 
             var opacityRow = addControlRow(fillStrokePanel);
             opacityRow.add("statictext", undefined, labelText(LABELS.fieldLabel.opacity));
@@ -3194,7 +3204,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹�
             var widthRow = addControlRow(widthPanel);
             sizeInput = addNumberField(widthRow, SHAPE_DEFAULTS.size, 5, { min: 0 });
             sizeInput.helpTip = getLabel(LABELS.tooltip.width);
-            widthRow.add("statictext", undefined, rulerUnitInfo.label);
+            widthRow.add("statictext", undefined, rulerUnit.label);
         }
 
         /**
@@ -3276,7 +3286,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹�
             cornerRadiusCheck.value = false;
             cornerRadiusCheck.helpTip = getLabel(LABELS.tooltip.cornerRadius);
             cornerRadiusInput = addNumberField(cornerRadiusRow, SHAPE_DEFAULTS.cornerRadius, 5, { min: 0 });
-            cornerRadiusRow.add("statictext", undefined, rulerUnitInfo.label);
+            cornerRadiusRow.add("statictext", undefined, rulerUnit.label);
 
             var smoothingLabelRow = addControlRow(cornerSmoothingPanel);
             smoothingLabelRow.add("statictext", undefined, labelText(LABELS.fieldLabel.smoothing));
@@ -3711,7 +3721,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹�
             var circleAnchorCount = (sides === 0 && !useSuperEllipse) ? getCircleAnchorCount() : SHAPE_DEFAULTS.circleAnchors;
 
             return {
-                size: parseFloat(sizeInput.text) * rulerUnitInfo.pointsPerUnit,
+                size: unitToPt(parseFloat(sizeInput.text), rulerUnit),
                 sides: sides,
                 isStar: starCheck.value,
                 innerRatio: innerRatio,
@@ -3731,10 +3741,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹�
                 strokeOptions: {
                     enabled: strokeCheck.value,
                     color: strokeSwatch._aiColor,
-                    widthPt: parseFloat(strokeWidthInput.text) * strokeUnitInfo.pointsPerUnit
+                    widthPt: unitToPt(parseFloat(strokeWidthInput.text), strokeUnit)
                 },
                 cornerSmoothing: (sides === 4 && cornerRadiusCheck.value) ? {
-                    radius: parseFloat(cornerRadiusInput.text) * rulerUnitInfo.pointsPerUnit,
+                    radius: unitToPt(parseFloat(cornerRadiusInput.text), rulerUnit),
                     smoothing: Math.round(smoothingSlider.value)
                 } : null,
                 opacity: clampOpacity(opacityInput.text),
@@ -4449,9 +4459,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹�
             alert(getLabel(LABELS.alert.noDocument));
             return;
         }
-        var rulerUnitInfo = getUnitInfo("rulerType");
-        var strokeUnitInfo = getUnitInfo("strokeUnits");
-        if (!showInputDialog(rulerUnitInfo, strokeUnitInfo)) return;
+        var rulerUnit = getUnitInfo("rulerType");
+        var strokeUnit = getUnitInfo("strokeUnits");
+        if (!showInputDialog(rulerUnit, strokeUnit)) return;
 
         /* ダイアログ表示中にドキュメントが切り替わった場合に備えて取得し直す
            Re-acquire the active document in case it changed while the dialog was open */

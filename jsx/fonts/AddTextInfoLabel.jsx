@@ -486,8 +486,25 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n607ef418877f"; /* 紹�
         return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
-    /* ラベル枠の余白は常に mm で指定する / label frame padding is always given in mm */
-    var POINTS_PER_MM = UNITS[1].pointsPerUnit;
+    /**
+     * 単位の値を pt に換算する
+     * @param {number} value - 単位の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} pt の値
+     */
+    function unitToPt(value, unit) {
+        return value * unit.pointsPerUnit;
+    }
+
+    /**
+     * pt の値を単位の値に換算する
+     * @param {number} ptValue - pt の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} 単位の値
+     */
+    function ptToUnit(ptValue, unit) {
+        return ptValue / unit.pointsPerUnit;
+    }
 
     // =========================================
     // テキスト情報の読み取り / Reading text attributes
@@ -519,10 +536,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n607ef418877f"; /* 紹�
      */
     function getFontSize(textFrame) {
         /* size は常に pt なので、文字サイズの単位に換算してから表示する / size is always in pt; convert to the type-size unit */
-        var sizeUnit = getUnitInfo("text/units");
-        var rawSize = textFrame.textRange.characterAttributes.size / sizeUnit.pointsPerUnit;
+        var textUnit = getUnitInfo("text/units");
+        var rawSize = ptToUnit(textFrame.textRange.characterAttributes.size, textUnit);
         var roundedSize = Math.round(rawSize * 10) / 10;
-        return roundedSize + " " + sizeUnit.label;
+        return roundedSize + " " + textUnit.label;
     }
 
     /**
@@ -550,8 +567,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n607ef418877f"; /* 紹�
     function getLeading(textFrame, displayMode) {
         var textAttributes = textFrame.textRange.characterAttributes;
         /* leading は常に pt なので、行送りの単位に換算してから表示する / leading is always in pt; convert to the leading unit */
-        var leadingUnit = getUnitInfo("text/asianunits");
-        var leadingText = formatUpToTwoDecimals(textAttributes.leading / leadingUnit.pointsPerUnit) + " " + leadingUnit.label;
+        var asianUnit = getUnitInfo("text/asianunits");
+        var leadingText = formatUpToTwoDecimals(ptToUnit(textAttributes.leading, asianUnit)) + " " + asianUnit.label;
 
         if (textAttributes.autoLeading && displayMode !== "compact") {
             return "自動（" + leadingText + "）";
@@ -723,7 +740,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n607ef418877f"; /* 紹�
     function createDetailedInfoFrame(doc, textContent, sourceBounds, position) {
         var lineCount = textContent.split(PARAGRAPH_BREAK).length;
         var lineHeight = LABEL_FONT_SIZE * 1.4;
-        var frameHeight = lineHeight * (lineCount + 2) + 4 * POINTS_PER_MM;
+        /* ラベル枠の余白は常に mm で指定する / label frame padding is always given in mm */
+        var frameHeight = lineHeight * (lineCount + 2) + unitToPt(4, UNITS[1]);
         var frameWidth = 300;
 
         var frameLeft = (position === "right") ? sourceBounds[2] + 10 : sourceBounds[0];
@@ -732,7 +750,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n607ef418877f"; /* 紹�
         var framePath = doc.pathItems.rectangle(frameTop, frameLeft, frameWidth, frameHeight);
         var infoFrame = doc.textFrames.areaText(framePath);
         infoFrame.contents = textContent;
-        infoFrame.spacing = 2 * POINTS_PER_MM;
+        infoFrame.spacing = unitToPt(2, UNITS[1]);
 
         /* タブストップ（右揃え、位置400pt、リーダー…） / Right tab stop at 400pt with a "…" leader */
         var tabStop = new TabStopInfo();

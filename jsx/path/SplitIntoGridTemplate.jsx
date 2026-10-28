@@ -193,6 +193,16 @@ var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last update
         return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
+    /**
+     * 単位の値を pt に換算する
+     * @param {number} value - 単位の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} pt の値
+     */
+    function unitToPt(value, unit) {
+        return value * unit.pointsPerUnit;
+    }
+
     // UI の明暗（再利用パーツ） / UI theme (reusable)
 
     /**
@@ -1736,7 +1746,7 @@ var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last update
      * @returns {SplitSettings|null} 指定内容。キャンセル時は null
      */
     function showDialog(doc, targets) {
-        var unitInfo = getUnitInfo();
+        var rulerUnit = getUnitInfo();
         var dlg = new Window("dialog", getLabel(LABELS.dialog.title) + " " + SCRIPT_VERSION);
         setupWindow(dlg);
 
@@ -1752,12 +1762,12 @@ var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last update
         rightColumnGroup.orientation = "column";
         rightColumnGroup.alignChildren = ["fill", "top"];
 
-        var dialogState = getInitialDialogState(unitInfo.label);
+        var dialogState = getInitialDialogState(rulerUnit.label);
         var gridInputs = addGridSizeFields(leftColumnGroup, dialogState, refreshPreview);
-        var gutterInputs = addGutterPanel(leftColumnGroup, unitInfo, dialogState, refreshPreview);
+        var gutterInputs = addGutterPanel(leftColumnGroup, rulerUnit, dialogState, refreshPreview);
         var presetButtons = addPresetButtons(rightColumnGroup);
 
-        var guideInputs = addGuidePanel(leftColumnGroup, unitInfo, dialogState, refreshPreview);
+        var guideInputs = addGuidePanel(leftColumnGroup, rulerUnit, dialogState, refreshPreview);
 
         var optionsPanel = leftColumnGroup.add("panel", undefined, getLabel(LABELS.panel.options));
         setupPanel(optionsPanel, 6);
@@ -1782,16 +1792,16 @@ var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last update
         /* 入力欄とチェックボックスから分割の指定を読む。［間隔を空ける］がOFFなら間隔は0
            Read the split settings from the controls; gutters are 0 while Add Gutters is off */
         function collectSplitSettings() {
-            var gutterScale = gutterInputs.useGutter.value ? unitInfo.pointsPerUnit : 0;
+            var gutterScale = gutterInputs.useGutter.value ? 1 : 0; /* OFFなら0倍 / zero while gutters are off */
             return {
                 rows: parseInt(gridInputs.rows.text, 10),
                 columns: parseInt(gridInputs.columns.text, 10),
-                rowGutter: parseFloat(gutterInputs.row.text) * gutterScale,
-                columnGutter: parseFloat(gutterInputs.column.text) * gutterScale,
+                rowGutter: unitToPt(parseFloat(gutterInputs.row.text) * gutterScale, rulerUnit),
+                columnGutter: unitToPt(parseFloat(gutterInputs.column.text) * gutterScale, rulerUnit),
                 guideEdge: guideInputs.edge.value,
                 guideCenterVertical: guideInputs.centerVertical.value,
                 guideCenterHorizontal: guideInputs.centerHorizontal.value,
-                guideExtension: parseFloat(guideInputs.extension.text) * unitInfo.pointsPerUnit,
+                guideExtension: unitToPt(parseFloat(guideInputs.extension.text), rulerUnit),
                 liveShape: cbLiveShape.value,
                 showCenter: cbShowCenter.value
             };
@@ -1813,7 +1823,7 @@ var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last update
                 liveShape: cbLiveShape.value,
                 showCenter: cbShowCenter.value,
                 preview: cbPreview.value,
-                unitLabel: unitInfo.label
+                unitLabel: rulerUnit.label
             };
         }
 
@@ -1922,13 +1932,13 @@ var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last update
     /**
      * ［間隔］パネル（［間隔を空ける］・行間・列間・連動アイコン）を追加する。連動中は片方を変えるともう片方も同じ値になる。
      * @param {Group} parentColumn - 追加先の列
-     * @param {{label: string}} unitInfo - 定規の単位
+     * @param {{label: string}} rulerUnit - 定規の単位
      * @param {DialogState} dialogState - 初期状態
      * @param {Function} onValueChange - 値が変わったときに呼ぶ関数
      * @returns {{useGutter: Checkbox, row: EditText, column: EditText, setGridDivisions: Function}} 作ったチェックボックスと入力欄、
      *     行数・列数を渡してディム表示を更新する関数
      */
-    function addGutterPanel(parentColumn, unitInfo, dialogState, onValueChange) {
+    function addGutterPanel(parentColumn, rulerUnit, dialogState, onValueChange) {
         var gutterPanel = parentColumn.add("panel", undefined, getLabel(LABELS.panel.gutter));
         setupPanel(gutterPanel);
         gutterPanel.alignChildren = ["left", "top"];
@@ -1937,7 +1947,7 @@ var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last update
         cbUseGutter.value = dialogState.useGutter;
         cbUseGutter.helpTip = getLabel(LABELS.tooltip.useGutter);
 
-        var unitSuffix = " " + unitInfo.label;
+        var unitSuffix = " " + rulerUnit.label;
         var gutterFieldOptions = { labelWidth: GUTTER_LABEL_WIDTH[uiLang], characters: GUTTER_INPUT_CHARS, step: 1, min: 0, unit: unitSuffix };
         /* 行間・列間の2行の右に連動アイコンを置く / Put the link icon to the right of the two gap rows */
         var gapFieldsRowGroup = gutterPanel.add("group");
@@ -2005,12 +2015,12 @@ var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last update
      * ［ガイドを作成］パネル（エッジ・中心（縦）・中心（横）・伸張）を追加する。
      * ガイドの種類が1つも選ばれていない間は、伸張をディム表示にする。
      * @param {Group} parentColumn - 追加先の列
-     * @param {{label: string}} unitInfo - 定規の単位
+     * @param {{label: string}} rulerUnit - 定規の単位
      * @param {DialogState} dialogState - 初期状態
      * @param {Function} onValueChange - 値が変わったときに呼ぶ関数
      * @returns {{edge: Checkbox, centerVertical: Checkbox, centerHorizontal: Checkbox, extension: EditText}} 作ったチェックボックスと入力欄
      */
-    function addGuidePanel(parentColumn, unitInfo, dialogState, onValueChange) {
+    function addGuidePanel(parentColumn, rulerUnit, dialogState, onValueChange) {
         var guidePanel = parentColumn.add("panel", undefined, getLabel(LABELS.panel.guides));
         setupPanel(guidePanel, 6);
         guidePanel.alignChildren = ["left", "top"];
@@ -2023,7 +2033,7 @@ var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last update
         var cbGuideCenterVertical = addGuideCheckbox(guideCenterRowGroup, LABELS.checkbox.guideCenterVertical, LABELS.tooltip.guideCenterVertical, dialogState.guideCenterVertical);
         var cbGuideCenterHorizontal = addGuideCheckbox(guideCenterRowGroup, LABELS.checkbox.guideCenterHorizontal, LABELS.tooltip.guideCenterHorizontal, dialogState.guideCenterHorizontal);
 
-        var unitSuffix = " " + unitInfo.label;
+        var unitSuffix = " " + rulerUnit.label;
         var extensionInput = addSteppedField(guidePanel, {
             label: labelText(LABELS.fieldLabel.guideExtension), text: dialogState.guideExtension,
             characters: EXTENSION_INPUT_CHARS, step: 1, min: 0, unit: unitSuffix, onStep: onValueChange

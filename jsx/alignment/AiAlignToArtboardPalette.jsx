@@ -100,7 +100,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
         /* ［見た目の調整］の強さ（%）。100で字面の中心をぴったり揃える（約物の空きまで埋めると寄せすぎに見える）
            Strength of Optical Adjustment (%); 100 centers the glyphs exactly, which looks overdone with punctuation */
         var OPTICAL_KERNING_STRENGTH = 35;
-        var BLEED_UNIT_POINTS = 72.0 / 25.4;
         var DEFAULT_SHOW_GUIDE           = false; /* ガイドを追加 / add the margin guide */
         /* 分割ガイドの初期状態。行・列はマージンの内側をいくつに分けるかで、1 のときはガイドを引かない
            行間・列間・伸張は定規の単位で扱う（伸張はアートボードの外へ伸ばす距離）
@@ -908,6 +907,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
             return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
         }
 
+        /**
+         * 単位の値を pt に換算する
+         * @param {number} value - 単位の値
+         * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+         * @returns {number} pt の値
+         */
+        function unitToPt(value, unit) {
+            return value * unit.pointsPerUnit;
+        }
+
         /* 単位ごとのマージン欄・伸張欄の初期値。換算値ではなく、その単位で扱いやすい丸めた数
            Initial margin and extension per unit: round numbers that read well in that unit */
         var UNIT_DEFAULTS = [
@@ -926,20 +935,20 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
 
         /**
          * 表示用の単位情報に、その単位の初期値を足して返す
-         * @returns {{label: string, points: number, defaultMargin: number, defaultExtension: number}} 単位の情報
+         * @returns {{label: string, rulerUnit: object, defaultMargin: number, defaultExtension: number}} 単位の情報（rulerUnit は getUnitInfo() の戻り値）
          */
         function getUnitInfoWithDefaults() {
             var unit = getUnitInfo();
             var defaults = UNIT_DEFAULTS[unit.code] || UNIT_DEFAULTS[2];
             return {
                 label: unit.label,
-                points: unit.pointsPerUnit,
+                rulerUnit: unit,
                 defaultMargin: defaults.defaultMargin,
                 defaultExtension: defaults.defaultExtension
             };
         }
         /* 単位が取れないときの既定 / Fallback when the ruler unit cannot be read */
-        var FALLBACK_UNIT_INFO = { label: "pt", points: 1.0, defaultMargin: 20, defaultExtension: 20 };
+        var FALLBACK_UNIT_INFO = { label: "pt", rulerUnit: UNITS[2], defaultMargin: 20, defaultExtension: 20 };
 
         // =========================================
         // ローカライズ / Localization
@@ -5202,16 +5211,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
         /**
          * 長さの入力欄を読んで pt に換算する（単位付きでも読める。数値以外と負数は0に丸め、欄の表示も単位付きにそろえる）
          * @param {EditText} valueField - 読み取る入力欄
-         * @param {number} pointsPerUnit - 1単位あたりの pt
+         * @param {{pointsPerUnit: number}} fieldUnit - 欄の単位（getUnitInfo() の戻り値か UNITS[i]）
          * @returns {number} 入力値（pt）
          */
-        function readFieldPt(valueField, pointsPerUnit) {
+        function readFieldPt(valueField, fieldUnit) {
             if (valueField === null) { return 0; }
             var fieldValue = parseLengthText(valueField.text);
             /* 手入力が丸められたときや単位を省いたときは、欄の表示も実際に使う値にそろえる / Show the value actually used */
             var displayText = formatLengthText(fieldValue);
             if (displayText !== valueField.text) { valueField.text = displayText; }
-            return fieldValue * pointsPerUnit;
+            return unitToPt(fieldValue, fieldUnit);
         }
 
         /**
@@ -5272,7 +5281,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
                 columns:      1,
                 rowGutter:    0,
                 columnGutter: 0,
-                extension:    readFieldPt(divideFields.extension || null, currentUnitInfo.points),
+                extension:    readFieldPt(divideFields.extension || null, currentUnitInfo.rulerUnit),
                 artboardEdge: readArtboardEdge()
             };
             if (divideMode === "cross") {
@@ -5283,8 +5292,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
             if (divideMode === "custom") {
                 divisions.rows         = readDivideCount("rows");
                 divisions.columns      = readDivideCount("columns");
-                divisions.rowGutter    = readFieldPt(divideFields.rowGutter || null, currentUnitInfo.points);
-                divisions.columnGutter = readFieldPt(divideFields.columnGutter || null, currentUnitInfo.points);
+                divisions.rowGutter    = readFieldPt(divideFields.rowGutter || null, currentUnitInfo.rulerUnit);
+                divisions.columnGutter = readFieldPt(divideFields.columnGutter || null, currentUnitInfo.rulerUnit);
             }
             return divisions;
         }
@@ -5298,7 +5307,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
             marginsPt = {};
             for (i = 0; i < MARGIN_SIDES.length; i++) {
                 side = MARGIN_SIDES[i];
-                marginsPt[side] = readFieldPt(marginFields[side] || null, currentUnitInfo.points);
+                marginsPt[side] = readFieldPt(marginFields[side] || null, currentUnitInfo.rulerUnit);
             }
             return marginsPt;
         }
@@ -5323,7 +5332,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
          */
         function readBleedPt() {
             if (alignToBleedCheckbox === null || alignToBleedCheckbox.value !== true) { return 0; }
-            return BLEED_MM * BLEED_UNIT_POINTS;
+            return unitToPt(BLEED_MM, UNITS[1]);
         }
 
         /**

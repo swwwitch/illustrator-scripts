@@ -1098,7 +1098,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
          * - text/units: 文字
          * - text/asianunits: 東アジア言語（Q/H 表示切替）
          */
-        /* 単位テーブル（配列の添字が rulerType コードと一致：0=in, 1=mm, 2=pt …）/ Unit table; the array index equals the rulerType code */
+        /* 単位コードに対応する表示ラベルと、1単位あたりのポイント数
+           Unit code -> display label and points per unit */
         var UNITS = [
             { label: "in",    pointsPerUnit: 72 },                /* 0 */
             { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
@@ -1118,24 +1119,38 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
 
         /**
-         * 設定キーごとの単位情報を取得する
-         * @param {string} prefKey - 環境設定キー（省略時は "rulerType"）
-         * @returns {{code: number, label: string, pointsPerUnit: number}} 単位情報
+         * 環境設定キーの単位を返す
+         * @param {string} [prefKey] - "rulerType"（既定）/ "strokeUnits" / "text/units" / "text/asianunits"
+         * @returns {{code: number, label: string, pointsPerUnit: number}} 単位の情報
          */
         function getUnitInfo(prefKey) {
             var unitKey = prefKey || "rulerType";
             var unitCode = app.preferences.getIntegerPreference(unitKey);
+            /* 未知のコードは pt に寄せる / unknown codes fall back to points */
             var unit = UNITS[unitCode] || UNITS[2];
+            /* 級（Q）と歯（H）は同じ長さだが、文字サイズは「Q」、距離は「H」と呼び分ける */
             var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
             return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
         }
 
-        function unitToPt(valueInUnit, prefKey) {
-            return valueInUnit * getUnitInfo(prefKey).pointsPerUnit;
+        /**
+         * 単位の値を pt に換算する
+         * @param {number} value - 単位の値
+         * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+         * @returns {number} pt の値
+         */
+        function unitToPt(value, unit) {
+            return value * unit.pointsPerUnit;
         }
 
-        function ptToUnit(valuePt, prefKey) {
-            return valuePt / getUnitInfo(prefKey).pointsPerUnit;
+        /**
+         * pt の値を単位の値に換算する
+         * @param {number} ptValue - pt の値
+         * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+         * @returns {number} 単位の値
+         */
+        function ptToUnit(ptValue, unit) {
+            return ptValue / unit.pointsPerUnit;
         }
 
         function round1(v) {
@@ -1201,12 +1216,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var grp1 = dlg.add('group');
         var lblOffset = grp1.add('statictext', undefined, getLabel('offset'));
         // lblOffset.justification = 'right';
-        var __offsetPrefKey = "rulerType";
+        var rulerUnit = getUnitInfo("rulerType");
         // __offsetDefaultPt は「C高さ/3（pt）」で事前計算済み
-        var offsetInput = addSteppedInput(grp1, String(round1(ptToUnit(__offsetDefaultPt, __offsetPrefKey))), { min: 0 });
+        var offsetInput = addSteppedInput(grp1, String(round1(ptToUnit(__offsetDefaultPt, rulerUnit))), { min: 0 });
         offsetInput.helpTip = getLabel('tipOffset');
         offsetInput.characters = 3;
-        grp1.add('statictext', undefined, getUnitInfo(__offsetPrefKey).label);
+        grp1.add('statictext', undefined, rulerUnit.label);
 
         // 線設定パネル
         var panelStroke = dlg.add('panel', undefined, getLabel('strokePanel'));
@@ -1215,12 +1230,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var grp2 = panelStroke.add('group');
         var lblStroke = grp2.add('statictext', undefined, getLabel('strokeWidth'));
 
-        var __strokePrefKey = "strokeUnits";
+        var strokeUnit = getUnitInfo("strokeUnits");
         var __strokeDefaultPt = 2;
-        var strokeInput = addSteppedInput(grp2, String(round1(ptToUnit(__strokeDefaultPt, __strokePrefKey))), { min: 0 });
+        var strokeInput = addSteppedInput(grp2, String(round1(ptToUnit(__strokeDefaultPt, strokeUnit))), { min: 0 });
         strokeInput.helpTip = getLabel('tipStroke');
         strokeInput.characters = 3;
-        grp2.add('statictext', undefined, getUnitInfo(__strokePrefKey).label);
+        grp2.add('statictext', undefined, strokeUnit.label);
 
         // 線端設定
         var panelCap = panelStroke.add('panel', undefined, getLabel('capPanel'));
@@ -1262,12 +1277,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         if (dlg.show() !== 1) return;
 
         var offsetValue = parseFloat(offsetInput.text);
-        if (isNaN(offsetValue)) offsetValue = ptToUnit(10, __offsetPrefKey);
-        var offsetValuePt = unitToPt(offsetValue, __offsetPrefKey);
+        if (isNaN(offsetValue)) offsetValue = ptToUnit(10, rulerUnit);
+        var offsetValuePt = unitToPt(offsetValue, rulerUnit);
 
         var strokeWidthValue = parseFloat(strokeInput.text);
-        if (isNaN(strokeWidthValue)) strokeWidthValue = ptToUnit(2, __strokePrefKey);
-        var strokeWidthValuePt = unitToPt(strokeWidthValue, __strokePrefKey);
+        if (isNaN(strokeWidthValue)) strokeWidthValue = ptToUnit(2, strokeUnit);
+        var strokeWidthValuePt = unitToPt(strokeWidthValue, strokeUnit);
 
         var strokeCapValue = rbCapRound.value ? StrokeCap.ROUNDENDCAP : StrokeCap.BUTTENDCAP;
         var strokeJoinValue = rbJoinRound.value ? StrokeJoin.ROUNDENDJOIN : (rbJoinBevel.value ? StrokeJoin.BEVELENDJOIN : StrokeJoin.MITERENDJOIN);

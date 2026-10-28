@@ -1081,9 +1081,21 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function getUnitInfo(prefKey) {
         var unitKey = prefKey || "rulerType";
         var unitCode = app.preferences.getIntegerPreference(unitKey);
+        /* 未知のコードは pt に寄せる / unknown codes fall back to points */
         var unit = UNITS[unitCode] || UNITS[2];
+        /* 級（Q）と歯（H）は同じ長さだが、文字サイズは「Q」、距離は「H」と呼び分ける */
         var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
         return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
+    }
+
+    /**
+     * 単位の値を pt に換算する
+     * @param {number} value - 単位の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} pt の値
+     */
+    function unitToPt(value, unit) {
+        return value * unit.pointsPerUnit;
     }
 
     // 一時アクション（再利用パーツ） / Temporary action (reusable)
@@ -2323,16 +2335,16 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * 行揃えと外枠からの間隔を適用する
      * @param {TextFrame} textFrame - 対象のフレーム
      * @param {Object} mergeSettings - readDialogSettings() の結果
-     * @param {number} rulerToPoint - 定規の単位 1 あたりのポイント数
+     * @param {{pointsPerUnit: number}} rulerUnit - 定規の単位（getUnitInfo() の戻り値）
      * @returns {void}
      */
-    function applyStyle(textFrame, mergeSettings, rulerToPoint) {
+    function applyStyle(textFrame, mergeSettings, rulerUnit) {
         if (mergeSettings.justify) {
             textFrame.textRange.paragraphAttributes.justification = Justification.FULLJUSTIFYLASTLINELEFT;
         }
         if (mergeSettings.insetSpacingOn) {
             var spacingValue = parseFloat(mergeSettings.insetSpacingText);
-            if (!isNaN(spacingValue)) textFrame.spacing = spacingValue * rulerToPoint;
+            if (!isNaN(spacingValue)) textFrame.spacing = unitToPt(spacingValue, rulerUnit);
         }
     }
 
@@ -2357,10 +2369,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * @param {Document} doc - 対象ドキュメント
      * @param {Array} selectedItems - 選択中のオブジェクト
      * @param {Object} mergeSettings - readDialogSettings() の結果
-     * @param {number} rulerToPoint - 定規の単位 1 あたりのポイント数
+     * @param {{pointsPerUnit: number}} rulerUnit - 定規の単位（getUnitInfo() の戻り値）
      * @returns {void}
      */
-    function mergeTextFrames(doc, selectedItems, mergeSettings, rulerToPoint) {
+    function mergeTextFrames(doc, selectedItems, mergeSettings, rulerUnit) {
         var textFrames = collectMergeTargets(selectedItems, mergeSettings.leftToRight);
         if (textFrames.length < 2) {
             alert(getLabel("alert.needTwo"));
@@ -2406,7 +2418,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
 
         /* スタイルを適用 / Apply style */
-        applyStyle(newTextFrame, mergeSettings, rulerToPoint);
+        applyStyle(newTextFrame, mergeSettings, rulerUnit);
 
         /* 新しいエリア内文字を選択 / Select new area text frame */
         newTextFrame.selected = true;
@@ -2505,7 +2517,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
 
         /* マージ / Merge */
-        mergeTextFrames(doc, selectedItems, dialogSettings, rulerUnit.pointsPerUnit);
+        mergeTextFrames(doc, selectedItems, dialogSettings, rulerUnit);
     }
 
     main();

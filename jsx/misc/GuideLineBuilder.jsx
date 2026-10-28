@@ -1164,15 +1164,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd801b9b0367f"; /* 紹�
     }
 
     /**
-     * mm を pt に変換する
-     * @param {number} millimeters - ミリメートル値
-     * @returns {number} ポイント値
-     */
-    function mmToPt(millimeters) {
-        return millimeters * 72.0 / 25.4;
-    }
-
-    /**
      * 2点がほぼ同じ位置かどうかを判定する
      * @param {Array<number>} pointA - 座標 [x, y]
      * @param {Array<number>} pointB - 座標 [x, y]
@@ -1258,6 +1249,26 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd801b9b0367f"; /* 紹�
     }
 
     /**
+     * 単位の値を pt に換算する
+     * @param {number} value - 単位の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} pt の値
+     */
+    function unitToPt(value, unit) {
+        return value * unit.pointsPerUnit;
+    }
+
+    /**
+     * pt の値を単位の値に換算する
+     * @param {number} ptValue - pt の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} 単位の値
+     */
+    function ptToUnit(ptValue, unit) {
+        return ptValue / unit.pointsPerUnit;
+    }
+
+    /**
      * 入力欄の文字列を pt に直す（読めない場合は直前の有効値を返す）
      * @param {EditText} editText - 対象の入力欄
      * @param {string} prefKey - 単位を決める環境設定キー（strokeUnits / rulerType）
@@ -1265,11 +1276,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd801b9b0367f"; /* 紹�
      * @returns {number} ポイント値
      */
     function readLengthAsPt(editText, prefKey, lastValidCache) {
-        var pointsPerUnit = getUnitInfo(prefKey).pointsPerUnit;
+        var lengthUnit = getUnitInfo(prefKey);
         var inputValue = parseNumberInput(editText.text);
         if (!(inputValue > 0)) return lastValidCache.value;
 
-        var lengthPt = inputValue * pointsPerUnit;
+        var lengthPt = unitToPt(inputValue, lengthUnit);
         if (!(lengthPt > 0)) return lastValidCache.value;
 
         lastValidCache.value = lengthPt;
@@ -2731,7 +2742,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd801b9b0367f"; /* 紹�
                 if (typeof numberInput.onChanging === "function") numberInput.onChanging();
             }
         });
-        lengthInput = stepperInputGroup.add("edittext", undefined, (initialPt / lengthUnit.pointsPerUnit).toFixed(3));
+        lengthInput = stepperInputGroup.add("edittext", undefined, ptToUnit(initialPt, lengthUnit).toFixed(3));
         lengthInput.characters = NUMBER_INPUT_CHARACTERS;
         bindSteppedArrowKeys(lengthInput, lengthStepper);
         lengthRow.add("statictext", undefined, lengthUnit.label);
@@ -2772,7 +2783,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd801b9b0367f"; /* 紹�
         var arcExtendRadio = addRadio(arcFallbackPanel, LABELS.radio.arcExtendChord, LABELS.tooltip.arcExtendChord);
         arcIgnoreRadio.value = true;
 
-        var strokeWidthCache = { value: mmToPt(DEFAULT_STROKE_WIDTH_MM) };
+        var strokeWidthCache = { value: unitToPt(DEFAULT_STROKE_WIDTH_MM, UNITS[1]) };
         var strokeWidthField = addLengthRow(linesPanel, LABELS.fieldLabel.strokeWidth, "strokeUnits", strokeWidthCache.value);
         strokeWidthField.row.margins = STROKE_ROW_MARGINS;
 
@@ -2792,7 +2803,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd801b9b0367f"; /* 紹�
         var anchorSquareRadio = addRadio(anchorShapeRow, LABELS.radio.anchorSquare);
         anchorNoneRadio.value = true;
 
-        var anchorSizeCache = { value: mmToPt(DEFAULT_ANCHOR_SIZE_MM) };
+        var anchorSizeCache = { value: unitToPt(DEFAULT_ANCHOR_SIZE_MM, UNITS[1]) };
         var anchorSizeField = addLengthRow(anchorPanel, LABELS.fieldLabel.anchorSize, "rulerType", anchorSizeCache.value);
 
         var anchorColorRow = addRow(anchorPanel, RADIO_SPACING);

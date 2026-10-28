@@ -757,6 +757,26 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
+    /**
+     * 単位の値を pt に換算する
+     * @param {number} value - 単位の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} pt の値
+     */
+    function unitToPt(value, unit) {
+        return value * unit.pointsPerUnit;
+    }
+
+    /**
+     * pt の値を単位の値に換算する
+     * @param {number} ptValue - pt の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} 単位の値
+     */
+    function ptToUnit(ptValue, unit) {
+        return ptValue / unit.pointsPerUnit;
+    }
+
     // =========================================
     // 内部名・定数 / Internal names and constants
     // =========================================
@@ -1215,13 +1235,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     /**
      * 入力欄の文字列を現在の定規単位として pt に換算する（負や不正な値は 0）
      * @param {string} fieldText - 入力欄の文字列
-     * @param {number} pointsPerUnit - 1単位あたりの pt
+     * @param {{pointsPerUnit: number}} rulerUnit - 定規の単位（getUnitInfo() の戻り値）
      * @returns {number} pt 値
      */
-    function fieldTextToPt(fieldText, pointsPerUnit) {
+    function fieldTextToPt(fieldText, rulerUnit) {
         var n = parseFloat(String(fieldText == null ? '' : fieldText));
         if (isNaN(n) || n < 0) n = 0;
-        return n * pointsPerUnit;
+        return unitToPt(n, rulerUnit);
     }
 
     // ダイアログの位置と不透明度（再利用パーツ） / Dialog position and opacity (reusable)
@@ -3697,8 +3717,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * @returns {Object} 設定
      */
     function collectChoice(ui) {
-        var pointsPerUnit = getUnitInfo().pointsPerUnit;
-        var offsetVPt = fieldTextToPt(ui.offsetVInput.text, pointsPerUnit);
+        var rulerUnit = getUnitInfo();
+        var offsetVPt = fieldTextToPt(ui.offsetVInput.text, rulerUnit);
         var roundEnabled = !!ui.cbRoundEnable.value;
         var opacityEnabled = !!ui.cbOpacityApply.value;
         return {
@@ -3706,11 +3726,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             customValue: String(ui.hexInput.text || '').replace(/^\s+|\s+$/g, ''),
             customCMYK: readCmykValues(ui),
             offsetV: offsetVPt,
-            offsetH: ui.linkMarginsToggle.value ? offsetVPt : fieldTextToPt(ui.offsetHInput.text, pointsPerUnit),
-            roundPt: roundEnabled ? fieldTextToPt(ui.roundInput.text, pointsPerUnit) : 0,
+            offsetH: ui.linkMarginsToggle.value ? offsetVPt : fieldTextToPt(ui.offsetHInput.text, rulerUnit),
+            roundPt: roundEnabled ? fieldTextToPt(ui.roundInput.text, rulerUnit) : 0,
             isPill: roundEnabled ? !!ui.cbPill.value : false,
             type: ui.paintStrokeRadio.value ? 'stroke' : 'fill',
-            strokeWidth: fieldTextToPt(ui.strokeWidthInput.text, pointsPerUnit),
+            strokeWidth: fieldTextToPt(ui.strokeWidthInput.text, rulerUnit),
             target: (!ui.individualRadio.value && ui.groupRadio.value) ? 'group' : 'individual',
             /* キー名は保存ファイルとの互換のため据え置き / Key kept for saved-state compatibility */
             groupWithText: !!ui.cbGroupWithObjects.value,
@@ -3727,7 +3747,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * @returns {void}
      */
     function applyChoiceToUI(ui, saved) {
-        var pointsPerUnit = getUnitInfo().pointsPerUnit;
+        var rulerUnit = getUnitInfo();
 
         if (saved.colorMode === ColorMode.K100) {
             ui.blackRadio.notify('onClick');
@@ -3749,17 +3769,17 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             }
         }
 
-        ui.offsetVInput.text = String(Math.round(saved.offsetV / pointsPerUnit));
-        ui.offsetHInput.text = String(Math.round(saved.offsetH / pointsPerUnit));
+        ui.offsetVInput.text = String(Math.round(ptToUnit(saved.offsetV, rulerUnit)));
+        ui.offsetHInput.text = String(Math.round(ptToUnit(saved.offsetH, rulerUnit)));
 
         ui.cbRoundEnable.value = (saved.roundPt > 0 || saved.isPill);
-        ui.roundInput.text = String(Math.round(saved.roundPt / pointsPerUnit));
+        ui.roundInput.text = String(Math.round(ptToUnit(saved.roundPt, rulerUnit)));
         ui.cbPill.value = !!saved.isPill;
         setCornerUIEnabled(ui, ui.cbRoundEnable.value);
 
         if (saved.type === 'stroke') ui.paintStrokeRadio.notify('onClick');
         else ui.paintFillRadio.notify('onClick');
-        ui.strokeWidthInput.text = String(Math.round((saved.strokeWidth || 1) / pointsPerUnit));
+        ui.strokeWidthInput.text = String(Math.round(ptToUnit(saved.strokeWidth || 1, rulerUnit)));
 
         if (saved.target === 'group') ui.groupRadio.notify('onClick');
         else ui.individualRadio.notify('onClick');
@@ -3783,8 +3803,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             var items = doc.selection || [];
             if (!items.length) return;
 
-            var pointsPerUnit = getUnitInfo().pointsPerUnit;
-            var offsetVPt = fieldTextToPt(ui.offsetVInput.text, pointsPerUnit);
+            var rulerUnit = getUnitInfo();
+            var offsetVPt = fieldTextToPt(ui.offsetVInput.text, rulerUnit);
             syncOutlineCache(items);
             var bounds = ui.groupRadio.value ?
                 getCombinedFinalBoundsCached(doc, items) :
@@ -3792,7 +3812,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             if (!bounds) return;
 
             var pillRadiusPt = (bounds[1] - bounds[3] + offsetVPt * 2) / 2;
-            ui.roundInput.text = String(Math.round((pillRadiusPt / pointsPerUnit) * 100) / 100);
+            ui.roundInput.text = String(Math.round(ptToUnit(pillRadiusPt, rulerUnit) * 100) / 100);
             setNumberFieldEnabled(ui.roundInput, false);
             ui.offsetHInput.text = String(ui.roundInput.text);
         } catch (e) {

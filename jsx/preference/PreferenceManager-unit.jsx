@@ -221,6 +221,26 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
+    /**
+     * 単位の値を pt に換算する
+     * @param {number} value - 単位の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} pt の値
+     */
+    function unitToPt(value, unit) {
+        return value * unit.pointsPerUnit;
+    }
+
+    /**
+     * pt の値を単位の値に換算する
+     * @param {number} ptValue - pt の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} 単位の値
+     */
+    function ptToUnit(ptValue, unit) {
+        return ptValue / unit.pointsPerUnit;
+    }
+
     // =========================================
     // 環境設定の項目 / Preference items
     // =========================================
@@ -1298,7 +1318,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         valueInput.onChange = function () {
             var value = parseFloat(valueInput.text);
             if (!isNaN(value)) {
-                app.preferences.setRealPreference(definition.valueKey, value * getUnitInfo(definition.unitKey).pointsPerUnit);
+                app.preferences.setRealPreference(definition.valueKey, unitToPt(value, getUnitInfo(definition.unitKey)));
                 /* 単位ドロップダウンの変更も拾えるよう全欄を表示し直す / Refresh every field so unit changes show up too */
                 for (var i = 0; i < incrementFields.length; i++) {
                     refreshIncrementValue(incrementFields[i]);
@@ -1317,7 +1337,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function refreshIncrementValue(incrementField) {
         var definition = incrementField.definition;
         var valuePt = app.preferences.getRealPreference(definition.valueKey);
-        incrementField.input.text = (valuePt / getUnitInfo(definition.unitKey).pointsPerUnit).toFixed(1);
+        incrementField.input.text = ptToUnit(valuePt, getUnitInfo(definition.unitKey)).toFixed(1);
     }
 
     /**
@@ -1433,7 +1453,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         for (i = 0; i < INCREMENT_FIELD_DEFINITIONS.length; i++) {
             var definition = INCREMENT_FIELD_DEFINITIONS[i];
             var unitCode = preset.units[definition.unitKey];
-            app.preferences.setRealPreference(definition.valueKey, preset.increments[definition.valueKey] * UNITS[unitCode].pointsPerUnit);
+            app.preferences.setRealPreference(definition.valueKey, unitToPt(preset.increments[definition.valueKey], UNITS[unitCode]));
         }
 
         /* 単位の環境設定を確実に書き込む / Make sure the unit preferences are written */

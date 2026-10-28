@@ -187,6 +187,16 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /**
+     * pt の値を単位の値に換算する
+     * @param {number} ptValue - pt の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} 単位の値
+     */
+    function ptToUnit(ptValue, unit) {
+        return ptValue / unit.pointsPerUnit;
+    }
+
+    /**
      * 数値を小数2桁に丸めて文字列で返す / Round a number to 2 decimals and return as string
      * @param {number} value - 丸める値
      * @returns {string} 表示用の文字列
@@ -2344,8 +2354,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         /* アクティブアートボードの現在サイズを初期値にする / Use the active artboard's current size as defaults */
         var activeRect = doc.artboards[doc.artboards.getActiveArtboardIndex()].artboardRect;
-        var defaultWidth = formatNumber((activeRect[2] - activeRect[0]) / rulerUnit.pointsPerUnit);
-        var defaultHeight = formatNumber((activeRect[1] - activeRect[3]) / rulerUnit.pointsPerUnit);
+        var defaultWidth = formatNumber(ptToUnit(activeRect[2] - activeRect[0], rulerUnit));
+        var defaultHeight = formatNumber(ptToUnit(activeRect[1] - activeRect[3], rulerUnit));
 
         var resizeDialog = createResizeDialog(rulerUnit.label, defaultWidth, defaultHeight, artboardCount);
         /* 「現在のアートボード」対象用に起動時のアクティブ索引を保持 / Remember the launch-time active index for the "Current artboard" target */

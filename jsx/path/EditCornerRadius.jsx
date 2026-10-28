@@ -141,6 +141,26 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
+    /**
+     * 単位の値を pt に換算する
+     * @param {number} value - 単位の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} pt の値
+     */
+    function unitToPt(value, unit) {
+        return value * unit.pointsPerUnit;
+    }
+
+    /**
+     * pt の値を単位の値に換算する
+     * @param {number} ptValue - pt の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} 単位の値
+     */
+    function ptToUnit(ptValue, unit) {
+        return ptValue / unit.pointsPerUnit;
+    }
+
     // =========================================
     // レイアウト / Layout
     // =========================================
@@ -2531,23 +2551,23 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     /**
      * 入力欄の値を pt で読む（数値でない・負の値は 0）
      * @param {EditText} inputField - 半径の入力欄
-     * @param {number} pointsPerUnit - 1 単位あたりの pt
+     * @param {{pointsPerUnit: number}} rulerUnit - 定規の単位（getUnitInfo() の戻り値）
      * @returns {number} 半径（pt）
      */
-    function readRadiusField(inputField, pointsPerUnit) {
+    function readRadiusField(inputField, rulerUnit) {
         var fieldValue = parseFloat(inputField.text);
         if (isNaN(fieldValue) || fieldValue < 0) return 0;
-        return fieldValue * pointsPerUnit;
+        return unitToPt(fieldValue, rulerUnit);
     }
 
     /**
      * pt の値を定規単位の表示用文字列にする（小数第 2 位まで）
      * @param {number} points - 値（pt）
-     * @param {number} pointsPerUnit - 1 単位あたりの pt
+     * @param {{pointsPerUnit: number}} rulerUnit - 定規の単位（getUnitInfo() の戻り値）
      * @returns {string} 表示用の文字列
      */
-    function formatRadius(points, pointsPerUnit) {
-        return String(Math.round(points / pointsPerUnit * 100) / 100);
+    function formatRadius(points, rulerUnit) {
+        return String(Math.round(ptToUnit(points, rulerUnit) * 100) / 100);
     }
 
     /**
@@ -2701,7 +2721,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * @returns {Object|null} OK なら { targetPaths, measurements, radius, cornerOptions }、キャンセルなら null
      */
     function showRadiusDialog(scopeTargets, collectScopeTargets, skippedCount) {
-        var unitInfo = getUnitInfo();
+        var rulerUnit = getUnitInfo();
         var hasSelection = scopeTargets.selection.length > 0;
         var currentScope = hasSelection ? "selection" : "artboard";
         var targetPaths = collectScopeTargets(currentScope);
@@ -2737,7 +2757,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         /* 初期値は対象の角丸の平均 / Start from the average radius of the targets */
         var radiusField = addRadiusRow(radiusDialog,
-            formatRadius(getAverageRadius(getMeasurements()), unitInfo.pointsPerUnit), unitInfo.label,
+            formatRadius(getAverageRadius(getMeasurements()), rulerUnit), rulerUnit.label,
             function () { refreshPreview(); });
         var scopeRadios = addScopePanel(radiusDialog, currentScope, hasSelection);
 
@@ -2780,7 +2800,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             /* 計測は元のパスが表示に戻ってから / Measure after the originals are visible again */
             clearPreview();
             if (isPreviewOn) {
-                showPreview(targetPaths, getMeasurements(), readRadiusField(radiusField, unitInfo.pointsPerUnit),
+                showPreview(targetPaths, getMeasurements(), readRadiusField(radiusField, rulerUnit),
                     cornerOptions);
             } else {
                 app.redraw();
@@ -2839,7 +2859,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         return {
             targetPaths: targetPaths,
             measurements: getMeasurements(),
-            radius: readRadiusField(radiusField, unitInfo.pointsPerUnit),
+            radius: readRadiusField(radiusField, rulerUnit),
             cornerOptions: cornerOptions
         };
     }

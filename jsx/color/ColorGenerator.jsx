@@ -1019,8 +1019,18 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
     ];
 
-    /* 描画の余白は常に mm で指定する / drawing margins are always given in mm */
-    var POINTS_PER_MM = UNITS[1].pointsPerUnit;
+    /**
+     * 単位の値を pt に換算する
+     * @param {number} value - 単位の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} pt の値
+     */
+    function unitToPt(value, unit) {
+        return value * unit.pointsPerUnit;
+    }
+
+    /* 描画の余白（アートボードの内側、mm）/ drawing margin inside the artboard, in mm */
+    var DRAW_MARGIN_MM = 5;
 
     var LABELS = {
         dialogTitle: { ja: "カラージェネレーター", en: "Color Generator" },
@@ -2038,7 +2048,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var abLeft = abRect[0], abTop = abRect[1], abRight = abRect[2], abBottom = abRect[3];
 
         // 5mm マージン（pt換算）
-        var m = 5 * POINTS_PER_MM;
+        var m = unitToPt(DRAW_MARGIN_MM, UNITS[1]);
 
         // inset rect
         var left = abLeft + m;
@@ -2074,7 +2084,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var abLeft = abRect[0], abTop = abRect[1], abRight = abRect[2], abBottom = abRect[3];
 
         // 5mm マージン（pt換算）
-        var m = 5 * POINTS_PER_MM;
+        var m = unitToPt(DRAW_MARGIN_MM, UNITS[1]);
 
         // inset rect
         var left = abLeft + m;

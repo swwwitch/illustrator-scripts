@@ -580,7 +580,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
     // - "text/asianunits" ：東アジア言語のオプション（日本語・中国語など）
     // =========================================
 
-    /* 単位テーブル（配列の添字が rulerType コードと一致：0=in, 1=mm, 2=pt …）/ Unit table; the array index equals the rulerType code */
+    /* 単位コードに対応する表示ラベルと、1単位あたりのポイント数
+       Unit code -> display label and points per unit */
     var UNITS = [
         { label: "in",    pointsPerUnit: 72 },                /* 0 */
         { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
@@ -600,16 +601,38 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
     var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
 
     /**
-     * 設定キーごとの単位情報を取得する
-     * @param {string} prefKey - 環境設定キー（省略時は "rulerType"）
-     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位情報
+     * 環境設定キーの単位を返す
+     * @param {string} [prefKey] - "rulerType"（既定）/ "strokeUnits" / "text/units" / "text/asianunits"
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位の情報
      */
     function getUnitInfo(prefKey) {
         var unitKey = prefKey || "rulerType";
         var unitCode = app.preferences.getIntegerPreference(unitKey);
+        /* 未知のコードは pt に寄せる / unknown codes fall back to points */
         var unit = UNITS[unitCode] || UNITS[2];
+        /* 級（Q）と歯（H）は同じ長さだが、文字サイズは「Q」、距離は「H」と呼び分ける */
         var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
         return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
+    }
+
+    /**
+     * 単位の値を pt に換算する
+     * @param {number} value - 単位の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} pt の値
+     */
+    function unitToPt(value, unit) {
+        return value * unit.pointsPerUnit;
+    }
+
+    /**
+     * pt の値を単位の値に換算する
+     * @param {number} ptValue - pt の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} 単位の値
+     */
+    function ptToUnit(ptValue, unit) {
+        return ptValue / unit.pointsPerUnit;
     }
 
     // 画面上の寸法系はドキュメントの rulerUnits ではなく、Illustrator の一般単位（rulerType）に合わせる
@@ -620,16 +643,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
     var lengthUnitSuffix = " " + unitLabel;
     var textUnitSuffix = " " + textUnitLabel;
 
-    /* 現在の定規単位の値をポイントへ換算 / Convert a value in the current ruler unit to points */
-    function unitValueToPt(v) {
-        v = parseFloat(v); /* 「3 mm」のような単位付きの文字列も先頭の数値で読む / read the leading number of unit-suffixed text such as "3 mm" */
-        if (isNaN(v)) return NaN;
-        return v * getUnitInfo("rulerType").pointsPerUnit;
-    }
-
-    /* 入力欄の値をポイントへ換算 / Convert an edit field's value to points */
-    function toPtFromUI(editText) {
-        return unitValueToPt(editText && editText.text);
+    /**
+     * 入力欄の値（定規の単位）を pt で読む
+     * @param {EditText} editText - 入力欄
+     * @returns {number} pt の値（読めなければ NaN）
+     */
+    function readLengthFieldPt(editText) {
+        /* 「3 mm」のような単位付きの文字列も先頭の数値で読む / read the leading number of unit-suffixed text such as "3 mm" */
+        var value = parseFloat(editText && editText.text);
+        if (isNaN(value)) return NaN;
+        return unitToPt(value, getUnitInfo("rulerType"));
     }
 
     /**
@@ -641,13 +664,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
     function formatInputText(editText, value) {
         var stepOptions = editText && editText.stepperGroup && editText.stepperGroup.stepOptions;
         return String(value) + ((stepOptions && stepOptions.unit) || "");
-    }
-
-    /* ポイント値を現在の定規単位へ換算 / Convert a point value to the current ruler unit */
-    function ptToUnitValue(pt) {
-        pt = Number(pt);
-        if (isNaN(pt)) return NaN;
-        return pt / getUnitInfo("rulerType").pointsPerUnit;
     }
 
     // ダイアログの位置と不透明度（再利用パーツ） / Dialog position and opacity (reusable)
@@ -2622,7 +2638,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         } catch (e) { }
         if (!__fs0 || __fs0 <= 0) __fs0 = 12;
         var __defaultCellW_pt = Math.round(__fs0 * 1.5);
-        var __defaultCellW = Math.round(ptToUnitValue(__defaultCellW_pt));
+        var __defaultCellW = Math.round(ptToUnit(__defaultCellW_pt, getUnitInfo("rulerType")));
         var inputCellW = addStepperInput(gCellW, __defaultCellW + lengthUnitSuffix, { min: 1, max: 2000, unit: lengthUnitSuffix, onStep: refreshPreviewOnStep });
         inputCellW.helpTip = getLabel("tooltip.cellWidth");
         inputCellW.characters = 4;
@@ -2632,7 +2648,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         stCellH.justification = "right";
         stCellH.preferredSize.width = 30;
         var __defaultCellH_pt = Math.round(__fs0 * 1.3);
-        var __defaultCellH = Math.round(ptToUnitValue(__defaultCellH_pt));
+        var __defaultCellH = Math.round(ptToUnit(__defaultCellH_pt, getUnitInfo("rulerType")));
         var inputCellH = addStepperInput(gCellH, __defaultCellH + lengthUnitSuffix, { min: 1, max: 2000, unit: lengthUnitSuffix, onStep: refreshPreviewOnStep });
         inputCellH.helpTip = getLabel("tooltip.cellHeight");
         inputCellH.characters = 4;
@@ -3550,19 +3566,19 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
                 strokeTop = strokeBottom = strokeLeft = strokeRight = true;
             }
 
-            var cellW = toPtFromUI(inputCellW);
-            var cellH = toPtFromUI(inputCellH);
+            var cellW = readLengthFieldPt(inputCellW);
+            var cellH = readLengthFieldPt(inputCellH);
             if (!cellW || isNaN(cellW) || cellW <= 0) return;
             if (!cellH || isNaN(cellH) || cellH <= 0) return;
 
-            var cellGapX = toPtFromUI(inputCellGapX);
-            var cellGapY = toPtFromUI(inputCellGapY);
+            var cellGapX = readLengthFieldPt(inputCellGapX);
+            var cellGapY = readLengthFieldPt(inputCellGapY);
             if (isNaN(cellGapX) || cellGapX < 0) cellGapX = 0;
             if (cellGapX > 2000) cellGapX = 2000;
             if (isNaN(cellGapY) || cellGapY < 0) cellGapY = 0;
             if (cellGapY > 2000) cellGapY = 2000;
 
-            var cellPosAdjY = toPtFromUI(inputCellPosAdjY);
+            var cellPosAdjY = readLengthFieldPt(inputCellPosAdjY);
             if (isNaN(cellPosAdjY)) cellPosAdjY = 0;
             if (cellPosAdjY < -2000) cellPosAdjY = -2000;
             if (cellPosAdjY > 2000) cellPosAdjY = 2000;
@@ -3571,15 +3587,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
             var includeYearInMonthTitle = (chkMonthYear && chkMonthYear.value) ? true : false;
             var monthTitleBottomBorder = (chkMonthBottomBorder && chkMonthBottomBorder.value) ? true : false;
             var monthTitleMode = getMonthTitleMode();
-            var topYearBottomMargin = toPtFromUI(inputTopYearBottomMargin);
+            var topYearBottomMargin = readLengthFieldPt(inputTopYearBottomMargin);
             if (isNaN(topYearBottomMargin) || topYearBottomMargin < 0) topYearBottomMargin = 0;
             if (topYearBottomMargin > 2000) topYearBottomMargin = 2000;
 
-            var monthBottomMargin = toPtFromUI(inputMonthBottomMargin);
+            var monthBottomMargin = readLengthFieldPt(inputMonthBottomMargin);
             if (isNaN(monthBottomMargin) || monthBottomMargin < 0) monthBottomMargin = 0;
             if (monthBottomMargin > 2000) monthBottomMargin = 2000;
 
-            var weekdayBottomMargin = toPtFromUI(inputWeekdayBottomMargin);
+            var weekdayBottomMargin = readLengthFieldPt(inputWeekdayBottomMargin);
             if (isNaN(weekdayBottomMargin) || weekdayBottomMargin < 0) weekdayBottomMargin = 0;
             if (weekdayBottomMargin > 2000) weekdayBottomMargin = 2000;
 
@@ -3592,11 +3608,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
             var yearFontSize = parseFloat(inputYearFontSize.text);
             if (!yearFontSize || yearFontSize <= 0) yearFontSize = fontSize;
 
-            var outerMarginX = toPtFromUI(inputOuterMarginX);
+            var outerMarginX = readLengthFieldPt(inputOuterMarginX);
             if (isNaN(outerMarginX) || outerMarginX < 0) outerMarginX = 0;
             if (outerMarginX > 5000) outerMarginX = 5000;
 
-            var outerMarginY = toPtFromUI(inputOuterMarginY);
+            var outerMarginY = readLengthFieldPt(inputOuterMarginY);
             if (isNaN(outerMarginY) || outerMarginY < 0) outerMarginY = 0;
             if (outerMarginY > 5000) outerMarginY = 5000;
 
@@ -3825,19 +3841,19 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
                 strokeTop = strokeBottom = strokeLeft = strokeRight = true;
             }
 
-            var cellW = toPtFromUI(inputCellW);
-            var cellH = toPtFromUI(inputCellH);
+            var cellW = readLengthFieldPt(inputCellW);
+            var cellH = readLengthFieldPt(inputCellH);
             if (!cellW || isNaN(cellW) || cellW <= 0) return alert(getLabel("error.badCellW"));
             if (!cellH || isNaN(cellH) || cellH <= 0) return alert(getLabel("error.badCellH"));
 
-            var cellGapX = toPtFromUI(inputCellGapX);
-            var cellGapY = toPtFromUI(inputCellGapY);
+            var cellGapX = readLengthFieldPt(inputCellGapX);
+            var cellGapY = readLengthFieldPt(inputCellGapY);
             if (isNaN(cellGapX) || cellGapX < 0) cellGapX = 0;
             if (cellGapX > 2000) cellGapX = 2000;
             if (isNaN(cellGapY) || cellGapY < 0) cellGapY = 0;
             if (cellGapY > 2000) cellGapY = 2000;
 
-            var cellPosAdjY = toPtFromUI(inputCellPosAdjY);
+            var cellPosAdjY = readLengthFieldPt(inputCellPosAdjY);
             if (isNaN(cellPosAdjY)) cellPosAdjY = 0;
             if (cellPosAdjY < -2000) cellPosAdjY = -2000;
             if (cellPosAdjY > 2000) cellPosAdjY = 2000;
@@ -3846,23 +3862,23 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
             var includeYearInMonthTitle = (chkMonthYear && chkMonthYear.value) ? true : false;
             var monthTitleBottomBorder = (chkMonthBottomBorder && chkMonthBottomBorder.value) ? true : false;
             var monthTitleMode = getMonthTitleMode();
-            var topYearBottomMargin = toPtFromUI(inputTopYearBottomMargin);
+            var topYearBottomMargin = readLengthFieldPt(inputTopYearBottomMargin);
             if (isNaN(topYearBottomMargin) || topYearBottomMargin < 0) topYearBottomMargin = 0;
             if (topYearBottomMargin > 2000) topYearBottomMargin = 2000;
 
-            var monthBottomMargin = toPtFromUI(inputMonthBottomMargin);
+            var monthBottomMargin = readLengthFieldPt(inputMonthBottomMargin);
             if (isNaN(monthBottomMargin) || monthBottomMargin < 0) monthBottomMargin = 0;
             if (monthBottomMargin > 2000) monthBottomMargin = 2000;
 
-            var weekdayBottomMargin = toPtFromUI(inputWeekdayBottomMargin);
+            var weekdayBottomMargin = readLengthFieldPt(inputWeekdayBottomMargin);
             if (isNaN(weekdayBottomMargin) || weekdayBottomMargin < 0) weekdayBottomMargin = 0;
             if (weekdayBottomMargin > 2000) weekdayBottomMargin = 2000;
 
-            var outerMarginX = toPtFromUI(inputOuterMarginX);
+            var outerMarginX = readLengthFieldPt(inputOuterMarginX);
             if (isNaN(outerMarginX) || outerMarginX < 0) outerMarginX = 0;
             if (outerMarginX > 5000) outerMarginX = 5000;
 
-            var outerMarginY = toPtFromUI(inputOuterMarginY);
+            var outerMarginY = readLengthFieldPt(inputOuterMarginY);
             if (isNaN(outerMarginY) || outerMarginY < 0) outerMarginY = 0;
             if (outerMarginY > 5000) outerMarginY = 5000;
 

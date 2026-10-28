@@ -830,7 +830,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0a1c70def387"; /* 紹�
     // 単位変換 / Unit Conversion
     // =========================================
 
-    /* 単位テーブル（配列の添字が rulerType コードと一致：0=in, 1=mm, 2=pt …）/ Unit table; the array index equals the rulerType code */
+    /* 単位コードに対応する表示ラベルと、1単位あたりのポイント数
+       Unit code -> display label and points per unit */
     var UNITS = [
         { label: "in",    pointsPerUnit: 72 },                /* 0 */
         { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
@@ -850,26 +851,38 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0a1c70def387"; /* 紹�
     var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
 
     /**
-     * 設定キーごとの単位情報を取得する
-     * @param {string} prefKey - 環境設定キー（省略時は "rulerType"）
-     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位情報
+     * 環境設定キーの単位を返す
+     * @param {string} [prefKey] - "rulerType"（既定）/ "strokeUnits" / "text/units" / "text/asianunits"
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位の情報
      */
     function getUnitInfo(prefKey) {
         var unitKey = prefKey || "rulerType";
         var unitCode = app.preferences.getIntegerPreference(unitKey);
+        /* 未知のコードは pt に寄せる / unknown codes fall back to points */
         var unit = UNITS[unitCode] || UNITS[2];
+        /* 級（Q）と歯（H）は同じ長さだが、文字サイズは「Q」、距離は「H」と呼び分ける */
         var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
         return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
-    /* pt値を指定単位の表示値へ変換 / Convert points to display unit value */
-    function pointsToUnitValue(points, unitCode) {
-        return points / (UNITS[unitCode] || UNITS[2]).pointsPerUnit;
+    /**
+     * 単位の値を pt に換算する
+     * @param {number} value - 単位の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} pt の値
+     */
+    function unitToPt(value, unit) {
+        return value * unit.pointsPerUnit;
     }
 
-    /* 指定単位の入力値をptへ変換 / Convert display unit value to points */
-    function unitValueToPoints(value, unitCode) {
-        return value * (UNITS[unitCode] || UNITS[2]).pointsPerUnit;
+    /**
+     * pt の値を単位の値に換算する
+     * @param {number} ptValue - pt の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} 単位の値
+     */
+    function ptToUnit(ptValue, unit) {
+        return ptValue / unit.pointsPerUnit;
     }
 
     function createExclusionMarkerColor() {
@@ -1021,7 +1034,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0a1c70def387"; /* 紹�
 
     /* 選択中の長方形から、短辺の最大値を指定単位で取得
        Get the largest short side among selected rectangles in the given unit */
-    function getMaxShortSideInUnitFromItems(items, unitCode) {
+    function getMaxShortSideInUnitFromItems(items, unit) {
         var rectangleItems = [];
         collectRectsRecursive(items, rectangleItems);
         var maxShortSidePt = 0;
@@ -1036,7 +1049,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0a1c70def387"; /* 紹�
             } catch (e) { }
         }
 
-        return Math.round(pointsToUnitValue(maxShortSidePt, unitCode) * 10) / 10;
+        return Math.round(ptToUnit(maxShortSidePt, unit) * 10) / 10;
     }
 
     /* 対象外オブジェクトを M100Y100・半透明で複製してマーカー表示
@@ -1360,7 +1373,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0a1c70def387"; /* 紹�
     // =========================================
 
     /* 中心線パネルを構築 / Build center-line panel */
-    function buildCenterLinePanel(parent, rulerUnitCode, rulerUnitLabel) {
+    function buildCenterLinePanel(parent, rulerUnit, rulerUnitLabel) {
         var panel = parent.add("panel", undefined, getLabel('pnlCenterLineConversion'));
         setupPanel(panel, 6);
         panel.alignChildren = ["left", "top"];
@@ -1378,7 +1391,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0a1c70def387"; /* 紹�
         cbAngleCorrect.value = true;
 
         var SHORT_MIN = 0;
-        var SHORT_MAX = getMaxShortSideInUnitFromItems(app.activeDocument.selection, rulerUnitCode);
+        var SHORT_MAX = getMaxShortSideInUnitFromItems(app.activeDocument.selection, rulerUnit);
         if (SHORT_MAX <= 0) SHORT_MAX = 10;
         var SHORT_DEFAULT = Math.min(10, SHORT_MAX);
 
@@ -1555,10 +1568,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0a1c70def387"; /* 紹�
     /* ダイアログUI構築 / Build dialog UI */
     function buildOptionDialogUI(dialog) {
         var strokeUnit = getUnitInfo("strokeUnits");
-        var strokeUnitCode = strokeUnit.code;
         var strokeUnitLabel = strokeUnit.label;
         var rulerUnit = getUnitInfo("rulerType");
-        var rulerUnitCode = rulerUnit.code;
         var rulerUnitLabel = rulerUnit.label;
 
         var panelColumn = dialog.add("group");
@@ -1566,7 +1577,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0a1c70def387"; /* 紹�
         panelColumn.alignChildren = "fill";
         panelColumn.spacing = 12;
 
-        var center = buildCenterLinePanel(panelColumn, rulerUnitCode, rulerUnitLabel);
+        var center = buildCenterLinePanel(panelColumn, rulerUnit, rulerUnitLabel);
         var connect = buildConnectOptionsPanel(panelColumn);
         var rule = buildRulePanel(panelColumn, strokeUnitLabel);
         var post = buildPostProcessPanel(panelColumn);
@@ -1586,8 +1597,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0a1c70def387"; /* 紹�
         }
 
         return {
-            strokeUnitCode: strokeUnitCode,
-            rulerUnitCode: rulerUnitCode,
+            strokeUnit: strokeUnit,
+            rulerUnit: rulerUnit,
 
             cbCenterLine: center.cbCenterLine,
             cbAngleCorrect: center.cbAngleCorrect,
@@ -1648,13 +1659,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0a1c70def387"; /* 紹�
         return {
             correctRotation: ui.cbAngleCorrect.value,
             enableCenterLine: ui.cbCenterLine.value,
-            minShortSidePt: ui.cbMinShortSide.value ? unitValueToPoints(minShortSideValue, ui.rulerUnitCode) : 0,
+            minShortSidePt: ui.cbMinShortSide.value ? unitToPt(minShortSideValue, ui.rulerUnit) : 0,
             connectMode: connectMode,
             outerRect: ui.cbOuterRect.value,
             printBlack: ui.cbPrintBlack.value,
             commonStroke: ui.cbCommonStroke.value,
             strokeStrategy: strokeStrategy,
-            customStrokeWidth: unitValueToPoints(customStrokeWidth, ui.strokeUnitCode),
+            customStrokeWidth: unitToPt(customStrokeWidth, ui.strokeUnit),
             groupResult: ui.cbGroup.value,
             returnToOriginal: ui.cbReturnToOriginal.value
         };
@@ -1766,7 +1777,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0a1c70def387"; /* 紹�
         if (ui.cbMinShortSide.value) {
             var minShortSideValue = parseFloat(ui.minShortSideInput.text);
             if (isNaN(minShortSideValue)) minShortSideValue = ui.SHORT_DEFAULT;
-            minShortSidePt = unitValueToPoints(minShortSideValue, ui.rulerUnitCode);
+            minShortSidePt = unitToPt(minShortSideValue, ui.rulerUnit);
         }
 
         refreshExclusionPreview(ui.snapshotSelection, minShortSidePt);

@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.AlignToArtboards
 Name=AlignToArtboards
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.2.9
+Version=1.2.10
 Release-Date=2025-12-17
 Description-BEGIN
 選択したオブジェクトを、アートボード上の指定位置へ整列します。
@@ -47,10 +47,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AlignToArt
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AlignToArtboards";             /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.2.9";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.2.10";                      /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-12-17";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-16";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-29";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AlignToArtboards.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AlignToArtboards.md"; /* README (English) */
@@ -223,24 +223,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
         return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
-    /* 単位ラベル → UnitValue に渡す単位名 / Ruler unit label to the unit name passed to UnitValue */
-    var UNIT_VALUE_NAMES = {
-        "in": "in",
-        "mm": "mm",
-        "pt": "pt",
-        "pica": "pc",
-        "cm": "cm",
-        "px": "px",
-        "m": "m",
-        "yd": "yd",
-        "ft": "ft",
-        "ft/in": "in" /* フィートインチ表示のときは入力値をインチとして扱う / Treat input as inches when the ruler shows feet/inches */
-    };
-
-    /* 級（Q）・歯（H）は 1単位 = 0.25mm。UnitValue が扱えないので mm 経由で換算
-       One Q or H equals 0.25 mm; UnitValue cannot parse it, so convert through mm */
-    var MILLIMETERS_PER_Q = 0.25;
-    var Q_UNIT_LABEL = "Q/H";
+    /**
+     * 単位の値を pt に換算する
+     * @param {number} value - 単位の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} pt の値
+     */
+    function unitToPt(value, unit) {
+        return value * unit.pointsPerUnit;
+    }
 
     /* マージンの最小値（内側へのオフセットのみ許可） / Minimum margin (inward offset only) */
     var MINIMUM_MARGIN_VALUE = 0;
@@ -2193,24 +2184,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
     var useVisibleBounds = DEFAULT_SETTINGS.useVisibleBounds;
 
     // =========================================
-    // 単位（rulerType） / Units (rulerType)
-    // =========================================
-
-    /**
-     * 入力値（現在のルーラー単位）を pt に変換する
-     * @param {number} inputValue - 入力値
-     * @param {string} unitLabel - 現在の単位ラベル
-     * @returns {number} pt に換算した値
-     */
-    function convertToPoints(inputValue, unitLabel) {
-        if (unitLabel === Q_UNIT_LABEL) {
-            return new UnitValue(inputValue * MILLIMETERS_PER_Q, "mm").as("pt");
-        }
-        /* 対応表にない単位は pt として処理 / Units missing from the table are treated as pt */
-        return new UnitValue(inputValue, UNIT_VALUE_NAMES[unitLabel] || "pt").as("pt");
-    }
-
-    // =========================================
     // アートボード振り分け / Artboard mapping
     // =========================================
 
@@ -3015,11 +2988,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
     /**
      * マージンパネル（左右・上下・連動アイコン）を構築する
      * @param {Group} parentContainer - 追加先のグループ
-     * @param {string} unitLabel - 現在のルーラー単位ラベル
+     * @param {{label: string, pointsPerUnit: number}} rulerUnit - 定規の単位
      * @param {Function} onSettingsChanged - 入力が変わったときに呼ぶ関数
      * @returns {Object} パネル参照とマージン取得・フォーカス制御をまとめたオブジェクト
      */
-    function buildMarginPanel(parentContainer, unitLabel, onSettingsChanged) {
+    function buildMarginPanel(parentContainer, rulerUnit, onSettingsChanged) {
         var marginPanel = parentContainer.add("panel", undefined, getLabel("panel.margin"));
         setupPanel(marginPanel);
         marginPanel.orientation = "row";
@@ -3030,7 +3003,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
         fieldColumn.orientation = "column";
         fieldColumn.alignChildren = ["left", "center"];
 
-        var unitSuffix = " " + unitLabel; /* 欄の中に出す単位（「5 mm」の形） / unit shown inside the fields */
+        var unitSuffix = " " + rulerUnit.label; /* 欄の中に出す単位（「5 mm」の形） / unit shown inside the fields */
 
         /**
          * ラベル付きのマージン入力欄を作る
@@ -3145,8 +3118,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
                 var horizontalValue = readMarginField(horizontalField);
                 var verticalValue = linkToggle.value ? horizontalValue : readMarginField(verticalField);
                 return {
-                    x: convertToPoints(horizontalValue, unitLabel),
-                    y: convertToPoints(verticalValue, unitLabel)
+                    x: unitToPt(horizontalValue, rulerUnit),
+                    y: unitToPt(verticalValue, rulerUnit)
                 };
             },
             focusHorizontalField: function () {
@@ -3244,7 +3217,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
         var alignDialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
         setupWindow(alignDialog);
 
-        var unitLabel = getUnitInfo().label;
+        var rulerUnit = getUnitInfo();
         var previewState = createPreviewState(doc.selection);
 
         var baseControls = buildAlignmentBasePanel(alignDialog, doc.artboards.length, handleSettingsChanged);
@@ -3263,7 +3236,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
         marginColumn.orientation = "column";
         marginColumn.alignChildren = ["fill", "top"];
         marginColumn.alignment = ["right", "top"];
-        var marginControls = buildMarginPanel(marginColumn, unitLabel, handleSettingsChanged);
+        var marginControls = buildMarginPanel(marginColumn, rulerUnit, handleSettingsChanged);
 
         buildBoundsOptionRow(alignDialog, handleSettingsChanged);
         var buttonRow = addButtonRow(alignDialog);

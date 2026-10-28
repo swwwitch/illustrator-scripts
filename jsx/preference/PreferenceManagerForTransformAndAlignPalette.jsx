@@ -818,16 +818,23 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41d8dc1961be"; /* 紹�
     var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
 
     /**
-     * 設定キーごとの単位情報を取得する
-     * @param {string} prefKey - 環境設定キー（省略時は "rulerType"）
-     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位情報
+     * 単位の値を pt に換算する
+     * @param {number} value - 単位の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} pt の値
      */
-    function getUnitInfo(prefKey) {
-        var unitKey = prefKey || "rulerType";
-        var unitCode = app.preferences.getIntegerPreference(unitKey);
-        var unit = UNITS[unitCode] || UNITS[2];
-        var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
-        return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
+    function unitToPt(value, unit) {
+        return value * unit.pointsPerUnit;
+    }
+
+    /**
+     * pt の値を単位の値に換算する
+     * @param {number} ptValue - pt の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} 単位の値
+     */
+    function ptToUnit(ptValue, unit) {
+        return ptValue / unit.pointsPerUnit;
     }
 
     /* 定規単位のコードから単位ラベルを取得（歯は H 表示、未対応コードは pt）/ Get the label for a rulerType code (code 5 shows as H; unknown codes fall back to pt) */
@@ -906,10 +913,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41d8dc1961be"; /* 紹�
         cursorKeyLengthPt: 1.0
     };
 
-    /* 現在の定規単位の pt 換算係数を取得 / Get the pt factor for the current ruler unit */
-    function getCurrentPtPerUnit() {
+    /* 現在の定規単位を取得（未対応コードは pt）/ Get the current ruler unit (unknown codes fall back to pt) */
+    function getCachedRulerUnit() {
         /* 常駐エンジンなので環境設定は読まず、キャッシュ済みのコードで UNITS を引く / cached code, no per-event preference read */
-        return (UNITS[PREF_STATE.rulerType] || UNITS[2]).pointsPerUnit;
+        return UNITS[PREF_STATE.rulerType] || UNITS[2];
     }
 
     // =========================================
@@ -1004,14 +1011,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41d8dc1961be"; /* 紹�
     /* 現在単位の値を cursorKeyLength(pt) として保存 / Save value (in current unit) to cursorKeyLength as pt */
     function saveCursorKeyLengthInCurrentUnit(unitValue) {
         if (isNaN(unitValue) || unitValue < 0) return false;
-        PREF_STATE.cursorKeyLengthPt = unitValue * getCurrentPtPerUnit();
+        PREF_STATE.cursorKeyLengthPt = unitToPt(unitValue, getCachedRulerUnit());
         btSetRealPreference("cursorKeyLength", PREF_STATE.cursorKeyLengthPt);
         return true;
     }
 
     /* キャッシュ済み cursorKeyLength(pt) を現在単位の文字列(小数1桁)で取得 / Read cached cursorKeyLength as a current-unit string */
     function readCursorKeyLengthInCurrentUnit() {
-        return (PREF_STATE.cursorKeyLengthPt / getCurrentPtPerUnit()).toFixed(1);
+        return ptToUnit(PREF_STATE.cursorKeyLengthPt, getCachedRulerUnit()).toFixed(1);
     }
 
     /* キー増加フィールドの値を保存 / Save the value from the key field */

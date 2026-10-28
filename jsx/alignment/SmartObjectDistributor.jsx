@@ -986,6 +986,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na3c45cea09b7"; /* 紹�
         return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
+    /**
+     * 単位の値を pt に換算する
+     * @param {number} value - 単位の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} pt の値
+     */
+    function unitToPt(value, unit) {
+        return value * unit.pointsPerUnit;
+    }
+
     // =========================================
     // ローカライズ / Localization
     // =========================================
@@ -2017,13 +2027,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na3c45cea09b7"; /* 紹�
      * 負の値は配置先からはみ出したグリッドを生むため、0 で止めます。
      *
      * @param {EditText} inputField - 対象の入力欄。
-     * @param {number} pointsPerUnit - 定規単位 1 あたりの pt。
+     * @param {{label: string, pointsPerUnit: number}} rulerUnit - 定規の単位（getUnitInfo() の戻り値）。
      * @returns {number} pt に換算した長さ。数値でない場合は 0。
      */
-    function readLengthPt(inputField, pointsPerUnit) {
+    function readLengthPt(inputField, rulerUnit) {
         var parsedLength = parseFloat(inputField.text);
         if (!isFinite(parsedLength)) return 0;
-        return Math.max(0, parsedLength) * pointsPerUnit;
+        return unitToPt(Math.max(0, parsedLength), rulerUnit);
     }
 
     /**
@@ -2216,8 +2226,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na3c45cea09b7"; /* 紹�
             return computeGridMetrics(
                 readCount(divisionUI.rowCountInput),
                 readCount(divisionUI.columnCountInput),
-                readLengthPt(divisionUI.marginInput, rulerUnit.pointsPerUnit),
-                readLengthPt(divisionUI.gutterInput, rulerUnit.pointsPerUnit),
+                readLengthPt(divisionUI.marginInput, rulerUnit),
+                readLengthPt(divisionUI.gutterInput, rulerUnit),
                 getTargetRect()
             );
         }

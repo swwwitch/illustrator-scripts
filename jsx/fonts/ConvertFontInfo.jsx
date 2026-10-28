@@ -488,14 +488,24 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /**
+     * pt の値を単位の値に換算する
+     * @param {number} ptValue - pt の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} 単位の値
+     */
+    function ptToUnit(ptValue, unit) {
+        return ptValue / unit.pointsPerUnit;
+    }
+
+    /**
      * pt のフォントサイズを文字サイズの単位（text/units）に換算し、小数第2位までの単位付き文字列にする
      * @param {number} sizePt - フォントサイズ（pt）
      * @returns {string} 「12 pt」「17 Q」のような文字列
      */
     function getFontSizeWithUnit(sizePt) {
-        var sizeUnit = getUnitInfo("text/units");
-        var convertedSize = sizePt / sizeUnit.pointsPerUnit;
-        return (Math.round(convertedSize * 100) / 100) + " " + sizeUnit.label;
+        var textUnit = getUnitInfo("text/units");
+        var convertedSize = ptToUnit(sizePt, textUnit);
+        return (Math.round(convertedSize * 100) / 100) + " " + textUnit.label;
     }
 
     // =========================================

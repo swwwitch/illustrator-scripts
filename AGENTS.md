@@ -122,8 +122,8 @@ Update checking is not used: write no `Meta-URL` and no `SCRIPTMETA.txt`.
 
 ## Units
 
-Unit handling goes through one table and one accessor. Do not add per-script label maps or
-`getPtFactorFromUnitCode()`-style helpers.
+Unit handling goes through one table, one accessor and two converters. Do not add per-script label maps,
+`getPtFactorFromUnitCode()`-style helpers, or other conversion functions (`convertToPt`, `mmToPt`, `toPoints`, …).
 
 ```js
 // =========================================
@@ -164,13 +164,55 @@ function getUnitInfo(prefKey) {
     var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
     return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
 }
+
+/**
+ * 単位の値を pt に換算する
+ * @param {number} value - 単位の値
+ * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+ * @returns {number} pt の値
+ */
+function unitToPt(value, unit) {
+    return value * unit.pointsPerUnit;
+}
+
+/**
+ * pt の値を単位の値に換算する
+ * @param {number} ptValue - pt の値
+ * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+ * @returns {number} 単位の値
+ */
+function ptToUnit(ptValue, unit) {
+    return ptValue / unit.pointsPerUnit;
+}
+
+/**
+ * 表示ラベルから単位を探す（「H」は「Q」と同じ単位）
+ * @param {string} label - 単位の表示ラベル（"mm" など）
+ * @returns {{label: string, pointsPerUnit: number}|null} UNITS の要素（見つからなければ null）
+ */
+function findUnitByLabel(label) {
+    var unitLabel = (label === "H") ? "Q" : label;
+    for (var i = 0; i < UNITS.length; i++) {
+        if (UNITS[i].label === unitLabel) return UNITS[i];
+    }
+    return null;
+}
 ```
 
 - Display label: `getUnitInfo().label`
-- Points per unit: `getUnitInfo().pointsPerUnit`
+- Convert with the unit object, not a bare factor: `unitToPt(value, getUnitInfo())`, `ptToUnit(ptValue, getUnitInfo("strokeUnits"))`.
+  Keep the object in a variable named after its preference (`rulerUnit`, `strokeUnit`, `textUnit`), not `factor` / `ptPerUnit`
+- Fixed units: `unitToPt(3, UNITS[1])` (3 mm). No `POINTS_PER_MM`-style constants or `72 / 25.4` literals
+- Unit chosen in a dropdown: index into `UNITS` when the list follows the unit codes; otherwise `findUnitByLabel(label)`
 - Another preference: `getUnitInfo("strokeUnits")`, `getUnitInfo("text/units")`
-- Include only `UNITS` and `getUnitInfo()` when the script never shows a Q/H label;
-  keep `HA_UNIT_PREF_KEYS` whenever a label reaches the UI.
+- `pointsPerUnit` appears only in `UNITS`, `getUnitInfo()`, `unitToPt()` and `ptToUnit()`
+- Include only the parts the script uses: `getUnitInfo()` (always together with `HA_UNIT_PREF_KEYS`, which it reads)
+  when it reads a preference, and `unitToPt()` / `ptToUnit()` / `findUnitByLabel()` when called.
+  Place the converters in this order right after `getUnitInfo()` (or after `UNITS` when there is no `getUnitInfo()`)
+- Do not trim `getUnitInfo()` into a variant without the H label; copy it as written
+- Rounding and display formatting stay outside the converters (`formatUnitValue()` etc. call them)
+- Values typed into a stepper field (`1in`, `1p6`, `10 mm`) are read by the StepperButtons part
+  (`evaluateArithmetic()` with `UnitValue`); outside that part, do not call `UnitValue` for conversion
 - **Exception:** `jsx/preference/single-function/PreferenceManager-print-pt.jsx` keeps its own `["pt","pc",…,"Q/H","px"]`
   list. One dropdown serves four preference keys there, so unit code 5 needs the neutral `Q/H` label,
   and the file does no pt conversion at all. Leave it as it is.

@@ -169,6 +169,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
         ];
 
+        /* 単位コード5を「歯（H）」と表示する環境設定キー。文字サイズ（text/units）だけ「級（Q）」
+           Preference keys that show unit code 5 as H; only the type size (text/units) shows Q */
+        var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
+
         /**
          * 環境設定キーの単位を返す
          * @param {string} [prefKey] - "rulerType"（既定）/ "strokeUnits" / "text/units" / "text/asianunits"
@@ -179,7 +183,29 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             var unitCode = app.preferences.getIntegerPreference(unitKey);
             /* 未知のコードは pt に寄せる / unknown codes fall back to points */
             var unit = UNITS[unitCode] || UNITS[2];
-            return { code: unitCode, label: unit.label, pointsPerUnit: unit.pointsPerUnit };
+            /* 級（Q）と歯（H）は同じ長さだが、文字サイズは「Q」、距離は「H」と呼び分ける */
+            var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
+            return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
+        }
+
+        /**
+         * 単位の値を pt に換算する
+         * @param {number} value - 単位の値
+         * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+         * @returns {number} pt の値
+         */
+        function unitToPt(value, unit) {
+            return value * unit.pointsPerUnit;
+        }
+
+        /**
+         * pt の値を単位の値に換算する
+         * @param {number} ptValue - pt の値
+         * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+         * @returns {number} 単位の値
+         */
+        function ptToUnit(ptValue, unit) {
+            return ptValue / unit.pointsPerUnit;
         }
 
         /* 実行中スクリプトのファイル名末尾の符号付き整数をステップ数として取得（読めなければ既定値）
@@ -618,9 +644,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         /* 1段落の行送り(表示値)を整数で step だけ動かす自動行送り量(%)を逆算して適用
            Apply the auto-leading amount (%) that steps the paragraph's displayed leading by `step` integers
            @param {object} paragraph 段落範囲(Paragraph)
-           @param {number} unitFactor 表示単位の pt 換算係数
+           @param {{pointsPerUnit: number}} textUnit 表示単位（getUnitInfo("text/units") の戻り値）
            @param {number} step 行送り(表示単位・整数)のステップ数 */
-        function applyLeadingStep(paragraph, unitFactor, step) {
+        function applyLeadingStep(paragraph, textUnit, step) {
             if (!paragraph.characters || paragraph.characters.length === 0) return;
             try {
                 var charAttr = paragraph.characters[0].characterAttributes;
@@ -630,13 +656,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
                 // 現在の行送りを表示単位に換算し、次の整数を目標にする(小さな誤差は吸収)
                 // Convert the current leading to display units and target the next integer (absorb tiny float error)
-                var currentInUnit = leadingPt / unitFactor;
+                var currentInUnit = ptToUnit(leadingPt, textUnit);
                 var base = (step >= 0) ? Math.floor(currentInUnit + 1e-4) : Math.ceil(currentInUnit - 1e-4);
                 var targetInUnit = base + step;
                 if (targetInUnit <= 0) return;
 
                 // 目標の整数行送りになる自動行送り量(%)を逆算 / Back-calculate the auto-leading amount (%) for the target integer leading
-                var targetLeadingPt = targetInUnit * unitFactor;
+                var targetLeadingPt = unitToPt(targetInUnit, textUnit);
                 paragraph.paragraphAttributes.autoLeadingAmount = (targetLeadingPt / sizePt) * 100;
                 paragraph.characterAttributes.autoLeading = true;
             } catch (e) { }
@@ -682,8 +708,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             // ステップ数はファイル名から取得（例: AutoLeadingStep+10 → 10）/ The step comes from the file name (e.g. +10)
             var step = getScriptStep(DEFAULT_LEADING_STEP);
             // 段落ごとに行送りを整数で step 動かす / Step each paragraph's leading by `step` integers
-            var unitFactor = getUnitInfo("text/units").pointsPerUnit;
-            for (var p = 0; p < paragraphTargets.length; p++) applyLeadingStep(paragraphTargets[p], unitFactor, step);
+            var textUnit = getUnitInfo("text/units");
+            for (var p = 0; p < paragraphTargets.length; p++) applyLeadingStep(paragraphTargets[p], textUnit, step);
             // 基準は仮想ボディの上に固定(フレーム単位) / Fix the leading basis to the top of the virtual body (per frame)
             for (var g = 0; g < typeFrames.length; g++) {
                 try { typeFrames[g].textRange.leadingType = AutoLeadingType.TOPTOTOP; } catch (e) { }

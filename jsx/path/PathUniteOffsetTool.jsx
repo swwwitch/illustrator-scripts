@@ -906,6 +906,16 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
+    /**
+     * 単位の値を pt に換算する
+     * @param {number} value - 単位の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} pt の値
+     */
+    function unitToPt(value, unit) {
+        return value * unit.pointsPerUnit;
+    }
+
     // =========================================
     // ユーティリティ / Utilities
     // =========================================
@@ -924,12 +934,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // オフセット処理 / Offset processing
     // =========================================
 
-    function applyOffsetEffectToSelection(offsetValue, unitFactor, joinType) {
+    function applyOffsetEffectToSelection(offsetValue, rulerUnit, joinType) {
         var doc = app.activeDocument;
         var selection = doc.selection;
         if (!selection || selection.length === 0) return 0;
 
-        var offsetInPoints = offsetValue * unitFactor;
+        var offsetInPoints = unitToPt(offsetValue, rulerUnit);
         var effectXml = buildOffsetEffectXml(offsetInPoints, joinType);
         var appliedCount = 0;
         for (var i = 0; i < selection.length; i++) {
@@ -986,7 +996,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /* 一連のオフセット処理を実行 / Run the full offset workflow */
-    function runOffsetWorkflow(offsetValue, unitFactor, joinType) {
+    function runOffsetWorkflow(offsetValue, rulerUnit, joinType) {
         app.executeMenuCommand('noCompoundPath');
         app.executeMenuCommand('Live Pathfinder Add');
         app.executeMenuCommand('expandStyle');
@@ -997,7 +1007,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         } catch (ungroupError) {
         }
 
-        applyOffsetEffectToSelection(offsetValue, unitFactor, joinType);
+        applyOffsetEffectToSelection(offsetValue, rulerUnit, joinType);
     }
 
     // ダイアログの位置と不透明度（再利用パーツ） / Dialog position and opacity (reusable)
@@ -1317,7 +1327,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             }
 
             selectLayerItems(previewLayer);
-            runOffsetWorkflow(currentValue, rulerUnit.pointsPerUnit, currentJoinType);
+            runOffsetWorkflow(currentValue, rulerUnit, currentJoinType);
 
             previewedValue = currentValue;
             previewedJoinType = currentJoinType;
@@ -1384,7 +1394,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var dialogResult = showOffsetDialog(rulerUnit);
         if (dialogResult === null) return;
 
-        runOffsetWorkflow(dialogResult.value, rulerUnit.pointsPerUnit, dialogResult.joinType);
+        runOffsetWorkflow(dialogResult.value, rulerUnit, dialogResult.joinType);
     })();
 
 })();

@@ -768,6 +768,26 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5e41727cf265"; /* 紹�
         return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
+    /**
+     * 単位の値を pt に換算する
+     * @param {number} value - 単位の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} pt の値
+     */
+    function unitToPt(value, unit) {
+        return value * unit.pointsPerUnit;
+    }
+
+    /**
+     * pt の値を単位の値に換算する
+     * @param {number} ptValue - pt の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} 単位の値
+     */
+    function ptToUnit(ptValue, unit) {
+        return ptValue / unit.pointsPerUnit;
+    }
+
     // =========================================
     // ローカライズ / Localization
     // =========================================
@@ -1817,11 +1837,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5e41727cf265"; /* 紹�
     function showShiftDialog(textFrames, previewManager) {
         /* シフト量の欄は環境設定の「東アジア言語」の単位で表示し、適用するときに pt へ換算する
            The shift field uses the East Asian type unit; values are converted to points when applied */
-        var shiftUnit = getUnitInfo("text/asianunits");
+        var asianUnit = getUnitInfo("text/asianunits");
         var shiftDialog = new Window("dialog", getLabel(LABELS.dialog.title) + " " + SCRIPT_VERSION);
         setupWindow(shiftDialog);
 
-        var inputControls = buildInputColumn(shiftDialog, collectSymbolChars(textFrames), shiftUnit.label);
+        var inputControls = buildInputColumn(shiftDialog, collectSymbolChars(textFrames), asianUnit.label);
         var dialogButtons = buildDialogButtons(shiftDialog);
         var targetInput = inputControls.targetInput;
         var shiftInput = inputControls.shiftInput;
@@ -1838,7 +1858,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5e41727cf265"; /* 紹�
             var shiftAmount = parseFloat(shiftInput.text);
             if (isNaN(shiftAmount)) shiftAmount = 0;
             previewManager.addStep(function () {
-                applyShiftToAll(textFrames, targetInput.text, shiftAmount * shiftUnit.pointsPerUnit);
+                applyShiftToAll(textFrames, targetInput.text, unitToPt(shiftAmount, asianUnit));
             });
         }
 
@@ -1857,7 +1877,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5e41727cf265"; /* 紹�
                 return;
             }
 
-            shiftInput.text = (shiftAmount / shiftUnit.pointsPerUnit).toFixed(SHIFT_DECIMAL_PLACES);
+            shiftInput.text = ptToUnit(shiftAmount, asianUnit).toFixed(SHIFT_DECIMAL_PLACES);
             updatePreview();
         };
 
@@ -1885,7 +1905,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5e41727cf265"; /* 紹�
 
         prepareDialogWindow(shiftDialog, SCRIPT_NAME);
         if (shiftDialog.show() !== 1) return null;
-        return { targetChars: targetInput.text, shiftAmount: Number(shiftInput.text) * shiftUnit.pointsPerUnit };
+        return { targetChars: targetInput.text, shiftAmount: unitToPt(Number(shiftInput.text), asianUnit) };
     }
 
     // =========================================

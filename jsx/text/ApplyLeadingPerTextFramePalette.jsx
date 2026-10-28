@@ -889,6 +889,26 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
+    /**
+     * 単位の値を pt に換算する
+     * @param {number} value - 単位の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} pt の値
+     */
+    function unitToPt(value, unit) {
+        return value * unit.pointsPerUnit;
+    }
+
+    /**
+     * pt の値を単位の値に換算する
+     * @param {number} ptValue - pt の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} 単位の値
+     */
+    function ptToUnit(ptValue, unit) {
+        return ptValue / unit.pointsPerUnit;
+    }
+
     // =========================================
     // 行送りの選択肢 / Leading choices
     // =========================================
@@ -1253,7 +1273,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      */
     function formatByUnit(ptValue, textUnit) {
         if (isNaN(ptValue) || ptValue === null) { return ""; }
-        return (Math.round((ptValue / textUnit.pointsPerUnit) * 10) / 10).toFixed(1);
+        return (Math.round(ptToUnit(ptValue, textUnit) * 10) / 10).toFixed(1);
     }
 
     // =========================================
@@ -1456,8 +1476,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var choiceIndex = getSelectedRadioIndex(paletteControls.leadingRadios);
         var directMode = (choiceIndex >= 0) && !!LEADING_CHOICES[choiceIndex].isOther;
         var autoAmount = clampMinNumber(paletteControls.autoInput.text, 0, DEFAULT_AUTO_LEADING_AMOUNT);
-        var spaceBefore = clampMinNumber(paletteControls.spaceBeforeInput.text, 0, 0) * textUnit.pointsPerUnit;
-        var spaceAfter = clampMinNumber(paletteControls.spaceAfterInput.text, 0, 0) * textUnit.pointsPerUnit;
+        var spaceBefore = unitToPt(clampMinNumber(paletteControls.spaceBeforeInput.text, 0, 0), textUnit);
+        var spaceAfter = unitToPt(clampMinNumber(paletteControls.spaceAfterInput.text, 0, 0), textUnit);
         var typeIndex = getSelectedRadioIndex(paletteControls.typeRadios);
         var leadingTypeToken = LEADING_TYPE_CHOICES[typeIndex >= 0 ? typeIndex : 0].token;
         var directLeadingPt = NaN;
@@ -1465,7 +1485,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             var leadingValue = parseFloat(paletteControls.leadingInput.text);
             if (isNaN(leadingValue)) { return { invalid: true }; }
             if (leadingValue < 0) { leadingValue = 0; }
-            directLeadingPt = leadingValue * textUnit.pointsPerUnit;
+            directLeadingPt = unitToPt(leadingValue, textUnit);
         }
         return {
             invalid: false,

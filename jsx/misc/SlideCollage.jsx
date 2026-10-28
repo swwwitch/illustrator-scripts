@@ -1086,6 +1086,26 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
     }
 
     /**
+     * 単位の値を pt に換算する
+     * @param {number} value - 単位の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} pt の値
+     */
+    function unitToPt(value, unit) {
+        return value * unit.pointsPerUnit;
+    }
+
+    /**
+     * pt の値を単位の値に換算する
+     * @param {number} ptValue - pt の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} 単位の値
+     */
+    function ptToUnit(ptValue, unit) {
+        return ptValue / unit.pointsPerUnit;
+    }
+
+    /**
      * 小数第2位で丸める
      * @param {number} value - 数値
      * @returns {number} 丸めた値
@@ -2860,8 +2880,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
         });
         /* 位置調整のスライダーは、アートボードの幅・高さ（定規の単位）まで動かせる / offset range follows the artboard size */
         var artboardRect = getInnerArtboardRect(doc, 0);
-        dialogControls.offsetXRow = addOffsetRow(layoutPanel, labelText("checkbox.offsetX"), getLabel("tooltip.offsetX"), artboardRect.width / rulerUnit.pointsPerUnit);
-        dialogControls.offsetYRow = addOffsetRow(layoutPanel, labelText("checkbox.offsetY"), getLabel("tooltip.offsetY"), artboardRect.height / rulerUnit.pointsPerUnit);
+        dialogControls.offsetXRow = addOffsetRow(layoutPanel, labelText("checkbox.offsetX"), getLabel("tooltip.offsetX"), ptToUnit(artboardRect.width, rulerUnit));
+        dialogControls.offsetYRow = addOffsetRow(layoutPanel, labelText("checkbox.offsetY"), getLabel("tooltip.offsetY"), ptToUnit(artboardRect.height, rulerUnit));
     }
 
     /**
@@ -2977,24 +2997,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
         var dialogControls = buildDialog(doc, rulerUnit);
         var initialViewState = FitViewToItems.captureView(doc); /* キャンセルで戻す表示 / view restored on Cancel */
 
-        /**
-         * 定規の単位の値を pt にする
-         * @param {number} value - 定規の単位の値
-         * @returns {number} pt
-         */
-        function toPoints(value) {
-            return value * rulerUnit.pointsPerUnit;
-        }
-
-        /**
-         * pt を定規の単位の値にする
-         * @param {number} valuePt - pt
-         * @returns {number} 定規の単位の値
-         */
-        function fromPoints(valuePt) {
-            return valuePt / rulerUnit.pointsPerUnit;
-        }
-
         // -----------------------------------------
         // UI の値 / UI values
         // -----------------------------------------
@@ -3042,7 +3044,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
          * @returns {number} ずらし量（pt）
          */
         function getEvenShiftPt() {
-            return dialogControls.evenShiftRow.isChecked() ? toPoints(dialogControls.evenShiftRow.getValue()) : 0;
+            return dialogControls.evenShiftRow.isChecked() ? unitToPt(dialogControls.evenShiftRow.getValue(), rulerUnit) : 0;
         }
 
         /**
@@ -3059,7 +3061,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
          * @returns {number} マージン（pt）
          */
         function getMarginPt() {
-            return toPoints(dialogControls.marginRow.getValue());
+            return unitToPt(dialogControls.marginRow.getValue(), rulerUnit);
         }
 
         /**
@@ -3107,7 +3109,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
             return calcAutoFitPercent({
                 itemWidth: itemSize.width, itemHeight: itemSize.height,
                 itemCount: itemCount, columnCount: columnCount,
-                gapPt: toPoints(dialogControls.spacingRow.getValue()),
+                gapPt: unitToPt(dialogControls.spacingRow.getValue(), rulerUnit),
                 innerWidth: innerRect.width, innerHeight: innerRect.height,
                 slotCounts: dialogControls.evenPlusCheckbox.value ? getEvenPlusSlotCounts(itemCount, columnCount) : null,
                 evenShiftPt: (evenShiftPtOverride !== undefined) ? evenShiftPtOverride : getEvenShiftPt(),
@@ -3263,8 +3265,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
 
             var isSpotlightMode = (currentLayoutMode === MODE_SPOTLIGHT);
             var rotateDeg = getRotateDeg();
-            var offsetXPt = dialogControls.offsetXRow.checkbox.value ? toPoints(dialogControls.offsetXRow.slider.value) : 0;
-            var offsetYPt = dialogControls.offsetYRow.checkbox.value ? toPoints(dialogControls.offsetYRow.slider.value) : 0; /* ＋で下へ / positive moves down */
+            var offsetXPt = dialogControls.offsetXRow.checkbox.value ? unitToPt(dialogControls.offsetXRow.slider.value, rulerUnit) : 0;
+            var offsetYPt = dialogControls.offsetYRow.checkbox.value ? unitToPt(dialogControls.offsetYRow.slider.value, rulerUnit) : 0; /* ＋で下へ / positive moves down */
 
             /* 暗くする黒は回転の外接範囲に合わせて作り直すので、先に消す / the dimming rectangle is rebuilt after rotation */
             if (previewState.dimRect) {
@@ -3310,7 +3312,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
         function layoutGridItems(layoutArea) {
             var itemCount = previewState.items.length;
             var columnCount = dialogControls.columnsRow.getValue();
-            var gapPt = toPoints(dialogControls.spacingRow.getValue());
+            var gapPt = unitToPt(dialogControls.spacingRow.getValue(), rulerUnit);
             var evenShiftPt = getEvenShiftPt();
             var flowMode = getFlowMode();
             var placementOrder = getPlacementOrder(flowMode);
@@ -3370,7 +3372,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
          */
         function applyItemRoundCorners() {
             if (!dialogControls.roundRow.isChecked()) return;
-            var radiusPt = toPoints(dialogControls.roundRow.getValue());
+            var radiusPt = unitToPt(dialogControls.roundRow.getValue(), rulerUnit);
             if (!(radiusPt > 0)) return;
 
             for (var i = 0; i < previewState.items.length; i++) {
@@ -3518,7 +3520,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
          */
         function applyGridModeValues() {
             dialogControls.rotateRow.setChecked(DEFAULT_SETTINGS.rotateEnabled);
-            dialogControls.marginRow.setValue(roundTo2(fromPoints(DEFAULT_SETTINGS.marginPt)));
+            dialogControls.marginRow.setValue(roundTo2(ptToUnit(DEFAULT_SETTINGS.marginPt, rulerUnit)));
             dialogControls.maskRoundRow.setChecked(DEFAULT_SETTINGS.maskRoundEnabled);
             dialogControls.backgroundCheckbox.value = DEFAULT_SETTINGS.backgroundEnabled;
             updateBackgroundControls();
@@ -3567,7 +3569,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
 
             dialogControls.flowRadios[settings.flowMode].value = true;
             dialogControls.columnsRow.setValue(settings.columns);
-            dialogControls.spacingRow.setValue(roundTo2(fromPoints(settings.spacingPt)));
+            dialogControls.spacingRow.setValue(roundTo2(ptToUnit(settings.spacingPt, rulerUnit)));
             dialogControls.evenPlusCheckbox.value = settings.evenPlusSlot;
             dialogControls.evenShiftRow.setChecked(settings.evenShiftEnabled);
             dialogControls.evenShiftRow.setValue(settings.evenShift);
@@ -3584,7 +3586,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
             dialogControls.backgroundHexInput.text = settings.backgroundHex;
             updateBackgroundControls();
             dialogControls.maskCheckbox.value = settings.maskEnabled;
-            dialogControls.marginRow.setValue(roundTo2(fromPoints(settings.marginPt)));
+            dialogControls.marginRow.setValue(roundTo2(ptToUnit(settings.marginPt, rulerUnit)));
             dialogControls.maskRoundRow.setChecked(settings.maskRoundEnabled);
             dialogControls.maskRoundRow.setValue(settings.maskRoundRadius);
             updateMaskControls();
@@ -3602,8 +3604,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
             var itemCount = (previewState.items.length > 0) ? previewState.items.length : getTargetPages().length;
             var columnCount = dialogControls.columnsRow.getValue();
             var itemWidth = itemSize.width * calcFitPercentForUI(itemCount, itemSize) * dialogControls.scaleRow.getValue() / 10000;
-            var gridWidth = columnCount * itemWidth + (columnCount - 1) * toPoints(dialogControls.spacingRow.getValue());
-            var offsetValue = fromPoints((getInnerArtboardRect(doc, getMarginPt()).width - gridWidth) / 2);
+            var gridWidth = columnCount * itemWidth + (columnCount - 1) * unitToPt(dialogControls.spacingRow.getValue(), rulerUnit);
+            var offsetValue = ptToUnit((getInnerArtboardRect(doc, getMarginPt()).width - gridWidth) / 2, rulerUnit);
             if (!isFinite(offsetValue)) return;
             dialogControls.offsetXRow.setChecked(true);
             dialogControls.offsetXRow.slider.value = offsetValue;
@@ -3639,13 +3641,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
             var itemSize = getReferenceItemSize();
             if (!itemSize) return;
             var itemCount = (previewState.items.length > 0) ? previewState.items.length : getTargetPages().length;
-            var gapPt = toPoints(dialogControls.spacingRow.getValue());
+            var gapPt = unitToPt(dialogControls.spacingRow.getValue(), rulerUnit);
             var evenShiftPt = 0;
             for (var i = 0; i < 5; i++) {
                 var itemHeight = itemSize.height * calcFitPercentForUI(itemCount, itemSize, evenShiftPt) * dialogControls.scaleRow.getValue() / 10000;
                 evenShiftPt = (itemHeight + gapPt) / 2;
             }
-            dialogControls.evenShiftRow.setValue(fromPoints(evenShiftPt));
+            dialogControls.evenShiftRow.setValue(ptToUnit(evenShiftPt, rulerUnit));
         }
 
         // -----------------------------------------
@@ -3668,7 +3670,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
                 return;
             }
             var maskGroup = clipItemsToRect(doc, [previewState.group], getInnerArtboardRect(doc, getMarginPt()));
-            var maskRadiusPt = toPoints(dialogControls.maskRoundRow.getValue());
+            var maskRadiusPt = unitToPt(dialogControls.maskRoundRow.getValue(), rulerUnit);
             if (dialogControls.maskRoundRow.isChecked() && maskRadiusPt > 0) applyRoundCorners(maskGroup, maskRadiusPt);
             placeBackgroundBehind(maskGroup);
         }

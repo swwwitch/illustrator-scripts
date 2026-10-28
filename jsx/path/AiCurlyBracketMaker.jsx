@@ -1566,12 +1566,29 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd6b3e36ff79d"; /* 紹�
         { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
     ];
 
+    /**
+     * 単位の値を pt に換算する
+     * @param {number} value - 単位の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} pt の値
+     */
+    function unitToPt(value, unit) {
+        return value * unit.pointsPerUnit;
+    }
+
+    /**
+     * pt の値を単位の値に換算する
+     * @param {number} ptValue - pt の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} 単位の値
+     */
+    function ptToUnit(ptValue, unit) {
+        return ptValue / unit.pointsPerUnit;
+    }
+
     // =========================================
     // ブラケットの形状 / Bracket geometry
     // =========================================
-
-    /* ブラケットの寸法は常に mm で扱う / bracket dimensions are always handled in mm */
-    var POINTS_PER_MM = UNITS[1].pointsPerUnit;
 
     /* ベジェ曲線で90度円弧を描くための制御点ハンドル係数 / Handle factor for a 90-degree Bezier arc */
     var KAPPA = 0.55228474983;
@@ -1929,7 +1946,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd6b3e36ff79d"; /* 紹�
         var referenceLengthPt = isVertical
             ? (referenceBounds[1] - referenceBounds[3])
             : (referenceBounds[2] - referenceBounds[0]);
-        return referenceLengthPt / POINTS_PER_MM;
+        return ptToUnit(referenceLengthPt, UNITS[1]);
     }
 
     /**
@@ -3067,12 +3084,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd6b3e36ff79d"; /* 紹�
             if (isNaN(strokeWidthPt) || strokeWidthPt <= 0) return null;
 
             return {
-                endRadiusPt: endRadiusMm * POINTS_PER_MM,
-                centerRadiusPt: centerRadiusMm * POINTS_PER_MM,
-                totalLengthPt: totalLengthMm * POINTS_PER_MM,
-                centerOffsetPt: centerOffsetMm * POINTS_PER_MM,
+                endRadiusPt: unitToPt(endRadiusMm, UNITS[1]),
+                centerRadiusPt: unitToPt(centerRadiusMm, UNITS[1]),
+                totalLengthPt: unitToPt(totalLengthMm, UNITS[1]),
+                centerOffsetPt: unitToPt(centerOffsetMm, UNITS[1]),
                 extensionPt: extensionPt,
-                objectGapPt: objectGapMm * POINTS_PER_MM,
+                objectGapPt: unitToPt(objectGapMm, UNITS[1]),
                 strokeWidthPt: strokeWidthPt,
                 strokeCap: roundCapRadio.value ? "roundCap" : "buttCap",
                 cornerJoin: roundJoinRadio.value ? "roundJoin" : "miterJoin",

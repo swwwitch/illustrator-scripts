@@ -1075,6 +1075,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // =========================================
     // 単位ユーティリティ / Unit utilities
     // =========================================
+
+    /* 単位コードに対応する表示ラベルと、1単位あたりのポイント数
+       Unit code -> display label and points per unit */
     var UNITS = [
         { label: "in",    pointsPerUnit: 72 },                /* 0 */
         { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
@@ -1089,41 +1092,62 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
     ];
 
-    /* Q ではなく H と表示する設定キー / Preference keys that display H instead of Q */
+    /* 単位コード5を「歯（H）」と表示する環境設定キー。文字サイズ（text/units）だけ「級（Q）」
+       Preference keys that show unit code 5 as H; only the type size (text/units) shows Q */
     var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
 
     /**
-     * 設定キーごとの単位情報を取得する。
-     * @param {string} prefKey - 環境設定キー
-     * @returns {object} code / label / pointsPerUnit を持つオブジェクト
+     * 環境設定キーの単位を返す
+     * @param {string} [prefKey] - "rulerType"（既定）/ "strokeUnits" / "text/units" / "text/asianunits"
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位の情報
      */
     function getUnitInfo(prefKey) {
         var unitKey = prefKey || "rulerType";
         var unitCode = app.preferences.getIntegerPreference(unitKey);
+        /* 未知のコードは pt に寄せる / unknown codes fall back to points */
         var unit = UNITS[unitCode] || UNITS[2];
+        /* 級（Q）と歯（H）は同じ長さだが、文字サイズは「Q」、距離は「H」と呼び分ける */
         var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
         return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
-    /* pt 値を現在の単位値へ変換 / Convert a pt value to the current display unit */
-    function ptToUnitValue(ptValue, prefKey, decimals) {
-        var info = getUnitInfo(prefKey);
-        var unitValue = ptValue / info.pointsPerUnit;
+    /**
+     * 単位の値を pt に換算する
+     * @param {number} value - 単位の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} pt の値
+     */
+    function unitToPt(value, unit) {
+        return value * unit.pointsPerUnit;
+    }
+
+    /**
+     * pt の値を単位の値に換算する
+     * @param {number} ptValue - pt の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} 単位の値
+     */
+    function ptToUnit(ptValue, unit) {
+        return ptValue / unit.pointsPerUnit;
+    }
+
+    /**
+     * pt 値を環境設定の単位へ換算し、指定の桁で丸める
+     * @param {number} ptValue - pt の値
+     * @param {string} prefKey - 環境設定キー（"rulerType" / "strokeUnits"）
+     * @param {number} [decimals] - 小数点以下の桁数（省略時は丸めない）
+     * @returns {number} 単位の値
+     */
+    function roundPtToUnit(ptValue, prefKey, decimals) {
+        var unitValue = ptToUnit(ptValue, getUnitInfo(prefKey));
         if (typeof decimals === "number") {
             return parseFloat(unitValue.toFixed(decimals));
         }
         return unitValue;
     }
 
-    /* 現在の単位値を pt 値へ変換 / Convert a current-unit value to pt */
-
-    function unitValueToPt(unitValue, prefKey) {
-        var info = getUnitInfo(prefKey);
-        return unitValue * info.pointsPerUnit;
-    }
-
     function parseMarginPtFromText(text) {
-        return unitValueToPt(parseFloat(text), "rulerType");
+        return unitToPt(parseFloat(text), getUnitInfo("rulerType"));
     }
 
     function parseScaleValueFromText(text) {
@@ -1346,8 +1370,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         var layer = doc.activeLayer;
 
-        var rulerUnitInfo = getUnitInfo("rulerType");
-        var strokeUnitInfo = getUnitInfo("strokeUnits");
+        var rulerUnit = getUnitInfo("rulerType");
+        var strokeUnit = getUnitInfo("strokeUnits");
 
         function parseMarginPt() {
             return parseMarginPtFromText(inputMargin.text);
@@ -1599,7 +1623,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             var angleRad = angleDeg * Math.PI / 180;
             var dx = preset.lineLength * scaleFactor * Math.cos(angleRad);
             var dy = preset.lineLength * scaleFactor * Math.sin(angleRad);
-            var childOffset = unitValueToPt(parseFloat(inputSpacing.text) || 0, "strokeUnits") * scaleFactor;
+            var childOffset = unitToPt(parseFloat(inputSpacing.text) || 0, getUnitInfo("strokeUnits")) * scaleFactor;
             var childOffsetX = 0;
             var childOffsetY = 0;
             if (childOffset !== 0) {
@@ -1721,10 +1745,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             if (!chkPreview.value) return;
 
             var preset = getSelectedPreset();
-            var sw = unitValueToPt(parseFloat(inputStrokeWidth.text), "strokeUnits");
+            var sw = unitToPt(parseFloat(inputStrokeWidth.text), getUnitInfo("strokeUnits"));
             var angle = parseFloat(inputAngle.text);
             var nl = parseInt(inputDensity.text, 10);
-            var spacing = unitValueToPt(parseFloat(inputSpacing.text), "strokeUnits");
+            var spacing = unitToPt(parseFloat(inputSpacing.text), getUnitInfo("strokeUnits"));
             var margin = parseMarginPt();
             var scale = parseScaleValue();
             if ((!preset.penetrate && (isNaN(sw) || sw <= 0)) || (!preset.penetrate && !preset.polkadot && isNaN(angle)) || isNaN(nl) || nl <= 0 || !isValidScaleValue(scale) || !isValidMarginPt(margin) || (!preset.noChild && !preset.raindrop && !preset.polkadot && (isNaN(spacing) || spacing < 0))) return;
@@ -1734,10 +1758,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         /* ラジオボタン切り替え時：デフォルト値を反映 / Apply preset defaults when the radio button changes */
         function onPresetChange() {
             var preset = getSelectedPreset();
-            inputStrokeWidth.text = ptToUnitValue(parseFloat(preset.defaultStrokeWidth), "strokeUnits", 2);
+            inputStrokeWidth.text = roundPtToUnit(parseFloat(preset.defaultStrokeWidth), "strokeUnits", 2);
             inputAngle.text = preset.defaultAngle || String(preset.angleDeg || 45);
             inputDensity.text = preset.defaultDensity;
-            inputSpacing.text = ptToUnitValue(parseFloat(preset.defaultSpacing || "0"), "strokeUnits", 2);
+            inputSpacing.text = roundPtToUnit(parseFloat(preset.defaultSpacing || "0"), "strokeUnits", 2);
             inputScale.text = preset.defaultScale || "100";
             syncScaleFromInput();
             normalizeRaindropAppearance();
@@ -1915,10 +1939,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var lblStroke = grpStroke.add("statictext", undefined, labelText("labelStrokeWidth"), { justify: "right" });
         lblStroke.preferredSize = [labelWidth, -1];
         lblStroke.justify = "right";
-        var inputStrokeWidth = addSteppedInput(grpStroke, lblStroke, ptToUnitValue(parseFloat(presets.harusame.defaultStrokeWidth), "strokeUnits", 2), { min: 0 });
+        var inputStrokeWidth = addSteppedInput(grpStroke, lblStroke, roundPtToUnit(parseFloat(presets.harusame.defaultStrokeWidth), "strokeUnits", 2), { min: 0 });
         inputStrokeWidth.helpTip = getLabel("tipStrokeWidth");
         inputStrokeWidth.characters = 6;
-        var txtStrokeUnit = grpStroke.add("statictext", undefined, strokeUnitInfo.label);
+        var txtStrokeUnit = grpStroke.add("statictext", undefined, strokeUnit.label);
         var grpAngle = optionPanel.add("group");
         grpAngle.alignment = "left";
         var lblAngle = grpAngle.add("statictext", undefined, labelText("labelAngle"), { justify: "right" });
@@ -1944,20 +1968,20 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var lblSpacing = grpSpacing.add("statictext", undefined, labelText("labelSpacing"), { justify: "right" });
         lblSpacing.preferredSize = [labelWidth, -1];
         lblSpacing.justify = "right";
-        var inputSpacing = addSteppedInput(grpSpacing, lblSpacing, ptToUnitValue(parseFloat(presets.harusame.defaultSpacing || "0"), "strokeUnits", 2), { min: 0 });
+        var inputSpacing = addSteppedInput(grpSpacing, lblSpacing, roundPtToUnit(parseFloat(presets.harusame.defaultSpacing || "0"), "strokeUnits", 2), { min: 0 });
         inputSpacing.helpTip = getLabel("tipSpacing");
         inputSpacing.characters = 6;
-        var txtSpacingUnit = grpSpacing.add("statictext", undefined, strokeUnitInfo.label);
+        var txtSpacingUnit = grpSpacing.add("statictext", undefined, strokeUnit.label);
 
         var grpMargin = optionPanel.add("group");
         grpMargin.alignment = "left";
         var lblMargin = grpMargin.add("statictext", undefined, labelText("labelMargin"), { justify: "right" });
         lblMargin.preferredSize = [labelWidth, -1];
         lblMargin.justify = "right";
-        var inputMargin = addSteppedInput(grpMargin, lblMargin, ptToUnitValue(20, "rulerType", 2), { min: 0 });
+        var inputMargin = addSteppedInput(grpMargin, lblMargin, roundPtToUnit(20, "rulerType", 2), { min: 0 });
         inputMargin.helpTip = getLabel("tipMargin");
         inputMargin.characters = 6;
-        grpMargin.add("statictext", undefined, rulerUnitInfo.label);
+        grpMargin.add("statictext", undefined, rulerUnit.label);
 
         var raindropPanel = optionPanel.add("panel", undefined, getLabel("panelRaindrop"));
         setupPanel(raindropPanel);
@@ -2043,10 +2067,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
 
         var preset = getSelectedPreset();
-        var mainStrokeWidth = preset.penetrate ? 1 : unitValueToPt(parseFloat(inputStrokeWidth.text), "strokeUnits");
+        var mainStrokeWidth = preset.penetrate ? 1 : unitToPt(parseFloat(inputStrokeWidth.text), getUnitInfo("strokeUnits"));
         var angle = parseFloat(inputAngle.text);
         var numLines = parseInt(inputDensity.text, 10);
-        var spacing = unitValueToPt(parseFloat(inputSpacing.text), "strokeUnits");
+        var spacing = unitToPt(parseFloat(inputSpacing.text), getUnitInfo("strokeUnits"));
         var margin = parseMarginPt();
         var scale = parseScaleValue();
         normalizeRaindropAppearance();

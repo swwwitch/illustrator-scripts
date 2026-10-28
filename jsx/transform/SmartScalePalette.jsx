@@ -788,6 +788,26 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /**
+     * 単位の値を pt に換算する
+     * @param {number} value - 単位の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} pt の値
+     */
+    function unitToPt(value, unit) {
+        return value * unit.pointsPerUnit;
+    }
+
+    /**
+     * pt の値を単位の値に換算する
+     * @param {number} ptValue - pt の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} 単位の値
+     */
+    function ptToUnit(ptValue, unit) {
+        return ptValue / unit.pointsPerUnit;
+    }
+
+    /**
      * 数値を指定の桁で丸めて文字列にする（末尾の0は付けない）
      * @param {number} value - 値
      * @param {number} decimalDigits - 小数の桁数
@@ -2933,7 +2953,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                     continue;
                 }
                 var axisPercent = currentScale[sizeInputs[i].scaleAxis];
-                sizeInputs[i].text = formatRounded(sizeInputs[i].sourceLength * axisPercent / 100 / rulerUnit.pointsPerUnit, 2);
+                sizeInputs[i].text = formatRounded(ptToUnit(sizeInputs[i].sourceLength * axisPercent / 100, rulerUnit), 2);
             }
         }
 
@@ -2989,7 +3009,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         function getAxisPercentFromSize(sizeInput) {
             var targetLength = parseFloat(sizeInput.text);
             if (isNaN(targetLength) || targetLength <= 0 || sizeInput.sourceLength <= 0) return null;
-            var axisPercent = targetLength * rulerUnit.pointsPerUnit / sizeInput.sourceLength * 100;
+            var axisPercent = unitToPt(targetLength, rulerUnit) / sizeInput.sourceLength * 100;
             return (axisPercent < MIN_SCALE_PERCENT) ? null : axisPercent;
         }
 
@@ -3038,7 +3058,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             for (var i = 0; i < sizeInputs.length; i++) {
                 var sourceLength = sizeInputs[i].sourceLength;
                 sizeInputs[i].currentSizeText.text = (sourceLength > 0)
-                    ? formatRounded(sourceLength / rulerUnit.pointsPerUnit, 2)
+                    ? formatRounded(ptToUnit(sourceLength, rulerUnit), 2)
                     : getLabel("fieldLabel.noSize");
                 /* 選択が無いときや長さ0（水平・垂直の直線など）は比率を求められない / no ratio without a selection or with zero length */
                 setSteppedFieldEnabled(sizeInputs[i], sourceLength > 0);

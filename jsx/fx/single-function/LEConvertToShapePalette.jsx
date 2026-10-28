@@ -395,13 +395,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             var options = readOptions();
             var shape = SHAPES[options.shapeKey] || SHAPES.rectangle;
             var pathfinder = PATHFINDERS[options.pathfinderKey] || PATHFINDERS.none;
-            var factor = controls.unitFactor || 1.0;
+            var rulerUnit = controls.rulerUnit || UNITS[2]; /* 未設定なら pt / pt when not set yet */
             var undoCount = previewActive ? previewCount : 0;
             // 表示単位の入力値を pt に換算して委譲 / Convert the entered unit values to pt before delegating
             var call = "fxRunShapeEffect(" +
                 shape.shape + ",\"" + shape.displayString + "\"," +
                 (options.absolute ? "true" : "false") + "," +
-                (options.width * factor) + "," + (options.height * factor) + ",\"" +
+                unitToPt(options.width, rulerUnit) + "," + unitToPt(options.height, rulerUnit) + ",\"" +
                 pathfinder.menu + "\",\"" + pathfinder.effect + "\"," + undoCount + ")";
             handleResult(callWorker(call));
         } finally {
@@ -433,7 +433,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // 単位 / Units
     // =========================================
 
-    /* 単位テーブル（配列の添字が rulerType コードと一致：0=in, 1=mm, 2=pt …）/ Unit table; the array index equals the rulerType code */
+    /* 単位コードに対応する表示ラベルと、1単位あたりのポイント数
+       Unit code -> display label and points per unit */
     var UNITS = [
         { label: "in",    pointsPerUnit: 72 },                /* 0 */
         { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
@@ -453,16 +454,28 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
 
     /**
-     * 設定キーごとの単位情報を取得する
-     * @param {string} prefKey - 環境設定キー（省略時は "rulerType"）
-     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位情報
+     * 環境設定キーの単位を返す
+     * @param {string} [prefKey] - "rulerType"（既定）/ "strokeUnits" / "text/units" / "text/asianunits"
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位の情報
      */
     function getUnitInfo(prefKey) {
         var unitKey = prefKey || "rulerType";
         var unitCode = app.preferences.getIntegerPreference(unitKey);
+        /* 未知のコードは pt に寄せる / unknown codes fall back to points */
         var unit = UNITS[unitCode] || UNITS[2];
+        /* 級（Q）と歯（H）は同じ長さだが、文字サイズは「Q」、距離は「H」と呼び分ける */
         var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
         return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
+    }
+
+    /**
+     * 単位の値を pt に換算する
+     * @param {number} value - 単位の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} pt の値
+     */
+    function unitToPt(value, unit) {
+        return value * unit.pointsPerUnit;
     }
 
     // =========================================
@@ -1238,9 +1251,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var relativeRadio = sizeRadioGroup.add("radiobutton", undefined, getLabel("option.relative"));
         relativeRadio.value = true; // 既定は値を追加 / Default: relative
 
-        // 定規の単位を取得（ラベル表示＋pt換算係数）/ Get the ruler unit (label + pt factor)
-        var unitInfo = getUnitInfo("rulerType");
-        controls.unitFactor = unitInfo.pointsPerUnit;
+        // 定規の単位を取得（ラベル表示＋pt換算）/ Get the ruler unit (label + pt conversion)
+        var rulerUnit = getUnitInfo("rulerType");
+        controls.rulerUnit = rulerUnit;
 
         var LABEL_WIDTH = 40; // 幅・高さラベルの固定幅 / Fixed width for the width/height labels
 
@@ -1260,7 +1273,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         widthInput = widthStepperGroup.add("edittext", undefined, "0");
         widthInput.characters = 3;
         bindSteppedArrowKeys(widthInput, widthStepper);
-        widthGroup.add("statictext", undefined, unitInfo.label);
+        widthGroup.add("statictext", undefined, rulerUnit.label);
         var heightGroup = sizePanel.add("group");
         var heightLabel = heightGroup.add("statictext", undefined, labelText("option.height"), { justify: "right" });
         heightLabel.preferredSize.width = LABEL_WIDTH;
@@ -1274,7 +1287,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         heightInput = heightStepperGroup.add("edittext", undefined, "0");
         heightInput.characters = 3;
         bindSteppedArrowKeys(heightInput, heightStepper);
-        heightGroup.add("statictext", undefined, unitInfo.label);
+        heightGroup.add("statictext", undefined, rulerUnit.label);
 
         // パスファインダー（パネル＋2カラムのラジオ）/ Pathfinder (panel + two columns of radios)
         var pathfinderPanel = mainPanel.add("panel", undefined, getLabel("pathfinder.label"));

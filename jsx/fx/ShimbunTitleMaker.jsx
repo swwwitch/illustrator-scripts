@@ -1934,6 +1934,26 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb9bee6b7a2e"; /* 紹�
         return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
+    /**
+     * 単位の値を pt に換算する
+     * @param {number} value - 単位の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} pt の値
+     */
+    function unitToPt(value, unit) {
+        return value * unit.pointsPerUnit;
+    }
+
+    /**
+     * pt の値を単位の値に換算する
+     * @param {number} ptValue - pt の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} 単位の値
+     */
+    function ptToUnit(ptValue, unit) {
+        return ptValue / unit.pointsPerUnit;
+    }
+
     // =========================================
     // 入力の読み取り / Input handling
     // =========================================
@@ -1975,12 +1995,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb9bee6b7a2e"; /* 紹�
      * 入力欄の値（現在の単位）を pt に換算して読む。負の値は0に丸める
      * @param {EditText} inputField - 対象の入力欄
      * @param {number} fallbackPt - 読めなかったときに使う値（pt）
-     * @param {number} pointsPerUnit - 1単位あたりのポイント数
+     * @param {{pointsPerUnit: number}} fieldUnit - 入力欄の単位（getUnitInfo() の戻り値）
      * @returns {number} 換算した値（pt）
      */
-    function readFieldAsPoints(inputField, fallbackPt, pointsPerUnit) {
+    function readFieldAsPoints(inputField, fallbackPt, fieldUnit) {
         var enteredValue = readFieldAsNumber(inputField, NaN, false);
-        return isNaN(enteredValue) ? fallbackPt : enteredValue * pointsPerUnit;
+        return isNaN(enteredValue) ? fallbackPt : unitToPt(enteredValue, fieldUnit);
     }
 
     // キーボードショートカット（再利用パーツ） / Keyboard shortcuts (reusable)
@@ -3065,8 +3085,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb9bee6b7a2e"; /* 紹�
 
     /**
      * ダイアログと各コントロールを作る。パネルはそれぞれの関数で作り、選択の連動は bindDummyChoices() でつなぐ
-     * @param {string} unitLabel - 入力欄に添える単位の表示名
-     * @param {number} pointsPerUnit - 1単位あたりのポイント数
+     * @param {{label: string, pointsPerUnit: number}} rulerUnit - 定規の単位（getUnitInfo() の戻り値）
      * @param {Function} onValueChange - 入力値が変わったときに呼ぶ関数
      * @param {string} initialDummyScript - 和文／欧文の初期値（"japanese" / "western"）
      * @param {string} initialDummyDirection - 組み方向の初期値（"vertical" / "horizontal"）
@@ -3074,7 +3093,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb9bee6b7a2e"; /* 紹�
      * @param {boolean} allowsWestern - ［欧文］を選べるか（縦組みの見出しでは false）
      * @returns {{dialog: Window, fieldInputs: Object, maskCheckbox: Checkbox, tierRuleCheckbox: Checkbox, englishNewspaperCheckbox: Checkbox, fitViewControls: Object, getDummyScript: Function, getDummyDirection: Function, getRuleStyle: Function, getDummyText: Function}} ダイアログ、キーごとの入力欄、マスク・段間の罫線・英字新聞モードのチェックボックス、［画面にフィット］の部品、和文／欧文・組み方向・罫線の種類・文章の取得
      */
-    function buildDialog(unitLabel, pointsPerUnit, onValueChange, initialDummyScript, initialDummyDirection, initialTierCount, allowsWestern) {
+    function buildDialog(rulerUnit, onValueChange, initialDummyScript, initialDummyDirection, initialTierCount, allowsWestern) {
         var headlineDialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
         setupWindow(headlineDialog);
 
@@ -3082,9 +3101,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb9bee6b7a2e"; /* 紹�
            Shared by the panel builders; radio values cannot be read back before show(), so choices live in state */
         var dialogContext = {
             fieldInputs: {},
-            pointsPerUnit: pointsPerUnit,
-            lengthUnit: " " + unitLabel, /* 長さの欄は単位を中に入れる / length fields hold their unit */
-            strokeUnitInfo: getUnitInfo("strokeUnits"), /* 線幅は線の単位 / stroke weight uses the stroke unit */
+            rulerUnit: rulerUnit,
+            lengthUnit: " " + rulerUnit.label, /* 長さの欄は単位を中に入れる / length fields hold their unit */
+            strokeUnit: getUnitInfo("strokeUnits"), /* 線幅は線の単位 / stroke weight uses the stroke unit */
             allowsWestern: allowsWestern,
             onValueChange: onValueChange,
             onFieldChange: null,
@@ -3211,10 +3230,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb9bee6b7a2e"; /* 紹�
         }
 
         fieldInputs.marginVertical = addNumericFieldRow(marginFieldsGroup,
-            { key: "marginVertical", initialText: formatUnitValue(DEFAULT_VERTICAL_MARGIN_PT, dialogContext.pointsPerUnit), fieldUnit: dialogContext.lengthUnit },
+            { key: "marginVertical", initialText: formatUnitValue(DEFAULT_VERTICAL_MARGIN_PT, dialogContext.rulerUnit), fieldUnit: dialogContext.lengthUnit },
             function () { handleMarginChange("marginVertical"); });
         fieldInputs.marginHorizontal = addNumericFieldRow(marginFieldsGroup,
-            { key: "marginHorizontal", initialText: formatUnitValue(DEFAULT_HORIZONTAL_MARGIN_PT, dialogContext.pointsPerUnit), fieldUnit: dialogContext.lengthUnit },
+            { key: "marginHorizontal", initialText: formatUnitValue(DEFAULT_HORIZONTAL_MARGIN_PT, dialogContext.rulerUnit), fieldUnit: dialogContext.lengthUnit },
             function () { handleMarginChange("marginHorizontal"); });
         /* 連動をONにしたら上下の値に左右をそろえる / turning the link on copies the vertical value to the horizontal one */
         marginLinkToggle = addLinkToggle(marginRow, DEFAULT_LINK_MARGINS, function () { handleMarginChange("marginVertical"); });
@@ -3231,7 +3250,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb9bee6b7a2e"; /* 紹�
     function buildRulePanel(parentColumn, dialogContext) {
         var fieldInputs = dialogContext.fieldInputs;
         var state = dialogContext.state;
-        var strokeUnitInfo = dialogContext.strokeUnitInfo;
+        var strokeUnit = dialogContext.strokeUnit;
         var rulePanel = parentColumn.add("panel", undefined, getLabel("panel.sideRules"));
         setupPanel(rulePanel);
 
@@ -3262,10 +3281,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb9bee6b7a2e"; /* 紹�
 
         addNumericFieldRows(rulePanel, [
             {
-                key: "ruleStrokeWidth", fieldUnit: " " + strokeUnitInfo.label,
-                initialText: formatUnitValue(DEFAULT_RULE_STROKE_WIDTH_PT, strokeUnitInfo.pointsPerUnit)
+                key: "ruleStrokeWidth", fieldUnit: " " + strokeUnit.label,
+                initialText: formatUnitValue(DEFAULT_RULE_STROKE_WIDTH_PT, strokeUnit)
             },
-            { key: "lineGap", initialText: formatUnitValue(DEFAULT_LINE_GAP_PT, dialogContext.pointsPerUnit), fieldUnit: dialogContext.lengthUnit }
+            { key: "lineGap", initialText: formatUnitValue(DEFAULT_LINE_GAP_PT, dialogContext.rulerUnit), fieldUnit: dialogContext.lengthUnit }
         ], fieldInputs, dialogContext.onFieldChange);
 
         /**
@@ -3293,7 +3312,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb9bee6b7a2e"; /* 紹�
         var fieldInputs = dialogContext.fieldInputs;
         var controls = dialogContext.controls;
         var state = dialogContext.state;
-        var strokeUnitInfo = dialogContext.strokeUnitInfo;
+        var strokeUnit = dialogContext.strokeUnit;
         var typesettingPanel = parentColumn.add("panel", undefined, getLabel("panel.typesetting"));
         setupPanel(typesettingPanel);
 
@@ -3318,7 +3337,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb9bee6b7a2e"; /* 紹�
             { key: "charsPerLine", initialText: String(DEFAULT_CHARS_PER_LINE), unitLabel: getLabel("unit.chars"), integer: true, min: 1 },
             /* ［段数］は縦組みと横組みで意味を切り替える。単位は長い方で幅を取っておく / one Tiers field whose meaning follows the direction; the unit is sized for the longer label */
             { key: "tierCount", initialText: state.tierCountTexts[state.dummyDirection], unitLabel: getLabel("unit.columns"), integer: true },
-            { key: "tierGap", initialText: formatUnitValue(DEFAULT_TIER_GAP_PT, dialogContext.pointsPerUnit), fieldUnit: dialogContext.lengthUnit },
+            { key: "tierGap", initialText: formatUnitValue(DEFAULT_TIER_GAP_PT, dialogContext.rulerUnit), fieldUnit: dialogContext.lengthUnit },
             { key: "extraTierCount", initialText: String(DEFAULT_EXTRA_TIER_COUNT), unitLabel: getLabel("unit.tiers"), integer: true }
         ], fieldInputs, dialogContext.onFieldChange);
         /* 単位は長い方（columns）で作ってあるので、短い単位に替えても幅を保つ / the unit was created with the longer label; keep that width */
@@ -3327,8 +3346,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb9bee6b7a2e"; /* 紹�
         var tierRuleCheckbox = addCheckboxRow(typesettingPanel, "useTierRules", DEFAULT_USE_TIER_RULES, dialogContext.onValueChange);
         addNumericFieldRows(typesettingPanel, [
             {
-                key: "tierRuleWidth", fieldUnit: " " + strokeUnitInfo.label,
-                initialText: formatUnitValue(DEFAULT_TIER_RULE_WIDTH_PT, strokeUnitInfo.pointsPerUnit)
+                key: "tierRuleWidth", fieldUnit: " " + strokeUnit.label,
+                initialText: formatUnitValue(DEFAULT_TIER_RULE_WIDTH_PT, strokeUnit)
             },
             { key: "blurRadius", initialText: String(DEFAULT_BLUR_RADIUS), unitLabel: "px", checkboxKey: "useBlur", checked: DEFAULT_USE_BLUR }
         ], fieldInputs, dialogContext.onFieldChange);
@@ -3387,8 +3406,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb9bee6b7a2e"; /* 紹�
         ], fieldInputs, dialogContext.onFieldChange);
         var maskCheckbox = addCheckboxRow(maskRotationPanel, "useMask", DEFAULT_USE_MASK && DEFAULT_EXTRA_TIER_COUNT > 0, dialogContext.onValueChange);
         addNumericFieldRows(maskRotationPanel, [
-            { key: "dummyWidth", initialText: formatUnitValue(DEFAULT_DUMMY_WIDTH_PT, dialogContext.pointsPerUnit), fieldUnit: dialogContext.lengthUnit },
-            { key: "maskVertical", initialText: formatUnitValue(DEFAULT_MASK_VERTICAL_PT, dialogContext.pointsPerUnit), fieldUnit: dialogContext.lengthUnit }
+            { key: "dummyWidth", initialText: formatUnitValue(DEFAULT_DUMMY_WIDTH_PT, dialogContext.rulerUnit), fieldUnit: dialogContext.lengthUnit },
+            { key: "maskVertical", initialText: formatUnitValue(DEFAULT_MASK_VERTICAL_PT, dialogContext.rulerUnit), fieldUnit: dialogContext.lengthUnit }
         ], fieldInputs, dialogContext.onFieldChange);
 
         /**
@@ -3764,48 +3783,48 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb9bee6b7a2e"; /* 紹�
     /**
      * pt の値を現在の単位の表示文字列にする（小数第2位まで）
      * @param {number} valuePt - 値（pt）
-     * @param {number} pointsPerUnit - 1単位あたりのポイント数
+     * @param {{pointsPerUnit: number}} unit - 表示する単位（getUnitInfo() の戻り値）
      * @returns {string} 入力欄に入れる文字列
      */
-    function formatUnitValue(valuePt, pointsPerUnit) {
-        var unitValue = valuePt / pointsPerUnit;
+    function formatUnitValue(valuePt, unit) {
+        var unitValue = ptToUnit(valuePt, unit);
         return String(Math.round(unitValue * 100) / 100);
     }
 
     /**
      * ダイアログの入力欄と選択を、buildHeadlineGroup() に渡す設定値にまとめる
      * @param {Object} dialogUI - buildDialog() の戻り値
-     * @param {number} pointsPerUnit - 定規の単位の1単位あたりのポイント数
-     * @param {number} strokePointsPerUnit - 線の単位の1単位あたりのポイント数
+     * @param {{pointsPerUnit: number}} rulerUnit - 定規の単位（getUnitInfo() の戻り値）
+     * @param {{pointsPerUnit: number}} strokeUnit - 線の単位（getUnitInfo("strokeUnits") の戻り値）
      * @returns {{marginVerticalPt: number, marginHorizontalPt: number, lineGapPt: number, ruleStyle: string, ruleStrokeWidthPt: number, charsPerLine: number, tierCount: number, tierGap: number, extraTierCount: number, dummyScript: string, dummyDirection: string, dummyText: string, columnCount: number, dummyWidthPt: number, blurRadius: number, useTierRules: boolean, tierRuleWidthPt: number, rotationDeg: number, useMask: boolean, englishNewspaper: boolean, maskVerticalPt: number}} マージン・間隔・幅（pt）、罫線の種類と線幅（pt）、和文／欧文と組み方向と文章、文字数・段数・段間（pt）、ぼかし（px）、段間の罫線の有無と線幅（pt）・回転（°）・マスクの有無とマスクの上下（pt）
      */
-    function readHeadlineSettings(dialogUI, pointsPerUnit, strokePointsPerUnit) {
+    function readHeadlineSettings(dialogUI, rulerUnit, strokeUnit) {
         var fieldInputs = dialogUI.fieldInputs;
         return {
-            marginVerticalPt: readFieldAsPoints(fieldInputs.marginVertical, DEFAULT_VERTICAL_MARGIN_PT, pointsPerUnit),
-            marginHorizontalPt: readFieldAsPoints(fieldInputs.marginHorizontal, DEFAULT_HORIZONTAL_MARGIN_PT, pointsPerUnit),
-            lineGapPt: readFieldAsPoints(fieldInputs.lineGap, DEFAULT_LINE_GAP_PT, pointsPerUnit),
+            marginVerticalPt: readFieldAsPoints(fieldInputs.marginVertical, DEFAULT_VERTICAL_MARGIN_PT, rulerUnit),
+            marginHorizontalPt: readFieldAsPoints(fieldInputs.marginHorizontal, DEFAULT_HORIZONTAL_MARGIN_PT, rulerUnit),
+            lineGapPt: readFieldAsPoints(fieldInputs.lineGap, DEFAULT_LINE_GAP_PT, rulerUnit),
             ruleStyle: dialogUI.getRuleStyle(),
-            ruleStrokeWidthPt: readFieldAsPoints(fieldInputs.ruleStrokeWidth, DEFAULT_RULE_STROKE_WIDTH_PT, strokePointsPerUnit),
+            ruleStrokeWidthPt: readFieldAsPoints(fieldInputs.ruleStrokeWidth, DEFAULT_RULE_STROKE_WIDTH_PT, strokeUnit),
             /* 文字数・段数は整数に切り捨て / character and tier counts are truncated to integers */
             charsPerLine: Math.floor(readFieldAsNumber(fieldInputs.charsPerLine, DEFAULT_CHARS_PER_LINE, false)),
             tierCount: Math.floor(readFieldAsNumber(fieldInputs.tierCount, DEFAULT_TIER_COUNT, false)),
-            tierGap: readFieldAsPoints(fieldInputs.tierGap, DEFAULT_TIER_GAP_PT, pointsPerUnit),
+            tierGap: readFieldAsPoints(fieldInputs.tierGap, DEFAULT_TIER_GAP_PT, rulerUnit),
             extraTierCount: Math.floor(readFieldAsNumber(fieldInputs.extraTierCount, DEFAULT_EXTRA_TIER_COUNT, false)),
             dummyScript: dialogUI.getDummyScript(),
             dummyDirection: dialogUI.getDummyDirection(),
             dummyText: dialogUI.getDummyText(),
             /* ［段数］は横組みでは段組数として使う / the Tiers field doubles as the column count for horizontal */
             columnCount: Math.floor(readFieldAsNumber(fieldInputs.tierCount, DEFAULT_COLUMN_COUNT, false)),
-            dummyWidthPt: readFieldAsPoints(fieldInputs.dummyWidth, DEFAULT_DUMMY_WIDTH_PT, pointsPerUnit),
+            dummyWidthPt: readFieldAsPoints(fieldInputs.dummyWidth, DEFAULT_DUMMY_WIDTH_PT, rulerUnit),
             /* ぼかしがOFFなら半径0（かけない）/ radius 0 (no blur) when the blur option is off */
             blurRadius: fieldInputs.blurRadius.optionCheckbox.value ? readFieldAsNumber(fieldInputs.blurRadius, DEFAULT_BLUR_RADIUS, false) : 0,
             rotationDeg: readFieldAsNumber(fieldInputs.rotation, DEFAULT_ROTATION_DEG, true),
             useTierRules: dialogUI.tierRuleCheckbox.value,
-            tierRuleWidthPt: readFieldAsPoints(fieldInputs.tierRuleWidth, DEFAULT_TIER_RULE_WIDTH_PT, strokePointsPerUnit),
+            tierRuleWidthPt: readFieldAsPoints(fieldInputs.tierRuleWidth, DEFAULT_TIER_RULE_WIDTH_PT, strokeUnit),
             useMask: dialogUI.maskCheckbox.value,
             englishNewspaper: dialogUI.englishNewspaperCheckbox.value,
-            maskVerticalPt: readFieldAsPoints(fieldInputs.maskVertical, DEFAULT_MASK_VERTICAL_PT, pointsPerUnit)
+            maskVerticalPt: readFieldAsPoints(fieldInputs.maskVertical, DEFAULT_MASK_VERTICAL_PT, rulerUnit)
         };
     }
 
@@ -3837,9 +3856,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb9bee6b7a2e"; /* 紹�
      * @returns {GroupItem|null} 確定したグループ。キャンセル時は null
      */
     function showDialog(doc, targetItem) {
-        var unitInfo = getUnitInfo();
-        var pointsPerUnit = unitInfo.pointsPerUnit;
-        var strokePointsPerUnit = getUnitInfo("strokeUnits").pointsPerUnit;
+        var rulerUnit = getUnitInfo();
+        var strokeUnit = getUnitInfo("strokeUnits");
         var previewGroup = null;
 
         /**
@@ -3862,7 +3880,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb9bee6b7a2e"; /* 紹�
             /* 複製は隠した元の hidden を引き継ぐので表示に戻す / the duplicate inherits hidden from the original */
             var previewSource = targetItem.duplicate();
             previewSource.hidden = false;
-            previewGroup = buildHeadlineGroup(doc, previewSource, readHeadlineSettings(dialogUI, pointsPerUnit, strokePointsPerUnit));
+            previewGroup = buildHeadlineGroup(doc, previewSource, readHeadlineSettings(dialogUI, rulerUnit, strokeUnit));
             fitViewToPreview();
             app.redraw();
         }
@@ -3878,7 +3896,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb9bee6b7a2e"; /* 紹�
         }
 
         var initialChoices = getInitialDummyChoices(targetItem);
-        var dialogUI = buildDialog(unitInfo.label, pointsPerUnit, updatePreview, initialChoices.dummyScript,
+        var dialogUI = buildDialog(rulerUnit, updatePreview, initialChoices.dummyScript,
             initialChoices.dummyDirection, initialChoices.tierCount, initialChoices.allowsWestern);
         dialogUI.dialog.onShow = updatePreview;
         dialogUI.fitViewControls.checkbox.onClick = function () {
@@ -3905,7 +3923,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb9bee6b7a2e"; /* 紹�
             return null;
         }
 
-        var headlineGroup = buildHeadlineGroup(doc, targetItem, readHeadlineSettings(dialogUI, pointsPerUnit, strokePointsPerUnit));
+        var headlineGroup = buildHeadlineGroup(doc, targetItem, readHeadlineSettings(dialogUI, rulerUnit, strokeUnit));
         doc.selection = [headlineGroup];
         return headlineGroup;
     }

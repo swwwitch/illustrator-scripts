@@ -183,6 +183,26 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
+    /**
+     * 単位の値を pt に換算する
+     * @param {number} value - 単位の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} pt の値
+     */
+    function unitToPt(value, unit) {
+        return value * unit.pointsPerUnit;
+    }
+
+    /**
+     * pt の値を単位の値に換算する
+     * @param {number} ptValue - pt の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} 単位の値
+     */
+    function ptToUnit(ptValue, unit) {
+        return ptValue / unit.pointsPerUnit;
+    }
+
     // ダイアログの位置と不透明度（再利用パーツ） / Dialog position and opacity (reusable)
 
     var DIALOG_OPACITY = 0.98;       /* ダイアログの不透明度 / dialog opacity */
@@ -1372,7 +1392,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var defaultGapInPoints = cellWidth / 5;
         var gapGroup = settingsPanel.add("group");
         gapGroup.add("statictext", undefined, labelText("fieldLabel.gap"));
-        var gapInput = addStepperInput(gapGroup, formatNumber(defaultGapInPoints / rulerUnit.pointsPerUnit), { min: 0 });
+        var gapInput = addStepperInput(gapGroup, formatNumber(ptToUnit(defaultGapInPoints, rulerUnit)), { min: 0 });
         gapInput.helpTip = getLabel("tooltip.gap");
         gapInput.characters = NUMBER_FIELD_CHARS;
         gapGroup.add("statictext", undefined, rulerUnit.label);
@@ -1400,12 +1420,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             var layoutInputs = readLayoutInputs(columnInput, gapInput);
             if (layoutInputs.errorLabelPath) { previewText.text = getLabel(layoutInputs.errorLabelPath); return; }
             var columns = layoutInputs.columns;
-            var gapInPoints = layoutInputs.gapInRulerUnit * rulerUnit.pointsPerUnit;
+            var gapInPoints = unitToPt(layoutInputs.gapInRulerUnit, rulerUnit);
             var gridSize = computeGridSize(artboardCount, columns, cellWidth, cellHeight, gapInPoints);
             var bestColumns = chooseBestColumnCount(artboardCount, cellWidth, cellHeight, gapInPoints);
             previewText.text = columns + " " + getLabel("status.columnUnit") + " x " + gridSize.rows + " " + getLabel("status.rowUnit")
-                + "  /  " + formatNumber(gridSize.gridWidth / rulerUnit.pointsPerUnit)
-                + " x " + formatNumber(gridSize.gridHeight / rulerUnit.pointsPerUnit) + " " + rulerUnit.label
+                + "  /  " + formatNumber(ptToUnit(gridSize.gridWidth, rulerUnit))
+                + " x " + formatNumber(ptToUnit(gridSize.gridHeight, rulerUnit)) + " " + rulerUnit.label
                 + "\n" + labelValueText("status.recommend", bestColumns + " " + getLabel("status.columnUnit"));
         }
 
@@ -1415,7 +1435,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             var gapInRulerUnit = parseFloat(gapInput.text);
             if (isNaN(gapInRulerUnit) || gapInRulerUnit < 0) gapInRulerUnit = 0;
             columnInput.text = String(chooseBestColumnCount(
-                artboardCount, cellWidth, cellHeight, gapInRulerUnit * rulerUnit.pointsPerUnit));
+                artboardCount, cellWidth, cellHeight, unitToPt(gapInRulerUnit, rulerUnit)));
             updatePreview();
         };
         updatePreview();
@@ -1430,7 +1450,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         btnOK.onClick = function () {
             var layoutInputs = readLayoutInputs(columnInput, gapInput);
             if (layoutInputs.errorLabelPath) { alert(getLabel(layoutInputs.errorLabelPath)); return; }
-            dialogResult = { columns: layoutInputs.columns, gapInPoints: layoutInputs.gapInRulerUnit * rulerUnit.pointsPerUnit };
+            dialogResult = { columns: layoutInputs.columns, gapInPoints: unitToPt(layoutInputs.gapInRulerUnit, rulerUnit) };
             gridDialog.close();
         };
 

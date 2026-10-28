@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.SymbolListBuilder
 Name=SymbolListBuilder
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.3.7
+Version=1.3.8
 Release-Date=2026-05-09
 Description-BEGIN
 ドキュメントに登録されたシンボルを一覧表示する専用アートボード「シンボル一覧」を自動生成します。
@@ -47,10 +47,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SymbolList
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SymbolListBuilder";            /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.3.7";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.3.8";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-05-09";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-29";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SymbolListBuilder.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SymbolListBuilder.md"; /* README (English) */
@@ -1127,44 +1127,94 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncac687d0a3a0"; /* 紹�
     // 単位 / Units
     // =========================================
 
-    /**
-     * @typedef {object} UnitInfo
-     * @property {string} label - 表示する単位名
-     * @property {number} factor - 1 単位あたりの pt
-     */
+    /* 単位コードに対応する表示ラベルと、1単位あたりのポイント数
+       Unit code -> display label and points per unit */
+    var UNITS = [
+        { label: "in",    pointsPerUnit: 72 },                /* 0 */
+        { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
+        { label: "pt",    pointsPerUnit: 1 },                 /* 2 */
+        { label: "pica",  pointsPerUnit: 12 },                /* 3 */
+        { label: "cm",    pointsPerUnit: 72 / 2.54 },         /* 4 */
+        { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25 },  /* 5 */
+        { label: "px",    pointsPerUnit: 1 },                 /* 6 */
+        { label: "ft/in", pointsPerUnit: 72 * 12 },           /* 7 */
+        { label: "m",     pointsPerUnit: 72 / 25.4 * 1000 },  /* 8 */
+        { label: "yd",    pointsPerUnit: 72 * 36 },           /* 9 */
+        { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
+    ];
+
+    /* 単位コード5を「歯（H）」と表示する環境設定キー。文字サイズ（text/units）だけ「級（Q）」
+       Preference keys that show unit code 5 as H; only the type size (text/units) shows Q */
+    var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
 
     /**
-     * 単位のプリファレンスから表示単位と pt への換算係数を取得する
-     * （0=inch / 1=mm / 3=pica / 4=cm / 5=Q / 6=px / その他=pt）
-     * @param {string} preferenceKey - 整数プリファレンスのキー（"rulerType" / "text/units"）
-     * @returns {UnitInfo} 単位情報
+     * 環境設定キーの単位を返す
+     * @param {string} [prefKey] - "rulerType"（既定）/ "strokeUnits" / "text/units" / "text/asianunits"
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位の情報
      */
-    function getUnitInfo(preferenceKey) {
-        switch (app.preferences.getIntegerPreference(preferenceKey)) {
-            case 0: return { label: "inch", factor: 72.0 };
-            case 1: return { label: "mm", factor: 72.0 / 25.4 };
-            case 3: return { label: "pica", factor: 12.0 };
-            case 4: return { label: "cm", factor: 72.0 / 2.54 };
-            case 5: return { label: "Q", factor: 72.0 / 25.4 * 0.25 };
-            case 6: return { label: "px", factor: 1.0 };
-            default: return { label: "pt", factor: 1.0 };
-        }
+    function getUnitInfo(prefKey) {
+        var unitKey = prefKey || "rulerType";
+        var unitCode = app.preferences.getIntegerPreference(unitKey);
+        /* 未知のコードは pt に寄せる / unknown codes fall back to points */
+        var unit = UNITS[unitCode] || UNITS[2];
+        /* 級（Q）と歯（H）は同じ長さだが、文字サイズは「Q」、距離は「H」と呼び分ける */
+        var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
+        return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
+    }
+
+    /**
+     * 単位の値を pt に換算する
+     * @param {number} value - 単位の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} pt の値
+     */
+    function unitToPt(value, unit) {
+        return value * unit.pointsPerUnit;
+    }
+
+    /**
+     * pt の値を単位の値に換算する
+     * @param {number} ptValue - pt の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} 単位の値
+     */
+    function ptToUnit(ptValue, unit) {
+        return ptValue / unit.pointsPerUnit;
+    }
+
+    /**
+     * ダイアログで使う単位を返す。ft/in・m・yd・ft は整数の表示では粗すぎるので pt にする
+     * @param {string} prefKey - "rulerType" / "text/units"
+     * @returns {{label: string, pointsPerUnit: number}} 単位の情報
+     */
+    function getDialogUnit(prefKey) {
+        var unit = getUnitInfo(prefKey);
+        return (unit.code >= 7) ? UNITS[2] : unit;
+    }
+
+    /**
+     * 単位の表示名を返す（インチは「inch」と表示する）
+     * @param {{label: string}} unit - getDialogUnit() の戻り値
+     * @returns {string} 表示名
+     */
+    function getUnitDisplayLabel(unit) {
+        return (unit.label === "in") ? "inch" : unit.label;
     }
 
     /* ルーラー単位（寸法・余白・間隔）/ Ruler unit for sizes, padding and gaps */
-    var RULER_UNIT = getUnitInfo("rulerType");
+    var rulerUnit = getDialogUnit("rulerType");
 
     /* 文字の単位（フォントサイズ）/ Type unit for font size */
-    var TYPE_UNIT = getUnitInfo("text/units");
+    var textUnit = getDialogUnit("text/units");
 
     /**
      * pt の値を表示単位の整数の文字列にする
      * @param {number} valuePt - 値（pt）
-     * @param {UnitInfo} unitInfo - 表示単位
+     * @param {{pointsPerUnit: number}} unit - 表示単位（getDialogUnit() の戻り値）
      * @returns {string} 表示用の文字列
      */
-    function formatUnitValue(valuePt, unitInfo) {
-        return String(Math.round(valuePt / unitInfo.factor));
+    function formatUnitValue(valuePt, unit) {
+        return String(Math.round(ptToUnit(valuePt, unit)));
     }
 
     /**
@@ -1175,7 +1225,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncac687d0a3a0"; /* 紹�
      */
     function readUnitValuePt(valueInput, defaultPt) {
         var parsedValue = parseFloat(valueInput.text);
-        return isNaN(parsedValue) ? defaultPt : parsedValue * RULER_UNIT.factor;
+        return isNaN(parsedValue) ? defaultPt : unitToPt(parsedValue, rulerUnit);
     }
 
     /**
@@ -1185,7 +1235,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncac687d0a3a0"; /* 紹�
      */
     function readFontSizePt(fontSizeInput) {
         var fontSize = parseFloat(fontSizeInput.text);
-        return (isNaN(fontSize) || fontSize <= 0) ? DEFAULT_SETTINGS.fontSize : fontSize * TYPE_UNIT.factor;
+        return (isNaN(fontSize) || fontSize <= 0) ? DEFAULT_SETTINGS.fontSize : unitToPt(fontSize, textUnit);
     }
 
     /**
@@ -2475,7 +2525,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncac687d0a3a0"; /* 紹�
      * @param {Panel} parent - 追加先のパネル
      * @param {object} labelSet - 項目名のラベル（ja/en）
      * @param {number} valuePt - 初期値（pt）
-     * @param {UnitInfo} unitInfo - 表示単位
+     * @param {{label: string, pointsPerUnit: number}} unitInfo - 表示単位（getDialogUnit() の戻り値）
      * @param {object} tooltipSet - 項目名と入力欄のツールチップ（ja/en）
      * @returns {EditText} 追加した入力欄
      */
@@ -2483,7 +2533,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncac687d0a3a0"; /* 紹�
         var valueRow = addRowGroup(parent);
         addFieldLabel(valueRow, labelSet).helpTip = getLabel(tooltipSet);
         var valueInput = addNumberInput(valueRow, formatUnitValue(valuePt, unitInfo), tooltipSet);
-        valueRow.add("statictext", undefined, unitInfo.label);
+        valueRow.add("statictext", undefined, getUnitDisplayLabel(unitInfo));
         return valueInput;
     }
 
@@ -2513,7 +2563,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncac687d0a3a0"; /* 紹�
         controls.baseLastRadio.value = (initialSettings.baseMode === "last");
         controls.baseSpecifiedRadio.value = (initialSettings.baseMode === "specified");
 
-        controls.artboardGapInput = addUnitValueRow(locationPanel, LABELS.fieldLabel.gap, initialSettings.artboardGap, RULER_UNIT, LABELS.tooltip.artboardGap);
+        controls.artboardGapInput = addUnitValueRow(locationPanel, LABELS.fieldLabel.gap, initialSettings.artboardGap, rulerUnit, LABELS.tooltip.artboardGap);
 
         /* 方向：右側／下側 / Direction: right or below */
         var directionRow = addRowGroup(locationPanel);
@@ -2534,9 +2584,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncac687d0a3a0"; /* 紹�
      */
     function buildSizePanel(parent, controls, initialSettings) {
         var sizePanel = addPanel(parent, LABELS.panel.sizeAndPadding);
-        controls.widthInput = addUnitValueRow(sizePanel, LABELS.fieldLabel.width, 0, RULER_UNIT, LABELS.tooltip.width);
-        controls.heightInput = addUnitValueRow(sizePanel, LABELS.fieldLabel.height, 0, RULER_UNIT, LABELS.tooltip.height);
-        controls.marginInput = addUnitValueRow(sizePanel, LABELS.fieldLabel.margin, initialSettings.margin, RULER_UNIT, LABELS.tooltip.margin);
+        controls.widthInput = addUnitValueRow(sizePanel, LABELS.fieldLabel.width, 0, rulerUnit, LABELS.tooltip.width);
+        controls.heightInput = addUnitValueRow(sizePanel, LABELS.fieldLabel.height, 0, rulerUnit, LABELS.tooltip.height);
+        controls.marginInput = addUnitValueRow(sizePanel, LABELS.fieldLabel.margin, initialSettings.margin, rulerUnit, LABELS.tooltip.margin);
     }
 
     /**
@@ -2584,8 +2634,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncac687d0a3a0"; /* 紹�
      */
     function buildArrangementPanel(parent, controls, initialSettings) {
         var arrangementPanel = addPanel(parent, LABELS.panel.arrangement);
-        controls.symbolGapInput = addUnitValueRow(arrangementPanel, LABELS.fieldLabel.gap, initialSettings.symbolGap, RULER_UNIT, LABELS.tooltip.symbolGap);
-        controls.maxRowWidthInput = addUnitValueRow(arrangementPanel, LABELS.fieldLabel.maxRowWidth, initialSettings.maxRowWidth, RULER_UNIT, LABELS.tooltip.maxRowWidth);
+        controls.symbolGapInput = addUnitValueRow(arrangementPanel, LABELS.fieldLabel.gap, initialSettings.symbolGap, rulerUnit, LABELS.tooltip.symbolGap);
+        controls.maxRowWidthInput = addUnitValueRow(arrangementPanel, LABELS.fieldLabel.maxRowWidth, initialSettings.maxRowWidth, rulerUnit, LABELS.tooltip.maxRowWidth);
     }
 
     /**
@@ -2617,8 +2667,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncac687d0a3a0"; /* 紹�
         controls.fontSizeGroup.spacing = ROW_SPACING;
         controls.fontSizeGroup.add("statictext", undefined, labelText(LABELS.fieldLabel.fontSize)).helpTip = getLabel(LABELS.tooltip.fontSize);
         var fontSizeInputRow = addRowGroup(controls.fontSizeGroup);
-        controls.fontSizeInput = addNumberInput(fontSizeInputRow, formatUnitValue(initialSettings.fontSize, TYPE_UNIT), LABELS.tooltip.fontSize);
-        fontSizeInputRow.add("statictext", undefined, TYPE_UNIT.label);
+        controls.fontSizeInput = addNumberInput(fontSizeInputRow, formatUnitValue(initialSettings.fontSize, textUnit), LABELS.tooltip.fontSize);
+        fontSizeInputRow.add("statictext", undefined, getUnitDisplayLabel(textUnit));
     }
 
     /**
@@ -2720,8 +2770,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncac687d0a3a0"; /* 紹�
      */
     function writeBackAutoSize(controls, previewSession) {
         var rect = previewSession.currentLayout.artboardInfo.rect;
-        if (previewSession.widthOverridePt === null) controls.widthInput.text = formatUnitValue(rect[2] - rect[0], RULER_UNIT);
-        if (previewSession.heightOverridePt === null) controls.heightInput.text = formatUnitValue(rect[1] - rect[3], RULER_UNIT);
+        if (previewSession.widthOverridePt === null) controls.widthInput.text = formatUnitValue(rect[2] - rect[0], rulerUnit);
+        if (previewSession.heightOverridePt === null) controls.heightInput.text = formatUnitValue(rect[1] - rect[3], rulerUnit);
     }
 
     /**
@@ -2852,7 +2902,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncac687d0a3a0"; /* 紹�
             var widthPt = readUnitValuePt(controls.widthInput, 0);
             previewSession.widthOverridePt = (widthPt > 0) ? widthPt : null;
             var maxRowWidthPt = widthPt - 2 * readUnitValuePt(controls.marginInput, DEFAULT_SETTINGS.margin);
-            if (widthPt > 0 && maxRowWidthPt > 0) controls.maxRowWidthInput.text = formatUnitValue(maxRowWidthPt, RULER_UNIT);
+            if (widthPt > 0 && maxRowWidthPt > 0) controls.maxRowWidthInput.text = formatUnitValue(maxRowWidthPt, rulerUnit);
             previewSession.refresh();
         });
         bindNumberInput(controls.heightInput, function () {

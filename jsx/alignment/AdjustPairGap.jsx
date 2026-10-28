@@ -1108,10 +1108,29 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
         return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
+    /**
+     * 単位の値を pt に換算する
+     * @param {number} value - 単位の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} pt の値
+     */
+    function unitToPt(value, unit) {
+        return value * unit.pointsPerUnit;
+    }
+
+    /**
+     * pt の値を単位の値に換算する
+     * @param {number} ptValue - pt の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} 単位の値
+     */
+    function ptToUnit(ptValue, unit) {
+        return ptValue / unit.pointsPerUnit;
+    }
+
     /* ダイアログの数値は定規の単位で表示し、pt に換算して使う / Dialog values are shown in the ruler unit and converted to pt */
     var rulerUnit = getUnitInfo();
     var rulerUnitSuffix = " " + rulerUnit.label; /* 入力欄の中で数値に続ける単位（「10 mm」の形）/ unit shown inside the fields */
-    var pointsPerUnit = rulerUnit.pointsPerUnit; /* 1単位 = pointsPerUnit pt */
 
     /**
      * pt の値を定規の単位の表示文字列にする（小数第2位で丸め、単位を付ける）
@@ -1119,7 +1138,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
      * @returns {string} 表示文字列（例「10 mm」）
      */
     function pointsToDisplayText(points) {
-        return String(Math.round((points / pointsPerUnit) * 100) / 100) + rulerUnitSuffix;
+        return String(Math.round(ptToUnit(points, rulerUnit) * 100) / 100) + rulerUnitSuffix;
     }
 
     /**
@@ -1130,7 +1149,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
     function displayTextToPoints(displayText) {
         var value = parseFloat(displayText);
         if (isNaN(value)) value = 0;
-        return value * pointsPerUnit;
+        return unitToPt(value, rulerUnit);
     }
 
     /**
@@ -1951,8 +1970,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
          */
         function getPoints() {
             var value = parseFloat(fieldInput.text);
-            if (isNaN(value)) { value = initialPoints / pointsPerUnit; }
-            return value * pointsPerUnit;
+            if (isNaN(value)) { value = ptToUnit(initialPoints, rulerUnit); }
+            return unitToPt(value, rulerUnit);
         }
 
         return { row: fieldRow, input: fieldInput, getPoints: getPoints };

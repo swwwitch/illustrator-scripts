@@ -1421,6 +1421,26 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd738e3258989"; /* 紹�
         return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
+    /**
+     * 単位の値を pt に換算する
+     * @param {number} value - 単位の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} pt の値
+     */
+    function unitToPt(value, unit) {
+        return value * unit.pointsPerUnit;
+    }
+
+    /**
+     * pt の値を単位の値に換算する
+     * @param {number} ptValue - pt の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} 単位の値
+     */
+    function ptToUnit(ptValue, unit) {
+        return ptValue / unit.pointsPerUnit;
+    }
+
     // 設定の保存（再利用パーツ） / Settings store (reusable)
 
     var SETTINGS_STORE_FOLDER_NAME = "illustrator-scripts"; /* Folder.userData の下に作るフォルダー / folder created under Folder.userData */
@@ -2891,16 +2911,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd738e3258989"; /* 紹�
         };
 
         // 表示単位（text/units）と基準文字サイズ / Display unit (text/units) and base font size
-        var unitInfo = getUnitInfo("text/units");
+        var textUnit = getUnitInfo("text/units");
         var baseFontSize = getBaseFontSize(targetSelection);
 
         /**
-         * ポイント値を表示単位へ換算する（小数第1位まで）
+         * ポイント値を表示単位へ換算し、小数第1位で丸める
          * @param {number} valuePt - ポイント値
          * @returns {number} 表示単位での値
          */
-        function toDisplayUnit(valuePt) {
-            return Math.round(valuePt / unitInfo.pointsPerUnit * 10) / 10;
+        function toRoundedTextUnit(valuePt) {
+            return Math.round(ptToUnit(valuePt, textUnit) * 10) / 10;
         }
 
         /**
@@ -3053,7 +3073,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd738e3258989"; /* 紹�
         tabStopColumn.alignment = ["left", "top"];
 
         // 1つ目のtabストップ（数字／箇条書きの位置）/ 1st tab stop (number / bullet)
-        var tabStop1UI = addFieldRow(tabStopColumn, labelText('fieldLabel.tabStop1'), String(toDisplayUnit(initialStops.stop1Pt)), POSITION_LABEL_WIDTH, unitInfo.label);
+        var tabStop1UI = addFieldRow(tabStopColumn, labelText('fieldLabel.tabStop1'), String(toRoundedTextUnit(initialStops.stop1Pt)), POSITION_LABEL_WIDTH, textUnit.label);
         var tabStopRow1 = tabStop1UI.row;
         var tabStopLabel1 = tabStop1UI.label;
         var inputTabStop1 = tabStop1UI.input;
@@ -3070,7 +3090,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd738e3258989"; /* 紹�
         var tabAlignIds = ["left", "center", "right"]; // 上の並びと対応 / matches the order above
 
         // 2つ目のtabストップ（本文の位置）/ 2nd tab stop (text column)
-        var tabStop2UI = addFieldRow(tabStopColumn, labelText('fieldLabel.tabStop2'), String(toDisplayUnit(initialStops.stop2Pt)), POSITION_LABEL_WIDTH, unitInfo.label);
+        var tabStop2UI = addFieldRow(tabStopColumn, labelText('fieldLabel.tabStop2'), String(toRoundedTextUnit(initialStops.stop2Pt)), POSITION_LABEL_WIDTH, textUnit.label);
         tabStop2UI.row.margins = [0, 5, 0, 0]; // 揃え種類との間に上マージン / top margin from the alignment radios
         var tabStopRow2 = tabStop2UI.row;
         var tabStopLabel2 = tabStop2UI.label;
@@ -3174,7 +3194,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd738e3258989"; /* 紹�
         var inputScale = scaleUI.input;
 
         // ベースラインシフト / Baseline shift
-        var baselineUI = addFieldRow(formatPanel, labelText('fieldLabel.baselineShift'), "0", FIELD_LABEL_WIDTH, unitInfo.label);
+        var baselineUI = addFieldRow(formatPanel, labelText('fieldLabel.baselineShift'), "0", FIELD_LABEL_WIDTH, textUnit.label);
         var baselineLabel = baselineUI.label;
         var inputBaseline = baselineUI.input;
 
@@ -3225,8 +3245,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd738e3258989"; /* 紹�
 
         // 行送り（初期値は選択テキストの現在値）/ Leading (initialized to the selection's current value)
         var baseLeadingPt = getBaseLeading(targetSelection);
-        var leadingDefaultText = (baseLeadingPt != null) ? String(toDisplayUnit(baseLeadingPt)) : "";
-        var leadingUI = addFieldRow(paragraphPanel, labelText('fieldLabel.leading'), leadingDefaultText, PARAGRAPH_LABEL_WIDTH, unitInfo.label);
+        var leadingDefaultText = (baseLeadingPt != null) ? String(toRoundedTextUnit(baseLeadingPt)) : "";
+        var leadingUI = addFieldRow(paragraphPanel, labelText('fieldLabel.leading'), leadingDefaultText, PARAGRAPH_LABEL_WIDTH, textUnit.label);
         var leadingLabel = leadingUI.label;
         var inputLeading = leadingUI.input;
 
@@ -3236,12 +3256,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd738e3258989"; /* 紹�
         var baseSpaceAfterPt = getBaseParagraphSpacing(targetSelection, "spaceAfter");
 
         // 段落前のアキ / Space before
-        var spaceBeforeUI = addFieldRow(paragraphPanel, labelText('fieldLabel.spaceBefore'), (baseSpaceBeforePt != null) ? String(toDisplayUnit(baseSpaceBeforePt)) : "", PARAGRAPH_LABEL_WIDTH, unitInfo.label);
+        var spaceBeforeUI = addFieldRow(paragraphPanel, labelText('fieldLabel.spaceBefore'), (baseSpaceBeforePt != null) ? String(toRoundedTextUnit(baseSpaceBeforePt)) : "", PARAGRAPH_LABEL_WIDTH, textUnit.label);
         var spaceBeforeLabel = spaceBeforeUI.label;
         var inputSpaceBefore = spaceBeforeUI.input;
 
         // 段落後のアキ / Space after
-        var spaceAfterUI = addFieldRow(paragraphPanel, labelText('fieldLabel.spaceAfter'), (baseSpaceAfterPt != null) ? String(toDisplayUnit(baseSpaceAfterPt)) : "", PARAGRAPH_LABEL_WIDTH, unitInfo.label);
+        var spaceAfterUI = addFieldRow(paragraphPanel, labelText('fieldLabel.spaceAfter'), (baseSpaceAfterPt != null) ? String(toRoundedTextUnit(baseSpaceAfterPt)) : "", PARAGRAPH_LABEL_WIDTH, textUnit.label);
         var spaceAfterLabel = spaceAfterUI.label;
         var inputSpaceAfter = spaceAfterUI.input;
 
@@ -3277,7 +3297,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd738e3258989"; /* 紹�
 
         // 左インデント（1行目インデントはUIを持たず、内部で左インデントの正負を反転して適用）
         // Left indent (first-line indent has no UI; it's the negated left indent, computed internally)
-        var leftIndentUI = addFieldRow(paragraphPanel, labelText('fieldLabel.leftIndent'), "0", PARAGRAPH_LABEL_WIDTH, unitInfo.label);
+        var leftIndentUI = addFieldRow(paragraphPanel, labelText('fieldLabel.leftIndent'), "0", PARAGRAPH_LABEL_WIDTH, textUnit.label);
         var leftIndentLabel = leftIndentUI.label;
         var inputLeftIndent = leftIndentUI.input;
 
@@ -3406,7 +3426,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd738e3258989"; /* 紹�
                 fontName: fontName,
                 horizontalScale: scale,
                 verticalScale: scale,
-                baselineShiftPt: baselineShift * unitInfo.pointsPerUnit,
+                baselineShiftPt: unitToPt(baselineShift, textUnit),
                 fillColor: colorSwatch._aiColor,          // 記号／番号の塗り色 / marker-number fill color
                 delimiterFillColor: delimiterColorSwatch._aiColor // 区切り文字の塗り色 / delimiter fill color
             };
@@ -3426,7 +3446,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd738e3258989"; /* 紹�
                 if (!input.text || !/\S/.test(input.text)) return null; // 空欄は変更なし / blank = no change
                 var value = parseFloat(input.text);
                 if (isNaN(value) || value < 0) return null;
-                return value * unitInfo.pointsPerUnit; // 表示単位→pt / display unit → pt
+                return unitToPt(value, textUnit); // 表示単位→pt / display unit → pt
             }
             // ハンギングON時のみインデント適用。1行目インデントは左インデントの正負反転（UIなし・内部計算）
             // リセット後はハンギングOFFでも0を適用してインデントを消す
@@ -3462,7 +3482,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd738e3258989"; /* 紹�
          */
         function applyDefaultHangingIndent() {
             var indentPt = rbNumbered.value ? (baseFontSize * 1.5) : baseFontSize;
-            inputLeftIndent.text = String(toDisplayUnit(indentPt));
+            inputLeftIndent.text = String(toRoundedTextUnit(indentPt));
         }
 
         /**
@@ -3482,7 +3502,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd738e3258989"; /* 紹�
          */
         function readTabStop(input, fallbackPt) {
             var value = parseFloat(input.text);
-            return (isNaN(value) || value < 0) ? toDisplayUnit(fallbackPt) : value;
+            return (isNaN(value) || value < 0) ? toRoundedTextUnit(fallbackPt) : value;
         }
 
         /**
@@ -3502,14 +3522,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd738e3258989"; /* 紹�
          * @returns {number} マーカー位置（pt）
          */
         function currentTabStop1Pt() {
-            return readTabStop(inputTabStop1, defaultStopsForType(currentStopType()).stop1Pt) * unitInfo.pointsPerUnit;
+            return unitToPt(readTabStop(inputTabStop1, defaultStopsForType(currentStopType()).stop1Pt), textUnit);
         }
         /**
          * 本文位置のタブストップをポイントで取得する
          * @returns {number} 本文位置（pt）
          */
         function currentTabStop2Pt() {
-            return readTabStop(inputTabStop2, defaultStopsForType(currentStopType()).stop2Pt) * unitInfo.pointsPerUnit;
+            return unitToPt(readTabStop(inputTabStop2, defaultStopsForType(currentStopType()).stop2Pt), textUnit);
         }
 
         /**
@@ -3530,8 +3550,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd738e3258989"; /* 紹�
         function applyTypeDefaults() {
             if (rbNone.value) return; // 「なし」では位置調整は未使用 / Position is unused for "none"
             var stops = defaultStopsForType(currentStopType());
-            inputTabStop1.text = String(toDisplayUnit(stops.stop1Pt));
-            inputTabStop2.text = String(toDisplayUnit(stops.stop2Pt));
+            inputTabStop1.text = String(toRoundedTextUnit(stops.stop1Pt));
+            inputTabStop2.text = String(toRoundedTextUnit(stops.stop2Pt));
         }
 
         /**

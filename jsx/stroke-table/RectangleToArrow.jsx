@@ -119,6 +119,26 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
         return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
+    /**
+     * 単位の値を pt に換算する
+     * @param {number} value - 単位の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} pt の値
+     */
+    function unitToPt(value, unit) {
+        return value * unit.pointsPerUnit;
+    }
+
+    /**
+     * pt の値を単位の値に換算する
+     * @param {number} ptValue - pt の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} 単位の値
+     */
+    function ptToUnit(ptValue, unit) {
+        return ptValue / unit.pointsPerUnit;
+    }
+
     // =========================================
     // ローカライズ / Localization
     // =========================================
@@ -2654,7 +2674,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
     function getDefaultLineWidth(firstTarget, strokeUnit) {
         var isRuleWithStroke = !firstTarget.closed && firstTarget.stroked && firstTarget.strokeWidth > 0;
         var widthInPoints = isRuleWithStroke ? firstTarget.strokeWidth : getArrowAxis(firstTarget).thickness * DEFAULT_LINE_PERCENT / 100;
-        return Math.max(0.01, Math.round(widthInPoints / strokeUnit.pointsPerUnit * 100) / 100);
+        return Math.max(0.01, Math.round(ptToUnit(widthInPoints, strokeUnit) * 100) / 100);
     }
 
     /**
@@ -2716,7 +2736,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
         var thicknessFormats = {
             percent: { step: 1, unit: "%", min: 1, max: 100 },
             /* cm・インチなど 1 単位が大きいときは 0.1 刻み / step by 0.1 when one unit is large (cm, in) */
-            strokeWidth: { step: strokeUnit.pointsPerUnit >= 2 ? 0.1 : 1, unit: " " + strokeUnit.label, min: 0.01, max: 1000 / strokeUnit.pointsPerUnit }
+            strokeWidth: { step: unitToPt(1, strokeUnit) >= 2 ? 0.1 : 1, unit: " " + strokeUnit.label, min: 0.01, max: ptToUnit(1000, strokeUnit) }
         };
         /* 1つ目が罫線なら、線の矢印で始める / for a rule, start with the stroked arrow */
         var currentType = rectangles[0].closed ? "fill" : "line";
@@ -2863,7 +2883,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
                 label: labelText("fieldLabel.whiteEdgeOffset"), labelWidth: WHITE_EDGE_LABEL_WIDTH,
                 characters: FIELD_CHARACTERS, onStep: refreshPreview,
                 text: formatStepperNumber(toRulerValue(getDefaultWhiteEdgeOffset())) + " " + rulerUnit.label,
-                step: rulerUnit.pointsPerUnit >= 2 ? 0.1 : 1, min: 0, max: 1000 / rulerUnit.pointsPerUnit, unit: " " + rulerUnit.label
+                step: unitToPt(1, rulerUnit) >= 2 ? 0.1 : 1, min: 0, max: ptToUnit(1000, rulerUnit), unit: " " + rulerUnit.label
             });
             offsetInput.helpTip = getLabel("tooltip.whiteEdgeOffset");
             redrawPreviewOnChange(offsetInput);
@@ -2913,7 +2933,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
          * @returns {number} オフセット（pt）
          */
         function getDefaultWhiteEdgeOffset() {
-            if (isStrokeArrowType(currentType)) return parseFloat(thicknessInput.text) * strokeUnit.pointsPerUnit / 2;
+            if (isStrokeArrowType(currentType)) return unitToPt(parseFloat(thicknessInput.text), strokeUnit) / 2;
             return getArrowAxis(rectangles[0]).thickness * WHITE_EDGE_RATIO;
         }
 
@@ -2923,7 +2943,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
          * @returns {number} 定規の単位の値
          */
         function toRulerValue(points) {
-            return Math.round(points / rulerUnit.pointsPerUnit * 100) / 100;
+            return Math.round(ptToUnit(points, rulerUnit) * 100) / 100;
         }
 
         /**
@@ -3027,7 +3047,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
             return {
                 arrowType: currentType,
                 shaftRatio: thicknessValue / 100,
-                strokeWidth: thicknessValue * strokeUnit.pointsPerUnit,
+                strokeWidth: unitToPt(thicknessValue, strokeUnit),
                 heightRatio: parseFloat(heightInput.text) / 100,
                 tipAngle: parseFloat(tipAngleInput.text),
                 isReversed: typeState.isReversed,
@@ -3035,7 +3055,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n789072361c12"; /* 紹�
                 isSquareVertical: squareAxisRadios.verticalRadio.value,
                 isWhiteEdge: whiteEdgeCheckbox.value,
                 whiteEdgeStyle: {
-                    offset: parseFloat(whiteEdgeControls.offsetInput.text) * rulerUnit.pointsPerUnit,
+                    offset: unitToPt(parseFloat(whiteEdgeControls.offsetInput.text), rulerUnit),
                     joinType: getCheckedWhiteEdgeJoin(whiteEdgeControls.joinRadios)
                 },
                 /* 線の白フチは分割・拡張が前提。先端補正は分割・拡張するときだけ行う / the stroked outline requires expanding; the tip adjustment goes with expanding */

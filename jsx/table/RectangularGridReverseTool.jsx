@@ -1175,7 +1175,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4f290b420561"; /* 紹�
      * - "text/asianunits"   ：東アジア言語のオプション / East Asian text unit
      */
 
-    /* 単位テーブル（配列の添字が rulerType コードと一致：0=in, 1=mm, 2=pt …）/ Unit table; the array index equals the rulerType code */
+    /* 単位コードに対応する表示ラベルと、1単位あたりのポイント数
+       Unit code -> display label and points per unit */
     var UNITS = [
         { label: "in",    pointsPerUnit: 72 },                /* 0 */
         { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
@@ -1195,16 +1196,28 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4f290b420561"; /* 紹�
     var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
 
     /**
-     * 設定キーごとの単位情報を取得する
-     * @param {string} prefKey - 環境設定キー（省略時は "rulerType"）
-     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位情報
+     * 環境設定キーの単位を返す
+     * @param {string} [prefKey] - "rulerType"（既定）/ "strokeUnits" / "text/units" / "text/asianunits"
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位の情報
      */
     function getUnitInfo(prefKey) {
         var unitKey = prefKey || "rulerType";
         var unitCode = app.preferences.getIntegerPreference(unitKey);
+        /* 未知のコードは pt に寄せる / unknown codes fall back to points */
         var unit = UNITS[unitCode] || UNITS[2];
+        /* 級（Q）と歯（H）は同じ長さだが、文字サイズは「Q」、距離は「H」と呼び分ける */
         var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
         return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
+    }
+
+    /**
+     * 単位の値を pt に換算する
+     * @param {number} value - 単位の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} pt の値
+     */
+    function unitToPt(value, unit) {
+        return value * unit.pointsPerUnit;
     }
 
     // =========================================
@@ -2632,7 +2645,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4f290b420561"; /* 紹�
             convertDashedToSolid: dialogControls.convertDashedToSolidCheckbox.value,
             strokeWidthMode: readStrokeWidthMode(dialogControls),
             specifiedStrokeWidthPt: dialogControls.strokeWidthSpecifiedRadio.value
-                ? readNumericText(dialogControls.strokeWidthInput.text, 0) * dialogControls.strokeUnitInfo.pointsPerUnit
+                ? unitToPt(readNumericText(dialogControls.strokeWidthInput.text, 0), dialogControls.strokeUnit)
                 : 0,
             lockFirstColumn: dialogControls.lockFirstColumnCheckbox.value,
             lockFirstRow: dialogControls.lockFirstRowCheckbox.value,
@@ -3229,12 +3242,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4f290b420561"; /* 紹�
 
     /**
      * ダイアログを組み立てる
-     * @param {{label: string, pointsPerUnit: number}} strokeUnitInfo - 線の単位
+     * @param {{label: string, pointsPerUnit: number}} strokeUnit - 線の単位
      * @param {Object} modeSession - main() で作るモードの状態
      * @param {string} initialMode - 開いたときのモード（MODE_SIMPLE / MODE_DETAILED）
      * @returns {Object} ダイアログ（optionDialog）と各コントロール
      */
-    function buildOptionDialog(strokeUnitInfo, modeSession, initialMode) {
+    function buildOptionDialog(strokeUnit, modeSession, initialMode) {
         var optionDialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
         setupWindow(optionDialog);
 
@@ -3335,7 +3348,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4f290b420561"; /* 紹�
         var strokeWidthSpecifiedInputGroup = addOptionRow(strokeWidthPanel);
         var strokeWidthInput = addSteppedField(strokeWidthSpecifiedInputGroup, { text: "0.25", characters: 4, step: 1, min: 0.01 });
         strokeWidthInput.helpTip = getLabel("tooltip.strokeWidthSpecified");
-        strokeWidthSpecifiedInputGroup.add("statictext", undefined, strokeUnitInfo.label);
+        strokeWidthSpecifiedInputGroup.add("statictext", undefined, strokeUnit.label);
 
         // デフォルトは平均（表示前なので描き直さずに無効にする）/ Default is average; disabled without redrawing before show
         strokeWidthAverageRadio.value = true;
@@ -3380,7 +3393,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4f290b420561"; /* 紹�
             strokeWidthAverageRadio: strokeWidthAverageRadio,
             strokeWidthSpecifiedRadio: strokeWidthSpecifiedRadio,
             strokeWidthInput: strokeWidthInput,
-            strokeUnitInfo: strokeUnitInfo,
+            strokeUnit: strokeUnit,
             frameToRectangleCheckbox: frameToRectangleCheckbox,
             centerPointTextVerticallyCheckbox: centerPointTextVerticallyCheckbox,
             groupingCheckbox: groupingCheckbox,
@@ -3574,12 +3587,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4f290b420561"; /* 紹�
      * ダイアログを表示してオプションを受け取る。閉じたときは両モードのプレビューを元に戻す
      * （詳細モードで確定したときだけ、分解した外枠を確定処理のために残す）
      * @param {Object} modeSession - main() で作るモードの状態
-     * @param {{label: string, pointsPerUnit: number}} strokeUnitInfo - 線の単位
+     * @param {{label: string, pointsPerUnit: number}} strokeUnit - 線の単位
      * @returns {Object|null} ダイアログの設定。キャンセルなら null
      */
-    function showOptionDialog(modeSession, strokeUnitInfo) {
+    function showOptionDialog(modeSession, strokeUnit) {
         var initialMode = resolveInitialMode(modeSession);
-        var dialogControls = buildOptionDialog(strokeUnitInfo, modeSession, initialMode);
+        var dialogControls = buildOptionDialog(strokeUnit, modeSession, initialMode);
         var refreshPreview = function () {
             refreshModePreview(dialogControls, modeSession);
         };

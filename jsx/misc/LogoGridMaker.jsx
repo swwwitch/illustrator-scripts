@@ -1065,13 +1065,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n95a285784495"; /* 紹�
     }
 
     /**
-     * 環境設定の［線］の単位で入力された値をptに換算します。
-     *
-     * @param {number} value - 線の単位での値。
-     * @returns {number} pt換算した値。
+     * 単位の値を pt に換算する
+     * @param {number} value - 単位の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} pt の値
      */
-    function strokeUnitsToPoints(value) {
-        return value * getUnitInfo("strokeUnits").pointsPerUnit;
+    function unitToPt(value, unit) {
+        return value * unit.pointsPerUnit;
     }
 
     // =========================================
@@ -3290,7 +3290,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n95a285784495"; /* 紹�
      * @returns {Object|null} 変換した設定。線幅を換算できないときは null。
      */
     function toGridParams(dialogValues) {
-        var strokeWidth = strokeUnitsToPoints(parseFloat(dialogValues.strokeWidthText));
+        var strokeWidth = unitToPt(parseFloat(dialogValues.strokeWidthText), getUnitInfo("strokeUnits"));
         if (!(strokeWidth > 0)) return null;
 
         return {

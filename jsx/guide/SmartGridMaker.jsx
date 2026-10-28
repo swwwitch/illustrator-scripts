@@ -2045,13 +2045,23 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2b01f896c423"; /* 紹�
     }
 
     /**
-     * mmをptに換算します。
-     *
-     * @param {number} mm - mmの値。
-     * @returns {number} ptの値。
+     * 単位の値を pt に換算する
+     * @param {number} value - 単位の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} pt の値
      */
-    function mmToPt(mm) {
-        return UNITS[1].pointsPerUnit * mm;
+    function unitToPt(value, unit) {
+        return value * unit.pointsPerUnit;
+    }
+
+    /**
+     * pt の値を単位の値に換算する
+     * @param {number} ptValue - pt の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} 単位の値
+     */
+    function ptToUnit(ptValue, unit) {
+        return ptValue / unit.pointsPerUnit;
     }
 
     // 設定の保存（再利用パーツ） / Settings store (reusable)
@@ -3251,9 +3261,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2b01f896c423"; /* 紹�
          * @param {string} text - 入力欄の文字列。
          * @returns {number} pt値。数値として読めない場合は 0。
          */
-        function toPt(text) {
+        function parseLengthFieldPt(text) {
             var value = parseFloat(text);
-            return isNaN(value) ? 0 : (value * rulerUnit.pointsPerUnit);
+            return isNaN(value) ? 0 : unitToPt(value, rulerUnit);
         }
 
         /**
@@ -3263,7 +3273,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2b01f896c423"; /* 紹�
          * @returns {number} 0以上のpt値。
          */
         function toPositivePt(text) {
-            var valuePt = toPt(text);
+            var valuePt = parseLengthFieldPt(text);
             return (valuePt > 0) ? valuePt : 0;
         }
 
@@ -3301,7 +3311,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2b01f896c423"; /* 紹�
          * @returns {string} 現在の定規単位での既定値（小数第1位まで、単位付き）。
          */
         function defaultValueText(valueMm) {
-            return formatLength(Math.round(mmToPt(valueMm) / rulerUnit.pointsPerUnit * 10) / 10);
+            return formatLength(Math.round(ptToUnit(unitToPt(valueMm, UNITS[1]), rulerUnit) * 10) / 10);
         }
 
         /**
@@ -3360,7 +3370,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2b01f896c423"; /* 紹�
             var heightPt = bounds[1] - bounds[3];
             if (!(widthPt > 0) || !(heightPt > 0)) return 0;
 
-            var offsetValue = (widthPt + heightPt) / GENERATION_SETTINGS.innerOffsetDivisor / rulerUnit.pointsPerUnit;
+            var offsetValue = ptToUnit((widthPt + heightPt) / GENERATION_SETTINGS.innerOffsetDivisor, rulerUnit);
 
             /* 10以上なら10単位、それ未満は0.1単位に丸める
                （cmやinchのように値が小さくなる単位で0にならないようにする）
@@ -3386,7 +3396,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2b01f896c423"; /* 紹�
                 ? Math.abs(bounds[1] - bounds[3])
                 : Math.abs(bounds[2] - bounds[0]);
 
-            var titleSize = basePt / rulerUnit.pointsPerUnit / GENERATION_SETTINGS.titleSizeDivisor;
+            var titleSize = ptToUnit(basePt, rulerUnit) / GENERATION_SETTINGS.titleSizeDivisor;
             if (!(titleSize > 0)) return 10;
 
             return Math.max(Math.round(titleSize * 10) / 10, 0.1);
@@ -4621,7 +4631,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2b01f896c423"; /* 紹�
         function collectOptions() {
             var columnCount = toCount(columnCountInput.text);
             var rowCount = toCount(rowCountInput.text);
-            var bleedPt = bleedCheckbox.value ? mmToPt(GENERATION_SETTINGS.bleedMm) : 0;
+            var bleedPt = bleedCheckbox.value ? unitToPt(GENERATION_SETTINGS.bleedMm, UNITS[1]) : 0;
 
             var options = {
                 /* マージン（アートボード基準のみ） / Margins, artboard-based runs only */
@@ -4640,13 +4650,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2b01f896c423"; /* 紹�
 
                 /* 外側エリア：辺の伸縮と角丸（角丸はタイトル帯にも使う）
                    Outer area: the edge scale and the radius, which the title band reuses */
-                outerEdgeScalePt: getOuterEdgeScaleValue() * rulerUnit.pointsPerUnit,
+                outerEdgeScalePt: unitToPt(getOuterEdgeScaleValue(), rulerUnit),
                 outerRoundPt: readCheckedPt(outerRoundCheckbox, outerRoundInput),
 
                 /* タイトルエリア：仕切り線の詰め量は入力値の符号を反転（＋で両端が短くなる）
                    Title area: the divider inset is the negated input (positive shortens the line) */
                 titleSizePt: titleCheckbox.value ? toPositivePt(titleSizeInput.text) : 0,
-                titleDividerInsetPt: (titleLineCheckbox.value && titleEdgeScaleCheckbox.value) ? -toPt(titleEdgeScaleInput.text) : 0,
+                titleDividerInsetPt: (titleLineCheckbox.value && titleEdgeScaleCheckbox.value) ? -parseLengthFieldPt(titleEdgeScaleInput.text) : 0,
 
                 /* 内側エリア：オフセット / Inner area offsets */
                 innerOffsetPt: {

@@ -971,6 +971,26 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
+    /**
+     * 単位の値を pt に換算する
+     * @param {number} value - 単位の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} pt の値
+     */
+    function unitToPt(value, unit) {
+        return value * unit.pointsPerUnit;
+    }
+
+    /**
+     * pt の値を単位の値に換算する
+     * @param {number} ptValue - pt の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} 単位の値
+     */
+    function ptToUnit(ptValue, unit) {
+        return ptValue / unit.pointsPerUnit;
+    }
+
     // =========================================
     // ローカライズ / Localization
     // =========================================
@@ -1536,7 +1556,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * @returns {string} 単位の数値（小数第2位まで）
      */
     function pointsToUnitText(points) {
-        return String(roundToHundredths(points / textUnit.pointsPerUnit));
+        return String(roundToHundredths(ptToUnit(points, textUnit)));
     }
 
     /**
@@ -1856,7 +1876,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             if (isNaN(parsedValue)) return fallbackPoints;
             /* 表示を丸めただけで値を変えたことにしない / Unchanged text must not count as an edit */
             if (numberField.text === pointsToUnitText(fallbackPoints)) return fallbackPoints;
-            return roundToHundredths(parsedValue * textUnit.pointsPerUnit);
+            return roundToHundredths(unitToPt(parsedValue, textUnit));
         }
 
         /**

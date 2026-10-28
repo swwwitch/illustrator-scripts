@@ -424,6 +424,16 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
+    /**
+     * pt の値を単位の値に換算する
+     * @param {number} ptValue - pt の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} 単位の値
+     */
+    function ptToUnit(ptValue, unit) {
+        return ptValue / unit.pointsPerUnit;
+    }
+
     /* 数値を表示用に丸める / Round number for display */
     function formatNumberForDisplay(value, digits) {
         var multiplier = Math.pow(10, digits);
@@ -434,7 +444,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     /* pt値を現在の文字単位で表示 / Format point value using current text unit */
     function formatPointValueForDialog(pointValue) {
         var textUnit = getUnitInfo("text/units");
-        var displayValue = pointValue / textUnit.pointsPerUnit;
+        var displayValue = ptToUnit(pointValue, textUnit);
         return formatNumberForDisplay(displayValue, 3) + " " + textUnit.label;
     }
 

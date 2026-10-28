@@ -908,6 +908,26 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
+    /**
+     * 単位の値を pt に換算する
+     * @param {number} value - 単位の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} pt の値
+     */
+    function unitToPt(value, unit) {
+        return value * unit.pointsPerUnit;
+    }
+
+    /**
+     * pt の値を単位の値に換算する
+     * @param {number} ptValue - pt の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} 単位の値
+     */
+    function ptToUnit(ptValue, unit) {
+        return ptValue / unit.pointsPerUnit;
+    }
+
     // UI の明暗（再利用パーツ） / UI theme (reusable)
 
     /**
@@ -1932,7 +1952,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         /* cursorKeyLength は pt で返るので一般単位（rulerType）へ換算して表示 / cursorKeyLength is in points */
         var rulerUnit = getUnitInfo("rulerType");
-        var keyValue = app.preferences.getRealPreference("cursorKeyLength") / rulerUnit.pointsPerUnit;
+        var keyValue = ptToUnit(app.preferences.getRealPreference("cursorKeyLength"), rulerUnit);
         keyValue = Math.round(keyValue * 1000) / 1000;
         sourceKeyInputRadio.text = getLabel("radio.sourceKeyInput") + labelColon() + keyValue + rulerUnit.label;
     }
@@ -2049,7 +2069,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             return customStepPt;
         }
         /* 既定：環境設定のテキスト/行送り（表示単位込みで pt 換算）/ default: the Size/Leading increment in points */
-        return app.preferences.getRealPreference("text/sizeIncrement") * getUnitInfo("text/units").pointsPerUnit;
+        return unitToPt(app.preferences.getRealPreference("text/sizeIncrement"), getUnitInfo("text/units"));
     }
 
     /**

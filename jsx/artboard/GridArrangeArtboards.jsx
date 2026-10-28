@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.GridArrangeArtboards
 Name=GridArrangeArtboards
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.2.10
+Version=1.2.11
 Description-BEGIN
 アートボード名を解析し、行列グリッドとして再配置します。
 名前全体が「行番号＋区切り文字（-, _, x）＋列番号」に一致するアートボードを、行列指定として扱います。
@@ -43,10 +43,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/GridArrang
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "GridArrangeArtboards";         /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.2.10";                      /* バージョン / version */
+var SCRIPT_VERSION  = "v1.2.11";                      /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-16";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-29";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/GridArrangeArtboards.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/GridArrangeArtboards.md"; /* README (English) */
@@ -328,36 +328,43 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
     ];
 
+    /* 単位コード5を「歯（H）」と表示する環境設定キー。文字サイズ（text/units）だけ「級（Q）」
+       Preference keys that show unit code 5 as H; only the type size (text/units) shows Q */
+    var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
+
     /**
      * 環境設定キーの単位を返す
      * @param {string} [prefKey] - "rulerType"（既定）/ "strokeUnits" / "text/units" / "text/asianunits"
      * @returns {{code: number, label: string, pointsPerUnit: number}} 単位の情報
      */
     function getUnitInfo(prefKey) {
-        var unitCode = app.preferences.getIntegerPreference(prefKey || "rulerType");
+        var unitKey = prefKey || "rulerType";
+        var unitCode = app.preferences.getIntegerPreference(unitKey);
         /* 未知のコードは pt に寄せる / unknown codes fall back to points */
         var unit = UNITS[unitCode] || UNITS[2];
-        return { code: unitCode, label: unit.label, pointsPerUnit: unit.pointsPerUnit };
+        /* 級（Q）と歯（H）は同じ長さだが、文字サイズは「Q」、距離は「H」と呼び分ける */
+        var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
+        return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
     /**
-     * pt値を表示単位に変換する
-     * @param {number} points - pt値
-     * @param {Object} unitInfo - getUnitInfo() の結果
-     * @returns {number} 表示単位の値
+     * 単位の値を pt に換算する
+     * @param {number} value - 単位の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} pt の値
      */
-    function pointsToDisplayUnit(points, unitInfo) {
-        return points / unitInfo.pointsPerUnit;
+    function unitToPt(value, unit) {
+        return value * unit.pointsPerUnit;
     }
 
     /**
-     * 表示単位をpt値に変換する
-     * @param {number} value - 表示単位の値
-     * @param {Object} unitInfo - getUnitInfo() の結果
-     * @returns {number} pt値
+     * pt の値を単位の値に換算する
+     * @param {number} ptValue - pt の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} 単位の値
      */
-    function displayUnitToPoints(value, unitInfo) {
-        return value * unitInfo.pointsPerUnit;
+    function ptToUnit(ptValue, unit) {
+        return ptValue / unit.pointsPerUnit;
     }
 
     /**
@@ -1161,11 +1168,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * @param {string} labelPath - 項目名のラベルのパス
      * @param {string} tooltipPath - ツールチップのラベルのパス
      * @param {number} initialPoints - 初期値（pt）
-     * @param {Object} unitInfo - 定規単位の情報
+     * @param {{label: string, pointsPerUnit: number}} rulerUnit - 定規の単位
      * @param {Function} [onStep] - ∧∨・↑↓キーで増減したあとに呼ぶ処理
      * @returns {EditText} 入力欄（∧∨は .stepperGroup で参照できる）
      */
-    function addSpacingField(parentGroup, labelPath, tooltipPath, initialPoints, unitInfo, onStep) {
+    function addSpacingField(parentGroup, labelPath, tooltipPath, initialPoints, rulerUnit, onStep) {
         var fieldGroup = parentGroup.add('group');
         fieldGroup.add('statictext', undefined, labelText(labelPath));
 
@@ -1178,7 +1185,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         var fieldInput;
         var stepperGroup = addStepper(stepperFieldGroup, function () { return fieldInput; }, { min: 0, onStep: onStep });
-        fieldInput = stepperFieldGroup.add('edittext', undefined, formatDisplayNumber(pointsToDisplayUnit(initialPoints, unitInfo)));
+        fieldInput = stepperFieldGroup.add('edittext', undefined, formatDisplayNumber(ptToUnit(initialPoints, rulerUnit)));
         fieldInput.helpTip = getLabel(tooltipPath);
         fieldInput.characters = SPACING_FIELD_CHARACTERS;
         fieldInput.stepperGroup = stepperGroup;
@@ -1191,13 +1198,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * 間隔欄の値を pt で読み取る。数値でないか負の値なら初期値を使う
      * @param {EditText} spacingInput - 間隔欄
      * @param {number} fallbackPoints - 読み取れないときの値（pt）
-     * @param {Object} unitInfo - 定規単位の情報
+     * @param {{label: string, pointsPerUnit: number}} rulerUnit - 定規の単位
      * @returns {number} 間隔（pt）
      */
-    function readSpacingPoints(spacingInput, fallbackPoints, unitInfo) {
+    function readSpacingPoints(spacingInput, fallbackPoints, rulerUnit) {
         var parsedValue = parseFloat(spacingInput.text);
         if (isNaN(parsedValue) || parsedValue < 0) return fallbackPoints;
-        return displayUnitToPoints(parsedValue, unitInfo);
+        return unitToPt(parsedValue, rulerUnit);
     }
 
     /**
@@ -1619,10 +1626,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var settingsDialog = new Window('dialog', getLabel('dialog.title') + ' ' + SCRIPT_VERSION);
         setupWindow(settingsDialog);
 
-        var rulerUnitInfo = getUnitInfo();
+        var rulerUnit = getUnitInfo();
 
         /* 間隔パネル（列間・行間と連動アイコン）/ Spacing panel (column/row gaps with the link icon) */
-        var spacingPanel = settingsDialog.add('panel', undefined, getLabel('panel.spacing') + '（' + rulerUnitInfo.label + '）');
+        var spacingPanel = settingsDialog.add('panel', undefined, getLabel('panel.spacing') + '（' + rulerUnit.label + '）');
         setupPanel(spacingPanel);
 
         /* 列間・行間の2行の右に連動アイコンを置く / Put the link icon to the right of the two gap rows */
@@ -1636,10 +1643,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         spacingInputColumn.spacing = 6;
 
         /* 列間を増減したら、連動時は行間にもミラーする / mirror the column gap to the row gap when linked */
-        var spacingXInput = addSpacingField(spacingInputColumn, 'fieldLabel.spacingX', 'tooltip.spacingX', defaultSettings.spacingX, rulerUnitInfo,
+        var spacingXInput = addSpacingField(spacingInputColumn, 'fieldLabel.spacingX', 'tooltip.spacingX', defaultSettings.spacingX, rulerUnit,
             function () { syncLinkedSpacingValue(); });
         spacingXInput.active = true;
-        var spacingYInput = addSpacingField(spacingInputColumn, 'fieldLabel.spacingY', 'tooltip.spacingY', defaultSettings.spacingY, rulerUnitInfo);
+        var spacingYInput = addSpacingField(spacingInputColumn, 'fieldLabel.spacingY', 'tooltip.spacingY', defaultSettings.spacingY, rulerUnit);
 
         var linkToggle = addLinkToggle(spacingContentGroup, !!defaultSettings.linkSpacing, function () {
             syncLinkedSpacingValue();
@@ -1694,8 +1701,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         if (settingsDialog.show() !== 1) return null;
 
         return {
-            spacingX: readSpacingPoints(spacingXInput, defaultSettings.spacingX, rulerUnitInfo),
-            spacingY: readSpacingPoints(spacingYInput, defaultSettings.spacingY, rulerUnitInfo),
+            spacingX: readSpacingPoints(spacingXInput, defaultSettings.spacingX, rulerUnit),
+            spacingY: readSpacingPoints(spacingYInput, defaultSettings.spacingY, rulerUnit),
             exceptionMode: lastRowRadio.value ? 'lastRow' : 'rowEnd',
             linkSpacing: linkToggle.value,
             excludeLockedHiddenLayers: excludeLayersCheckbox.value,

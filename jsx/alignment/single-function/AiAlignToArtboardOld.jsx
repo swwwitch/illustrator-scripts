@@ -88,22 +88,34 @@ var paletteWindow = $.global.__aiAlignToArtboardOldWindow || null;
     // =========================================
     // 定規の単位 / Ruler units
     // =========================================
-    /* rulerType の単位コード→ラベルと pt 換算係数 / Unit code to label and points-per-unit */
-    var UNIT_INFO = {
-        "0":  { label: "in",    points: 72.0 },
-        "1":  { label: "mm",    points: 72.0 / 25.4 },
-        "2":  { label: "pt",    points: 1.0 },
-        "3":  { label: "pica",  points: 12.0 },
-        "4":  { label: "cm",    points: 72.0 / 2.54 },
-        "5":  { label: "Q/H",   points: (72.0 / 25.4) * 0.25 },
-        "6":  { label: "px",    points: 1.0 },
-        "7":  { label: "ft/in", points: 864.0 },
-        "8":  { label: "m",     points: (72.0 / 25.4) * 1000.0 },
-        "9":  { label: "yd",    points: 2592.0 },
-        "10": { label: "ft",    points: 864.0 }
-    };
-    /* 単位が取れないときの既定 / Fallback when the ruler unit cannot be read */
-    var FALLBACK_UNIT_INFO = { label: "pt", points: 1.0 };
+    /* 単位コードに対応する表示ラベルと、1単位あたりのポイント数
+       Unit code -> display label and points per unit */
+    var UNITS = [
+        { label: "in",    pointsPerUnit: 72 },                /* 0 */
+        { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
+        { label: "pt",    pointsPerUnit: 1 },                 /* 2 */
+        { label: "pica",  pointsPerUnit: 12 },                /* 3 */
+        { label: "cm",    pointsPerUnit: 72 / 2.54 },         /* 4 */
+        { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25 },  /* 5 */
+        { label: "px",    pointsPerUnit: 1 },                 /* 6 */
+        { label: "ft/in", pointsPerUnit: 72 * 12 },           /* 7 */
+        { label: "m",     pointsPerUnit: 72 / 25.4 * 1000 },  /* 8 */
+        { label: "yd",    pointsPerUnit: 72 * 36 },           /* 9 */
+        { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
+    ];
+
+    /**
+     * 単位の値を pt に換算する
+     * @param {number} value - 単位の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} pt の値
+     */
+    function unitToPt(value, unit) {
+        return value * unit.pointsPerUnit;
+    }
+
+    /* 単位コード5（級・歯）の欄に出すラベル / Label shown for unit code 5 (Q or H) */
+    var Q_H_UNIT_LABEL = "Q/H";
 
     // =========================================
     // ユーザー設定 / User settings
@@ -644,7 +656,8 @@ var paletteWindow = $.global.__aiAlignToArtboardOldWindow || null;
        Whether to keep the guide on close; mirrored so teardown never has to read a control */
     var keepGuideOnClose = DEFAULT_KEEP_GUIDE;
     /* 現在の定規単位（パレットへフォーカスが来るたびに取り直す）/ The current ruler unit, re-read on focus */
-    var currentUnitInfo = FALLBACK_UNIT_INFO;
+    var currentRulerUnit = UNITS[2];
+    var currentUnitLabel = UNITS[2].label;
     /* 状況表示の参照 / The status line */
     var statusText = null;
 
@@ -759,7 +772,7 @@ var paletteWindow = $.global.__aiAlignToArtboardOldWindow || null;
         changeValueByArrowKey(marginField);
         /* 単位ラベルは幅を固定する（単位が変わってもパレット幅が動かないように）
            The unit label has a fixed width so the palette does not resize when the unit changes */
-        marginUnitText = fieldRow.add("statictext", undefined, currentUnitInfo.label);
+        marginUnitText = fieldRow.add("statictext", undefined, currentUnitLabel);
         marginUnitText.preferredSize.width = UNIT_LABEL_WIDTH;
         marginUnitText.maximumSize.width = UNIT_LABEL_WIDTH;
         /* 確定（Enter・フォーカス移動）でガイドを描き直す
@@ -1478,7 +1491,7 @@ var paletteWindow = $.global.__aiAlignToArtboardOldWindow || null;
         if (isNaN(marginValue) || marginValue < 0) { marginValue = 0; }
         /* 手入力が丸められたときは欄の表示も実際に使う値にそろえる / Show the value actually used */
         if (String(marginValue) !== marginField.text) { marginField.text = marginValue; }
-        return marginValue * currentUnitInfo.points;
+        return unitToPt(marginValue, currentRulerUnit);
     }
 
     /**
@@ -1654,8 +1667,10 @@ var paletteWindow = $.global.__aiAlignToArtboardOldWindow || null;
             if (changeJustificationCheckbox !== null) {
                 changeJustificationCheckbox.enabled = (parts[0] === "TEXT");
             }
-            currentUnitInfo = UNIT_INFO[parts[1]] || FALLBACK_UNIT_INFO;
-            if (marginUnitText !== null) { marginUnitText.text = currentUnitInfo.label; }
+            /* 読めない単位コードは pt に寄せる / unknown unit codes fall back to points */
+            currentRulerUnit = UNITS[parts[1]] || UNITS[2];
+            currentUnitLabel = (parts[1] === "5") ? Q_H_UNIT_LABEL : currentRulerUnit.label;
+            if (marginUnitText !== null) { marginUnitText.text = currentUnitLabel; }
             var selectionSignature = parts[0] + "|" + parts[2];
             if (lastSelectionSignature !== null && selectionSignature !== lastSelectionSignature) {
                 setStatus("");

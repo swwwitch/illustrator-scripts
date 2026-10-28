@@ -243,6 +243,26 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41d8dc1961be"; /* 紹�
         return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
+    /**
+     * 単位の値を pt に換算する
+     * @param {number} value - 単位の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} pt の値
+     */
+    function unitToPt(value, unit) {
+        return value * unit.pointsPerUnit;
+    }
+
+    /**
+     * pt の値を単位の値に換算する
+     * @param {number} ptValue - pt の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} 単位の値
+     */
+    function ptToUnit(ptValue, unit) {
+        return ptValue / unit.pointsPerUnit;
+    }
+
     /* ポップアップに表示する単位コード（表示順、UNITS から派生）/ Unit codes shown in the popup (in order, derived from UNITS) */
     var UNIT_POPUP_CODES = (function () {
         var codes = [];
@@ -276,11 +296,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41d8dc1961be"; /* 紹�
     };
 
     /**
-     * 控えてある定規単位の1単位あたりのポイント数を返す（未知のコードは pt）
-     * @returns {number} 1単位あたりのポイント数
+     * 控えてある定規単位を返す（未知のコードは pt）
+     * @returns {{label: string, pointsPerUnit: number}} UNITS の要素
      */
-    function getCurrentPtPerUnit() {
-        return (UNITS[PREF_STATE.rulerType] || UNITS[2]).pointsPerUnit;
+    function getCachedRulerUnit() {
+        return UNITS[PREF_STATE.rulerType] || UNITS[2];
     }
 
     // =========================================
@@ -386,7 +406,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41d8dc1961be"; /* 紹�
      */
     function saveCursorKeyLengthInCurrentUnit(unitValue) {
         if (isNaN(unitValue) || unitValue < 0) return false;
-        PREF_STATE.cursorKeyLengthPt = unitValue * getCurrentPtPerUnit();
+        PREF_STATE.cursorKeyLengthPt = unitToPt(unitValue, getCachedRulerUnit());
         btSetRealPreference("cursorKeyLength", PREF_STATE.cursorKeyLengthPt);
         return true;
     }
@@ -396,7 +416,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41d8dc1961be"; /* 紹�
      * @returns {string} 表示用の値
      */
     function readCursorKeyLengthInCurrentUnit() {
-        return (PREF_STATE.cursorKeyLengthPt / getCurrentPtPerUnit()).toFixed(1);
+        return ptToUnit(PREF_STATE.cursorKeyLengthPt, getCachedRulerUnit()).toFixed(1);
     }
 
     // UI の明暗（再利用パーツ） / UI theme (reusable)

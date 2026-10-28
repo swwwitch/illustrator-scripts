@@ -1198,9 +1198,31 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne6545c4717af"; /* 紹�
     function getUnitInfo(prefKey) {
         var unitKey = prefKey || "rulerType";
         var unitCode = app.preferences.getIntegerPreference(unitKey);
+        /* 未知のコードは pt に寄せる / unknown codes fall back to points */
         var unit = UNITS[unitCode] || UNITS[2];
+        /* 級（Q）と歯（H）は同じ長さだが、文字サイズは「Q」、距離は「H」と呼び分ける */
         var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
         return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
+    }
+
+    /**
+     * 単位の値を pt に換算する
+     * @param {number} value - 単位の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} pt の値
+     */
+    function unitToPt(value, unit) {
+        return value * unit.pointsPerUnit;
+    }
+
+    /**
+     * pt の値を単位の値に換算する
+     * @param {number} ptValue - pt の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} 単位の値
+     */
+    function ptToUnit(ptValue, unit) {
+        return ptValue / unit.pointsPerUnit;
     }
 
     // =========================================
@@ -2438,16 +2460,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne6545c4717af"; /* 紹�
     }
 
     /* ベースラインの単位は環境設定の「文字」の単位に従う / The baseline unit follows the "text/asianunits" preference */
-    var baselineUnit = getUnitInfo("text/asianunits");
-    var baselineUnitLabel = baselineUnit.label;
-    var baselinePointsPerUnit = baselineUnit.pointsPerUnit;
+    var asianUnit = getUnitInfo("text/asianunits");
+    var baselineUnitLabel = asianUnit.label;
 
     /* 初期値は文字サイズの1/12、スライダーの上限は文字サイズ / The default is 1/12 of the type size; the slider tops out at the type size */
     var firstCharSizePt = (charSnapshots.length > 0) ? charSnapshots[0].character.characterAttributes.size : 0;
-    var defaultBaselineValue = firstCharSizePt ? Math.round(Math.round(firstCharSizePt / 12) / baselinePointsPerUnit) : 0;
+    var defaultBaselineValue = firstCharSizePt ? Math.round(ptToUnit(Math.round(firstCharSizePt / 12), asianUnit)) : 0;
     if (isNaN(defaultBaselineValue)) defaultBaselineValue = 0;
     var baselineSliderMax = firstCharSizePt
-        ? Math.max(1, Math.round(Math.max(1, Math.round(firstCharSizePt)) / baselinePointsPerUnit))
+        ? Math.max(1, Math.round(ptToUnit(Math.max(1, Math.round(firstCharSizePt)), asianUnit)))
         : BASELINE_SLIDER_MAX_FALLBACK;
 
     /**
@@ -2651,7 +2672,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne6545c4717af"; /* 紹�
     function readTouchAmounts() {
         var baselineValue = baselineRow.toggle.value ? parseNumber(baselineRow.field.text) : 0;
         return {
-            baselinePt: (baselineValue === null) ? null : baselineValue * baselinePointsPerUnit,
+            baselinePt: (baselineValue === null) ? null : unitToPt(baselineValue, asianUnit),
             scalePercent: scaleRow.toggle.value ? parseNumber(scaleRow.field.text) : 0,
             rotationDeg: rotationRow.toggle.value ? parseNumber(rotationRow.field.text) : 0,
             kerningEm: kerningRow.toggle.value ? parseNumber(kerningRow.field.text) : 0

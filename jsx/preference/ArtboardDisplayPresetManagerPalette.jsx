@@ -1160,14 +1160,34 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9eba8ab03170"; /* 紹�
     }
 
     /**
+     * 単位の値を pt に換算する
+     * @param {number} value - 単位の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} pt の値
+     */
+    function unitToPt(value, unit) {
+        return value * unit.pointsPerUnit;
+    }
+
+    /**
+     * pt の値を単位の値に換算する
+     * @param {number} ptValue - pt の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} 単位の値
+     */
+    function ptToUnit(ptValue, unit) {
+        return ptValue / unit.pointsPerUnit;
+    }
+
+    /**
      * pt 値を指定単位の表示文字列へ変換する（小数2桁で丸め）
      * @param {number} pointValue - pt 値
-     * @param {object} unitInfo - getUnitInfo() の戻り値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値
      * @returns {string} 表示用文字列（数値でない場合は空文字）
      */
-    function pointToUnitText(pointValue, unitInfo) {
+    function pointToUnitText(pointValue, unit) {
         if (isNaN(pointValue)) return "";
-        return String(Math.round(pointValue / unitInfo.pointsPerUnit * 100) / 100);
+        return String(Math.round(ptToUnit(pointValue, unit) * 100) / 100);
     }
 
     // =========================================
@@ -1771,7 +1791,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9eba8ab03170"; /* 紹�
             refreshArtboardInfo(paletteUI);
             return;
         }
-        runArtboardOperation(paletteUI, "resize", widthValue * rulerUnit.pointsPerUnit, heightValue * rulerUnit.pointsPerUnit, true);
+        runArtboardOperation(paletteUI, "resize", unitToPt(widthValue, rulerUnit), unitToPt(heightValue, rulerUnit), true);
     }
 
     // =========================================

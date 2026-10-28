@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.SplitForTwo
 Name=SplitForTwo
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=2.10.12
+Version=2.10.13
 Release-Date=2026-03-14
 Description-BEGIN
 1つのオブジェクトを選択して実行すると、その外接矩形を左右または上下に2分割し、2色の背景に置き換えます。
@@ -47,10 +47,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SplitForTw
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SplitForTwo";                  /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v2.10.12";                      /* バージョン / version */
+var SCRIPT_VERSION  = "v2.10.13";                      /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-03-14";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-16";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-29";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SplitForTwo.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SplitForTwo.md"; /* README (English) */
@@ -293,7 +293,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1b7b8759e53b"; /* 紹�
     // 単位 / Units
     // =========================================
 
-    /* 単位テーブル（配列の添字が rulerType コードと一致：0=in, 1=mm, 2=pt …）/ Unit table; the array index equals the rulerType code */
+    /* 単位コードに対応する表示ラベルと、1単位あたりのポイント数
+       Unit code -> display label and points per unit */
     var UNITS = [
         { label: "in",    pointsPerUnit: 72 },                /* 0 */
         { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
@@ -313,67 +314,74 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1b7b8759e53b"; /* 紹�
     var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
 
     /**
-     * 設定キーごとの単位情報を取得する
-     * @param {string} prefKey - 環境設定キー（省略時は "rulerType"）
-     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位情報
+     * 環境設定キーの単位を返す
+     * @param {string} [prefKey] - "rulerType"（既定）/ "strokeUnits" / "text/units" / "text/asianunits"
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位の情報
      */
     function getUnitInfo(prefKey) {
         var unitKey = prefKey || "rulerType";
         var unitCode = app.preferences.getIntegerPreference(unitKey);
+        /* 未知のコードは pt に寄せる / unknown codes fall back to points */
         var unit = UNITS[unitCode] || UNITS[2];
+        /* 級（Q）と歯（H）は同じ長さだが、文字サイズは「Q」、距離は「H」と呼び分ける */
         var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
         return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
     /**
-     * 環境設定の単位の値を pt に換算する
+     * 単位の値を pt に換算する
      * @param {number} value - 単位の値
-     * @param {string} prefKey - 環境設定キー
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
      * @returns {number} pt の値
      */
-    function unitToPt(value, prefKey) {
-        return value * getUnitInfo(prefKey).pointsPerUnit;
+    function unitToPt(value, unit) {
+        return value * unit.pointsPerUnit;
     }
 
     /**
-     * pt の値を環境設定の単位に換算する
-     * @param {number} valuePt - pt の値
-     * @param {string} prefKey - 環境設定キー
+     * pt の値を単位の値に換算する
+     * @param {number} ptValue - pt の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
      * @returns {number} 単位の値
      */
-    function ptToUnit(valuePt, prefKey) {
-        return valuePt / getUnitInfo(prefKey).pointsPerUnit;
+    function ptToUnit(ptValue, unit) {
+        return ptValue / unit.pointsPerUnit;
     }
 
     /**
      * 単位の大きさに合わせて丸める（pt・Q は小数1桁、mm は2桁、in・cm・ft など1単位が10pt以上は3桁）
      * @param {number} value - 単位の値
-     * @param {string} prefKey - 環境設定キー
+     * @param {{pointsPerUnit: number}} unit - 値の単位（getUnitInfo() の戻り値）
      * @returns {number} 丸めた値
      */
-    function roundUnitValue(value, prefKey) {
-        var pointsPerUnit = getUnitInfo(prefKey).pointsPerUnit;
-        var scale = (pointsPerUnit >= 10) ? 1000 : (pointsPerUnit >= 2) ? 100 : 10;
+    function roundUnitValue(value, unit) {
+        var oneUnitPt = unitToPt(1, unit); /* 1単位の pt / one unit in pt */
+        var scale = 10;
+        if (oneUnitPt >= 10) {
+            scale = 1000;
+        } else if (oneUnitPt >= 2) {
+            scale = 100;
+        }
         return Math.round(value * scale) / scale;
     }
 
     /**
      * 入力欄の中に出す単位（「 mm」の形。前に半角スペース）を返す
-     * @param {string} prefKey - 環境設定キー
+     * @param {{label: string}} unit - 単位（getUnitInfo() の戻り値）
      * @returns {string} 単位の文字列
      */
-    function getUnitSuffix(prefKey) {
-        return " " + getUnitInfo(prefKey).label;
+    function getUnitSuffix(unit) {
+        return " " + unit.label;
     }
 
     /**
      * 単位の値を入力欄の文字列にする（「20 mm」の形）
      * @param {number} value - 単位の値
-     * @param {string} prefKey - 環境設定キー
+     * @param {{label: string, pointsPerUnit: number}} unit - 値の単位（getUnitInfo() の戻り値）
      * @returns {string} 表示用の文字列
      */
-    function formatUnitValue(value, prefKey) {
-        return String(roundUnitValue(value, prefKey)) + getUnitSuffix(prefKey);
+    function formatUnitValue(value, unit) {
+        return String(roundUnitValue(value, unit)) + getUnitSuffix(unit);
     }
 
     // UI の明暗（再利用パーツ） / UI theme (reusable)
@@ -3681,9 +3689,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1b7b8759e53b"; /* 紹�
         controls.overallFrameCheckbox.value = !!presetData.overallFrame;
         controls.dividerCheckbox.value = !!presetData.divider;
         var presetStrokeUnit = parseFloat(presetData.strokeUnit);
+        var strokeUnit = getUnitInfo("strokeUnits");
         controls.strokeInput.text = isNaN(presetStrokeUnit)
-            ? formatUnitValue(ptToUnit(DEFAULT_STROKE_PT, "strokeUnits"), "strokeUnits")
-            : formatUnitValue(presetStrokeUnit, "strokeUnits");
+            ? formatUnitValue(ptToUnit(DEFAULT_STROKE_PT, strokeUnit), strokeUnit)
+            : formatUnitValue(presetStrokeUnit, strokeUnit);
         controls.strokeColorSwatch.setColor(presetData.strokeColor || DEFAULT_STROKE_COLOR);
         controls.pillCheckbox.value = !!presetData.cornerAuto;
 
@@ -3888,7 +3897,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1b7b8759e53b"; /* 紹�
     function addBalanceRow(parent, reservedLabel) {
         var rowGroup = addRow(parent);
         var sideLabel = rowGroup.add("statictext", undefined, reservedLabel);
-        var widthInput = addSteppedInput(rowGroup, formatUnitValue(0, "rulerType"), { min: 0, unit: getUnitSuffix("rulerType") });
+        var rulerUnit = getUnitInfo("rulerType");
+        var widthInput = addSteppedInput(rowGroup, formatUnitValue(0, rulerUnit), { min: 0, unit: getUnitSuffix(rulerUnit) });
         widthInput.helpTip = getLabel("tooltip.width");
         widthInput.characters = WIDTH_INPUT_CHARS;
         var percentInput = addSteppedInput(rowGroup, "50%", { min: 0, max: 100, unit: "%" });
@@ -3971,8 +3981,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1b7b8759e53b"; /* 紹�
 
         controls.strokeRowGroup = addRow(strokePanel);
         controls.strokeRowGroup.add("statictext", undefined, labelText("fieldLabel.strokeWidth"));
+        var strokeUnit = getUnitInfo("strokeUnits");
         controls.strokeInput = addSteppedInput(controls.strokeRowGroup,
-            formatUnitValue(ptToUnit(session.strokeWidthPt, "strokeUnits"), "strokeUnits"), { min: 0, unit: getUnitSuffix("strokeUnits") });
+            formatUnitValue(ptToUnit(session.strokeWidthPt, strokeUnit), strokeUnit), { min: 0, unit: getUnitSuffix(strokeUnit) });
         controls.strokeInput.helpTip = getLabel("tooltip.strokeWidth");
         controls.strokeInput.characters = STROKE_INPUT_CHARS;
 
@@ -3992,8 +4003,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1b7b8759e53b"; /* 紹�
     function addCornerRow(parent, labelKey, checked, radiusPt) {
         var rowGroup = addRow(parent);
         var cornerCheckbox = addCheckbox(rowGroup, labelKey, "tooltip.corner", checked);
-        var radiusInput = addSteppedInput(rowGroup, formatUnitValue(ptToUnit(radiusPt, "rulerType"), "rulerType"),
-            { min: 0, unit: getUnitSuffix("rulerType") });
+        var rulerUnit = getUnitInfo("rulerType");
+        var radiusInput = addSteppedInput(rowGroup, formatUnitValue(ptToUnit(radiusPt, rulerUnit), rulerUnit),
+            { min: 0, unit: getUnitSuffix(rulerUnit) });
         radiusInput.helpTip = getLabel("tooltip.corner");
         radiusInput.characters = CORNER_INPUT_CHARS;
         return { checkbox: cornerCheckbox, input: radiusInput };
@@ -4058,7 +4070,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1b7b8759e53b"; /* 紹�
         var splitLengthPt = controls.splitTBRadio.value
             ? (targetBounds[1] - targetBounds[3])
             : (targetBounds[2] - targetBounds[0]);
-        controls.balanceMax = Math.max(roundUnitValue(ptToUnit(splitLengthPt / 2, "rulerType"), "rulerType"), 0);
+        var rulerUnit = getUnitInfo("rulerType");
+        controls.balanceMax = Math.max(roundUnitValue(ptToUnit(splitLengthPt / 2, rulerUnit), rulerUnit), 0);
         controls.balanceSlider.minvalue = -controls.balanceMax;
         controls.balanceSlider.maxvalue = controls.balanceMax;
         syncBalanceFromOffset(controls, 0, null);
@@ -4073,7 +4086,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1b7b8759e53b"; /* 紹�
     function clampOffset(controls, offsetValue) {
         var offsetUnit = Number(offsetValue);
         if (isNaN(offsetUnit)) return 0;
-        return roundUnitValue(clampNumber(offsetUnit, -controls.balanceMax, controls.balanceMax), "rulerType");
+        return roundUnitValue(clampNumber(offsetUnit, -controls.balanceMax, controls.balanceMax), getUnitInfo("rulerType"));
     }
 
     /**
@@ -4098,8 +4111,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1b7b8759e53b"; /* 紹�
         var offsetUnit = clampOffset(controls, offsetValue);
         var maxUnit = controls.balanceMax;
         controls.balanceSlider.value = offsetUnit;
-        setInputText(controls.firstBalance.widthInput, formatUnitValue(maxUnit + offsetUnit, "rulerType"), skipInput);
-        setInputText(controls.secondBalance.widthInput, formatUnitValue(maxUnit - offsetUnit, "rulerType"), skipInput);
+        var rulerUnit = getUnitInfo("rulerType");
+        setInputText(controls.firstBalance.widthInput, formatUnitValue(maxUnit + offsetUnit, rulerUnit), skipInput);
+        setInputText(controls.secondBalance.widthInput, formatUnitValue(maxUnit - offsetUnit, rulerUnit), skipInput);
         var firstPercent = (maxUnit > 0) ? Math.round((maxUnit + offsetUnit) / (2 * maxUnit) * 100) : 50;
         var secondPercent = (maxUnit > 0) ? Math.round((maxUnit - offsetUnit) / (2 * maxUnit) * 100) : 50;
         setInputText(controls.firstBalance.percentInput, firstPercent + "%", skipInput);
@@ -4143,7 +4157,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1b7b8759e53b"; /* 紹�
         var halfLongSidePt = (vertical ? heightPt : widthPt) / 2;
         var offsetPt = halfLongSidePt - shortSidePt;
         if (side === "first") offsetPt = -offsetPt;
-        syncBalanceFromOffset(controls, ptToUnit(offsetPt, "rulerType"), null);
+        syncBalanceFromOffset(controls, ptToUnit(offsetPt, getUnitInfo("rulerType")), null);
     }
 
     /**
@@ -4175,7 +4189,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1b7b8759e53b"; /* 紹�
     function readStrokeWidthPt(controls) {
         var strokeWidthUnit = parseFloat(controls.strokeInput.text); /* 「1 pt」→ 1 */
         if (isNaN(strokeWidthUnit) || strokeWidthUnit <= 0) return null;
-        return unitToPt(strokeWidthUnit, "strokeUnits");
+        return unitToPt(strokeWidthUnit, getUnitInfo("strokeUnits"));
     }
 
     /**
@@ -4186,7 +4200,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1b7b8759e53b"; /* 紹�
     function readCornerRadiusPt(radiusInput) {
         var radiusUnit = parseFloat(radiusInput.text); /* 「2 mm」→ 2 */
         if (isNaN(radiusUnit) || radiusUnit < 0) return 0;
-        return unitToPt(radiusUnit, "rulerType");
+        return unitToPt(radiusUnit, getUnitInfo("rulerType"));
     }
 
     /**
@@ -4278,7 +4292,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1b7b8759e53b"; /* 紹�
 
         return {
             vertical: controls.splitTBRadio.value,
-            offsetPt: unitToPt(clampOffset(controls, controls.balanceSlider.value), "rulerType"),
+            offsetPt: unitToPt(clampOffset(controls, controls.balanceSlider.value), getUnitInfo("rulerType")),
             fillFirst: controls.fillFirstCheckbox.value,
             fillSecond: controls.fillSecondCheckbox.value,
             firstColor: parseColorString(controls.firstColorSwatch.getColor()),
@@ -4518,7 +4532,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1b7b8759e53b"; /* 紹�
             var corner = controls.corners[cornerKey];
             var radiusUnit = parseFloat(corner.input.text);
             session.cornerEnabled[cornerKey] = corner.checkbox.value;
-            if (!isNaN(radiusUnit) && radiusUnit >= 0) session.cornerRadiusPt[cornerKey] = unitToPt(radiusUnit, "rulerType");
+            if (!isNaN(radiusUnit) && radiusUnit >= 0) session.cornerRadiusPt[cornerKey] = unitToPt(radiusUnit, getUnitInfo("rulerType"));
         }
         settingsStore.save(session);
     }

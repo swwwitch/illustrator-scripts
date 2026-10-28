@@ -466,18 +466,24 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
-    /* pt換算ユーティリティ / Unit conversion (to/from pt) */
-    // NOTE: Illustrator内部はpt想定。UI入力は各prefKeyの単位で受け取り、内部でptへ変換する。
-    function unitToPt(value, prefKey) {
-        var v = Number(value);
-        if (isNaN(v)) return NaN;
-        return v * getUnitInfo(prefKey).pointsPerUnit;
+    /**
+     * 単位の値を pt に換算する
+     * @param {number} value - 単位の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} pt の値
+     */
+    function unitToPt(value, unit) {
+        return value * unit.pointsPerUnit;
     }
 
-    function ptToUnit(ptValue, prefKey) {
-        var v = Number(ptValue);
-        if (isNaN(v)) return NaN;
-        return v / getUnitInfo(prefKey).pointsPerUnit;
+    /**
+     * pt の値を単位の値に換算する
+     * @param {number} ptValue - pt の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} 単位の値
+     */
+    function ptToUnit(ptValue, unit) {
+        return ptValue / unit.pointsPerUnit;
     }
 
     function formatUnitValue(v) {
@@ -1918,7 +1924,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             var etStrokeStepperGroup = addStepperFieldGroup(lineRow);
             var etStroke;
             var etStrokeStepper = addStepper(etStrokeStepperGroup, function () { return etStroke; }, { min: 0, onStep: applyPreview });
-            etStroke = etStrokeStepperGroup.add('edittext', undefined, formatUnitValue(ptToUnit(1, "strokeUnits")));
+            etStroke = etStrokeStepperGroup.add('edittext', undefined, formatUnitValue(ptToUnit(1, getUnitInfo("strokeUnits"))));
             etStroke.helpTip = getLabel('tipStroke');
             etStroke.characters = 4;
             bindSteppedArrowKeys(etStroke, etStrokeStepper);
@@ -1934,7 +1940,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             var etCornerStepperGroup = addStepperFieldGroup(cornerRow);
             var etCorner;
             var etCornerStepper = addStepper(etCornerStepperGroup, function () { return etCorner; }, { min: 0, onStep: applyPreview });
-            etCorner = etCornerStepperGroup.add('edittext', undefined, formatUnitValue(ptToUnit(0, "rulerType")));
+            etCorner = etCornerStepperGroup.add('edittext', undefined, formatUnitValue(ptToUnit(0, getUnitInfo("rulerType"))));
             etCorner.helpTip = getLabel('tipCorner');
             etCorner.characters = 4;
             bindSteppedArrowKeys(etCorner, etCornerStepper);
@@ -2075,7 +2081,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                     var gapPt = item2Left - item1Right;
                     if (gapPt < 0) gapPt = 0;
 
-                    maxUnit = ptToUnit(gapPt, "rulerType");
+                    maxUnit = ptToUnit(gapPt, getUnitInfo("rulerType"));
                     if (isNaN(maxUnit) || maxUnit < 0) maxUnit = 0;
                     // keep 0.1 in UI
                     maxUnit = Math.round(maxUnit * 10) / 10;
@@ -2150,7 +2156,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 if (isNaN(vUnit) || vUnit <= 0) return null;
                 // round to 0.1 (UI単位)
                 vUnit = Math.round(vUnit * 10) / 10;
-                var vPt = unitToPt(vUnit, "strokeUnits");
+                var vPt = unitToPt(vUnit, getUnitInfo("strokeUnits"));
                 if (isNaN(vPt) || vPt <= 0) return null;
                 // internal pt: keep 0.1pt precision
                 vPt = Math.round(vPt * 10) / 10;
@@ -2162,7 +2168,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 if (isNaN(vUnit) || vUnit < 0) return null;
                 // round to 0.1 (UI単位)
                 vUnit = Math.round(vUnit * 10) / 10;
-                var vPt = unitToPt(vUnit, "rulerType");
+                var vPt = unitToPt(vUnit, getUnitInfo("rulerType"));
                 if (isNaN(vPt) || vPt < 0) return null;
                 // internal pt: keep 0.1pt precision
                 vPt = Math.round(vPt * 10) / 10;
@@ -2187,7 +2193,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 slWidth.value = vUnit;
                 etWidth.text = String(vUnit);
 
-                var vPt = unitToPt(vUnit, "rulerType");
+                var vPt = unitToPt(vUnit, getUnitInfo("rulerType"));
                 if (isNaN(vPt) || vPt < 0) vPt = 0;
 
                 // internal pt: keep 0.1pt precision

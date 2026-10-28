@@ -958,6 +958,16 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
+    /**
+     * 単位の値を pt に換算する
+     * @param {number} value - 単位の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} pt の値
+     */
+    function unitToPt(value, unit) {
+        return value * unit.pointsPerUnit;
+    }
+
     // =========================================
     // 数値の収集 / Number collection
     // =========================================
@@ -1384,7 +1394,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                         descending: descRadio.value,
                         random: randomRadio.value,
                         spacingMode: fitRadio.value ? "fit" : "custom",
-                        spacingValue: parseFloat(spacingInput.text) * rulerUnit.pointsPerUnit
+                        spacingValue: unitToPt(parseFloat(spacingInput.text), rulerUnit)
                     };
                     break;
                 }

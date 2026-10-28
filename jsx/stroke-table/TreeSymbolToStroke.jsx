@@ -2032,6 +2032,26 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc961754b7cad"; /* 紹�
         return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
+    /**
+     * 単位の値を pt に換算する
+     * @param {number} value - 単位の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} pt の値
+     */
+    function unitToPt(value, unit) {
+        return value * unit.pointsPerUnit;
+    }
+
+    /**
+     * pt の値を単位の値に換算する
+     * @param {number} ptValue - pt の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} 単位の値
+     */
+    function ptToUnit(ptValue, unit) {
+        return ptValue / unit.pointsPerUnit;
+    }
+
     // =========================================
     // ツリー記号 / Tree symbols
     // =========================================
@@ -3896,7 +3916,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc961754b7cad"; /* 紹�
                 min: 0,
                 unit: " " + editorOptions.unit.label
             };
-            fieldOptions.text = formatSteppedValue(editorOptions.positions[entry.key] / editorOptions.unit.pointsPerUnit, fieldOptions);
+            fieldOptions.text = formatSteppedValue(ptToUnit(editorOptions.positions[entry.key], editorOptions.unit), fieldOptions);
             fieldOptions.onStep = onFieldChanged;
             var positionInput = addSteppedField(parentPanel, fieldOptions);
             positionInput.helpTip = entry.tooltip;
@@ -3925,7 +3945,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc961754b7cad"; /* 紹�
          * @returns {void}
          */
         function fixInput(positionInput) {
-            editorOptions.overrides[positionInput.entry.key] = parseFloat(positionInput.text) * editorOptions.unit.pointsPerUnit;
+            editorOptions.overrides[positionInput.entry.key] = unitToPt(parseFloat(positionInput.text), editorOptions.unit);
         }
 
         /**
@@ -3997,7 +4017,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc961754b7cad"; /* 紹�
         function reset() {
             for (var k = 0; k < orderedInputs.length; k++) {
                 var entryKey = orderedInputs[k].entry.key;
-                writeSteppedValue(orderedInputs[k], editorOptions.positions[entryKey] / editorOptions.unit.pointsPerUnit, orderedInputs[k].stepOptions);
+                writeSteppedValue(orderedInputs[k], ptToUnit(editorOptions.positions[entryKey], editorOptions.unit), orderedInputs[k].stepOptions);
                 delete editorOptions.overrides[entryKey];
             }
             if (linkToggle) setLinkToggleValue(linkToggle, false);
@@ -4021,7 +4041,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc961754b7cad"; /* 紹�
         setupPanel(linesPanel);
 
         var strokeWidthOptions = { label: labelText("fieldLabel.strokeWidth"), labelWidth: FIELD_LABEL_WIDTH, characters: NUMBER_FIELD_CHARS, step: 1, min: 0.01, unit: " " + strokeUnit.label };
-        strokeWidthOptions.text = formatSteppedValue(DEFAULT_STROKE_WIDTH_PT / strokeUnit.pointsPerUnit, strokeWidthOptions);
+        strokeWidthOptions.text = formatSteppedValue(ptToUnit(DEFAULT_STROKE_WIDTH_PT, strokeUnit), strokeWidthOptions);
         strokeWidthOptions.onStep = onChanged;
         var strokeWidthInput = addSteppedField(linesPanel, strokeWidthOptions);
         strokeWidthInput.helpTip = getLabel("tooltip.strokeWidth");
@@ -4107,7 +4127,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc961754b7cad"; /* 紹�
              */
             readSettings: function (conversionSettings) {
                 var strokeWidthValue = parseFloat(strokeWidthInput.text);
-                conversionSettings.strokeWidthPt = (strokeWidthValue > 0) ? strokeWidthValue * strokeUnit.pointsPerUnit : DEFAULT_STROKE_WIDTH_PT;
+                conversionSettings.strokeWidthPt = (strokeWidthValue > 0) ? unitToPt(strokeWidthValue, strokeUnit) : DEFAULT_STROKE_WIDTH_PT;
                 conversionSettings.strokeColor = lineColor;
                 conversionSettings.roundCap = roundCapRadio.value;
                 conversionSettings.attachArmsToBox = attachArmsCheckbox.value;
@@ -4131,7 +4151,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc961754b7cad"; /* 紹�
         setupPanel(textPanel);
 
         var leadingOptions = { label: labelText("fieldLabel.leading"), labelWidth: FIELD_LABEL_WIDTH, characters: NUMBER_FIELD_CHARS, step: 1, min: 0.1, unit: " " + leadingUnit.label };
-        leadingOptions.text = formatSteppedValue(readCellMetrics(firstTextFrame.characters[0]).leading / leadingUnit.pointsPerUnit, leadingOptions);
+        leadingOptions.text = formatSteppedValue(ptToUnit(readCellMetrics(firstTextFrame.characters[0]).leading, leadingUnit), leadingOptions);
         leadingOptions.onStep = onLeadingChanged;
         var leadingInput = addSteppedField(textPanel, leadingOptions);
         leadingInput.helpTip = getLabel("tooltip.leading");
@@ -4142,7 +4162,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc961754b7cad"; /* 紹�
          * @returns {void}
          */
         function onLeadingChanged() {
-            leadingOverridePt = parseFloat(leadingInput.text) * leadingUnit.pointsPerUnit;
+            leadingOverridePt = unitToPt(parseFloat(leadingInput.text), leadingUnit);
             onChanged();
         }
 
@@ -4195,7 +4215,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc961754b7cad"; /* 紹�
          */
         function addBoxMarginField(parent, labelPath, tooltipPath) {
             var marginOptions = { label: labelText(labelPath), labelWidth: FIELD_LABEL_WIDTH, characters: NUMBER_FIELD_CHARS, step: 1, min: 0, unit: " " + boxMarginUnit.label };
-            marginOptions.text = formatSteppedValue(defaultBoxMarginPt / boxMarginUnit.pointsPerUnit, marginOptions);
+            marginOptions.text = formatSteppedValue(ptToUnit(defaultBoxMarginPt, boxMarginUnit), marginOptions);
             var marginInput;
             marginOptions.onStep = function () { onBoxMarginChanged(marginInput); };
             marginInput = addSteppedField(parent, marginOptions);
@@ -4231,7 +4251,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc961754b7cad"; /* 紹�
          */
         function readBoxMarginPt(marginInput) {
             var marginValue = parseFloat(marginInput.text);
-            return (marginValue >= 0) ? marginValue * boxMarginUnit.pointsPerUnit : defaultBoxMarginPt;
+            return (marginValue >= 0) ? unitToPt(marginValue, boxMarginUnit) : defaultBoxMarginPt;
         }
         /* マージンの欄の下に字下げして置く / indented under the margin fields */
         var boxOptionGroup = textPanel.add("group");

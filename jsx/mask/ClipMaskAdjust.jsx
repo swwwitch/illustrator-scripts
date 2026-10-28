@@ -1305,21 +1305,23 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /**
-     * 定規の単位の値を pt にする
-     * @param {number} unitValue - 定規の単位での値
+     * 単位の値を pt に換算する
+     * @param {number} value - 単位の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
      * @returns {number} pt の値
      */
-    function unitValueToPt(unitValue) {
-        return unitValue * getUnitInfo().pointsPerUnit;
+    function unitToPt(value, unit) {
+        return value * unit.pointsPerUnit;
     }
 
     /**
-     * pt の値を定規の単位にする
+     * pt の値を単位の値に換算する
      * @param {number} ptValue - pt の値
-     * @returns {number} 定規の単位での値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} 単位の値
      */
-    function ptToUnitValue(ptValue) {
-        return ptValue / getUnitInfo().pointsPerUnit;
+    function ptToUnit(ptValue, unit) {
+        return ptValue / unit.pointsPerUnit;
     }
 
     // =========================================
@@ -1922,7 +1924,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         if (!clipPath) return null;
         var maskBounds = clipPath.geometricBounds; /* [L, T, R, B] */
         var radiusPt = ((maskBounds[2] - maskBounds[0]) + (maskBounds[1] - maskBounds[3])) / 25;
-        return Math.ceil(ptToUnitValue(radiusPt));
+        return Math.ceil(ptToUnit(radiusPt, getUnitInfo()));
     }
 
     /**
@@ -2772,9 +2774,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             maskMode: maskMode,
             applyRound: !!dialogControls.checkboxRound.value,
             manualScale: parseFloat(dialogControls.scaleInput.text) || 100,
-            roundRadiusPt: unitValueToPt(parseFloat(dialogControls.roundInput.text) || 0),
-            nudgeX: unitValueToPt(parseFloat(dialogControls.nudgeXInput.text) || 0),
-            nudgeY: unitValueToPt(parseFloat(dialogControls.nudgeYInput.text) || 0)
+            roundRadiusPt: unitToPt(parseFloat(dialogControls.roundInput.text) || 0, getUnitInfo()),
+            nudgeX: unitToPt(parseFloat(dialogControls.nudgeXInput.text) || 0, getUnitInfo()),
+            nudgeY: unitToPt(parseFloat(dialogControls.nudgeYInput.text) || 0, getUnitInfo())
         };
     }
 
@@ -2790,7 +2792,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         /* 線幅なども含めた見た目の寸法 / Visible size including the stroke */
         var maskBounds = clipPath.visibleBounds;
         var radiusPt = Math.min(maskBounds[2] - maskBounds[0], maskBounds[1] - maskBounds[3]) / 2;
-        dialogControls.roundInput.text = String(Math.round(ptToUnitValue(radiusPt) * 100) / 100);
+        dialogControls.roundInput.text = String(Math.round(ptToUnit(radiusPt, getUnitInfo()) * 100) / 100);
     }
 
     /**
@@ -2898,7 +2900,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             if (dialogControls.checkboxCircle.value) {
                 dialogControls.checkboxRound.value = true;
                 setRoundRadiusToHalfOfMask(dialogControls, primaryClipGroup);
-                var radiusPt = unitValueToPt(parseFloat(dialogControls.roundInput.text) || 0);
+                var radiusPt = unitToPt(parseFloat(dialogControls.roundInput.text) || 0, getUnitInfo());
                 /* 既存の角丸があれば半径だけ更新し、無ければアピアランスを消去して付け直す
                    Update the radius in place; otherwise clear the appearance and re-apply */
                 if (!updateRoundCornersRadiusOnly(primaryClipGroup, radiusPt)) {

@@ -63,8 +63,8 @@ var SCRIPT_MARKER = "__ExtendLines__";
     // ユーザー設定 / User Settings
     // =========================================
 
-    /* 線幅の既定値（0.1mm を pt で）/ Default stroke width (0.1 mm in points) */
-    var DEFAULT_STROKE_WIDTH_PT = 0.1 * 72.0 / 25.4;
+    /* 線幅の既定値（mm）/ Default stroke width (mm) */
+    var DEFAULT_STROKE_WIDTH_MM = 0.1;
 
     /* ［別レイヤーに］の描画先レイヤー名 / Layer used by "Separate layer" */
     var CONSTRUCTION_LAYER_NAME = "_construction";
@@ -458,7 +458,8 @@ var SCRIPT_MARKER = "__ExtendLines__";
     // 単位 / Units
     // =========================================
 
-    /* 単位テーブル（配列の添字が rulerType コードと一致：0=in, 1=mm, 2=pt …）/ Unit table; the array index equals the rulerType code */
+    /* 単位コードに対応する表示ラベルと、1単位あたりのポイント数
+       Unit code -> display label and points per unit */
     var UNITS = [
         { label: "in",    pointsPerUnit: 72 },                /* 0 */
         { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
@@ -478,16 +479,38 @@ var SCRIPT_MARKER = "__ExtendLines__";
     var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
 
     /**
-     * 設定キーごとの単位情報を取得する
-     * @param {string} prefKey - 環境設定キー（省略時は "rulerType"）
-     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位情報
+     * 環境設定キーの単位を返す
+     * @param {string} [prefKey] - "rulerType"（既定）/ "strokeUnits" / "text/units" / "text/asianunits"
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位の情報
      */
     function getUnitInfo(prefKey) {
         var unitKey = prefKey || "rulerType";
         var unitCode = app.preferences.getIntegerPreference(unitKey);
+        /* 未知のコードは pt に寄せる / unknown codes fall back to points */
         var unit = UNITS[unitCode] || UNITS[2];
+        /* 級（Q）と歯（H）は同じ長さだが、文字サイズは「Q」、距離は「H」と呼び分ける */
         var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
         return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
+    }
+
+    /**
+     * 単位の値を pt に換算する
+     * @param {number} value - 単位の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} pt の値
+     */
+    function unitToPt(value, unit) {
+        return value * unit.pointsPerUnit;
+    }
+
+    /**
+     * pt の値を単位の値に換算する
+     * @param {number} ptValue - pt の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} 単位の値
+     */
+    function ptToUnit(ptValue, unit) {
+        return ptValue / unit.pointsPerUnit;
     }
 
     // UI の明暗（再利用パーツ） / UI theme (reusable)
@@ -1440,7 +1463,7 @@ var SCRIPT_MARKER = "__ExtendLines__";
         strokeRow.add("statictext", undefined, labelText("fieldLabel.strokeWidth"));
 
         var strokeUnit = getUnitInfo("strokeUnits");
-        var defaultUnitValue = DEFAULT_STROKE_WIDTH_PT / strokeUnit.pointsPerUnit;
+        var defaultUnitValue = ptToUnit(unitToPt(DEFAULT_STROKE_WIDTH_MM, UNITS[1]), strokeUnit);
         /* ∧∨と入力欄は隙間0で突き合わせる / butt the stepper against the field */
         var strokeStepperGroup = strokeRow.add("group");
         strokeStepperGroup.orientation = "row";
@@ -1523,7 +1546,7 @@ var SCRIPT_MARKER = "__ExtendLines__";
         var dialogUI = buildDialog();
 
         /* 線幅の最後の有効値（入力途中で NaN や 0 になったときに使う）/ Last valid stroke width, used while the field is mid-edit */
-        var lastValidStrokeWidthPt = DEFAULT_STROKE_WIDTH_PT;
+        var lastValidStrokeWidthPt = unitToPt(DEFAULT_STROKE_WIDTH_MM, UNITS[1]);
 
         /* プレビュー用レイヤー名（ダイアログごとに一意）/ Preview layer name (unique per dialog) */
         var previewLayerName = createUniqueLayerName(doc, PREVIEW_LAYER_BASE_NAME);
@@ -1533,11 +1556,11 @@ var SCRIPT_MARKER = "__ExtendLines__";
          * @returns {number} 線幅（pt）
          */
         function readStrokeWidthPt() {
-            var pointsPerUnit = getUnitInfo("strokeUnits").pointsPerUnit;
+            var currentStrokeUnit = getUnitInfo("strokeUnits");
             var enteredValue = parseLocaleNumber(dialogUI.strokeWidthInput.text);
             if (!(enteredValue > 0)) return lastValidStrokeWidthPt;
 
-            var strokeWidthPt = enteredValue * pointsPerUnit;
+            var strokeWidthPt = unitToPt(enteredValue, currentStrokeUnit);
             if (!(strokeWidthPt > 0)) return lastValidStrokeWidthPt;
 
             lastValidStrokeWidthPt = strokeWidthPt;
@@ -2459,7 +2482,7 @@ var SCRIPT_MARKER = "__ExtendLines__";
             blackColor.black = 100;
             pathItem.strokeColor = blackColor;
 
-            pathItem.strokeWidth = (strokeWidthPt && strokeWidthPt > 0) ? strokeWidthPt : DEFAULT_STROKE_WIDTH_PT;
+            pathItem.strokeWidth = (strokeWidthPt && strokeWidthPt > 0) ? strokeWidthPt : unitToPt(DEFAULT_STROKE_WIDTH_MM, UNITS[1]);
         }
     }
 

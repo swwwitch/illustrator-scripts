@@ -1093,9 +1093,31 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
     function getUnitInfo(prefKey) {
         var unitKey = prefKey || "rulerType";
         var unitCode = app.preferences.getIntegerPreference(unitKey);
+        /* 未知のコードは pt に寄せる / unknown codes fall back to points */
         var unit = UNITS[unitCode] || UNITS[2];
+        /* 級（Q）と歯（H）は同じ長さだが、文字サイズは「Q」、距離は「H」と呼び分ける */
         var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
         return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
+    }
+
+    /**
+     * 単位の値を pt に換算する
+     * @param {number} value - 単位の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} pt の値
+     */
+    function unitToPt(value, unit) {
+        return value * unit.pointsPerUnit;
+    }
+
+    /**
+     * pt の値を単位の値に換算する
+     * @param {number} ptValue - pt の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} 単位の値
+     */
+    function ptToUnit(ptValue, unit) {
+        return ptValue / unit.pointsPerUnit;
     }
 
     // =========================================
@@ -1381,7 +1403,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
         var previewManager = new PreviewManager();
         var textUnit = getUnitInfo("text/units");
         var unitLabel = textUnit.label;
-        var unitFactor = textUnit.pointsPerUnit;
 
         var adjustDialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
         setupWindow(adjustDialog);
@@ -1414,7 +1435,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
             var size = readNumber(sizeInput);
             var scale = readNumber(scaleInput);
             if (size === null && scale === null) return;
-            var sizeInPt = (size === null) ? null : size * unitFactor;
+            var sizeInPt = (size === null) ? null : unitToPt(size, textUnit);
             forEachChar(targetRanges, function (character) {
                 if (sizeInPt !== null) character.size = sizeInPt;
                 if (scale !== null) {
@@ -1457,7 +1478,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
                Reloading the actual values invalidates the saved pre-bake (toggle) state */
             apparentToggleState = null;
             var firstChar = findFirstChar(targetRanges);
-            sizeInput.text = firstChar ? roundToTenth(firstChar.size / unitFactor) + "" : "";
+            sizeInput.text = firstChar ? roundToTenth(ptToUnit(firstChar.size, textUnit)) + "" : "";
             scaleInput.text = firstChar ? roundToTenth(firstChar.characterAttributes.horizontalScale) + "" : "";
             updateApparentSizeDisplay();
         }

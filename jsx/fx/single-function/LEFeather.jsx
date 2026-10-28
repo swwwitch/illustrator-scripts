@@ -284,6 +284,26 @@ The radius input matches the current ruler unit (rulerType) and is converted to 
         return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
+    /**
+     * 単位の値を pt に換算する
+     * @param {number} value - 単位の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} pt の値
+     */
+    function unitToPt(value, unit) {
+        return value * unit.pointsPerUnit;
+    }
+
+    /**
+     * pt の値を単位の値に換算する
+     * @param {number} ptValue - pt の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} 単位の値
+     */
+    function ptToUnit(ptValue, unit) {
+        return ptValue / unit.pointsPerUnit;
+    }
+
     // ================================================================================
     // ヘルパー関数 / Helper functions
     // ================================================================================
@@ -1076,12 +1096,12 @@ The radius input matches the current ruler unit (rulerType) and is converted to 
 
     var rulerUnit = getUnitInfo();
     var defaultPt = 10;
-    var defaultInUnit = Math.round((defaultPt / rulerUnit.pointsPerUnit) * 100) / 100;
+    var defaultInUnit = Math.round(ptToUnit(defaultPt, rulerUnit) * 100) / 100;
 
     var radiusInUnit = promptRadius(rulerUnit, defaultInUnit);
     if (radiusInUnit === null) return;
 
-    var radiusPt = radiusInUnit * rulerUnit.pointsPerUnit;
+    var radiusPt = unitToPt(radiusInUnit, rulerUnit);
 
     for (var i = 0; i < app.selection.length; i++) {
         applyFeather(app.selection[i], radiusPt);

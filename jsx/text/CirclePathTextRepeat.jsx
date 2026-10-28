@@ -546,6 +546,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na9334a217ec3"; /* 紹�
         return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
+    /**
+     * 単位の値を pt に換算する
+     * @param {number} value - 単位の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} pt の値
+     */
+    function unitToPt(value, unit) {
+        return value * unit.pointsPerUnit;
+    }
+
     // =========================================
     // レイアウトの共通処理 / Shared layout helpers
     // =========================================
@@ -1792,17 +1802,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na9334a217ec3"; /* 紹�
     /**
      * ダイアログの入力値をまとめて読み取る
      * @param {Object} dialogControls - buildDialog() の戻り値
-     * @param {{pointsPerUnit: number}} textUnitInfo - 環境設定のテキスト単位
+     * @param {{pointsPerUnit: number}} textUnit - 環境設定のテキスト単位
      * @returns {RepeatSettings} 現在の設定
      */
-    function readSettings(dialogControls, textUnitInfo) {
+    function readSettings(dialogControls, textUnit) {
         return {
             repeatCount: parsePositiveInteger(dialogControls.repeatCountInput.text),
             useCharSeparator: dialogControls.separatorCharRadio.value,
             separatorChar: dialogControls.separatorCharInput.text,
             spaceCount: parsePositiveInteger(dialogControls.spaceCountInput.text) || DEFAULT_SPACE_COUNT,
             separatorScale: parsePositiveNumber(dialogControls.scaleInput.text) || DEFAULT_SEPARATOR_SCALE,
-            baselineShiftPt: parseNumberOr(dialogControls.baselineInput.text, 0) * textUnitInfo.pointsPerUnit,
+            baselineShiftPt: unitToPt(parseNumberOr(dialogControls.baselineInput.text, 0), textUnit),
             correctionPercent: parsePositiveNumber(dialogControls.correctionInput.text),
             rotationAngle: parseNumberOr(dialogControls.rotationInput.text, 0),
             shouldFit: dialogControls.fitSizeCheckbox.value
@@ -1866,10 +1876,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na9334a217ec3"; /* 紹�
      * ダイアログにプレビューと各ボタンのイベントを付け、初期状態を反映する
      * @param {Object} dialogControls - buildDialog() の戻り値
      * @param {RepeatJob} repeatJob - 処理対象
-     * @param {{pointsPerUnit: number}} textUnitInfo - 環境設定のテキスト単位
+     * @param {{pointsPerUnit: number}} textUnit - 環境設定のテキスト単位
      * @returns {void}
      */
-    function bindDialogEvents(dialogControls, repeatJob, textUnitInfo) {
+    function bindDialogEvents(dialogControls, repeatJob, textUnit) {
         var repeatDialog = dialogControls.dialog;
         var isUpdatingPreview = false;
         var previewFrame = null;  /* 表示中のプレビュー / The preview currently shown */
@@ -1890,7 +1900,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na9334a217ec3"; /* 紹�
         function applyPreview() {
             if (!dialogControls.previewCheckbox.value) return;
 
-            var repeatSettings = readSettings(dialogControls, textUnitInfo);
+            var repeatSettings = readSettings(dialogControls, textUnit);
             if (validateSettings(repeatSettings) !== null) return;
 
             var fontSize = computeFittedFontSize(repeatJob, repeatSettings);
@@ -1941,7 +1951,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na9334a217ec3"; /* 紹�
         dialogControls.separatorCharRadio.onClick = function () { selectSeparatorMode(true); };
 
         dialogControls.btnOK.onClick = function () {
-            var repeatSettings = readSettings(dialogControls, textUnitInfo);
+            var repeatSettings = readSettings(dialogControls, textUnit);
             var invalidKey = validateSettings(repeatSettings);
             if (invalidKey !== null) {
                 alert(getLabel(invalidKey));
@@ -2023,10 +2033,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na9334a217ec3"; /* 紹�
         };
 
         /* 環境設定のテキスト単位（ベースライン入力に使用）/ Preferences text unit (used by the baseline field) */
-        var textUnitInfo = getUnitInfo("text/units");
+        var textUnit = getUnitInfo("text/units");
 
-        var dialogControls = buildDialog(textUnitInfo.label);
-        bindDialogEvents(dialogControls, repeatJob, textUnitInfo);
+        var dialogControls = buildDialog(textUnit.label);
+        bindDialogEvents(dialogControls, repeatJob, textUnit);
         prepareDialogWindow(dialogControls.dialog, SCRIPT_NAME);
         dialogControls.dialog.show();
     }

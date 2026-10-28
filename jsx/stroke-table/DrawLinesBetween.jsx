@@ -1130,6 +1130,26 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
+    /**
+     * 単位の値を pt に換算する
+     * @param {number} value - 単位の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} pt の値
+     */
+    function unitToPt(value, unit) {
+        return value * unit.pointsPerUnit;
+    }
+
+    /**
+     * pt の値を単位の値に換算する
+     * @param {number} ptValue - pt の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} 単位の値
+     */
+    function ptToUnit(ptValue, unit) {
+        return ptValue / unit.pointsPerUnit;
+    }
+
     // =========================================
     // 前回値の記憶 / Saved settings
     // =========================================
@@ -1812,8 +1832,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         else if (dialogControls.capProjectingRadio.value) capIndex = 2;
 
         return {
-            lineWeight: lineWeightValue * strokeUnit.pointsPerUnit,
-            extension: extensionValue * strokeUnit.pointsPerUnit,
+            lineWeight: unitToPt(lineWeightValue, strokeUnit),
+            extension: unitToPt(extensionValue, strokeUnit),
             capIndex: capIndex,
             lineCap: [StrokeCap.BUTTENDCAP, StrokeCap.ROUNDENDCAP, StrokeCap.PROJECTINGENDCAP][capIndex],
             ruleLengthMode: dialogControls.lengthObjectRadio.value ? "object" : "common"
@@ -1830,8 +1850,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         /* 保存値（pt）があれば優先し、現在の線の単位で表示する / Show saved pt values in the current stroke unit */
         var initialValues = {
-            lineWeight: (savedSettings ? savedSettings.lineWeightPt : DEFAULT_LINE_WEIGHT) / strokeUnit.pointsPerUnit,
-            extension: (savedSettings ? savedSettings.extensionPt : DEFAULT_EXTENSION) / strokeUnit.pointsPerUnit,
+            lineWeight: ptToUnit(savedSettings ? savedSettings.lineWeightPt : DEFAULT_LINE_WEIGHT, strokeUnit),
+            extension: ptToUnit(savedSettings ? savedSettings.extensionPt : DEFAULT_EXTENSION, strokeUnit),
             capIndex: savedSettings ? savedSettings.capIndex : 0
         };
 

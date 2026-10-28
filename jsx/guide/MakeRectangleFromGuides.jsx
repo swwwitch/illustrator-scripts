@@ -1155,7 +1155,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4907511336ad"; /* 紹�
     // 単位 / Units
     // =========================================
 
-    /* 単位テーブル（配列の添字が rulerType コードと一致：0=in, 1=mm, 2=pt …）/ Unit table; the array index equals the rulerType code */
+    /* 単位コードに対応する表示ラベルと、1単位あたりのポイント数
+       Unit code -> display label and points per unit */
     var UNITS = [
         { label: "in",    pointsPerUnit: 72 },                /* 0 */
         { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
@@ -1175,27 +1176,39 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4907511336ad"; /* 紹�
     var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
 
     /**
-     * 設定キーごとの単位情報を取得する
-     * @param {string} prefKey - 環境設定キー（省略時は "rulerType"）
-     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位情報
+     * 環境設定キーの単位を返す
+     * @param {string} [prefKey] - "rulerType"（既定）/ "strokeUnits" / "text/units" / "text/asianunits"
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位の情報
      */
     function getUnitInfo(prefKey) {
         var unitKey = prefKey || "rulerType";
         var unitCode = app.preferences.getIntegerPreference(unitKey);
+        /* 未知のコードは pt に寄せる / unknown codes fall back to points */
         var unit = UNITS[unitCode] || UNITS[2];
+        /* 級（Q）と歯（H）は同じ長さだが、文字サイズは「Q」、距離は「H」と呼び分ける */
         var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
         return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
     /**
-     * 入力値を pt に変換する
+     * 単位の値を pt に換算する
+     * @param {number} value - 単位の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} pt の値
+     */
+    function unitToPt(value, unit) {
+        return value * unit.pointsPerUnit;
+    }
+
+    /**
+     * 入力欄の値を読み、pt に換算する
      * @param {string} inputText - 入力欄の値
-     * @param {number} factor - 単位の pt 換算係数
+     * @param {{pointsPerUnit: number}} fieldUnit - 欄の単位
      * @returns {number} pt に変換した値（数値として読めなければ0）
      */
-    function convertToPt(inputText, factor) {
+    function parseLengthFieldPt(inputText, fieldUnit) {
         var numericValue = parseFloat(inputText);
-        return isNaN(numericValue) ? 0 : numericValue * factor;
+        return isNaN(numericValue) ? 0 : unitToPt(numericValue, fieldUnit);
     }
 
     // =========================================
@@ -1783,7 +1796,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4907511336ad"; /* 紹�
                 includeLocked: includeLockedCheckbox.value,
                 useOutputLayer: outputLayerRadio.value,
                 outputLayerName: normalizeLayerName(outputLayerNameInput.text),
-                offsetPt: offsetCheckbox.value ? convertToPt(offsetInput.text, rulerUnit.pointsPerUnit) : 0,
+                offsetPt: offsetCheckbox.value ? parseLengthFieldPt(offsetInput.text, rulerUnit) : 0,
                 mergeAdjacent: mergeAdjacentCheckbox.value,
                 convertToShape: convertToShapeCheckbox.value
             };

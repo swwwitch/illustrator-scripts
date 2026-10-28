@@ -1555,10 +1555,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8180588e5630"; /* 紹�
     // 単位とサイズ / Units and sizes
     // =========================================
 
-    /* 新規ドキュメントの幅・高さの単位と、1単位あたりのポイント数（Illustrator の px は 1pt）
-       Units for the new document's size and points per unit (a px is 1pt in Illustrator) */
+    /* 新規ドキュメントの幅・高さの単位（UNITS のラベル。Illustrator の px は 1pt）
+       Units for the new document's size, as UNITS labels (a px is 1pt in Illustrator) */
     var SIZE_UNITS = ["mm", "px"];
-    var SIZE_UNIT_POINTS = { mm: 72 / 25.4, px: 1, inch: 72 };
 
     /* 幅・高さの単位に合わせた、新規ドキュメントの定規の単位 / ruler units of the new document per size unit */
     var SIZE_UNIT_RULER_UNITS = { mm: RulerUnits.Millimeters, px: RulerUnits.Pixels };
@@ -1570,7 +1569,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8180588e5630"; /* 紹�
         { labelKey: "dropdown.presetCustom", displayUnit: "px" },
         { labelKey: "dropdown.presetA4", unit: "mm", width: 210, height: 297, displayUnit: "mm", isPrint: true },
         { labelKey: "dropdown.presetFullHD", unit: "px", width: 1920, height: 1080, displayUnit: "px" },
-        { labelKey: "dropdown.presetLargeCanvas", unit: "inch", width: 2270, height: 2270, displayUnit: "px" }
+        { labelKey: "dropdown.presetLargeCanvas", unit: "in", width: 2270, height: 2270, displayUnit: "px" }
     ];
 
     /* 定規の単位コードに対応する表示ラベルと、1単位あたりのポイント数
@@ -1606,6 +1605,39 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8180588e5630"; /* 紹�
         /* 級（Q）と歯（H）は同じ長さだが、文字サイズは「Q」、距離は「H」と呼び分ける */
         var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
         return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
+    }
+
+    /**
+     * 単位の値を pt に換算する
+     * @param {number} value - 単位の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} pt の値
+     */
+    function unitToPt(value, unit) {
+        return value * unit.pointsPerUnit;
+    }
+
+    /**
+     * pt の値を単位の値に換算する
+     * @param {number} ptValue - pt の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} 単位の値
+     */
+    function ptToUnit(ptValue, unit) {
+        return ptValue / unit.pointsPerUnit;
+    }
+
+    /**
+     * 表示ラベルから単位を探す（「H」は「Q」と同じ単位）
+     * @param {string} label - 単位の表示ラベル（"mm" など）
+     * @returns {{label: string, pointsPerUnit: number}|null} UNITS の要素（見つからなければ null）
+     */
+    function findUnitByLabel(label) {
+        var unitLabel = (label === "H") ? "Q" : label;
+        for (var i = 0; i < UNITS.length; i++) {
+            if (UNITS[i].label === unitLabel) return UNITS[i];
+        }
+        return null;
     }
 
     // =========================================
@@ -2697,14 +2729,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8180588e5630"; /* 紹�
     /**
      * 大きさの値を別の単位へ換算した文字列にする（整数に丸める）
      * @param {string|number} sizeValue - 値
-     * @param {string} fromUnit - 元の単位（SIZE_UNIT_POINTS のキー）
-     * @param {string} toUnit - 換算先の単位
+     * @param {string} fromUnit - 元の単位（UNITS のラベル）
+     * @param {string} toUnit - 換算先の単位（UNITS のラベル）
      * @returns {string} 換算した値（数値でなければそのまま）
      */
     function convertSizeText(sizeValue, fromUnit, toUnit) {
         var numericValue = parseFloat(sizeValue);
         if (isNaN(numericValue)) return String(sizeValue);
-        return String(Math.round(numericValue * SIZE_UNIT_POINTS[fromUnit] / SIZE_UNIT_POINTS[toUnit]));
+        return String(Math.round(ptToUnit(unitToPt(numericValue, findUnitByLabel(fromUnit)), findUnitByLabel(toUnit))));
     }
 
     /**
@@ -2758,7 +2790,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8180588e5630"; /* 紹�
         var spacingLabel = spacingRow.add("statictext", undefined, labelText('fieldLabel.itemSpacing'));
         spacingLabel.helpTip = getLabel('tooltip.itemSpacing');
         var spacingStepOptions = { min: 0, unit: " " + rulerUnit.label };
-        var spacingInput = addSteppedInput(spacingRow, formatSteppedValue(IMPORT_SETTINGS.itemSpacing / rulerUnit.pointsPerUnit, spacingStepOptions), spacingStepOptions);
+        var spacingInput = addSteppedInput(spacingRow, formatSteppedValue(ptToUnit(IMPORT_SETTINGS.itemSpacing, rulerUnit), spacingStepOptions), spacingStepOptions);
         spacingInput.characters = 7;
         spacingInput.helpTip = getLabel('tooltip.itemSpacing');
 
@@ -2810,7 +2842,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8180588e5630"; /* 紹�
             scaleInput: scaleInput,
             /* 間隔を pt で返す（読めなければ NaN） / spacing in points, NaN when unreadable */
             getItemSpacingPt: function () {
-                return evaluateArithmetic(spacingInput.text, spacingStepOptions.unit) * rulerUnit.pointsPerUnit;
+                return unitToPt(evaluateArithmetic(spacingInput.text, spacingStepOptions.unit), rulerUnit);
             },
             closeDocRadio: closeDocRadio,
             getArtboardTargetMode: function () {
@@ -2947,9 +2979,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8180588e5630"; /* 紹�
         var docHeightPt = 0;
         var newDocSettings = destinationUi.getNewDocSettings();
         if (!useCurrentDoc) {
-            var pointsPerUnit = SIZE_UNIT_POINTS[newDocSettings.unit];
-            docWidthPt = parseFloat(newDocSettings.widthText) * pointsPerUnit;
-            docHeightPt = parseFloat(newDocSettings.heightText) * pointsPerUnit;
+            var sizeUnit = findUnitByLabel(newDocSettings.unit);
+            docWidthPt = unitToPt(parseFloat(newDocSettings.widthText), sizeUnit);
+            docHeightPt = unitToPt(parseFloat(newDocSettings.heightText), sizeUnit);
             if (isNaN(docWidthPt) || isNaN(docHeightPt)) {
                 alert(getLabel('alert.invalidNumber'));
                 return null;

@@ -452,7 +452,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/studio_tofu/n/n7b0cf367ec88"; /* 紹�
       }
     }
 
-    /* 単位テーブル（配列の添字が rulerType コードと一致：0=in, 1=mm, 2=pt …）/ Unit table; the array index equals the rulerType code */
+    /* 単位コードに対応する表示ラベルと、1単位あたりのポイント数
+       Unit code -> display label and points per unit */
     var UNITS = [
         { label: "in",    pointsPerUnit: 72 },                /* 0 */
         { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
@@ -472,34 +473,38 @@ var SCRIPT_ARTICLE_URL = "https://note.com/studio_tofu/n/n7b0cf367ec88"; /* 紹�
     var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
 
     /**
-     * 設定キーごとの単位情報を取得する
-     * @param {string} prefKey - 環境設定キー（省略時は "rulerType"）
-     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位情報
+     * 環境設定キーの単位を返す
+     * @param {string} [prefKey] - "rulerType"（既定）/ "strokeUnits" / "text/units" / "text/asianunits"
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位の情報
      */
     function getUnitInfo(prefKey) {
         var unitKey = prefKey || "rulerType";
         var unitCode = app.preferences.getIntegerPreference(unitKey);
+        /* 未知のコードは pt に寄せる / unknown codes fall back to points */
         var unit = UNITS[unitCode] || UNITS[2];
+        /* 級（Q）と歯（H）は同じ長さだが、文字サイズは「Q」、距離は「H」と呼び分ける */
         var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
         return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
     /**
-     * pt の値を、現在の文字単位の値へ換算する
-     * @param {number} ptValue - pt の値
-     * @returns {number} 現在の文字単位での値
+     * 単位の値を pt に換算する
+     * @param {number} value - 単位の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} pt の値
      */
-    function ptToCurrentTextUnit(ptValue) {
-      return ptValue / getUnitInfo("text/units").pointsPerUnit;
+    function unitToPt(value, unit) {
+        return value * unit.pointsPerUnit;
     }
 
     /**
-     * 現在の文字単位の値を pt へ換算する
-     * @param {number} unitValue - 現在の文字単位での値
-     * @returns {number} pt の値
+     * pt の値を単位の値に換算する
+     * @param {number} ptValue - pt の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} 単位の値
      */
-    function currentTextUnitToPt(unitValue) {
-      return unitValue * getUnitInfo("text/units").pointsPerUnit;
+    function ptToUnit(ptValue, unit) {
+        return ptValue / unit.pointsPerUnit;
     }
 
     /**
@@ -1354,7 +1359,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/studio_tofu/n/n7b0cf367ec88"; /* 紹�
         // ラベル末尾の「:」を除去（ja/en両対応） / Remove trailing colon from label
         fontSizeGroup.add("statictext", undefined, labelText("labelFontSize"));
 
-        var defaultFontSizeDisplay = ptToCurrentTextUnit(defaultFontSizePt);
+        var defaultFontSizeDisplay = ptToUnit(defaultFontSizePt, getUnitInfo("text/units"));
         /* ∧∨と入力欄は隙間0で突き合わせる / butt the stepper against the field */
         var fontSizeStepperGroup = fontSizeGroup.add("group");
         fontSizeStepperGroup.orientation = "row";
@@ -1537,7 +1542,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/studio_tofu/n/n7b0cf367ec88"; /* 紹�
 
         var inputStr = sampleTextInput.text;
         var fontSizeInputValue = parseFloat(fontSizeInput.text); // value in current text unit (the unit suffix is ignored)
-        var fontSize = currentTextUnitToPt(fontSizeInputValue); // internal pt
+        var fontSize = unitToPt(fontSizeInputValue, getUnitInfo("text/units")); // internal pt
 
         var showFontName = showFontNameCheckbox.value === true;
         var showPostScriptName = showPostScriptNameCheckbox.value === true;

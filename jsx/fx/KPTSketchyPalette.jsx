@@ -662,7 +662,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na808bac430d9"; /* 紹�
     // 単位 / Units
     // =========================================
 
-    /* 単位テーブル（配列の添字が rulerType コードと一致：0=in, 1=mm, 2=pt …）/ Unit table; the array index equals the rulerType code */
+    /* 単位コードに対応する表示ラベルと、1単位あたりのポイント数
+       Unit code -> display label and points per unit */
     var UNITS = [
         { label: "in",    pointsPerUnit: 72 },                /* 0 */
         { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
@@ -682,16 +683,28 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na808bac430d9"; /* 紹�
     var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
 
     /**
-     * 設定キーごとの単位情報を取得する
-     * @param {string} prefKey - 環境設定キー（省略時は "rulerType"）
-     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位情報
+     * 環境設定キーの単位を返す
+     * @param {string} [prefKey] - "rulerType"（既定）/ "strokeUnits" / "text/units" / "text/asianunits"
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位の情報
      */
     function getUnitInfo(prefKey) {
         var unitKey = prefKey || "rulerType";
         var unitCode = app.preferences.getIntegerPreference(unitKey);
+        /* 未知のコードは pt に寄せる / unknown codes fall back to points */
         var unit = UNITS[unitCode] || UNITS[2];
+        /* 級（Q）と歯（H）は同じ長さだが、文字サイズは「Q」、距離は「H」と呼び分ける */
         var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
         return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
+    }
+
+    /**
+     * 単位の値を pt に換算する
+     * @param {number} value - 単位の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} pt の値
+     */
+    function unitToPt(value, unit) {
+        return value * unit.pointsPerUnit;
     }
 
     /* 振れ幅であることを示す接頭辞 / Prefix marking a value as a plus-minus range */
@@ -1660,15 +1673,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na808bac430d9"; /* 紹�
             return null;
         }
 
-        var pointsPerUnit = getUnitInfo("rulerType").pointsPerUnit;
+        var rulerUnit = getUnitInfo("rulerType");
 
         return {
             usesTransform: (scaleRow.checkbox.value || moveRow.checkbox.value || rotateRow.checkbox.value),
             scaleRange: fieldValues.scaleRange,
             rotateRange: fieldValues.rotateRange,
-            movePoint: fieldValues.moveValue * pointsPerUnit,
-            radiusPoint: fieldValues.radiusValue * pointsPerUnit,
-            offsetPoint: fieldValues.offsetValue * pointsPerUnit,
+            movePoint: unitToPt(fieldValues.moveValue, rulerUnit),
+            radiusPoint: unitToPt(fieldValues.radiusValue, rulerUnit),
+            offsetPoint: unitToPt(fieldValues.offsetValue, rulerUnit),
             usesJagged: jaggedControls.checkbox.value,
             jaggedSize: fieldValues.jaggedSize,
             jaggedDetail: normalizeDetailValue(fieldValues.jaggedDetail),

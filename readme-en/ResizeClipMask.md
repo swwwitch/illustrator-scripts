@@ -44,3 +44,4 @@
 - v1.3.9 (2026-10-03): The number field now shows its unit inside the field; removed the unit from the field label
 - v1.3.10 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.3.11 (2026-10-16) Right-only button rows are now centered when the dialog's inner width is up to 240 px (was 200 px) (shared part update)
+- v1.3.12 (2026-10-29) The margin is now converted from the ruler unit to points (typing 5 with a mm ruler used to add 5 pt). With the ruler unit set to Ha (H), the field now shows "H" instead of "Q"

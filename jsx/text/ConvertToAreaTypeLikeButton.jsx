@@ -1046,9 +1046,31 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function getUnitInfo(prefKey) {
         var unitKey = prefKey || "rulerType";
         var unitCode = app.preferences.getIntegerPreference(unitKey);
+        /* 未知のコードは pt に寄せる / unknown codes fall back to points */
         var unit = UNITS[unitCode] || UNITS[2];
+        /* 級（Q）と歯（H）は同じ長さだが、文字サイズは「Q」、距離は「H」と呼び分ける */
         var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
         return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
+    }
+
+    /**
+     * 単位の値を pt に換算する
+     * @param {number} value - 単位の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} pt の値
+     */
+    function unitToPt(value, unit) {
+        return value * unit.pointsPerUnit;
+    }
+
+    /**
+     * pt の値を単位の値に換算する
+     * @param {number} ptValue - pt の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} 単位の値
+     */
+    function ptToUnit(ptValue, unit) {
+        return ptValue / unit.pointsPerUnit;
     }
 
     // =========================================
@@ -2303,17 +2325,17 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * 幅・高さの入力を検証して有効値を返す（不正なら最終正常値へ戻す）
      * @param {EditText} editText - 対象の入力欄
      * @param {number|null} lastValue - 最終正常値（ルーラー単位）
-     * @param {number} pointsPerUnit - ルーラー単位1あたりのポイント数
+     * @param {{pointsPerUnit: number}} rulerUnit - ルーラー単位（getUnitInfo() の戻り値）
      * @returns {number|null} 有効値（ルーラー単位。不正なら null）
      */
-    function validateSizeField(editText, lastValue, pointsPerUnit) {
+    function validateSizeField(editText, lastValue, rulerUnit) {
         var sizeValue = parseFloat(String(editText.text));
         if (isNaN(sizeValue) || !isFinite(sizeValue) || sizeValue <= 0) {
             if (lastValue !== null) editText.text = lastValue;
             return null;
         }
         /* 表示単位での上限値（極端値防止）/ Max size in ruler units (guards extreme values) */
-        var maxSize = 100000 / pointsPerUnit;
+        var maxSize = ptToUnit(100000, rulerUnit);
         if (sizeValue > maxSize) {
             sizeValue = maxSize;
             editText.text = Math.round(sizeValue * 100) / 100;
@@ -2447,7 +2469,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      */
     function showAdjustDialog(doc, initialFrame, targetFrames) {
         var rulerUnit = getUnitInfo("rulerType");
-        var pointsPerUnit = rulerUnit.pointsPerUnit;
 
         /* 受け取った変換結果を確実に対象にする / Make the passed frames the active target */
         var framesToSelect = (targetFrames && targetFrames.length) ? targetFrames : (initialFrame ? [initialFrame] : null);
@@ -2498,7 +2519,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
          * @returns {number} ルーラー単位の値
          */
         function toRoundedRulerUnits(valueInPt) {
-            return Math.round((valueInPt / pointsPerUnit) * 100) / 100;
+            return Math.round(ptToUnit(valueInPt, rulerUnit) * 100) / 100;
         }
 
         /**
@@ -2549,11 +2570,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             var frameAlignment = 1; /* 中央 / center */
 
             var leftIndentPt = (leftIndentCheckbox.value || syncToggle.value)
-                ? (parseFloat(leftIndentInput.text) || 0) * pointsPerUnit : 0;
+                ? unitToPt(parseFloat(leftIndentInput.text) || 0, rulerUnit) : 0;
             var rightIndentPt = syncToggle.value
                 ? leftIndentPt
-                : (rightIndentCheckbox.value ? (parseFloat(rightIndentInput.text) || 0) * pointsPerUnit : 0);
-            var marginPt = marginCheckbox.value ? (parseFloat(marginInput.text) || 0) * pointsPerUnit : 0;
+                : (rightIndentCheckbox.value ? unitToPt(parseFloat(rightIndentInput.text) || 0, rulerUnit) : 0);
+            var marginPt = marginCheckbox.value ? unitToPt(parseFloat(marginInput.text) || 0, rulerUnit) : 0;
 
             var savedSelection = [];
             var originalSelection = doc.selection;
@@ -2568,10 +2589,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 if (!isAreaTextFrame(targetFrame)) continue;
                 try { targetFrame.spacing = marginPt; } catch (e) { }
                 /* 幅/高さ：NaN・0以下・極端値をガード / Guard NaN, non-positive, extreme values */
-                var widthInRulerUnits = validateSizeField(widthInput, lastValidWidth, pointsPerUnit);
-                var heightInRulerUnits = validateSizeField(heightInput, lastValidHeight, pointsPerUnit);
-                if (widthInRulerUnits !== null) { lastValidWidth = widthInRulerUnits; try { targetFrame.textPath.width = widthInRulerUnits * pointsPerUnit; } catch (e) { } }
-                if (heightInRulerUnits !== null) { lastValidHeight = heightInRulerUnits; try { targetFrame.textPath.height = heightInRulerUnits * pointsPerUnit; } catch (e) { } }
+                var widthInRulerUnits = validateSizeField(widthInput, lastValidWidth, rulerUnit);
+                var heightInRulerUnits = validateSizeField(heightInput, lastValidHeight, rulerUnit);
+                if (widthInRulerUnits !== null) { lastValidWidth = widthInRulerUnits; try { targetFrame.textPath.width = unitToPt(widthInRulerUnits, rulerUnit); } catch (e) { } }
+                if (heightInRulerUnits !== null) { lastValidHeight = heightInRulerUnits; try { targetFrame.textPath.height = unitToPt(heightInRulerUnits, rulerUnit); } catch (e) { } }
                 if (shrinkToFit) { shrinkFont(targetFrame); }
                 try {
                     var paragraphAttrs = targetFrame.textRange.paragraphAttributes;
@@ -2631,7 +2652,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
          * @returns {void}
          */
         function onWidthChange() {
-            var widthInRulerUnits = validateSizeField(widthInput, lastValidWidth, pointsPerUnit);
+            var widthInRulerUnits = validateSizeField(widthInput, lastValidWidth, rulerUnit);
             if (widthInRulerUnits !== null) { lastValidWidth = widthInRulerUnits; }
             updatePreview();
         }
@@ -2641,7 +2662,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
          * @returns {void}
          */
         function onHeightChange() {
-            var heightInRulerUnits = validateSizeField(heightInput, lastValidHeight, pointsPerUnit);
+            var heightInRulerUnits = validateSizeField(heightInput, lastValidHeight, rulerUnit);
             if (heightInRulerUnits !== null) { lastValidHeight = heightInRulerUnits; }
             updatePreview();
         }

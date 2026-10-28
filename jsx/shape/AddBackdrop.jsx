@@ -240,13 +240,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na8af4a7016ad"; /* 紹�
      * 単位付きの数値欄（長さ）を追加する
      * @param {Group} parentContainer - 追加先
      * @param {number} initialValue - 初期値
-     * @param {{label: string, pointsPerUnit: number}} unitInfo - 欄の単位（getUnitInfo() の戻り値）
+     * @param {{label: string, pointsPerUnit: number}} fieldUnit - 欄の単位（getUnitInfo() の戻り値）
      * @param {string} tooltipText - ツールチップ
-     * @returns {EditText} 追加した数値欄（.pointsPerUnit で pt への換算率を引ける）
+     * @returns {EditText} 追加した数値欄（.fieldUnit で欄の単位を引ける）
      */
-    function addLengthField(parentContainer, initialValue, unitInfo, tooltipText) {
-        var lengthField = addNumberField(parentContainer, initialValue + ' ' + unitInfo.label, tooltipText, { unit: ' ' + unitInfo.label });
-        lengthField.pointsPerUnit = unitInfo.pointsPerUnit;
+    function addLengthField(parentContainer, initialValue, fieldUnit, tooltipText) {
+        var lengthField = addNumberField(parentContainer, initialValue + ' ' + fieldUnit.label, tooltipText, { unit: ' ' + fieldUnit.label });
+        lengthField.fieldUnit = fieldUnit;
         return lengthField;
     }
 
@@ -257,7 +257,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na8af4a7016ad"; /* 紹�
      * @returns {number} pt の値
      */
     function readLengthPoints(lengthField, fallbackValue) {
-        return readFieldNumber(lengthField, fallbackValue) * lengthField.pointsPerUnit;
+        return unitToPt(readFieldNumber(lengthField, fallbackValue), lengthField.fieldUnit);
     }
 
     /**
@@ -267,7 +267,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na8af4a7016ad"; /* 紹�
      * @returns {void}
      */
     function setLengthPoints(lengthField, points) {
-        setFieldValue(lengthField, roundToTenth(points / lengthField.pointsPerUnit));
+        setFieldValue(lengthField, roundToTenth(ptToUnit(points, lengthField.fieldUnit)));
     }
 
     /**
@@ -1873,6 +1873,26 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na8af4a7016ad"; /* 紹�
         /* 級（Q）と歯（H）は同じ長さだが、文字サイズは「Q」、距離は「H」と呼び分ける */
         var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
         return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
+    }
+
+    /**
+     * 単位の値を pt に換算する
+     * @param {number} value - 単位の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} pt の値
+     */
+    function unitToPt(value, unit) {
+        return value * unit.pointsPerUnit;
+    }
+
+    /**
+     * pt の値を単位の値に換算する
+     * @param {number} ptValue - pt の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} 単位の値
+     */
+    function ptToUnit(ptValue, unit) {
+        return ptValue / unit.pointsPerUnit;
     }
 
     // ボタン行（再利用パーツ） / Button row (reusable)

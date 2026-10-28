@@ -1103,8 +1103,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2e949946228a"; /* 紹�
     // 単位ユーティリティ / Unit utilities
     // =========================================
 
-    /* 環境設定の単位コードと表記の対応 / Unit code to label */
-    /* 単位テーブル（配列の添字が rulerType コードと一致：0=in, 1=mm, 2=pt …）/ Unit table; the array index equals the rulerType code */
+    /* 単位コードに対応する表示ラベルと、1単位あたりのポイント数
+       Unit code -> display label and points per unit */
     var UNITS = [
         { label: "in",    pointsPerUnit: 72 },                /* 0 */
         { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
@@ -1124,46 +1124,46 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2e949946228a"; /* 紹�
     var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
 
     /**
-     * 設定キーごとの単位情報を取得する
-     * @param {string} prefKey - 環境設定キー（省略時は "rulerType"）
-     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位情報
+     * 環境設定キーの単位を返す
+     * @param {string} [prefKey] - "rulerType"（既定）/ "strokeUnits" / "text/units" / "text/asianunits"
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位の情報
      */
     function getUnitInfo(prefKey) {
         var unitKey = prefKey || "rulerType";
         var unitCode = app.preferences.getIntegerPreference(unitKey);
+        /* 未知のコードは pt に寄せる / unknown codes fall back to points */
         var unit = UNITS[unitCode] || UNITS[2];
+        /* 級（Q）と歯（H）は同じ長さだが、文字サイズは「Q」、距離は「H」と呼び分ける */
         var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
         return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
     /**
-     * 指定単位の値をポイントへ変換する
-     * @param {number} value - 変換前の値
-     * @param {number} factor - 1単位あたりのポイント数
-     * @returns {number} ポイント値
+     * 単位の値を pt に換算する
+     * @param {number} value - 単位の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} pt の値
      */
-    function toPt(value, factor) {
-        return value * factor;
+    function unitToPt(value, unit) {
+        return value * unit.pointsPerUnit;
     }
 
     /**
-     * ポイント値を指定単位へ変換する
-     * @param {number} value - ポイント値
-     * @param {number} factor - 1単位あたりのポイント数
-     * @returns {number} 変換後の値
+     * pt の値を単位の値に換算する
+     * @param {number} ptValue - pt の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} 単位の値
      */
-    function fromPt(value, factor) {
-        return value / factor;
+    function ptToUnit(ptValue, unit) {
+        return ptValue / unit.pointsPerUnit;
     }
 
     var rulerUnit = getUnitInfo('rulerType');
     var rulerUnitLabel = rulerUnit.label;
-    var rulerPtFactor = rulerUnit.pointsPerUnit;
 
     /* 分割線の線幅だけは線の単位に従う / Stroke units apply to the divider line weight only */
     var strokeUnit = getUnitInfo('strokeUnits');
     var strokeUnitLabel = strokeUnit.label;
-    var strokePtFactor = strokeUnit.pointsPerUnit;
 
     // =========================================
     // 一時アクション / Temporary action
@@ -2096,22 +2096,22 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2e949946228a"; /* 紹�
 
         return {
             linked: linked,
-            sideWidthPt: toPt(side.width, linked ? strokePtFactor : rulerPtFactor),
-            sideGapPt: toPt(side.gap, rulerPtFactor),
-            sideInsetPt: toPt(Math.abs(Math.min(0, side.length)), rulerPtFactor),
+            sideWidthPt: unitToPt(side.width, linked ? strokeUnit : rulerUnit),
+            sideGapPt: unitToPt(side.gap, rulerUnit),
+            sideInsetPt: unitToPt(Math.abs(Math.min(0, side.length)), rulerUnit),
 
-            centerWidthPt: toPt(settings.center.width, strokePtFactor),
-            centerGapPt: toPt(settings.center.gap, rulerPtFactor),
-            centerInsetPt: toPt(Math.abs(Math.min(0, settings.center.length)), rulerPtFactor),
-            offsetPt: toPt(settings.center.offset, rulerPtFactor),
+            centerWidthPt: unitToPt(settings.center.width, strokeUnit),
+            centerGapPt: unitToPt(settings.center.gap, rulerUnit),
+            centerInsetPt: unitToPt(Math.abs(Math.min(0, settings.center.length)), rulerUnit),
+            offsetPt: unitToPt(settings.center.offset, rulerUnit),
 
-            zigzagSizePt: toPt(settings.zigzag.size, rulerPtFactor),
-            zigzagGapPt: toPt(settings.zigzag.gap || 0, rulerPtFactor),
+            zigzagSizePt: unitToPt(settings.zigzag.size, rulerUnit),
+            zigzagGapPt: unitToPt(settings.zigzag.gap || 0, rulerUnit),
             zigzagRepeat: Math.max(1, Math.round(settings.zigzag.repeat || 1)),
 
-            cornerSizePt: toPt(settings.corner.size, rulerPtFactor),
-            holeSizePt: toPt(settings.hole.size, rulerPtFactor),
-            edgeSizePt: toPt(settings.edge.size, rulerPtFactor)
+            cornerSizePt: unitToPt(settings.corner.size, rulerUnit),
+            holeSizePt: unitToPt(settings.hole.size, rulerUnit),
+            edgeSizePt: unitToPt(settings.edge.size, rulerUnit)
         };
     }
 
@@ -2758,7 +2758,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2e949946228a"; /* 紹�
                 var halfWidthPt = Math.abs(selectedItems[itemIndex].width) / 2;
                 if (minHalfWidthPt === null || halfWidthPt < minHalfWidthPt) minHalfWidthPt = halfWidthPt;
             }
-            var maxOffset = Math.round(fromPt(minHalfWidthPt || 0, rulerPtFactor) * 10) / 10;
+            var maxOffset = Math.round(ptToUnit(minHalfWidthPt || 0, rulerUnit) * 10) / 10;
 
             var txtCenterOffset = addSteppedInput(centerTopRow, '0', OFFSET_FIELD_CHARS, { min: -maxOffset, max: maxOffset },
                 function () { syncOffsetSliderFromInput(); updatePreview(); });

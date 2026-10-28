@@ -1476,6 +1476,26 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4a212e6eacf1"; /* 紹�
         return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
+    /**
+     * 単位の値を pt に換算する
+     * @param {number} value - 単位の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} pt の値
+     */
+    function unitToPt(value, unit) {
+        return value * unit.pointsPerUnit;
+    }
+
+    /**
+     * pt の値を単位の値に換算する
+     * @param {number} ptValue - pt の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} 単位の値
+     */
+    function ptToUnit(ptValue, unit) {
+        return ptValue / unit.pointsPerUnit;
+    }
+
     /* 定規の単位（実行中は変わらないので一度だけ読む）/ Ruler unit, read once */
     var RULER_UNIT = getUnitInfo();
 
@@ -1488,7 +1508,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4a212e6eacf1"; /* 紹�
         var unitCode = RULER_UNIT.code;
         if (unitCode === 6) return Math.round(valuePt); /* 1px = 1pt */
         if (unitCode === 1) {
-            var stepPt = UNITS[1].pointsPerUnit * 0.1;
+            var stepPt = unitToPt(0.1, UNITS[1]);
             return Math.round(valuePt / stepPt) * stepPt;
         }
         return Math.round(valuePt * 100) / 100;
@@ -2069,7 +2089,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4a212e6eacf1"; /* 紹�
         if (!isSizeRowEditable(dialogControls, sizeRow)) return rowInput;
         if (sizeRow.inputMode === "length") {
             var lengthValue = readPositiveNumber(sizeRow.length.field);
-            if (lengthValue !== null) rowInput.lengthPt = lengthValue * RULER_UNIT.pointsPerUnit;
+            if (lengthValue !== null) rowInput.lengthPt = unitToPt(lengthValue, RULER_UNIT);
         } else if (sizeRow.inputMode === "percent") {
             rowInput.percent = readPositiveNumber(sizeRow.percent.field);
         }
@@ -2218,7 +2238,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4a212e6eacf1"; /* 紹�
      */
     function createPreviewRectangle(doc, scaleSettings) {
         var defaultWidth = DEFAULT_RECT_WIDTH_BY_UNIT[RULER_UNIT.code];
-        var rectWidthPt = defaultWidth ? defaultWidth * RULER_UNIT.pointsPerUnit : FALLBACK_RECT_WIDTH_PT;
+        var rectWidthPt = defaultWidth ? unitToPt(defaultWidth, RULER_UNIT) : FALLBACK_RECT_WIDTH_PT;
         /* ［元の比率］は元が無いので 16:9 で作る / Original has no source here, so draw at 16:9 */
         var rectRatio = (scaleSettings.ratio === null) ? RATIO_16_9 : scaleSettings.ratio;
         var targetSize = computeTargetSize(orientRatio(rectRatio, scaleSettings.wantPortrait), false, rectWidthPt);
@@ -2320,7 +2340,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4a212e6eacf1"; /* 紹�
     function getPreviewLengthText(preview, isWidth) {
         if (preview.items.length !== 1) return "";
         var lengthPt = isWidth ? preview.items[0].width : preview.items[0].height;
-        return formatSizeNumber(lengthPt / RULER_UNIT.pointsPerUnit);
+        return formatSizeNumber(ptToUnit(lengthPt, RULER_UNIT));
     }
 
     /**

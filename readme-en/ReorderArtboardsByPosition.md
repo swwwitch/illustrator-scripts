@@ -46,6 +46,7 @@
 - v1.4.0 (20260513): Replaced the panel order option with radio buttons (By name / Match canvas order / Keep as is); by-name uses a natural sort that zero-pads digit runs to 10 characters
 - v1.5.5 (2026-10-01): Switched the button row to the shared part and left the dialog position to the shared part (removed the hand-written centering). Unified the window and panel margins and spacing with the shared layout part
 - v1.5.8 (2026-10-16): Right-only button rows are now centered when the dialog's inner width is up to 240 px (was 200 px) (shared part update)
+- v1.5.9 (2026-10-29) With the ruler unit set to Ha (H), unit labels now read "H" instead of "Q" (unit handling unified)
 - (20260807): Unified the overview and basic-info blocks with the shared format, reorganized layout constants and UI helpers, and added JSDoc to every function (no functional change)
 - v1.5.0 (20260927): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v1.5.1 (20260928): Replaced the Link checkbox with a link icon

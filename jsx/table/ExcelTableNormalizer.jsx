@@ -1235,6 +1235,16 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /**
+     * 単位の値を pt に換算する
+     * @param {number} value - 単位の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} pt の値
+     */
+    function unitToPt(value, unit) {
+        return value * unit.pointsPerUnit;
+    }
+
+    /**
      * 線幅欄の初期値を返す
      * @param {string} unitLabel - 線の単位ラベル
      * @returns {string} pt なら "0.25"、それ以外は "0.1"
@@ -1425,7 +1435,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 : dialogControls.placementUniformMergedRadio.value ? "merged"
                     : "keepColumnWidths",
             outerToRect: dialogControls.outerToRectCheckbox.value,
-            strokeWidthPt: strokeWidthValue * strokeUnit.pointsPerUnit,
+            strokeWidthPt: unitToPt(strokeWidthValue, strokeUnit),
             rulesK100: dialogControls.rulesK100Checkbox.value
         };
     }

@@ -186,6 +186,26 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /**
+     * 単位の値を pt に換算する
+     * @param {number} value - 単位の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} pt の値
+     */
+    function unitToPt(value, unit) {
+        return value * unit.pointsPerUnit;
+    }
+
+    /**
+     * pt の値を単位の値に換算する
+     * @param {number} ptValue - pt の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} 単位の値
+     */
+    function ptToUnit(ptValue, unit) {
+        return ptValue / unit.pointsPerUnit;
+    }
+
+    /**
      * pt・px のように整数で表示する単位か判定する
      * @param {{label: string}} unitInfo - 単位の情報
      * @returns {boolean} 整数で表示するなら true
@@ -201,7 +221,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * @returns {string} 表示用の文字列
      */
     function formatSizeValue(valuePt, unitInfo) {
-        var unitValue = valuePt / unitInfo.pointsPerUnit;
+        var unitValue = ptToUnit(valuePt, unitInfo);
         if (isIntegerUnit(unitInfo)) return String(Math.round(unitValue));
         return String(Math.round(unitValue * 100) / 100);
     }
@@ -1359,10 +1379,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * サイズ変更のダイアログを表示し、プレビューしながらアートボードを変更する
      * OK で変更を確定し、キャンセルで開いた時点のサイズに戻す
      * @param {Document} targetDocument - 対象のドキュメント
-     * @param {{label: string, pointsPerUnit: number}} unitInfo - 定規の単位
+     * @param {{label: string, pointsPerUnit: number}} rulerUnit - 定規の単位
      * @returns {boolean} OK で閉じたら true
      */
-    function showResizeDialog(targetDocument, unitInfo) {
+    function showResizeDialog(targetDocument, rulerUnit) {
         var artboardCount = targetDocument.artboards.length;
         /* プレビューのたびに開いた時点の矩形へ戻してから適用する / Every preview starts from the original rects */
         var originalRects = captureArtboardRects(targetDocument);
@@ -1382,9 +1402,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         /* 単位は欄の中に出す（「210 mm」の形） / the unit is shown inside the fields */
         var sizeGroup = addTitledPanel(leftColumn, getLabel(LABELS.panel.size), "column");
         sizeGroup.spacing = SIZE_ROW_SPACING;
-        var unitSuffix = " " + unitInfo.label;
-        var widthRow = addSizeRow(sizeGroup, LABELS.fieldLabel.width, formatSizeValue(Math.abs(activeRect[2] - activeRect[0]), unitInfo), unitSuffix, applyResizePreview);
-        var heightRow = addSizeRow(sizeGroup, LABELS.fieldLabel.height, formatSizeValue(Math.abs(activeRect[1] - activeRect[3]), unitInfo), unitSuffix, applyResizePreview);
+        var unitSuffix = " " + rulerUnit.label;
+        var widthRow = addSizeRow(sizeGroup, LABELS.fieldLabel.width, formatSizeValue(Math.abs(activeRect[2] - activeRect[0]), rulerUnit), unitSuffix, applyResizePreview);
+        var heightRow = addSizeRow(sizeGroup, LABELS.fieldLabel.height, formatSizeValue(Math.abs(activeRect[1] - activeRect[3]), rulerUnit), unitSuffix, applyResizePreview);
         var widthInput = widthRow.input;
         var heightInput = heightRow.input;
         equalizeLabelWidths(resizeDialog, [widthRow.label, heightRow.label]);
@@ -1470,10 +1490,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             var heightValue = parseNumberInput(heightInput.text);
             if (isNaN(widthValue) || isNaN(heightValue) || widthValue <= 0 || heightValue <= 0) return;
 
-            var widthPt = widthValue * unitInfo.pointsPerUnit;
-            var heightPt = heightValue * unitInfo.pointsPerUnit;
+            var widthPt = unitToPt(widthValue, rulerUnit);
+            var heightPt = unitToPt(heightValue, rulerUnit);
             var isTopLeftAnchor = (anchorTopLeftRadio.value === true);
-            var snapToPixel = (unitInfo.label === "px");
+            var snapToPixel = (rulerUnit.label === "px");
 
             restoreArtboardRects(targetDocument, originalRects);
             var targetIndexes = resolveTargetIndexes();

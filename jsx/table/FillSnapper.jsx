@@ -201,6 +201,26 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /**
+     * 単位の値を pt に換算する
+     * @param {number} value - 単位の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} pt の値
+     */
+    function unitToPt(value, unit) {
+        return value * unit.pointsPerUnit;
+    }
+
+    /**
+     * pt の値を単位の値に換算する
+     * @param {number} ptValue - pt の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} 単位の値
+     */
+    function ptToUnit(ptValue, unit) {
+        return ptValue / unit.pointsPerUnit;
+    }
+
+    /**
      * 入力欄に表示するため、数値を小数第3位で丸めて文字列にする
      * @param {number} value - 表示する数値
      * @returns {string} 整形した文字列
@@ -1620,7 +1640,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             min: minValue,
             onStep: function (numberInput) { if (numberInput.onChange) numberInput.onChange(); }
         });
-        valueInput = stepperInputGroup.add("edittext", undefined, formatUnitValue(valuePt / rulerUnit.pointsPerUnit));
+        valueInput = stepperInputGroup.add("edittext", undefined, formatUnitValue(ptToUnit(valuePt, rulerUnit)));
         valueInput.helpTip = getLabel(tooltipPath);
         valueInput.characters = 3;
         /* ↑↓キーも∧∨と同じ処理で増減する / arrow keys share the stepper's logic */
@@ -1691,9 +1711,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * @returns {Object} スナップの設定
      */
     function readSnapOptions(dialogControls, rulerUnit) {
-        var parsedTolerance = parseFloat(dialogControls.toleranceInput.text) * rulerUnit.pointsPerUnit;
+        var parsedTolerance = unitToPt(parseFloat(dialogControls.toleranceInput.text), rulerUnit);
         if (isNaN(parsedTolerance) || parsedTolerance <= 0) parsedTolerance = 0.5;
-        var parsedMaxDistance = parseFloat(dialogControls.maxDistanceInput.text) * rulerUnit.pointsPerUnit;
+        var parsedMaxDistance = unitToPt(parseFloat(dialogControls.maxDistanceInput.text), rulerUnit);
         if (isNaN(parsedMaxDistance) || parsedMaxDistance < 0) parsedMaxDistance = 0;
         return {
             filled: dialogControls.filledCheckbox.value,

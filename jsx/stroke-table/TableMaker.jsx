@@ -908,6 +908,26 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4eaa14098858"; /* 紹�
     }
 
     /**
+     * 単位の値を pt に換算する
+     * @param {number} value - 単位の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} pt の値
+     */
+    function unitToPt(value, unit) {
+        return value * unit.pointsPerUnit;
+    }
+
+    /**
+     * pt の値を単位の値に換算する
+     * @param {number} ptValue - pt の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} 単位の値
+     */
+    function ptToUnit(ptValue, unit) {
+        return ptValue / unit.pointsPerUnit;
+    }
+
+    /**
      * 小数第3位までに丸める
      * @param {number} value - 丸める値
      * @returns {number} 丸めた値
@@ -1260,7 +1280,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4eaa14098858"; /* 紹�
         }
 
         return {
-            strokeWidthPt: roundToThousandths(strokeWidth * rulerUnit.pointsPerUnit),
+            strokeWidthPt: roundToThousandths(unitToPt(strokeWidth, rulerUnit)),
             shapeMode: selectedShapeMode,
             verticalRules: optionChecks.cbVerticalRules.value,
             heading: optionChecks.cbHeading.value
@@ -1941,7 +1961,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4eaa14098858"; /* 紹�
             /* 線幅の初期値は［キー入力］の移動距離 / the default stroke width is the keyboard increment */
             var rulerUnit = getUnitInfo("rulerType");
             var cursorKeyLengthPt = app.preferences.getRealPreference("cursorKeyLength");
-            var defaultStrokeWidth = roundToThousandths(cursorKeyLengthPt / rulerUnit.pointsPerUnit);
+            var defaultStrokeWidth = roundToThousandths(ptToUnit(cursorKeyLengthPt, rulerUnit));
 
             var tableSettings = showTableSettingsDialog(defaultStrokeWidth, rulerUnit);
             if (tableSettings === null) return;

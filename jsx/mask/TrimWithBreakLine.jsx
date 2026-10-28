@@ -150,6 +150,26 @@ function getUnitInfo(prefKey) {
     return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
 }
 
+/**
+ * 単位の値を pt に換算する
+ * @param {number} value - 単位の値
+ * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+ * @returns {number} pt の値
+ */
+function unitToPt(value, unit) {
+    return value * unit.pointsPerUnit;
+}
+
+/**
+ * pt の値を単位の値に換算する
+ * @param {number} ptValue - pt の値
+ * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+ * @returns {number} 単位の値
+ */
+function ptToUnit(ptValue, unit) {
+    return ptValue / unit.pointsPerUnit;
+}
+
 // =========================================
 // レイアウト / Layout
 // =========================================
@@ -2189,7 +2209,7 @@ var STEPPER_OPTION_STEP    = 0.1; /* option＋クリック・option＋↑↓の�
         warpPercent: DEFAULT_WARP_PERCENT,
         jaggedSizePt: DEFAULT_JAGGED_SIZE,
         jaggedRidges: DEFAULT_JAGGED_RIDGES,
-        gapPt: DEFAULT_GAP_MM * UNITS[1].pointsPerUnit,
+        gapPt: unitToPt(DEFAULT_GAP_MM, UNITS[1]),
         addRule: DEFAULT_ADD_RULE,
         ruleDashed: DEFAULT_RULE_DASHED,
         dashSegments: DEFAULT_DASH_SEGMENTS,
@@ -2203,16 +2223,16 @@ var STEPPER_OPTION_STEP    = 0.1; /* option＋クリック・option＋↑↓の�
     var initialValues = {
         maskScale:    savedValues.maskScale,
         maskCrossScale: savedValues.maskCrossScale,
-        maskOffset:   savedValues.maskOffsetPt / rulerUnit.pointsPerUnit,
+        maskOffset:   ptToUnit(savedValues.maskOffsetPt, rulerUnit),
         warpStyleKey: savedValues.warpStyleKey,
         warpPercent:  savedValues.warpPercent,
-        jaggedSize:   savedValues.jaggedSizePt / rulerUnit.pointsPerUnit,
+        jaggedSize:   ptToUnit(savedValues.jaggedSizePt, rulerUnit),
         jaggedRidges: savedValues.jaggedRidges,
-        gap:          savedValues.gapPt / rulerUnit.pointsPerUnit,
+        gap:          ptToUnit(savedValues.gapPt, rulerUnit),
         addRule:      savedValues.addRule,
         ruleDashed:   savedValues.ruleDashed,
         dashSegments: savedValues.dashSegments,
-        ruleWidth:    savedValues.ruleWidthPt / strokeUnit.pointsPerUnit,
+        ruleWidth:    ptToUnit(savedValues.ruleWidthPt, strokeUnit),
         roundCap:     savedValues.roundCap,
         groupRules:   savedValues.groupRules
     };
@@ -3348,16 +3368,16 @@ var STEPPER_OPTION_STEP    = 0.1; /* option＋クリック・option＋↑↓の�
             return {
                 maskScale: readFieldValue(maskControls.scaleField, clampMaskScale),
                 maskCrossScale: readFieldValue(maskControls.crossScaleField, clampMaskCrossScale),
-                maskOffsetPt: readFieldValue(maskControls.offsetField, clampOffsetValue) * rulerUnit.pointsPerUnit,
+                maskOffsetPt: unitToPt(readFieldValue(maskControls.offsetField, clampOffsetValue), rulerUnit),
                 warpStyleKey: cutEdgeControls.getStyleKey(),
                 warpPercent: readFieldValue(cutEdgeControls.warpAmountField, clampWarpPercent),
-                jaggedSizePt: readFieldValue(cutEdgeControls.jaggedSizeField, clampJaggedSize) * rulerUnit.pointsPerUnit,
+                jaggedSizePt: unitToPt(readFieldValue(cutEdgeControls.jaggedSizeField, clampJaggedSize), rulerUnit),
                 jaggedRidges: readFieldValue(cutEdgeControls.jaggedRidgesField, clampJaggedRidges),
-                gapPt: gapValue * rulerUnit.pointsPerUnit,
+                gapPt: unitToPt(gapValue, rulerUnit),
                 addRule: ruleControls.addRuleCheckbox.value,
                 ruleDashed: ruleControls.dashedRadio.value,
                 dashSegments: readFieldValue(ruleControls.segmentsField, clampDashSegments),
-                ruleWidth: readFieldValue(ruleControls.widthField, clampRuleWidth) * strokeUnit.pointsPerUnit,
+                ruleWidth: unitToPt(readFieldValue(ruleControls.widthField, clampRuleWidth), strokeUnit),
                 roundCap: ruleControls.roundCapRadio.value,
                 groupRules: ruleControls.groupRulesCheckbox.value
             };
@@ -3394,14 +3414,14 @@ var STEPPER_OPTION_STEP    = 0.1; /* option＋クリック・option＋↑↓の�
         function resetToDefaults() {
             maskControls.scaleField.text = formatFieldNumber(DEFAULT_SETTINGS.maskScale);
             maskControls.crossScaleField.text = formatFieldNumber(DEFAULT_SETTINGS.maskCrossScale);
-            maskControls.offsetField.text = formatFieldNumber(DEFAULT_SETTINGS.maskOffsetPt / rulerUnit.pointsPerUnit);
+            maskControls.offsetField.text = formatFieldNumber(ptToUnit(DEFAULT_SETTINGS.maskOffsetPt, rulerUnit));
             cutEdgeControls.setStyleKey(DEFAULT_SETTINGS.warpStyleKey);
             cutEdgeControls.warpAmountField.text = formatFieldNumber(DEFAULT_SETTINGS.warpPercent);
-            cutEdgeControls.jaggedSizeField.text = formatFieldNumber(DEFAULT_SETTINGS.jaggedSizePt / rulerUnit.pointsPerUnit);
+            cutEdgeControls.jaggedSizeField.text = formatFieldNumber(ptToUnit(DEFAULT_SETTINGS.jaggedSizePt, rulerUnit));
             cutEdgeControls.jaggedRidgesField.text = formatFieldNumber(DEFAULT_SETTINGS.jaggedRidges);
-            cutEdgeControls.gapField.text = formatFieldNumber(DEFAULT_SETTINGS.gapPt / rulerUnit.pointsPerUnit);
+            cutEdgeControls.gapField.text = formatFieldNumber(ptToUnit(DEFAULT_SETTINGS.gapPt, rulerUnit));
             ruleControls.addRuleCheckbox.value = DEFAULT_SETTINGS.addRule;
-            ruleControls.widthField.text = formatFieldNumber(DEFAULT_SETTINGS.ruleWidthPt / strokeUnit.pointsPerUnit);
+            ruleControls.widthField.text = formatFieldNumber(ptToUnit(DEFAULT_SETTINGS.ruleWidthPt, strokeUnit));
             ruleControls.capRadios[0].value = !DEFAULT_SETTINGS.roundCap;
             ruleControls.capRadios[1].value = DEFAULT_SETTINGS.roundCap;
             ruleControls.styleRadios[0].value = !DEFAULT_SETTINGS.ruleDashed;

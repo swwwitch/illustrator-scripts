@@ -768,9 +768,31 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
     function getUnitInfo(prefKey) {
         var unitKey = prefKey || "rulerType";
         var unitCode = app.preferences.getIntegerPreference(unitKey);
+        /* 未知のコードは pt に寄せる / unknown codes fall back to points */
         var unit = UNITS[unitCode] || UNITS[2];
+        /* 級（Q）と歯（H）は同じ長さだが、文字サイズは「Q」、距離は「H」と呼び分ける */
         var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
         return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
+    }
+
+    /**
+     * 単位の値を pt に換算する
+     * @param {number} value - 単位の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} pt の値
+     */
+    function unitToPt(value, unit) {
+        return value * unit.pointsPerUnit;
+    }
+
+    /**
+     * pt の値を単位の値に換算する
+     * @param {number} ptValue - pt の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} 単位の値
+     */
+    function ptToUnit(ptValue, unit) {
+        return ptValue / unit.pointsPerUnit;
     }
 
     // UI の明暗（再利用パーツ） / UI theme (reusable)
@@ -4571,13 +4593,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
 
     /**
      * 調整ダイアログを組み立てる（イベントは showAdjustDialog() で付ける）
-     * @param {Object} rulerInfo - 定規の単位（getUnitInfo() の結果）
-     * @param {Object} typeUnitInfo - 文字の単位（getUnitInfo("text/units") の結果）
+     * @param {Object} rulerUnit - 定規の単位（getUnitInfo() の結果）
+     * @param {Object} textUnit - 文字の単位（getUnitInfo("text/units") の結果）
      * @param {Object} justifyState - 行揃えの選択中 id と UI 明暗
      * @param {Object} alignState - テキストの配置の選択中 id と UI 明暗
      * @returns {Object} ダイアログ本体（window）と各コントロール
      */
-    function buildAdjustDialog(rulerInfo, typeUnitInfo, justifyState, alignState) {
+    function buildAdjustDialog(rulerUnit, textUnit, justifyState, alignState) {
         var dialogControls = {};
         dialogControls.window = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
         setupWindow(dialogControls.window);
@@ -4599,14 +4621,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
         /* 右カラム：種別・行送り・行揃え・インデント / Right column */
         addRolePanel(dialogControls, rightColumn);
         /* 行送りは文字の単位に従う（級のときは歯）/ Leading follows the type units (H when they are Q) */
-        addLeadingPanel(dialogControls, rightColumn, (typeUnitInfo.code === 5) ? "H" : typeUnitInfo.label, rulerInfo.label);
+        addLeadingPanel(dialogControls, rightColumn, (textUnit.code === 5) ? "H" : textUnit.label, rulerUnit.label);
         addJustificationPanel(dialogControls, rightColumn, justifyState);
-        addIndentPanel(dialogControls, rightColumn, rulerInfo.label);
+        addIndentPanel(dialogControls, rightColumn, rulerUnit.label);
 
         /* 左カラム：フォントサイズ・フレームサイズ・オフセット・テキストの配置 / Left column */
-        addFontSizePanel(dialogControls, leftColumn, typeUnitInfo.label);
-        addFrameSizePanel(dialogControls, leftColumn, rulerInfo.label);
-        addOffsetPanel(dialogControls, leftColumn, rulerInfo.label);
+        addFontSizePanel(dialogControls, leftColumn, textUnit.label);
+        addFrameSizePanel(dialogControls, leftColumn, rulerUnit.label);
+        addOffsetPanel(dialogControls, leftColumn, rulerUnit.label);
         addTextAlignPanel(dialogControls, leftColumn, alignState);
 
         /* 2カラムの下：カーニングと組版（日本語UIのみ）/ Below the columns: kerning and composition (Japanese UI only) */
@@ -4645,11 +4667,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
     /**
      * pt の値を、指定の単位で小数第2位までの数値にする（入力欄の表示用）
      * @param {number} ptValue - pt の値
-     * @param {Object} unitInfo - 単位（getUnitInfo() の結果）
+     * @param {Object} unit - 単位（getUnitInfo() の結果）
      * @returns {number} 指定の単位の値
      */
-    function toFieldValue(ptValue, unitInfo) {
-        return Math.round((ptValue / unitInfo.pointsPerUnit) * 100) / 100;
+    function toFieldValue(ptValue, unit) {
+        return Math.round(ptToUnit(ptValue, unit) * 100) / 100;
     }
 
     /**
@@ -4657,16 +4679,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
      * 不正なときは直前の有効な値に戻す。上限・下限を超えたら丸めて欄も書き換える
      * @param {EditText} sizeField - 幅または高さの欄
      * @param {number|null} lastValidValue - 直前の有効な値（定規の単位）
-     * @param {Object} rulerInfo - 定規の単位（getUnitInfo() の結果）
+     * @param {Object} rulerUnit - 定規の単位（getUnitInfo() の結果）
      * @returns {number|null} 有効な値（定規の単位。不正なら null）
      */
-    function validateSizeField(sizeField, lastValidValue, rulerInfo) {
+    function validateSizeField(sizeField, lastValidValue, rulerUnit) {
         var sizeValue = parseFloat(String(sizeField.text));
         if (isNaN(sizeValue) || !isFinite(sizeValue) || sizeValue <= 0) {
             if (lastValidValue !== null) setFieldNumber(sizeField, lastValidValue);
             return null;
         }
-        var maxValue = MAX_FRAME_SIZE_PT / rulerInfo.pointsPerUnit;
+        var maxValue = ptToUnit(MAX_FRAME_SIZE_PT, rulerUnit);
         if (sizeValue > maxValue) {
             sizeValue = maxValue;
             setFieldNumber(sizeField, sizeValue);
@@ -4714,8 +4736,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
      * @returns {void}
      */
     function showAdjustDialog(doc, initialFrame, targetFrames, initialAlignmentValue) {
-        var rulerInfo = getUnitInfo("rulerType");
-        var typeUnitInfo = getUnitInfo("text/units");
+        var rulerUnit = getUnitInfo("rulerType");
+        var textUnit = getUnitInfo("text/units");
 
         /* 変換したてのフレームかどうか。既存のエリア内文字では、DOM から読み取れない項目
            （テキストの配置・自動サイズ調整）や未設定の項目を、触っていないのに書き換えない
@@ -4747,7 +4769,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
            The active role and the tab setting it chose; tabs are left alone while tabMode is "none" */
         var roleState = { activeId: "", tabMode: "none" };
 
-        var dialogControls = buildAdjustDialog(rulerInfo, typeUnitInfo, justifyState, alignState);
+        var dialogControls = buildAdjustDialog(rulerUnit, textUnit, justifyState, alignState);
 
         /* 状態 / State */
         var isPreviewActive = false;
@@ -4790,7 +4812,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
          * @returns {number|null} 有効な幅（定規の単位。不正なら null）
          */
         function validateWidthField() {
-            var widthValue = validateSizeField(dialogControls.etWidth, lastValidWidth, rulerInfo);
+            var widthValue = validateSizeField(dialogControls.etWidth, lastValidWidth, rulerUnit);
             if (widthValue !== null) { lastValidWidth = widthValue; }
             return widthValue;
         }
@@ -4800,7 +4822,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
          * @returns {number|null} 有効な高さ（定規の単位。不正なら null）
          */
         function validateHeightField() {
-            var heightValue = validateSizeField(dialogControls.etHeight, lastValidHeight, rulerInfo);
+            var heightValue = validateSizeField(dialogControls.etHeight, lastValidHeight, rulerUnit);
             if (heightValue !== null) { lastValidHeight = heightValue; }
             return heightValue;
         }
@@ -4811,8 +4833,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
          * @returns {void}
          */
         function showFrameSizeInFields(areaFrame) {
-            setFieldNumber(dialogControls.etWidth, toFieldValue(areaFrame.textPath.width, rulerInfo));
-            setFieldNumber(dialogControls.etHeight, toFieldValue(areaFrame.textPath.height, rulerInfo));
+            setFieldNumber(dialogControls.etWidth, toFieldValue(areaFrame.textPath.width, rulerUnit));
+            setFieldNumber(dialogControls.etHeight, toFieldValue(areaFrame.textPath.height, rulerUnit));
             lastValidWidth = parseFloat(dialogControls.etWidth.text);
             lastValidHeight = parseFloat(dialogControls.etHeight.text);
         }
@@ -4869,7 +4891,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
          * @returns {number} pt の値
          */
         function fieldToPt(numberField) {
-            return (parseFloat(numberField.text) || 0) * rulerInfo.pointsPerUnit;
+            return unitToPt(parseFloat(numberField.text) || 0, rulerUnit);
         }
 
         /**
@@ -4961,7 +4983,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
             showFrameSizeInFields(sourceFrame);
             currentFontSize = 0;
             try { currentFontSize = sourceFrame.textRange.characterAttributes.size || 0; } catch (e) { }
-            if (currentFontSize > 0) { setFieldNumber(dialogControls.etFontSize, toFieldValue(currentFontSize, typeUnitInfo)); }
+            if (currentFontSize > 0) { setFieldNumber(dialogControls.etFontSize, toFieldValue(currentFontSize, textUnit)); }
             try {
                 var justification = sourceFrame.paragraphs.length > 0
                     ? sourceFrame.paragraphs[0].paragraphAttributes.justification
@@ -4970,7 +4992,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
             } catch (e) { justifyState.activeId = "left"; }
             try {
                 var spacingPt = sourceFrame.spacing || 0;
-                setFieldNumber(dialogControls.etSpacing, toFieldValue(spacingPt, rulerInfo));
+                setFieldNumber(dialogControls.etSpacing, toFieldValue(spacingPt, rulerUnit));
                 dialogControls.chkSpacing.value = (spacingPt !== 0);
                 updateSpacingEnabled();
             } catch (e) { }
@@ -4978,8 +5000,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
                 var firstParaAttrs = sourceFrame.paragraphs.length > 0 ? sourceFrame.paragraphs[0].paragraphAttributes : null;
                 var leftIndentPt = firstParaAttrs ? (firstParaAttrs.leftIndent || 0) : 0;
                 var rightIndentPt = firstParaAttrs ? (firstParaAttrs.rightIndent || 0) : 0;
-                setFieldNumber(dialogControls.etLeftIndent, toFieldValue(leftIndentPt, rulerInfo));
-                setFieldNumber(dialogControls.etRightIndent, toFieldValue(rightIndentPt, rulerInfo));
+                setFieldNumber(dialogControls.etLeftIndent, toFieldValue(leftIndentPt, rulerUnit));
+                setFieldNumber(dialogControls.etRightIndent, toFieldValue(rightIndentPt, rulerUnit));
                 /* 左右が違うテキストは連動を外して開く（右の値を潰さないため）
                    Open with the link off when the two differ, so the right value is not overwritten */
                 if (Math.abs(leftIndentPt - rightIndentPt) > 0.01) { setLinkToggleValue(dialogControls.linkIndentsToggle, false); }
@@ -4987,7 +5009,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
             loadCompositionFromFrame(sourceFrame);
             try {
                 selectChoiceByValue(dialogControls.firstBaselineDropdown, FIRST_BASELINE_CHOICES, "value", sourceFrame.firstBaseline);
-                setFieldNumber(dialogControls.etFirstBaselineMin, toFieldValue(sourceFrame.firstBaselineMin || 0, rulerInfo));
+                setFieldNumber(dialogControls.etFirstBaselineMin, toFieldValue(sourceFrame.firstBaselineMin || 0, rulerUnit));
             } catch (e) { }
 
             var leadingPercent = getAutoLeadingPercent(sourceFrame);
@@ -5015,8 +5037,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
                 tabMode: roleState.tabMode,
                 justification: getJustificationValue(justifyState.activeId),
                 alignment: userTouched.alignment ? getAlignmentValue(alignState.activeId) : null,
-                widthPt: (widthValue !== null) ? widthValue * rulerInfo.pointsPerUnit : null,
-                heightPt: (heightValue !== null && userTouched.height) ? heightValue * rulerInfo.pointsPerUnit : null,
+                widthPt: (widthValue !== null) ? unitToPt(widthValue, rulerUnit) : null,
+                heightPt: (heightValue !== null && userTouched.height) ? unitToPt(heightValue, rulerUnit) : null,
                 leadingPercent: parseFloat(dialogControls.etLeadingPercent.text),
                 kerning: (SHOW_JA_ONLY_CONTROLS && userTouched.kerning) ? getSelectedKerningId() : null,
                 kinsoku: (SHOW_JA_ONLY_CONTROLS && userTouched.kinsoku && dialogControls.kinsokuDropdown.selection) ? KINSOKU_CHOICES[dialogControls.kinsokuDropdown.selection.index].id : null,
@@ -5225,7 +5247,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
          * @returns {void}
          */
         function applyFontSizeFromField() {
-            var newSize = (parseFloat(dialogControls.etFontSize.text) || 0) * typeUnitInfo.pointsPerUnit;
+            var newSize = unitToPt(parseFloat(dialogControls.etFontSize.text) || 0, textUnit);
             if (newSize <= 0) return;
             revertPreview();
             currentFontSize = newSize;
@@ -5267,7 +5289,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
          */
         function onCharsPerLineChange() {
             if (currentFontSize > 0) {
-                var nextWidth = (((parseFloat(dialogControls.etCharsPerLine.text) || 0) * currentFontSize + getWidthAdjustmentPt()) / rulerInfo.pointsPerUnit);
+                var nextWidth = ptToUnit((parseFloat(dialogControls.etCharsPerLine.text) || 0) * currentFontSize + getWidthAdjustmentPt(), rulerUnit);
                 if (!isNaN(nextWidth) && isFinite(nextWidth) && nextWidth > 0) {
                     setFieldNumber(dialogControls.etWidth, nextWidth);
                     validateWidthField();
@@ -5358,7 +5380,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
             }
             if (newSize <= 0) return;
             currentFontSize = newSize;
-            setFieldNumber(dialogControls.etFontSize, toFieldValue(newSize, typeUnitInfo));
+            setFieldNumber(dialogControls.etFontSize, toFieldValue(newSize, textUnit));
             updateCharsPerLineField();
             updateLeadingEffective();
         }

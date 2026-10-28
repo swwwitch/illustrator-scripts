@@ -351,7 +351,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
     // 単位 / Units
     // =========================================
 
-    /* 単位テーブル（配列の添字が rulerType コードと一致：0=in, 1=mm, 2=pt …）/ Unit table; the array index equals the rulerType code */
+    /* 単位コードに対応する表示ラベルと、1単位あたりのポイント数
+       Unit code -> display label and points per unit */
     var UNITS = [
         { label: "in",    pointsPerUnit: 72 },                /* 0 */
         { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
@@ -371,47 +372,47 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
     var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
 
     /**
-     * 設定キーごとの単位情報を取得する
-     * @param {string} prefKey - 環境設定キー（省略時は "rulerType"）
-     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位情報
+     * 環境設定キーの単位を返す
+     * @param {string} [prefKey] - "rulerType"（既定）/ "strokeUnits" / "text/units" / "text/asianunits"
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位の情報
      */
     function getUnitInfo(prefKey) {
         var unitKey = prefKey || "rulerType";
         var unitCode = app.preferences.getIntegerPreference(unitKey);
+        /* 未知のコードは pt に寄せる / unknown codes fall back to points */
         var unit = UNITS[unitCode] || UNITS[2];
+        /* 級（Q）と歯（H）は同じ長さだが、文字サイズは「Q」、距離は「H」と呼び分ける */
         var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
         return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
-    var rulerUnitInfo = getUnitInfo("rulerType");
-    var strokeUnitInfo = getUnitInfo("strokeUnits");
-
     /**
-     * 単位の数値を pt に換算します。
-     *
-     * @param {number} value - 単位付きの数値。
-     * @param {object} unitInfo - 単位情報。
-     * @returns {number} pt 値。
+     * 単位の値を pt に換算する
+     * @param {number} value - 単位の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} pt の値
      */
-    function convertValueToPt(value, unitInfo) {
-        return value * unitInfo.pointsPerUnit;
+    function unitToPt(value, unit) {
+        return value * unit.pointsPerUnit;
     }
 
     /**
-     * pt を単位の数値に換算します。
-     *
-     * @param {number} valuePt - pt 値。
-     * @param {object} unitInfo - 単位情報。
-     * @returns {number} 単位付きの数値。
+     * pt の値を単位の値に換算する
+     * @param {number} ptValue - pt の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} 単位の値
      */
-    function convertPtToUnitValue(valuePt, unitInfo) {
-        return valuePt / unitInfo.pointsPerUnit;
+    function ptToUnit(ptValue, unit) {
+        return ptValue / unit.pointsPerUnit;
     }
+
+    var rulerUnit = getUnitInfo("rulerType");
+    var strokeUnit = getUnitInfo("strokeUnits");
 
     /* 表示桁数 / Decimal places used for display */
     var DISPLAY_DECIMALS = 2;          /* 既定の桁数 / default decimal places */
     var DISPLAY_DECIMALS_MAX = 5;      /* 桁数の上限 / maximum decimal places */
-    var DISPLAY_DECIMALS_PT_FACTOR = 3; /* この換算係数までは既定の桁数 / units up to this factor keep the default */
+    var DISPLAY_DECIMALS_UNIT_PT = 3;  /* 1単位がこの pt 以下なら既定の桁数 / units of up to this many pt keep the default */
 
     /**
      * pt 値を小数点以下2桁へ丸めます。
@@ -431,8 +432,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
      * @returns {number} 小数点以下の桁数。
      */
     function getDisplayDecimals(unitInfo) {
-        if (!unitInfo || !(unitInfo.pointsPerUnit > DISPLAY_DECIMALS_PT_FACTOR)) return DISPLAY_DECIMALS;
-        var extraDigits = Math.ceil(Math.log(unitInfo.pointsPerUnit) / Math.LN10);
+        if (!unitInfo) return DISPLAY_DECIMALS;
+        var oneUnitPt = unitToPt(1, unitInfo); /* 1単位の pt / one unit in pt */
+        if (!(oneUnitPt > DISPLAY_DECIMALS_UNIT_PT)) return DISPLAY_DECIMALS;
+        var extraDigits = Math.ceil(Math.log(oneUnitPt) / Math.LN10);
         return Math.min(DISPLAY_DECIMALS + extraDigits, DISPLAY_DECIMALS_MAX);
     }
 
@@ -456,10 +459,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
      * @returns {number} 増減量。
      */
     function getArrowKeyStep(unitInfo) {
-        if (!unitInfo || !(unitInfo.pointsPerUnit > 0)) return 1;
+        if (!unitInfo) return 1;
+        var oneUnitPt = unitToPt(1, unitInfo); /* 1単位の pt / one unit in pt */
+        if (!(oneUnitPt > 0)) return 1;
         /* ∧∨は小数2桁に丸めて書き込むので、刻みは0.01まで（ft・yd・m で 0.001 にすると値が動かない）
            The stepper writes two decimals, so the step stops at 0.01 (0.001 would never move ft, yd or m) */
-        var exponent = Math.min(2, Math.max(0, Math.round(Math.log(unitInfo.pointsPerUnit) / Math.LN10)));
+        var exponent = Math.min(2, Math.max(0, Math.round(Math.log(oneUnitPt) / Math.LN10)));
         return Math.pow(10, -exponent);
     }
 
@@ -472,7 +477,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
      * @returns {void}
      */
     function setFieldFromPt(editText, valuePt, unitInfo) {
-        editText.text = String(roundDisplayValueForUnit(convertPtToUnitValue(valuePt, unitInfo), unitInfo));
+        editText.text = String(roundDisplayValueForUnit(ptToUnit(valuePt, unitInfo), unitInfo));
     }
 
     /**
@@ -488,7 +493,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
         if (isNaN(value)) return NaN;
         /* 負の値を黙って 0 にせず、呼び出し元でエラーとして扱えるようにする / Report it instead of silently clamping to zero */
         if (!allowNegative && value < 0) return NaN;
-        return convertValueToPt(value, unitInfo);
+        return unitToPt(value, unitInfo);
     }
 
     // UI の明暗（再利用パーツ） / UI theme (reusable)
@@ -2957,16 +2962,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
         dialogControls.heightField.helpTip = getLabel("tooltip.height", [MAX_HEIGHT_PERCENT]);
         dialogControls.heightField.active = true;
 
-        dialogControls.widthField = addLabeledField(optionsPanel, "fieldLabel.width", rulerUnitInfo.label, rulerUnitInfo);
+        dialogControls.widthField = addLabeledField(optionsPanel, "fieldLabel.width", rulerUnit.label, rulerUnit);
         dialogControls.widthField.helpTip = getLabel("tooltip.width");
 
-        dialogControls.insetField = addLabeledField(optionsPanel, "fieldLabel.inset", rulerUnitInfo.label, rulerUnitInfo);
+        dialogControls.insetField = addLabeledField(optionsPanel, "fieldLabel.inset", rulerUnit.label, rulerUnit);
         dialogControls.insetField.helpTip = getLabel("tooltip.inset", [roundDisplayValue(MAX_INSET_RATIO * 100)]);
 
-        dialogControls.gapField = addLabeledField(optionsPanel, "fieldLabel.gap", rulerUnitInfo.label, rulerUnitInfo);
+        dialogControls.gapField = addLabeledField(optionsPanel, "fieldLabel.gap", rulerUnit.label, rulerUnit);
         dialogControls.gapField.helpTip = getLabel("tooltip.gap");
 
-        dialogControls.strokeField = addLabeledField(optionsPanel, "fieldLabel.strokeWidth", strokeUnitInfo.label, strokeUnitInfo);
+        dialogControls.strokeField = addLabeledField(optionsPanel, "fieldLabel.strokeWidth", strokeUnit.label, strokeUnit);
 
         dialogControls.angleField = addLabeledField(optionsPanel, "fieldLabel.angle", "°", null);
         dialogControls.angleField.helpTip = getLabel("tooltip.angle", [SLASH_ANGLE_MAX]);
@@ -2995,9 +3000,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
         var positionPanel = parentColumn.add("panel", undefined, getLabel("panel.position"));
         setupPanel(positionPanel, 6);
 
-        dialogControls.offsetXField = addLabeledField(positionPanel, "fieldLabel.offsetX", rulerUnitInfo.label, rulerUnitInfo, "0");
+        dialogControls.offsetXField = addLabeledField(positionPanel, "fieldLabel.offsetX", rulerUnit.label, rulerUnit, "0");
         dialogControls.offsetXField.helpTip = getLabel("tooltip.offsetX");
-        dialogControls.offsetYField = addLabeledField(positionPanel, "fieldLabel.offsetY", rulerUnitInfo.label, rulerUnitInfo, "0");
+        dialogControls.offsetYField = addLabeledField(positionPanel, "fieldLabel.offsetY", rulerUnit.label, rulerUnit, "0");
         dialogControls.offsetYField.helpTip = getLabel("tooltip.offsetY");
     }
 
@@ -3022,9 +3027,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
         dialogControls.whiteEdgeCheckbox = checkboxRow.add("checkbox", undefined, getLabel("checkbox.whiteEdge"));
         dialogControls.whiteEdgeCheckbox.helpTip = getLabel("tooltip.whiteEdge");
 
-        dialogControls.whiteEdgeOffsetField = addLabeledField(whiteEdgePanel, "fieldLabel.whiteEdgeOffset", rulerUnitInfo.label, rulerUnitInfo);
+        dialogControls.whiteEdgeOffsetField = addLabeledField(whiteEdgePanel, "fieldLabel.whiteEdgeOffset", rulerUnit.label, rulerUnit);
         dialogControls.whiteEdgeOffsetField.helpTip = getLabel("tooltip.whiteEdgeOffset");
-        setFieldFromPt(dialogControls.whiteEdgeOffsetField, WHITE_EDGE_DEFAULT_OFFSET_PT, rulerUnitInfo);
+        setFieldFromPt(dialogControls.whiteEdgeOffsetField, WHITE_EDGE_DEFAULT_OFFSET_PT, rulerUnit);
 
         /* ラジオは同じ親の中だけ排他なので、縦に並べる列に2つとも入れる / radios are exclusive only within one parent, so both go in one column */
         var joinRow = whiteEdgePanel.add("group");
@@ -3236,15 +3241,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
         var shapeConfig = SHAPE_CONFIG[getSelectedShapeKey(dialogControls)];
         var heightPercent = null;
         /* 空欄は 0 として読み、下で自動計算の幅に置き換える / An empty field reads as 0 and becomes the automatic width below */
-        var widthPt = /\S/.test(dialogControls.widthField.text) ? parseFieldToPt(dialogControls.widthField, rulerUnitInfo, false) : 0;
+        var widthPt = /\S/.test(dialogControls.widthField.text) ? parseFieldToPt(dialogControls.widthField, rulerUnit, false) : 0;
         var insetPt = 0;
-        var offsetX = parseFieldToPt(dialogControls.offsetXField, rulerUnitInfo, true);
-        var offsetY = parseFieldToPt(dialogControls.offsetYField, rulerUnitInfo, true);
-        var strokeWidthPt = parseFieldToPt(dialogControls.strokeField, strokeUnitInfo, false);
+        var offsetX = parseFieldToPt(dialogControls.offsetXField, rulerUnit, true);
+        var offsetY = parseFieldToPt(dialogControls.offsetYField, rulerUnit, true);
+        var strokeWidthPt = parseFieldToPt(dialogControls.strokeField, strokeUnit, false);
         var angleDeg = shapeConfig.enableAngle ? parseFloat(dialogControls.angleField.text) : 0;
-        var chevronGapPt = shapeConfig.enableGap ? parseFieldToPt(dialogControls.gapField, rulerUnitInfo, true) : 0;
+        var chevronGapPt = shapeConfig.enableGap ? parseFieldToPt(dialogControls.gapField, rulerUnit, true) : 0;
         var isWhiteEdge = dialogControls.whiteEdgeCheckbox.value;
-        var whiteEdgeOffsetPt = isWhiteEdge ? parseFieldToPt(dialogControls.whiteEdgeOffsetField, rulerUnitInfo, false) : 0;
+        var whiteEdgeOffsetPt = isWhiteEdge ? parseFieldToPt(dialogControls.whiteEdgeOffsetField, rulerUnit, false) : 0;
 
         if (shapeConfig.enableHeightInput) {
             heightPercent = parseFloat(dialogControls.heightField.text);
@@ -3268,7 +3273,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
         }
 
         if (shapeConfig.enableInset) {
-            insetPt = parseFieldToPt(dialogControls.insetField, rulerUnitInfo, false);
+            insetPt = parseFieldToPt(dialogControls.insetField, rulerUnit, false);
             if (isNaN(insetPt)) {
                 return reportInvalidValue(dialogControls.insetField, "alert.invalidValue", showAlert);
             }
@@ -3290,8 +3295,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
         }
         /* 塗りだけの形状は線幅を使わないので、下限を求めない / Fill-only shapes ignore the stroke width, so the minimum does not apply */
         if (shapeConfig.enableStrokeInput && strokeWidthPt < MIN_STROKE_WIDTH_PT) {
-            var minStrokeText = roundDisplayValueForUnit(convertPtToUnitValue(MIN_STROKE_WIDTH_PT, strokeUnitInfo), strokeUnitInfo);
-            return reportInvalidValue(dialogControls.strokeField, "alert.strokePositive", showAlert, [minStrokeText, strokeUnitInfo.label]);
+            var minStrokeText = roundDisplayValueForUnit(ptToUnit(MIN_STROKE_WIDTH_PT, strokeUnit), strokeUnit);
+            return reportInvalidValue(dialogControls.strokeField, "alert.strokePositive", showAlert, [minStrokeText, strokeUnit.label]);
         }
         if (shapeConfig.enableAngle && isNaN(angleDeg)) {
             return reportInvalidValue(dialogControls.angleField, "alert.invalidValue", showAlert);
@@ -3440,7 +3445,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
         function applyAutoWidthToField() {
             var autoWidthPt = computeAutoWidthPt();
             if (autoWidthPt === null) return;
-            setFieldFromPt(dialogControls.widthField, autoWidthPt, rulerUnitInfo);
+            setFieldFromPt(dialogControls.widthField, autoWidthPt, rulerUnit);
         }
 
         /**
@@ -3459,7 +3464,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
          * @returns {number} 幅（pt）。求められない場合は 0。
          */
         function getEffectiveWidthPt() {
-            var typedWidthPt = parseFieldToPt(dialogControls.widthField, rulerUnitInfo, false);
+            var typedWidthPt = parseFieldToPt(dialogControls.widthField, rulerUnit, false);
             if (typedWidthPt > 0) return typedWidthPt;
 
             var autoWidthPt = computeAutoWidthPt();
@@ -3477,8 +3482,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
 
             var effectiveWidthPt = getEffectiveWidthPt();
             var maxInsetPt = effectiveWidthPt * MAX_INSET_RATIO;
-            if (effectiveWidthPt > 0 && convertValueToPt(insetValue, rulerUnitInfo) > maxInsetPt) {
-                setFieldFromPt(dialogControls.insetField, maxInsetPt, rulerUnitInfo);
+            if (effectiveWidthPt > 0 && unitToPt(insetValue, rulerUnit) > maxInsetPt) {
+                setFieldFromPt(dialogControls.insetField, maxInsetPt, rulerUnit);
             }
         }
 
@@ -3491,7 +3496,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
             if (currentShapeKey === null) return;
             var previousConfig = SHAPE_CONFIG[currentShapeKey];
             if (!previousConfig.enableStrokeInput) return;
-            var strokeWidthPt = parseFieldToPt(dialogControls.strokeField, strokeUnitInfo, false);
+            var strokeWidthPt = parseFieldToPt(dialogControls.strokeField, strokeUnit, false);
             if (strokeWidthPt >= MIN_STROKE_WIDTH_PT) strokeWidthByGroup[previousConfig.strokeWidthGroup] = strokeWidthPt;
         }
 
@@ -3505,11 +3510,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
         function applyStrokeWidthForShape(shapeConfig) {
             if (!shapeConfig.enableStrokeInput) {
                 /* 開いた直後だけは空欄にしない / fill the field only when it is still empty */
-                if (!/\S/.test(dialogControls.strokeField.text)) setFieldFromPt(dialogControls.strokeField, shapeConfig.defaultStrokePt, strokeUnitInfo);
+                if (!/\S/.test(dialogControls.strokeField.text)) setFieldFromPt(dialogControls.strokeField, shapeConfig.defaultStrokePt, strokeUnit);
                 return;
             }
             var rememberedPt = strokeWidthByGroup[shapeConfig.strokeWidthGroup];
-            setFieldFromPt(dialogControls.strokeField, (typeof rememberedPt === "number") ? rememberedPt : shapeConfig.defaultStrokePt, strokeUnitInfo);
+            setFieldFromPt(dialogControls.strokeField, (typeof rememberedPt === "number") ? rememberedPt : shapeConfig.defaultStrokePt, strokeUnit);
         }
 
         /**
@@ -3528,8 +3533,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
                 dialogControls.heightField.text = String(shapeConfig.defaultHeightPercent);
             }
             resetWidthToAuto();
-            setFieldFromPt(dialogControls.gapField, shapeConfig.defaultGap, rulerUnitInfo);
-            setFieldFromPt(dialogControls.insetField, 0, rulerUnitInfo);
+            setFieldFromPt(dialogControls.gapField, shapeConfig.defaultGap, rulerUnit);
+            setFieldFromPt(dialogControls.insetField, 0, rulerUnit);
             applyStrokeWidthForShape(shapeConfig);
             dialogControls.angleField.text = String(shapeConfig.defaultAngle);
 
@@ -3681,13 +3686,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
             /* ％と度は単位を持たないため、増減量は1固定 / Percent and degrees have no unit, so they step by one */
             setupFieldStepper(dialogControls.heightField, false, null, MAX_HEIGHT_PERCENT);
             setupFieldStepper(dialogControls.angleField, false, null, SLASH_ANGLE_MAX);
-            setupFieldStepper(dialogControls.widthField, false, rulerUnitInfo);
-            setupFieldStepper(dialogControls.insetField, false, rulerUnitInfo);
-            setupFieldStepper(dialogControls.strokeField, false, strokeUnitInfo);
-            setupFieldStepper(dialogControls.gapField, true, rulerUnitInfo);
-            setupFieldStepper(dialogControls.offsetXField, true, rulerUnitInfo);
-            setupFieldStepper(dialogControls.offsetYField, true, rulerUnitInfo);
-            setupFieldStepper(dialogControls.whiteEdgeOffsetField, false, rulerUnitInfo);
+            setupFieldStepper(dialogControls.widthField, false, rulerUnit);
+            setupFieldStepper(dialogControls.insetField, false, rulerUnit);
+            setupFieldStepper(dialogControls.strokeField, false, strokeUnit);
+            setupFieldStepper(dialogControls.gapField, true, rulerUnit);
+            setupFieldStepper(dialogControls.offsetXField, true, rulerUnit);
+            setupFieldStepper(dialogControls.offsetYField, true, rulerUnit);
+            setupFieldStepper(dialogControls.whiteEdgeOffsetField, false, rulerUnit);
         }
 
         /**

@@ -92,6 +92,7 @@ https://note.com/dtp_tranist/n/n1ba88513a9c8
 
 ### Update History
 
+- v1.7.7 (2026-10-29) With the ruler unit set to Ha (H), unit labels now read "H" instead of "Q" (unit handling unified)
 - v1.7.6 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.7.5 (2026-10-01) Added space below the button row to match Illustrator's own dialogs
 - v1.7.4 (2026-10-01) The button row now uses the shared part. Unified the window and panel margins and spacing with the shared layout part

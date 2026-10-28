@@ -1372,7 +1372,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         /* 単位ユーティリティ / Unit utilities */
 
-        /* 単位テーブル（配列の添字が rulerType コードと一致：0=in, 1=mm, 2=pt …）/ Unit table; the array index equals the rulerType code */
+        /* 単位コードに対応する表示ラベルと、1単位あたりのポイント数
+           Unit code -> display label and points per unit */
         var UNITS = [
             { label: "in",    pointsPerUnit: 72 },                /* 0 */
             { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
@@ -1392,30 +1393,49 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
 
         /**
-         * 設定キーごとの単位情報を取得する
-         * @param {string} prefKey - 環境設定キー（省略時は "rulerType"）
-         * @returns {{code: number, label: string, pointsPerUnit: number}} 単位情報
+         * 環境設定キーの単位を返す
+         * @param {string} [prefKey] - "rulerType"（既定）/ "strokeUnits" / "text/units" / "text/asianunits"
+         * @returns {{code: number, label: string, pointsPerUnit: number}} 単位の情報
          */
         function getUnitInfo(prefKey) {
             var unitKey = prefKey || "rulerType";
             var unitCode = app.preferences.getIntegerPreference(unitKey);
+            /* 未知のコードは pt に寄せる / unknown codes fall back to points */
             var unit = UNITS[unitCode] || UNITS[2];
+            /* 級（Q）と歯（H）は同じ長さだが、文字サイズは「Q」、距離は「H」と呼び分ける */
             var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
             return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
         }
 
-        /* 線幅・余白・既定の間隔は常に mm で持つ / Line weights, padding and default gutter are always in mm */
-        var POINTS_PER_MM = UNITS[1].pointsPerUnit;
+        /**
+         * 単位の値を pt に換算する
+         * @param {number} value - 単位の値
+         * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+         * @returns {number} pt の値
+         */
+        function unitToPt(value, unit) {
+            return value * unit.pointsPerUnit;
+        }
+
+        /**
+         * pt の値を単位の値に換算する
+         * @param {number} ptValue - pt の値
+         * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+         * @returns {number} 単位の値
+         */
+        function ptToUnit(ptValue, unit) {
+            return ptValue / unit.pointsPerUnit;
+        }
 
         /* 設定項目 / Settings */
         var lineWeightMM = 0.1; // 線の太さ (mm) ※細めが良い場合は0.1など
         var paddingMM = 0.0;    // テキストの左右に少し余白を持たせるか (mm)
         // ----------------
 
-        var lineWeightPt = lineWeightMM * POINTS_PER_MM;
-        var paddingPt = paddingMM * POINTS_PER_MM;
+        var lineWeightPt = unitToPt(lineWeightMM, UNITS[1]);
+        var paddingPt = unitToPt(paddingMM, UNITS[1]);
         var HEADER_LINE_WEIGHT_MM = 0.3; // チェックON時、上から1本目と2本目だけ太くする(mm)
-        var headerLineWeightPt = HEADER_LINE_WEIGHT_MM * POINTS_PER_MM;
+        var headerLineWeightPt = unitToPt(HEADER_LINE_WEIGHT_MM, UNITS[1]);
 
         // --- Shared document/layer/color references (must be declared to avoid ReferenceError in ExtendScript) ---
         var doc = null;
@@ -1927,12 +1947,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         cbUseGutter.value = true;
 
         var rulerUnit = getUnitInfo('rulerType');
-        var rulerFactorPt = rulerUnit.pointsPerUnit;
         var rulerUnitLabel = rulerUnit.label;
         // デフォルトガター：1mm 相当を rulerType に変換 / Default gutter ≈ 1mm in rulerType
         var defaultGutterMm = 1;
-        var defaultGutterPt = defaultGutterMm * POINTS_PER_MM;
-        var defaultGutterVal = defaultGutterPt / rulerFactorPt;
+        var defaultGutterPt = unitToPt(defaultGutterMm, UNITS[1]);
+        var defaultGutterVal = ptToUnit(defaultGutterPt, rulerUnit);
 
         // 表示用に丸め（pt/pxは整数、その他は小数1桁）
         if (rulerUnitLabel === 'pt' || rulerUnitLabel === 'px') {
@@ -1993,7 +2012,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         // ガター値をmm指定でセット（rulerTypeに変換して入力欄へ）
         function setGutterByMm(mmVal) {
-            var val = (mmVal * POINTS_PER_MM) / rulerFactorPt;
+            var val = ptToUnit(unitToPt(mmVal, UNITS[1]), rulerUnit);
             // 表示用に丸め（pt/pxは整数、その他は小数1桁）
             if (rulerUnitLabel === 'pt' || rulerUnitLabel === 'px') {
                 val = Math.round(val);
@@ -2754,7 +2773,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
             hGutterVal = cbUseGutter.value ? parseFloat(etHGutter.text) : 0;
             if (isNaN(hGutterVal) || hGutterVal < 0) hGutterVal = 0;
-            hGutterPt = hGutterVal * rulerFactorPt;
+            hGutterPt = unitToPt(hGutterVal, rulerUnit);
 
             vRuleMode = rbVruleNone.value ? 'none' : (rbVruleAll.value ? 'all' : 'gapsOnly');
 

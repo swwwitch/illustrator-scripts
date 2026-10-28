@@ -946,9 +946,25 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         { label: "ft",    pointsPerUnit: 72 * 12,          decimals: 4 }   /* 10 */
     ];
 
-    /* 単位コード5を「歯（H）」と表示する環境設定キー。文字サイズ（text/units）だけ「級（Q）」
-       Preference keys that show unit code 5 as H; only the type size (text/units) shows Q */
-    var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
+    /**
+     * 単位の値を pt に換算する
+     * @param {number} value - 単位の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} pt の値
+     */
+    function unitToPt(value, unit) {
+        return value * unit.pointsPerUnit;
+    }
+
+    /**
+     * pt の値を単位の値に換算する
+     * @param {number} ptValue - pt の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} 単位の値
+     */
+    function ptToUnit(ptValue, unit) {
+        return ptValue / unit.pointsPerUnit;
+    }
 
     /**
      * 単位コードから単位定義を取得する（未対応コードは pt 相当）
@@ -957,19 +973,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      */
     function getUnitByCode(unitCode) {
         return UNITS[unitCode] || UNITS[2];
-    }
-
-    /**
-     * 設定キーごとの単位情報を取得する
-     * @param {string} prefKey - 環境設定キー（省略時は "rulerType"）
-     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位情報
-     */
-    function getUnitInfo(prefKey) {
-        var unitKey = prefKey || "rulerType";
-        var unitCode = app.preferences.getIntegerPreference(unitKey);
-        var unit = UNITS[unitCode] || UNITS[2];
-        var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
-        return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
     /**
@@ -1511,7 +1514,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
          * @returns {string} 表示用の文字列
          */
         function formatKeyIncrement(lengthPt) {
-            return (lengthPt / currentUnit.pointsPerUnit).toFixed(currentUnit.decimals);
+            return ptToUnit(lengthPt, currentUnit).toFixed(currentUnit.decimals);
         }
 
         /**
@@ -1520,7 +1523,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
          * @returns {void}
          */
         function commitKeyIncrement(unitValue) {
-            var lengthPt = unitValue * currentUnit.pointsPerUnit;
+            var lengthPt = unitToPt(unitValue, currentUnit);
             applyKeyIncrement(lengthPt, handleWorkerResult(function () {
                 paletteUI.keyIncrementInput.text = formatKeyIncrement(lengthPt);
                 paletteUI.statusText.text = getLabel("status.appliedKeyIncrement");

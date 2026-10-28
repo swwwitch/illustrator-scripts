@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.GenerateGuidesGrid
 Name=GenerateGuidesGrid
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.8.9
+Version=1.8.10
 Release-Date=2025-04-24
 Description-BEGIN
 アートボードまたは選択オブジェクトの外接矩形を、指定した行数・列数に分割してグリッド用のガイドを生成します。
@@ -47,10 +47,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/GenerateGu
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "GenerateGuidesGrid";           /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.8.9";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.8.10";                      /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-04-24";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-29";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/GenerateGuidesGrid.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/GenerateGuidesGrid.md"; /* README (English) */
@@ -1575,22 +1575,70 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n7adc7290b607"; /* 紹�
     // =========================================
     // 単位 / Units
     // =========================================
-    /* rulerType から単位ラベルと pt 換算係数を求める / Resolve unit label and pt factor from rulerType */
-    function getUnitInfo(rulerType) {
-        switch (rulerType) {
-            case 0: return { label: "inch", factor: 72.0 };
-            case 1: return { label: "mm", factor: 72.0 / 25.4 };
-            case 3: return { label: "pica", factor: 12.0 };
-            case 4: return { label: "cm", factor: 72.0 / 2.54 };
-            case 5: return { label: "Q", factor: 72.0 / 25.4 * 0.25 };
-            case 6: return { label: "px", factor: 1.0 };
-            default: return { label: "pt", factor: 1.0 }; // 2 = pt
-        }
+
+    /* 単位コードに対応する表示ラベルと、1単位あたりのポイント数
+       Unit code -> display label and points per unit */
+    var UNITS = [
+        { label: "in",    pointsPerUnit: 72 },                /* 0 */
+        { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
+        { label: "pt",    pointsPerUnit: 1 },                 /* 2 */
+        { label: "pica",  pointsPerUnit: 12 },                /* 3 */
+        { label: "cm",    pointsPerUnit: 72 / 2.54 },         /* 4 */
+        { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25 },  /* 5 */
+        { label: "px",    pointsPerUnit: 1 },                 /* 6 */
+        { label: "ft/in", pointsPerUnit: 72 * 12 },           /* 7 */
+        { label: "m",     pointsPerUnit: 72 / 25.4 * 1000 },  /* 8 */
+        { label: "yd",    pointsPerUnit: 72 * 36 },           /* 9 */
+        { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
+    ];
+
+    /* 単位コード5を「歯（H）」と表示する環境設定キー。文字サイズ（text/units）だけ「級（Q）」
+       Preference keys that show unit code 5 as H; only the type size (text/units) shows Q */
+    var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
+
+    /**
+     * 環境設定キーの単位を返す
+     * @param {string} [prefKey] - "rulerType"（既定）/ "strokeUnits" / "text/units" / "text/asianunits"
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位の情報
+     */
+    function getUnitInfo(prefKey) {
+        var unitKey = prefKey || "rulerType";
+        var unitCode = app.preferences.getIntegerPreference(unitKey);
+        /* 未知のコードは pt に寄せる / unknown codes fall back to points */
+        var unit = UNITS[unitCode] || UNITS[2];
+        /* 級（Q）と歯（H）は同じ長さだが、文字サイズは「Q」、距離は「H」と呼び分ける */
+        var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
+        return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
-    var unitInfo = getUnitInfo(app.preferences.getIntegerPreference("rulerType"));
-    var unitFactor = unitInfo.factor;
-    /* 長さの欄の中に付ける単位（「10 mm」の形）/ Unit shown inside the length fields, as in "10 mm" */
-    var lengthUnit = " " + unitInfo.label;
+
+    /**
+     * 単位の値を pt に換算する
+     * @param {number} value - 単位の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} pt の値
+     */
+    function unitToPt(value, unit) {
+        return value * unit.pointsPerUnit;
+    }
+
+    /**
+     * pt の値を単位の値に換算する
+     * @param {number} ptValue - pt の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} 単位の値
+     */
+    function ptToUnit(ptValue, unit) {
+        return ptValue / unit.pointsPerUnit;
+    }
+
+    /* 定規の単位（ダイアログを開く前に一度だけ読む）/ Ruler unit, read once before the dialog opens */
+    var rulerUnit = getUnitInfo();
+    /* 長さの欄の中に付ける単位（「10 mm」の形）。in は「inch」、単位コード5は「Q」と書く
+       Unit shown inside the length fields, as in "10 mm"; inches read "inch" and unit code 5 reads "Q" */
+    var rulerUnitLabel = rulerUnit.label;
+    if (rulerUnit.code === 0) rulerUnitLabel = "inch";
+    if (rulerUnit.code === 5) rulerUnitLabel = "Q";
+    var lengthUnit = " " + rulerUnitLabel;
 
     /* プリセット値は pt 基準で保持。表示は現在単位へ換算する / Preset values are stored in points; convert to the current ruler unit for display */
     var UNIT_DECIMALS = 2; /* 換算時に残す小数桁数 / decimals kept when converting */
@@ -1607,21 +1655,21 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n7adc7290b607"; /* 紹�
     }
 
     /**
-     * pt → 現在単位
+     * pt の値を定規の単位に換算し、UNIT_DECIMALS 桁で丸める
      * @param {number} ptValue - pt 値
-     * @returns {number} 現在単位の値
+     * @returns {number} 定規の単位の値
      */
-    function ptToUnit(ptValue) {
-        return roundTo(Number(ptValue) / unitFactor, UNIT_DECIMALS);
+    function ptToRoundedRulerValue(ptValue) {
+        return roundTo(ptToUnit(Number(ptValue), rulerUnit), UNIT_DECIMALS);
     }
 
     /**
-     * 現在単位 → pt
-     * @param {number|string} unitValue - 現在単位の値
+     * 定規の単位の値を pt に換算し、UNIT_DECIMALS 桁で丸める
+     * @param {number|string} unitValue - 定規の単位の値
      * @returns {number} pt 値
      */
-    function unitToPt(unitValue) {
-        return roundTo(Number(unitValue) * unitFactor, UNIT_DECIMALS);
+    function rulerValueToRoundedPt(unitValue) {
+        return roundTo(unitToPt(Number(unitValue), rulerUnit), UNIT_DECIMALS);
     }
 
     /**
@@ -2402,13 +2450,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n7adc7290b607"; /* 紹�
             var currentPreset = {
                 columns: toInteger(columnCountInput.text, 1),
                 rows: toInteger(rowCountInput.text, 1),
-                guideExtension: unitToPt(toNumber(extensionInput.text, 0)),
-                marginTop: unitToPt(toNumber(marginTopInput.text, 0)),
-                marginBottom: unitToPt(toNumber(marginBottomInput.text, 0)),
-                marginLeft: unitToPt(toNumber(marginLeftInput.text, 0)),
-                marginRight: unitToPt(toNumber(marginRightInput.text, 0)),
-                rowGutter: unitToPt(toNumber(rowGutterInput.text, 0)),
-                columnGutter: unitToPt(toNumber(columnGutterInput.text, 0)),
+                guideExtension: rulerValueToRoundedPt(toNumber(extensionInput.text, 0)),
+                marginTop: rulerValueToRoundedPt(toNumber(marginTopInput.text, 0)),
+                marginBottom: rulerValueToRoundedPt(toNumber(marginBottomInput.text, 0)),
+                marginLeft: rulerValueToRoundedPt(toNumber(marginLeftInput.text, 0)),
+                marginRight: rulerValueToRoundedPt(toNumber(marginRightInput.text, 0)),
+                rowGutter: rulerValueToRoundedPt(toNumber(rowGutterInput.text, 0)),
+                columnGutter: rulerValueToRoundedPt(toNumber(columnGutterInput.text, 0)),
                 drawCells: cellRectCheckbox.value,
                 drawGuides: drawGuidesCheckbox.value
             };
@@ -2836,17 +2884,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n7adc7290b607"; /* 紹�
             columnCountInput.text = pickPresetValue(preset.columns, 1);
             rowCountInput.text = pickPresetValue(preset.rows, 1);
             // 長さ系は pt 基準なので現在単位へ換算 / Length values are stored in pt — convert to the current unit
-            extensionInput.text = formatLength(ptToUnit(pickPresetValue(preset.guideExtension, 0)));
+            extensionInput.text = formatLength(ptToRoundedRulerValue(pickPresetValue(preset.guideExtension, 0)));
             var presetMarginTop = pickPresetValue(preset.marginTop, 0);
             var presetMarginBottom = pickPresetValue(preset.marginBottom, 0);
             var presetMarginLeft = pickPresetValue(preset.marginLeft, 0);
             var presetMarginRight = pickPresetValue(preset.marginRight, 0);
-            marginTopInput.text = formatLength(ptToUnit(presetMarginTop));
-            marginBottomInput.text = formatLength(ptToUnit(presetMarginBottom));
-            marginLeftInput.text = formatLength(ptToUnit(presetMarginLeft));
-            marginRightInput.text = formatLength(ptToUnit(presetMarginRight));
-            rowGutterInput.text = formatLength(ptToUnit(pickPresetValue(preset.rowGutter, 0)));
-            columnGutterInput.text = formatLength(ptToUnit(pickPresetValue(preset.columnGutter, 0)));
+            marginTopInput.text = formatLength(ptToRoundedRulerValue(presetMarginTop));
+            marginBottomInput.text = formatLength(ptToRoundedRulerValue(presetMarginBottom));
+            marginLeftInput.text = formatLength(ptToRoundedRulerValue(presetMarginLeft));
+            marginRightInput.text = formatLength(ptToRoundedRulerValue(presetMarginRight));
+            rowGutterInput.text = formatLength(ptToRoundedRulerValue(pickPresetValue(preset.rowGutter, 0)));
+            columnGutterInput.text = formatLength(ptToRoundedRulerValue(pickPresetValue(preset.columnGutter, 0)));
             // 上下左右が異なるプリセットは連動をOFF（連動が値を上書きして壊すのを防ぐ）
             // If margins differ, turn the link off so it won't overwrite the distinct values
             setLinkToggleValue(linkMarginToggle, (presetMarginTop === presetMarginBottom && presetMarginTop === presetMarginLeft && presetMarginTop === presetMarginRight));
@@ -2967,9 +3015,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n7adc7290b607"; /* 紹�
                 columnCount: toInteger(columnCountInput.text, 1),
                 rowCount: toInteger(rowCountInput.text, 1),
                 /* ディム中（「ガイドを引く」OFF）の伸張は効かせない / A dimmed extension (draw-guides off) must not affect the output */
-                guideExtension: ((extensionGroup.enabled && extensionCheckbox.value) ? toNumber(extensionInput.text, 0) : 0) * unitFactor,
-                rowGutter: toNumber(rowGutterInput.text, 0) * unitFactor,
-                columnGutter: toNumber(columnGutterInput.text, 0) * unitFactor,
+                guideExtension: unitToPt((extensionGroup.enabled && extensionCheckbox.value) ? toNumber(extensionInput.text, 0) : 0, rulerUnit),
+                rowGutter: unitToPt(toNumber(rowGutterInput.text, 0), rulerUnit),
+                columnGutter: unitToPt(toNumber(columnGutterInput.text, 0), rulerUnit),
                 drawGridGuides: drawGuidesCheckbox.value,
                 drawArtboardEdge: artboardEdgeCheckbox.value,
                 splitCells: splitCellCheckbox.value
@@ -2979,10 +3027,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n7adc7290b607"; /* 紹�
         // 上下左右マージンを収集 / Collect top/bottom/left/right margins
         function collectMarginSettings() {
             return {
-                marginTop: toNumber(marginTopInput.text, 0) * unitFactor,
-                marginBottom: toNumber(marginBottomInput.text, 0) * unitFactor,
-                marginLeft: toNumber(marginLeftInput.text, 0) * unitFactor,
-                marginRight: toNumber(marginRightInput.text, 0) * unitFactor
+                marginTop: unitToPt(toNumber(marginTopInput.text, 0), rulerUnit),
+                marginBottom: unitToPt(toNumber(marginBottomInput.text, 0), rulerUnit),
+                marginLeft: unitToPt(toNumber(marginLeftInput.text, 0), rulerUnit),
+                marginRight: unitToPt(toNumber(marginRightInput.text, 0), rulerUnit)
             };
         }
 
@@ -2990,7 +3038,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n7adc7290b607"; /* 紹�
         function collectCellSettings() {
             return {
                 drawCells: cellRectCheckbox.value,
-                cornerRadius: roundCornerCheckbox.value ? toNumber(roundCornerInput.text, 0) * unitFactor : 0,
+                cornerRadius: roundCornerCheckbox.value ? unitToPt(toNumber(roundCornerInput.text, 0), rulerUnit) : 0,
                 cellOpacity: Math.round(opacitySlider.value)
             };
         }

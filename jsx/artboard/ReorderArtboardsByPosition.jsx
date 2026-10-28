@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.ReorderArtboardsByPosition
 Name=ReorderArtboardsByPosition
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.5.8
+Version=1.5.9
 Release-Date=2023-11-15
 Description-BEGIN
 カンバス上の見た目の並び（左上基準・Y優先）をもとに、［アートボード］パネルの並び順を整理します。
@@ -47,10 +47,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ReorderArt
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ReorderArtboardsByPosition";   /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.5.8";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.5.9";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2023-11-15";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-16";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-29";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ReorderArtboardsByPosition.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ReorderArtboardsByPosition.md"; /* README (English) */
@@ -1561,16 +1561,43 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb416cb01728a"; /* 紹�
         { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
     ];
 
+    /* 単位コード5を「歯（H）」と表示する環境設定キー。文字サイズ（text/units）だけ「級（Q）」
+       Preference keys that show unit code 5 as H; only the type size (text/units) shows Q */
+    var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
+
     /**
      * 環境設定キーの単位を返す
      * @param {string} [prefKey] - "rulerType"（既定）/ "strokeUnits" / "text/units" / "text/asianunits"
      * @returns {{code: number, label: string, pointsPerUnit: number}} 単位の情報
      */
     function getUnitInfo(prefKey) {
-        var unitCode = app.preferences.getIntegerPreference(prefKey || "rulerType");
+        var unitKey = prefKey || "rulerType";
+        var unitCode = app.preferences.getIntegerPreference(unitKey);
         /* 未知のコードは pt に寄せる / unknown codes fall back to points */
         var unit = UNITS[unitCode] || UNITS[2];
-        return { code: unitCode, label: unit.label, pointsPerUnit: unit.pointsPerUnit };
+        /* 級（Q）と歯（H）は同じ長さだが、文字サイズは「Q」、距離は「H」と呼び分ける */
+        var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
+        return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
+    }
+
+    /**
+     * 単位の値を pt に換算する
+     * @param {number} value - 単位の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} pt の値
+     */
+    function unitToPt(value, unit) {
+        return value * unit.pointsPerUnit;
+    }
+
+    /**
+     * pt の値を単位の値に換算する
+     * @param {number} ptValue - pt の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} 単位の値
+     */
+    function ptToUnit(ptValue, unit) {
+        return ptValue / unit.pointsPerUnit;
     }
 
     var currentUnitLabel = getUnitInfo().label;
@@ -1584,7 +1611,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb416cb01728a"; /* 紹�
     function readDisplayUnitInputAsPoints(valueInput, defaultValue) {
         var displayValue = parseFloat(valueInput.text);
         if (isNaN(displayValue)) displayValue = defaultValue;
-        return displayValue * getUnitInfo().pointsPerUnit;
+        return unitToPt(displayValue, getUnitInfo());
     }
 
     // =========================================
@@ -2982,11 +3009,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb416cb01728a"; /* 紹�
      */
     function isArtboardSizeName(separator, firstNumber, secondNumber, artboardWidth, artboardHeight) {
         if (separator.toLowerCase() !== "x") return false;
-        var pointsPerUnitList = [1, getUnitInfo().pointsPerUnit];
-        for (var unitIndex = 0; unitIndex < pointsPerUnitList.length; unitIndex++) {
-            var pointsPerUnit = pointsPerUnitList[unitIndex];
-            if (Math.round(artboardWidth / pointsPerUnit) === firstNumber &&
-                Math.round(artboardHeight / pointsPerUnit) === secondNumber) return true;
+        var candidateUnits = [UNITS[2], getUnitInfo()];
+        for (var unitIndex = 0; unitIndex < candidateUnits.length; unitIndex++) {
+            var candidateUnit = candidateUnits[unitIndex];
+            if (Math.round(ptToUnit(artboardWidth, candidateUnit)) === firstNumber &&
+                Math.round(ptToUnit(artboardHeight, candidateUnit)) === secondNumber) return true;
         }
         return false;
     }

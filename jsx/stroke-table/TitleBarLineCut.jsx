@@ -1766,7 +1766,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         if (!rectA) { alert(getLabel('alertSelectTypes')); return; }
 
         // rulerType を参照して単位ラベルと pt 変換を決める
-        /* 単位テーブル（配列の添字が rulerType コードと一致：0=in, 1=mm, 2=pt …）/ Unit table; the array index equals the rulerType code */
+        /* 単位コードに対応する表示ラベルと、1単位あたりのポイント数
+           Unit code -> display label and points per unit */
         var UNITS = [
             { label: "in",    pointsPerUnit: 72 },                /* 0 */
             { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
@@ -1786,32 +1787,42 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
 
         /**
-         * 設定キーごとの単位情報を取得する
-         * @param {string} prefKey - 環境設定キー（省略時は "rulerType"）
-         * @returns {{code: number, label: string, pointsPerUnit: number}} 単位情報
+         * 環境設定キーの単位を返す
+         * @param {string} [prefKey] - "rulerType"（既定）/ "strokeUnits" / "text/units" / "text/asianunits"
+         * @returns {{code: number, label: string, pointsPerUnit: number}} 単位の情報
          */
         function getUnitInfo(prefKey) {
             var unitKey = prefKey || "rulerType";
             var unitCode = app.preferences.getIntegerPreference(unitKey);
+            /* 未知のコードは pt に寄せる / unknown codes fall back to points */
             var unit = UNITS[unitCode] || UNITS[2];
+            /* 級（Q）と歯（H）は同じ長さだが、文字サイズは「Q」、距離は「H」と呼び分ける */
             var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
             return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
         }
 
-        var rulerUnitInfo = getUnitInfo("rulerType");
-        var strokeUnitInfo = getUnitInfo("strokeUnits");
-
-        function unitToPt(v) {
-            return v * rulerUnitInfo.pointsPerUnit;
+        /**
+         * 単位の値を pt に換算する
+         * @param {number} value - 単位の値
+         * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+         * @returns {number} pt の値
+         */
+        function unitToPt(value, unit) {
+            return value * unit.pointsPerUnit;
         }
 
-        function strokeUnitToPt(v) {
-            return v * strokeUnitInfo.pointsPerUnit;
+        /**
+         * pt の値を単位の値に換算する
+         * @param {number} ptValue - pt の値
+         * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+         * @returns {number} 単位の値
+         */
+        function ptToUnit(ptValue, unit) {
+            return ptValue / unit.pointsPerUnit;
         }
 
-        function ptToStrokeUnit(vPt) {
-            return vPt / strokeUnitInfo.pointsPerUnit;
-        }
+        var rulerUnit = getUnitInfo("rulerType");
+        var strokeUnit = getUnitInfo("strokeUnits");
 
         // ---- 状態保持（プレビュー用）----
         var rectLayer = rectA.layer;
@@ -1899,7 +1910,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                     if (typeof et !== "undefined" && typeof parseMargin === "function") {
                         var m = parseMargin();
                         if (m !== null) {
-                            var mp = unitToPt(m);
+                            var mp = unitToPt(m, rulerUnit);
                             var newB = applyNotchSubtractToFill(rectB, mp);
                             if (newB) {
                                 rectB = newB; // GroupItemになる場合がある
@@ -1976,7 +1987,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 var tb = __textBoundsForCalc || tf.visibleBounds; // [L,T,R,B]
                 var hPt = Math.abs(tb[1] - tb[3]);
                 var halfPt = hPt / 2;
-                var v = halfPt / rulerUnitInfo.pointsPerUnit; // pt -> current unit
+                var v = ptToUnit(halfPt, rulerUnit); // pt -> current unit
                 if (isNaN(v) || !isFinite(v)) return 2;
                 return Math.round(v);
             } catch (e) {
@@ -1993,7 +2004,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 var tb = __textBoundsForCalc || tf.visibleBounds; // [L,T,R,B]
                 var hPt = Math.abs(tb[1] - tb[3]);
                 var qPt = hPt / 4;
-                var v = qPt / rulerUnitInfo.pointsPerUnit; // pt -> current unit
+                var v = ptToUnit(qPt, rulerUnit); // pt -> current unit
                 if (isNaN(v) || !isFinite(v)) return 2;
                 return Math.round(v);
             } catch (e) {
@@ -2006,7 +2017,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         function getDefaultStrokeWidthValue() {
             // 元の線幅（pt）を strokeUnits に変換して表示用にする
             try {
-                var v = ptToStrokeUnit(orig.strokeWidth);
+                var v = ptToUnit(orig.strokeWidth, strokeUnit);
                 if (isNaN(v) || !isFinite(v) || v <= 0) v = 1;
                 // 見やすさ優先：小数1桁に丸め（整数なら整数表示になる）
                 v = Math.round(v * 10) / 10;
@@ -2240,7 +2251,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 if (!cbStrokeOn.value || !rectC) return;
             } catch (e) { return; }
 
-            var addPt = unitToPt(marginMM);
+            var addPt = unitToPt(marginMM, rulerUnit);
             var rB = orig.rBounds;
             var rL = rB[0], rT = rB[1], rR = rB[2], rBot = rB[3];
 
@@ -2508,7 +2519,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             // 線幅（入力が有効なら上書き）
             try {
                 var sw = parseStrokeWidth();
-                if (sw !== null) setStrokeWidthToPreview(previewItem, strokeUnitToPt(sw));
+                if (sw !== null) setStrokeWidthToPreview(previewItem, unitToPt(sw, strokeUnit));
             } catch (e) { }
 
             try {
@@ -2562,7 +2573,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             }
         } catch (e) { }
 
-        var stUnitMargin = row.add("statictext", undefined, rulerUnitInfo.label);
+        var stUnitMargin = row.add("statictext", undefined, rulerUnit.label);
 
         // 角丸（マージンの直下）
         var rowR = dlg.add("group");
@@ -2582,7 +2593,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         } catch (e) { }
         etRound.characters = 3;
 
-        var stUnitRound = rowR.add("statictext", undefined, rulerUnitInfo.label);
+        var stUnitRound = rowR.add("statictext", undefined, rulerUnit.label);
         setSteppedInputEnabled(etRound, false);
 
         // 塗り
@@ -2629,7 +2640,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             }
         } catch (e) { }
 
-        var stUnitWidth = rowW.add("statictext", undefined, strokeUnitInfo.label);
+        var stUnitWidth = rowW.add("statictext", undefined, strokeUnit.label);
 
         // 線端
         var capRow = linePanel.add("group");
@@ -2669,7 +2680,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
 
         function getRoundRadiusPt() {
-            return unitToPt(parseRoundRadius());
+            return unitToPt(parseRoundRadius(), rulerUnit);
         }
 
         function createRoundCornersEffectXML(radiusPt) {
@@ -2863,7 +2874,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var marginMM = parseMargin();
         if (marginMM === null) {
             clearPreview();
-            alert(getLabel('alertMarginNonNegative', { unit: rulerUnitInfo.label }));
+            alert(getLabel('alertMarginNonNegative', { unit: rulerUnit.label }));
             return;
         }
 
@@ -2908,7 +2919,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         // 最終反映（線幅）
         try {
             var finalSW = parseStrokeWidth();
-            if (finalSW !== null) setStrokeWidthToPreview(previewItem, strokeUnitToPt(finalSW));
+            if (finalSW !== null) setStrokeWidthToPreview(previewItem, unitToPt(finalSW, strokeUnit));
         } catch (e) { }
 
         // 角丸はプレビュー生成（applyPreview）時点で previewItem に反映済み。

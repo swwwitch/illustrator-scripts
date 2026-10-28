@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.SmartDrawArtboardRectangle
 Name=SmartDrawArtboardRectangle
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.7.6
+Version=1.7.7
 Release-Date=2025-08-20
 Description-BEGIN
 アクティブまたはすべてのアートボードと同じサイズの長方形を、オフセットを考慮して描画します。
@@ -47,10 +47,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartDrawA
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SmartDrawArtboardRectangle";   /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.7.6";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.7.7";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-08-20";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-29";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartDrawArtboardRectangle.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartDrawArtboardRectangle.md"; /* README (English) */
@@ -1372,61 +1372,89 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
         { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
     ];
 
+    /* 単位コード5を「歯（H）」と表示する環境設定キー。文字サイズ（text/units）だけ「級（Q）」
+       Preference keys that show unit code 5 as H; only the type size (text/units) shows Q */
+    var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
+
     /**
      * 環境設定キーの単位を返す
      * @param {string} [prefKey] - "rulerType"（既定）/ "strokeUnits" / "text/units" / "text/asianunits"
      * @returns {{code: number, label: string, pointsPerUnit: number}} 単位の情報
      */
     function getUnitInfo(prefKey) {
-        var unitCode = app.preferences.getIntegerPreference(prefKey || "rulerType");
+        var unitKey = prefKey || "rulerType";
+        var unitCode = app.preferences.getIntegerPreference(unitKey);
         /* 未知のコードは pt に寄せる / unknown codes fall back to points */
         var unit = UNITS[unitCode] || UNITS[2];
-        return { code: unitCode, label: unit.label, pointsPerUnit: unit.pointsPerUnit };
+        /* 級（Q）と歯（H）は同じ長さだが、文字サイズは「Q」、距離は「H」と呼び分ける */
+        var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
+        return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
+    }
+
+    /**
+     * 単位の値を pt に換算する
+     * @param {number} value - 単位の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} pt の値
+     */
+    function unitToPt(value, unit) {
+        return value * unit.pointsPerUnit;
+    }
+
+    /**
+     * pt の値を単位の値に換算する
+     * @param {number} ptValue - pt の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} 単位の値
+     */
+    function ptToUnit(ptValue, unit) {
+        return ptValue / unit.pointsPerUnit;
     }
 
     /**
      * 入力欄の表示値と内部pt値を一元的に解決する（裁ち落としプリセットを含む）
      * @param {string} offsetText - 入力欄の現在のテキスト
-     * @param {number} unitCode - rulerType の単位コード
+     * @param {{code: number, pointsPerUnit: number}} rulerUnit - 定規の単位（getUnitInfo() の戻り値）
      * @param {boolean} bleedEnabled - 裁ち落としがONかどうか
      * @returns {object} { pt: number, displayText: string, disabled: boolean }
      */
-    function resolveOffsetToPt(offsetText, unitCode, bleedEnabled) {
+    function resolveOffsetToPt(offsetText, rulerUnit, bleedEnabled) {
         var displayText = String(offsetText == null ? '' : offsetText);
+        var unitCode = rulerUnit.code;
 
         if (bleedEnabled) {
             /* 単位ごとの裁ち落とし相当値。表示値と pt 値を必ず同じ量にする
                Bleed preset per unit; the shown value and the pt value always describe the same amount */
             var bleedAmount = 3;      /* 既定は 3mm 相当 / defaults to 3mm */
-            var bleedUnitCode = 1;
+            var bleedUnit = UNITS[1];
             if (unitCode === 5) {          /* Q/H */
                 bleedAmount = 12;
-                bleedUnitCode = 5;
+                bleedUnit = UNITS[5];
             } else if (unitCode === 2) {   /* pt（0.125in = 9pt）*/
                 bleedAmount = 9;
-                bleedUnitCode = 2;
+                bleedUnit = UNITS[2];
             } else if (unitCode === 1) {   /* mm */
                 bleedAmount = 3;
-                bleedUnitCode = 1;
+                bleedUnit = UNITS[1];
             } else {
                 /* mm・Q/H・pt 以外は 3mm 相当を現在の単位へ換算して表示
                    For other units, convert the 3mm equivalent into the current unit */
-                bleedAmount = 3 * UNITS[1].pointsPerUnit / (UNITS[unitCode] ? UNITS[unitCode].pointsPerUnit : 1);
+                bleedAmount = ptToUnit(unitToPt(3, UNITS[1]), rulerUnit);
                 bleedAmount = Math.round(bleedAmount * 1000) / 1000;
-                bleedUnitCode = unitCode;
+                bleedUnit = rulerUnit;
             }
             return {
-                pt: bleedAmount * (UNITS[bleedUnitCode] ? UNITS[bleedUnitCode].pointsPerUnit : 1),
+                pt: unitToPt(bleedAmount, bleedUnit),
                 displayText: String(bleedAmount),
                 disabled: true
             };
         }
 
-        /* 通常時は現在の単位の係数を掛ける / Normal case: multiply by the current unit factor */
+        /* 通常時は現在の単位で pt に換算する / Normal case: convert from the current unit to pt */
         var offsetValue = parseFloat(displayText);
         if (isNaN(offsetValue)) offsetValue = 0;
         return {
-            pt: offsetValue * (UNITS[unitCode] ? UNITS[unitCode].pointsPerUnit : 1),
+            pt: unitToPt(offsetValue, rulerUnit),
             displayText: displayText,
             disabled: false
         };
@@ -1877,7 +1905,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
         /* 裁ち落としの状態を入力欄へ反映 / Reflect the current Bleed state in the field */
         function applyBleedState(refreshPreview) {
             if (bleedCheckbox.value) {
-                var resolvedOffset = resolveOffsetToPt(offsetInput.text, getUnitInfo().code, true);
+                var resolvedOffset = resolveOffsetToPt(offsetInput.text, getUnitInfo(), true);
                 offsetInput.text = resolvedOffset.displayText;
                 offsetInput.enabled = !resolvedOffset.disabled;
             } else {
@@ -2127,7 +2155,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
             (placementControls.bgLayerRadio.value ? 'bg' : 'back');
 
         /* オフセット計算は resolveOffsetToPt に一元化 / All offset math lives in resolveOffsetToPt */
-        var resolvedOffset = resolveOffsetToPt(offsetControls.offsetInput.text, getUnitInfo().code, !!offsetControls.bleedCheckbox.value);
+        var resolvedOffset = resolveOffsetToPt(offsetControls.offsetInput.text, getUnitInfo(), !!offsetControls.bleedCheckbox.value);
 
         return {
             colorMode: colorMode,

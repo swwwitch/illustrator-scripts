@@ -893,6 +893,26 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
         return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
+    /**
+     * 単位の値を pt に換算する
+     * @param {number} value - 単位の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} pt の値
+     */
+    function unitToPt(value, unit) {
+        return value * unit.pointsPerUnit;
+    }
+
+    /**
+     * pt の値を単位の値に換算する
+     * @param {number} ptValue - pt の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} 単位の値
+     */
+    function ptToUnit(ptValue, unit) {
+        return ptValue / unit.pointsPerUnit;
+    }
+
     // =========================================
     // ローカライズ / Localization
     // =========================================
@@ -3412,9 +3432,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
             initialSettings.frameHeight += initialExtents.y;
         }
 
-        var unitInfo = getUnitInfo();
-        var strokeUnitInfo = getUnitInfo("strokeUnits");
-        var dialogControls = buildDialog(verticalRuleCount, horizontalRuleCount, rules, hasText, unitInfo, strokeUnitInfo, initialSettings);
+        var rulerUnit = getUnitInfo();
+        var strokeUnit = getUnitInfo("strokeUnits");
+        var dialogControls = buildDialog(verticalRuleCount, horizontalRuleCount, rules, hasText, rulerUnit, strokeUnit, initialSettings);
         var frameWidthInput = dialogControls.frameWidthInput;
         var frameHeightInput = dialogControls.frameHeightInput;
         var previewBoundsCheckbox = dialogControls.previewBoundsCheckbox;
@@ -3552,18 +3572,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
             var inputValue = evaluateArithmetic(valueInput.text, valueInput.stepperGroup.stepOptions.unit);
             if (isNaN(inputValue) || (allowsZero ? inputValue < 0 : inputValue <= 0)) return previousPt;
             valueInput.readText = valueInput.text;
-            return inputValue * valueInput.pointsPerUnit;
+            return unitToPt(inputValue, valueInput.lengthUnit);
         }
 
         /**
          * 長さ（pt）を欄に書き込み、読み取り済みの表示として控える
          * @param {EditText} valueInput - 対象の欄
          * @param {number} valuePt - 長さ（pt）
-         * @param {{label: string, pointsPerUnit: number}} lengthUnitInfo - 欄の単位
+         * @param {{label: string, pointsPerUnit: number}} lengthUnit - 欄の単位
          * @returns {void}
          */
-        function writeLengthInput(valueInput, valuePt, lengthUnitInfo) {
-            valueInput.text = formatLength(valuePt, lengthUnitInfo);
+        function writeLengthInput(valueInput, valuePt, lengthUnit) {
+            valueInput.text = formatLength(valuePt, lengthUnit);
             valueInput.lastValidText = valueInput.text;
             valueInput.readText = valueInput.text;
         }
@@ -3639,8 +3659,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
             var direction = previewBoundsCheckbox.value ? 1 : -1;
             frameWidthPt += strokeExtents.x * direction;
             frameHeightPt += strokeExtents.y * direction;
-            writeLengthInput(frameWidthInput, frameWidthPt, unitInfo);
-            writeLengthInput(frameHeightInput, frameHeightPt, unitInfo);
+            writeLengthInput(frameWidthInput, frameWidthPt, rulerUnit);
+            writeLengthInput(frameHeightInput, frameHeightPt, rulerUnit);
             updatePreview();
         };
         /**
@@ -3996,12 +4016,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
      * @param {number} horizontalRuleCount - 見つかった横罫の数
      * @param {Object|null} rules - findRules() の戻り値
      * @param {boolean} hasText - テキストを選択しているなら true（false なら［テキスト］パネルと［テキストに合わせる］を無効にする）
-     * @param {{label: string, pointsPerUnit: number}} unitInfo - 定規の単位
-     * @param {{label: string, pointsPerUnit: number}} strokeUnitInfo - 線の単位
+     * @param {{label: string, pointsPerUnit: number}} rulerUnit - 定規の単位
+     * @param {{label: string, pointsPerUnit: number}} strokeUnit - 線の単位
      * @param {{frameWidth: number, frameHeight: number, usePreviewBounds: boolean, verticalSpacing: string, horizontalSpacing: string, matchRuleLengths: boolean, convertFrame: boolean, convertFrameToLines: boolean, roundCorners: boolean, cornerRadius: number, capsule: boolean, matchStrokeWidths: boolean, strokeWidthMode: string, strokeWidth: number, averageStrokeWidth: number, applyStrokeColor: boolean, strokeColor: Color, createCellShapes: boolean, fillMode: string, groupFills: boolean, centerInCells: boolean, justifyCenter: boolean}} initialSettings - コントロールの初期値（strokeWidth・averageStrokeWidth は pt。strokeColor は線のあるパスが無ければ null）
      * @returns {{mainDialog: Window, frameWidthInput: EditText, frameHeightInput: EditText, previewBoundsCheckbox: Checkbox, verticalSpacingRadios: Object, horizontalSpacingRadios: Object, convertFrameCheckbox: Checkbox, convertFrameToLinesCheckbox: Checkbox, cornerRow: Group, roundCornersCheckbox: Checkbox, cornerRadiusInput: EditText, capsuleCheckbox: Checkbox, matchStrokeCheckbox: Checkbox, strokeModeRow: Group, strokeModeRadios: Object, strokeWidthInputGroup: Group, strokeWidthInput: EditText, applyStrokeColorCheckbox: Checkbox, strokeColorSwatch: Group, createCellShapesCheckbox: Checkbox, fillModeGroup: Group, uniformFillRadio: RadioButton, randomFillRadio: RadioButton, groupFillsCheckbox: Checkbox, centerInCellsCheckbox: Checkbox, justifyCenterCheckbox: Checkbox, btnCancel: Button, btnOK: Button}} ダイアログとコントロール
      */
-    function buildDialog(verticalRuleCount, horizontalRuleCount, rules, hasText, unitInfo, strokeUnitInfo, initialSettings) {
+    function buildDialog(verticalRuleCount, horizontalRuleCount, rules, hasText, rulerUnit, strokeUnit, initialSettings) {
         var hasFrameLines = !!(rules && rules.frameLines);
         var mainDialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
         setupWindow(mainDialog);
@@ -4023,8 +4043,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
         var sizeLabelWidth = Math.max(
             mainDialog.graphics.measureString(labelText("fieldLabel.frameWidth"))[0],
             mainDialog.graphics.measureString(labelText("fieldLabel.frameHeight"))[0]);
-        var frameWidthInput = addLengthField(sizePanel, "fieldLabel.frameWidth", sizeLabelWidth, initialSettings.frameWidth, unitInfo);
-        var frameHeightInput = addLengthField(sizePanel, "fieldLabel.frameHeight", sizeLabelWidth, initialSettings.frameHeight, unitInfo);
+        var frameWidthInput = addLengthField(sizePanel, "fieldLabel.frameWidth", sizeLabelWidth, initialSettings.frameWidth, rulerUnit);
+        var frameHeightInput = addLengthField(sizePanel, "fieldLabel.frameHeight", sizeLabelWidth, initialSettings.frameHeight, rulerUnit);
         /* 大きさの欄との間を少し空ける（コントロールには margins が無いのでグループで包む）
            Leave a little space below the size fields (controls have no margins, so wrap it in a group) */
         var previewBoundsGroup = sizePanel.add("group");
@@ -4040,7 +4060,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
         var convertFrameToLinesCheckbox = addOptionCheckbox(framePanel,
             "checkbox.convertFrameToLines", "tooltip.convertFrameToLines", !!rules && canConvertFrameToLines(rules.outerRect), initialSettings.convertFrameToLines);
         var cornerRowControls = addCheckboxLengthRow(framePanel, "checkbox.roundCorners", "tooltip.roundCorners",
-            initialSettings.roundCorners, initialSettings.cornerRadius, unitInfo);
+            initialSettings.roundCorners, initialSettings.cornerRadius, rulerUnit);
         var cornerRow = cornerRowControls.row;
         cornerRowControls.input.characters = CORNER_RADIUS_FIELD_CHARS;
         var capsuleCheckbox = addOptionCheckbox(framePanel, "checkbox.capsule", "tooltip.capsule", true, initialSettings.capsule);
@@ -4069,7 +4089,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
             average: addOptionRadio(strokeModeRow, "radio.strokeWidthAverage", "tooltip.strokeWidthAverage")
         };
         /* 平均は割り切れないことが多いので、合わせる値を項目名に添える / The average is rarely a round number, so show it in the label */
-        strokeModeRadios.average.text = getLabel("radio.strokeWidthAverage", { width: formatLength(initialSettings.averageStrokeWidth, strokeUnitInfo) });
+        strokeModeRadios.average.text = getLabel("radio.strokeWidthAverage", { width: formatLength(initialSettings.averageStrokeWidth, strokeUnit) });
         /* ［指定］の右に欄を置くため別のグループに入れる（排他は onClick でそろえる）
            "Specified" sits in its own row beside the field, so exclusivity is handled in onClick */
         var specifiedStrokeRow = strokeModeRow.add("group");
@@ -4081,12 +4101,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
         setupRow(strokeWidthInputGroup, "left", 0);
         var strokeWidthInput;
         var strokeStepper = addStepper(strokeWidthInputGroup, function () { return strokeWidthInput; },
-            { step: 1, min: 0, unit: getLengthUnitSuffix(strokeUnitInfo) });
-        strokeWidthInput = strokeWidthInputGroup.add("edittext", undefined, formatLength(initialSettings.strokeWidth, strokeUnitInfo));
+            { step: 1, min: 0, unit: getLengthUnitSuffix(strokeUnit) });
+        strokeWidthInput = strokeWidthInputGroup.add("edittext", undefined, formatLength(initialSettings.strokeWidth, strokeUnit));
         strokeWidthInput.characters = 6;
         strokeWidthInput.helpTip = getLabel("tooltip.strokeWidthSpecified");
         strokeWidthInput.lastValidText = strokeWidthInput.text;
-        strokeWidthInput.pointsPerUnit = strokeUnitInfo.pointsPerUnit;
+        strokeWidthInput.lengthUnit = strokeUnit;
         bindSteppedArrowKeys(strokeWidthInput, strokeStepper);
         /* 線のカラーはパネルの最下部 / Stroke color sits at the bottom of the panel */
         var strokeColorRow = strokePanel.add("group");
@@ -4193,21 +4213,21 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
 
     /**
      * 欄に付ける単位（「20 mm」の「 mm」）を返す
-     * @param {{label: string}} unitInfo - 定規の単位
+     * @param {{label: string}} lengthUnit - 欄の単位
      * @returns {string} 単位の文字列
      */
-    function getLengthUnitSuffix(unitInfo) {
-        return " " + unitInfo.label;
+    function getLengthUnitSuffix(lengthUnit) {
+        return " " + lengthUnit.label;
     }
 
     /**
      * 長さ（pt）を、定規の単位に換算して単位を付けた欄の文字列にする（小数第2位まで）
      * @param {number} lengthPt - 長さ（pt）
-     * @param {{label: string, pointsPerUnit: number}} unitInfo - 定規の単位
+     * @param {{label: string, pointsPerUnit: number}} lengthUnit - 欄の単位
      * @returns {string} 欄に表示する文字列（例 "20 mm"）
      */
-    function formatLength(lengthPt, unitInfo) {
-        return formatStepperNumber(lengthPt / unitInfo.pointsPerUnit) + getLengthUnitSuffix(unitInfo);
+    function formatLength(lengthPt, lengthUnit) {
+        return formatStepperNumber(ptToUnit(lengthPt, lengthUnit)) + getLengthUnitSuffix(lengthUnit);
     }
 
     /**
@@ -4216,16 +4236,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
      * @param {string} labelPath - 項目名の LABELS パス
      * @param {number} labelWidth - 項目名の幅（右揃え）
      * @param {number} valuePt - 初期値（pt）
-     * @param {{label: string, pointsPerUnit: number}} unitInfo - 定規の単位
+     * @param {{label: string, pointsPerUnit: number}} rulerUnit - 定規の単位
      * @returns {EditText} 追加した欄
      */
-    function addLengthField(parentPanel, labelPath, labelWidth, valuePt, unitInfo) {
+    function addLengthField(parentPanel, labelPath, labelWidth, valuePt, rulerUnit) {
         var valueInput = addSteppedField(parentPanel, {
             label: labelText(labelPath), labelWidth: labelWidth,
-            text: formatLength(valuePt, unitInfo), characters: 8, step: 1, min: 0.01, unit: getLengthUnitSuffix(unitInfo)
+            text: formatLength(valuePt, rulerUnit), characters: 8, step: 1, min: 0.01, unit: getLengthUnitSuffix(rulerUnit)
         });
         valueInput.helpTip = getLabel("tooltip.frameSize");
-        valueInput.pointsPerUnit = unitInfo.pointsPerUnit;
+        valueInput.lengthUnit = rulerUnit;
         return valueInput;
     }
 
@@ -4236,10 +4256,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
      * @param {string} tooltipPath - tooltip の LABELS パス
      * @param {boolean} isChecked - チェックボックスの初期値
      * @param {number} valuePt - 欄の初期値（pt）
-     * @param {{label: string, pointsPerUnit: number}} lengthUnitInfo - 欄の単位
+     * @param {{label: string, pointsPerUnit: number}} lengthUnit - 欄の単位
      * @returns {{row: Group, checkbox: Checkbox, input: EditText}} 行とチェックボックスと欄
      */
-    function addCheckboxLengthRow(parentPanel, checkboxLabelPath, tooltipPath, isChecked, valuePt, lengthUnitInfo) {
+    function addCheckboxLengthRow(parentPanel, checkboxLabelPath, tooltipPath, isChecked, valuePt, lengthUnit) {
         var checkboxRow = parentPanel.add("group");
         setupRow(checkboxRow, "left", 6);
         var rowCheckbox = checkboxRow.add("checkbox", undefined, getLabel(checkboxLabelPath));
@@ -4250,12 +4270,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n22aa0e767930"; /* 紹�
         setupRow(stepperInputGroup, "left", 0);
         var valueInput;
         var rowStepper = addStepper(stepperInputGroup, function () { return valueInput; },
-            { step: 1, min: 0, unit: getLengthUnitSuffix(lengthUnitInfo) });
-        valueInput = stepperInputGroup.add("edittext", undefined, formatLength(valuePt, lengthUnitInfo));
+            { step: 1, min: 0, unit: getLengthUnitSuffix(lengthUnit) });
+        valueInput = stepperInputGroup.add("edittext", undefined, formatLength(valuePt, lengthUnit));
         valueInput.characters = 6;
         valueInput.helpTip = getLabel(tooltipPath);
         valueInput.lastValidText = valueInput.text;
-        valueInput.pointsPerUnit = lengthUnitInfo.pointsPerUnit;
+        valueInput.lengthUnit = lengthUnit;
         bindSteppedArrowKeys(valueInput, rowStepper);
         return { row: checkboxRow, checkbox: rowCheckbox, input: valueInput };
     }

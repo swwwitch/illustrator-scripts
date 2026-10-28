@@ -783,6 +783,26 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
+    /**
+     * 単位の値を pt に換算する
+     * @param {number} value - 単位の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} pt の値
+     */
+    function unitToPt(value, unit) {
+        return value * unit.pointsPerUnit;
+    }
+
+    /**
+     * pt の値を単位の値に換算する
+     * @param {number} ptValue - pt の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} 単位の値
+     */
+    function ptToUnit(ptValue, unit) {
+        return ptValue / unit.pointsPerUnit;
+    }
+
     // =========================================
     // ローカライズ / Localization
     // =========================================
@@ -1330,7 +1350,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         /* 選択幅の1/30を初期値にする（定規単位、小数第1位）/ Default offset: 1/30 of the selection width in ruler units */
         var rulerUnit = getUnitInfo("rulerType");
         var selectionWidthPt = getSelectionWidthPt(doc.selection, true);
-        var defaultOffset = Math.max(0, Math.round(((selectionWidthPt / 30) / rulerUnit.pointsPerUnit) * 10) / 10);
+        var defaultOffset = Math.max(0, Math.round(ptToUnit(selectionWidthPt / 30, rulerUnit) * 10) / 10);
 
         var dialogResult = showOffsetDialog(defaultOffset, rulerUnit.label);
         if (!dialogResult) {
@@ -1341,7 +1361,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             alert(getLabel("alert.enterNumeric"));
             return;
         }
-        addOutline(doc.selection, offsetValue * rulerUnit.pointsPerUnit, dialogResult.joinType);
+        addOutline(doc.selection, unitToPt(offsetValue, rulerUnit), dialogResult.joinType);
     }
 
     main();

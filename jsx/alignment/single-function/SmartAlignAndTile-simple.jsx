@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.SmartAlignAndTile-simple
 Name=SmartAlignAndTile-simple
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.1.8
+Version=1.1.9
 Description-BEGIN
 重なって配置されたオブジェクトを、横方向へ等間隔に並べ直します。
 
@@ -39,10 +39,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartAlign
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SmartAlignAndTile-simple";     /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.8";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.9";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-16";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-29";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartAlignAndTile-simple.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartAlignAndTile-simple.md"; /* README (English) */
@@ -192,16 +192,33 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
     ];
 
+    /* 単位コード5を「歯（H）」と表示する環境設定キー。文字サイズ（text/units）だけ「級（Q）」
+       Preference keys that show unit code 5 as H; only the type size (text/units) shows Q */
+    var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
+
     /**
      * 環境設定キーの単位を返す
      * @param {string} [prefKey] - "rulerType"（既定）/ "strokeUnits" / "text/units" / "text/asianunits"
      * @returns {{code: number, label: string, pointsPerUnit: number}} 単位の情報
      */
     function getUnitInfo(prefKey) {
-        var unitCode = app.preferences.getIntegerPreference(prefKey || "rulerType");
+        var unitKey = prefKey || "rulerType";
+        var unitCode = app.preferences.getIntegerPreference(unitKey);
         /* 未知のコードは pt に寄せる / unknown codes fall back to points */
         var unit = UNITS[unitCode] || UNITS[2];
-        return { code: unitCode, label: unit.label, pointsPerUnit: unit.pointsPerUnit };
+        /* 級（Q）と歯（H）は同じ長さだが、文字サイズは「Q」、距離は「H」と呼び分ける */
+        var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
+        return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
+    }
+
+    /**
+     * 単位の値を pt に換算する
+     * @param {number} value - 単位の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} pt の値
+     */
+    function unitToPt(value, unit) {
+        return value * unit.pointsPerUnit;
     }
 
     // =========================================
@@ -2222,7 +2239,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
             return {
                 direction: getEffectiveDirection(),
-                spacingPt: spacingValue * getUnitInfo().pointsPerUnit,
+                spacingPt: unitToPt(spacingValue, getUnitInfo()),
                 usePreviewBounds: previewBoundsCheckbox.value,
                 horizontalAlign: HORIZONTAL_ALIGN_VALUES[getSelectedRadioIndex(horizontalAlignRow)],
                 verticalAlign: VERTICAL_ALIGN_VALUES[getSelectedRadioIndex(verticalAlignRow)],

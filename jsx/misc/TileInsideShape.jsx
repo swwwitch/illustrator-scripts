@@ -1459,7 +1459,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne393f59cbb77"; /* 紹�
     // 単位 / Units
     // =========================================
 
-    /* 単位テーブル（配列の添字が rulerType コードと一致：0=in, 1=mm, 2=pt …）/ Unit table; the array index equals the rulerType code */
+    /* 単位コードに対応する表示ラベルと、1単位あたりのポイント数
+       Unit code -> display label and points per unit */
     var UNITS = [
         { label: "in",    pointsPerUnit: 72 },                /* 0 */
         { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
@@ -1474,20 +1475,43 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne393f59cbb77"; /* 紹�
         { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
     ];
 
-    /* Q ではなく H と表示する設定キー / Preference keys that display H instead of Q */
+    /* 単位コード5を「歯（H）」と表示する環境設定キー。文字サイズ（text/units）だけ「級（Q）」
+       Preference keys that show unit code 5 as H; only the type size (text/units) shows Q */
     var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
 
     /**
-     * 設定キーごとの単位情報を取得する
-     * @param {string} prefKey - 環境設定キー（省略時は "rulerType"）
-     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位情報
+     * 環境設定キーの単位を返す
+     * @param {string} [prefKey] - "rulerType"（既定）/ "strokeUnits" / "text/units" / "text/asianunits"
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位の情報
      */
     function getUnitInfo(prefKey) {
         var unitKey = prefKey || "rulerType";
         var unitCode = app.preferences.getIntegerPreference(unitKey);
+        /* 未知のコードは pt に寄せる / unknown codes fall back to points */
         var unit = UNITS[unitCode] || UNITS[2];
+        /* 級（Q）と歯（H）は同じ長さだが、文字サイズは「Q」、距離は「H」と呼び分ける */
         var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
         return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
+    }
+
+    /**
+     * 単位の値を pt に換算する
+     * @param {number} value - 単位の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} pt の値
+     */
+    function unitToPt(value, unit) {
+        return value * unit.pointsPerUnit;
+    }
+
+    /**
+     * pt の値を単位の値に換算する
+     * @param {number} ptValue - pt の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} 単位の値
+     */
+    function ptToUnit(ptValue, unit) {
+        return ptValue / unit.pointsPerUnit;
     }
 
     // =========================================
@@ -2889,7 +2913,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne393f59cbb77"; /* 紹�
         setupWindow(fillDialog);
 
         var rulerUnit = getUnitInfo("rulerType");
-        var pointsPerUnit = rulerUnit.pointsPerUnit;
         /* 長さの欄の中に付ける単位（「10 mm」の形）/ Unit shown inside the length fields */
         var lengthUnit = ' ' + rulerUnit.label;
 
@@ -2897,7 +2920,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne393f59cbb77"; /* 紹�
            The widest tile, in the current unit, sets the initial spacing and the slider ranges */
         var maxTileWidthInUnit = 0;
         for (var i = 0; i < fillTarget.tiles.length; i++) {
-            maxTileWidthInUnit = Math.max(maxTileWidthInUnit, fillTarget.tiles[i].info.width / pointsPerUnit);
+            maxTileWidthInUnit = Math.max(maxTileWidthInUnit, ptToUnit(fillTarget.tiles[i].info.width, rulerUnit));
         }
 
         /* 前回の設定があれば初期値にする（長さは今の単位に換算）/ Start from the last settings if any (lengths converted to the current unit) */
@@ -2915,7 +2938,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne393f59cbb77"; /* 紹�
          */
         function getSavedFieldText(settingName, fallbackValue, fieldUnit) {
             var savedValue = getSavedSetting(lastSettings, settingName, fallbackValue);
-            if (fieldUnit === lengthUnit) savedValue /= pointsPerUnit;
+            if (fieldUnit === lengthUnit) savedValue = ptToUnit(savedValue, rulerUnit);
             return formatStepperNumber(savedValue) + fieldUnit;
         }
 
@@ -2928,7 +2951,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne393f59cbb77"; /* 紹�
 
         /* 間隔（横・縦）。v1.7.0 で控えた間隔（gap）は両方に使う。2行のスライダーの右に連動アイコン
            Horizontal and vertical spacing; the single gap kept by v1.7.0 serves both. The link icon sits to the right of both sliders */
-        var defaultSpacingPt = getSavedSetting(lastSettings, 'gap', Math.round(maxTileWidthInUnit * DEFAULT_GAP_RATIO) * pointsPerUnit);
+        var defaultSpacingPt = getSavedSetting(lastSettings, 'gap', unitToPt(Math.round(maxTileWidthInUnit * DEFAULT_GAP_RATIO), rulerUnit));
         var spacingSliderRange = { min: 0, max: maxTileWidthInUnit * SPACING_SLIDER_MAX_RATIO };
         var spacingPairRow = fillDialog.add('group');
         spacingPairRow.orientation = 'row';
@@ -3084,7 +3107,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne393f59cbb77"; /* 紹�
             var brickDirection = BRICK_DIRECTIONS[dialogState.layoutType] || '';
             var stepPt = isVertical ? layoutMetrics.stepY : layoutMetrics.stepX;
             var isDoubled = isVertical ? (brickDirection === 'rows') : (brickDirection === 'columns');
-            return (isDoubled ? stepPt * 2 : stepPt) / pointsPerUnit;
+            return ptToUnit(isDoubled ? stepPt * 2 : stepPt, rulerUnit);
         }
 
         /**
@@ -3136,12 +3159,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne393f59cbb77"; /* 紹�
             var scaleValue = readFieldNumber(scaleControls.field, 100);
             return {
                 scale: (scaleValue > 0) ? scaleValue : 100,
-                gapX: readFieldNumber(spacingXControls.field, 0, 0) * pointsPerUnit,
-                gapY: readFieldNumber(spacingYControls.field, 0, 0) * pointsPerUnit,
+                gapX: unitToPt(readFieldNumber(spacingXControls.field, 0, 0), rulerUnit),
+                gapY: unitToPt(readFieldNumber(spacingYControls.field, 0, 0), rulerUnit),
                 gapLinked: spacingLinkToggle.value,
-                offset: readFieldNumber(offsetControls.field, 0) * pointsPerUnit,
-                shiftX: readFieldNumber(shiftXControls.field, 0) * pointsPerUnit,
-                shiftY: readFieldNumber(shiftYControls.field, 0) * pointsPerUnit,
+                offset: unitToPt(readFieldNumber(offsetControls.field, 0), rulerUnit),
+                shiftX: unitToPt(readFieldNumber(shiftXControls.field, 0), rulerUnit),
+                shiftY: unitToPt(readFieldNumber(shiftYControls.field, 0), rulerUnit),
                 layoutAngle: readFieldNumber(layoutAngleControls.field, 0),
                 layoutType: dialogState.layoutType,
                 centerAlign: dialogState.centerAlign,

@@ -486,6 +486,16 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
+    /**
+     * 単位の値を pt に換算する
+     * @param {number} value - 単位の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} pt の値
+     */
+    function unitToPt(value, unit) {
+        return value * unit.pointsPerUnit;
+    }
+
     // ドキュメントのカラースペースに合わせた黒を返す / Returns black for the document color space
     function makeBlack(isRgbDocument) {
         if (isRgbDocument) {
@@ -1616,13 +1626,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     function getMarginValue(ui) {
         if (!ui.options.useMarginCheck.value) return 0;
-        return (parseFloat(ui.options.marginInput.text) || 0) * getUnitInfo().pointsPerUnit;
+        return unitToPt(parseFloat(ui.options.marginInput.text) || 0, getUnitInfo());
     }
 
     function getCornerRadiusValue(ui) {
         var raw = parseFloat(ui.corner.cornerRadiusInput.text) || 0;
         if (raw <= 0) return 0;
-        return raw * getUnitInfo().pointsPerUnit;
+        return unitToPt(raw, getUnitInfo());
     }
 
     function buildDialogSettings(ui, forPreview) {
@@ -1970,7 +1980,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
         if (preset.stroked) {
             rect.strokeColor = makeBlack(isRgbDocument);
-            rect.strokeWidth = preset.strokeWidth * getUnitInfo("strokeUnits").pointsPerUnit;
+            rect.strokeWidth = unitToPt(preset.strokeWidth, getUnitInfo("strokeUnits"));
         }
         if (typeof preset.opacity === "number") {
             rect.opacity = preset.opacity;

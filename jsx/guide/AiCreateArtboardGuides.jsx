@@ -1077,10 +1077,33 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n56d9c936a364"; /* 紹�
         return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
-    /* mm を現在のルーラー単位の値へ換算（小数第1位で丸め）/ Convert mm to current ruler unit (rounded to 1 decimal) */
-    function mmToCurrentUnit(millimeters) {
-        var points = millimeters * UNITS[1].pointsPerUnit;
-        var value = points / getUnitInfo().pointsPerUnit;
+    /**
+     * 単位の値を pt に換算する
+     * @param {number} value - 単位の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} pt の値
+     */
+    function unitToPt(value, unit) {
+        return value * unit.pointsPerUnit;
+    }
+
+    /**
+     * pt の値を単位の値に換算する
+     * @param {number} ptValue - pt の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} 単位の値
+     */
+    function ptToUnit(ptValue, unit) {
+        return ptValue / unit.pointsPerUnit;
+    }
+
+    /**
+     * mm の値を定規の単位に換算し、小数第1位で丸める
+     * @param {number} millimeters - mm の値
+     * @returns {number} 定規の単位の値（小数第1位まで）
+     */
+    function mmToRoundedRulerValue(millimeters) {
+        var value = ptToUnit(unitToPt(millimeters, UNITS[1]), getUnitInfo());
         return Math.round(value * 10) / 10;
     }
 
@@ -1263,7 +1286,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n56d9c936a364"; /* 紹�
         topCheckbox.value = leftCheckbox.value = rightCheckbox.value = bottomCheckbox.value = true;
 
         /* エッジの延長（メインとは別値、既定 10mm）/ Edge extend length (separate value, default 10mm) */
-        var edgeExtendInput = addUnitField(edgePanel, "field.edgeExtend", String(mmToCurrentUnit(DEFAULT_EDGE_EXTEND_MM)), unitLabel, "tip.edgeExtend");
+        var edgeExtendInput = addUnitField(edgePanel, "field.edgeExtend", String(mmToRoundedRulerValue(DEFAULT_EDGE_EXTEND_MM)), unitLabel, "tip.edgeExtend");
 
         /* 中心・エッジの描画スコープ（すべて / アクティブのみ。マスターとは独立）/ Center & edge drawing scope (independent of masters) */
         var allArtboardsCheckbox = edgePanel.add("checkbox", undefined, getLabel("checkbox.allArtboards"));
@@ -1417,9 +1440,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n56d9c936a364"; /* 紹�
                 try {
                     var layer = createPreviewLayer(doc);
                     var opt = readOptions();
-                    var pointsPerUnit = getUnitInfo().pointsPerUnit;
-                    var extendPoints = opt.extend * pointsPerUnit;
-                    var edgeExtendPoints = opt.edgeExtend * pointsPerUnit;
+                    var rulerUnit = getUnitInfo();
+                    var extendPoints = unitToPt(opt.extend, rulerUnit);
+                    var edgeExtendPoints = unitToPt(opt.edgeExtend, rulerUnit);
 
                     /* 変換：元を隠して新規（色付き線）を描く / Conversion: hide originals, draw colored lines */
                     if (opt.convertGuides) {
@@ -1768,9 +1791,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n56d9c936a364"; /* 紹�
             return; // キャンセル / Cancelled
         }
 
-        var pointsPerUnit = getUnitInfo().pointsPerUnit;
-        var extendPoints = options.extend * pointsPerUnit;
-        var edgeExtendPoints = options.edgeExtend * pointsPerUnit;
+        var rulerUnit = getUnitInfo();
+        var extendPoints = unitToPt(options.extend, rulerUnit);
+        var edgeExtendPoints = unitToPt(options.edgeExtend, rulerUnit);
 
         /* 変換マスターOFFなら対象を空にしてスキップ / Empty the list to skip conversion when the master is OFF */
         if (!options.convertGuides) {

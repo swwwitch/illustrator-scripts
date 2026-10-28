@@ -205,6 +205,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n89f63325c0bc"; /* 紹�
         return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
+    /**
+     * 単位の値を pt に換算する
+     * @param {number} value - 単位の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} pt の値
+     */
+    function unitToPt(value, unit) {
+        return value * unit.pointsPerUnit;
+    }
+
     // UI の明暗（再利用パーツ） / UI theme (reusable)
 
     /**
@@ -1018,7 +1028,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n89f63325c0bc"; /* 紹�
      */
     function readLengthInPoints(editText) {
         var inputValue = parseFloat(editText.text);
-        return (isNaN(inputValue) ? 0 : inputValue) * getUnitInfo().pointsPerUnit;
+        return unitToPt(isNaN(inputValue) ? 0 : inputValue, getUnitInfo());
     }
 
     /**

@@ -1444,6 +1444,26 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
+    /**
+     * 単位の値を pt に換算する
+     * @param {number} value - 単位の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} pt の値
+     */
+    function unitToPt(value, unit) {
+        return value * unit.pointsPerUnit;
+    }
+
+    /**
+     * pt の値を単位の値に換算する
+     * @param {number} ptValue - pt の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} 単位の値
+     */
+    function ptToUnit(ptValue, unit) {
+        return ptValue / unit.pointsPerUnit;
+    }
+
     // =========================================
     // ローカライズ / Localization
     // =========================================
@@ -1804,8 +1824,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      */
     function buildGridDialog(gridShape) {
         /* ガター・全体サイズは定規の単位で入れ、単位は欄の中に出す（「1 mm」の形） / gutters and size use the ruler unit, shown inside the fields */
-        var unitInfo = getUnitInfo();
-        var unitSuffix = " " + unitInfo.label;
+        var rulerUnit = getUnitInfo();
+        var unitSuffix = " " + rulerUnit.label;
 
         var gridDialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
         setupWindow(gridDialog);
@@ -1842,10 +1862,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var regionPanel = addDialogPanel(gridDialog, getLabel("panel.region"),
             "row", "top");
         var widthInput = addNumberField(regionPanel.add("group"), "fieldLabel.width",
-            formatStepperNumber((gridShape.unionBounds[2] - gridShape.unionBounds[0]) / unitInfo.pointsPerUnit),
+            formatStepperNumber(ptToUnit(gridShape.unionBounds[2] - gridShape.unionBounds[0], rulerUnit)),
             SIZE_INPUT_CHARS, "tooltip.width", SIZE_LABEL_WIDTH, unitSuffix);
         var heightInput = addNumberField(regionPanel.add("group"), "fieldLabel.height",
-            formatStepperNumber((gridShape.unionBounds[1] - gridShape.unionBounds[3]) / unitInfo.pointsPerUnit),
+            formatStepperNumber(ptToUnit(gridShape.unionBounds[1] - gridShape.unionBounds[3], rulerUnit)),
             SIZE_INPUT_CHARS, "tooltip.height", SIZE_LABEL_WIDTH, unitSuffix);
 
         /* オプション / Options */
@@ -1868,7 +1888,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         return {
             gridDialog: gridDialog,
-            pointsPerUnit: unitInfo.pointsPerUnit,
+            rulerUnit: rulerUnit,
             rowToleranceInput: rowToleranceInput,
             columnToleranceInput: columnToleranceInput,
             rowGapInput: rowGapInput,
@@ -1890,14 +1910,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * @returns {object} cellWidth / cellHeight / rowGap / columnGap を持つ寸法（pt）
      */
     function readCellMetrics(dialogControls, gridShape) {
-        var pointsPerUnit = dialogControls.pointsPerUnit;
-        var rowGap = parseFloat(dialogControls.rowGapInput.text) * pointsPerUnit;
-        var columnGap = parseFloat(dialogControls.columnGapInput.text) * pointsPerUnit;
+        var rulerUnit = dialogControls.rulerUnit;
+        var rowGap = unitToPt(parseFloat(dialogControls.rowGapInput.text), rulerUnit);
+        var columnGap = unitToPt(parseFloat(dialogControls.columnGapInput.text), rulerUnit);
         if (isNaN(rowGap)) rowGap = 0;
         if (isNaN(columnGap)) columnGap = 0;
 
-        var totalWidth = parseFloat(dialogControls.widthInput.text) * pointsPerUnit;
-        var totalHeight = parseFloat(dialogControls.heightInput.text) * pointsPerUnit;
+        var totalWidth = unitToPt(parseFloat(dialogControls.widthInput.text), rulerUnit);
+        var totalHeight = unitToPt(parseFloat(dialogControls.heightInput.text), rulerUnit);
         if (isNaN(totalWidth) || totalWidth <= 0) totalWidth = gridShape.unionBounds[2] - gridShape.unionBounds[0];
         if (isNaN(totalHeight) || totalHeight <= 0) totalHeight = gridShape.unionBounds[1] - gridShape.unionBounds[3];
 

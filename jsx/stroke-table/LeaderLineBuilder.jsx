@@ -70,7 +70,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n506df641d5c5"; /* 紹�
     var DEFAULT_ANGLE         = 45;         /* 角度（度） */
     var DEFAULT_LINE_WIDTH_PT = 1;          /* 線幅（pt） */
     var DEFAULT_TIP_MARKER_SIZE_PT   = 3;          /* 線端の大きさ（pt） */
-    var DEFAULT_TEXT_DIST_PT  = 72 / 25.4;  /* テキストとの距離（pt。1mm相当） */
+    var DEFAULT_TEXT_DIST_MM  = 1;          /* テキストとの距離（mm） */
 
     /* フチの太らせ方（いずれも線幅に対する倍率） */
     var EDGE_LINE_WIDTH_RATIO = 3;  /* 線のフチの線幅 */
@@ -1726,40 +1726,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n506df641d5c5"; /* 紹�
 
     // 設定の保存（再利用パーツ）ここまで / End of the reusable settings store
 
-    /* #targetengine が生きている間だけダイアログの設定を保持する / Keep dialog settings while the #targetengine lives */
-    var settingsStore = createSettingsStore(SCRIPT_NAME, "session");
-
-    /* 保存する値の既定値 / Default values of the saved settings */
-    var DEFAULT_SETTINGS = {
-        angle: DEFAULT_ANGLE,
-        radioAngle: 45,
-        applyScope: "all",
-        hasUserSetApplyScope: false,
-        diagDir: "upperLeft",
-        hDir: "left",
-        vDir: "up",
-        tipMarkerType: "circle",
-        tipMarkerStyle: "fill",
-        tipMarkerSize: DEFAULT_TIP_MARKER_SIZE_PT,
-        strokeCapType: "round",
-        groupEnabled: true,
-        whiteEdge: false,
-        edgeColor: "white",
-        edgeColorHex: "#ffcc00",
-        lineColor: "black",
-        lineColorHex: "#ffcc00",
-        lineWidth: DEFAULT_LINE_WIDTH_PT,
-        textDist: DEFAULT_TEXT_DIST_PT
-    };
-
-    /* 今回の設定（main で読み込む）/ Current settings, loaded in main */
-    var sessionSettings = null;
-
     // =========================================
     // 単位ユーティリティ / Unit utilities
     // =========================================
 
-    /* 単位テーブル（配列の添字が rulerType コードと一致：0=in, 1=mm, 2=pt …）/ Unit table; the array index equals the rulerType code */
+    /* 単位コードに対応する表示ラベルと、1単位あたりのポイント数
+       Unit code -> display label and points per unit */
     var UNITS = [
         { label: "in",    pointsPerUnit: 72 },                /* 0 */
         { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
@@ -1779,40 +1751,38 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n506df641d5c5"; /* 紹�
     var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
 
     /**
-     * 設定キーごとの単位情報を取得する
-     * @param {string} prefKey - 環境設定キー（省略時は "rulerType"）
-     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位情報
+     * 環境設定キーの単位を返す
+     * @param {string} [prefKey] - "rulerType"（既定）/ "strokeUnits" / "text/units" / "text/asianunits"
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位の情報
      */
     function getUnitInfo(prefKey) {
         var unitKey = prefKey || "rulerType";
         var unitCode = app.preferences.getIntegerPreference(unitKey);
+        /* 未知のコードは pt に寄せる / unknown codes fall back to points */
         var unit = UNITS[unitCode] || UNITS[2];
+        /* 級（Q）と歯（H）は同じ長さだが、文字サイズは「Q」、距離は「H」と呼び分ける */
         var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
         return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
     /**
-     * 単位値をptに変換する
-     * @param {string|number} value - 単位付きの数値
-     * @param {string} prefKey - 環境設定のキー
-     * @returns {number} pt値（数値でない場合は NaN）
+     * 単位の値を pt に換算する
+     * @param {number} value - 単位の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} pt の値
      */
-    function unitValueToPt(value, prefKey) {
-        var parsed = parseFloat(value);
-        if (isNaN(parsed)) return NaN;
-        return parsed * getUnitInfo(prefKey).pointsPerUnit;
+    function unitToPt(value, unit) {
+        return value * unit.pointsPerUnit;
     }
 
     /**
-     * ptを単位値に変換する
-     * @param {string|number} valuePt - pt値
-     * @param {string} prefKey - 環境設定のキー
-     * @returns {number} 単位値（数値でない場合は NaN）
+     * pt の値を単位の値に換算する
+     * @param {number} ptValue - pt の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} 単位の値
      */
-    function ptValueToUnit(valuePt, prefKey) {
-        var parsed = parseFloat(valuePt);
-        if (isNaN(parsed)) return NaN;
-        return parsed / getUnitInfo(prefKey).pointsPerUnit;
+    function ptToUnit(ptValue, unit) {
+        return ptValue / unit.pointsPerUnit;
     }
 
     /**
@@ -1848,7 +1818,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n506df641d5c5"; /* 紹�
      * @returns {string} 整形した文字列
      */
     function formatPtInCurrentUnit(valuePt, prefKey) {
-        return formatNumber(ptValueToUnit(valuePt, prefKey), 2);
+        return formatNumber(ptToUnit(parseFloat(valuePt), getUnitInfo(prefKey)), 2);
     }
 
     /**
@@ -1870,9 +1840,42 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n506df641d5c5"; /* 紹�
      * @returns {string|number} pt値
      */
     function parseUnitInput(unitText, fallbackPt) {
-        var valuePt = unitValueToPt(unitText, "strokeUnits");
+        var valuePt = unitToPt(parseFloat(unitText), getUnitInfo("strokeUnits"));
         return (!isNaN(valuePt) && valuePt > 0) ? formatNumber(valuePt, 4) : fallbackPt;
     }
+
+    // =========================================
+    // 前回値の記憶 / Saved settings
+    // =========================================
+
+    /* #targetengine が生きている間だけダイアログの設定を保持する / Keep dialog settings while the #targetengine lives */
+    var settingsStore = createSettingsStore(SCRIPT_NAME, "session");
+
+    /* 保存する値の既定値 / Default values of the saved settings */
+    var DEFAULT_SETTINGS = {
+        angle: DEFAULT_ANGLE,
+        radioAngle: 45,
+        applyScope: "all",
+        hasUserSetApplyScope: false,
+        diagDir: "upperLeft",
+        hDir: "left",
+        vDir: "up",
+        tipMarkerType: "circle",
+        tipMarkerStyle: "fill",
+        tipMarkerSize: DEFAULT_TIP_MARKER_SIZE_PT,
+        strokeCapType: "round",
+        groupEnabled: true,
+        whiteEdge: false,
+        edgeColor: "white",
+        edgeColorHex: "#ffcc00",
+        lineColor: "black",
+        lineColorHex: "#ffcc00",
+        lineWidth: DEFAULT_LINE_WIDTH_PT,
+        textDist: unitToPt(DEFAULT_TEXT_DIST_MM, UNITS[1])
+    };
+
+    /* 今回の設定（main で読み込む）/ Current settings, loaded in main */
+    var sessionSettings = null;
 
     // =========================================
     // ズーム操作 / View zoom
@@ -3474,7 +3477,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n506df641d5c5"; /* 紹�
     function readLeaderOptions(ui, textFrameTargets) {
         var diagDirection = getDiagDirValues(ui);
 
-        var markerSizePt = unitValueToPt(ui.tipMarkerSizeInput.text, "strokeUnits");
+        var markerSizePt = unitToPt(parseFloat(ui.tipMarkerSizeInput.text), getUnitInfo("strokeUnits"));
         if (isNaN(markerSizePt) || markerSizePt <= 0) markerSizePt = DEFAULT_TIP_MARKER_SIZE_PT;
 
         /* テキストを選択しているときだけテキスト整列を使う */
@@ -3483,7 +3486,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n506df641d5c5"; /* 紹�
         if (textFrameTargets.length > 0) {
             textBounds = getTextBounds(textFrameTargets[0]);
             textDistPt = parseFloat(ui.textDistInput.text);
-            if (isNaN(textDistPt) || textDistPt < 0) textDistPt = DEFAULT_TEXT_DIST_PT;
+            if (isNaN(textDistPt) || textDistPt < 0) textDistPt = unitToPt(DEFAULT_TEXT_DIST_MM, UNITS[1]);
         }
 
         var options = {
@@ -3502,7 +3505,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n506df641d5c5"; /* 紹�
             lineColorHex: ui.lineColorHexHolder.text,
             edgeColorMode: getSelectedRadioKey(ui.radioMaps.edgeColor, "white"),
             edgeColorHex: ui.edgeColorHexHolder.text,
-            lineWidthPt: unitValueToPt(ui.lineWidthInput.text, "strokeUnits")
+            lineWidthPt: unitToPt(parseFloat(ui.lineWidthInput.text), getUnitInfo("strokeUnits"))
         };
         options.hasTipMarker = options.useCircleMarker || options.useArrowMarker;
         return options;
@@ -3944,7 +3947,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n506df641d5c5"; /* 紹�
         ui.edgeEnabledCheck.value = !!sessionSettings.whiteEdge;
 
         var textDistValue = parseFloat(sessionSettings.textDist);
-        if (isNaN(textDistValue) || textDistValue < 0) textDistValue = DEFAULT_TEXT_DIST_PT;
+        if (isNaN(textDistValue) || textDistValue < 0) textDistValue = unitToPt(DEFAULT_TEXT_DIST_MM, UNITS[1]);
         ui.textDistInput.text = formatNumber(textDistValue, 2);
 
         ui.textAlignPanel.enabled = textFrameTargets.length > 0;
@@ -3985,7 +3988,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n506df641d5c5"; /* 紹�
         sessionSettings.lineWidth = parseUnitInput(ui.lineWidthInput.text, DEFAULT_LINE_WIDTH_PT);
 
         var savedTextDist = parseFloat(ui.textDistInput.text);
-        sessionSettings.textDist = (!isNaN(savedTextDist) && savedTextDist >= 0) ? formatNumber(savedTextDist, 4) : DEFAULT_TEXT_DIST_PT;
+        sessionSettings.textDist = (!isNaN(savedTextDist) && savedTextDist >= 0) ? formatNumber(savedTextDist, 4) : unitToPt(DEFAULT_TEXT_DIST_MM, UNITS[1]);
         settingsStore.save(sessionSettings);
     }
 

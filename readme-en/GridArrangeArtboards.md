@@ -50,6 +50,7 @@
 
 ### Update History
 
+- v1.2.11 (2026-10-29) With the ruler unit set to Ha (H), unit labels now read "H" instead of "Q" (unit handling unified)
 - v1.2.10 (2026-10-16) Right-only button rows are now centered when the dialog's inner width is up to 240 px (was 200 px) (shared part update)
 - v1.2.9 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.2.8 (2026-10-01): Added space below the button row to match Illustrator's own dialogs

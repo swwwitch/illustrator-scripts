@@ -472,6 +472,36 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹�
     // UIレイアウト（再利用パーツ）ここまで / End of the reusable UI layout
 
     // =========================================
+    // 単位 / Units
+    // =========================================
+
+    /* 単位コードに対応する表示ラベルと、1単位あたりのポイント数
+       Unit code -> display label and points per unit */
+    var UNITS = [
+        { label: "in",    pointsPerUnit: 72 },                /* 0 */
+        { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
+        { label: "pt",    pointsPerUnit: 1 },                 /* 2 */
+        { label: "pica",  pointsPerUnit: 12 },                /* 3 */
+        { label: "cm",    pointsPerUnit: 72 / 2.54 },         /* 4 */
+        { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25 },  /* 5 */
+        { label: "px",    pointsPerUnit: 1 },                 /* 6 */
+        { label: "ft/in", pointsPerUnit: 72 * 12 },           /* 7 */
+        { label: "m",     pointsPerUnit: 72 / 25.4 * 1000 },  /* 8 */
+        { label: "yd",    pointsPerUnit: 72 * 36 },           /* 9 */
+        { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
+    ];
+
+    /**
+     * pt の値を単位の値に換算する
+     * @param {number} ptValue - pt の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} 単位の値
+     */
+    function ptToUnit(ptValue, unit) {
+        return ptValue / unit.pointsPerUnit;
+    }
+
+    // =========================================
     // パレット側 純粋ヘルパー / Palette-side pure helpers（DOM を触らない）
     // =========================================
 
@@ -1362,11 +1392,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹�
         return { scalePct: averagePct, scaleText: scaleText };
     }
 
-    function w_getDimensionsMm(item) {
+    /* mm への換算と表示用の文字列はパレット側（localizeEntry）で行う / mm conversion and display text are done palette-side (localizeEntry) */
+    function w_getDimensionsPt(item) {
         var widthPt = w_tryGet(function () { return item.width; }, null);
         var heightPt = w_tryGet(function () { return item.height; }, null);
-        if (!widthPt || !heightPt) return { widthMm: null, heightMm: null };
-        return { widthMm: widthPt * 25.4 / 72, heightMm: heightPt * 25.4 / 72 };
+        if (!widthPt || !heightPt) return { widthPt: null, heightPt: null };
+        return { widthPt: widthPt, heightPt: heightPt };
     }
 
     function w_getArtboardNumber(item, doc) {
@@ -1472,16 +1503,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹�
     }
 
     function w_getPlacementGeometry(item, doc) {
-        var dimensions = w_getDimensionsMm(item);
-        var widthText = (dimensions.widthMm !== null) ? dimensions.widthMm.toFixed(1) : "---";
-        var heightText = (dimensions.heightMm !== null) ? dimensions.heightMm.toFixed(1) : "---";
+        var dimensions = w_getDimensionsPt(item);
         var scaleInfo = w_getScaleInfo(item);
         return {
             artboardNum: w_getArtboardNumber(item, doc),
-            widthMm: dimensions.widthMm,
-            heightMm: dimensions.heightMm,
-            widthText: widthText,
-            heightText: heightText,
+            widthPt: dimensions.widthPt,
+            heightPt: dimensions.heightPt,
             scalePct: scaleInfo.scalePct,
             scaleText: scaleInfo.scaleText
         };
@@ -1519,10 +1546,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹�
             isLinkOk: basics.isLinkOk,
             artboardNum: geometry.artboardNum,
             artboards: (geometry.artboardNum !== null) ? String(geometry.artboardNum) : "-",
-            widthMm: geometry.widthMm,
-            heightMm: geometry.heightMm,
-            widthText: geometry.widthText,
-            heightText: geometry.heightText,
+            widthPt: geometry.widthPt,
+            heightPt: geometry.heightPt,
             scalePct: geometry.scalePct,
             scaleText: geometry.scaleText,
             ppi: imageMeta.ppi,
@@ -1581,10 +1606,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹�
             isLinkOk: true,
             artboardNum: geometry.artboardNum,
             artboards: (geometry.artboardNum !== null) ? String(geometry.artboardNum) : "-",
-            widthMm: geometry.widthMm,
-            heightMm: geometry.heightMm,
-            widthText: geometry.widthText,
-            heightText: geometry.heightText,
+            widthPt: geometry.widthPt,
+            heightPt: geometry.heightPt,
             scalePct: geometry.scalePct,
             scaleText: geometry.scaleText,
             ppi: null,
@@ -1650,10 +1673,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹�
                     fileCount: dedupInfo.fileCount,
                     artboardNum: dedupInfo.artboardNum,
                     artboardSet: artboardSet,
-                    widthMm: dedupInfo.widthMm,
-                    heightMm: dedupInfo.heightMm,
-                    widthText: dedupInfo.widthText,
-                    heightText: dedupInfo.heightText,
+                    widthPt: dedupInfo.widthPt,
+                    heightPt: dedupInfo.heightPt,
                     scalePct: dedupInfo.scalePct,
                     scaleText: dedupInfo.scaleText,
                     ppi: dedupInfo.ppi,
@@ -2654,7 +2675,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹�
         w_jsonStr, w_tryGet, w_safeExists, w_safeProp, w_readU16BE, w_readU32BE, w_readIccDesc,
         w_readPngImageInfo, w_readJpegImageInfo, w_readPsdImageInfo, w_readImageInfo,
         w_lastPathSep, w_pathBaseName, w_formatFileSize, w_getEffectivePPI, w_parseXmpDate,
-        w_isLinkOutOfDate, w_resolveLinkStatus, w_getScaleInfo, w_getDimensionsMm, w_getArtboardNumber,
+        w_isLinkOutOfDate, w_resolveLinkStatus, w_getScaleInfo, w_getDimensionsPt, w_getArtboardNumber,
         w_collectXmpLinkedRefs, w_decodeName, w_xmpNameKey, w_resolveXmpRef, w_getPlacedItemFileName,
         w_getPlacementFileBasics, w_getPlacementGeometry, w_getPlacementImageMeta, w_buildPlacementEntry,
         w_rasterIndexBase, w_itemByIndex, w_rasterColorSpaceText, w_buildEmbeddedEntry, w_collectEmbeddedEntries,
@@ -2700,6 +2721,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹�
         if (e.statusIcon === undefined || e.statusIcon === null || e.statusIcon === "") e.statusIcon = disp.statusIcon;
         e.isLinkOk = disp.isLinkOk;
         if (e.fileName === UNKNOWN_NAME) e.fileName = getLabel('label.fileNameUnknown');
+        /* worker は pt で返す。幅・高さを mm に換算し、表示用の文字列も作る / The worker returns pt; convert width/height to mm and build the display text */
+        var hasSize = (typeof e.widthPt === "number") && (typeof e.heightPt === "number");
+        e.widthMm = hasSize ? ptToUnit(e.widthPt, UNITS[1]) : null;
+        e.heightMm = hasSize ? ptToUnit(e.heightPt, UNITS[1]) : null;
+        e.widthText = hasSize ? e.widthMm.toFixed(1) : "---";
+        e.heightText = hasSize ? e.heightMm.toFixed(1) : "---";
     }
 
     // 保持しているデータ状態をすべて初期化（読み込み失敗時に古い内容を残さない）

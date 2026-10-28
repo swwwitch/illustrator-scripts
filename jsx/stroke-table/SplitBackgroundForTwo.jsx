@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.SplitBackgroundForTwo
 Name=SplitBackgroundForTwo
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=2.10.10
+Version=2.10.11
 Release-Date=2026-01-24
 Description-BEGIN
 2つのオブジェクトを選択して実行すると、背面に2分割の背景を作成します。
@@ -47,10 +47,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SplitBackg
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SplitBackgroundForTwo";        /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v2.10.10";                     /* バージョン / version */
+var SCRIPT_VERSION  = "v2.10.11";                     /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-01-24";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-16";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-29";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SplitBackgroundForTwo.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SplitBackgroundForTwo.md"; /* README (English) */
@@ -269,9 +269,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1b7b8759e53b"; /* 紹�
      * @returns {EditText} 追加した入力欄
      */
     function addLengthInput(rowGroup, valuePt, prefKey, tooltipKey) {
-        var lengthInput = addStepperInput(rowGroup, formatUnitValue(ptToUnit(valuePt, prefKey), prefKey), LENGTH_INPUT_CHARS, { step: 1, min: 0 });
+        var fieldUnit = getUnitInfo(prefKey);
+        var lengthInput = addStepperInput(rowGroup, formatUnitValue(ptToUnit(valuePt, fieldUnit), fieldUnit), LENGTH_INPUT_CHARS, { step: 1, min: 0 });
         lengthInput.helpTip = getLabel(tooltipKey);
-        rowGroup.add("statictext", undefined, getUnitInfo(prefKey).label);
+        rowGroup.add("statictext", undefined, fieldUnit.label);
         return lengthInput;
     }
 
@@ -851,7 +852,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1b7b8759e53b"; /* 紹�
     // 単位 / Units
     // =========================================
 
-    /* 単位テーブル（配列の添字が rulerType コードと一致：0=in, 1=mm, 2=pt …）/ Unit table; the array index equals the rulerType code */
+    /* 単位コードに対応する表示ラベルと、1単位あたりのポイント数
+       Unit code -> display label and points per unit */
     var UNITS = [
         { label: "in",    pointsPerUnit: 72 },                /* 0 */
         { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
@@ -871,58 +873,65 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1b7b8759e53b"; /* 紹�
     var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
 
     /**
-     * 設定キーごとの単位情報を取得する
-     * @param {string} prefKey - 環境設定キー（省略時は "rulerType"）
-     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位情報
+     * 環境設定キーの単位を返す
+     * @param {string} [prefKey] - "rulerType"（既定）/ "strokeUnits" / "text/units" / "text/asianunits"
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位の情報
      */
     function getUnitInfo(prefKey) {
         var unitKey = prefKey || "rulerType";
         var unitCode = app.preferences.getIntegerPreference(unitKey);
+        /* 未知のコードは pt に寄せる / unknown codes fall back to points */
         var unit = UNITS[unitCode] || UNITS[2];
+        /* 級（Q）と歯（H）は同じ長さだが、文字サイズは「Q」、距離は「H」と呼び分ける */
         var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
         return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
     /**
-     * 環境設定の単位の値を pt に換算する
+     * 単位の値を pt に換算する
      * @param {number} value - 単位の値
-     * @param {string} prefKey - 環境設定キー
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
      * @returns {number} pt の値
      */
-    function unitToPt(value, prefKey) {
-        return value * getUnitInfo(prefKey).pointsPerUnit;
+    function unitToPt(value, unit) {
+        return value * unit.pointsPerUnit;
     }
 
     /**
-     * pt の値を環境設定の単位に換算する
-     * @param {number} valuePt - pt の値
-     * @param {string} prefKey - 環境設定キー
+     * pt の値を単位の値に換算する
+     * @param {number} ptValue - pt の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
      * @returns {number} 単位の値
      */
-    function ptToUnit(valuePt, prefKey) {
-        return valuePt / getUnitInfo(prefKey).pointsPerUnit;
+    function ptToUnit(ptValue, unit) {
+        return ptValue / unit.pointsPerUnit;
     }
 
     /**
      * 単位の大きさに合わせて丸める（pt・Q は小数1桁、mm は2桁、in・cm・ft など1単位が10pt以上は3桁）
      * @param {number} value - 単位の値
-     * @param {string} prefKey - 環境設定キー
+     * @param {{pointsPerUnit: number}} unit - 値の単位（getUnitInfo() の戻り値）
      * @returns {number} 丸めた値
      */
-    function roundUnitValue(value, prefKey) {
-        var pointsPerUnit = getUnitInfo(prefKey).pointsPerUnit;
-        var scale = (pointsPerUnit >= 10) ? 1000 : (pointsPerUnit >= 2) ? 100 : 10;
+    function roundUnitValue(value, unit) {
+        var oneUnitPt = unitToPt(1, unit); /* 1単位の pt / one unit in pt */
+        var scale = 10;
+        if (oneUnitPt >= 10) {
+            scale = 1000;
+        } else if (oneUnitPt >= 2) {
+            scale = 100;
+        }
         return Math.round(value * scale) / scale;
     }
 
     /**
      * 単位の値を入力欄の文字列にする
      * @param {number} value - 単位の値
-     * @param {string} prefKey - 環境設定キー
+     * @param {{pointsPerUnit: number}} unit - 値の単位（getUnitInfo() の戻り値）
      * @returns {string} 表示用の文字列
      */
-    function formatUnitValue(value, prefKey) {
-        return String(roundUnitValue(value, prefKey));
+    function formatUnitValue(value, unit) {
+        return String(roundUnitValue(value, unit));
     }
 
     // ボタン行（再利用パーツ） / Button row (reusable)
@@ -2799,10 +2808,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1b7b8759e53b"; /* 紹�
         balanceInputRow.add("statictext", undefined, getLabel("fieldLabel.balanceWidth"));
         controls.balanceWidthInput = addStepperInput(balanceInputRow, "", SIZE_INPUT_CHARS, { step: 1, min: 0 });
         controls.balanceWidthInput.helpTip = getLabel("tooltip.balanceWidth");
-        balanceInputRow.add("statictext", undefined, getUnitInfo("rulerType").label);
+        var rulerUnit = getUnitInfo("rulerType");
+        balanceInputRow.add("statictext", undefined, rulerUnit.label);
 
         /* 幅の上限は2つのオブジェクトのすき間 / the width cannot exceed the gap between the objects */
-        controls.balanceWidthMax = roundUnitValue(ptToUnit(getGapPt(targetBounds, isVerticalSplit), "rulerType"), "rulerType");
+        controls.balanceWidthMax = roundUnitValue(ptToUnit(getGapPt(targetBounds, isVerticalSplit), rulerUnit), rulerUnit);
         controls.balanceWidthInput.stepOptions.max = controls.balanceWidthMax;
         var balanceSliderRow = addRow(controls.balanceWidthGroup);
         balanceSliderRow.alignChildren = ["fill", "center"];
@@ -2810,7 +2820,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1b7b8759e53b"; /* 紹�
         controls.balanceWidthSlider.helpTip = getLabel("tooltip.balanceWidthSlider");
         controls.balanceWidthSlider.preferredSize = BALANCE_SLIDER_SIZE;
 
-        setBalanceWidth(controls, clampBalanceWidth(controls, ptToUnit(session.balanceWidthPt, "rulerType"), false));
+        setBalanceWidth(controls, clampBalanceWidth(controls, ptToUnit(session.balanceWidthPt, rulerUnit), false));
     }
 
     /**
@@ -2866,7 +2876,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1b7b8759e53b"; /* 紹�
     function readLengthPt(lengthInput, prefKey, allowZero) {
         var valueUnit = Number(lengthInput.text);
         if (isNaN(valueUnit) || valueUnit < 0) return null;
-        var valuePt = Math.round(unitToPt(roundUnitValue(valueUnit, prefKey), prefKey) * 10) / 10;
+        var fieldUnit = getUnitInfo(prefKey);
+        var valuePt = Math.round(unitToPt(roundUnitValue(valueUnit, fieldUnit), fieldUnit) * 10) / 10;
         return (valuePt > 0 || allowZero) ? valuePt : null;
     }
 
@@ -2881,7 +2892,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1b7b8759e53b"; /* 紹�
         var widthUnit = Number(value);
         if (isNaN(widthUnit) || widthUnit < 0) widthUnit = 0;
         if (widthUnit > controls.balanceWidthMax) widthUnit = controls.balanceWidthMax;
-        return forceInteger ? Math.round(widthUnit) : roundUnitValue(widthUnit, "rulerType");
+        return forceInteger ? Math.round(widthUnit) : roundUnitValue(widthUnit, getUnitInfo("rulerType"));
     }
 
     /**
@@ -2902,7 +2913,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1b7b8759e53b"; /* 紹�
      */
     function readBalanceWidthPt(controls) {
         var widthUnit = clampBalanceWidth(controls, controls.balanceWidthInput.text, false);
-        return Math.round(unitToPt(widthUnit, "rulerType") * 10) / 10;
+        return Math.round(unitToPt(widthUnit, getUnitInfo("rulerType")) * 10) / 10;
     }
 
     /**

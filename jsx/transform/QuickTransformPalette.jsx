@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.QuickTransformPalette
 Name=QuickTransformPalette
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.4.5
+Version=1.4.6
 Release-Date=2026-07-03
 Description-BEGIN
 選択したオブジェクトの移動・複製と反転・回転を、アイコンのクリックで即時実行する常駐パレットです。
@@ -47,10 +47,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/QuickTrans
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "QuickTransformPalette";        /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.4.5";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.4.6";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-07-03";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-10";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-29";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/QuickTransformPalette.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/QuickTransformPalette.md"; /* README (English) */
@@ -323,16 +323,33 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n277bd0865986"; /* 紹�
         { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
     ];
 
+    /* 単位コード5を「歯（H）」と表示する環境設定キー。文字サイズ（text/units）だけ「級（Q）」
+       Preference keys that show unit code 5 as H; only the type size (text/units) shows Q */
+    var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
+
     /**
      * 環境設定キーの単位を返す
      * @param {string} [prefKey] - "rulerType"（既定）/ "strokeUnits" / "text/units" / "text/asianunits"
      * @returns {{code: number, label: string, pointsPerUnit: number}} 単位の情報
      */
     function getUnitInfo(prefKey) {
-        var unitCode = app.preferences.getIntegerPreference(prefKey || "rulerType");
+        var unitKey = prefKey || "rulerType";
+        var unitCode = app.preferences.getIntegerPreference(unitKey);
         /* 未知のコードは pt に寄せる / unknown codes fall back to points */
         var unit = UNITS[unitCode] || UNITS[2];
-        return { code: unitCode, label: unit.label, pointsPerUnit: unit.pointsPerUnit };
+        /* 級（Q）と歯（H）は同じ長さだが、文字サイズは「Q」、距離は「H」と呼び分ける */
+        var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
+        return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
+    }
+
+    /**
+     * 単位の値を pt に換算する
+     * @param {number} value - 単位の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} pt の値
+     */
+    function unitToPt(value, unit) {
+        return value * unit.pointsPerUnit;
     }
 
     	var FALLBACK_RULER_UNIT_INDEX = 2; /* 判別できないときは pt 扱い / Fall back to pt */
@@ -2290,13 +2307,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n277bd0865986"; /* 紹�
     		 * @returns {{marginPt: number, usePreviewBounds: boolean}} 変形に使う設定
     		 */
     		function readSettings() {
-    			var unitInfo = getUnitInfo();
-    			unitLabel.text = unitInfo.label; /* 単位表示を更新 / refresh the unit label */
+    			var rulerUnit = getUnitInfo();
+    			unitLabel.text = rulerUnit.label; /* 単位表示を更新 / refresh the unit label */
     			var marginValue = parseFloat(marginInput.text);
     			if (isNaN(marginValue)) { marginValue = 0; } /* 負値は許容（マイナスで重なり方向へ）/ Negatives allowed (moves toward overlap) */
     			marginInput.text = String(marginValue);
     			return {
-    				marginPt: marginValue * unitInfo.pointsPerUnit,
+    				marginPt: unitToPt(marginValue, rulerUnit),
     				usePreviewBounds: previewBoundsCheck.value
     			};
     		}

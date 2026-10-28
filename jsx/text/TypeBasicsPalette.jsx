@@ -378,6 +378,26 @@ var SCRIPT_PRO_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 上位�
     }
 
     /**
+     * 単位の値を pt に換算する
+     * @param {number} value - 単位の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} pt の値
+     */
+    function unitToPt(value, unit) {
+        return value * unit.pointsPerUnit;
+    }
+
+    /**
+     * pt の値を単位の値に換算する
+     * @param {number} ptValue - pt の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} 単位の値
+     */
+    function ptToUnit(ptValue, unit) {
+        return ptValue / unit.pointsPerUnit;
+    }
+
+    /**
      * 行送りの単位ラベルを返す（文字サイズが Q のとき、行送りは「H」と呼ぶ）
      * @param {{code: number, label: string}} textUnit - 文字サイズの単位
      * @returns {string} 行送りの単位ラベル
@@ -1879,7 +1899,7 @@ var SCRIPT_PRO_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 上位�
          */
         function applyFontSizeFromInput() {
             var inputValue = parseFloat(paletteControls.fontSizeInput.text);
-            if (!isNaN(inputValue)) runApply("applyFontSize", { sizePt: inputValue * textUnit.pointsPerUnit });
+            if (!isNaN(inputValue)) runApply("applyFontSize", { sizePt: unitToPt(inputValue, textUnit) });
             updateLeadingEffective();
         }
         paletteControls.fontSizeInput.onChange = applyFontSizeFromInput;
@@ -1944,13 +1964,13 @@ var SCRIPT_PRO_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 上位�
                 var selectionState = parseState(payload);
                 if (selectionState.count <= 0) return;
                 /* フォントサイズ / Font size */
-                paletteControls.fontSizeInput.text = isNaN(selectionState.fontSizePt) ? "" : String(Math.round((selectionState.fontSizePt / textUnit.pointsPerUnit) * 10) / 10);
+                paletteControls.fontSizeInput.text = isNaN(selectionState.fontSizePt) ? "" : String(Math.round(ptToUnit(selectionState.fontSizePt, textUnit) * 10) / 10);
                 /* 行送り%：自動行送り量% を % 欄に反映（実質欄は下で現在値に上書きするので計算表示は使わない）
                    Leading %: reflect the auto-leading amount % (the effective field is overwritten by the actual value below) */
                 paletteControls.leadingPercentInput.text = isNaN(selectionState.autoAmount) ? "" : String(Math.round(selectionState.autoAmount * 10) / 10);
                 /* 行送り：選択の現在値（絶対値 pt）をそのまま表示（サイズ×% の計算値ではない）
                    Leading: show the selection's actual current value (absolute pt), not the size × % computation */
-                paletteControls.leadingEffectiveInput.text = isNaN(selectionState.leadingPt) ? "" : String(Math.round((selectionState.leadingPt / textUnit.pointsPerUnit) * 10) / 10);
+                paletteControls.leadingEffectiveInput.text = isNaN(selectionState.leadingPt) ? "" : String(Math.round(ptToUnit(selectionState.leadingPt, textUnit) * 10) / 10);
                 /* 自動カーニング / Auto kerning */
                 if (selectionState.kernId) selectKernById(paletteControls.kernRadios, autoKernOptions, selectionState.kernId);
                 /* 文字ツメ / Tsume */

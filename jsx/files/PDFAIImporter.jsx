@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.PDFAIImporter
 Name=PDFAIImporter
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.3.8
+Version=1.3.9
 Release-Date=2026-04-13
 Description-BEGIN
 PDF/AI ファイルを指定したページ範囲で読み込み、現在のドキュメントまたは新規ドキュメント上に配置します。
@@ -47,10 +47,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PDFAIImpor
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "PDFAIImporter";                /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.3.8";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.3.9";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-04-13";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-16";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-29";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/PDFAIImporter.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PDFAIImporter.md"; /* README (English) */
@@ -68,8 +68,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42595650216f"; /* 紹�
     // アートボードごと配置時のデフォルト間隔（pt）/ Default gap for per-artboard placement (pt)
     var DEFAULT_ARTBOARD_GAP = 100;
 
-    // 自動列のときの最大行幅（pt）。これを超えると次行へ折り返す / Max row width for Auto columns (pt); wraps beyond this
-    var MAX_AUTO_ROW_WIDTH = (220 / 2) * 72; // 7920 pt
+    // 自動列のときの最大行幅（in）。これを超えると次行へ折り返す / Max row width for Auto columns (in); wraps beyond this
+    var MAX_AUTO_ROW_WIDTH_IN = 220 / 2; // 110 in = 7920 pt
 
     /* 見開きと判定する横長比（幅 > 高さ × この値） / Aspect ratio that marks a page as a spread (width > height x this) */
     var SPREAD_ASPECT_RATIO = 1.2;
@@ -324,16 +324,33 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42595650216f"; /* 紹�
         { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
     ];
 
+    /* 単位コード5を「歯（H）」と表示する環境設定キー。文字サイズ（text/units）だけ「級（Q）」
+       Preference keys that show unit code 5 as H; only the type size (text/units) shows Q */
+    var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
+
     /**
      * 環境設定キーの単位を返す
      * @param {string} [prefKey] - "rulerType"（既定）/ "strokeUnits" / "text/units" / "text/asianunits"
      * @returns {{code: number, label: string, pointsPerUnit: number}} 単位の情報
      */
     function getUnitInfo(prefKey) {
-        var unitCode = app.preferences.getIntegerPreference(prefKey || "rulerType");
+        var unitKey = prefKey || "rulerType";
+        var unitCode = app.preferences.getIntegerPreference(unitKey);
         /* 未知のコードは pt に寄せる / unknown codes fall back to points */
         var unit = UNITS[unitCode] || UNITS[2];
-        return { code: unitCode, label: unit.label, pointsPerUnit: unit.pointsPerUnit };
+        /* 級（Q）と歯（H）は同じ長さだが、文字サイズは「Q」、距離は「H」と呼び分ける */
+        var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
+        return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
+    }
+
+    /**
+     * 単位の値を pt に換算する
+     * @param {number} value - 単位の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} pt の値
+     */
+    function unitToPt(value, unit) {
+        return value * unit.pointsPerUnit;
     }
 
     // =========================================
@@ -1389,7 +1406,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42595650216f"; /* 紹�
             // 指定列数に達した、または行幅が上限を超えるとき次の行へ折り返す
             // Wrap to the next row when the column count or the row width limit is reached
             var wrapByCol = colsPerRow > 0 && colCount >= colsPerRow;
-            var wrapByEdge = colsPerRow === 0 && nextX > 0 && nextX + pageW > MAX_AUTO_ROW_WIDTH;
+            var wrapByEdge = colsPerRow === 0 && nextX > 0 && nextX + pageW > unitToPt(MAX_AUTO_ROW_WIDTH_IN, UNITS[0]);
             if (wrapByCol || wrapByEdge) {
                 topY -= rowMaxH + gap;
                 nextX = 0;
@@ -2480,7 +2497,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42595650216f"; /* 紹�
             return {
                 mode: 'clipGroup',
                 roundCorners: cbRoundCorner.value,
-                roundRadius: radius * getUnitInfo().pointsPerUnit
+                roundRadius: unitToPt(radius, getUnitInfo())
             };
         }
 
