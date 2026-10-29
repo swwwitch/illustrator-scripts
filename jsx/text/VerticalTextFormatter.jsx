@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.VerticalTextFormatter
 Name=VerticalTextFormatter
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.26.1
+Version=1.27.0
 Release-Date=2026-10-15
 Description-BEGIN
 選択したテキストを縦組みにし、欧文回転・縦中横・数字の書き換え（全角・漢数字・和暦）・禁則・文字組みなどをまとめて適用します。
@@ -49,10 +49,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/VerticalTe
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "VerticalTextFormatter";        /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.26.1";                      /* バージョン / version */
+var SCRIPT_VERSION  = "v1.27.0";                      /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-15";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-23";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-29";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/VerticalTextFormatter.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/VerticalTextFormatter.md"; /* README (English) */
@@ -103,6 +103,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         singleLetterFullwidth: false,
         unitsKumimoji: false,
         proportionalFullwidthLatin: true,
+        ichiNoTightening: true,
         rotateSkipLongLatin: false,
         rotateSkipMinChars: 5,
         shortWordFullwidth: false,
@@ -121,10 +122,10 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     var CHECKBOX_SETTING_KEYS = ["rotateRoman", "tcyNumbers", "tcyDigits2", "tcyDigits3", "tcyDigits4", "tcyExcludeAdjacent", "tcyCapitals",
         "tcyExclamation", "tcyGlyphByLength", "singleDigitFullwidth", "nonTcyDigitsFullwidth", "japaneseEra", "kanjiToArabic", "kanji", "kanjiZeroRei", "kanjiIchiSen", "halfwidthAlnum",
         "colorCheck", "areaAutoSize", "areaHeightToSize", "periodToNakaguro", "symbolsFullwidth", "quotesToChonchon", "rangeToWave", "exclamFullwidth", "singleLetterFullwidth",
-        "unitsKumimoji", "proportionalFullwidthLatin", "rotateSkipLongLatin", "shortWordFullwidth"];
+        "unitsKumimoji", "proportionalFullwidthLatin", "ichiNoTightening", "rotateSkipLongLatin", "shortWordFullwidth"];
 
     /* 簡易モードで表示していなくてもオフにしない項目（常にかける） / Options kept on even when hidden in the simple mode (always applied) */
-    var ALWAYS_APPLIED_KEYS = ["areaHeightToSize"];
+    var ALWAYS_APPLIED_KEYS = ["areaHeightToSize", "ichiNoTightening"];
 
     /* ウィザードのやりたいこと。チェックしたものの data を順に重ねる（チェックしていない項目はオフ、禁則・文字組み・行送りは変えない）。
        overriddenBy のやりたいことがオンのときは、チェックしていても使わない（ダイアログボックスでは無効にする）
@@ -1242,6 +1243,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             exclamFullwidth: { ja: "「!」「?」を全角に", en: "\"!\" \"?\" to full-width" },
             singleLetterFullwidth: { ja: "1文字の英字を全角に", en: "Single letters to full-width" },
             proportionalFullwidthLatin: { ja: "全角英数字にプロポーショナルメトリクス", en: "Proportional metrics for full-width alphanumerics" },
+            ichiNoTightening: { ja: "「一」を詰めない", en: "Do not tighten 一" },
             singleDigitFullwidth: { ja: "1桁の数字を全角に", en: "Single digits to full-width" },
             nonTcyDigitsFullwidth: { ja: "縦中横以外の数字を全角に", en: "Non-TCY digits to full-width" },
             japaneseEra: { ja: "西暦を和暦に", en: "Western years to Japanese era" },
@@ -1439,6 +1441,10 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             proportionalFullwidthLatin: {
                 ja: "全角の英数字（Ａ〜Ｚ・ａ〜ｚ・０〜９）に OpenType 機能の［プロポーショナルメトリクス］を適用します（文字の書き換えのあと）",
                 en: "Applies the OpenType Proportional Metrics feature to full-width letters and digits (after the rewriting)"
+            },
+            ichiNoTightening: {
+                ja: "「一」のプロポーショナルメトリクスと文字ツメを外します（縦組みの「一」は字面が薄く、詰めると前後に寄って見えにくくなるため）。簡易モードでも常にかけます",
+                en: "Removes proportional metrics and tsume from 一, whose face is so thin in vertical text that tightening makes it hard to see; always applied, in Simple mode too"
             },
             singleLetterFullwidth: {
                 ja: "1字だけの英字（Aランクの A など）を全角にして正立させます",
@@ -3771,6 +3777,23 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     }
 
     /**
+     * 書き換え後のテキストの「一」から、プロポーショナルメトリクスと文字ツメを外す（自動カーニングは applyFinalCharacterAttributes() で外す）
+     * 縦組みの「一」は字面が薄く、詰めると前後に寄って見えにくくなるため
+     * @param {Object} textTarget - 対象
+     * @param {Object} plan - planVerticalText() の戻り値
+     * @returns {void}
+     */
+    function removeIchiTightening(textTarget, plan) {
+        var editedText = buildEditedText(textTarget.text, plan.edits);
+        var characters = getTargetCharacters(textTarget);
+        for (var i = editedText.indexOf("一"); i >= 0; i = editedText.indexOf("一", i + 1)) {
+            var ichiAttributes = characters[textTarget.offset + i].characterAttributes;
+            ichiAttributes.proportionalMetrics = false;
+            ichiAttributes.Tsume = 0;
+        }
+    }
+
+    /**
      * 対象の中の範囲だけを選択する
      * @param {Document} doc - 対象のドキュメント
      * @param {Object} textTarget - 対象
@@ -4170,6 +4193,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             for (var j = 0; j < textTargets.length; j++) {
                 applyTextEdits(textTargets[j], plans[j].edits);
                 if (formatOptions.proportionalFullwidthLatin) applyProportionalMetricsToFullwidthAlnum(textTargets[j], plans[j]);
+                if (formatOptions.ichiNoTightening) removeIchiTightening(textTargets[j], plans[j]);
                 advanceProgress(getLabel("progress.edit", { current: j + 1, total: textTargets.length }));
             }
 
@@ -5051,6 +5075,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         paragraphOptionGroup.margins = [0, PARAGRAPH_OPTION_TOP_MARGIN, 0, 0];
         /* 文字の書き換えではなく OpenType の書式なので、ここに置く / An OpenType setting, not a rewrite, so it lives here */
         dialogControls.proportionalFullwidthLatin = addOptionCheckbox(paragraphOptionGroup, "checkbox.proportionalFullwidthLatin", settings.proportionalFullwidthLatin);
+        dialogControls.ichiNoTightening = addOptionCheckbox(paragraphOptionGroup, "checkbox.ichiNoTightening", settings.ichiNoTightening);
         dialogControls.areaHeightToSize = addOptionCheckbox(paragraphOptionGroup, "checkbox.areaHeightToSize", settings.areaHeightToSize);
         dialogControls.areaAutoSize = addOptionCheckbox(paragraphOptionGroup, "checkbox.areaAutoSize", settings.areaAutoSize);
     }

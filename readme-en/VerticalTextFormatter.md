@@ -84,6 +84,7 @@
   - **Leading**: set as an auto-leading percentage (175% by default, 50–500%). In both modes, leading is always set to Auto at the end so it follows the type size, and auto kerning is always set to 0
   - Justification is always justified with the last line at the top
   - **Proportional metrics for full-width alphanumerics**: applies the OpenType Proportional Metrics feature to full-width letters and digits (after the rewriting, on by default)
+  - **Do not tighten 一**: removes proportional metrics and tsume from 一, whose face is so thin in vertical text that tightening makes it hard to see (on by default; always applied, in Simple mode too)
   - **Height to a multiple of the type size**: sets the area-type frame height (the line length in vertical text) to the nearest whole multiple of the type size, inset excluded (on by default; always applied, in Simple mode too)
   - **Auto-size area type**: after processing, turns on Auto Size in Area Type Options so the frame fits the text (on by default and in every built-in preset; threaded text is skipped)
 - Check Coloring (Detailed mode)
@@ -123,6 +124,7 @@ https://note.com/dtp_tranist/n/ndb55c5516fd6
 
 ### Update History
 
+- v1.27.0 (2026-10-29) Added "Do not tighten 一" to Character and Paragraph in the Detailed mode: removes proportional metrics and tsume from 一 (on by default; always applied in the Simple mode and the wizard too)
 - v1.26.1 (2026-10-23) The built-in presets Standard, "Arabic, TCY for 2 digits only" and "Arabic, TCY for 2–3 digits (magazines, ads)" now turn on "Kanji numerals to Arabic digits"
 - v1.26.0 (2026-10-23) Added "Kanji numerals to Arabic digits" to Numbers in the Detailed mode: stray kanji numerals as in 2019年四月30日 become digits before Tate-Chu-Yoko and full-width are decided
 - v1.25.3 (2026-10-16) Wizard fixes: loading a preset in the Detailed mode no longer resets the wizard checks, and 零 / 一千 now follow the Detailed-mode settings. Renamed "Turn Roman text sideways" to "Rotate Roman text upright". Turning on kanji numerals dims the Tate-Chu-Yoko and full-width digit goals, and OK is unavailable when no usable goal is checked
