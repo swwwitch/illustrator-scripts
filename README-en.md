@@ -109,6 +109,7 @@ After release, we continue to fix bugs and make adjustments through daily use.
 - [Find and adjust Tate-Chu-Yoko](readme-en/FindEditTCY.md)
 - [Switch glyph forms and variants of the selected characters](readme-en/ReplaceAlternateGlyphs.md)
 - [Color full-width and half-width alphanumerics and fixed-width glyphs differently](readme-en/ColorCharactersByWidth.md)
+- [Convert full-width and half-width characters by type](readme-en/CharacterWidthConverter.md)
 - [Convert point text, path text or shape plus text into…](readme-en/TextWithShapeToAreaType.md)
 - [Register the selected text's formatting as a paragrap…](readme-en/%E6%AE%B5%E8%90%BD%E3%82%B9%E3%82%BF%E3%82%A4%E3%83%AB.md)
 
