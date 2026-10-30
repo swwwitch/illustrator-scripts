@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.ImageLinkManager
 Name=ImageLinkManager
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.3.9
+Version=1.3.10
 Release-Date=2025-12-21
 Description-BEGIN
 配置画像に対する「埋め込み」「埋め込み解除」「リセット」「ケイ線」「リンク」を、1つのダイアログでまとめて扱います。
@@ -44,7 +44,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ImageLinkM
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ImageLinkManager";             /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.3.9";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.3.10";                      /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-12-21";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-29";                   /* 更新日 / last updated */
@@ -586,6 +586,26 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         /* 級（Q）と歯（H）は同じ長さだが、文字サイズは「Q」、距離は「H」と呼び分ける */
         var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
         return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
+    }
+
+    /**
+     * 単位の値を pt に換算する
+     * @param {number} value - 単位の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} pt の値
+     */
+    function unitToPt(value, unit) {
+        return value * unit.pointsPerUnit;
+    }
+
+    /**
+     * pt の値を単位の値に換算する
+     * @param {number} ptValue - pt の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} 単位の値
+     */
+    function ptToUnit(ptValue, unit) {
+        return ptValue / unit.pointsPerUnit;
     }
 
     // UI の明暗（再利用パーツ） / UI theme (reusable)
@@ -1487,15 +1507,19 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             }
         }
 
-        var defaultRoundRadius = 10;
+        /* 角丸の欄は定規の単位（ダイアログを開くときに一度だけ読む）/ The radius field uses the ruler unit, read once */
+        var rulerUnit = getUnitInfo();
+
+        /* 初期値は pt で求め、定規の単位にして小数2桁に丸める / The default is computed in pt, then shown in the ruler unit (2 decimals) */
+        var defaultRoundRadiusPt = 10;
         try {
             if (app.documents.length > 0) {
-                defaultRoundRadius = calcDefaultRoundRadiusFromSelection(app.activeDocument.selection);
+                defaultRoundRadiusPt = calcDefaultRoundRadiusFromSelection(app.activeDocument.selection);
             }
         } catch (eSel) {
-            defaultRoundRadius = 10;
+            defaultRoundRadiusPt = 10;
         }
-        defaultRoundRadius = Math.round(defaultRoundRadius * 100) / 100;
+        var defaultRoundRadius = Math.round(ptToUnit(defaultRoundRadiusPt, rulerUnit) * 100) / 100;
 
         // 角丸（クリップグループ用）
         var roundRow = panelKeisen.add('group');
@@ -1520,7 +1544,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         bindSteppedArrowKeys(etKeisenRoundRadius, roundRadiusStepper);
         etKeisenRoundRadius.helpTip = getLabel('tipKeisenRoundCorners');
         etKeisenRoundRadius.characters = 6;
-        var stKeisenRoundUnit = roundRow.add('statictext', undefined, getUnitInfo().label);
+        var stKeisenRoundUnit = roundRow.add('statictext', undefined, rulerUnit.label);
 
         // 初期状態
         cbKeisenRoundCorners.enabled = false;
@@ -1542,9 +1566,6 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         rbKeisenClipGroup.onClick = updateKeisenRoundUI;
         cbKeisenRoundCorners.onClick = updateKeisenRoundUI;
         updateKeisenRoundUI();
-        try {
-            stKeisenRoundUnit.text = getUnitInfo().label;
-        } catch (e) { }
 
         etKeisenRoundRadius.onChange = function () {
             var v = Number(etKeisenRoundRadius.text);
@@ -1726,11 +1747,12 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             keisenOptions: {
                 mode: rbKeisenStrokeOnly.value ? 'strokeOnly' : 'clipGroup',
                 roundCorners: (cbKeisenRoundCorners.value === true),
+                /* 欄の値は定規の単位なので pt にする / the field is in the ruler unit, so convert to pt */
                 roundRadius: (function () {
                     var n = parseFloat(etKeisenRoundRadius.text, 10);
                     if (isNaN(n)) n = 0;
                     if (n < 0) n = 0;
-                    return n;
+                    return unitToPt(n, rulerUnit);
                 })()
             },
             linkOptions: {

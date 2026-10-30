@@ -46,4 +46,4 @@ https://judicious-night-bca.notion.site/app-getIntegerPreference-e4088e6caef64b3
 
 ### Script info
 
-- Version: v1.3.7
+- Version: v1.3.8

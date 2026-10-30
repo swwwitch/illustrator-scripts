@@ -45,4 +45,4 @@ In the height (%), stroke weight, corner radius and Width fields, the stepper bu
 
 ### Script info
 
-- Version: v1.2.9
+- Version: v1.2.10

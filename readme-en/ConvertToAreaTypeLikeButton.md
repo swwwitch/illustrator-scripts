@@ -47,4 +47,4 @@ Depending on the selection it converts to area type automatically and opens the 
 
 ### Script info
 
-- Version: v1.1.9
+- Version: v1.1.10

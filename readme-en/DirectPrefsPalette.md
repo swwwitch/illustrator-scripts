@@ -16,10 +16,11 @@ See the README for details.
 
 ### Script info
 
-- Version: v1.1.5
+- Version: v1.1.6
 
 ### Update History
 
+- v1.1.6 (2026-10-29) Fixed the keyboard-increment presets not following the ruler unit (mm 1, 5, 10; pt 1, 6, 12; px 0.1, 1, 8). With the ruler unit set to Ha (H), the unit now reads "H" instead of "Q"
 - v1.1.5 (2026-10-10) Fixed the palette operating on another Illustrator version when several versions are running
 - v1.1.4 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.1.3 (2026-10-03) Moved to the shared persistent engine `SwwwitchPalettes` so CloseAllPalettes can close it

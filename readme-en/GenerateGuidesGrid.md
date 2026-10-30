@@ -93,3 +93,4 @@ https://note.com/sgswkn/n/nee8c3ec1a14c
 - v1.8.8 (2026-10-03): Number fields now show the unit inside the field; removed the unit from the panel title and beside the fields
 - v1.8.9 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.8.10 (2026-10-29) Unit conversion now uses the shared unit table; fixed ruler units ft/in, m, yd and ft being treated as points
+- v1.8.11 (2026-10-29) Number fields now show units like the other scripts ("in" for inches, "H" for Ha)

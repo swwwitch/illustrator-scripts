@@ -35,6 +35,7 @@ The mode selector at the top switches the operation, and only the matching panel
 
 ### Update History
 
+- v1.3.10 (2026-10-29) The Round corners radius is now converted from the ruler unit to points (typing 10 with a mm ruler used to apply 10 pt). The default is shown in the ruler unit too
 - v1.3.9 (2026-10-29) With the ruler unit set to Ha (H), unit labels now read "H" instead of "Q" (unit handling unified)
 - v1.3.8 (2026-10-16) Right-only button rows are now centered when the dialog's inner width is up to 240 px (was 200 px) (shared part update)
 - v1.3.7 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)

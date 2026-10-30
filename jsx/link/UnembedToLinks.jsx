@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.UnembedToLinks
 Name=UnembedToLinks
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.0.11
+Version=1.0.12
 Release-Date=2026-07-27
 Description-BEGIN
 埋め込み画像を、一時アクションを動的に生成して実行することでリンク画像に置き換えます。
@@ -47,10 +47,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/UnembedToL
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "UnembedToLinks";               /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.11";                      /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.12";                      /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-07-27";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-16";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-29";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/UnembedToLinks.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/UnembedToLinks.md"; /* README (English) */
@@ -1592,9 +1592,13 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         var options = showOptionDialog(selectedItems, artboardItems, allItems, exportNameMap);
         if (!options) return;
 
-        var targetItems = (options.scope === "selection") ? selectedItems
-            : (options.scope === "artboard") ? artboardItems
-            : allItems;
+        /* 入れ子の三項演算子は ExtendScript で誤評価されるため if/else で書く / nested ternaries misevaluate in ExtendScript */
+        var targetItems = allItems;
+        if (options.scope === "selection") {
+            targetItems = selectedItems;
+        } else if (options.scope === "artboard") {
+            targetItems = artboardItems;
+        }
 
         var isSingle     = (targetItems.length === 1);
         var placedList   = [];

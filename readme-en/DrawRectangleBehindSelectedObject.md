@@ -55,4 +55,4 @@ Last updated: 2025-11-09
 
 ### Script info
 
-- Version: v1.7.8
+- Version: v1.7.9

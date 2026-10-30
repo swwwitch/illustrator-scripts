@@ -43,6 +43,7 @@ Parameters are adjusted in a dialog with a live preview; OK commits the result (
 - v1.3.6 (2026-10-01): Added space below the button row to match Illustrator's own dialogs
 - v1.3.7 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.3.8 (2026-10-29): With the ruler unit set to H (ha), the size, margin and gap fields now show "H" instead of "Q". Unit conversion now uses the shared helpers
+- v1.3.9 (2026-10-29) Inches now read "in" instead of "inch", like the other scripts
 
 ### Article
 
@@ -50,4 +51,4 @@ https://note.com/dtp_tranist/n/ncac687d0a3a0
 
 ### Script info
 
-- Version: v1.3.8
+- Version: v1.3.9

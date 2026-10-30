@@ -46,7 +46,7 @@ paragraphAttributes.justification は取り消し前の値を返すことがあ�
 
 ### スクリプト情報
 
-- バージョン: v1.4.7
+- バージョン: v1.4.8
 
 ### 更新履歴
 

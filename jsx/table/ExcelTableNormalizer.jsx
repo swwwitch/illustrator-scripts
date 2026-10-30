@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.ExcelTableNormalizer
 Name=ExcelTableNormalizer
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.2.7
+Version=1.2.8
 Release-Date=2026-04-30
 Description-BEGIN
 Excel由来のIllustratorデータを、表組みとして扱いやすい状態に整形します。
@@ -44,10 +44,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ExcelTable
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ExcelTableNormalizer";         /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.2.7";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.2.8";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-04-30";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-29";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA  = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ExcelTableNormalizer.md"; /* README（日本語） */
 var SCRIPT_README_EN  = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ExcelTableNormalizer.md"; /* README (English) */
@@ -1423,6 +1423,13 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         if (isNaN(strokeWidthValue) || strokeWidthValue <= 0) {
             strokeWidthValue = parseFloat(getDefaultStrokeWidthText(strokeUnit.label));
         }
+        /* 入れ子の三項演算子は ExtendScript で誤評価されるため if/else で書く / nested ternaries misevaluate in ExtendScript */
+        var placementMode = "keepColumnWidths";
+        if (dialogControls.placementUniformForcedRadio.value) {
+            placementMode = "forced";
+        } else if (dialogControls.placementUniformMergedRadio.value) {
+            placementMode = "merged";
+        }
         return {
             releaseMask: dialogControls.releaseMaskCheckbox.value,
             moveText: dialogControls.moveTextCheckbox.value,
@@ -1432,9 +1439,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             adjustCellBg: dialogControls.adjustCellBgCheckbox.value,
             equalizeHeights: dialogControls.equalizeHeightsCheckbox.value,
             centerline: dialogControls.centerlineCheckbox.value,
-            placementMode: dialogControls.placementUniformForcedRadio.value ? "forced"
-                : dialogControls.placementUniformMergedRadio.value ? "merged"
-                    : "keepColumnWidths",
+            placementMode: placementMode,
             outerToRect: dialogControls.outerToRectCheckbox.value,
             strokeWidthPt: unitToPt(strokeWidthValue, strokeUnit),
             rulesK100: dialogControls.rulesK100Checkbox.value

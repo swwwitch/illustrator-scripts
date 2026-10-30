@@ -189,6 +189,20 @@ function ptToUnit(ptValue, unit) {
 }
 
 /**
+ * 単位コードから、getUnitInfo() と同じ形の単位の情報を作る（コードを別に読んだとき・単位を選ぶポップアップ用）
+ * @param {number} unitCode - 単位コード
+ * @param {string} prefKey - そのコードの環境設定キー（"rulerType" など。Q/H の表示を決める）
+ * @returns {{code: number, label: string, pointsPerUnit: number}} 単位の情報（未知のコードは pt 相当）
+ */
+function getUnitInfoFromCode(unitCode, prefKey) {
+    /* 未知のコードは pt に寄せる / unknown codes fall back to points */
+    var unit = UNITS[unitCode] || UNITS[2];
+    /* 級（Q）と歯（H）は同じ長さだが、文字サイズは「Q」、距離は「H」と呼び分ける */
+    var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[prefKey]) ? "H" : unit.label;
+    return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
+}
+
+/**
  * 表示ラベルから単位を探す（「H」は「Q」と同じ単位）
  * @param {string} label - 単位の表示ラベル（"mm" など）
  * @returns {{label: string, pointsPerUnit: number}|null} UNITS の要素（見つからなければ null）
@@ -207,11 +221,17 @@ function findUnitByLabel(label) {
   Keep the object in a variable named after its preference (`rulerUnit`, `strokeUnit`, `textUnit`), not `factor` / `ptPerUnit`
 - Fixed units: `unitToPt(3, UNITS[1])` (3 mm). No `POINTS_PER_MM`-style constants or `72 / 25.4` literals
 - Unit chosen in a dropdown: index into `UNITS` when the list follows the unit codes; otherwise `findUnitByLabel(label)`
+- A unit code read elsewhere (a palette receives it from the main engine through BridgeTalk) or listed in a unit
+  popup: `getUnitInfoFromCode(code, "rulerType")`, which gives the same label (H) and shape as `getUnitInfo()`
+- `UNITS` rows carry only `label` and `pointsPerUnit`. Per-script extras (popup membership, display decimals)
+  go in a separate array indexed by unit code (`UNIT_POPUP_CODES = [0, 1, 2, …]`, `KEY_INCREMENT_DECIMALS = […]`)
+- Show the labels as `UNITS` / `getUnitInfo()` give them (`in`, `H`); do not rename them per script
 - Another preference: `getUnitInfo("strokeUnits")`, `getUnitInfo("text/units")`
 - `pointsPerUnit` appears only in `UNITS`, `getUnitInfo()`, `unitToPt()` and `ptToUnit()`
 - Include only the parts the script uses: `getUnitInfo()` (always together with `HA_UNIT_PREF_KEYS`, which it reads)
-  when it reads a preference, and `unitToPt()` / `ptToUnit()` / `findUnitByLabel()` when called.
-  Place the converters in this order right after `getUnitInfo()` (or after `UNITS` when there is no `getUnitInfo()`)
+  when it reads a preference, and `unitToPt()` / `ptToUnit()` / `getUnitInfoFromCode()` / `findUnitByLabel()` when called
+  (`getUnitInfoFromCode()` also needs `HA_UNIT_PREF_KEYS`).
+  Place them in this order right after `getUnitInfo()` (or after `UNITS` when there is no `getUnitInfo()`)
 - Do not trim `getUnitInfo()` into a variant without the H label; copy it as written
 - Rounding and display formatting stay outside the converters (`formatUnitValue()` etc. call them)
 - Values typed into a stepper field (`1in`, `1p6`, `10 mm`) are read by the StepperButtons part

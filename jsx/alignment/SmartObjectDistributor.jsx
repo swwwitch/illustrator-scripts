@@ -1,4 +1,4 @@
-#target illustrator
+　#target illustrator
 #targetengine "SmartObjectDistributorEngine"
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 

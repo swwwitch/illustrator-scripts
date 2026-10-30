@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.DirectPrefsPalette
 Name=DirectPrefsPalette
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.1.5
+Version=1.1.6
 Description-BEGIN
 環境設定の「角度の制限」と「キー増加」の変更、およびガイド・グリッドの表示やロックの切り替えをパレットから行います。
 
@@ -39,10 +39,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/DirectPref
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "DirectPrefsPalette";           /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.5";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.6";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-10";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-29";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA  = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/DirectPrefsPalette.md"; /* README（日本語） */
 var SCRIPT_README_EN  = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/DirectPrefsPalette.md"; /* README (English) */
@@ -929,23 +929,29 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
     // 単位 / Units
     // =========================================
 
-    /* 単位の定義を1か所に集約（コード／ラベル／pt換算係数／表示桁数）
-       decimals：1pt 未満に潰れないように、大きい単位ほど桁数を増やす（in で 1mm ≒ 0.039）
-       / Single source of unit definitions (code, label, pt factor, display decimals)
-       decimals: larger units need more digits so small values do not collapse to 0 (1mm is 0.039in) */
+    /* 単位コードに対応する表示ラベルと、1単位あたりのポイント数
+       Unit code -> display label and points per unit */
     var UNITS = [
-        { label: "in",    pointsPerUnit: 72,               decimals: 3 },  /* 0 */
-        { label: "mm",    pointsPerUnit: 72 / 25.4,        decimals: 1 },  /* 1 */
-        { label: "pt",    pointsPerUnit: 1,                decimals: 1 },  /* 2 */
-        { label: "pica",  pointsPerUnit: 12,               decimals: 2 },  /* 3 */
-        { label: "cm",    pointsPerUnit: 72 / 2.54,        decimals: 2 },  /* 4 */
-        { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25, decimals: 1 },  /* 5 */
-        { label: "px",    pointsPerUnit: 1,                decimals: 1 },  /* 6 */
-        { label: "ft/in", pointsPerUnit: 72 * 12,          decimals: 4 },  /* 7 */
-        { label: "m",     pointsPerUnit: 72 / 25.4 * 1000, decimals: 4 },  /* 8 */
-        { label: "yd",    pointsPerUnit: 72 * 36,          decimals: 4 },  /* 9 */
-        { label: "ft",    pointsPerUnit: 72 * 12,          decimals: 4 }   /* 10 */
+        { label: "in",    pointsPerUnit: 72 },                /* 0 */
+        { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
+        { label: "pt",    pointsPerUnit: 1 },                 /* 2 */
+        { label: "pica",  pointsPerUnit: 12 },                /* 3 */
+        { label: "cm",    pointsPerUnit: 72 / 2.54 },         /* 4 */
+        { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25 },  /* 5 */
+        { label: "px",    pointsPerUnit: 1 },                 /* 6 */
+        { label: "ft/in", pointsPerUnit: 72 * 12 },           /* 7 */
+        { label: "m",     pointsPerUnit: 72 / 25.4 * 1000 },  /* 8 */
+        { label: "yd",    pointsPerUnit: 72 * 36 },           /* 9 */
+        { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
     ];
+
+    /* 単位コード5を「歯（H）」と表示する環境設定キー。文字サイズ（text/units）だけ「級（Q）」
+       Preference keys that show unit code 5 as H; only the type size (text/units) shows Q */
+    var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
+
+    /* キー増加の表示桁数（添字は単位コード）。1pt 未満に潰れないように、大きい単位ほど桁数を増やす（in で 1mm ≒ 0.039）
+       / Display decimals for the keyboard increment, indexed by unit code; larger units need more digits (1mm is 0.039in) */
+    var KEY_INCREMENT_DECIMALS = [3, 1, 1, 2, 2, 1, 1, 4, 4, 4, 4];
 
     /**
      * 単位の値を pt に換算する
@@ -968,12 +974,27 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
     }
 
     /**
-     * 単位コードから単位定義を取得する（未対応コードは pt 相当）
-     * @param {number} unitCode - 環境設定の単位コード
-     * @returns {{label: string, pointsPerUnit: number, decimals: number}} 単位定義
+     * 単位コードから、getUnitInfo() と同じ形の単位の情報を作る（コードを別に読んだとき・単位を選ぶポップアップ用）
+     * @param {number} unitCode - 単位コード
+     * @param {string} prefKey - そのコードの環境設定キー（"rulerType" など。Q/H の表示を決める）
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位の情報（未知のコードは pt 相当）
      */
-    function getUnitByCode(unitCode) {
-        return UNITS[unitCode] || UNITS[2];
+    function getUnitInfoFromCode(unitCode, prefKey) {
+        /* 未知のコードは pt に寄せる / unknown codes fall back to points */
+        var unit = UNITS[unitCode] || UNITS[2];
+        /* 級（Q）と歯（H）は同じ長さだが、文字サイズは「Q」、距離は「H」と呼び分ける */
+        var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[prefKey]) ? "H" : unit.label;
+        return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
+    }
+
+    /**
+     * キー増加の表示桁数を返す
+     * @param {number} unitCode - 定規の単位コード
+     * @returns {number} 小数点以下の桁数（未対応コードは1）
+     */
+    function getKeyIncrementDecimals(unitCode) {
+        var decimals = KEY_INCREMENT_DECIMALS[unitCode];
+        return (decimals === undefined) ? 1 : decimals;
     }
 
     /**
@@ -1466,7 +1487,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         /* 現在の制限角度と定規単位（リセットボタンのディム判定・単位換算に使用）
            / Current constrain angle and ruler unit (used to dim the Reset button and to convert units) */
         var currentConstrain = 0;
-        var currentUnit = getUnitByCode(2);
+        var currentUnit = getUnitInfoFromCode(2, "rulerType");
 
         /* キー増加のプリセットボタンが押された時点で読む値 / Values the keyboard-increment preset buttons read at click time */
         var keyIncrementPresetValues = KEY_INCREMENT_PRESETS_DEFAULT;
@@ -1515,7 +1536,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
          * @returns {string} 表示用の文字列
          */
         function formatKeyIncrement(lengthPt) {
-            return ptToUnit(lengthPt, currentUnit).toFixed(currentUnit.decimals);
+            return ptToUnit(lengthPt, currentUnit).toFixed(getKeyIncrementDecimals(currentUnit.code));
         }
 
         /**
@@ -1559,7 +1580,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
                 }
                 var stateValues = result.substring(3).split(",");
                 setConstrain(parseFloat(stateValues[1]));
-                currentUnit = getUnitByCode(parseInt(stateValues[2], 10));
+                currentUnit = getUnitInfoFromCode(parseInt(stateValues[2], 10), "rulerType");
                 paletteUI.keyIncrementUnitLabel.text = currentUnit.label;
                 paletteUI.keyIncrementInput.text = formatKeyIncrement(parseFloat(stateValues[3]));
                 updateKeyIncrementPresets();

@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.CenterLineConnectorFromRect
 Name=CenterLineConnectorFromRect
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.8.0
+Version=1.8.1
 Release-Date=2025-06-12
 Description-BEGIN
 Excelなどからコピー＆ペーストした長方形から、罫線（グリッド・枠線）を自動生成します。
@@ -47,10 +47,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CenterLine
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "CenterLineConnectorFromRect";  /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.8.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.8.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-06-12";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-21";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-29";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/CenterLineConnectorFromRect.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CenterLineConnectorFromRect.md"; /* README (English) */
@@ -1476,8 +1476,17 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         };
     }
 
-    /* 罫線パネルを構築 / Build rule panel */
-    function buildRulePanel(parent, strokeUnitLabel) {
+    /**
+     * 線幅の既定値（pt）を線の単位にして、小数3桁に丸める
+     * @param {{pointsPerUnit: number}} strokeUnit - 線の単位（getUnitInfo("strokeUnits") の戻り値）
+     * @returns {number} 線の単位での既定値
+     */
+    function getDefaultStrokeWidthInUnit(strokeUnit) {
+        return Math.round(ptToUnit(DEFAULT_STROKE_WIDTH_PT, strokeUnit) * 1000) / 1000;
+    }
+
+    /* 罫線パネルを構築（線幅の欄は線の単位）/ Build rule panel (the stroke width field uses the stroke unit) */
+    function buildRulePanel(parent, strokeUnit) {
         var panel = parent.add("panel", undefined, getLabel('pnlRule'));
         setupPanel(panel, 6);
 
@@ -1516,12 +1525,12 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         var customStrokeInput;
         /* 0以下は実行時に既定値へ戻されるため、下限を置く / keep above zero (non-positive values fall back to the default) */
         var customStrokeStepper = addStepper(customStrokeStepperRow, function () { return customStrokeInput; }, { min: 0.01 });
-        customStrokeInput = customStrokeStepperRow.add("edittext", undefined, DEFAULT_STROKE_WIDTH_PT.toString());
+        customStrokeInput = customStrokeStepperRow.add("edittext", undefined, String(getDefaultStrokeWidthInUnit(strokeUnit)));
         customStrokeInput.helpTip = getLabel('tipStrokeCustom');
         customStrokeInput.characters = 4;
         bindSteppedArrowKeys(customStrokeInput, customStrokeStepper);
 
-        strokeRadioGroup.add("statictext", undefined, strokeUnitLabel);
+        strokeRadioGroup.add("statictext", undefined, strokeUnit.label);
 
         var cbCommonStroke = strokeWidthPanel.add("checkbox", undefined, getLabel('chkCommonStroke'));
         cbCommonStroke.helpTip = getLabel('tipCommonStroke');
@@ -1569,7 +1578,6 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     /* ダイアログUI構築 / Build dialog UI */
     function buildOptionDialogUI(dialog) {
         var strokeUnit = getUnitInfo("strokeUnits");
-        var strokeUnitLabel = strokeUnit.label;
         var rulerUnit = getUnitInfo("rulerType");
         var rulerUnitLabel = rulerUnit.label;
 
@@ -1580,7 +1588,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
 
         var center = buildCenterLinePanel(panelColumn, rulerUnit, rulerUnitLabel);
         var connect = buildConnectOptionsPanel(panelColumn);
-        var rule = buildRulePanel(panelColumn, strokeUnitLabel);
+        var rule = buildRulePanel(panelColumn, strokeUnit);
         var post = buildPostProcessPanel(panelColumn);
         /* ボタン行（左：アウトライン切替／右：キャンセル・OK）/ Button row: outline toggle on the left, Cancel/OK on the right */
         var buttonRow = addButtonRow(dialog);
@@ -1646,8 +1654,9 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         else if (ui.rbStrokeAvg.value) strokeStrategy = "avg";
         else strokeStrategy = "max";
 
+        /* 欄の値は線の単位なので pt にする。不正な値は既定値（pt）に戻す / the field is in the stroke unit; invalid values fall back to the default (pt) */
         var customStrokeWidth = parseFloat(ui.customStrokeInput.text);
-        if (isNaN(customStrokeWidth) || customStrokeWidth <= 0) customStrokeWidth = DEFAULT_STROKE_WIDTH_PT;
+        var customStrokeWidthPt = (isNaN(customStrokeWidth) || customStrokeWidth <= 0) ? DEFAULT_STROKE_WIDTH_PT : unitToPt(customStrokeWidth, ui.strokeUnit);
 
         // Strengthen NaN handling for minShortSideInput
         var minShortSideValue = parseFloat(ui.minShortSideInput.text);
@@ -1666,7 +1675,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             printBlack: ui.cbPrintBlack.value,
             commonStroke: ui.cbCommonStroke.value,
             strokeStrategy: strokeStrategy,
-            customStrokeWidth: unitToPt(customStrokeWidth, ui.strokeUnit),
+            customStrokeWidth: customStrokeWidthPt,
             groupResult: ui.cbGroup.value,
             returnToOriginal: ui.cbReturnToOriginal.value
         };

@@ -47,4 +47,4 @@ https://note.com/hiro_design_n/n/nc95a1d2d86a4
 
 ### スクリプト情報
 
-- バージョン: v1.3.6
+- バージョン: v1.3.7

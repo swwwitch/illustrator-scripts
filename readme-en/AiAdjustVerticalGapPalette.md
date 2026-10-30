@@ -34,7 +34,7 @@ with a live preview that updates as you change the settings.
 
 ### Script info
 
-- Version: v1.4.7
+- Version: v1.4.8
 
 ### Update History
 

@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.FontSampler
 Name=FontSampler
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.0.8
+Version=1.0.9
 Release-Date=2025-08-06
 Description-BEGIN
 入力したテキストを、インストールされているフォントで並べて表示します。
@@ -44,10 +44,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FontSample
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "FontSampler";                  /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.8";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.9";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-08-06";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-16";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-29";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA  = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/FontSampler.md"; /* README（日本語） */
 var SCRIPT_README_EN  = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FontSampler.md"; /* README (English) */
@@ -538,7 +538,13 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             var colsPerBoard = 2; // 固定で2カラム
             var maxCells = rowsPerCol * colsPerBoard;
 
-            var mode = rb30.value ? "30" : rbBoard.value ? "board" : "all";
+            /* 入れ子の三項演算子は ExtendScript で誤評価されるため if/else で書く / nested ternaries misevaluate in ExtendScript */
+            var mode = "all";
+            if (rb30.value) {
+                mode = "30";
+            } else if (rbBoard.value) {
+                mode = "board";
+            }
 
             var maxCount;
             if (mode === "30") {

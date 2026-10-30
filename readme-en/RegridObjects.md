@@ -55,4 +55,4 @@ https://note.com/dtp_tranist/n/n08861d0e40c3
 
 ### Script info
 
-- Version: v1.8.5
+- Version: v1.8.6

@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.ImportStyles
 Name=ImportStyles
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.5.10
+Version=1.5.11
 Release-Date=2025-08-14
 Description-BEGIN
 あらかじめ登録しておいたAIファイルを一覧から選び、その中身を現在のドキュメントへ取り込みます。
@@ -43,10 +43,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ImportStyl
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ImportStyles";                 /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.5.10";                      /* バージョン / version */
+var SCRIPT_VERSION  = "v1.5.11";                      /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-08-14";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-29";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ImportStyles.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ImportStyles.md"; /* README (English) */
@@ -62,7 +62,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     // ユーザー設定 / User Settings
     // =========================================
 
-    /* スタイル用AIファイルのベースフォルダ（初期状態は未設定。初回起動時に選択して保存）
+    /* スタイル用AIファイルのベースフォルダー（初期状態は未設定。初回起動時に選択して保存）
        Base folder for style AI files (empty until the user picks one on first launch) */
     var styleLibraryFolder = "";
 
@@ -423,6 +423,14 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
                 ja: "スタイル用AIファイルのフォルダーが設定されていないため、終了します。",
                 en: "No folder for style AI files was set, so the script has stopped."
             },
+            sameAsDestination: {
+                ja: "取り込み先のドキュメントと同じファイルのため、中止しました：\n",
+                en: "The chosen file is the destination document itself, so the import was cancelled:\n"
+            },
+            confirmOverwrite: {
+                ja: "フォルダーに同じ名前のファイルがあります。上書きしますか？\n",
+                en: "A file with the same name is already in the folder. Overwrite it?\n"
+            },
             nothingToCopy: {
                 ja: "作業アートボード内にオブジェクトがないため、中止しました：\n",
                 en: "Nothing on the active artboard, so the import was cancelled:\n"
@@ -439,8 +447,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             added: { ja: "候補を追加しました：", en: "Candidate added:" },
             overwritten: { ja: "候補を上書きしました：", en: "Candidate overwritten:" },
             synced: {
-                ja: "\n\nImportStyles_candidates.tsv と現在のダイアログに反映しました。",
-                en: "\n\nReflected in ImportStyles_candidates.tsv and the current dialog."
+                ja: "\n\n{tsvName} と現在のダイアログに反映しました。",
+                en: "\n\nReflected in {tsvName} and the current dialog."
             },
             folderHint: {
                 ja: "現在のフォルダー",
@@ -450,7 +458,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         /* エラー / Errors */
         error: {
             createFolder: {
-                ja: "保存先フォルダを作成できませんでした。\n",
+                ja: "保存先フォルダーを作成できませんでした。\n",
                 en: "Could not create folder:\n"
             },
             copyFile: {
@@ -1091,14 +1099,20 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         return folderPath;
     }
 
-    /* 有効なフォルダー設定を確定（未設定・不在なら選択させる）/ Resolve a usable folder (ask when unset or missing) */
+    /**
+     * 有効なフォルダー設定を確定する（未設定・フォルダーが無いときは選択させる）
+     * @returns {string} フォルダーのパス（末尾に /）。キャンセルなら空文字
+     */
     function resolveLibraryFolder() {
         var savedPath = loadSavedLibraryFolder();
         if (savedPath !== "" && Folder(savedPath).exists) return savedPath;
         return pickAndSaveLibraryFolder();
     }
 
-    /* 登録リストのTSVファイル / The library TSV file */
+    /**
+     * 登録リストの TSV ファイルを返す
+     * @returns {File} LIBRARY_TSV_NAME のファイル（存在するとは限らない）
+     */
     function getLibraryTsvFile() {
         return File(Folder(styleLibraryFolder).fsName + "/" + LIBRARY_TSV_NAME);
     }
@@ -1111,7 +1125,11 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     var CATEGORY_STYLE = "スタイル／ブラシ／シンボル";
     var CATEGORY_FONT = "フォント";
 
-    /* カテゴリ名の正規化（フォント系だけ判定し、他はすべてスタイル扱い）/ Normalize category (font-like → Font, else Style) */
+    /**
+     * カテゴリ名を正規化する（フォント系だけ判定し、ほかはすべてスタイル扱い）
+     * @param {*} rawCategory - TSV やファイル名から取った値
+     * @returns {string} CATEGORY_FONT または CATEGORY_STYLE
+     */
     function normalizeCategory(rawCategory) {
         var text = String(rawCategory != null ? rawCategory : "");
         var compact = text.toLowerCase().replace(/\s+/g, "");
@@ -1119,8 +1137,11 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         return isFont ? CATEGORY_FONT : CATEGORY_STYLE;
     }
 
-    /* 保存済みファイル名を実ファイルに合わせて正規化（旧版が書いた%エンコード名の救済）
-       Resolve a stored file name against the actual file (recovers legacy percent-encoded names) */
+    /**
+     * 保存済みのファイル名を実際のファイルに合わせる（旧版が書いた % エンコードの名前を救済）
+     * @param {string} storedName - TSV に書かれたファイル名
+     * @returns {string} 使うファイル名
+     */
     function resolveStoredFileName(storedName) {
         if (!/%[0-9A-Fa-f]{2}/.test(storedName)) return storedName;
         var decoded = decodeFileName(storedName);
@@ -1129,7 +1150,11 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         return (decoded !== storedName && File(styleLibraryFolder + decoded).exists) ? decoded : storedName;
     }
 
-    /* TSVの1行をライブラリ項目へ変換（不正行は null）/ Parse one TSV line into a library item (null if invalid) */
+    /**
+     * TSV の1行をライブラリ項目にする
+     * @param {string} line - TSV の1行
+     * @returns {{label: string, fileName: string, category: string}|null} ライブラリ項目。コメント行・不正な行は null
+     */
     function parseLibraryLine(line) {
         if (!line || line.charAt(0) === "#") return null;
         var columns = line.split("\t");
@@ -1147,8 +1172,10 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         };
     }
 
-    /* フォルダー内のAIファイルを走査して項目化（TSV未提供時のフォールバック）
-       Scan the folder for AI files (fallback when no TSV is available) */
+    /**
+     * フォルダー内の AI ファイルを走査して項目にする（TSV が無いときの代わり）
+     * @returns {Object[]} ライブラリ項目の配列。フォルダーが無ければ空
+     */
     function scanFolderForAiFiles() {
         var libraryFolder = Folder(styleLibraryFolder);
         if (!libraryFolder.exists) return [];
@@ -1171,8 +1198,10 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         return scanned;
     }
 
-    /* ライブラリをTSVから読み込み（無ければフォルダー内のAIファイルを列挙）
-       Load the library from TSV (falls back to scanning the folder) */
+    /**
+     * ライブラリを TSV から読み込む（無い・読めない・空のときはフォルダー内の AI ファイルを列挙）
+     * @returns {Object[]} ライブラリ項目の配列
+     */
     function loadStyleLibrary() {
         var tsvFile = getLibraryTsvFile();
         if (!tsvFile.exists) return scanFolderForAiFiles();
@@ -1189,7 +1218,11 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         return loaded.length ? loaded : scanFolderForAiFiles();
     }
 
-    /* 現在のライブラリをTSVに保存（上書き）/ Save the current library to TSV (overwrite) */
+    /**
+     * ライブラリを TSV に保存する（上書き）
+     * @param {Object[]} styleItems - ライブラリ項目の配列
+     * @returns {boolean} 保存できたら true
+     */
     function saveStyleLibrary(styleItems) {
         var tsvFile = getLibraryTsvFile();
         var parentFolder = tsvFile.parent;
@@ -1216,7 +1249,11 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     /* 現在のライブラリ（フォルダー確定後に読み込む）/ Current library (loaded once the folder is resolved) */
     var styleLibrary = [];
 
-    /* ファイル名でライブラリ項目を検索し index を返す（無ければ -1）/ Find item index by file name (-1 if none) */
+    /**
+     * ファイル名でライブラリ項目を探す
+     * @param {string} fileName - ファイル名
+     * @returns {number} 項目の番号。見つからなければ -1
+     */
     function findLibraryIndex(fileName) {
         for (var i = 0; i < styleLibrary.length; i++) {
             if (styleLibrary[i] && styleLibrary[i].fileName === fileName) return i;
@@ -1228,7 +1265,11 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     // ユーティリティ / Utilities
     // =========================================
 
-    /* ファイル名を表示用にデコード / Decode a file name for display */
+    /**
+     * ファイル名を表示用にデコードする
+     * @param {string} fileName - File.name など URI エンコードされた名前
+     * @returns {string} デコードした名前。デコードできなければそのまま
+     */
     function decodeFileName(fileName) {
         try {
             return decodeURI(fileName);
@@ -1237,12 +1278,21 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         }
     }
 
-    /* 大文字小文字を無視した部分一致 / Case-insensitive contains */
+    /**
+     * 大文字・小文字を区別せずに部分一致を調べる
+     * @param {string} haystack - 調べる文字列
+     * @param {string} needle - 探す文字列
+     * @returns {boolean} 含まれていれば true
+     */
     function containsIgnoreCase(haystack, needle) {
         return String(haystack).toLowerCase().indexOf(String(needle).toLowerCase()) !== -1;
     }
 
-    /* フォルダを確保（存在しなければ作成）/ Ensure a folder exists (create if missing) */
+    /**
+     * フォルダーを確保する（無ければ作成し、作れなければ知らせる）
+     * @param {Folder} folder - フォルダー
+     * @returns {boolean} 使えるなら true
+     */
     function ensureFolder(folder) {
         if (!folder) return false;
         if (folder.exists || folder.create()) return true;
@@ -1250,17 +1300,26 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         return false;
     }
 
-    /* 同名上書きでファイルをコピー / Copy a file with overwrite */
+    /**
+     * ファイルを同じ名前で上書きコピーする（同じファイルなら何もしない。失敗したら知らせる）
+     * @param {File} sourceFile - コピー元
+     * @param {File} destFile - コピー先
+     * @returns {boolean} コピーできたら true
+     */
     function copyFileOverwrite(sourceFile, destFile) {
         if (!sourceFile || !destFile) return false;
         if (sourceFile.fsName === destFile.fsName) return true; // 同一ファイルなら何もしない / Same file
-        if (destFile.exists) destFile.remove();
+        /* copy() は既存のファイルを上書きする。先に消すとコピー失敗時に元も失う / copy() overwrites; removing first would lose the original if the copy fails */
         if (sourceFile.copy(destFile.fsName)) return true;
         alert(getLabel("error.copyFile") + destFile.fsName);
         return false;
     }
 
-    /* 取り込み先レイヤーを取得（無ければ作成）/ Get or create the destination layer */
+    /**
+     * 取り込み先のレイヤーを返す（無ければ作成し、ロック解除・表示にする）
+     * @param {Document} doc - ドキュメント
+     * @returns {Layer} 取り込み先のレイヤー
+     */
     function getOrCreateImportLayer(doc) {
         var importLayer;
         try {
@@ -1487,7 +1546,11 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     // ライブラリ登録フロー / Register Flow
     // =========================================
 
-    /* 表示名とカテゴリを入力させる（キャンセルで null）/ Ask for label + category (null on cancel) */
+    /**
+     * 表示名とカテゴリを入力させる
+     * @param {string} baseName - 表示名の初期値（拡張子なしのファイル名）
+     * @returns {{label: string, category: string}|null} 入力値。キャンセルなら null
+     */
     function askLabelAndCategory(baseName) {
         var registerWindow = new Window("dialog", getLabel("prompt.registerTitle") + " " + SCRIPT_VERSION);
         setupWindow(registerWindow);
@@ -1529,26 +1592,32 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         };
     }
 
-    /* AIファイルをフォルダへコピーしてライブラリに登録（登録したファイル名を返す／中断で null）
-       Copy an AI file into the library folder and register it (returns the file name, null if cancelled) */
+    /**
+     * AI ファイルをフォルダーへコピーしてライブラリに登録する
+     * @returns {string|null} 登録したファイル名。中断したら null
+     */
     function registerStyleFile() {
         // 1) ファイル選択 / Pick an AI file
         var pickedFile = File.openDialog(getLabel("prompt.pickAi"), "*.ai");
         if (!pickedFile) return null;
 
-        // 2) 保存先フォルダを確保してコピー / Ensure the folder, then copy
         var libraryFolder = Folder(styleLibraryFolder);
-        if (!ensureFolder(libraryFolder)) return null;
-
         var destFile = File(libraryFolder.fsName + "/" + pickedFile.name);
-        if (!copyFileOverwrite(pickedFile, destFile)) return null;
-
-        // 3) 表示名とカテゴリを入力 / Ask for label + category
         var destFileName = decodeFileName(destFile.name); // TSVには生のファイル名で保存 / Store the plain name in the TSV
+
+        // 2) 別のファイルで同名を上書きするときは確認（［いいえ］が既定）/ Confirm before replacing a same-named file (No by default)
+        if (destFile.exists && pickedFile.fsName !== destFile.fsName &&
+            !confirm(getLabel("message.confirmOverwrite") + destFileName, true)) return null;
+
+        // 3) 表示名とカテゴリを入力（キャンセルならファイルに触れない）/ Ask for label + category (cancel leaves files untouched)
         var userInput = askLabelAndCategory(destFileName.replace(/\.[^\.]+$/, ""));
         if (!userInput) return null;
 
-        // 4) 既存項目を上書き、無ければ追加 / Overwrite the existing item or append
+        // 4) 保存先フォルダーを確保してコピー / Ensure the folder, then copy
+        if (!ensureFolder(libraryFolder)) return null;
+        if (!copyFileOverwrite(pickedFile, destFile)) return null;
+
+        // 5) 既存項目を上書き、無ければ追加 / Overwrite the existing item or append
         var styleItem = { label: userInput.label, fileName: destFileName, category: userInput.category };
         var existingIndex = findLibraryIndex(destFileName);
         if (existingIndex >= 0) {
@@ -1557,11 +1626,11 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             styleLibrary.push(styleItem);
         }
 
-        // 5) TSVへ保存 / Save to TSV
+        // 6) TSVへ保存 / Save to TSV
         if (!saveStyleLibrary(styleLibrary)) return null;
 
         alert((existingIndex >= 0 ? getLabel("message.overwritten") : getLabel("message.added")) + "\n" +
-            userInput.label + "  (" + destFileName + ")" + getLabel("message.synced"));
+            userInput.label + "  (" + destFileName + ")" + getLabel("message.synced", { tsvName: LIBRARY_TSV_NAME }));
         return destFileName;
     }
 
@@ -1569,7 +1638,11 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     // ダイアログの部品 / Dialog Parts
     // =========================================
 
-    /* カテゴリ絞り込みラジオ（初期は「すべて」）/ Category filter radios (defaults to All) */
+    /**
+     * カテゴリで絞り込むラジオの行を作る（初期は「すべて」）
+     * @param {Window} parent - 追加先
+     * @returns {{allRadio: RadioButton, styleRadio: RadioButton, fontRadio: RadioButton}} ラジオボタン
+     */
     function buildCategoryFilterRow(parent) {
         var categoryFilterRow = parent.add("group");
         setupRow(categoryFilterRow, "center");
@@ -1582,7 +1655,11 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         return { allRadio: allRadio, styleRadio: styleRadio, fontRadio: fontRadio };
     }
 
-    /* 検索欄と検索ボタン / Search field and Search button */
+    /**
+     * 検索欄と［検索］ボタンの行を作る
+     * @param {Window} parent - 追加先
+     * @returns {{field: EditText, button: Button}} 検索欄とボタン
+     */
     function buildSearchRow(parent) {
         var searchRow = parent.add("group");
         setupRow(searchRow, "center");
@@ -1598,7 +1675,11 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         return { field: searchField, button: searchButton };
     }
 
-    /* ヘッダ付き2列のListBox / Headered 2-column ListBox */
+    /**
+     * 見出し付き2列（コンテンツ・ファイル名）のリストを作る
+     * @param {Window} parent - 追加先
+     * @returns {ListBox} リスト
+     */
     function buildStyleListBox(parent) {
         var contentColumnWidth = 140;
         var filenameColumnWidth = 180;
@@ -1615,7 +1696,11 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         return styleListBox;
     }
 
-    /* 貼り付け先ラジオ（初期は現在のレイヤー）/ Destination radios (defaults to the current layer) */
+    /**
+     * ペースト先のラジオの行を作る（初期は現在のレイヤー）
+     * @param {Window} parent - 追加先
+     * @returns {{currentLayerRadio: RadioButton, importLayerRadio: RadioButton}} ラジオボタン
+     */
     function buildDestinationRow(parent) {
         var destinationRow = parent.add("group");
         setupRow(destinationRow, "center");
@@ -1631,7 +1716,11 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         return { currentLayerRadio: currentLayerRadio, importLayerRadio: importLayerRadio };
     }
 
-    /* 下部ボタン行：左（フォルダー）－スペーサー－右（キャンセル／追加／読み込み）/ Footer buttons */
+    /**
+     * 下部のボタン行を作る（左に［フォルダー...］、右に［キャンセル］［追加］［読み込み］）
+     * @param {Window} parent - 追加先
+     * @returns {{cancelButton: Button, folderButton: Button, addButton: Button, loadButton: Button}} ボタン
+     */
     function buildFooterRow(parent) {
         var footerRow = addButtonRow(parent);
 
@@ -1653,8 +1742,10 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     // ダイアログ / Dialog
     // =========================================
 
-    /* ライブラリから1つ選択し、AIファイルのパスと貼り付け先を返す（キャンセルで null）
-       Choose one item and return the AI file path plus the destination (null if cancelled) */
+    /**
+     * ライブラリから1つ選ぶダイアログを表示する
+     * @returns {{filePath: string, useImportLayer: boolean}|null} 選んだ AI ファイルのパスとペースト先。キャンセルなら null
+     */
     function showStyleLibraryDialog() {
         var libraryWindow = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
         setupWindow(libraryWindow);
@@ -1669,7 +1760,11 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         var activeCategory = null; // null = 全件 / null = all
         var activeQuery = "";
 
-        /* 絞り込み条件に一致するか / Does the item match the current filter? */
+        /**
+         * 項目が今の絞り込み条件に合うか
+         * @param {Object} styleItem - ライブラリ項目
+         * @returns {boolean} 合えば true
+         */
         function matchesFilter(styleItem) {
             if (activeCategory != null && styleItem.category !== activeCategory) return false;
             if (activeQuery === "") return true;
@@ -1677,7 +1772,10 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
                 containsIgnoreCase(styleItem.fileName, activeQuery);
         }
 
-        /* 絞り込み結果でリストを作り直す / Rebuild the list from the current filter */
+        /**
+         * 絞り込み結果でリストを作り直す（先頭の行を選択）
+         * @returns {void}
+         */
         function refreshList() {
             styleListBox.removeAll();
             for (var i = 0; i < styleLibrary.length; i++) {
@@ -1692,12 +1790,19 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             libraryWindow.layout.layout(true);
         }
 
-        /* 選択行を確定してダイアログを閉じる / Confirm the selected row */
+        /**
+         * 選択中の行で決定してダイアログを閉じる（未選択なら何もしない）
+         * @returns {void}
+         */
         function confirmSelection() {
             if (styleListBox.selection) libraryWindow.close(1);
         }
 
-        /* カテゴリ絞り込みを切り替え / Switch the category filter */
+        /**
+         * カテゴリの絞り込みを切り替える関数を返す
+         * @param {string|null} categoryName - カテゴリ名。null ならすべて
+         * @returns {Function} ラジオの onClick
+         */
         function applyCategory(categoryName) {
             return function() {
                 activeCategory = categoryName;
@@ -1708,7 +1813,10 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         categoryFilter.styleRadio.onClick = applyCategory(CATEGORY_STYLE);
         categoryFilter.fontRadio.onClick = applyCategory(CATEGORY_FONT);
 
-        /* 検索欄の内容を絞り込みに反映 / Apply the search field to the filter */
+        /**
+         * 検索欄の内容を絞り込みに反映する
+         * @returns {void}
+         */
         function applySearch() {
             activeQuery = String(search.field.text || "");
             refreshList();
@@ -1748,9 +1856,11 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             var addedFileName = registerStyleFile();
             if (!addedFileName) return;
 
-            // 追加した項目が絞り込みで隠れないよう「すべて」に戻す / Reset to All so the new item stays visible
+            // 追加した項目が絞り込みで隠れないよう「すべて」・検索語なしに戻す / Reset to All with no query so the new item stays visible
             categoryFilter.allRadio.value = true;
             activeCategory = null;
+            search.field.text = "";
+            activeQuery = "";
             refreshList();
             for (var i = 0; i < styleListBox.items.length; i++) {
                 if (styleListBox.items[i].styleItem.fileName === addedFileName) {
@@ -1760,11 +1870,15 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             }
         };
 
-        // フォルダー：保存先を選び直してライブラリを読み込み直す / Folder: re-pick the folder and reload the library
+        /**
+         * ［フォルダー...］のツールチップに今のフォルダーを表示する
+         * @returns {void}
+         */
         function updateFolderHint() {
             footer.folderButton.helpTip = labelValueText("message.folderHint", styleLibraryFolder);
         }
         updateFolderHint();
+        // フォルダー：保存先を選び直してライブラリを読み込み直す / Folder: re-pick the folder and reload the library
         footer.folderButton.onClick = function() {
             var pickedPath = pickAndSaveLibraryFolder();
             if (pickedPath === "") return;
@@ -1790,7 +1904,10 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     // メイン処理 / Main Process
     // =========================================
 
-    /* ライブラリ選択 → 対象AIをコピー → 元ドキュメントへ貼り付け / Choose, copy from the AI, paste into the original */
+    /**
+     * ライブラリから選んだ AI ファイルの作業アートボード内をコピーし、元のドキュメントへペーストする
+     * @returns {void}
+     */
     function main() {
         // 貼り付け先のドキュメントを先に確認 / Check for the destination document first
         if (app.documents.length === 0) {
@@ -1823,27 +1940,53 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             alert(getLabel("message.fileNotFoundTitle") + "\n" + getLabel("message.fileNotFoundBody") + decodeFileName(styleFile.name));
             return;
         }
+        // すでに開いているファイルは app.open() がそのドキュメントを返す。開いたかどうかは数で判定する（パスの比較は日本語で外れる）
+        // app.open() returns an already-open document; tell by the count (path comparison fails with Japanese names)
+        var docCountBeforeOpen = app.documents.length;
         var styleDoc = app.open(styleFile);
+        if (styleDoc === originalDoc) {
+            alert(getLabel("message.sameAsDestination") + decodeFileName(styleFile.name));
+            return;
+        }
+        var openedByScript = app.documents.length > docCountBeforeOpen;
 
-        // 作業アートボード内をすべてコピーし、保存せずに閉じる / Copy in-artboard objects, close without saving
+        // 作業アートボード内をすべてコピーし、スクリプトが開いたドキュメントだけ保存せずに閉じる
+        // Copy in-artboard objects; close without saving only a document the script opened
         app.executeMenuCommand("selectallinartboard");
         if (styleDoc.selection.length === 0) {
             // 選択が空のままコピーすると、以前のクリップボードが貼り付けられるため中止
             // Copying an empty selection would paste whatever was in the clipboard before
-            styleDoc.close(SaveOptions.DONOTSAVECHANGES);
+            releaseStyleDocument(styleDoc, openedByScript);
             app.activeDocument = originalDoc;
             alert(getLabel("message.nothingToCopy") + decodeFileName(styleFile.name));
             return;
         }
         app.executeMenuCommand("copy");
-        styleDoc.close(SaveOptions.DONOTSAVECHANGES);
+        releaseStyleDocument(styleDoc, openedByScript);
 
         // 貼り付け先を決めてからペースト（現在のレイヤーはそのまま）/ Set the destination, then paste
         app.activeDocument = originalDoc;
         if (choice.useImportLayer) {
             originalDoc.activeLayer = getOrCreateImportLayer(originalDoc);
         }
+        // 選択したままだと選択中の文字がペーストで置き換わる / A live selection would be replaced by the paste
+        originalDoc.selection = null;
         app.executeMenuCommand("paste");
+    }
+
+    /**
+     * コピーを終えたスタイル用ドキュメントを後始末する。
+     * スクリプトが開いたものは保存せずに閉じ、もともと開いていたものは選択を外すだけにする（未保存の変更を守る）
+     * @param {Document} styleDoc - スタイル用ドキュメント
+     * @param {boolean} openedByScript - スクリプトが開いたなら true
+     * @returns {void}
+     */
+    function releaseStyleDocument(styleDoc, openedByScript) {
+        if (openedByScript) {
+            styleDoc.close(SaveOptions.DONOTSAVECHANGES);
+        } else {
+            styleDoc.selection = null;
+        }
     }
 
     main();

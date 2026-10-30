@@ -124,6 +124,6 @@ https://note.com/dtp_tranist/n/n1726fc0f8dc9
 
 ### Script info
 
-- Version: v1.2.2
+- Version: v1.3.1
 - First release: 2026-10-03
 - Last updated: 2026-10-04

@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.AdjustPairGap
 Name=AdjustPairGap
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.4.10
+Version=1.4.11
 Release-Date=2026-06-08
 Description-BEGIN
 選択したオブジェクトの間隔と位置を、指定した値にそろえます。
@@ -51,10 +51,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AdjustPair
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AdjustPairGap";                /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.4.10";                      /* バージョン / version */
+var SCRIPT_VERSION  = "v1.4.11";                      /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-06-08";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-16";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-29";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AdjustPairGap.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AdjustPairGap.md"; /* README (English) */
@@ -2598,8 +2598,10 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         }
         if (!spacingContext.alignAxis.vertical) return justificationForAlign(spacingContext.alignMode); // 縦並び：水平整列に連動
         var fixedSide = spacingContext.fixedSide;
-        return (fixedSide === "left") ? Justification.LEFT
-            : (fixedSide === "right") ? Justification.RIGHT : null;        // 横並び：キー側に連動
+        /* 横並び：キー側に連動 / horizontal pair: follow the fixed side */
+        if (fixedSide === "left") return Justification.LEFT;
+        if (fixedSide === "right") return Justification.RIGHT;
+        return null;
     }
 
     /**

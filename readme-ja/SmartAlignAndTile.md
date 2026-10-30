@@ -88,4 +88,4 @@ https://gorolib.blog.jp/archives/77282974.html
 
 ### スクリプト情報
 
-- バージョン: v2.1.9
+- バージョン: v2.1.10

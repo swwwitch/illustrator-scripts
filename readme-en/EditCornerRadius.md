@@ -80,4 +80,4 @@
 
 ### Script info
 
-- Version: v1.5.7
+- Version: v1.5.8

@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.ArtboardExporter
 Name=ArtboardExporter
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.1.2
+Version=1.1.3
 Release-Date=2026-09-30
 Description-BEGIN
 ダイアログで選んだアートボードを PNG・JPEG・PDF で書き出します。
@@ -44,10 +44,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ArtboardEx
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ArtboardExporter";             /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.2";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.3";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-09-30";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-06";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-29";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA  = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ArtboardExporter.md"; /* README（日本語） */
 var SCRIPT_README_EN  = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ArtboardExporter.md"; /* README (English) */
@@ -1505,7 +1505,13 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             var swatchGraphics = swatchBox.graphics;
             var alpha = isEnabledInTree(linkedRadio) ? 1 : 0.35;
             /* 地の色（透明は明るい灰色の上に濃い灰色の市松）/ Base color; transparent is a light gray checker */
-            var baseColor = (backgroundKey === "black") ? [0, 0, 0, alpha] : (backgroundKey === "white") ? [1, 1, 1, alpha] : [0.85, 0.85, 0.85, alpha];
+            /* 入れ子の三項演算子は ExtendScript で誤評価されるため if/else で書く / nested ternaries misevaluate in ExtendScript */
+            var baseColor = [0.85, 0.85, 0.85, alpha];
+            if (backgroundKey === "black") {
+                baseColor = [0, 0, 0, alpha];
+            } else if (backgroundKey === "white") {
+                baseColor = [1, 1, 1, alpha];
+            }
             swatchGraphics.newPath();
             swatchGraphics.rectPath(0, 0, SWATCH_SIZE, SWATCH_SIZE);
             swatchGraphics.fillPath(swatchGraphics.newBrush(swatchGraphics.BrushType.SOLID_COLOR, baseColor));

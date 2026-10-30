@@ -112,6 +112,7 @@ https://note.com/dtp_tranist/n/ne0f78458ddd3
 
 ### Update History
 
+- v1.2.11 (2026-10-29) Rewrote a nested ternary as if/else so custom sets sort correctly
 - v1.2.10 (2026-10-06) Confirmation dialogs for deleting or overwriting now default to No (Enter cancels)
 - v1.0.0 (20260927): Initial release
 - v1.0.1 (20260927):

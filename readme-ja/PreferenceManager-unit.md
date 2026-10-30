@@ -48,4 +48,4 @@ https://judicious-night-bca.notion.site/app-getIntegerPreference-e4088e6caef64b3
 
 ### スクリプト情報
 
-- バージョン: v1.3.7
+- バージョン: v1.3.8

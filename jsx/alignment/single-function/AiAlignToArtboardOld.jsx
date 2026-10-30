@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.AiAlignToArtboardOld
 Name=AiAlignToArtboardOld
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.0.1
+Version=1.0.2
 Release-Date=2026-08-23
 Description-BEGIN
 選択したオブジェクトを、アートボードを対象に整列する常駐パレットです。アイコンのクリックで即時に整列し、アートボードの端から空けるマージンも指定できます。
@@ -40,10 +40,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AiAlignToArtboardOld";         /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-08-23";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-10";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-29";                   /* 更新日 / last updated */
 
 var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/single-function/AiAlignToArtboardOld.jsx"; /* 最新版のソース / latest source */
 
@@ -106,6 +106,10 @@ var paletteWindow = $.global.__aiAlignToArtboardOldWindow || null;
         { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
     ];
 
+    /* 単位コード5を「歯（H）」と表示する環境設定キー。文字サイズ（text/units）だけ「級（Q）」
+       Preference keys that show unit code 5 as H; only the type size (text/units) shows Q */
+    var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
+
     /**
      * 単位の値を pt に換算する
      * @param {number} value - 単位の値
@@ -116,8 +120,20 @@ var paletteWindow = $.global.__aiAlignToArtboardOldWindow || null;
         return value * unit.pointsPerUnit;
     }
 
-    /* 単位コード5（級・歯）の欄に出すラベル / Label shown for unit code 5 (Q or H) */
-    var Q_H_UNIT_LABEL = "Q/H";
+    /**
+     * 単位コードから、getUnitInfo() と同じ形の単位の情報を作る（コードを別に読んだとき・単位を選ぶポップアップ用）
+     * @param {number} unitCode - 単位コード
+     * @param {string} prefKey - そのコードの環境設定キー（"rulerType" など。Q/H の表示を決める）
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位の情報（未知のコードは pt 相当）
+     */
+    function getUnitInfoFromCode(unitCode, prefKey) {
+        /* 未知のコードは pt に寄せる / unknown codes fall back to points */
+        var unit = UNITS[unitCode] || UNITS[2];
+        /* 級（Q）と歯（H）は同じ長さだが、文字サイズは「Q」、距離は「H」と呼び分ける */
+        var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[prefKey]) ? "H" : unit.label;
+        return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
+    }
+
 
     // =========================================
     // ユーザー設定 / User settings
@@ -658,8 +674,7 @@ var paletteWindow = $.global.__aiAlignToArtboardOldWindow || null;
        Whether to keep the guide on close; mirrored so teardown never has to read a control */
     var keepGuideOnClose = DEFAULT_KEEP_GUIDE;
     /* 現在の定規単位（パレットへフォーカスが来るたびに取り直す）/ The current ruler unit, re-read on focus */
-    var currentRulerUnit = UNITS[2];
-    var currentUnitLabel = UNITS[2].label;
+    var currentRulerUnit = getUnitInfoFromCode(2, "rulerType");
     /* 状況表示の参照 / The status line */
     var statusText = null;
 
@@ -774,7 +789,7 @@ var paletteWindow = $.global.__aiAlignToArtboardOldWindow || null;
         changeValueByArrowKey(marginField);
         /* 単位ラベルは幅を固定する（単位が変わってもパレット幅が動かないように）
            The unit label has a fixed width so the palette does not resize when the unit changes */
-        marginUnitText = fieldRow.add("statictext", undefined, currentUnitLabel);
+        marginUnitText = fieldRow.add("statictext", undefined, currentRulerUnit.label);
         marginUnitText.preferredSize.width = UNIT_LABEL_WIDTH;
         marginUnitText.maximumSize.width = UNIT_LABEL_WIDTH;
         /* 確定（Enter・フォーカス移動）でガイドを描き直す
@@ -1670,9 +1685,8 @@ var paletteWindow = $.global.__aiAlignToArtboardOldWindow || null;
                 changeJustificationCheckbox.enabled = (parts[0] === "TEXT");
             }
             /* 読めない単位コードは pt に寄せる / unknown unit codes fall back to points */
-            currentRulerUnit = UNITS[parts[1]] || UNITS[2];
-            currentUnitLabel = (parts[1] === "5") ? Q_H_UNIT_LABEL : currentRulerUnit.label;
-            if (marginUnitText !== null) { marginUnitText.text = currentUnitLabel; }
+            currentRulerUnit = getUnitInfoFromCode(parseInt(parts[1], 10), "rulerType");
+            if (marginUnitText !== null) { marginUnitText.text = currentRulerUnit.label; }
             var selectionSignature = parts[0] + "|" + parts[2];
             if (lastSelectionSignature !== null && selectionSignature !== lastSelectionSignature) {
                 setStatus("");

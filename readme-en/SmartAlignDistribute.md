@@ -26,7 +26,7 @@ https://gorolib.blog.jp/archives/77282974.html
 
 ### Script info
 
-- Version: v1.3.9
+- Version: v1.3.10
 - Last updated: 2026-10-21
 
 ### Update history

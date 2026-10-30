@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.CompositeFontMaker
 Name=CompositeFontMaker
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.2.10
+Version=1.2.11
 Release-Date=2026-09-27
 Description-BEGIN
 和文・かな・欧文のフォントと、かな・欧文のサイズ・ベースラインを指定して、合成フォントのファイルを作ります。
@@ -65,10 +65,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CompositeF
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "CompositeFontMaker";           /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.2.10";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.2.11";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-09-27";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-06";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-29";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/CompositeFontMaker.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CompositeFontMaker.md"; /* README (English) */
@@ -927,7 +927,9 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             customSetSources.push({ label: fileLabel || String(customSetSources.length + 1), customSets: customSets });
         }
         customSetSources.sort(function (firstSource, secondSource) {
-            return (firstSource.label < secondSource.label) ? -1 : (firstSource.label > secondSource.label) ? 1 : 0;
+            if (firstSource.label < secondSource.label) return -1;
+            if (firstSource.label > secondSource.label) return 1;
+            return 0;
         });
         return customSetSources;
     }

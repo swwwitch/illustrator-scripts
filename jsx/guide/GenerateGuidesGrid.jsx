@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.GenerateGuidesGrid
 Name=GenerateGuidesGrid
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.8.10
+Version=1.8.11
 Release-Date=2025-04-24
 Description-BEGIN
 アートボードまたは選択オブジェクトの外接矩形を、指定した行数・列数に分割してグリッド用のガイドを生成します。
@@ -47,7 +47,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/GenerateGu
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "GenerateGuidesGrid";           /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.8.10";                      /* バージョン / version */
+var SCRIPT_VERSION  = "v1.8.11";                      /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-04-24";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-29";                   /* 更新日 / last updated */
@@ -1634,12 +1634,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
 
     /* 定規の単位（ダイアログを開く前に一度だけ読む）/ Ruler unit, read once before the dialog opens */
     var rulerUnit = getUnitInfo();
-    /* 長さの欄の中に付ける単位（「10 mm」の形）。in は「inch」、単位コード5は「Q」と書く
-       Unit shown inside the length fields, as in "10 mm"; inches read "inch" and unit code 5 reads "Q" */
-    var rulerUnitLabel = rulerUnit.label;
-    if (rulerUnit.code === 0) rulerUnitLabel = "inch";
-    if (rulerUnit.code === 5) rulerUnitLabel = "Q";
-    var lengthUnit = " " + rulerUnitLabel;
+    /* 長さの欄の中に付ける単位（「10 mm」の形）/ Unit shown inside the length fields, as in "10 mm" */
+    var lengthUnit = " " + rulerUnit.label;
 
     /* プリセット値は pt 基準で保持。表示は現在単位へ換算する / Preset values are stored in points; convert to the current ruler unit for display */
     var UNIT_DECIMALS = 2; /* 換算時に残す小数桁数 / decimals kept when converting */

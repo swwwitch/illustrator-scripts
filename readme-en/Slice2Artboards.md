@@ -41,7 +41,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/mask/ResizeClipM
 
 ### Notes
 
-- The offset and margin fields show the ruler unit, but **the values are treated as points**. With the ruler set to mm, "10 mm" still applies 10 pt.
+- Enter the offset and margin in the ruler unit (with the ruler set to mm, 10 means 10 mm).
 - Entering a non-numeric value for the rows or columns stops the run with a message. Setting just one of them to 0 derives it from the aspect ratio of the selection.
 - With "Convert to Artboards" enabled, the artboards that existed before the split are removed.
 - A multiple selection is grouped and converted to a symbol before being processed.
@@ -68,3 +68,4 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/mask/ResizeClipM
 - v1.7.9 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.7.10 (2026-10-16) Right-only button rows are now centered when the dialog's inner width is up to 240 px (was 200 px) (shared part update)
 - v1.7.11 (2026-10-29) With the ruler unit set to Ha (H), unit labels now read "H" instead of "Q" (unit handling unified)
+- v1.7.12 (2026-10-29) Offset and Margin are now converted from the ruler unit to points (typing 10 with a mm ruler used to apply 10 pt). The defaults keep the same length (-20 pt, 0 pt), shown in the ruler unit

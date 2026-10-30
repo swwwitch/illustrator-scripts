@@ -125,3 +125,4 @@ https://note.com/dtp_tranist/n/nc8fab19d8164
 - v1.4.8 (2026-10-03): Number fields now show their unit inside the field; removed the units from the panel titles
 - v1.4.9 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.4.10 (2026-10-16) Right-only button rows are now centered when the dialog's inner width is up to 240 px (was 200 px) (shared part update)
+- v1.4.11 (2026-10-29) Rewrote a nested ternary as if/else so text justification follows the fixed side for side-by-side pairs

@@ -794,24 +794,20 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     // 単位 / Unit
     // =========================================
 
-    /* 単位テーブル（配列の添字が rulerType コードと一致：0=in, 1=mm, 2=pt …）
-       decimals：1pt 未満に潰れないように、大きい単位ほど桁数を増やす（in で 1mm ≒ 0.039）
-       popup：単位ポップアップに並べるかどうか
-       Unit table; the array index equals the rulerType code.
-       decimals: larger units need more digits so small values do not collapse to 0 (1mm is 0.039in).
-       popup: whether the unit appears in the unit popup. */
+    /* 単位コードに対応する表示ラベルと、1単位あたりのポイント数
+       Unit code -> display label and points per unit */
     var UNITS = [
-        { label: "in",    pointsPerUnit: 72,               popup: true },   /* 0 */
-        { label: "mm",    pointsPerUnit: 72 / 25.4,        popup: true },   /* 1 */
-        { label: "pt",    pointsPerUnit: 1,                popup: true },   /* 2 */
-        { label: "pica",  pointsPerUnit: 12,               popup: true },   /* 3 */
-        { label: "cm",    pointsPerUnit: 72 / 2.54,        popup: true },   /* 4 */
-        { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25, popup: true },   /* 5 */
-        { label: "px",    pointsPerUnit: 1,                popup: true },   /* 6 */
-        { label: "ft/in", pointsPerUnit: 72 * 12,          popup: false },  /* 7 */
-        { label: "m",     pointsPerUnit: 72 / 25.4 * 1000, popup: false },  /* 8 */
-        { label: "yd",    pointsPerUnit: 72 * 36,          popup: false },  /* 9 */
-        { label: "ft",    pointsPerUnit: 72 * 12,          popup: false }   /* 10 */
+        { label: "in",    pointsPerUnit: 72 },                /* 0 */
+        { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
+        { label: "pt",    pointsPerUnit: 1 },                 /* 2 */
+        { label: "pica",  pointsPerUnit: 12 },                /* 3 */
+        { label: "cm",    pointsPerUnit: 72 / 2.54 },         /* 4 */
+        { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25 },  /* 5 */
+        { label: "px",    pointsPerUnit: 1 },                 /* 6 */
+        { label: "ft/in", pointsPerUnit: 72 * 12 },           /* 7 */
+        { label: "m",     pointsPerUnit: 72 / 25.4 * 1000 },  /* 8 */
+        { label: "yd",    pointsPerUnit: 72 * 36 },           /* 9 */
+        { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
     ];
 
     /* 単位コード5を「歯（H）」と表示する環境設定キー。文字サイズ（text/units）だけ「級（Q）」
@@ -838,20 +834,22 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         return ptValue / unit.pointsPerUnit;
     }
 
-    /* 定規単位のコードから単位ラベルを取得（歯は H 表示、未対応コードは pt）/ Get the label for a rulerType code (code 5 shows as H; unknown codes fall back to pt) */
-    function getRulerUnitLabelByCode(unitCode) {
+    /**
+     * 単位コードから、getUnitInfo() と同じ形の単位の情報を作る（コードを別に読んだとき・単位を選ぶポップアップ用）
+     * @param {number} unitCode - 単位コード
+     * @param {string} prefKey - そのコードの環境設定キー（"rulerType" など。Q/H の表示を決める）
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位の情報（未知のコードは pt 相当）
+     */
+    function getUnitInfoFromCode(unitCode, prefKey) {
+        /* 未知のコードは pt に寄せる / unknown codes fall back to points */
         var unit = UNITS[unitCode] || UNITS[2];
-        return (unitCode === 5 && HA_UNIT_PREF_KEYS["rulerType"]) ? "H" : unit.label;
+        /* 級（Q）と歯（H）は同じ長さだが、文字サイズは「Q」、距離は「H」と呼び分ける */
+        var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[prefKey]) ? "H" : unit.label;
+        return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
-    /* ポップアップに表示する単位コード（表示順、UNITS から派生）/ Unit codes shown in the popup (in order, derived from UNITS) */
-    var UNIT_POPUP_CODES = (function () {
-        var codes = [];
-        for (var i = 0; i < UNITS.length; i++) {
-            if (UNITS[i].popup) codes.push(i);
-        }
-        return codes;
-    })();
+    /* 単位ポップアップに並べる単位コード（表示順）。ft/in・m・yd・ft は並べない / Unit codes listed in the unit popup, in order; ft/in, m, yd and ft are left out */
+    var UNIT_POPUP_CODES = [0, 1, 2, 3, 4, 5, 6];
 
     /* 単位コード → ポップアップのインデックス（未対応コードは -1）/ Unit code -> popup index (-1 if unsupported) */
     function unitCodeToPopupIndex(code) {
@@ -916,8 +914,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
 
     /* 現在の定規単位を取得（未対応コードは pt）/ Get the current ruler unit (unknown codes fall back to pt) */
     function getCachedRulerUnit() {
-        /* 常駐エンジンなので環境設定は読まず、キャッシュ済みのコードで UNITS を引く / cached code, no per-event preference read */
-        return UNITS[PREF_STATE.rulerType] || UNITS[2];
+        /* 常駐エンジンなので環境設定は読まず、キャッシュ済みのコードから作る / cached code, no per-event preference read */
+        return getUnitInfoFromCode(PREF_STATE.rulerType, "rulerType");
     }
 
     // =========================================
@@ -1241,7 +1239,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         var unitDropdown = keyInputPanel.add('dropdownlist', undefined, []);
         unitDropdown.helpTip = getLabel('tooltip.keyUnit');
         for (var u = 0; u < UNIT_POPUP_CODES.length; u++) {
-            unitDropdown.add('item', getRulerUnitLabelByCode(UNIT_POPUP_CODES[u]));
+            unitDropdown.add('item', getUnitInfoFromCode(UNIT_POPUP_CODES[u], "rulerType").label);
         }
         unitDropdown.preferredSize.width = 70;
 

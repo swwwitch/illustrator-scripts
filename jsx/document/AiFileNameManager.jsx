@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.AiFileNameManager
 Name=AiFileNameManager
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.3.19
+Version=1.3.20
 Release-Date=2026-05-27
 Description-BEGIN
 アクティブなドキュメントのファイル名を、ベース・サブテキスト・ステータス・タイムスタンプ・連番・バージョン番号のセグメント単位で組み立て直し、リネーム／別名で保存／コピーを保存のいずれかで付け直します。
@@ -47,10 +47,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiFileName
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AiFileNameManager";            /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.3.19";                      /* バージョン / version */
+var SCRIPT_VERSION  = "v1.3.20";                      /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-05-27";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-16";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-29";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiFileNameManager.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiFileNameManager.md"; /* README (English) */
@@ -1481,7 +1481,13 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
      * @returns {string} 整えた文字列
      */
     function cleanFilenameChars(text, mode) {
-        var replacement = (mode === 'dash') ? '-' : (mode === 'underscore') ? '_' : '';
+        /* 入れ子の三項演算子は ExtendScript で誤評価されるため if/else で書く / nested ternaries misevaluate in ExtendScript */
+        var replacement = '';
+        if (mode === 'dash') {
+            replacement = '-';
+        } else if (mode === 'underscore') {
+            replacement = '_';
+        }
         // 連続する空白を 1 つにまとめてから per-char で置換（mode='dash' で "  " が "--" にならないように）
         var spaceCollapsed = String(text).replace(/\s+/g, ' ');
         var cleaned = '';

@@ -55,4 +55,4 @@ https://github.com/oguzhanyildirim01/illustrator-outline-script/blob/main/Outlin
 
 ### スクリプト情報
 
-- バージョン: v1.3.0
+- バージョン: v1.3.1

@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.SymbolListBuilder
 Name=SymbolListBuilder
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.3.8
+Version=1.3.9
 Release-Date=2026-05-09
 Description-BEGIN
 ドキュメントに登録されたシンボルを一覧表示する専用アートボード「シンボル一覧」を自動生成します。
@@ -47,7 +47,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SymbolList
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SymbolListBuilder";            /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.3.8";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.3.9";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-05-09";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-29";                   /* 更新日 / last updated */
@@ -1191,15 +1191,6 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     function getDialogUnit(prefKey) {
         var unit = getUnitInfo(prefKey);
         return (unit.code >= 7) ? UNITS[2] : unit;
-    }
-
-    /**
-     * 単位の表示名を返す（インチは「inch」と表示する）
-     * @param {{label: string}} unit - getDialogUnit() の戻り値
-     * @returns {string} 表示名
-     */
-    function getUnitDisplayLabel(unit) {
-        return (unit.label === "in") ? "inch" : unit.label;
     }
 
     /* ルーラー単位（寸法・余白・間隔）/ Ruler unit for sizes, padding and gaps */
@@ -2534,7 +2525,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         var valueRow = addRowGroup(parent);
         addFieldLabel(valueRow, labelSet).helpTip = getLabel(tooltipSet);
         var valueInput = addNumberInput(valueRow, formatUnitValue(valuePt, unitInfo), tooltipSet);
-        valueRow.add("statictext", undefined, getUnitDisplayLabel(unitInfo));
+        valueRow.add("statictext", undefined, unitInfo.label);
         return valueInput;
     }
 
@@ -2669,7 +2660,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         controls.fontSizeGroup.add("statictext", undefined, labelText(LABELS.fieldLabel.fontSize)).helpTip = getLabel(LABELS.tooltip.fontSize);
         var fontSizeInputRow = addRowGroup(controls.fontSizeGroup);
         controls.fontSizeInput = addNumberInput(fontSizeInputRow, formatUnitValue(initialSettings.fontSize, textUnit), LABELS.tooltip.fontSize);
-        fontSizeInputRow.add("statictext", undefined, getUnitDisplayLabel(textUnit));
+        fontSizeInputRow.add("statictext", undefined, textUnit.label);
     }
 
     /**

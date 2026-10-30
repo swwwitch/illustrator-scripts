@@ -33,4 +33,4 @@ DOM work (selection, move, duplicate, flip, rotate) is delegated to the main eng
 
 ### Script info
 
-- Version: v1.4.5
+- Version: v1.4.6

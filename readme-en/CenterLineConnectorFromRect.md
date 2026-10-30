@@ -37,7 +37,8 @@
 - v1.7.6 (2026-10-01): Added space below the button row to match Illustrator's own dialogs
 - v1.7.7 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.8.0 (2026-10-21) Added Preview, which shows the result on the artboard while the dialog is open
+- v1.8.1 (2026-10-29) The default custom stroke width (0.25 pt) is now shown in the stroke unit (with a mm stroke unit it was taken as 0.25 mm)
 
 ### Script info
 
-- Version: v1.8.0
+- Version: v1.8.1

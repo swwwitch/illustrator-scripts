@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.ClipMaskAdjust
 Name=ClipMaskAdjust
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=3.1.8
+Version=3.1.9
 Release-Date=2026-01-03
 Description-BEGIN
 クリップグループ（クリッピングマスク）の「マスクパス」と「内容」を調整します。
@@ -44,10 +44,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ClipMaskAd
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ClipMaskAdjust";               /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v3.1.8";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v3.1.9";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-01-03";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-16";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-29";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA  = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ClipMaskAdjust.md"; /* README（日本語） */
 var SCRIPT_README_EN  = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ClipMaskAdjust.md"; /* README (English) */
@@ -2477,8 +2477,19 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
     function getAnchorPoint(bounds, anchorIndex) {
         var anchorCol = anchorIndex % 3;
         var anchorRow = Math.floor(anchorIndex / 3);
-        var anchorX = (anchorCol === 0) ? bounds[0] : (anchorCol === 1) ? (bounds[0] + bounds[2]) / 2 : bounds[2];
-        var anchorY = (anchorRow === 0) ? bounds[1] : (anchorRow === 1) ? (bounds[1] + bounds[3]) / 2 : bounds[3];
+        /* 入れ子の三項演算子は ExtendScript で誤評価されるため if/else で書く / nested ternaries misevaluate in ExtendScript */
+        var anchorX = bounds[2];
+        if (anchorCol === 0) {
+            anchorX = bounds[0];
+        } else if (anchorCol === 1) {
+            anchorX = (bounds[0] + bounds[2]) / 2;
+        }
+        var anchorY = bounds[3];
+        if (anchorRow === 0) {
+            anchorY = bounds[1];
+        } else if (anchorRow === 1) {
+            anchorY = (bounds[1] + bounds[3]) / 2;
+        }
         return [anchorX, anchorY];
     }
 

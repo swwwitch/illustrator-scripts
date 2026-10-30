@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.TypefaceSampler
 Name=TypefaceSampler
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.4.11
+Version=1.4.12
 Release-Date=2025-04-20
 Description-BEGIN
 Illustratorで利用できるフォントをウェイト・スタイル順に並べ、ファミリー単位でアートボードへ整列描画します。
@@ -47,10 +47,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TypefaceSa
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "TypefaceSampler";              /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.4.11";                      /* バージョン / version */
+var SCRIPT_VERSION  = "v1.4.12";                      /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-04-20";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-16";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-29";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TypefaceSampler.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TypefaceSampler.md"; /* README (English) */
@@ -1964,7 +1964,9 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             /* 同点は PostScript 名順（並びを環境で変えない）/ Break ties by PostScript name */
             familyFonts.sort(function(a, b) {
                 if (a.sortScore !== b.sortScore) return a.sortScore - b.sortScore;
-                return (a.name < b.name) ? -1 : (a.name > b.name) ? 1 : 0;
+                if (a.name < b.name) return -1;
+                if (a.name > b.name) return 1;
+                return 0;
             });
         }
     }

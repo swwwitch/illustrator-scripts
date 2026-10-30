@@ -88,4 +88,4 @@ https://gorolib.blog.jp/archives/77282974.html
 
 ### Script info
 
-- Version: v2.1.9
+- Version: v2.1.10

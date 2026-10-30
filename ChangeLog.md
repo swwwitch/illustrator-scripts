@@ -13,6 +13,15 @@
 - [外接矩形を2分割した2色の背景に置き換え](readme-ja/SplitForTwo.md)（v2.10.13）・[2つのオブジェクトの背面に2分割の背景を作成](readme-ja/SplitBackgroundForTwo.md)（v2.10.11）：in・cm・pica など1単位が10pt以上の単位で、数値が小数3桁ではなく2桁に丸められていた不具合を修正
 - [シンボル一覧のアートボードを自動生成](readme-ja/SymbolListBuilder.md)（v1.3.8）：定規の単位が歯（H）のとき、寸法・余白・間隔の欄の単位を「Q」ではなく「H」と表示
 - SplitLinkedImage（v1.1.9）：定規の単位が歯（H）のとき、単位の表示を「Q」ではなく「H」に
+- [画像を分割してアートボード化](readme-ja/Slice2Artboards.md)（v1.7.12）：［オフセット］［マージン］の値を定規の単位から pt に換算するように修正（定規が mm のとき「10」と入れても 10pt になっていた）。初期値は従来と同じ長さ（-20pt・0pt）を定規の単位で表示
+- [配置画像の埋め込み・解除・リンクをまとめて扱う](readme-ja/ImageLinkManager.md)（v1.3.10）：［角丸］の半径を定規の単位から pt に換算するように修正。初期値も定規の単位で表示
+- [貼り付けた長方形から罫線を自動生成](readme-ja/CenterLineConnectorFromRect.md)（v1.8.1）：線幅の指定値の初期値（0.25pt）を線の単位で表示するように修正
+- [「角度の制限」と「キー増加」を変更](readme-ja/DirectPrefsPalette.md)（v1.1.6）：キー入力の増減量のプリセットが定規の単位に合わせて切り替わらなかった不具合を修正。定規の単位が歯（H）のとき「H」と表示
+- [グリッド状にガイドを生成](readme-ja/GenerateGuidesGrid.md)（v1.8.11）・[シンボル一覧のアートボードを自動生成](readme-ja/SymbolListBuilder.md)（v1.3.9）：単位の表記をほかのスクリプトと同じにした（インチは「in」、歯は「H」）
+- AiAlignToArtboardOld（v1.0.2）：定規の単位が歯（H）のとき、単位を「Q/H」ではなく「H」と表示
+- 入れ子の三項演算子（a ? X : b ? Y : Z）を if/else に書き換え、ExtendScript で誤評価されていた選択・並び順を修正（9本）：[ファイル名を変更して保存](readme-ja/AiFileNameManager.md)（v1.3.20）、[クリップグループのマスクと内容を調整](readme-ja/ClipMaskAdjust.md)（v3.1.9）、[埋め込み画像をリンク画像に変換](readme-ja/UnembedToLinks.md)（v1.0.12）、[Excel由来のデータを表組みとして整形](readme-ja/ExcelTableNormalizer.md)（v1.2.8）、[基準にする側を決めて、間隔と位置をそろえる](readme-ja/AdjustPairGap.md)（v1.4.11）、[アートボードを選んで PNG・JPEG・PDF で書き出し](readme-ja/ArtboardExporter.md)（v1.1.3）、[カテゴリ別ウェイト順にフォントを一覧表示](readme-ja/TypefaceSampler.md)（v1.4.12）、[合成フォントを作成](readme-ja/CompositeFontMaker.md)（v1.2.11）、[入力したテキストをインストール済みフォントで表示](readme-ja/FontSampler.md)（v1.0.9）
+- UNITS 表から表示用の追加フィールド（popup・decimals）を外し、単位コードを受け取るパレットでは getUnitInfoFromCode() を使うようにした（AiQuickPrefsPalette・PreferenceManagerForTransformAndAlignPalette・DirectPrefsPalette）
+- [登録済みAIファイルからスタイル・ブラシ・フォント見本を読み込み](readme-ja/ImportStyles.md)（v1.5.11）：一覧で選んだファイルがすでに開いているとき、未保存の変更を消して閉じていた不具合を修正（取り込み先と同じファイルなら中止）。［追加］で同じ名前のファイルを上書きする前に確認し、表示名の入力でキャンセルしたときはファイルをコピーしないようにした。ペースト前に選択を解除。［追加］のあと検索語もクリア
 
 ## 20261027
 

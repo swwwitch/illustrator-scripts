@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.Slice2Artboards
 Name=Slice2Artboards
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.7.11
+Version=1.7.12
 Release-Date=2025-07-10
 Description-BEGIN
 選択したオブジェクトを、指定した行数・列数のグリッドに分割し、各ピースを矩形マスクでクリッピングします。
@@ -44,7 +44,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/Slice2Artb
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "Slice2Artboards";              /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.7.11";                      /* バージョン / version */
+var SCRIPT_VERSION  = "v1.7.12";                      /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-07-10";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-29";                   /* 更新日 / last updated */
@@ -64,8 +64,8 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
     var CONFIG = {
         defaultColumnCount: 5,     /* 列数の初期値 / default columns */
         defaultRowCount: 5,        /* 行数の初期値 / default rows */
-        defaultOffset: -20,        /* オフセットの初期値 / default offset */
-        defaultMargin: 0,          /* マージンの初期値 / default margin */
+        defaultOffsetPt: -20,      /* オフセットの初期値（pt。欄には定規の単位で表示）/ default offset (pt; shown in the ruler unit) */
+        defaultMarginPt: 0,        /* マージンの初期値（pt。欄には定規の単位で表示）/ default margin (pt; shown in the ruler unit) */
         defaultStartNumber: 1,     /* 連番の初期値 / default sequence start */
         fallbackFileName: "Artboard" /* ファイル名が取れないときの代替 / fallback when the file name is unavailable */
     };
@@ -307,6 +307,26 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         /* 級（Q）と歯（H）は同じ長さだが、文字サイズは「Q」、距離は「H」と呼び分ける */
         var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
         return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
+    }
+
+    /**
+     * 単位の値を pt に換算する
+     * @param {number} value - 単位の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} pt の値
+     */
+    function unitToPt(value, unit) {
+        return value * unit.pointsPerUnit;
+    }
+
+    /**
+     * pt の値を単位の値に換算する
+     * @param {number} ptValue - pt の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} 単位の値
+     */
+    function ptToUnit(ptValue, unit) {
+        return ptValue / unit.pointsPerUnit;
     }
 
     // =========================================
@@ -1497,6 +1517,18 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
      * Build the settings dialog. The returned read() collects the entered values.
      */
     function buildDialog(sourceSize) {
+        /* オフセット・マージンの欄は定規の単位（ダイアログを開くときに一度だけ読む）/ Offset and margin fields use the ruler unit, read once */
+        var rulerUnit = getUnitInfo();
+
+        /**
+         * pt の値を定規の単位にして、欄に入れる文字列にする（小数2桁まで）
+         * @param {number} ptValue - pt の値
+         * @returns {string} 欄に入れる文字列
+         */
+        function formatRulerValue(ptValue) {
+            return String(Math.round(ptToUnit(ptValue, rulerUnit) * 100) / 100);
+        }
+
         var dialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
         setupWindow(dialog);
 
@@ -1550,10 +1582,10 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         var offsetCheckbox = offsetRow.add("checkbox", undefined, getLabel("field.offset"));
         offsetCheckbox.helpTip = getLabel("tooltip.offset");
         offsetCheckbox.value = true;
-        var offsetInput = addStepperInput(offsetRow, String(CONFIG.defaultOffset), {}); /* 負値も可 / negatives allowed */
+        var offsetInput = addStepperInput(offsetRow, formatRulerValue(CONFIG.defaultOffsetPt), {}); /* 負値も可 / negatives allowed */
         offsetInput.helpTip = getLabel("tooltip.offset");
         offsetInput.characters = 4;
-        var offsetUnitLabel = offsetRow.add("statictext", undefined, getUnitInfo().label);
+        var offsetUnitLabel = offsetRow.add("statictext", undefined, rulerUnit.label);
 
         /* アートボード変換 / Convert to artboards */
         var artboardCheckbox = rightColumn.add("checkbox", undefined, getLabel("checkbox.convertArtboard"));
@@ -1599,10 +1631,10 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         var marginRow = rightColumn.add("group");
         setupRow(marginRow, "left", 6);
         marginRow.add("statictext", undefined, labelText("field.margin"));
-        var marginInput = addStepperInput(marginRow, String(CONFIG.defaultMargin), {}); /* 負値も可 / negatives allowed */
+        var marginInput = addStepperInput(marginRow, formatRulerValue(CONFIG.defaultMarginPt), {}); /* 負値も可 / negatives allowed */
         marginInput.helpTip = getLabel("tooltip.margin");
         marginInput.characters = 5;
-        marginRow.add("statictext", undefined, getUnitInfo().label);
+        marginRow.add("statictext", undefined, rulerUnit.label);
 
         /* ボタン列 / Button row */
         var buttonRow = addButtonRow(dialog);
@@ -1682,13 +1714,14 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             var startNumber = parseInt(startNumberText, 10);
             if (isNaN(startNumber)) startNumber = CONFIG.defaultStartNumber;
 
+            /* 欄の値は定規の単位なので pt にする / the fields are in the ruler unit, so convert to pt */
             var margin = parseFloat(marginInput.text);
-            if (isNaN(margin)) margin = 0;
+            margin = isNaN(margin) ? 0 : unitToPt(margin, rulerUnit);
 
             var offsetValue = null;
             if (offsetCheckbox.value) {
                 offsetValue = parseFloat(offsetInput.text);
-                if (isNaN(offsetValue)) offsetValue = null;
+                offsetValue = isNaN(offsetValue) ? null : unitToPt(offsetValue, rulerUnit);
             }
 
             return {
