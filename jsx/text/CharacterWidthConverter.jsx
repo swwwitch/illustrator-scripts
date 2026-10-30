@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.CharacterWidthConverter
 Name=CharacterWidthConverter
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.0.0
+Version=1.1.0
 Release-Date=2026-10-30
 Description-BEGIN
 カタカナ・英数字・スペース・句読点・括弧・記号を、文字の種類ごとに「そのまま／半角／全角」を選んで変換します。
@@ -30,6 +30,9 @@ SCRIPTMETA-END
 詳細は README を参照してください。
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/CharacterWidthConverter.md
 
+note記事も参照してください。
+https://note.com/dtp_tranist/n/nf9d7245b0653
+
 ### Overview
 
 Converts katakana, letters, digits, spaces, punctuation, brackets and symbols between half-width and full-width, choosing "Keep", "Half" or "Full" for each kind of character.
@@ -44,14 +47,15 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CharacterW
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "CharacterWidthConverter";      /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-30";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-30";                   /* 更新日 / last updated */
 
-var SCRIPT_README_JA  = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/CharacterWidthConverter.md"; /* README（日本語） */
-var SCRIPT_README_EN  = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CharacterWidthConverter.md"; /* README (English) */
-var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/CharacterWidthConverter.jsx"; /* 最新版のソース / latest source */
+var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/CharacterWidthConverter.md"; /* README（日本語） */
+var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CharacterWidthConverter.md"; /* README (English) */
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf9d7245b0653"; /* 紹介記事 / article URL */
+var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/CharacterWidthConverter.jsx"; /* 最新版のソース / latest source */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
@@ -77,6 +81,10 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         kanaLeftBracket: OPTION_FULL,
         kanaRightBracket: OPTION_FULL
     };
+
+    /* ［変換した文字に色を付ける］の色 / Color for "Color converted characters" */
+    var HIGHLIGHT_RGB  = [255, 0, 0];      /* RGB のドキュメント / RGB documents */
+    var HIGHLIGHT_CMYK = [0, 100, 100, 0]; /* CMYK のドキュメント / CMYK documents */
 
     // =========================================
     // 設定の保存 / Settings store
@@ -602,7 +610,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
     var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
     var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
     var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel spacing */
-    var COLUMN_SPACING = 12;                 /* 2カラムの間隔 / gap between columns */
+    var COLUMN_SPACING = 12;                 /* カラムの間隔 / gap between columns */
     var TAB_MARGINS    = [15, 20, 5, 10];    /* タブ余白 [左,上,右,下] / tab margins */
 
     /**
@@ -677,7 +685,6 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
     var TABLE_ROW_SPACING     = 2;   /* 表の行どうしの間隔 / spacing between table rows */
     var TABLE_CELL_SPACING    = 4;   /* 項目名と選択肢の列の間隔 / spacing between the row label and the option columns */
     var OPTION_COLUMN_WIDTH   = 52;  /* 選択肢の列の幅 / width of each option column */
-    var SYMBOL_COLUMN_SPACING = PANEL_MARGINS[0] + PANEL_MARGINS[2] + COLUMN_SPACING; /* 記号パネルの2列の間隔。上の左右のパネルの表と位置を揃える / gap between the two symbol tables, lined up with the tables in the panels above */
     var PRESET_DROPDOWN_WIDTH = 220; /* プリセットのドロップダウンの幅 / width of the preset dropdown */
 
     // =========================================
@@ -772,7 +779,9 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             characterType: { ja: "文字種", en: "Character Types" },
             symbol: { ja: "記号", en: "Symbols" },
             bracket: { ja: "括弧", en: "Brackets" },
-            punctuation: { ja: "句読点", en: "Punctuation" }
+            punctuation: { ja: "句読点", en: "Punctuation" },
+            vertical: { ja: "縦組み用", en: "Vertical Text" },
+            highlight: { ja: "確認用の色分け", en: "Check Coloring" }
         },
         radio: {
             targetSelection: { ja: "選択範囲", en: "Selection" },
@@ -840,7 +849,10 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             digitsByLength: { ja: "数字は1桁を全角、2桁以上を半角にする", en: "Digits: one digit full-width, two or more half-width" },
             spaceBetweenJapaneseOnly: { ja: "スペースは前後が和文の文字のときだけ変換", en: "Convert spaces only between Japanese characters" },
             bracketInnerSpace: { ja: "括弧の内側のスペースを削除", en: "Remove spaces inside brackets" },
-            bracketOuterSpace: { ja: "括弧の外側のスペースを削除", en: "Remove spaces outside brackets" }
+            bracketOuterSpace: { ja: "括弧の外側のスペースを削除", en: "Remove spaces outside brackets" },
+            numberCommaToTouten: { ja: "数字の中の「,」を「、」にする", en: "\",\" in numbers to \"、\"" },
+            decimalToNakaguro: { ja: "数字の中の「.」を「・」にする", en: "\".\" in numbers to \"・\"" },
+            highlightChanges: { ja: "変換した文字に色を付ける", en: "Color converted characters" }
         },
         preset: {
             standard: { ja: "標準", en: "Standard" },
@@ -857,6 +869,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             punctuationStyleWestern: { ja: "，．にそろえる", en: "Unify to ，．" },
             quoteFormPlain: { ja: "＂＇（全角）", en: "＂＇ (full-width)" },
             quoteFormCurly: { ja: "“ ” ‘ ’（向きあり）", en: "“ ” ‘ ’ (curly)" },
+            quoteFormMinute: { ja: "〝 〟（ミニュート）", en: "〝 〟 (minutes)" },
             hyphenFormPlain: { ja: "－（全角ハイフンマイナス）", en: "－ (full-width hyphen-minus)" },
             hyphenFormHyphen: { ja: "‐（ハイフン）", en: "‐ (hyphen)" },
             hyphenFormMinus: { ja: "−（マイナス）", en: "− (minus sign)" },
@@ -896,11 +909,23 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
                 en: "Removes spaces right before and after full-width brackets. Spaces outside half-width brackets are kept."
             },
             quoteForm: {
-                ja: "二重引用符・引用符を全角にしたときの字形です。“ ” ‘ ’ は段落の中の順番で開き・閉じを決め、英数字にはさまれた ' はアポストロフィ（’）にします。",
-                en: "The form used when quotes become full-width. Curly quotes open and close by their order in the paragraph; a ' between letters becomes an apostrophe (’)."
+                ja: "二重引用符・引用符を全角にしたときの字形です。“ ” ‘ ’ と 〝 〟 は段落の中の順番で開き・閉じを決め、英数字にはさまれた ' はアポストロフィ（’）にします。〝 〟（縦組み用）のときの引用符は ＇ にします。半角にするときは、選んだ字形だけを半角に戻します。",
+                en: "The form used when quotes become full-width. Curly quotes and minutes (〝 〟) open and close by their order in the paragraph; a ' between letters becomes an apostrophe (’). With minutes (for vertical text), single quotes become ＇. Converting to half-width only reverts the chosen form."
             },
-            hyphenForm: { ja: "ハイフンを全角にしたときの字形です。", en: "The form used when hyphens become full-width." },
-            tildeForm: { ja: "チルダを全角にしたときの字形です。", en: "The form used when tildes become full-width." },
+            numberCommaToTouten: {
+                ja: "数字にはさまれ、後ろがちょうど3桁の「,」「，」を「、」にします（1,000 → 1、000）。",
+                en: "Turns \",\" and \"，\" between digits, followed by exactly three digits, into \"、\" (1,000 → 1、000)."
+            },
+            decimalToNakaguro: {
+                ja: "数字にはさまれた「.」「．」を「・」にします（12.5 → 12・5）。",
+                en: "Turns \".\" and \"．\" between digits into \"・\" (12.5 → 12・5)."
+            },
+            highlightChanges: {
+                ja: "変換した文字の塗りを赤にします（仕上がりの確認用。元の色には戻りません）。削除したスペースには付きません。",
+                en: "Fills converted characters with red (for checking; the original colors are not restored). Removed spaces are not marked."
+            },
+            hyphenForm: { ja: "ハイフンを全角にしたときの字形です。半角にするときは、この字形だけを半角に戻します。", en: "The form used when hyphens become full-width. Converting to half-width only reverts this form." },
+            tildeForm: { ja: "チルダを全角にしたときの字形です。半角にするときは、この字形だけを半角に戻します。", en: "The form used when tildes become full-width. Converting to half-width only reverts this form." },
             asteriskForm: { ja: "アスタリスクを全角にしたときの字形です。※（米印）を選ぶと、* と ※ を変換します。", en: "The form used when asterisks become full-width. Choose ※ (reference mark) to convert between * and ※." },
             optionClick: { ja: "Option キーを押しながらクリックすると、このパネルの行をすべて同じ選択肢にします。", en: "Option-click to set every row in this panel to the same option." },
             restoreDefaults: { ja: "選択肢を最初の状態に戻します。", en: "Resets the options to their defaults." },
@@ -928,7 +953,9 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         resultLabel: {
             punctuationStyle: { ja: "句読点の種類", en: "Punctuation style" },
             bracketInnerSpace: { ja: "括弧の内側のスペース", en: "Spaces inside brackets" },
-            bracketOuterSpace: { ja: "括弧の外側のスペース", en: "Spaces outside brackets" }
+            bracketOuterSpace: { ja: "括弧の外側のスペース", en: "Spaces outside brackets" },
+            numberCommaToTouten: { ja: "数字の中の「,」", en: "\",\" in numbers" },
+            decimalToNakaguro: { ja: "数字の中の「.」", en: "\".\" in numbers" }
         }
     };
 
@@ -949,13 +976,11 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
     var HALF_SEMI_VOICED_BASES = "ﾊﾋﾌﾍﾎ";
     var FULL_SEMI_VOICED_KANA  = "パピプペポ";
 
-    /* 記号の行（キー・半角の文字[・全角の文字]）。前半と後半を記号パネルの2列に分ける / Symbol rows (key, half-width character[, full-width character]), split into the two columns of the symbol panel */
+    /* 記号の行（キー・半角の文字[・全角の文字]）/ Symbol rows (key, half-width character[, full-width character]) */
     var SYMBOL_ROW_DEFS = [
         ["hyphen", "-"], ["underscore", "_"], ["ampersand", "&"], ["numberSign", "#"],
         ["dollar", "$"], ["yen", "¥", "￥"], ["percent", "%"], ["atSign", "@"],
-        ["asterisk", "*"],
-        /* イコール・プラスは並べて、2列目の先頭に置く / Keep = + together at the top of the second column */
-        ["equals", "="], ["plus", "+"], ["slash", "/"], ["backslash", "\\"],
+        ["asterisk", "*"], ["equals", "="], ["plus", "+"], ["slash", "/"], ["backslash", "\\"],
         ["verticalBar", "|"], ["caret", "^"], ["backtick", "`"], ["tilde", "~"]
     ];
 
@@ -1060,7 +1085,11 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         return symbolRows;
     }
 
-    var SYMBOL_ROWS = buildSymbolRows(SYMBOL_ROW_DEFS);
+    /* 中黒は記号パネルに置くが、プリセットでは和文の約物として扱う / The middle dot sits in the symbol panel but presets treat it as Japanese punctuation */
+    var ASCII_SYMBOL_ROWS = buildSymbolRows(SYMBOL_ROW_DEFS);
+    var SYMBOL_ROWS = ASCII_SYMBOL_ROWS.concat([
+        rowDef("middleDot", "･", [["･", "・"]])
+    ]);
 
     var ASCII_BRACKET_ROWS = buildSymbolRows(ASCII_BRACKET_ROW_DEFS);
     var BRACKET_ROWS = ASCII_BRACKET_ROWS.concat([
@@ -1074,8 +1103,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         rowDef("exclamationRun", "!!", [], { runChar: ["!", "！"] })
     ]);
     var PUNCTUATION_ROWS = [
-        rowDef("kanaPunctuation", "｡､", [["｡", "。"], ["､", "、"]]),
-        rowDef("middleDot", "･", [["･", "・"]])
+        rowDef("kanaPunctuation", "｡､", [["｡", "。"], ["､", "、"]])
     ].concat(ASCII_PUNCTUATION_ROWS);
 
     var ALL_ROWS = CHARACTER_TYPE_ROWS.concat(PUNCTUATION_ROWS).concat(SYMBOL_ROWS).concat(BRACKET_ROWS);
@@ -1085,8 +1113,8 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         hyphen: { settingKey: "hyphenForm", forms: [["\uFF0D"], ["\u2010"], ["\u2212"]] },
         tilde: { settingKey: "tildeForm", forms: [["\uFF5E"], ["\u301C"]] },
         asterisk: { settingKey: "asteriskForm", forms: [["\uFF0A"], ["\u203B"]] },
-        doubleQuote: { settingKey: "quoteForm", forms: [["\uFF02"], ["\u201C", "\u201D"]] },
-        apostrophe: { settingKey: "quoteForm", forms: [["\uFF07"], ["\u2018", "\u2019"]] }
+        doubleQuote: { settingKey: "quoteForm", forms: [["\uFF02"], ["\u201C", "\u201D"], ["\u301D", "\u301F"]] },
+        apostrophe: { settingKey: "quoteForm", forms: [["\uFF07"], ["\u2018", "\u2019"], ["\uFF07"]] }  /* ミニュートに一重は無いので ＇ / minutes have no single form, so ＇ */
     };
 
     /* 行のほかの設定（キーと選べる値の数。値は 0 から数え、0 が既定）。プリセットにも入る / Settings besides the rows (key and number of values, counted from 0, with 0 as the default); saved in presets too */
@@ -1096,10 +1124,12 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         { key: "punctuationStyle", valueCount: 3 },
         { key: "bracketInnerSpace", valueCount: 2 },
         { key: "bracketOuterSpace", valueCount: 2 },
-        { key: "quoteForm", valueCount: 2 },
+        { key: "quoteForm", valueCount: 3 },
         { key: "hyphenForm", valueCount: 3 },
         { key: "tildeForm", valueCount: 2 },
-        { key: "asteriskForm", valueCount: 2 }
+        { key: "asteriskForm", valueCount: 2 },
+        { key: "numberCommaToTouten", valueCount: 2 },
+        { key: "decimalToNakaguro", valueCount: 2 }
     ];
 
     /* 行と行のほかの設定をまとめた一覧と、キーごとの値の数 / Every setting (rows and extras) and the number of values per key */
@@ -1119,11 +1149,11 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
     ];
 
     /* 括弧の内側のスペースを削除する括弧（向きの無い " ' と不等号、アポストロフィと紛れる ‘ ’ は含めない）/ Brackets for removing inner spaces (straight quotes, < >, and ‘ ’ which look like apostrophes are excluded) */
-    var OPENING_BRACKETS = "([{\uFF08\uFF3B\uFF5B\uFF62\u300C\u300E\u3010\u3014\u3008\u300A\u201C";
-    var CLOSING_BRACKETS = ")]}\uFF09\uFF3D\uFF5D\uFF63\u300D\u300F\u3011\u3015\u3009\u300B\u201D";
+    var OPENING_BRACKETS = "([{\uFF08\uFF3B\uFF5B\uFF62\u300C\u300E\u3010\u3014\u3008\u300A\u201C\u301D";
+    var CLOSING_BRACKETS = ")]}\uFF09\uFF3D\uFF5D\uFF63\u300D\u300F\u3011\u3015\u3009\u300B\u201D\u301F";
     /* 括弧の外側のスペースを削除する括弧（全角だけ。欧文の「word (note)」の空きは残す）/ Brackets for removing outer spaces (full-width only, so "word (note)" keeps its space) */
-    var FULL_WIDTH_OPENING_BRACKETS = "\uFF08\uFF3B\uFF5B\uFF62\u300C\u300E\u3010\u3014\u3008\u300A";
-    var FULL_WIDTH_CLOSING_BRACKETS = "\uFF09\uFF3D\uFF5D\uFF63\u300D\u300F\u3011\u3015\u3009\u300B";
+    var FULL_WIDTH_OPENING_BRACKETS = "\uFF08\uFF3B\uFF5B\uFF62\u300C\u300E\u3010\u3014\u3008\u300A\u301D";
+    var FULL_WIDTH_CLOSING_BRACKETS = "\uFF09\uFF3D\uFF5D\uFF63\u300D\u300F\u3011\u3015\u3009\u300B\u301F";
 
     /* 和文の文字（スペースの前後の判定に使う。全角スペースは含めない）/ Japanese characters, for the space check (the ideographic space itself is excluded) */
     var JAPANESE_CHAR_PATTERN = /[\u3001-\u303F\u3040-\u30FF\u31F0-\u31FF\u3400-\u4DBF\u4E00-\u9FFF\uF900-\uFAFF\uFF01-\uFF60\uFF61-\uFF9F\uFFE0-\uFFEF]/;
@@ -1215,17 +1245,17 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
      * @returns {{rowOptions: Object, scope: string|null}} 設定と対象
      */
     function loadSettings() {
-        var saved = sessionStore.load({ rowOptions: {}, scope: "" });
-        return { rowOptions: copyRowOptions(saved.rowOptions, getDefaultRowOptions()), scope: saved.scope || null };
+        var saved = sessionStore.load({ rowOptions: {}, scope: "", highlightChanges: false });
+        return { rowOptions: copyRowOptions(saved.rowOptions, getDefaultRowOptions()), scope: saved.scope || null, highlightChanges: saved.highlightChanges };
     }
 
     /**
      * 設定を覚える（Illustrator を終了するまで）
-     * @param {{rowOptions: Object, scope: string}} settings - 設定と対象
+     * @param {{rowOptions: Object, scope: string, highlightChanges: boolean}} settings - 設定・対象・色を付けるか
      * @returns {void}
      */
     function saveSettings(settings) {
-        sessionStore.save({ rowOptions: settings.rowOptions, scope: settings.scope });
+        sessionStore.save({ rowOptions: settings.rowOptions, scope: settings.scope, highlightChanges: settings.highlightChanges });
     }
 
     // =========================================
@@ -1249,9 +1279,9 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         },
         {
             /* 縦組み：数字は1桁を全角・2桁以上を半角（縦中横向け）、!? !! は半角、和文の間のスペースは全角、チルダは波ダッシュ。
-               英字・コンマ・ピリオド・引用符はそのまま（欧文の単語や 1,000 を崩さない）/
+               英字・コンマ・ピリオド・引用符の行はそのまま（欧文の単語を崩さない）、数字の中の「,」「.」は「、」「・」/
                Vertical: one digit full-width, two or more half-width (for tate-chu-yoko); !? and !! half-width; spaces between Japanese full-width;
-               tildes become wave dashes. Letters, commas, periods and quotes are kept so English words and numbers like 1,000 stay intact */
+               tildes become wave dashes. Letter, comma, period and quote rows are kept so English words stay intact; "," and "." in numbers become 、 and ・ */
             name: getLabel(LABELS.preset.vertical), builtIn: true,
             rowOptions: rowOptionsWith(OPTION_FULL, {
                 alphabet: OPTION_KEEP,
@@ -1264,7 +1294,9 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
                 exclamationRun: OPTION_HALF,
                 digitsByLength: 1,
                 spaceBetweenJapaneseOnly: 1,
-                tildeForm: 1
+                tildeForm: 1,
+                numberCommaToTouten: 1,
+                decimalToNakaguro: 1
             })
         },
         {
@@ -1296,7 +1328,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             kanaLeftBracket: OPTION_FULL,
             kanaRightBracket: OPTION_FULL
         };
-        var symbolRows = SYMBOL_ROWS.concat(ASCII_PUNCTUATION_ROWS).concat(ASCII_BRACKET_ROWS);
+        var symbolRows = ASCII_SYMBOL_ROWS.concat(ASCII_PUNCTUATION_ROWS).concat(ASCII_BRACKET_ROWS);
         for (var i = 0; i < symbolRows.length; i++) overrides[symbolRows[i].key] = symbolOption;
         return overrides;
     }
@@ -1472,7 +1504,8 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
      * 設定から、変換元の文字 → 変換後の文字の表と、ほかの処理の有無をまとめる
      * @param {Object} rowOptions - 設定のキー → 値
      * @returns {{map: Object, rowKeyBySource: Object, runUnits: Array, size: number, digitsByLength: boolean,
-     *     spaceBetweenJapaneseOnly: boolean, punctuationStyle: number, bracketInnerSpace: boolean, bracketOuterSpace: boolean}}
+     *     spaceBetweenJapaneseOnly: boolean, punctuationStyle: number, bracketInnerSpace: boolean, bracketOuterSpace: boolean,
+     *     numberCommaToTouten: boolean, decimalToNakaguro: boolean}}
      *     変換表（値は文字列、向きで決まる引用符は [開き, 閉じ]）・変換元の行のキー・連続する文字の組・実際に変換する項目の数（守るだけの組は数えない）とほかの処理
      */
     function buildConversionMap(rowOptions) {
@@ -1525,7 +1558,9 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             spaceBetweenJapaneseOnly: (rowOptions.spaceBetweenJapaneseOnly === 1),
             punctuationStyle: rowOptions.punctuationStyle || 0,
             bracketInnerSpace: (rowOptions.bracketInnerSpace === 1),
-            bracketOuterSpace: (rowOptions.bracketOuterSpace === 1)
+            bracketOuterSpace: (rowOptions.bracketOuterSpace === 1),
+            numberCommaToTouten: (rowOptions.numberCommaToTouten === 1),
+            decimalToNakaguro: (rowOptions.decimalToNakaguro === 1)
         };
     }
 
@@ -1536,7 +1571,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
      */
     function hasConversionWork(conversion) {
         return conversion.size > 0 || conversion.digitsByLength || conversion.punctuationStyle > 0 ||
-            conversion.bracketInnerSpace || conversion.bracketOuterSpace;
+            conversion.bracketInnerSpace || conversion.bracketOuterSpace || conversion.numberCommaToTouten || conversion.decimalToNakaguro;
     }
 
     /**
@@ -1741,6 +1776,39 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
     }
 
     /**
+     * 数字の中の「,」「.」を縦組み用に置き換える箇所を集める（後ろがちょうど3桁の「,」は「、」、「.」は「・」）
+     * @param {string} fullText - 対象の文字列
+     * @param {{numberCommaToTouten: boolean, decimalToNakaguro: boolean}} conversion - どちらを置き換えるか
+     * @returns {Array<{offset: number, sourceText: string, text: string, key: string}>} 置き換える箇所
+     */
+    function findNumberMarkReplacements(fullText, conversion) {
+        var replacements = [];
+        for (var i = 1; i < fullText.length - 1; i++) {
+            if (!DIGIT_PATTERN.test(fullText.charAt(i - 1))) continue;
+            var currentChar = fullText.charAt(i);
+            if (conversion.numberCommaToTouten && (currentChar === "," || currentChar === "\uFF0C") && isThreeDigitGroupAt(fullText, i + 1)) {
+                replacements.push({ offset: i, sourceText: currentChar, text: "\u3001", key: "numberCommaToTouten" });
+            } else if (conversion.decimalToNakaguro && (currentChar === "." || currentChar === "\uFF0E") && DIGIT_PATTERN.test(fullText.charAt(i + 1))) {
+                replacements.push({ offset: i, sourceText: currentChar, text: "\u30FB", key: "decimalToNakaguro" });
+            }
+        }
+        return replacements;
+    }
+
+    /**
+     * 位置から数字がちょうど3桁続くか（4桁目は数字でない）
+     * @param {string} fullText - 対象の文字列
+     * @param {number} offset - 調べ始める位置
+     * @returns {boolean} 3桁ちょうどなら true
+     */
+    function isThreeDigitGroupAt(fullText, offset) {
+        for (var i = 0; i < 3; i++) {
+            if (!DIGIT_PATTERN.test(fullText.charAt(offset + i))) return false;
+        }
+        return !DIGIT_PATTERN.test(fullText.charAt(offset + 3));
+    }
+
+    /**
      * 括弧のまわりのスペースを削除する箇所を集める（後読みが使えないので、前後の文字を自前で調べる）
      * @param {string} fullText - 対象の文字列
      * @param {boolean} isInner - true なら内側（開き括弧の直後・閉じ括弧の直前）、false なら外側（全角の括弧の直前・直後）
@@ -1778,6 +1846,26 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
     }
 
     /**
+     * ［変換した文字に色を付ける］の色を、ドキュメントのカラーモードに合わせて作る
+     * @returns {RGBColor|CMYKColor} 色
+     */
+    function createHighlightColor() {
+        if (activeDocument.documentColorSpace === DocumentColorSpace.CMYK) {
+            var cmykColor = new CMYKColor();
+            cmykColor.cyan = HIGHLIGHT_CMYK[0];
+            cmykColor.magenta = HIGHLIGHT_CMYK[1];
+            cmykColor.yellow = HIGHLIGHT_CMYK[2];
+            cmykColor.black = HIGHLIGHT_CMYK[3];
+            return cmykColor;
+        }
+        var rgbColor = new RGBColor();
+        rgbColor.red = HIGHLIGHT_RGB[0];
+        rgbColor.green = HIGHLIGHT_RGB[1];
+        rgbColor.blue = HIGHLIGHT_RGB[2];
+        return rgbColor;
+    }
+
+    /**
      * 対象の今の文字列を返す
      * @param {{base: TextRange, start: number, length: number}} target - 対象
      * @returns {string|null} 文字列。読めなければ null
@@ -1793,21 +1881,30 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
      * 長さが同じなら変わる文字だけを差し替え、長さが変わるときは先頭の1文字に新しい文字列を入れて残りを消す
      * @param {{base: TextRange, start: number, length: number}} target - 対象
      * @param {{offset: number, sourceText: string, text: string}} replacement - 置き換える箇所
+     * @param {RGBColor|CMYKColor|null} highlightColor - 変換した文字に付ける色（付けないなら null）。書き換える前の文字に付け、書き換えで引き継がせる
      * @returns {void}
      */
-    function applyReplacement(target, replacement) {
+    function applyReplacement(target, replacement, highlightColor) {
         var firstIndex = target.start + replacement.offset;
         var sourceText = replacement.sourceText;
         var replacementText = replacement.text;
         if (replacementText.length === sourceText.length) {
             for (var i = sourceText.length - 1; i >= 0; i--) {
-                if (sourceText.charAt(i) !== replacementText.charAt(i)) target.base.characters[firstIndex + i].contents = replacementText.charAt(i);
+                if (sourceText.charAt(i) === replacementText.charAt(i)) continue;
+                var changedChar = target.base.characters[firstIndex + i];
+                if (highlightColor) changedChar.characterAttributes.fillColor = highlightColor;
+                changedChar.contents = replacementText.charAt(i);
             }
             return;
         }
         for (var j = sourceText.length - 1; j >= 1; j--) target.base.characters[firstIndex + j].remove();
-        if (replacementText === "") target.base.characters[firstIndex].remove();
-        else target.base.characters[firstIndex].contents = replacementText;
+        var firstChar = target.base.characters[firstIndex];
+        if (replacementText === "") {
+            firstChar.remove();
+            return;
+        }
+        if (highlightColor) firstChar.characterAttributes.fillColor = highlightColor;
+        firstChar.contents = replacementText;
     }
 
     /**
@@ -1815,9 +1912,10 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
      * @param {{base: TextRange, start: number, length: number}} target - 対象
      * @param {Function} findReplacements - 文字列 → 置き換える箇所の配列
      * @param {{converted: number, failed: number, countsByKey: Object}} result - 数を足していく結果
+     * @param {RGBColor|CMYKColor|null} highlightColor - 変換した文字に付ける色（付けないなら null）
      * @returns {void}
      */
-    function runReplacePass(target, findReplacements, result) {
+    function runReplacePass(target, findReplacements, result, highlightColor) {
         var targetText;
         try {
             targetText = getTargetText(target);
@@ -1829,7 +1927,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         for (var i = replacements.length - 1; i >= 0; i--) {
             var replacement = replacements[i];
             try {
-                applyReplacement(target, replacement);
+                applyReplacement(target, replacement, highlightColor);
                 /* 選択した文字の範囲は、増えた・減った文字数に合わせる / Keep a selected range in step with added or removed characters */
                 if (target.length >= 0) target.length += replacement.text.length - replacement.sourceText.length;
                 result.converted++;
@@ -1842,28 +1940,33 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
 
     /**
      * 対象の文字を設定に従って変換する。
-     * 変換表 → 句読点の種類 → 数字の桁数 → 括弧のまわりのスペースの順に処理する。characters 単位の書き換えなので、文字の書式はそのまま残る
+     * 変換表 → 句読点の種類 → 数字の桁数 → 数字の中の「,」「.」 → 括弧のまわりのスペースの順に処理する。characters 単位の書き換えなので、文字の書式はそのまま残る
      * @param {Array} targets - 対象の配列
-     * @param {Object} conversion - buildConversionMap() の戻り値
+     * @param {Object} conversion - buildConversionMap() の戻り値に highlightColor（変換した文字に付ける色、付けないなら null）を足したもの
      * @returns {{converted: number, failed: number, countsByKey: Object}} 変換できた数・できなかった数・キーごとの数
      */
     function convertTargets(targets, conversion) {
         var result = { converted: 0, failed: 0, countsByKey: {} };
         var styleMap = PUNCTUATION_STYLE_MAPS[conversion.punctuationStyle];
+        var highlightColor = conversion.highlightColor || null;
         for (var i = 0; i < targets.length; i++) {
             var target = targets[i];
             if (conversion.size > 0) {
-                runReplacePass(target, function (fullText) { return findTableReplacements(fullText, conversion); }, result);
+                runReplacePass(target, function (fullText) { return findTableReplacements(fullText, conversion); }, result, highlightColor);
             }
             if (styleMap) {
-                runReplacePass(target, function (fullText) { return findPunctuationStyleReplacements(fullText, styleMap); }, result);
+                runReplacePass(target, function (fullText) { return findPunctuationStyleReplacements(fullText, styleMap); }, result, highlightColor);
             }
-            if (conversion.digitsByLength) runReplacePass(target, findDigitRunReplacements, result);
+            if (conversion.digitsByLength) runReplacePass(target, findDigitRunReplacements, result, highlightColor);
+            /* 数字の桁数を決めたあとに区切りを置き換える（「、」「・」で数字のつながりが切れないように）/ After the digit lengths, so 、 and ・ do not split the runs */
+            if (conversion.numberCommaToTouten || conversion.decimalToNakaguro) {
+                runReplacePass(target, function (fullText) { return findNumberMarkReplacements(fullText, conversion); }, result, highlightColor);
+            }
             if (conversion.bracketInnerSpace) {
-                runReplacePass(target, function (fullText) { return findBracketSpaceReplacements(fullText, true); }, result);
+                runReplacePass(target, function (fullText) { return findBracketSpaceReplacements(fullText, true); }, result, highlightColor);
             }
             if (conversion.bracketOuterSpace) {
-                runReplacePass(target, function (fullText) { return findBracketSpaceReplacements(fullText, false); }, result);
+                runReplacePass(target, function (fullText) { return findBracketSpaceReplacements(fullText, false); }, result, highlightColor);
             }
         }
         return result;
@@ -2151,7 +2254,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
     function addExtraDropdown(parent, settingKey, fieldLabelEntry, itemEntries, tooltipEntry, tableContext) {
         var dropdownRowGroup = parent.add("group");
         setupRow(dropdownRowGroup, "left", 6);
-        dropdownRowGroup.add("statictext", undefined, labelText(fieldLabelEntry));
+        var fieldLabel = dropdownRowGroup.add("statictext", undefined, labelText(fieldLabelEntry));
         var itemLabels = [];
         for (var i = 0; i < itemEntries.length; i++) itemLabels.push(getLabel(itemEntries[i]));
         var extraDropdown = dropdownRowGroup.add("dropdownlist", undefined, itemLabels);
@@ -2164,6 +2267,10 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
                 extraControl.isSetting = true;
                 extraDropdown.selection = value;
                 extraControl.isSetting = false;
+            },
+            setEnabled: function (isEnabled) {
+                fieldLabel.enabled = isEnabled;
+                extraDropdown.enabled = isEnabled;
             }
         };
         extraDropdown.onChange = function () {
@@ -2249,10 +2356,9 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
      * @param {Array} rows - 行の定義の配列
      * @param {{rowControls: Object, rowLabels: StaticText[], headerSpacers: StaticText[], onRowChange: Function}} tableContext -
      *     行のコントロール（キー → コントロール）、幅を揃える項目名・見出しの空きラベル（作ったものを足す）、選択肢を変えたときの処理
-     * @param {Array} [panelRows] - Option＋クリックでまとめて変える、同じパネルの行（省略時は rows）
      * @returns {void}
      */
-    function addOptionTable(parent, rows, tableContext, panelRows) {
+    function addOptionTable(parent, rows, tableContext) {
         var tableGroup = parent.add("group");
         tableGroup.orientation = "column";
         tableGroup.alignChildren = ["left", "top"];
@@ -2270,11 +2376,12 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             for (var option = 0; option < OPTION_COLUMNS.length; option++) {
                 /* ラジオを列の中央に置くため、セルごとにグループで包む / Wrap each radio in a cell group to center it under the heading */
                 var cellGroup = rowGroup.add("group");
-                cellGroup.preferredSize.width = OPTION_COLUMN_WIDTH;
+                /* preferredSize はレイアウトの計算し直しで子の幅に戻るので、最小幅で取る / preferredSize is reset when the layout is recalculated, so reserve a minimum width */
+                cellGroup.minimumSize.width = OPTION_COLUMN_WIDTH;
                 cellGroup.alignChildren = ["center", "center"];
                 var optionRadio = cellGroup.add("radiobutton", undefined, "");
                 optionRadio.helpTip = getLabel(OPTION_COLUMNS[option].tooltip) + "\n" + getLabel(LABELS.tooltip.optionClick);
-                optionRadio.onClick = makeRadioClickHandler(rowControl, option, panelRows || rows, tableContext);
+                optionRadio.onClick = makeRadioClickHandler(rowControl, option, rows, tableContext);
                 rowControl.radios.push(optionRadio);
             }
             tableContext.rowControls[rows[i].key] = rowControl;
@@ -2291,23 +2398,18 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         var mainDialog = new Window("dialog", getLabel(LABELS.dialog.title) + " " + SCRIPT_VERSION);
         setupWindow(mainDialog);
 
-        /* プリセット / Presets */
-        var presetRowGroup = mainDialog.add("group");
-        setupRow(presetRowGroup, "center", 6);
-        presetRowGroup.add("statictext", undefined, labelText(LABELS.fieldLabel.preset));
-        var presetDropdown = presetRowGroup.add("dropdownlist");
-        presetDropdown.preferredSize.width = PRESET_DROPDOWN_WIDTH;
-        presetDropdown.helpTip = getLabel(LABELS.tooltip.preset);
-        var btnSavePreset = presetRowGroup.add("button", undefined, getLabel(LABELS.button.savePreset));
-        btnSavePreset.helpTip = getLabel(LABELS.tooltip.savePreset);
-        var btnDeletePreset = presetRowGroup.add("button", undefined, getLabel(LABELS.button.deletePreset));
-        btnDeletePreset.helpTip = getLabel(LABELS.tooltip.deletePreset);
+        /* 上の行：左に対象、右にプリセット（間はスペーサーで空ける）。2つのパネルの高さは揃える / Top row: scope on the left, presets on the right with a spacer between; both panels share the height */
+        var topRowGroup = mainDialog.add("group");
+        setupRow(topRowGroup, "fill", COLUMN_SPACING);
+        topRowGroup.alignChildren = ["left", "fill"];
 
-        /* 対象（2カラムを貫通。ラジオは横並び）/ Scope (spans both columns, radios in a row) */
-        var targetPanel = mainDialog.add("panel", undefined, getLabel(LABELS.panel.target));
+        /* 対象（ラジオは横並び）/ Scope (radios in a row) */
+        var targetPanel = topRowGroup.add("panel", undefined, getLabel(LABELS.panel.target));
         setupPanel(targetPanel);
         targetPanel.orientation = "row";
+        targetPanel.alignment = ["left", "fill"];
         targetPanel.alignChildren = ["left", "center"];
+
         var scopeRadios = {
             selection: targetPanel.add("radiobutton", undefined, getLabel(LABELS.radio.targetSelection)),
             document: targetPanel.add("radiobutton", undefined, getLabel(LABELS.radio.targetDocument))
@@ -2323,6 +2425,28 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         }
         scopeRadios[initialScope].value = true;
 
+        /* 余りの幅を吸って、プリセットを右端に寄せる / Absorbs the extra width so the presets sit at the right edge */
+        var topRowSpacer = topRowGroup.add("group");
+        topRowSpacer.alignment = ["fill", "fill"];
+        topRowSpacer.minimumSize.width = 0;
+
+        /* プリセット（タイトルなしのパネル）/ Presets (untitled panel) */
+        var presetPanel = topRowGroup.add("panel");
+        setupPanel(presetPanel);
+        presetPanel.orientation = "row";
+        presetPanel.alignment = ["right", "fill"];
+        presetPanel.alignChildren = ["left", "center"];
+        var presetRowGroup = presetPanel.add("group");
+        setupRow(presetRowGroup, "left", 6);
+        presetRowGroup.add("statictext", undefined, labelText(LABELS.fieldLabel.preset));
+        var presetDropdown = presetRowGroup.add("dropdownlist");
+        presetDropdown.preferredSize.width = PRESET_DROPDOWN_WIDTH;
+        presetDropdown.helpTip = getLabel(LABELS.tooltip.preset);
+        var btnSavePreset = presetRowGroup.add("button", undefined, getLabel(LABELS.button.savePreset));
+        btnSavePreset.helpTip = getLabel(LABELS.tooltip.savePreset);
+        var btnDeletePreset = presetRowGroup.add("button", undefined, getLabel(LABELS.button.deletePreset));
+        btnDeletePreset.helpTip = getLabel(LABELS.tooltip.deletePreset);
+
         var rowControls = {};
         var tableContext = {
             rowControls: rowControls,
@@ -2331,11 +2455,12 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             headerSpacers: [],
             onRowChange: function () {
                 updateDigitRadios();
+                updateFormDropdowns();
                 syncPresetSelection();
             }
         };
 
-        /* 左：文字種・句読点、右：括弧 / Left: character types and punctuation; right: brackets */
+        /* 3カラム（左：文字種・句読点、中：括弧、右：記号）。縦に積むと画面に収まらない / Three columns (left: character types and punctuation; middle: brackets; right: symbols); stacked, the dialog does not fit the screen */
         var columnsGroup = mainDialog.add("group");
         columnsGroup.orientation = "row";
         columnsGroup.alignChildren = ["left", "fill"];
@@ -2364,12 +2489,12 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             [LABELS.dropdown.punctuationStyleKeep, LABELS.dropdown.punctuationStyleJapanese, LABELS.dropdown.punctuationStyleWestern],
             LABELS.tooltip.punctuationStyle, tableContext);
 
-        var rightColumnGroup = columnsGroup.add("group");
-        rightColumnGroup.orientation = "column";
-        rightColumnGroup.alignChildren = ["fill", "top"];
-        rightColumnGroup.spacing = PANEL_SPACING;
+        var middleColumnGroup = columnsGroup.add("group");
+        middleColumnGroup.orientation = "column";
+        middleColumnGroup.alignChildren = ["fill", "top"];
+        middleColumnGroup.spacing = PANEL_SPACING;
 
-        var bracketPanel = rightColumnGroup.add("panel", undefined, getLabel(LABELS.panel.bracket));
+        var bracketPanel = middleColumnGroup.add("panel", undefined, getLabel(LABELS.panel.bracket));
         setupPanel(bracketPanel);
         addOptionTable(bracketPanel, BRACKET_ROWS, tableContext);
         var bracketExtrasGroup = bracketPanel.add("group");
@@ -2379,36 +2504,36 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         addExtraCheckbox(bracketExtrasGroup, "bracketInnerSpace", LABELS.checkbox.bracketInnerSpace, LABELS.tooltip.bracketInnerSpace, tableContext);
         addExtraCheckbox(bracketExtrasGroup, "bracketOuterSpace", LABELS.checkbox.bracketOuterSpace, LABELS.tooltip.bracketOuterSpace, tableContext);
         addExtraDropdown(bracketPanel, "quoteForm", LABELS.fieldLabel.quoteForm,
-            [LABELS.dropdown.quoteFormPlain, LABELS.dropdown.quoteFormCurly], LABELS.tooltip.quoteForm, tableContext);
+            [LABELS.dropdown.quoteFormPlain, LABELS.dropdown.quoteFormCurly, LABELS.dropdown.quoteFormMinute], LABELS.tooltip.quoteForm, tableContext);
 
-        /* 記号（2カラムを貫通し、表は上の左右の列に揃えて2列に分ける）/ Symbols (spans both columns; split into two tables lined up with the columns above) */
-        var symbolPanel = mainDialog.add("panel", undefined, getLabel(LABELS.panel.symbol));
+        /* 縦組み用 / Vertical text */
+        var verticalPanel = middleColumnGroup.add("panel", undefined, getLabel(LABELS.panel.vertical));
+        setupPanel(verticalPanel, 6);
+        addExtraCheckbox(verticalPanel, "numberCommaToTouten", LABELS.checkbox.numberCommaToTouten, LABELS.tooltip.numberCommaToTouten, tableContext);
+        addExtraCheckbox(verticalPanel, "decimalToNakaguro", LABELS.checkbox.decimalToNakaguro, LABELS.tooltip.decimalToNakaguro, tableContext);
+
+        /* 確認用の色分け（表示前の value は読み戻せないので値は自前で持つ）/ Check coloring (the value is kept here, since value cannot be read back before show) */
+        var highlightPanel = middleColumnGroup.add("panel", undefined, getLabel(LABELS.panel.highlight));
+        setupPanel(highlightPanel, 6);
+        var highlightCheckbox = highlightPanel.add("checkbox", undefined, getLabel(LABELS.checkbox.highlightChanges));
+        highlightCheckbox.helpTip = getLabel(LABELS.tooltip.highlightChanges);
+        var highlightChanges = (settings.highlightChanges === true);
+        highlightCheckbox.value = highlightChanges;
+        highlightCheckbox.onClick = function () { highlightChanges = highlightCheckbox.value; };
+
+        var rightColumnGroup = columnsGroup.add("group");
+        rightColumnGroup.orientation = "column";
+        rightColumnGroup.alignChildren = ["fill", "top"];
+        rightColumnGroup.spacing = PANEL_SPACING;
+
+        var symbolPanel = rightColumnGroup.add("panel", undefined, getLabel(LABELS.panel.symbol));
         setupPanel(symbolPanel);
-        var symbolTablesGroup = symbolPanel.add("group");
-        symbolTablesGroup.orientation = "row";
-        symbolTablesGroup.alignChildren = ["left", "top"];
-        symbolTablesGroup.spacing = SYMBOL_COLUMN_SPACING;
-        var symbolSplitIndex = Math.ceil(SYMBOL_ROWS.length / 2);
-        /* Option＋クリックは記号パネルの2つの表にまたがって効かせる / Option-click covers both symbol tables */
-        addOptionTable(symbolTablesGroup, SYMBOL_ROWS.slice(0, symbolSplitIndex), tableContext, SYMBOL_ROWS);
-        addOptionTable(symbolTablesGroup, SYMBOL_ROWS.slice(symbolSplitIndex), tableContext, SYMBOL_ROWS);
-        /* 字形の選択（左の列にハイフン・アスタリスク、右の列にチルダ）/ Form choices (hyphen and asterisk on the left, tilde on the right) */
-        var symbolFormsGroup = symbolPanel.add("group");
-        setupRow(symbolFormsGroup, ["left", "top"], SYMBOL_COLUMN_SPACING);
-        symbolFormsGroup.alignChildren = ["left", "top"];
-        var leftFormsGroup = symbolFormsGroup.add("group");
-        leftFormsGroup.orientation = "column";
-        leftFormsGroup.alignChildren = ["left", "top"];
-        leftFormsGroup.spacing = 6;
-        var rightFormsGroup = symbolFormsGroup.add("group");
-        rightFormsGroup.orientation = "column";
-        rightFormsGroup.alignChildren = ["left", "top"];
-        rightFormsGroup.spacing = 6;
-        addExtraDropdown(leftFormsGroup, "hyphenForm", LABELS.fieldLabel.hyphenForm,
+        addOptionTable(symbolPanel, SYMBOL_ROWS, tableContext);
+        addExtraDropdown(symbolPanel, "hyphenForm", LABELS.fieldLabel.hyphenForm,
             [LABELS.dropdown.hyphenFormPlain, LABELS.dropdown.hyphenFormHyphen, LABELS.dropdown.hyphenFormMinus], LABELS.tooltip.hyphenForm, tableContext);
-        addExtraDropdown(leftFormsGroup, "asteriskForm", LABELS.fieldLabel.asteriskForm,
+        addExtraDropdown(symbolPanel, "asteriskForm", LABELS.fieldLabel.asteriskForm,
             [LABELS.dropdown.asteriskFormPlain, LABELS.dropdown.asteriskFormReference], LABELS.tooltip.asteriskForm, tableContext);
-        addExtraDropdown(rightFormsGroup, "tildeForm", LABELS.fieldLabel.tildeForm,
+        addExtraDropdown(symbolPanel, "tildeForm", LABELS.fieldLabel.tildeForm,
             [LABELS.dropdown.tildeFormPlain, LABELS.dropdown.tildeFormWave], LABELS.tooltip.tildeForm, tableContext);
 
         /* 項目名の幅をすべての表で同じにし、見出しの空きも同じ幅にする / Give every table the same label width, and the header gap too */
@@ -2429,6 +2554,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
                 else if (tableContext.extraControls[settingKey]) tableContext.extraControls[settingKey].setValue(rowOptions[settingKey]);
             }
             updateDigitRadios();
+            updateFormDropdowns();
         }
 
         /**
@@ -2454,6 +2580,22 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             var digitsControl = rowControls.digits;
             var isByLength = (tableContext.extraControls.digitsByLength.value === 1);
             for (var i = 0; i < digitsControl.radios.length; i++) digitsControl.radios[i].enabled = !isByLength;
+        }
+
+        /**
+         * 全角の字形のドロップダウンは、その行が「そのまま」のときは使えなくする（半角にするときも、選んだ字形だけを戻すので使う。引用符は二重引用符・引用符の両方が「そのまま」なら）
+         * @returns {void}
+         */
+        function updateFormDropdowns() {
+            var isUsedBySetting = {};
+            for (var rowKey in FULL_FORM_CHOICES) {
+                if (!FULL_FORM_CHOICES.hasOwnProperty(rowKey)) continue;
+                var formSettingKey = FULL_FORM_CHOICES[rowKey].settingKey;
+                isUsedBySetting[formSettingKey] = isUsedBySetting[formSettingKey] || (getRowOption(rowControls[rowKey]) !== OPTION_KEEP);
+            }
+            for (var settingKey in isUsedBySetting) {
+                if (isUsedBySetting.hasOwnProperty(settingKey)) tableContext.extraControls[settingKey].setEnabled(isUsedBySetting[settingKey]);
+            }
         }
 
         /* ドロップダウンの項目番号 → プリセット（「カスタム」と区切り線は null）/ Dropdown item index → preset ("Custom" and separators are null) */
@@ -2591,7 +2733,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         for (var scopeKey in scopeRadios) {
             if (scopeRadios.hasOwnProperty(scopeKey) && scopeRadios[scopeKey].value) chosenScope = scopeKey;
         }
-        return { rowOptions: chosenRowOptions, scope: chosenScope };
+        return { rowOptions: chosenRowOptions, scope: chosenScope, highlightChanges: highlightChanges };
     }
 
     // =========================================
@@ -2615,6 +2757,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             return;
         }
 
+        conversion.highlightColor = settings.highlightChanges ? createHighlightColor() : null;
         var targets = (settings.scope === "selection") ? selectionTargets : getDocumentTargets();
         var result = convertTargets(targets, conversion);
 
@@ -2630,7 +2773,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
     }
 
     /* 内訳に出す、行以外のキー（行のあとに並べる）/ Keys besides the rows shown in the breakdown, listed after the rows */
-    var RESULT_EXTRA_KEYS = ["punctuationStyle", "bracketInnerSpace", "bracketOuterSpace"];
+    var RESULT_EXTRA_KEYS = ["punctuationStyle", "numberCommaToTouten", "decimalToNakaguro", "bracketInnerSpace", "bracketOuterSpace"];
 
     /**
      * 変換した数の内訳を、行の並び順で「項目名 : 数」の行にする
