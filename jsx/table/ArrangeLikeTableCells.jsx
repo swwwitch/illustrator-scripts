@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.ArrangeLikeTableCells
 Name=ArrangeLikeTableCells
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.8.0
+Version=1.9.0
 Release-Date=2026-10-20
 Description-BEGIN
 外枠と罫線で区切った表で、外枠の大きさ・罫線の間隔・線幅を整え、各テキストをセルの中央に配置します（天地は欧文のベースラインをそろえる）。テキストだけ、縦罫だけ・横罫だけ、または縦罫と横罫1本（横罫と縦罫1本）だけを選択したときは、足りない外枠と罫線を作ります。
@@ -43,10 +43,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ArrangeLik
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ArrangeLikeTableCells";        /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.8.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.9.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-20";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-27";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-30";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ArrangeLikeTableCells.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ArrangeLikeTableCells.md"; /* README (English) */
@@ -143,6 +143,9 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     /* ［中央揃えにする］の初期値 / Initial value of "Align center" */
     var JUSTIFY_CENTER = true;
 
+    /* ［テキストのカラー］の初期値 / Initial value of "Text color" */
+    var APPLY_TEXT_COLOR = false;
+
     /* テキストだけを選択したときに作る表の、テキストの上下左右の余白（文字サイズに対する割合）と線幅（pt）
        Space around each text in a table made from texts alone (ratio to the text size) and its stroke weight (pt) */
     var AUTO_TABLE_PADDING_EM = 0.4;
@@ -168,9 +171,10 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     var PREVIEW_BOUNDS_TOP_GAP    = 5;   /* ［プレビュー境界］の上に足す余白 / extra space above "Preview bounds" */
     var STROKE_COLOR_TOP_GAP      = 10;  /* ［線のカラー］の上に足す余白 / extra space above "Stroke color" */
     var SUB_OPTION_INDENT         = 12;  /* チェックボックスの下に置く項目（塗り方・線幅のラジオボタン）の字下げ / indent of items placed under a checkbox (fill radios, stroke weight options) */
-    var COLOR_SWATCH_SIZE         = [40, 20];  /* 線のカラーの色見本の大きさ / stroke color swatch size */
+    var COLOR_SWATCH_SIZE         = [40, 20];  /* 線・テキストのカラーの色見本の大きさ / stroke and text color swatch size */
     var CORNER_RADIUS_FIELD_CHARS = 4;   /* ［角を丸くする］の欄の幅（文字数） / width of the "Round corners" field (characters) */
     var AREA_TEXT_TOP_GAP         = 10;  /* ［セルごとにエリア内文字にする］の上に足す余白 / extra space above "Convert to area type per cell" */
+    var TEXT_COLOR_TOP_GAP        = 10;  /* ［テキストのカラー］の上に足す余白 / extra space above "Text color" */
 
     // UIレイアウト（再利用パーツ） / UI layout (reusable)
 
@@ -1023,7 +1027,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             groupFills: { ja: "グループ化", en: "Group" },
             convertToAreaText: { ja: "セルごとにエリア内文字にする", en: "Convert to area type per cell" },
             centerInCells: { ja: "セルの中央に配置", en: "Center in cells" },
-            justifyCenter: { ja: "中央揃えにする", en: "Align center" }
+            justifyCenter: { ja: "中央揃えにする", en: "Align center" },
+            applyTextColor: { ja: "テキストのカラー", en: "Text color" }
         },
         fieldLabel: {
             frameWidth: { ja: "幅", en: "Width" },
@@ -1081,6 +1086,14 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             strokeColor: {
                 ja: "クリックしてカラーピッカーで線の色を選びます。選ぶと［線のカラー］がオンになります。",
                 en: "Click to pick the stroke color in the Color Picker. Picking a color turns on \"Stroke color\"."
+            },
+            applyTextColor: {
+                ja: "選択したテキストの文字の塗りを右の色にします。",
+                en: "Applies the color on the right to the fill of the selected texts."
+            },
+            textColor: {
+                ja: "クリックしてカラーピッカーで文字の色を選びます。選ぶと［テキストのカラー］がオンになります。",
+                en: "Click to pick the text color in the Color Picker. Picking a color turns on \"Text color\"."
             },
             strokeWidthMax: {
                 ja: "いちばん太い線に合わせます。",
@@ -3123,7 +3136,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     /**
      * 編集前のテキストの位置と、段落ごとの行揃えを保存する
      * @param {TextFrame[]} textFrames - 保存するテキスト
-     * @returns {Object[]} テキストごとの {textFrame, position, justifications}
+     * @returns {Object[]} テキストごとの {textFrame, position, justifications, fillColors}（fillColors は色を変えるまで null）
      */
     function saveTextState(textFrames) {
         var textStates = [];
@@ -3136,7 +3149,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             textStates.push({
                 textFrame: textFrame,
                 position: [textFrame.position[0], textFrame.position[1]],
-                justifications: justifications
+                justifications: justifications,
+                fillColors: null
             });
         }
         return textStates;
@@ -3150,12 +3164,50 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     function restoreTextState(textStates) {
         for (var i = 0; i < textStates.length; i++) {
             var textState = textStates[i];
+            if (textState.fillColors) {
+                var characters = textState.textFrame.characters;
+                for (var k = 0; k < textState.fillColors.length && k < characters.length; k++) {
+                    characters[k].characterAttributes.fillColor = textState.fillColors[k];
+                }
+            }
             var paragraphs = textState.textFrame.paragraphs;
             for (var j = 0; j < textState.justifications.length && j < paragraphs.length; j++) {
                 paragraphs[j].paragraphAttributes.justification = textState.justifications[j];
             }
             textState.textFrame.position = [textState.position[0], textState.position[1]];
         }
+    }
+
+    /**
+     * テキストの文字の塗りを1色にする。初めて変えるときに、文字ごとの元の塗りを textState に控える
+     * @param {Object[]} textStates - saveTextState() の戻り値
+     * @param {Color} textColor - 塗りの色
+     * @returns {void}
+     */
+    function setTextFillColors(textStates, textColor) {
+        for (var i = 0; i < textStates.length; i++) {
+            var textState = textStates[i];
+            if (!textState.fillColors) {
+                textState.fillColors = [];
+                var characters = textState.textFrame.characters;
+                for (var k = 0; k < characters.length; k++) textState.fillColors.push(characters[k].characterAttributes.fillColor);
+            }
+            textState.textFrame.textRange.characterAttributes.fillColor = textColor;
+        }
+    }
+
+    /**
+     * 最初のテキストの1文字目の塗りを返す（色見本で表せない塗りなら黒）
+     * @param {TextFrame[]} textFrames - 対象のテキスト
+     * @returns {Color} 色
+     */
+    function getFirstTextFillColor(textFrames) {
+        for (var i = 0; i < textFrames.length; i++) {
+            if (!textFrames[i].characters.length) continue;
+            var fillColor = textFrames[i].characters[0].characterAttributes.fillColor;
+            return getDisplayRgb(fillColor) ? fillColor : createBlackColor();
+        }
+        return createBlackColor();
     }
 
     // =========================================
@@ -3317,7 +3369,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
 
         /**
          * 元の状態に戻したうえで、設定どおりに均等化・配置する
-         * @param {{frameWidth: number, frameHeight: number, usePreviewBounds: boolean, verticalSpacing: string, horizontalSpacing: string, matchRuleLengths: boolean, convertFrame: boolean, convertFrameToLines: boolean, roundCorners: boolean, cornerRadius: number, capsule: boolean, matchStrokeWidths: boolean, strokeWidthMode: string, strokeWidth: number, applyStrokeColor: boolean, strokeColor: Color, createCellShapes: boolean, fillMode: string, groupFills: boolean, convertToAreaText: boolean, centerInCells: boolean, justifyCenter: boolean}} settings - 設定（frameWidth・frameHeight・cornerRadius・strokeWidth は pt）
+         * @param {{frameWidth: number, frameHeight: number, usePreviewBounds: boolean, verticalSpacing: string, horizontalSpacing: string, matchRuleLengths: boolean, convertFrame: boolean, convertFrameToLines: boolean, roundCorners: boolean, cornerRadius: number, capsule: boolean, matchStrokeWidths: boolean, strokeWidthMode: string, strokeWidth: number, applyStrokeColor: boolean, strokeColor: Color, createCellShapes: boolean, fillMode: string, groupFills: boolean, convertToAreaText: boolean, centerInCells: boolean, justifyCenter: boolean, applyTextColor: boolean, textColor: Color}} settings - 設定（frameWidth・frameHeight・cornerRadius・strokeWidth は pt）
          * @param {boolean} [isFinal] - ［OK］で確定するとき true（角丸の効果を複製ではなく外枠そのものに適用する）
          * @returns {number} セルが見つからず移動しなかったテキストの数
          */
@@ -3370,6 +3422,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             if (settings.createCellShapes && rules) {
                 cellFillItems = createCellFills(rules, cornerRadius, settings.fillMode, cellTints, backmostItem, settings.groupFills);
             }
+            /* エリア内文字の複製にも引き継がせるので、配置より先に掛ける / Set before placing so the area type duplicates inherit it */
+            if (settings.applyTextColor && settings.textColor) setTextFillColors(textState, settings.textColor);
             var skippedCount = placeTextsInCells(textCells, settings, positionMap, frameScale);
             if (settings.convertToAreaText && rules) cellAreaTexts = createCellAreaTexts(textCells, positionMap, frameScale, !!isFinal);
             return skippedCount;
@@ -3416,7 +3470,9 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             groupFills: GROUP_CELL_FILLS,
             convertToAreaText: CONVERT_TO_AREA_TEXT && hasText && !!rules,
             centerInCells: CENTER_IN_CELLS,
-            justifyCenter: JUSTIFY_CENTER
+            justifyCenter: JUSTIFY_CENTER,
+            applyTextColor: APPLY_TEXT_COLOR && hasText,
+            textColor: getFirstTextFillColor(textFrames)
         };
 
         if (rules && autoTablePaths.length) {
@@ -3463,6 +3519,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         var convertToAreaTextCheckbox = dialogControls.convertToAreaTextCheckbox;
         var centerInCellsCheckbox = dialogControls.centerInCellsCheckbox;
         var justifyCenterCheckbox = dialogControls.justifyCenterCheckbox;
+        var applyTextColorCheckbox = dialogControls.applyTextColorCheckbox;
+        var textColorSwatch = dialogControls.textColorSwatch;
 
         /**
          * チェックボックスの状態を設定にまとめる（表示前は value を読み戻せないので、ユーザー操作のあとだけ呼ぶ）
@@ -3485,13 +3543,15 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
                 strokeWidthMode: getCheckedKey(strokeModeRadios, STROKE_WIDTH_MODE),
                 strokeWidth: strokeWidthPt,
                 applyStrokeColor: applyStrokeColorCheckbox.value,
-                strokeColor: strokeColorSwatch.strokeColor,
+                strokeColor: strokeColorSwatch.swatchColor,
                 createCellShapes: createCellShapesCheckbox.value,
                 fillMode: randomFillRadio.value ? "random" : "uniform",
                 groupFills: groupFillsCheckbox.value,
                 convertToAreaText: convertToAreaTextCheckbox.value,
                 centerInCells: centerInCellsCheckbox.value,
-                justifyCenter: justifyCenterCheckbox.value
+                justifyCenter: justifyCenterCheckbox.value,
+                applyTextColor: applyTextColorCheckbox.value,
+                textColor: textColorSwatch.swatchColor
             };
         }
 
@@ -3755,6 +3815,12 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         convertToAreaTextCheckbox.onClick = updatePreview;
         centerInCellsCheckbox.onClick = updatePreview;
         justifyCenterCheckbox.onClick = updatePreview;
+        applyTextColorCheckbox.onClick = updatePreview;
+        textColorSwatch.onColorChange = function () {
+            /* 色を選んだら適用するものとしてオンにする / Picking a color means applying it */
+            applyTextColorCheckbox.value = true;
+            updatePreview();
+        };
 
         var skippedCount = 0;
         dialogControls.btnOK.onClick = function () {
@@ -4019,8 +4085,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
      * @param {boolean} hasText - テキストを選択しているなら true（false なら［テキスト］パネルと［テキストに合わせる］を無効にする）
      * @param {{label: string, pointsPerUnit: number}} rulerUnit - 定規の単位
      * @param {{label: string, pointsPerUnit: number}} strokeUnit - 線の単位
-     * @param {{frameWidth: number, frameHeight: number, usePreviewBounds: boolean, verticalSpacing: string, horizontalSpacing: string, matchRuleLengths: boolean, convertFrame: boolean, convertFrameToLines: boolean, roundCorners: boolean, cornerRadius: number, capsule: boolean, matchStrokeWidths: boolean, strokeWidthMode: string, strokeWidth: number, averageStrokeWidth: number, applyStrokeColor: boolean, strokeColor: Color, createCellShapes: boolean, fillMode: string, groupFills: boolean, centerInCells: boolean, justifyCenter: boolean}} initialSettings - コントロールの初期値（strokeWidth・averageStrokeWidth は pt。strokeColor は線のあるパスが無ければ null）
-     * @returns {{mainDialog: Window, frameWidthInput: EditText, frameHeightInput: EditText, previewBoundsCheckbox: Checkbox, verticalSpacingRadios: Object, horizontalSpacingRadios: Object, convertFrameCheckbox: Checkbox, convertFrameToLinesCheckbox: Checkbox, cornerRow: Group, roundCornersCheckbox: Checkbox, cornerRadiusInput: EditText, capsuleCheckbox: Checkbox, matchStrokeCheckbox: Checkbox, strokeModeRow: Group, strokeModeRadios: Object, strokeWidthInputGroup: Group, strokeWidthInput: EditText, applyStrokeColorCheckbox: Checkbox, strokeColorSwatch: Group, createCellShapesCheckbox: Checkbox, fillModeGroup: Group, uniformFillRadio: RadioButton, randomFillRadio: RadioButton, groupFillsCheckbox: Checkbox, centerInCellsCheckbox: Checkbox, justifyCenterCheckbox: Checkbox, btnCancel: Button, btnOK: Button}} ダイアログとコントロール
+     * @param {{frameWidth: number, frameHeight: number, usePreviewBounds: boolean, verticalSpacing: string, horizontalSpacing: string, matchRuleLengths: boolean, convertFrame: boolean, convertFrameToLines: boolean, roundCorners: boolean, cornerRadius: number, capsule: boolean, matchStrokeWidths: boolean, strokeWidthMode: string, strokeWidth: number, averageStrokeWidth: number, applyStrokeColor: boolean, strokeColor: Color, createCellShapes: boolean, fillMode: string, groupFills: boolean, centerInCells: boolean, justifyCenter: boolean, applyTextColor: boolean, textColor: Color}} initialSettings - コントロールの初期値（strokeWidth・averageStrokeWidth は pt。strokeColor は線のあるパスが無ければ null）
+     * @returns {{mainDialog: Window, frameWidthInput: EditText, frameHeightInput: EditText, previewBoundsCheckbox: Checkbox, verticalSpacingRadios: Object, horizontalSpacingRadios: Object, convertFrameCheckbox: Checkbox, convertFrameToLinesCheckbox: Checkbox, cornerRow: Group, roundCornersCheckbox: Checkbox, cornerRadiusInput: EditText, capsuleCheckbox: Checkbox, matchStrokeCheckbox: Checkbox, strokeModeRow: Group, strokeModeRadios: Object, strokeWidthInputGroup: Group, strokeWidthInput: EditText, applyStrokeColorCheckbox: Checkbox, strokeColorSwatch: Group, createCellShapesCheckbox: Checkbox, fillModeGroup: Group, uniformFillRadio: RadioButton, randomFillRadio: RadioButton, groupFillsCheckbox: Checkbox, centerInCellsCheckbox: Checkbox, justifyCenterCheckbox: Checkbox, applyTextColorCheckbox: Checkbox, textColorSwatch: Group, btnCancel: Button, btnOK: Button}} ダイアログとコントロール
      */
     function buildDialog(verticalRuleCount, horizontalRuleCount, rules, hasText, rulerUnit, strokeUnit, initialSettings) {
         var hasFrameLines = !!(rules && rules.frameLines);
@@ -4116,8 +4182,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         strokeColorRow.margins = [0, STROKE_COLOR_TOP_GAP, 0, 0];
         var applyStrokeColorCheckbox = addOptionCheckbox(strokeColorRow,
             "checkbox.applyStrokeColor", "tooltip.applyStrokeColor", true, initialSettings.applyStrokeColor);
-        var strokeColorSwatch = addColorSwatch(strokeColorRow);
-        if (initialSettings.strokeColor) strokeColorSwatch.strokeColor = initialSettings.strokeColor;
+        var strokeColorSwatch = addColorSwatch(strokeColorRow, "tooltip.strokeColor");
+        if (initialSettings.strokeColor) strokeColorSwatch.swatchColor = initialSettings.strokeColor;
 
         var cellsPanel = rightColumn.add("panel", undefined, getLabel("panel.cells"));
         setupPanel(cellsPanel, 6);
@@ -4160,6 +4226,14 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             "checkbox.centerInCells", "tooltip.centerInCells", true, initialSettings.centerInCells);
         var justifyCenterCheckbox = addOptionCheckbox(textPanel,
             "checkbox.justifyCenter", "tooltip.justifyCenter", true, initialSettings.justifyCenter);
+        var textColorRow = textPanel.add("group");
+        setupRow(textColorRow, "left", 8);
+        /* 配置の項目と離す / Set apart from the placement options */
+        textColorRow.margins = [0, TEXT_COLOR_TOP_GAP, 0, 0];
+        var applyTextColorCheckbox = addOptionCheckbox(textColorRow,
+            "checkbox.applyTextColor", "tooltip.applyTextColor", true, initialSettings.applyTextColor);
+        var textColorSwatch = addColorSwatch(textColorRow, "tooltip.textColor");
+        textColorSwatch.swatchColor = initialSettings.textColor;
 
         var buttonRow = addButtonRow(mainDialog);
         var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"));
@@ -4194,6 +4268,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             convertToAreaTextCheckbox: convertToAreaTextCheckbox,
             centerInCellsCheckbox: centerInCellsCheckbox,
             justifyCenterCheckbox: justifyCenterCheckbox,
+            applyTextColorCheckbox: applyTextColorCheckbox,
+            textColorSwatch: textColorSwatch,
             btnCancel: btnCancel,
             btnOK: btnOK
         };
@@ -4336,24 +4412,25 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     }
 
     /**
-     * 線の色の色見本を追加する（onDraw で塗る）。クリックで Illustrator 標準のカラーピッカーを開く。
-     * 色は .strokeColor に持ち、カラーピッカーで変えたら .isChanged を true にして .onColorChange を呼ぶ
+     * 色見本を追加する（onDraw で塗る）。クリックで Illustrator 標準のカラーピッカーを開く。
+     * 色は .swatchColor に持ち、カラーピッカーで変えたら .isChanged を true にして .onColorChange を呼ぶ
      * @param {Group} parent - 追加先
+     * @param {string} tooltipPath - ツールチップのラベルのパス
      * @returns {Group} 色見本
      */
-    function addColorSwatch(parent) {
+    function addColorSwatch(parent, tooltipPath) {
         var colorSwatch = parent.add("group");
         colorSwatch.preferredSize = COLOR_SWATCH_SIZE;
         colorSwatch.minimumSize = COLOR_SWATCH_SIZE;
         colorSwatch.maximumSize = COLOR_SWATCH_SIZE;
-        colorSwatch.helpTip = getLabel("tooltip.strokeColor");
-        colorSwatch.strokeColor = createBlackColor();
+        colorSwatch.helpTip = getLabel(tooltipPath);
+        colorSwatch.swatchColor = createBlackColor();
         colorSwatch.isChanged = false;
         colorSwatch.onDraw = function () { drawColorSwatch(colorSwatch); };
         colorSwatch.addEventListener("mousedown", function () {
             /* キャンセルでは渡した色がそのまま返るので、中身を比べて変化を見る / Cancel returns the passed color, so compare */
-            var pickedColor = app.showColorPicker(colorSwatch.strokeColor);
-            if (!pickedColor || isSameColor(pickedColor, colorSwatch.strokeColor)) return;
+            var pickedColor = app.showColorPicker(colorSwatch.swatchColor);
+            if (!pickedColor || isSameColor(pickedColor, colorSwatch.swatchColor)) return;
             setSwatchColor(colorSwatch, pickedColor);
             colorSwatch.isChanged = true;
             if (typeof colorSwatch.onColorChange === "function") colorSwatch.onColorChange();
@@ -4368,7 +4445,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
      * @returns {void}
      */
     function setSwatchColor(colorSwatch, swatchColor) {
-        colorSwatch.strokeColor = swatchColor;
+        colorSwatch.swatchColor = swatchColor;
         redrawStepperGroup(colorSwatch);
     }
 
@@ -4381,7 +4458,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         var swatchGraphics = colorSwatch.graphics;
         var swatchWidth = COLOR_SWATCH_SIZE[0];
         var swatchHeight = COLOR_SWATCH_SIZE[1];
-        var displayRgb = getDisplayRgb(colorSwatch.strokeColor);
+        var displayRgb = getDisplayRgb(colorSwatch.swatchColor);
         swatchGraphics.newPath();
         swatchGraphics.rectPath(0, 0, swatchWidth, swatchHeight);
         swatchGraphics.fillPath(swatchGraphics.newBrush(swatchGraphics.BrushType.SOLID_COLOR, displayRgb ? displayRgb.concat([1]) : [1, 1, 1, 1]));

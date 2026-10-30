@@ -62,6 +62,7 @@ It can also round the frame corners, fill the cells with random gray tints, and 
 
 - "Center in cells" moves each text to the center of the cell formed by the frame and rules (horizontally by its glyph outlines, vertically by the band from the baseline to the cap height, so ascenders and descenders do not shift the baseline)
 - "Align center" sets the paragraph alignment to center
+- "Text color" applies the swatch color to the fill of the selected texts. Click the swatch to pick a color in Illustrator's Color Picker (initially the color of the first character of the first text; picking a color turns "Text color" on)
 
 #### Cells
 
@@ -111,6 +112,7 @@ It can also round the frame corners, fill the cells with random gray tints, and 
 
 ### Update History
 
+- v1.9.0 (2026-10-30) Added "Text color" to the Text panel (applies the color picked in the Color Picker to the fill of the selected texts)
 - v1.8.0 (2026-10-27) Added "Capsule shape" to the Frame panel (applies the Round Corners effect with half the shorter side of the frame as the radius, making both ends semicircles). Fixed cell fills not being rounded by more than half their shorter side (a cell rounded only at a frame corner can now be rounded across its full side)
 - v1.7.3 (2026-10-27) The script now also runs with two or more vertical rules crossed by a single horizontal rule (or the other way round): the horizontal rule becomes one side of the frame, a line is added across the ends on the side where the vertical rules run longer, and the overhanging rules are trimmed to the frame corners (the frame stays as lines)
 - v1.7.2 (2026-10-27) "Convert to area type per cell" now warns when Auto Size cannot be turned off or the text cannot be centered vertically. Fixed lines and rectangles made from rules inside a compound path becoming part of that compound path

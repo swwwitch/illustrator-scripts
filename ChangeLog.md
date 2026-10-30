@@ -6,6 +6,10 @@
 
 - [文字の種類ごとに全角・半角を変換](readme-ja/CharacterWidthConverter.md)（InDesign 版 IdCharacterWidthConverter の移植）
 
+### 調整
+
+- [罫線で区切った表を整え、テキストをセルの中央に配置](readme-ja/ArrangeLikeTableCells.md)（v1.9.0）：［テキスト］パネルに［テキストのカラー］を追加（カラーピッカーで選んだ色を、選択したテキストの文字の塗りにする）
+
 ## 20261029
 
 ### 調整
