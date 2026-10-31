@@ -4,7 +4,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 /*
 SCRIPTMETA-BEGIN
 Script-ID=com.swwwitch.illustrator.ApplyMojikumi
-Name=ApplyMojikumi
+Name=文字組みアキ量設定を適用
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.1.0
@@ -36,6 +36,8 @@ var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / versi
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-06-23";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-16";                   /* 更新日 / last updated */
+
+var SCRIPT_DESCRIPTION_JA = "文字組みアキ量設定を適用"; /* 内容（README なし） / what it does (no README) */
 
 var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb9c089e378d2"; /* 紹介記事 / article URL */
 var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/single-function/ApplyMojikumi.jsx"; /* 最新版のソース / latest source */

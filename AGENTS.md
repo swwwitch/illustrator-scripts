@@ -124,8 +124,8 @@ Update checking is not used: write no `Meta-URL` and no `SCRIPTMETA.txt`.
   article group in the basic info block, from the file's path, and realigns that group's `=`. Do not edit it by hand
 - It also writes `SCRIPT_DESCRIPTION_JA` from the `# ` title of the README that `SCRIPT_README_JA` points to,
   as a one-line group between the first group and the README / article group, and uses the same title as
-  SCRIPTMETA `Name`. Without a README there is no `SCRIPT_DESCRIPTION_JA` and `Name` is `SCRIPT_NAME`.
-  To change it, edit the README title and run the tool
+  SCRIPTMETA `Name`. To change it, edit the README title and run the tool. A script without a README gets a
+  hand-written `SCRIPT_DESCRIPTION_JA` in the same style (a short phrase saying what it does); the tool keeps it and uses it as `Name`
 - Script-ID is `com.swwwitch.illustrator.<SCRIPT_NAME>`. Never change a published Script-ID, even when renaming a script;
   names with characters other than `A-Z a-z 0-9 . _ -` get an entry in `ID_OVERRIDES`
 - `jsx/_templates/` is excluded

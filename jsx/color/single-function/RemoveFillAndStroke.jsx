@@ -4,7 +4,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 /*
 SCRIPTMETA-BEGIN
 Script-ID=com.swwwitch.illustrator.RemoveFillAndStroke
-Name=RemoveFillAndStroke
+Name=塗りと線を「なし」にする
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.0.1
@@ -47,6 +47,8 @@ var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / versi
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-09-29";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last updated */
+
+var SCRIPT_DESCRIPTION_JA = "塗りと線を「なし」にする"; /* 内容（README なし） / what it does (no README) */
 
 var SCRIPT_ARTICLE_URL   = "https://note.com/dtp_tranist/n/n81ee3a9e09b4"; /* 紹介記事 / article URL */
 var SCRIPT_REFERENCE_URL = "https://note.com/shibumi/n/n5229b4357dd3";     /* 参照記事（しぶやみゃむ） / reference article */

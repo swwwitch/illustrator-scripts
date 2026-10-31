@@ -5,7 +5,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 /*
 SCRIPTMETA-BEGIN
 Script-ID=com.swwwitch.illustrator.SimplifyGroupsDialog
-Name=SimplifyGroupsDialog
+Name=グループの入れ子をダイアログボックスで選んだ方法で解消
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.0.10
@@ -42,6 +42,8 @@ var SCRIPT_VERSION  = "v1.0.10";                      /* バージョン / versi
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-09-22";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-16";                   /* 更新日 / last updated */
+
+var SCRIPT_DESCRIPTION_JA = "グループの入れ子をダイアログボックスで選んだ方法で解消"; /* 内容（README なし） / what it does (no README) */
 
 var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/group/SimplifyGroupsDialog.jsx"; /* 最新版のソース / latest source */
 

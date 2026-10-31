@@ -7,7 +7,7 @@ SCRIPTMETA（https://github.com/Yamonov/SCRIPTMETA）の同期ツール。
 更新確認は使わないので Meta-URL は書かない。
 あわせて基本情報ブロックの SCRIPT_SOURCE_URL（GitHub 上の最新版へのリンク）をファイルの置き場所から書き直す。
 SCRIPT_README_JA が指す README の見出し（# 行）を基本情報ブロックの SCRIPT_DESCRIPTION_JA と SCRIPTMETA の Name に入れる。
-README が無ければ SCRIPT_DESCRIPTION_JA は置かず、Name は SCRIPT_NAME にする。
+README が無ければ手で書いた SCRIPT_DESCRIPTION_JA をそのまま残して Name に使い、それも無ければ Name は SCRIPT_NAME にする。
 
 SCRIPT_VERSION を上げたり概要や README の見出しを書き換えたり、スクリプトを追加・移動・改名したりしたら、コミット前に実行する。
 
@@ -16,7 +16,8 @@ SCRIPT_VERSION を上げたり概要や README の見出しを書き換えたり
 
 Syncs the SCRIPTMETA block (Local Subset, no Meta-URL) in every .jsx from its basic info block
 and header overview, and rewrites SCRIPT_SOURCE_URL from the file's location. The Japanese README title
-goes into SCRIPT_DESCRIPTION_JA and Name (SCRIPT_NAME when there is no README). Run it before committing.
+goes into SCRIPT_DESCRIPTION_JA and Name; without a README, a hand-written SCRIPT_DESCRIPTION_JA is kept and used
+as Name (SCRIPT_NAME when there is neither). Run it before committing.
 """
 import glob
 import os
@@ -31,6 +32,7 @@ TARGET_APP = "Illustrator"
 SOURCE_URL_BASE = "https://github.com/swwwitch/illustrator-scripts/blob/master/"
 SOURCE_URL_COMMENT = "/* 最新版のソース / latest source */"
 DESCRIPTION_COMMENT = "/* README の見出し / README title (Japanese) */"
+HAND_DESCRIPTION_COMMENT = "/* 内容（README なし） / what it does (no README) */"
 EXCLUDE_DIRS = ("/_templates/",)
 
 # Script-ID に使えない文字（A-Z a-z 0-9 . _ - 以外）を含む SCRIPT_NAME と、改名したスクリプトの旧名の ID。
@@ -139,9 +141,9 @@ def insert_block(text, block):
     return text[:pos] + block + text[pos:]
 
 
-def sync_basic_info(text, rel, title):
+def sync_basic_info(text, rel, title, comment):
     """基本情報ブロックの URL の組（README・記事など）の末尾に SCRIPT_SOURCE_URL を置き、組の = をそろえ直す。
-    1組目と URL の組のあいだに SCRIPT_DESCRIPTION_JA だけの組を置く（README が無ければ置かない）"""
+    1組目と URL の組のあいだに SCRIPT_DESCRIPTION_JA だけの組を置く（title が無ければ置かない）"""
     lines = text.split("\n")
     try:
         start = lines.index("// 基本情報 / Basic info") + 2
@@ -177,7 +179,7 @@ def sync_basic_info(text, rel, title):
         group = [""] + group
     lines = lines[:group_start] + group + lines[group_end:]
     if title:
-        lines[end:end] = ["", 'var SCRIPT_DESCRIPTION_JA = "%s"; %s' % (title, DESCRIPTION_COMMENT)]
+        lines[end:end] = ["", 'var SCRIPT_DESCRIPTION_JA = "%s"; %s' % (title, comment)]
     return "\n".join(lines)
 
 
@@ -193,7 +195,10 @@ def main():
         with open(path, encoding="utf-8", newline="") as fp:
             text = fp.read()
         try:
-            title = read_readme_title(text)
+            title, comment = read_readme_title(text), DESCRIPTION_COMMENT
+            if not title:
+                # README が無いスクリプトは手で書いた SCRIPT_DESCRIPTION_JA を使う / fall back to a hand-written value
+                title, comment = read_var(text, "SCRIPT_DESCRIPTION_JA"), HAND_DESCRIPTION_COMMENT
             script_id, block = build_block(path, text, title)
         except ValueError as e:
             errors.append(rel + ": " + str(e))
@@ -203,7 +208,7 @@ def main():
             continue
         seen[script_id] = rel
         try:
-            new_text = sync_basic_info(insert_block(text, block), rel, title)
+            new_text = sync_basic_info(insert_block(text, block), rel, title, comment)
         except ValueError as e:
             errors.append(rel + ": " + str(e))
             continue

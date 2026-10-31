@@ -5,7 +5,7 @@ app.preferences.setBooleanPreference("ShowExternalJSXWarning", false);
 /*
 SCRIPTMETA-BEGIN
 Script-ID=com.swwwitch.illustrator.AiAlignToArtboardOld
-Name=AiAlignToArtboardOld
+Name=アートボードを対象に整列する常駐パレット
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.0.2
@@ -44,6 +44,8 @@ var SCRIPT_VERSION  = "v1.0.2";                       /* バージョン / versi
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-08-23";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-29";                   /* 更新日 / last updated */
+
+var SCRIPT_DESCRIPTION_JA = "アートボードを対象に整列する常駐パレット"; /* 内容（README なし） / what it does (no README) */
 
 var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/single-function/AiAlignToArtboardOld.jsx"; /* 最新版のソース / latest source */
 
