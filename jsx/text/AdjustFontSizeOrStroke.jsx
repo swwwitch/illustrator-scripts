@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.AdjustFontSizeOrStroke
 Name=テキストは文字サイズ、それ以外は線幅を一定量ずつ増減
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.0.0
+Version=1.0.1
 Release-Date=2026-11-01
 Description-BEGIN
 選択したテキストは文字サイズを、それ以外のオブジェクトは線幅を、環境設定の単位で一定量ずつ増減します（ダイアログボックスは出しません）。
@@ -40,7 +40,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AdjustFont
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AdjustFontSizeOrStroke";       /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-11-01";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-11-01";                   /* 更新日 / last updated */
@@ -67,7 +67,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
     var VALUE_DECIMALS = 4;         /* 足したあとの値を丸める桁数（単位の値で） / decimals kept after adding, in the unit */
     var FONT_SIZE_MIN_PT = 0.1;     /* 文字サイズの下限（pt） / minimum font size (pt) */
     var FONT_SIZE_MAX_PT = 1296;    /* 文字サイズの上限（pt） / maximum font size (pt) */
-    var STROKE_WIDTH_MIN_PT = 0;    /* 線幅の下限（pt） / minimum stroke weight (pt) */
+    var STROKE_WIDTH_MIN_PT = 0.1;  /* 線幅の下限（pt）。0 にすると線が「あり」のまま見えなくなる / minimum stroke weight (pt); 0 would leave an invisible stroke */
     var STROKE_WIDTH_MAX_PT = 1000; /* 線幅の上限（pt） / maximum stroke weight (pt) */
 
     // =========================================
