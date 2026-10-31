@@ -28,8 +28,13 @@ Distributes several objects evenly along a single path taken from the selection.
 - "Automatic (largest area)" uses the bounding-box area for open paths.
 - The duplicate panel is enabled by default only when exactly two objects are selected, and the count starts at 2.
 
+### Article
+
+[Arrange multiple objects along a path in Illustrator (Japanese)](https://note.com/dtp_tranist/n/ndb2b7e8ec5ca)
+
 ### Update History
 
+- v1.6.9 (2026-10-31): Fixed an error, instead of an alert, when no document is open or fewer than two objects are selected. Rebuilding the preview could leave the contents of a hidden group selected and arrange those instead; the preview now keeps using the selection from the first preview. Renamed panels and options (Base Path, Choose By, After Arranging, Radial, Rotate 180°, Even, Forward, Randomize All). Count now ends with a colon, and its tooltip gives the actual range (2-20). Added a tooltip to Random order. A non-numeric angle now resets to 0. Updated the stepper part. Edges are hidden while the script runs and restored when it ends
 - v1.6.8 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.6.7 (2026-10-01): Added space below the button row to match Illustrator's own dialogs
 - v1.6.6 (2026-10-01): Unified the window and panel margins and spacing with the shared layout part

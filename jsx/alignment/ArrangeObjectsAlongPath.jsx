@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.ArrangeObjectsAlongPath
 Name=ArrangeObjectsAlongPath
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.6.8
+Version=1.6.9
 Release-Date=2026-03-03
 Description-BEGIN
 複数のオブジェクトを、選択範囲内の1本のパスに沿って等間隔に自動配置します。
@@ -30,6 +30,9 @@ SCRIPTMETA-END
 詳細は README を参照してください。
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ArrangeObjectsAlongPath.md
 
+note記事も参照してください。
+https://note.com/dtp_tranist/n/ndb2b7e8ec5ca
+
 ### Overview
 
 Distributes several objects evenly along a single path taken from the selection.
@@ -44,14 +47,15 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ArrangeObj
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ArrangeObjectsAlongPath";      /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.6.8";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.6.9";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-03-03";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-31";                   /* 更新日 / last updated */
 
-var SCRIPT_README_JA  = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ArrangeObjectsAlongPath.md"; /* README（日本語） */
-var SCRIPT_README_EN  = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ArrangeObjectsAlongPath.md"; /* README (English) */
-var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/ArrangeObjectsAlongPath.jsx"; /* 最新版のソース / latest source */
+var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ArrangeObjectsAlongPath.md"; /* README（日本語） */
+var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ArrangeObjectsAlongPath.md"; /* README (English) */
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb2b7e8ec5ca"; /* 紹介記事 / article URL */
+var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/ArrangeObjectsAlongPath.jsx"; /* 最新版のソース / latest source */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
@@ -412,9 +416,13 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
        「p」は「1p6」（1パイカ6ポイント）の形にも使う
        Units UnitValue lacks, mapped onto UnitValue units (how many of `unit` make one) */
     var STEPPER_UNIT_ALIASES = {
-        "q": { unit: "mm", amount: 0.25 }, /* 級 / Q */
-        "h": { unit: "mm", amount: 0.25 }, /* 歯 / H */
-        "p": { unit: "pc", amount: 1 }     /* パイカ / pica */
+        "q": { unit: "mm", amount: 0.25 },    /* 級 / Q */
+        "h": { unit: "mm", amount: 0.25 },    /* 歯 / H */
+        "p": { unit: "pc", amount: 1 },       /* パイカ / pica */
+        "ft/in": { unit: "ft", amount: 1 },   /* Illustrator の単位コード7の表示 / Illustrator unit code 7 */
+        "c": { unit: "ci", amount: 1 },       /* シセロ（InDesign の表示） / ciceros as InDesign shows them */
+        "ag": { unit: "in", amount: 1 / 14 }, /* アゲート / agates */
+        "ap": { unit: "tpt", amount: 1 }      /* アメリカンポイント / American points */
     };
 
     // -----------------------------------------
@@ -508,6 +516,28 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
     }
 
     /**
+     * 数値欄の単位を差し替える（単位の設定やドロップダウンを切り替えたとき用）。
+     * shouldConvert が true なら値を新しい単位へ換算し（10 mm → 28.35 pt）、false なら数値はそのままで単位だけ付け替える
+     * @param {EditText} numberInput - addSteppedField() で作った入力欄、または bindSteppedArrowKeys() を呼んだ入力欄
+     * @param {string} unit - 新しい単位（例 " pt"。単位なしは ""）
+     * @param {boolean} [shouldConvert] - 値も換算するなら true
+     * @returns {void}
+     */
+    function setSteppedFieldUnit(numberInput, unit, shouldConvert) {
+        var stepOptions = numberInput.stepperGroup.stepOptions;
+        var oldUnit = stepOptions.unit || "";
+        var value = parseFloat(numberInput.text);
+        stepOptions.unit = unit;
+        if (isNaN(value)) return;
+        if (shouldConvert) {
+            var converted = evaluateArithmetic(String(value) + oldUnit, unit);
+            if (!isNaN(converted)) value = converted;
+        }
+        numberInput.text = formatStepperNumber(value) + unit;
+        numberInput.lastValidText = numberInput.text;
+    }
+
+    /**
      * 入力欄の値を増減する∧∨ボタンを、隙間なく縦に積んで追加する
      * @param {Group|Panel} parent - 追加先
      * @param {Function} getNumberInput - 対象の入力欄を返す関数（入力欄を∧∨より後に作れるよう、クリック時に引く）
@@ -578,9 +608,15 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             if (isNaN(value)) return; /* 計算できなければ各スクリプトの処理に任せる / leave it to the script's own handler */
             /* 式か、換算で値が変わったときだけ書き戻す（ただの数値は書式を崩さない） / rewrite only expressions and converted values */
             var hasOperator = /[*\/()\u00D7\u00F7\uFF0A\uFF0F\uFF08\uFF09]|[\d.\uFF10-\uFF19][^\d.\uFF10-\uFF19]*[+\-\u2212\uFF0B\uFF0D]/.test(numberInput.text);
-            if (!hasOperator && value === parseFloat(numberInput.text)) return;
+            if (!hasOperator && value === parseFloat(numberInput.text)) {
+                /* 単位を省いて入れた数値には、欄の単位だけ付け足す（桁は丸めない） / append the field unit to a bare number */
+                var trimmedText = numberInput.text.replace(/^\s+|\s+$/g, "");
+                if (fieldUnit && /[\d.]$/.test(trimmedText)) numberInput.text = trimmedText + fieldUnit;
+                return;
+            }
             numberInput.text = formatStepperNumber(value) + (fieldUnit || "");
         });
+        numberInput.stepperGroup = stepperGroup; /* setSteppedFieldUnit() から∧∨の設定を引けるようにする / lets setSteppedFieldUnit() find the options */
     }
 
     // -----------------------------------------
@@ -708,7 +744,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
          * @returns {number} 欄の単位での値（換算できない単位なら NaN）
          */
         function readUnitSuffix(value) {
-            var unitMatch = /^([A-Za-z]+|%|°)/.exec(source.substring(position));
+            var unitMatch = /^(ft\/in|[A-Za-z]+|%|°)/i.exec(source.substring(position));
             if (!unitMatch) return value; /* 単位なしは欄の単位 / no unit means the field's unit */
             position += unitMatch[0].length;
             var unitKey = unitMatch[0].toLowerCase();
@@ -1073,9 +1109,9 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             title: { ja: "パスに沿って配置", en: "Arrange Objects Along Path" }
         },
         panel: {
-            targetPath: { ja: "対象パス", en: "Target Path" },
-            basePathRule: { ja: "基準", en: "Base Path" },
-            basePathHandling: { ja: "パス処理", en: "Base Path Handling" },
+            basePath: { ja: "基準パス", en: "Base Path" },
+            basePathPick: { ja: "選び方", en: "Choose By" },
+            basePathHandling: { ja: "配置後", en: "After Arranging" },
             placeObjects: { ja: "配置するオブジェクト", en: "Objects to Arrange" },
             duplicate: { ja: "複製", en: "Duplicate" },
             rotation: { ja: "回転", en: "Rotation" },
@@ -1086,9 +1122,9 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             duplicateCount: { ja: "複製数", en: "Count" }
         },
         checkbox: {
-            rotationFlip180: { ja: "反転", en: "Flip" },
+            rotationFlip180: { ja: "180°回転", en: "Rotate 180°" },
             groupPlaced: { ja: "グループ化", en: "Group placed objects" },
-            allRandom: { ja: "一括ランダム", en: "Random" },
+            allRandom: { ja: "一括ランダム", en: "Randomize All" },
             preview: { ja: "プレビュー", en: "Preview" }
         },
         radio: {
@@ -1099,18 +1135,18 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             basePathModeHide: { ja: "「塗り／線」なし", en: "No fill / no stroke" },
             basePathModeDelete: { ja: "削除", en: "Delete" },
             rotationNone: { ja: "正立", en: "Upright" },
-            rotationPerpendicular: { ja: "それぞれ垂直", en: "Perpendicular" },
-            rotationPathPerpendicular: { ja: "パスに沿う（接線）", en: "Follow Path (Tangent)" },
+            rotationRadial: { ja: "放射状", en: "Radial" },
+            rotationTangent: { ja: "パスに沿う（接線）", en: "Follow Path (Tangent)" },
             rotationRandom: { ja: "ランダム", en: "Random" },
             rotationAngle: { ja: "角度指定", en: "Angle" },
-            orderCurrent: { ja: "正順", en: "Current" },
+            orderForward: { ja: "正順", en: "Forward" },
             orderReverse: { ja: "逆順", en: "Reverse" },
             orderRandom: { ja: "ランダム", en: "Random" },
-            spacingEven: { ja: "均等（現状）", en: "Even (Current)" },
+            spacingEven: { ja: "均等", en: "Even" },
             spacingRandom: { ja: "ランダム", en: "Random" }
         },
         tooltip: {
-            basePathRule: { ja: "選択の中から、どれを基準のパス（B）とみなすかを決めます。", en: "Which of the selected paths is treated as the base path (B)." },
+            basePathPick: { ja: "選択の中から、どれを基準のパス（B）とみなすかを決めます。", en: "Which of the selected paths is treated as the base path (B)." },
             autoLargest: {
                 ja: "面積が最も大きいパスを基準にします。開いたパスは外接矩形の面積で比べます。",
                 en: "Uses the path with the largest area. Open paths are compared by their bounding box."
@@ -1121,19 +1157,19 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
                 en: "When on, each object is multiplied up to the Count before arranging. Starts on when exactly two objects are selected."
             },
             duplicateCount: {
-                ja: "選択したオブジェクトを複製して数を増やしてから配置します。1 なら複製しません。",
-                en: "Duplicates the selection to this many copies before arranging. 1 means no duplication."
+                ja: "それぞれのオブジェクトを、元を含めてこの数（%1〜%2）にしてから配置します。",
+                en: "Each object is multiplied to this many, original included (%1-%2), before arranging."
             },
             rotation: { ja: "配置したオブジェクトの向きの決め方です。", en: "How each placed object is rotated." },
             rotationNone: {
-                ja: "オブジェクトの向きを変えません（［反転］がオンなら 180° 回転します）。",
-                en: "Keeps each object's current rotation (turns it 180° when Flip is on)."
+                ja: "オブジェクトの向きを変えません（［180°回転］がオンなら 180° 回転します）。",
+                en: "Keeps each object's current rotation (turns it 180° when Rotate 180° is on)."
             },
-            rotationPerpendicular: {
+            rotationRadial: {
                 ja: "基準パスの中心から放射状に、外向きに立つよう回転します。",
                 en: "Rotates each object to stand outward, radiating from the center of the base path."
             },
-            rotationPathPerpendicular: {
+            rotationTangent: {
                 ja: "パスの進む向き（接線）に合わせて回転します。",
                 en: "Rotates each object to follow the direction of the path (its tangent)."
             },
@@ -1144,13 +1180,17 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             rotationAngle: { ja: "「角度指定」を選んだときに適用する角度です。", en: "The angle applied when Angle is selected." },
             rotationFlip180: { ja: "回転に 180° を加えて、向きを反対にします。", en: "Adds 180° to the rotation to turn each object around." },
             order: { ja: "オブジェクトをパスに沿って並べる順序です。", en: "The order the objects are laid along the path." },
-            orderCurrent: {
+            orderForward: {
                 ja: "重ね順で前面にあるものから、パスの始点側に並べます。",
                 en: "Lays the objects from the start of the path in stacking order, frontmost first."
             },
             orderReverse: {
                 ja: "重ね順で背面にあるものから、パスの始点側に並べます。",
                 en: "Lays the objects from the start of the path in stacking order, backmost first."
+            },
+            orderRandom: {
+                ja: "ランダムな順に並べます。［OK］では、最後のプレビューと同じ順で配置します。",
+                en: "Lays the objects in random order. OK keeps the order of the latest preview."
             },
             spacing: { ja: "パス上に配置する間隔の決め方です。", en: "How the objects are spaced along the path." },
             spacingEven: { ja: "パスに沿って等間隔に配置します。", en: "Places the objects at equal intervals along the path." },
@@ -1404,17 +1444,12 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
     }
 
     /**
-     * 外接矩形の面積を返す（線幅を含む visibleBounds を優先）
-     * @param {PageItem} pageItem - 対象
+     * 外接矩形の面積を返す（線幅を含む visibleBounds で測る）
+     * @param {PathItem} pathItem - 対象のパス
      * @returns {number} 面積
      */
-    function getBoundsArea(pageItem) {
-        var bounds = null;
-        try { bounds = pageItem.visibleBounds; } catch (e) { bounds = null; }
-        if (!bounds) {
-            try { bounds = pageItem.geometricBounds; } catch (e) { bounds = null; }
-        }
-        if (!bounds || bounds.length < 4) return 0;
+    function getBoundsArea(pathItem) {
+        var bounds = pathItem.visibleBounds;
         var width = Math.abs(bounds[2] - bounds[0]);
         var height = Math.abs(bounds[1] - bounds[3]);
         return width * height;
@@ -1433,20 +1468,10 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             var candidate = selectionItems[i];
             if (!isPathItem(candidate)) continue;
 
-            var area = null;
-            if (!candidate.closed) {
-                area = getBoundsArea(candidate);
-            } else {
-                /* 閉じたパスは area（向きで負になる）を使う / Closed paths use area, which can be negative */
-                try {
-                    area = Math.abs(candidate.area);
-                } catch (e) {
-                    area = null;
-                }
-                if (area === null || area === undefined || isNaN(area) || area <= 0) {
-                    area = getBoundsArea(candidate);
-                }
-            }
+            /* 閉じたパスは area（向きで負になる）を使い、0 なら開いたパスと同じく外接矩形で比べる
+               Closed paths use area (negative by direction); zero falls back to the bounding box like open paths */
+            var area = candidate.closed ? Math.abs(candidate.area) : 0;
+            if (!(area > 0)) area = getBoundsArea(candidate);
 
             if (largestArea === null || area > largestArea) {
                 largestArea = area;
@@ -1518,7 +1543,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
      * @param {number} t - 媒介変数（0〜1）
      * @returns {{x: number, y: number}} 曲線上の点
      */
-    function cubicBezier(startPoint, control1, control2, endPoint, t) {
+    function pointOnCubicBezier(startPoint, control1, control2, endPoint, t) {
         var mt = 1 - t;
         var mt2 = mt * mt;
         var t2 = t * t;
@@ -1562,7 +1587,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             for (var s = 0; s <= samplesPerSegment; s++) {
                 /* 区間のつなぎ目は重複させない / Do not repeat the joint between segments */
                 if (i > 0 && s === 0) continue;
-                polyline.push(cubicBezier(startPoint, control1, control2, endPoint, s / samplesPerSegment));
+                polyline.push(pointOnCubicBezier(startPoint, control1, control2, endPoint, s / samplesPerSegment));
             }
         }
         return polyline;
@@ -1689,7 +1714,9 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
 
         /* 均等配置から少しだけずらす / Start from even spacing and add a little jitter */
         var evenDistances = computeEvenDistances(totalLength, itemCount, isClosed, useEndpoints);
-        var step = (itemCount <= 1) ? totalLength : (isClosed ? (totalLength / itemCount) : (useEndpoints ? (totalLength / (itemCount - 1)) : (totalLength / itemCount)));
+        var step = totalLength / itemCount;
+        if (itemCount <= 1) step = totalLength;
+        else if (!isClosed && useEndpoints) step = totalLength / (itemCount - 1);
         var jitter = step * jitterRatio;
 
         var distances = [];
@@ -1729,13 +1756,11 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
      * @returns {number} 角度（度）。matrix を持たないオブジェクトは 0
      */
     function getItemRotationDeg(pageItem) {
-        try {
-            var itemMatrix = pageItem.matrix;
-            return Math.atan2(itemMatrix.mValueB, itemMatrix.mValueA) * 180 / Math.PI;
-        } catch (e) {
-            /* matrix を持つのは配置画像・ラスター・テキストなどだけ / only some item types have a matrix */
-            return 0;
-        }
+        /* matrix を持つのは配置画像・ラスター・テキストなどだけ。ほかは例外にならず undefined
+           Only placed images, rasters, text and the like have a matrix; others return undefined */
+        var itemMatrix = pageItem.matrix;
+        if (!itemMatrix) return 0;
+        return Math.atan2(itemMatrix.mValueB, itemMatrix.mValueA) * 180 / Math.PI;
     }
 
     /**
@@ -1769,10 +1794,8 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
      * @returns {void}
      */
     function clearFillAndStroke(pathItem) {
-        try {
-            pathItem.filled = false;
-            pathItem.stroked = false;
-        } catch (e) { }
+        pathItem.filled = false;
+        pathItem.stroked = false;
     }
 
     /**
@@ -1792,18 +1815,32 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             rotateItemSafely(pageItem, (rotationSettings.angle || 0) + flipAngle);
         } else if (mode === "random") {
             rotateItemSafely(pageItem, (Math.random() * 360) - 180 + flipAngle);
-        } else if (mode === "perp") {
+        } else if (mode === "radial") {
             /* 基準パスの中心から外向きに立てる / Stand outward from the center of the base path */
             var itemCenter = getItemCenter(pageItem);
             var outwardDeg = Math.atan2(itemCenter.y - baseCenter.y, itemCenter.x - baseCenter.x) * 180 / Math.PI + 270;
             rotateItemToDeg(pageItem, outwardDeg + flipAngle);
-        } else if (mode === "path_perp") {
+        } else if (mode === "tangent") {
             /* パスの接線方向に合わせる / Follow the path tangent */
             var tangentDeg = tangentDegAtDistance(pathGeometry.polyline, pathGeometry.cumulativeLengths, distance, pathGeometry.isClosed);
             rotateItemToDeg(pageItem, tangentDeg + flipAngle);
         } else if (flipAngle !== 0) {
-            /* 「正立」でも反転は効かせる / Flip still applies in Upright mode */
+            /* 「正立」でも［180°回転］は効かせる / Rotate 180° still applies in Upright mode */
             rotateItemSafely(pageItem, flipAngle);
+        }
+    }
+
+    /**
+     * ［境界線を隠す／表示］を切り替える
+     * @returns {boolean} 切り替えたら true
+     */
+    function toggleEdges() {
+        /* メニューコマンドが使えない状態がある / The menu command may be unavailable */
+        try {
+            app.executeMenuCommand("edge");
+            return true;
+        } catch (e) {
+            return false;
         }
     }
 
@@ -1816,6 +1853,10 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
      * @returns {void}
      */
     function main() {
+        /* 同じ警告の出し直しを防ぐ。最初の確認より前に用意する / Prevent repeated alerts; set up before the first check */
+        var alertLastTimeByKey = {};
+        var alertLastSignatureByKey = {};
+
         if (app.documents.length === 0) {
             showDedupedAlert("alert.noDocument");
             return;
@@ -1835,7 +1876,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
 
         /* プレビューの状態 / Preview state */
         var previewLayer = null;
-        var previewSelectionSnapshot = null;   /* 元を隠して選択が外れても作り直せるように控える / kept for rebuilds while originals are hidden */
+        var previewSelectionSnapshot = null;   /* 最初のプレビューの時点の選択。モーダルの間は選択が変わらないので、作り直しにも使う / selection at the first preview; it cannot change while the dialog is modal */
         var previewHiddenEntries = [];         /* { item, wasHidden } */
 
         /* ランダムの結果を控え、OK でプレビューと同じ結果にする / Keep random results so OK matches the latest preview */
@@ -1843,34 +1884,34 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         var lastRandomSpacing = null;          /* { totalLength: number, distances: number[] } */
         var lastShuffleSeed = null;            /* { seed: number, itemCount: number, duplicateCount: number } 複製込みのランダム順 */
 
-        /* 警告の多重表示を防ぐ / Prevent stacked or repeated alerts */
-        var alertLocked = false;
-        var alertLastTimeByKey = {};
-        var alertLastSignatureByKey = {};
-
         /* ダイアログのコントロール（buildDialog で作る）/ Dialog controls, created in buildDialog() */
-        var rbAutoLargest, rbFrontmost, rbBackmost;
-        var rbBasePathKeep, rbBasePathHide, rbBasePathDelete;
-        var cbDuplicateEnabled, etDuplicateCount, sldDuplicateCount;
-        var rbRotNone, rbRotPerp, rbRotPathPerp, rbRotRandom, rbRotAngle, etRotAngle, cbRotFlip180;
-        var rbOrderCurrent, rbOrderReverse, rbOrderRandom;
-        var rbSpacingEven, rbSpacingRandom, sldSpacingJitter;
-        var cbGroupPlaced, cbAllRandom, cbPreview;
+        var autoLargestRadio, frontmostRadio, backmostRadio;
+        var keepBasePathRadio, hideBasePathRadio, deleteBasePathRadio;
+        var duplicateCheckbox, duplicateCountInput, duplicateCountSlider;
+        var rotationUprightRadio, rotationRadialRadio, rotationTangentRadio, rotationRandomRadio, rotationAngleRadio, rotationAngleInput, rotationFlipCheckbox;
+        var orderForwardRadio, orderReverseRadio, orderRandomRadio;
+        var spacingEvenRadio, spacingRandomRadio, spacingJitterSlider;
+        var groupPlacedCheckbox, allRandomCheckbox, previewCheckbox;
 
-        var arrangeDialog = buildDialog();
-        bindDialogEvents();
-        updateDuplicateUI();
-        updateRotationUI();
-        updateSpacingUI();
+        /* 実行中は境界線を隠し、終わったら（キャンセル・エラーでも）元に戻す / Hide edges while running and restore them afterwards, even on Cancel or an error */
+        var isEdgeToggled = toggleEdges();
+        try {
+            var arrangeDialog = buildDialog();
+            bindDialogEvents();
+            updateDuplicateUI();
+            updateRotationUI();
+            updateSpacingUI();
 
-        prepareDialogWindow(arrangeDialog, SCRIPT_NAME);
-        var dialogResult = arrangeDialog.show();
+            prepareDialogWindow(arrangeDialog, SCRIPT_NAME);
+            var dialogResult = arrangeDialog.show();
 
-        /* 閉じたらプレビューを片付ける / Clean up the preview on close */
-        clearPreview();
+            /* 閉じたらプレビューを片付ける / Clean up the preview on close */
+            clearPreview();
 
-        if (dialogResult !== 1) return;
-        applyArrangement();
+            if (dialogResult === 1) applyArrangement();
+        } finally {
+            if (isEdgeToggled) toggleEdges();
+        }
 
         // -----------------------------------------
         // 警告 / Alerts
@@ -1881,25 +1922,26 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
          * @returns {string} 要約
          */
         function getSelectionSignature() {
-            try {
-                var selectionItems = doc && doc.selection ? doc.selection : null;
-                if (!selectionItems || selectionItems.length === 0) return "sel:0";
-                var countsByType = {};
-                for (var i = 0; i < selectionItems.length; i++) {
-                    var typeName = (selectionItems[i] && selectionItems[i].typename) ? selectionItems[i].typename : "?";
-                    countsByType[typeName] = (countsByType[typeName] || 0) + 1;
-                }
-                var signatureParts = ["sel:" + selectionItems.length];
-                for (var typeKey in countsByType) {
-                    if (countsByType.hasOwnProperty(typeKey)) signatureParts.push(typeKey + ":" + countsByType[typeKey]);
-                }
-                /* 基準パスの規則（自動／最前面／最背面）も含める / Include the base path rule */
-                var ruleName = (rbAutoLargest && rbAutoLargest.value) ? "auto" : ((rbFrontmost && rbFrontmost.value) ? "front" : "back");
-                signatureParts.push("rule:" + ruleName);
-                return signatureParts.join("|");
-            } catch (e) {
-                return "sel:?";
+            if (!doc) return "doc:0"; /* ドキュメントが無いときの警告では doc がまだ無い / doc is unset for the no-document alert */
+            var selectionItems = doc.selection;
+            if (!selectionItems || selectionItems.length === 0) return "sel:0";
+            var countsByType = {};
+            for (var i = 0; i < selectionItems.length; i++) {
+                /* 文字の選択（TextRange）は [i] が無い / a TextRange selection has no [i] */
+                var typeName = (selectionItems[i] && selectionItems[i].typename) ? selectionItems[i].typename : "?";
+                countsByType[typeName] = (countsByType[typeName] || 0) + 1;
             }
+            var signatureParts = ["sel:" + selectionItems.length];
+            for (var typeKey in countsByType) {
+                if (countsByType.hasOwnProperty(typeKey)) signatureParts.push(typeKey + ":" + countsByType[typeKey]);
+            }
+            /* 基準パスの選び方も含める。ダイアログを作る前はまだ無い / Include how the base path is picked; absent before the dialog exists */
+            var pickName = "back";
+            if (!autoLargestRadio) pickName = "none";
+            else if (autoLargestRadio.value) pickName = "auto";
+            else if (frontmostRadio.value) pickName = "front";
+            signatureParts.push("pick:" + pickName);
+            return signatureParts.join("|");
         }
 
         /**
@@ -1908,8 +1950,6 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
          * @returns {void}
          */
         function showDedupedAlert(labelPath) {
-            if (alertLocked) return;
-
             var now = new Date().getTime();
             var lastTime = alertLastTimeByKey[labelPath] || 0;
             var signature = getSelectionSignature();
@@ -1920,9 +1960,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             alertLastTimeByKey[labelPath] = now;
             alertLastSignatureByKey[labelPath] = signature;
 
-            alertLocked = true;
             alert(getLabel(labelPath));
-            alertLocked = false;
         }
 
         // -----------------------------------------
@@ -1946,7 +1984,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             var leftColumn = addColumn(columnsGroup);
             var rightColumn = addColumn(columnsGroup);
 
-            addTargetPathPanel(leftColumn);
+            addBasePathPanel(leftColumn);
 
             var placeObjectsPanel = addOptionPanel(rightColumn, "panel.placeObjects");
             addDuplicatePanel(placeObjectsPanel);
@@ -1957,16 +1995,16 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
 
             /* 下部のボタンエリア（左：プレビュー、右：キャンセル／OK）/ Button row (left: Preview, right: Cancel / OK) */
             var buttonRow = addButtonRow(arrangeDialog);
-            cbPreview = buttonRow.leftGroup.add("checkbox", undefined, getLabel("checkbox.preview"));
-            cbPreview.helpTip = getLabel("tooltip.preview");
-            cbPreview.value = false;
+            previewCheckbox = buttonRow.leftGroup.add("checkbox", undefined, getLabel("checkbox.preview"));
+            previewCheckbox.helpTip = getLabel("tooltip.preview");
+            previewCheckbox.value = false;
 
-            var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
-            var btnOK = buttonRow.rightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+            var cancelButton = buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+            var okButton = buttonRow.rightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
 
             alignRightOnlyButtonRow(buttonRow);
             /* キャンセルで必ず閉じる / Always close on Cancel */
-            btnCancel.onClick = function () {
+            cancelButton.onClick = function () {
                 arrangeDialog.close(0);
             };
             return arrangeDialog;
@@ -1977,25 +2015,25 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
          * @param {Group} parentColumn - 追加先のカラム
          * @returns {void}
          */
-        function addTargetPathPanel(parentColumn) {
-            var targetPathPanel = addOptionPanel(parentColumn, "panel.targetPath");
+        function addBasePathPanel(parentColumn) {
+            var basePathPanel = addOptionPanel(parentColumn, "panel.basePath");
 
             /* 基準にするパス / Which path is the base */
-            var basePathRulePanel = addOptionPanel(targetPathPanel, "panel.basePathRule", 6);
-            basePathRulePanel.helpTip = getLabel("tooltip.basePathRule");
-            rbAutoLargest = basePathRulePanel.add("radiobutton", undefined, getLabel("radio.autoLargest"));
-            rbAutoLargest.helpTip = getLabel("tooltip.autoLargest");
-            rbFrontmost = basePathRulePanel.add("radiobutton", undefined, getLabel("radio.frontmost"));
-            rbBackmost = basePathRulePanel.add("radiobutton", undefined, getLabel("radio.backmost"));
-            rbAutoLargest.value = true;
+            var basePathPickPanel = addOptionPanel(basePathPanel, "panel.basePathPick", 6);
+            basePathPickPanel.helpTip = getLabel("tooltip.basePathPick");
+            autoLargestRadio = basePathPickPanel.add("radiobutton", undefined, getLabel("radio.autoLargest"));
+            autoLargestRadio.helpTip = getLabel("tooltip.autoLargest");
+            frontmostRadio = basePathPickPanel.add("radiobutton", undefined, getLabel("radio.frontmost"));
+            backmostRadio = basePathPickPanel.add("radiobutton", undefined, getLabel("radio.backmost"));
+            autoLargestRadio.value = true;
 
             /* 基準パスの扱い / What to do with the base path */
-            var basePathHandlingPanel = addOptionPanel(targetPathPanel, "panel.basePathHandling", 6);
+            var basePathHandlingPanel = addOptionPanel(basePathPanel, "panel.basePathHandling", 6);
             basePathHandlingPanel.helpTip = getLabel("tooltip.basePathHandling");
-            rbBasePathKeep = basePathHandlingPanel.add("radiobutton", undefined, getLabel("radio.basePathModeNone"));
-            rbBasePathHide = basePathHandlingPanel.add("radiobutton", undefined, getLabel("radio.basePathModeHide"));
-            rbBasePathDelete = basePathHandlingPanel.add("radiobutton", undefined, getLabel("radio.basePathModeDelete"));
-            rbBasePathHide.value = true;
+            keepBasePathRadio = basePathHandlingPanel.add("radiobutton", undefined, getLabel("radio.basePathModeNone"));
+            hideBasePathRadio = basePathHandlingPanel.add("radiobutton", undefined, getLabel("radio.basePathModeHide"));
+            deleteBasePathRadio = basePathHandlingPanel.add("radiobutton", undefined, getLabel("radio.basePathModeDelete"));
+            hideBasePathRadio.value = true;
         }
 
         /**
@@ -2004,45 +2042,37 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
          * @returns {void}
          */
         function addDuplicatePanel(parentPanel) {
+            var duplicateCountTip = getLabel("tooltip.duplicateCount", [DUPLICATE_COUNT_MIN, DUPLICATE_COUNT_MAX]);
             var duplicatePanel = addOptionPanel(parentPanel, "panel.duplicate");
-            duplicatePanel.helpTip = getLabel("tooltip.duplicateCount");
+            duplicatePanel.helpTip = duplicateCountTip;
 
             var duplicateCountRow = duplicatePanel.add("group");
             duplicateCountRow.orientation = "row";
             duplicateCountRow.alignChildren = ["left", "center"];
             duplicateCountRow.spacing = 10;
 
-            cbDuplicateEnabled = duplicateCountRow.add("checkbox", undefined, "");
+            duplicateCheckbox = duplicateCountRow.add("checkbox", undefined, "");
             /* 選択がちょうど2つのときだけ最初からオン / On by default only when exactly two objects are selected */
-            cbDuplicateEnabled.value = (initialSelection.length === 2);
-            cbDuplicateEnabled.preferredSize.width = 18;
-            cbDuplicateEnabled.helpTip = getLabel("tooltip.duplicateEnabled");
+            duplicateCheckbox.value = (initialSelection.length === 2);
+            duplicateCheckbox.preferredSize.width = 18;
+            duplicateCheckbox.helpTip = getLabel("tooltip.duplicateEnabled");
 
-            duplicateCountRow.add("statictext", undefined, getLabel("fieldLabel.duplicateCount"));
-            /* ∧∨と入力欄は隙間0で突き合わせる / butt the stepper against the field */
-            var duplicateCountFieldGroup = duplicateCountRow.add("group");
-            duplicateCountFieldGroup.orientation = "row";
-            duplicateCountFieldGroup.alignChildren = ["left", "center"];
-            duplicateCountFieldGroup.spacing = 0;
-            duplicateCountFieldGroup.margins = 0;
             /* 増減後は onChange で範囲に収めてスライダーとプレビューをそろえる / onChange syncs the slider and preview */
-            var duplicateCountStepper = addStepper(duplicateCountFieldGroup, function () { return etDuplicateCount; }, {
+            duplicateCountInput = addSteppedField(duplicateCountRow, {
+                label: labelText("fieldLabel.duplicateCount"),
+                text: String(DUPLICATE_COUNT_MIN), characters: 4,
                 integer: true, min: DUPLICATE_COUNT_MIN, max: DUPLICATE_COUNT_MAX,
                 onStep: function (numberInput) { numberInput.onChange(); }
             });
-            etDuplicateCount = duplicateCountFieldGroup.add("edittext", undefined, String(DUPLICATE_COUNT_MIN));
-            etDuplicateCount.helpTip = getLabel("tooltip.duplicateCount");
-            etDuplicateCount.characters = 4;
-            etDuplicateCount.stepperGroup = duplicateCountStepper;
-            bindSteppedArrowKeys(etDuplicateCount, duplicateCountStepper);
+            duplicateCountInput.helpTip = duplicateCountTip;
 
             var duplicateSliderRow = duplicatePanel.add("group");
             duplicateSliderRow.orientation = "row";
             duplicateSliderRow.alignChildren = ["left", "center"];
 
-            sldDuplicateCount = duplicateSliderRow.add("slider", undefined, DUPLICATE_COUNT_MIN, DUPLICATE_COUNT_MIN, DUPLICATE_COUNT_MAX);
-            sldDuplicateCount.preferredSize.width = SLIDER_WIDTH;
-            sldDuplicateCount.helpTip = getLabel("tooltip.duplicateCount");
+            duplicateCountSlider = duplicateSliderRow.add("slider", undefined, DUPLICATE_COUNT_MIN, DUPLICATE_COUNT_MIN, DUPLICATE_COUNT_MAX);
+            duplicateCountSlider.preferredSize.width = SLIDER_WIDTH;
+            duplicateCountSlider.helpTip = duplicateCountTip;
         }
 
         /**
@@ -2059,15 +2089,15 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             rotationRadioGroup.orientation = "column";
             rotationRadioGroup.alignChildren = "left";
 
-            rbRotNone = rotationRadioGroup.add("radiobutton", undefined, getLabel("radio.rotationNone"));
-            rbRotPerp = rotationRadioGroup.add("radiobutton", undefined, getLabel("radio.rotationPerpendicular"));
-            rbRotPerp.helpTip = getLabel("tooltip.rotationPerpendicular");
-            rbRotPathPerp = rotationRadioGroup.add("radiobutton", undefined, getLabel("radio.rotationPathPerpendicular"));
-            rbRotPathPerp.helpTip = getLabel("tooltip.rotationPathPerpendicular");
-            rbRotRandom = rotationRadioGroup.add("radiobutton", undefined, getLabel("radio.rotationRandom"));
-            rbRotRandom.helpTip = getLabel("tooltip.rotationRandom");
-            rbRotNone.helpTip = getLabel("tooltip.rotationNone");
-            rbRotNone.value = true;
+            rotationUprightRadio = rotationRadioGroup.add("radiobutton", undefined, getLabel("radio.rotationNone"));
+            rotationRadialRadio = rotationRadioGroup.add("radiobutton", undefined, getLabel("radio.rotationRadial"));
+            rotationRadialRadio.helpTip = getLabel("tooltip.rotationRadial");
+            rotationTangentRadio = rotationRadioGroup.add("radiobutton", undefined, getLabel("radio.rotationTangent"));
+            rotationTangentRadio.helpTip = getLabel("tooltip.rotationTangent");
+            rotationRandomRadio = rotationRadioGroup.add("radiobutton", undefined, getLabel("radio.rotationRandom"));
+            rotationRandomRadio.helpTip = getLabel("tooltip.rotationRandom");
+            rotationUprightRadio.helpTip = getLabel("tooltip.rotationNone");
+            rotationUprightRadio.value = true;
 
             /* 角度指定（1行）/ Angle on one row */
             var rotationAngleRow = rotationRadioGroup.add("group");
@@ -2075,7 +2105,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             rotationAngleRow.alignChildren = ["left", "center"];
             rotationAngleRow.spacing = 6;
 
-            rbRotAngle = rotationAngleRow.add("radiobutton", undefined, getLabel("radio.rotationAngle"));
+            rotationAngleRadio = rotationAngleRow.add("radiobutton", undefined, getLabel("radio.rotationAngle"));
             /* ∧∨と入力欄は隙間0で突き合わせる / butt the stepper against the field */
             var rotationAngleFieldGroup = rotationAngleRow.add("group");
             rotationAngleFieldGroup.orientation = "row";
@@ -2083,19 +2113,18 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             rotationAngleFieldGroup.spacing = 0;
             rotationAngleFieldGroup.margins = 0;
             /* 増減後は onChange で「角度指定」にしてプレビューを作り直す / onChange selects Angle mode and rebuilds the preview */
-            var rotationAngleStepper = addStepper(rotationAngleFieldGroup, function () { return etRotAngle; }, {
+            var rotationAngleStepper = addStepper(rotationAngleFieldGroup, function () { return rotationAngleInput; }, {
                 onStep: function (numberInput) { numberInput.onChange(); }
             });
-            etRotAngle = rotationAngleFieldGroup.add("edittext", undefined, "0");
-            etRotAngle.helpTip = getLabel("tooltip.rotationAngle");
-            etRotAngle.characters = 3;
-            etRotAngle.stepperGroup = rotationAngleStepper;
-            bindSteppedArrowKeys(etRotAngle, rotationAngleStepper);
+            rotationAngleInput = rotationAngleFieldGroup.add("edittext", undefined, "0");
+            rotationAngleInput.helpTip = getLabel("tooltip.rotationAngle");
+            rotationAngleInput.characters = 3;
+            bindSteppedArrowKeys(rotationAngleInput, rotationAngleStepper);
             rotationAngleRow.add("statictext", undefined, "°");
 
-            cbRotFlip180 = rotationPanel.add("checkbox", undefined, getLabel("checkbox.rotationFlip180"));
-            cbRotFlip180.helpTip = getLabel("tooltip.rotationFlip180");
-            cbRotFlip180.value = false;
+            rotationFlipCheckbox = rotationPanel.add("checkbox", undefined, getLabel("checkbox.rotationFlip180"));
+            rotationFlipCheckbox.helpTip = getLabel("tooltip.rotationFlip180");
+            rotationFlipCheckbox.value = false;
         }
 
         /**
@@ -2110,12 +2139,13 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             orderPanel.orientation = "row";
             orderPanel.alignChildren = ["left", "center"];
 
-            rbOrderCurrent = orderPanel.add("radiobutton", undefined, getLabel("radio.orderCurrent"));
-            rbOrderCurrent.helpTip = getLabel("tooltip.orderCurrent");
-            rbOrderReverse = orderPanel.add("radiobutton", undefined, getLabel("radio.orderReverse"));
-            rbOrderReverse.helpTip = getLabel("tooltip.orderReverse");
-            rbOrderRandom = orderPanel.add("radiobutton", undefined, getLabel("radio.orderRandom"));
-            rbOrderCurrent.value = true;
+            orderForwardRadio = orderPanel.add("radiobutton", undefined, getLabel("radio.orderForward"));
+            orderForwardRadio.helpTip = getLabel("tooltip.orderForward");
+            orderReverseRadio = orderPanel.add("radiobutton", undefined, getLabel("radio.orderReverse"));
+            orderReverseRadio.helpTip = getLabel("tooltip.orderReverse");
+            orderRandomRadio = orderPanel.add("radiobutton", undefined, getLabel("radio.orderRandom"));
+            orderRandomRadio.helpTip = getLabel("tooltip.orderRandom");
+            orderForwardRadio.value = true;
         }
 
         /**
@@ -2132,20 +2162,20 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             spacingRadioGroup.alignChildren = ["left", "center"];
             spacingRadioGroup.spacing = 12;
 
-            rbSpacingEven = spacingRadioGroup.add("radiobutton", undefined, getLabel("radio.spacingEven"));
-            rbSpacingRandom = spacingRadioGroup.add("radiobutton", undefined, getLabel("radio.spacingRandom"));
-            rbSpacingEven.helpTip = getLabel("tooltip.spacingEven");
-            rbSpacingRandom.helpTip = getLabel("tooltip.spacingRandom");
-            rbSpacingEven.value = true;
+            spacingEvenRadio = spacingRadioGroup.add("radiobutton", undefined, getLabel("radio.spacingEven"));
+            spacingRandomRadio = spacingRadioGroup.add("radiobutton", undefined, getLabel("radio.spacingRandom"));
+            spacingEvenRadio.helpTip = getLabel("tooltip.spacingEven");
+            spacingRandomRadio.helpTip = getLabel("tooltip.spacingRandom");
+            spacingEvenRadio.value = true;
 
             /* ばらつきの強さ（「ランダム」のときだけ有効）/ Jitter strength, enabled only with Random */
             var spacingSliderRow = spacingPanel.add("group");
             spacingSliderRow.orientation = "row";
             spacingSliderRow.alignChildren = ["left", "center"];
 
-            sldSpacingJitter = spacingSliderRow.add("slider", undefined, spacingJitterRatio, 0.1, 1.0);
-            sldSpacingJitter.preferredSize.width = SLIDER_WIDTH;
-            sldSpacingJitter.helpTip = getLabel("tooltip.spacingJitter");
+            spacingJitterSlider = spacingSliderRow.add("slider", undefined, spacingJitterRatio, 0.1, 1.0);
+            spacingJitterSlider.preferredSize.width = SLIDER_WIDTH;
+            spacingJitterSlider.helpTip = getLabel("tooltip.spacingJitter");
         }
 
         /**
@@ -2166,13 +2196,13 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             groupOptionsInner.alignChildren = ["center", "center"];
             groupOptionsInner.spacing = 12;
 
-            cbGroupPlaced = groupOptionsInner.add("checkbox", undefined, getLabel("checkbox.groupPlaced"));
-            cbGroupPlaced.helpTip = getLabel("tooltip.groupPlaced");
-            cbGroupPlaced.value = true;
+            groupPlacedCheckbox = groupOptionsInner.add("checkbox", undefined, getLabel("checkbox.groupPlaced"));
+            groupPlacedCheckbox.helpTip = getLabel("tooltip.groupPlaced");
+            groupPlacedCheckbox.value = true;
 
-            cbAllRandom = groupOptionsInner.add("checkbox", undefined, getLabel("checkbox.allRandom"));
-            cbAllRandom.helpTip = getLabel("tooltip.allRandom");
-            cbAllRandom.value = false;
+            allRandomCheckbox = groupOptionsInner.add("checkbox", undefined, getLabel("checkbox.allRandom"));
+            allRandomCheckbox.helpTip = getLabel("tooltip.allRandom");
+            allRandomCheckbox.value = false;
 
             addStretchSpacer(groupOptionsRow);
         }
@@ -2184,64 +2214,66 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         function bindDialogEvents() {
             /* プレビューを作り直すだけのコントロール / Controls that only rebuild the preview */
             var previewTriggers = [
-                rbAutoLargest, rbFrontmost, rbBackmost,
-                rbBasePathKeep, rbBasePathHide, rbBasePathDelete,
-                cbRotFlip180,
-                rbOrderCurrent, rbOrderReverse, rbOrderRandom
+                autoLargestRadio, frontmostRadio, backmostRadio,
+                keepBasePathRadio, hideBasePathRadio, deleteBasePathRadio,
+                rotationFlipCheckbox,
+                orderForwardRadio, orderReverseRadio, orderRandomRadio
             ];
             for (var i = 0; i < previewTriggers.length; i++) {
                 previewTriggers[i].onClick = function () { rebuildPreviewIfNeeded(); };
             }
 
-            cbDuplicateEnabled.onClick = function () {
-                if (cbDuplicateEnabled.value) {
+            duplicateCheckbox.onClick = function () {
+                if (duplicateCheckbox.value) {
                     /* オンにしたら複製数を最小値に戻す / Reset the count when turned on */
-                    etDuplicateCount.text = String(DUPLICATE_COUNT_MIN);
-                    sldDuplicateCount.value = DUPLICATE_COUNT_MIN;
+                    duplicateCountInput.text = String(DUPLICATE_COUNT_MIN);
+                    duplicateCountSlider.value = DUPLICATE_COUNT_MIN;
                 }
                 updateDuplicateUI();
                 rebuildPreviewIfNeeded();
             };
-            sldDuplicateCount.onChanging = function () {
+            duplicateCountSlider.onChanging = function () {
                 /* ドラッグ中は数字だけ更新 / Update only the text while dragging */
-                etDuplicateCount.text = String(clampDuplicateCount(sldDuplicateCount.value));
+                duplicateCountInput.text = String(clampDuplicateCount(duplicateCountSlider.value));
             };
-            sldDuplicateCount.onChange = function () { syncDuplicateCountFromText(); };
-            etDuplicateCount.onChange = function () { syncDuplicateCountFromText(); };
+            duplicateCountSlider.onChange = function () { syncDuplicateCountFromText(); };
+            duplicateCountInput.onChange = function () { syncDuplicateCountFromText(); };
 
-            rbRotNone.onClick = function () { onRotationModeClicked("none"); };
-            rbRotPerp.onClick = function () { onRotationModeClicked("perp"); };
-            rbRotPathPerp.onClick = function () { onRotationModeClicked("path_perp"); };
-            rbRotAngle.onClick = function () { onRotationModeClicked("angle"); };
-            rbRotRandom.onClick = function () { onRotationModeClicked("random"); };
-            etRotAngle.onChange = function () {
+            rotationUprightRadio.onClick = function () { onRotationModeClicked("none"); };
+            rotationRadialRadio.onClick = function () { onRotationModeClicked("radial"); };
+            rotationTangentRadio.onClick = function () { onRotationModeClicked("tangent"); };
+            rotationAngleRadio.onClick = function () { onRotationModeClicked("angle"); };
+            rotationRandomRadio.onClick = function () { onRotationModeClicked("random"); };
+            rotationAngleInput.onChange = function () {
+                /* 数値でなければ 0 に戻す / Reset non-numbers to 0 */
+                if (isNaN(parseFloat(rotationAngleInput.text))) rotationAngleInput.text = "0";
                 /* 角度を編集したら「角度指定」にする / Editing the angle selects Angle mode */
                 setRotationMode("angle");
                 rebuildPreviewIfNeeded();
             };
 
-            rbSpacingEven.onClick = function () {
+            spacingEvenRadio.onClick = function () {
                 lastRandomSpacing = null;
                 updateSpacingUI();
                 rebuildPreviewIfNeeded();
             };
-            rbSpacingRandom.onClick = function () {
+            spacingRandomRadio.onClick = function () {
                 updateSpacingUI();
                 rebuildPreviewIfNeeded();
             };
-            sldSpacingJitter.onChanging = function () {
+            spacingJitterSlider.onChanging = function () {
                 /* ドラッグ中は値だけ更新し、プレビューは作り直さない / Update the value only; no rebuild while dragging */
-                spacingJitterRatio = clampJitterRatio(sldSpacingJitter.value);
+                spacingJitterRatio = clampJitterRatio(spacingJitterSlider.value);
             };
-            sldSpacingJitter.onChange = function () {
-                spacingJitterRatio = clampJitterRatio(sldSpacingJitter.value);
+            spacingJitterSlider.onChange = function () {
+                spacingJitterRatio = clampJitterRatio(spacingJitterSlider.value);
                 /* 新しい強さでランダム間隔を作り直す / Regenerate the random spacing with the new strength */
                 lastRandomSpacing = null;
                 rebuildPreviewIfNeeded();
             };
 
-            cbAllRandom.onClick = function () { onAllRandomClicked(); };
-            cbPreview.onClick = function () { onPreviewClicked(); };
+            allRandomCheckbox.onClick = function () { onAllRandomClicked(); };
+            previewCheckbox.onClick = function () { onPreviewClicked(); };
         }
 
         // -----------------------------------------
@@ -2253,11 +2285,9 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
          * @returns {void}
          */
         function updateDuplicateUI() {
-            var isEnabled = !!cbDuplicateEnabled.value;
-            etDuplicateCount.enabled = isEnabled;
-            etDuplicateCount.stepperGroup.enabled = isEnabled;
-            redrawSteppersIn(etDuplicateCount.stepperGroup);
-            sldDuplicateCount.enabled = isEnabled;
+            var isEnabled = !!duplicateCheckbox.value;
+            setSteppedFieldEnabled(duplicateCountInput, isEnabled);
+            duplicateCountSlider.enabled = isEnabled;
         }
 
         /**
@@ -2265,9 +2295,9 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
          * @returns {void}
          */
         function syncDuplicateCountFromText() {
-            var count = clampDuplicateCount(etDuplicateCount.text);
-            etDuplicateCount.text = String(count);
-            sldDuplicateCount.value = count;
+            var count = clampDuplicateCount(duplicateCountInput.text);
+            duplicateCountInput.text = String(count);
+            duplicateCountSlider.value = count;
             rebuildPreviewIfNeeded();
         }
 
@@ -2276,21 +2306,21 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
          * @returns {number} 複製数
          */
         function getDuplicateCount() {
-            if (!cbDuplicateEnabled.value) return 1;
-            return clampDuplicateCount(etDuplicateCount.text);
+            if (!duplicateCheckbox.value) return 1;
+            return clampDuplicateCount(duplicateCountInput.text);
         }
 
         /**
          * 回転モードのラジオを設定する（別グループのラジオも含めて排他にする）
-         * @param {string} mode - "none" / "angle" / "perp" / "path_perp" / "random"
+         * @param {string} mode - "none" / "angle" / "radial" / "tangent" / "random"
          * @returns {void}
          */
         function setRotationMode(mode) {
-            rbRotNone.value = (mode === "none");
-            rbRotAngle.value = (mode === "angle");
-            rbRotPerp.value = (mode === "perp");
-            rbRotPathPerp.value = (mode === "path_perp");
-            rbRotRandom.value = (mode === "random");
+            rotationUprightRadio.value = (mode === "none");
+            rotationAngleRadio.value = (mode === "angle");
+            rotationRadialRadio.value = (mode === "radial");
+            rotationTangentRadio.value = (mode === "tangent");
+            rotationRandomRadio.value = (mode === "random");
             updateRotationUI();
         }
 
@@ -2299,9 +2329,9 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
          * @returns {void}
          */
         function updateRotationUI() {
-            etRotAngle.enabled = !!rbRotAngle.value;
-            etRotAngle.stepperGroup.enabled = etRotAngle.enabled;
-            redrawSteppersIn(etRotAngle.stepperGroup);
+            rotationAngleInput.enabled = !!rotationAngleRadio.value;
+            rotationAngleInput.stepperGroup.enabled = rotationAngleInput.enabled;
+            redrawSteppersIn(rotationAngleInput.stepperGroup);
         }
 
         /**
@@ -2309,7 +2339,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
          * @returns {void}
          */
         function updateSpacingUI() {
-            sldSpacingJitter.enabled = !!rbSpacingRandom.value;
+            spacingJitterSlider.enabled = !!spacingRandomRadio.value;
         }
 
         /**
@@ -2318,15 +2348,15 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
          */
         function getRotationSettings() {
             var mode = "none";
-            if (rbRotAngle.value) mode = "angle";
-            else if (rbRotPerp.value) mode = "perp";
-            else if (rbRotPathPerp.value) mode = "path_perp";
-            else if (rbRotRandom.value) mode = "random";
+            if (rotationAngleRadio.value) mode = "angle";
+            else if (rotationRadialRadio.value) mode = "radial";
+            else if (rotationTangentRadio.value) mode = "tangent";
+            else if (rotationRandomRadio.value) mode = "random";
 
-            var angle = Number(etRotAngle.text);
+            var angle = parseFloat(rotationAngleInput.text);
             if (isNaN(angle)) angle = 0;
 
-            return { mode: mode, angle: angle, flip180: !!cbRotFlip180.value };
+            return { mode: mode, angle: angle, flip180: !!rotationFlipCheckbox.value };
         }
 
         /**
@@ -2334,8 +2364,8 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
          * @returns {string} "current" / "reverse" / "random"
          */
         function getOrderMode() {
-            if (rbOrderReverse.value) return "reverse";
-            if (rbOrderRandom.value) return "random";
+            if (orderReverseRadio.value) return "reverse";
+            if (orderRandomRadio.value) return "random";
             return "current";
         }
 
@@ -2344,7 +2374,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
          * @returns {string} "even" / "random"
          */
         function getSpacingMode() {
-            return rbSpacingRandom.value ? "random" : "even";
+            return spacingRandomRadio.value ? "random" : "even";
         }
 
         /**
@@ -2357,11 +2387,8 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
 
             if (mode === "angle") {
                 /* 角度指定にしたら 10° を入れ、すぐ ↑↓ で変えられるようにする / Default to 10° and focus the field so ↑↓ works right away */
-                etRotAngle.text = "10";
-                try {
-                    etRotAngle.active = true;
-                    etRotAngle.selection = [0, etRotAngle.text.length];
-                } catch (e) { /* 環境によってフォーカス／選択範囲を設定できない / focus or selection may be unsupported */ }
+                rotationAngleInput.text = "10";
+                focusNumberInput(rotationAngleInput);
             }
 
             rebuildPreviewIfNeeded();
@@ -2372,15 +2399,15 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
          * @returns {void}
          */
         function onAllRandomClicked() {
-            var isAllRandom = !!cbAllRandom.value;
+            var isAllRandom = !!allRandomCheckbox.value;
 
             setRotationMode(isAllRandom ? "random" : "none");
             if (isAllRandom) {
-                rbOrderRandom.value = true;
-                rbSpacingRandom.value = true;
+                orderRandomRadio.value = true;
+                spacingRandomRadio.value = true;
             } else {
-                rbOrderCurrent.value = true;
-                rbSpacingEven.value = true;
+                orderForwardRadio.value = true;
+                spacingEvenRadio.value = true;
             }
             updateSpacingUI();
 
@@ -2402,34 +2429,40 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
          * @returns {PathItem|null} 基準パス
          */
         function findBasePath(selectionItems) {
-            if (rbAutoLargest.value) return getLargestPathItem(selectionItems);
-            return findPathItemByStacking(selectionItems, !!rbFrontmost.value);
+            if (autoLargestRadio.value) return getLargestPathItem(selectionItems);
+            return findPathItemByStacking(selectionItems, !!frontmostRadio.value);
         }
 
         /**
-         * プレビューに使う選択を返す。元を隠して選択が外れたときは控えを使う
+         * プレビューに使う選択を返す。一度控えたら、選択の状態にかかわらず控えを使う
+         * （元を隠すと選択が外れたり、隠したグループの子だけが選択に残ったりするため）
          * @returns {Array|null} 2つ以上の選択。足りなければ null
          */
         function getPreviewSourceSelection() {
-            var sourceSelection = doc.selection;
-            if ((!sourceSelection || sourceSelection.length < 2) && previewSelectionSnapshot && previewSelectionSnapshot.length >= 2) {
-                sourceSelection = previewSelectionSnapshot;
-            }
+            var sourceSelection = previewSelectionSnapshot || doc.selection;
             if (!sourceSelection || sourceSelection.length < 2) return null;
             return sourceSelection;
         }
 
         /**
-         * プレビューを作れない理由を返す
-         * @returns {string} 警告文の LABELS パス。作れるなら空文字
+         * 選択から基準パス（B）と配置するオブジェクト（A）を決める
+         * @param {Array|null} selectionItems - 選択
+         * @returns {{problem: string, basePath: PathItem|null, placeItems: PageItem[]}} problem は決められない理由の LABELS パス（決まれば空文字）
          */
-        function findPreviewProblem() {
-            var sourceSelection = getPreviewSourceSelection();
-            if (!sourceSelection) return "alert.needSelection";
-            var basePath = findBasePath(sourceSelection);
-            if (!basePath) return "alert.noBasePath";
-            if (collectPlaceableItems(sourceSelection, basePath).length === 0) return "alert.noItems";
-            return "";
+        function resolveArrangeTargets(selectionItems) {
+            var targets = { problem: "", basePath: null, placeItems: [] };
+            if (!selectionItems || selectionItems.length < 2) {
+                targets.problem = "alert.needSelection";
+                return targets;
+            }
+            targets.basePath = findBasePath(selectionItems);
+            if (!targets.basePath) {
+                targets.problem = "alert.noBasePath";
+                return targets;
+            }
+            targets.placeItems = collectPlaceableItems(selectionItems, targets.basePath);
+            if (targets.placeItems.length === 0) targets.problem = "alert.noItems";
+            return targets;
         }
 
         /**
@@ -2439,7 +2472,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
          * @param {boolean} isPreview - プレビューか
          * @returns {PageItem[]} 並べた配列
          */
-        function applyOrderToArray(sourceItems, orderMode, isPreview) {
+        function orderArrangeItems(sourceItems, orderMode, isPreview) {
             var orderedItems = sortByStackingOrder(sourceItems);
 
             if (orderMode !== "random") {
@@ -2550,7 +2583,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             var isClosedPath = !!pathItem.closed;
             var pathGeometry = { polyline: polyline, cumulativeLengths: cumulativeLengths, isClosed: isClosedPath };
 
-            /* 「それぞれ垂直」の中心 / Center for the Perpendicular mode */
+            /* 「放射状」の中心 / Center for the Radial mode */
             var baseCenter = getItemCenter(pathItem);
 
             var distances;
@@ -2591,9 +2624,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
          */
         function restoreHiddenItems() {
             for (var i = 0; i < previewHiddenEntries.length; i++) {
-                try {
-                    previewHiddenEntries[i].item.hidden = previewHiddenEntries[i].wasHidden;
-                } catch (e) { /* 既に無いオブジェクト / the item may be gone */ }
+                previewHiddenEntries[i].item.hidden = previewHiddenEntries[i].wasHidden;
             }
             previewHiddenEntries = [];
         }
@@ -2608,10 +2639,8 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             for (var i = 0; i < previewHiddenEntries.length; i++) {
                 if (previewHiddenEntries[i].item === pageItem) return;
             }
-            var wasHidden = false;
-            try { wasHidden = !!pageItem.hidden; } catch (e) { wasHidden = false; }
-            previewHiddenEntries.push({ item: pageItem, wasHidden: wasHidden });
-            try { pageItem.hidden = true; } catch (e) { }
+            previewHiddenEntries.push({ item: pageItem, wasHidden: !!pageItem.hidden });
+            pageItem.hidden = true;
         }
 
         /**
@@ -2619,33 +2648,14 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
          * @returns {void}
          */
         function clearPreview() {
-            if (previewLayer) {
-                try {
-                    previewLayer.locked = false;
-                    previewLayer.remove();
-                } catch (e) { /* 既に消えている / already gone */ }
-            }
+            if (previewLayer) previewLayer.remove();
             previewLayer = null;
             restoreHiddenItems();
 
-            /* 元を隠したときに選択が外れていたら戻す / Restore the selection if hiding the originals dropped it */
-            try {
-                var currentSelection = doc.selection;
-                if ((!currentSelection || currentSelection.length === 0) && previewSelectionSnapshot && previewSelectionSnapshot.length) {
-                    doc.selection = previewSelectionSnapshot;
-                }
-            } catch (e) { }
+            /* 元を表示に戻してから、控えた選択に戻す（隠している間は選択できない） / Restore the saved selection once the originals are visible again */
+            if (previewSelectionSnapshot) doc.selection = previewSelectionSnapshot;
 
             app.redraw();
-        }
-
-        /**
-         * 作りかけのプレビュー用レイヤーを捨てる
-         * @returns {void}
-         */
-        function discardPreviewLayer() {
-            try { previewLayer.remove(); } catch (e) { }
-            previewLayer = null;
         }
 
         /**
@@ -2659,9 +2669,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             var duplicatedItems = [];
             for (var i = 0; i < sourceItems.length; i++) {
                 for (var copyIndex = 0; copyIndex < duplicateCount; copyIndex++) {
-                    try {
-                        duplicatedItems.push(sourceItems[i].duplicate(targetGroup, ElementPlacement.PLACEATEND));
-                    } catch (e) { /* 複製できないものは飛ばす / skip items that cannot be duplicated */ }
+                    duplicatedItems.push(sourceItems[i].duplicate(targetGroup, ElementPlacement.PLACEATEND));
                 }
             }
             return duplicatedItems;
@@ -2678,39 +2686,26 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             if (!sourceSelection) return false;
             previewSelectionSnapshot = copyArray(sourceSelection);
 
-            var basePath = findBasePath(sourceSelection);
-            if (!basePath) return false;
-
-            var sourceItems = collectPlaceableItems(sourceSelection, basePath);
-            if (sourceItems.length === 0) return false;
+            var targets = resolveArrangeTargets(sourceSelection);
+            if (targets.problem) return false;
+            var basePath = targets.basePath;
+            var sourceItems = targets.placeItems;
 
             var orderMode = getOrderMode();
-            var orderedSourceItems = applyOrderToArray(sourceItems, orderMode, true);
+            var orderedSourceItems = orderArrangeItems(sourceItems, orderMode, true);
             var duplicateCount = getDuplicateCount();
 
             /* プレビュー用レイヤーを最前面に作る / Create the preview layer on top */
-            try {
-                previewLayer = doc.layers.add();
-                previewLayer.name = PREVIEW_LAYER_NAME;
-            } catch (e) {
-                previewLayer = null;
-                return false;
-            }
+            previewLayer = doc.layers.add();
+            previewLayer.name = PREVIEW_LAYER_NAME;
 
             /* 形状の計算用に基準パスを複製 / Duplicate the base path for the geometry */
-            var previewGroup = null;
-            var previewPath = null;
-            try {
-                previewGroup = previewLayer.groupItems.add();
-                previewGroup.name = "Preview_ArrangedAlongPath";
-                previewPath = basePath.duplicate(previewGroup, ElementPlacement.PLACEATBEGINNING);
-            } catch (e) {
-                discardPreviewLayer();
-                return false;
-            }
+            var previewGroup = previewLayer.groupItems.add();
+            previewGroup.name = "Preview_ArrangedAlongPath";
+            var previewPath = basePath.duplicate(previewGroup, ElementPlacement.PLACEATBEGINNING);
 
             /* 「塗り／線」なしはプレビュー側だけに反映 / Apply "no fill / no stroke" to the preview copy only */
-            if (rbBasePathHide.value) clearFillAndStroke(previewPath);
+            if (hideBasePathRadio.value) clearFillAndStroke(previewPath);
 
             var previewItems = duplicateIntoGroup(orderedSourceItems, previewGroup, duplicateCount);
             if (previewItems.length === 0) {
@@ -2732,16 +2727,14 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             }
 
             /* 「削除」なら配置後にプレビューのパスを消す / With Delete, remove the preview path after arranging */
-            if (rbBasePathDelete.value) {
-                try { previewPath.remove(); } catch (e) { }
-            }
+            if (deleteBasePathRadio.value) previewPath.remove();
 
             /* プレビュー中は元のオブジェクトを隠す / Hide the originals while previewing */
             hideForPreview(basePath);
             for (var h = 0; h < sourceItems.length; h++) hideForPreview(sourceItems[h]);
 
-            /* 選択を戻す（複製で変わることがある）/ Restore the selection, which duplication may change */
-            try { doc.selection = previewSelectionSnapshot; } catch (e) { }
+            /* 選択は戻さない。隠したオブジェクトは選択できず、隠したグループの子だけが選択に残ることがある。clearPreview() で戻す
+               Leave the selection alone: hidden art cannot be selected and may leave a hidden group's children selected; clearPreview() restores it */
             app.redraw();
 
             return true;
@@ -2752,13 +2745,13 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
          * @returns {void}
          */
         function rebuildPreviewIfNeeded() {
-            if (!cbPreview.value) return;
+            if (!previewCheckbox.value) return;
             var isBuilt = false;
             try {
                 isBuilt = buildPreview();
             } catch (e) { /* 想定外の DOM エラーでもダイアログは閉じない / keep the dialog alive on unexpected DOM errors */ }
             if (!isBuilt) {
-                cbPreview.value = false;
+                previewCheckbox.value = false;
                 clearPreview();
             }
         }
@@ -2768,15 +2761,15 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
          * @returns {void}
          */
         function onPreviewClicked() {
-            if (!cbPreview.value) {
+            if (!previewCheckbox.value) {
                 clearPreview();
                 return;
             }
 
-            var problemPath = findPreviewProblem();
+            var problemPath = resolveArrangeTargets(getPreviewSourceSelection()).problem;
             if (problemPath) {
                 showDedupedAlert(problemPath);
-                cbPreview.value = false;
+                previewCheckbox.value = false;
                 clearPreview();
                 return;
             }
@@ -2793,40 +2786,22 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
          * @returns {void}
          */
         function applyArrangement() {
-            /* OK の時点の選択を取り直す / Re-read the selection at OK time */
+            /* プレビューを片付けたあとの選択（プレビューを作っていれば控えに戻してある） / Selection after the preview is cleared; restored from the snapshot if a preview was built */
             var currentSelection = doc.selection;
 
-            if (!currentSelection || currentSelection.length < 2) {
-                /* プレビュー中に選択が外れていたら控えから戻す / Fall back to the snapshot if the preview dropped the selection */
-                if (previewSelectionSnapshot && previewSelectionSnapshot.length >= 2) {
-                    try { doc.selection = previewSelectionSnapshot; } catch (e) { }
-                    try { currentSelection = doc.selection; } catch (e) { }
-                }
-            }
-
-            if (!currentSelection || currentSelection.length < 2) {
-                showDedupedAlert("alert.needSelection");
+            /* B = 選び方で決まる基準パス、A = それ以外で配置できるもの / B = base path by the chosen rule, A = the other placeable items */
+            var targets = resolveArrangeTargets(currentSelection);
+            if (targets.problem) {
+                showDedupedAlert(targets.problem);
                 return;
             }
+            var basePath = targets.basePath;
+            var arrangeItems = targets.placeItems;
 
-            /* B = 選ばれた規則で決まる基準パス / B = base path by the chosen rule */
-            var basePath = findBasePath(currentSelection);
-            if (!basePath) {
-                showDedupedAlert("alert.noBasePath");
-                return;
-            }
-
-            if (rbBasePathHide.value) clearFillAndStroke(basePath);
-
-            /* A = 基準パス（B）以外で配置できるもの / A = placeable items other than the base path (B) */
-            var arrangeItems = collectPlaceableItems(currentSelection, basePath);
-            if (arrangeItems.length === 0) {
-                showDedupedAlert("alert.noItems");
-                return;
-            }
+            if (hideBasePathRadio.value) clearFillAndStroke(basePath);
 
             var orderMode = getOrderMode();
-            arrangeItems = applyOrderToArray(arrangeItems, orderMode, false);
+            arrangeItems = orderArrangeItems(arrangeItems, orderMode, false);
 
             var duplicateCount = getDuplicateCount();
             if (duplicateCount > 1) {
@@ -2843,20 +2818,16 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             if (!arrangeAlongPath(basePath, arrangeItems, getRotationSettings(), getSpacingMode(), false)) return;
 
             /* 配置したオブジェクトをグループ化（基準パスは含めない）/ Group the placed objects, excluding the base path */
-            if (cbGroupPlaced.value) {
-                try {
-                    var arrangedGroup = doc.groupItems.add();
-                    arrangedGroup.name = "ArrangedAlongPath";
-                    for (var i = 0; i < arrangeItems.length; i++) {
-                        arrangeItems[i].move(arrangedGroup, ElementPlacement.PLACEATEND);
-                    }
-                } catch (e) { }
+            if (groupPlacedCheckbox.value) {
+                var arrangedGroup = doc.groupItems.add();
+                arrangedGroup.name = "ArrangedAlongPath";
+                for (var i = 0; i < arrangeItems.length; i++) {
+                    arrangeItems[i].move(arrangedGroup, ElementPlacement.PLACEATEND);
+                }
             }
 
             /* 基準パスを削除 / Remove the base path */
-            if (rbBasePathDelete.value) {
-                try { basePath.remove(); } catch (e) { }
-            }
+            if (deleteBasePathRadio.value) basePath.remove();
         }
     }
 
