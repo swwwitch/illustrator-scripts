@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.PatternFill
 Name=大きいオブジェクトの形の内側に小さいオブジェクトを敷き詰める
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=2.0.0
+Version=2.0.1
 Release-Date=2025-10-26
 Description-BEGIN
 オブジェクトを2つ以上選択し、いちばん大きいものの形の内側に、ほかのオブジェクトを複製して敷き詰めます。
@@ -47,10 +47,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TileInside
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "TileInsideShape";              /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v2.0.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v2.0.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-10-26";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-27";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-31";                   /* 更新日 / last updated */
 
 var SCRIPT_DESCRIPTION_JA = "大きいオブジェクトの形の内側に小さいオブジェクトを敷き詰める"; /* README の見出し / README title (Japanese) */
 
@@ -89,12 +89,12 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     /* スライダーの範囲（スケールは%、間隔・オフセットはタイルの幅に掛ける比率。入力欄には範囲外の値も入れられる）
        Slider ranges: scale in %, spacing and offset as ratios of the tile width; the fields accept values outside them */
     var SCALE_SLIDER_MIN = 10;
-    var SCALE_SLIDER_MAX = 200;
+    var SCALE_SLIDER_MAX = 300;
     var SPACING_SLIDER_MAX_RATIO = 1;  /* 間隔は 0〜タイルの幅 / spacing: 0 to the tile width */
     var OFFSET_SLIDER_RANGE_RATIO = 1; /* オフセットは ±タイルの幅 / offset: plus or minus the tile width */
     var LAYOUT_ANGLE_SLIDER_RANGE = 90; /* 並びの角度は ±90° / layout angle: plus or minus 90° */
 
-    /* ［ゆらぎ］の［大きさ］の上限（%）/ Upper limit of the Size jitter (%) */
+    /* ゆらぎの［大きさ］の上限（%）/ Upper limit of the Size jitter (%) */
     var SCALE_JITTER_MAX = 90;
 
     /* プレビューの不透明度（%）/ Opacity of the preview (%) */
@@ -220,16 +220,16 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     /* ダイアログ固有の寸法 / Dialog-specific sizes */
     var LABEL_WIDTH = 80;       /* 項目名の幅 / Field label width */
     var FIELD_CHARACTERS = 4;     /* 数値入力欄の桁数 / Width of the number fields in characters */
-    var LENGTH_FIELD_CHARACTERS = 6; /* 単位付きの数値入力欄（スケール・間隔・オフセット）の桁数 / Width of the fields that show a unit */
+    var LENGTH_FIELD_CHARACTERS = 6; /* 単位付きの数値入力欄（パネルの中）の桁数 / Width of the fields that show a unit, in the panels */
+    var SLIDER_FIELD_CHARACTERS = 5; /* スライダーの左の数値入力欄の桁数 / Width of the number fields to the left of the sliders */
     var PERCENT_UNIT = ' %';         /* スケールの欄の中に付ける単位 / Unit shown inside the scale field */
     var SLIDER_INTEGER_RANGE = 50;   /* スライダーの範囲がこれより広ければ整数刻み、狭ければ 0.1 刻み / Wider slider ranges step by 1, narrower by 0.1 */
-    var SLIDER_WIDTH = 300;          /* スライダーの幅（すべての行で同じ長さ）/ Slider width, the same in every row */
+    var SLIDER_WIDTH = 220;          /* スライダーの幅（すべての行で同じ長さ）/ Slider width, the same in every row */
     var SHIFT_SLIDER_RANGE = 50;     /* ［調整X］［調整Y］のスライダーの端で、並びの周期の何%ずらすか（中央が0）/ % of the pattern period at each end of the Adjust X/Y sliders (0 at the center) */
-    var RADIO_TEXT_INDENT = 18;      /* ラジオの下に置く欄の字下げ（ラジオの文字の頭にそろえる）/ Indent of a field under a radio, lined up with the radio text */
-    var TILE_LABEL_WIDTH = 110;      /* ［タイル］パネルの項目名の幅 / Label width in the Tiles panel */
+    var TILE_LABEL_WIDTH = 60;       /* ［個別に回転］パネルの［回転］の幅 / Width of the Rotate checkbox in the Rotate Each panel */
     var DEGREE_UNIT = '°';           /* 角度の欄の中に付ける単位 / Unit shown inside the angle fields */
-    var COUNT_TEXT_WIDTH = 80;       /* ［配置数］の値の幅（あとから伸びないので先に取る）/ Width reserved for the tile count, since controls do not grow */
-    var COUNT_ROW_BOTTOM_MARGIN = 5; /* ［配置数］の行の下の余白 / Bottom margin under the tile count row */
+    var COUNT_TEXT_WIDTH = 50;       /* ［配置数］の値の幅（あとから伸びないので先に取る）/ Width reserved for the tile count, since controls do not grow */
+    var UPPER_ROWS_BOTTOM_MARGIN = 5; /* 上段（数値の行）の下の余白 / Bottom margin under the upper rows of number settings */
     var GAP_LINK_SPACING = 6;        /* 間隔の2行と連動アイコンの間 / Gap between the spacing rows and the link icon */
 
     /**
@@ -270,7 +270,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             onValueChange();
         };
         var numberField = addNumberField(fieldRow, initialText, tooltipPath, stepOptions);
-        numberField.characters = LENGTH_FIELD_CHARACTERS;
+        numberField.characters = SLIDER_FIELD_CHARACTERS;
 
         valueSlider = fieldRow.add('slider', undefined, sliderRange.min, sliderRange.min, sliderRange.max);
         valueSlider.preferredSize.width = SLIDER_WIDTH;
@@ -1613,16 +1613,14 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             shiftX: { ja: "調整X", en: "Adjust X" },
             shiftY: { ja: "調整Y", en: "Adjust Y" },
             layoutAngle: { ja: "並びの角度", en: "Angle" },
-            count: { ja: "配置数", en: "Tiles" },
             density: { ja: "密度", en: "Density" },
-            rotation: { ja: "個別に回転", en: "Rotate Each" },
+            rotation: { ja: "回転", en: "Rotate" },
             rotationJitter: { ja: "回転", en: "Rotation" },
-            scaleJitter: { ja: "大きさ", en: "Size" },
-            tileOrder: { ja: "選び方", en: "Order" }
+            scaleJitter: { ja: "大きさ", en: "Size" }
         },
         panel: {
             layout: { ja: "並べ方", en: "Layout" },
-            tile: { ja: "タイル", en: "Tiles" },
+            tileRotation: { ja: "個別に回転", en: "Rotate Each" },
             containerAction: { ja: "敷き詰め先", en: "Fill Area" }
         },
         radio: {
@@ -1630,9 +1628,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             brick: { ja: "レンガ状（横）", en: "Brick (Horizontal)" },
             brickVertical: { ja: "レンガ状（縦）", en: "Brick (Vertical)" },
             hexagon: { ja: "六角形", en: "Hexagonal" },
-            random: { ja: "ランダム", en: "Random" },
-            orderSequence: { ja: "順番", en: "In Order" },
-            orderRandom: { ja: "ランダム", en: "Random" },
+            random: { ja: "ランダム（順番）", en: "Random (In Order)" },
+            randomShuffle: { ja: "ランダム（ランダム）", en: "Random (Random Order)" },
             opacityContainer: { ja: "不透明度", en: "Opacity" },
             removeContainer: { ja: "削除", en: "Delete" },
             guideContainer: { ja: "ガイド化", en: "Make Guides" }
@@ -1641,7 +1638,6 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             centerAlign: { ja: "中央にそろえる", en: "Center" },
             clipOverflow: { ja: "はみ出しも残してマスク", en: "Keep Overflow and Mask" },
             alternateFlip: { ja: "1つおきに180°回転", en: "Flip Every Other 180°" },
-            jitter: { ja: "ゆらぎ", en: "Jitter" },
             preview: { ja: "プレビュー", en: "Preview" },
             symbolize: { ja: "シンボル化", en: "Symbolize" }
         },
@@ -1684,8 +1680,12 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
                 en: "Offsets every other row by half a tile and closes up the rows into a hexagonal pattern. Best for round tiles."
             },
             random: {
-                ja: "間隔を空けて重ならないように、ランダムな位置に並べます。ダイアログボックスを開くたび、または［再配置］で並びが変わります。［調整X］［調整Y］［並びの角度］［中央にそろえる］は使いません。",
-                en: "Places the tiles at random positions without overlapping, keeping the spacing. The arrangement changes each time the dialog opens or with Reshuffle. Adjust X, Adjust Y, Angle and Center are not used."
+                ja: "間隔を空けて重ならないように、ランダムな位置に並べます。敷き詰めるオブジェクトが複数あるときは、選択の前面から順に使います。ダイアログボックスを開くたび、または［再配置］で並びが変わります。［調整X］［調整Y］［並びの角度］［中央にそろえる］は使いません。",
+                en: "Places the tiles at random positions without overlapping, keeping the spacing. Several objects to tile are used in turn from the frontmost. The arrangement changes each time the dialog opens or with Reshuffle. Adjust X, Adjust Y, Angle and Center are not used."
+            },
+            randomShuffle: {
+                ja: "間隔を空けて重ならないように、ランダムな位置に並べます。敷き詰めるオブジェクトもランダムに選んで使います（複数選んだときだけ）。ダイアログボックスを開くたび、または［再配置］で並びが変わります。［調整X］［調整Y］［並びの角度］［中央にそろえる］は使いません。",
+                en: "Places the tiles at random positions without overlapping, keeping the spacing, and picks the objects to tile at random (only when several are selected). The arrangement changes each time the dialog opens or with Reshuffle. Adjust X, Adjust Y, Angle and Center are not used."
             },
             density: {
                 ja: "ランダムに置いたタイルのうち、残す割合です。100% で詰められるだけ詰めます。",
@@ -1711,10 +1711,6 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
                 ja: "1つおきにタイルを180°回します。三角形を互い違いに並べるときなどに使います。",
                 en: "Turns every other tile by 180°, e.g. to interlock triangles."
             },
-            jitter: {
-                ja: "オンにすると、下の［回転］［大きさ］のばらつきを使います。オフでも値は残ります。",
-                en: "When on, the Rotation and Size jitter below are used. The values are kept while it is off."
-            },
             rotationJitter: {
                 ja: "タイルごとに、この角度の範囲（±）でランダムに回します。",
                 en: "Rotates each tile by a random angle within this range (±)."
@@ -1722,10 +1718,6 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             scaleJitter: {
                 ja: "タイルごとに、この割合までランダムに小さくします。",
                 en: "Shrinks each tile at random by up to this percentage."
-            },
-            tileOrder: {
-                ja: "敷き詰めるオブジェクトを複数選んだとき、どの順で使うかを選びます。［順番］は選択の前面から順に使います。",
-                en: "When several objects to tile are selected, chooses how they are used. In Order cycles through them from the frontmost."
             },
             preview: { ja: "設定をドキュメント上にプレビューします。", en: "Previews the result in the document." },
             symbolize: {
@@ -1789,6 +1781,78 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             height: itemHeight,
             area: Math.abs(itemWidth * itemHeight)
         };
+    }
+
+    /**
+     * タイルの境界情報を取得する。テキスト（グループの中のテキストも）は文字の枠ではなく字形の範囲で測り、
+     * 字形の中心が枠の中心からずれる量を centerShift に添える（拡大・縮小と回転は枠の中心が基準になるため）
+     * @param {PageItem} pageItem - タイル
+     * @returns {Object} getBoundsInfo() の形に centerShift（[x, y]。pt、等倍のとき）を足したもの
+     */
+    function getTileInfo(pageItem) {
+        var boxInfo = getBoundsInfo(pageItem);
+        var glyphInfo = getGlyphBoundsInfo(pageItem);
+        var tileInfo = glyphInfo || boxInfo;
+        tileInfo.centerShift = glyphInfo ? [
+            (glyphInfo.left + glyphInfo.right - boxInfo.left - boxInfo.right) / 2,
+            (glyphInfo.top + glyphInfo.bottom - boxInfo.top - boxInfo.bottom) / 2
+        ] : [0, 0];
+        return tileInfo;
+    }
+
+    /**
+     * テキストを含むオブジェクトの複製をアウトライン化し、字形の範囲を測る（測ったら複製は削除する）。
+     * ポイント文字の枠は字送りと行の高さ、エリア内文字の枠はフレームの大きさで、字形より大きい
+     * @param {PageItem} pageItem - 対象オブジェクト
+     * @returns {Object|null} getBoundsInfo() の形の境界情報。テキストを含まない・字形が無いときは null
+     */
+    function getGlyphBoundsInfo(pageItem) {
+        if (!hasTextFrame(pageItem)) return null;
+        var outlineCopy = pageItem.duplicate();
+        try {
+            /* createOutline() は複製を消費し、アウトラインのグループだけが残る / createOutline() consumes the duplicate, leaving only the outline group */
+            if (outlineCopy.typename === 'TextFrame') {
+                outlineCopy = outlineCopy.createOutline();
+            } else {
+                outlineTextFrames(outlineCopy);
+            }
+            return getBoundsInfo(outlineCopy);
+        } catch (e) {
+            return null; /* 字形の無いテキストは境界を読むと例外 / Text without glyphs throws on reading its bounds */
+        } finally {
+            try { outlineCopy.remove(); } catch (removeError) {}
+        }
+    }
+
+    /**
+     * オブジェクトがテキストか、テキストを含むグループ（クリップグループを除く。入れ子も見る）か判定する
+     * @param {PageItem} pageItem - 対象オブジェクト
+     * @returns {boolean} テキストを含めば true
+     */
+    function hasTextFrame(pageItem) {
+        if (pageItem.typename === 'TextFrame') return true;
+        if (pageItem.typename !== 'GroupItem' || pageItem.clipped) return false;
+        for (var i = 0; i < pageItem.pageItems.length; i++) {
+            if (hasTextFrame(pageItem.pageItems[i])) return true;
+        }
+        return false;
+    }
+
+    /**
+     * グループの中のテキストをすべてアウトライン化する（入れ子も。クリップグループの中はそのまま）
+     * @param {GroupItem} groupItem - 対象のグループ
+     * @returns {void}
+     */
+    function outlineTextFrames(groupItem) {
+        if (groupItem.clipped) return;
+        for (var i = groupItem.pageItems.length - 1; i >= 0; i--) {
+            var memberItem = groupItem.pageItems[i];
+            if (memberItem.typename === 'TextFrame') {
+                memberItem.createOutline();
+            } else if (memberItem.typename === 'GroupItem') {
+                outlineTextFrames(memberItem);
+            }
+        }
     }
 
     /* 並べ方ごとのずらし方（"rows" は1行おきに横、"columns" は1列おきに縦）
@@ -2124,9 +2188,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         var nextRandom = createSeededRandom(fillSettings.randomSeed);
         var tileCount = fillTarget.tiles.length;
         var placements = [];
-        /* ［ゆらぎ］がオフならばらつきは使わない（欄の値は残す）/ With Jitter off the jitter values are kept but not used */
-        var rotationJitter = fillSettings.jitter ? fillSettings.rotationJitter : 0;
-        var scaleJitter = fillSettings.jitter ? fillSettings.scaleJitter : 0;
+        var rotationJitter = fillSettings.rotationJitter;
+        var scaleJitter = fillSettings.scaleJitter;
         return {
             placements: placements,
             /**
@@ -2737,7 +2800,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
      * ラジオ・チェックボックスの状態を、前回の設定（無ければ初期値）から作る。
      * 表示前の value は読み戻せないので、状態はこのオブジェクトに控えて読む
      * @param {Object|null} lastSettings - loadLastSettings() の結果
-     * @returns {Object} ダイアログの状態（layoutType / centerAlign / clipOverflow / tileRotationOn / alternateFlip / jitter / tileOrder / symbolize / preview / containerAction / randomSeed）
+     * @returns {Object} ダイアログの状態（layoutType / tileOrder / layoutChoice / centerAlign / clipOverflow / tileRotationOn / alternateFlip / symbolize / preview / containerAction / randomSeed）
      */
     function createDialogState(lastSettings) {
         var layoutType = getSavedSetting(lastSettings, 'layoutType', null);
@@ -2747,15 +2810,19 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         var containerAction = getSavedSetting(lastSettings, 'containerAction', DEFAULT_CONTAINER_ACTION);
         /* 以前の「何もしない」（keep）などは初期値に戻す / Fall back for choices that no longer exist, such as the old "keep" */
         if (!/^(opacity|remove|guide)$/.test(containerAction)) containerAction = DEFAULT_CONTAINER_ACTION;
+        /* タイルをランダムに選ぶのは［ランダム（ランダム）］だけ / Only Random (Random Order) picks the tiles at random */
+        var tileOrder = (layoutType === 'random' && getSavedSetting(lastSettings, 'tileOrder', 'sequence') === 'random') ? 'random' : 'sequence';
         return {
             layoutType: layoutType,
+            tileOrder: tileOrder,
+            /* ［並べ方］のラジオの値（並べ方と選び方の組。"randomShuffle" はランダムな並び＋ランダムな選び方）
+               Value of the Layout radios, combining layout and order; "randomShuffle" is a random layout with tiles picked at random */
+            layoutChoice: (tileOrder === 'random') ? 'randomShuffle' : layoutType,
             centerAlign: getSavedSetting(lastSettings, 'centerAlign', DEFAULT_CENTER_ALIGN),
             clipOverflow: getSavedSetting(lastSettings, 'clipOverflow', DEFAULT_CLIP_OVERFLOW),
             /* 切り替えの無い版で控えた角度があればオンで始める / Start on if an angle was kept without the switch */
             tileRotationOn: getSavedSetting(lastSettings, 'tileRotationOn', getSavedSetting(lastSettings, 'tileRotation', 0) !== 0),
             alternateFlip: getSavedSetting(lastSettings, 'alternateFlip', false),
-            jitter: getSavedSetting(lastSettings, 'jitter', false),
-            tileOrder: (getSavedSetting(lastSettings, 'tileOrder', 'sequence') === 'random') ? 'random' : 'sequence',
             symbolize: getSavedSetting(lastSettings, 'symbolize', DEFAULT_SYMBOLIZE),
             preview: getSavedSetting(lastSettings, 'preview', DEFAULT_PREVIEW),
             containerAction: containerAction,
@@ -2820,26 +2887,6 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         };
         if (radioGroup) radioGroup.push(stateRadio);
         return stateRadio;
-    }
-
-    /**
-     * パネルに、項目名と∧∨付きの数値欄の行を足す
-     * @param {Panel} parentPanel - 追加先
-     * @param {string} labelPath - 項目名のラベルのパス
-     * @param {number} labelWidth - 項目名の幅
-     * @param {string} initialText - 欄の初期値（単位付き）
-     * @param {string} tooltipPath - helpTip のラベルのパス
-     * @param {Object} stepOptions - ∧∨の設定（min / max / unit）
-     * @param {Function} onValueChange - 値が変わったときに呼ぶ関数
-     * @returns {EditText} 追加した欄（行は .parent.parent）
-     */
-    function addPanelNumberRow(parentPanel, labelPath, labelWidth, initialText, tooltipPath, stepOptions, onValueChange) {
-        var numberRow = addFieldRow(parentPanel, labelPath, labelWidth);
-        stepOptions.onStep = onValueChange;
-        var numberField = addNumberField(numberRow, initialText, tooltipPath, stepOptions);
-        numberField.characters = LENGTH_FIELD_CHARACTERS;
-        numberField.onChanging = onValueChange;
-        return numberField;
     }
 
     /**
@@ -2952,6 +2999,11 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         var scaleControls = addSliderFieldRow(fillDialog, 'fieldLabel.scale', getSavedFieldText('scale', 100, PERCENT_UNIT), 'tooltip.scale',
             { min: 1, unit: PERCENT_UNIT }, { min: SCALE_SLIDER_MIN, max: SCALE_SLIDER_MAX }, updatePeriodAndPreview);
 
+        /* 置くタイルの数（スケールのスライダーの右。項目名は付けない）/ Number of tiles to place, to the right of the Scale slider, without a label */
+        var tileCountText = scaleControls.row.add('statictext', undefined, '');
+        tileCountText.preferredSize.width = COUNT_TEXT_WIDTH;
+        tileCountText.helpTip = getLabel('tooltip.count');
+
         /* 間隔（横・縦）。v1.7.0 で控えた間隔（gap）は両方に使う。2行のスライダーの右に連動アイコン
            Horizontal and vertical spacing; the single gap kept by v1.7.0 serves both. The link icon sits to the right of both sliders */
         var defaultSpacingPt = getSavedSetting(lastSettings, 'gap', unitToPt(Math.round(maxTileWidthInUnit * DEFAULT_GAP_RATIO), rulerUnit));
@@ -2990,38 +3042,39 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         var layoutAngleControls = addSliderFieldRow(fillDialog, 'fieldLabel.layoutAngle', getSavedFieldText('layoutAngle', 0, DEGREE_UNIT), 'tooltip.layoutAngle',
             { unit: DEGREE_UNIT }, { min: -LAYOUT_ANGLE_SLIDER_RANGE, max: LAYOUT_ANGLE_SLIDER_RANGE }, updatePreviewFromFields);
 
-        /* 置くタイルの数 / Number of tiles to place */
-        var tileCountRow = addFieldRow(fillDialog, 'fieldLabel.count');
-        tileCountRow.margins = [0, 0, 0, COUNT_ROW_BOTTOM_MARGIN];
-        var tileCountText = tileCountRow.add('statictext', undefined, '');
-        tileCountText.preferredSize.width = COUNT_TEXT_WIDTH;
-        tileCountText.helpTip = getLabel('tooltip.count');
+        /* ゆらぎの回転・大きさ（0 ならばらつかない）/ Rotation and Size jitter; 0 means none */
+        var rotationJitterControls = addSliderFieldRow(fillDialog, 'fieldLabel.rotationJitter', getSavedFieldText('rotationJitter', 0, DEGREE_UNIT), 'tooltip.rotationJitter',
+            { min: 0, max: 180, unit: DEGREE_UNIT }, { min: 0, max: 180 }, updatePreviewFromFields);
+        var scaleJitterControls = addSliderFieldRow(fillDialog, 'fieldLabel.scaleJitter', getSavedFieldText('scaleJitter', 0, PERCENT_UNIT), 'tooltip.scaleJitter',
+            { min: 0, max: SCALE_JITTER_MAX, unit: PERCENT_UNIT }, { min: 0, max: SCALE_JITTER_MAX }, updatePreviewFromFields);
 
-        /* 下段：左＝並べ方とシンボル化、右＝タイルとその下に敷き詰め先（左右の高さをそろえる）
-           Lower row: layout and Symbolize on the left; tiles with the fill area below on the right, both sides of equal height */
+        /* 密度（ランダムの並べ方だけ）/ Density, for the random layouts only */
+        var densityControls = addSliderFieldRow(fillDialog, 'fieldLabel.density', getSavedFieldText('density', 100, PERCENT_UNIT), 'tooltip.density',
+            { min: 1, max: 100, unit: PERCENT_UNIT }, { min: 1, max: 100 }, updatePreviewFromFields);
+        densityControls.row.margins = [0, 0, 0, UPPER_ROWS_BOTTOM_MARGIN];
+
+        /* 下段：左＝並べ方、右＝個別に回転・敷き詰め先・シンボル化（左右の高さをそろえる）
+           Lower row: layout on the left; Rotate Each, the fill area and Symbolize on the right, both sides of equal height */
         var panelColumns = addColumnRow(fillDialog, 2);
         panelColumns.row.alignChildren = ['fill', 'fill'];
 
-        /* 並べ方（ラジオは同じパネルに続けて入れるので排他は自動）/ Layout; the radios follow one another in one panel, so exclusivity is automatic */
+        /* 並べ方（ラジオは同じパネルに続けて入れるので排他は自動）。ランダムは選び方（順番・ランダム）と組にして2つ
+           Layout; the radios follow one another in one panel, so exclusivity is automatic. Random comes twice, paired with the order */
         var layoutPanel = panelColumns.columns[0].add('panel', undefined, getLabel('panel.layout'));
         setupPanel(layoutPanel, 6);
-        addStateRadio(layoutPanel, 'radio.grid', 'tooltip.grid', dialogState, 'layoutType', 'grid', onLayoutChange);
-        addStateRadio(layoutPanel, 'radio.brick', 'tooltip.brick', dialogState, 'layoutType', 'brick', onLayoutChange);
-        addStateRadio(layoutPanel, 'radio.brickVertical', 'tooltip.brickVertical', dialogState, 'layoutType', 'brickVertical', onLayoutChange);
-        addStateRadio(layoutPanel, 'radio.hexagon', 'tooltip.hexagon', dialogState, 'layoutType', 'hexagon', onLayoutChange);
-        addStateRadio(layoutPanel, 'radio.random', 'tooltip.random', dialogState, 'layoutType', 'random', onLayoutChange);
-
-        /* 密度（ランダムだけ）は［ランダム］の下に、ラジオの文字にそろえて置く / Density, for Random only, under the Random radio and lined up with its text */
-        var densityRow = layoutPanel.add('group');
-        setupRow(densityRow, ['left', 'center'], 0);
-        var densityIndent = densityRow.add('group');
-        densityIndent.preferredSize.width = RADIO_TEXT_INDENT;
-        var densityLabel = densityRow.add('statictext', undefined, labelText('fieldLabel.density'));
-        densityLabel.helpTip = getLabel('tooltip.density');
-        var densityField = addNumberField(densityRow, getSavedFieldText('density', 100, PERCENT_UNIT), 'tooltip.density',
-            { min: 1, max: 100, unit: PERCENT_UNIT, onStep: updatePreviewFromFields });
-        densityField.characters = LENGTH_FIELD_CHARACTERS;
-        densityField.onChanging = updatePreviewFromFields;
+        /* 敷き詰めるオブジェクトが1つなら選び方は関係ないので［ランダム（ランダム）］は使えない / With a single object to tile the order does not matter, so Random (Random Order) is unavailable */
+        var hasSeveralTiles = (fillTarget.tiles.length > 1);
+        if (!hasSeveralTiles && dialogState.layoutChoice === 'randomShuffle') {
+            dialogState.layoutChoice = 'random';
+            dialogState.tileOrder = 'sequence';
+        }
+        addStateRadio(layoutPanel, 'radio.grid', 'tooltip.grid', dialogState, 'layoutChoice', 'grid', onLayoutChange);
+        addStateRadio(layoutPanel, 'radio.brick', 'tooltip.brick', dialogState, 'layoutChoice', 'brick', onLayoutChange);
+        addStateRadio(layoutPanel, 'radio.brickVertical', 'tooltip.brickVertical', dialogState, 'layoutChoice', 'brickVertical', onLayoutChange);
+        addStateRadio(layoutPanel, 'radio.hexagon', 'tooltip.hexagon', dialogState, 'layoutChoice', 'hexagon', onLayoutChange);
+        addStateRadio(layoutPanel, 'radio.random', 'tooltip.random', dialogState, 'layoutChoice', 'random', onLayoutChange);
+        var randomShuffleRadio = addStateRadio(layoutPanel, 'radio.randomShuffle', 'tooltip.randomShuffle', dialogState, 'layoutChoice', 'randomShuffle', onLayoutChange);
+        randomShuffleRadio.enabled = hasSeveralTiles;
 
         var centerAlignCheckbox = addStateCheckbox(layoutPanel, 'checkbox.centerAlign', 'tooltip.centerAlign', dialogState, 'centerAlign', updatePreviewFromFields);
         addStateCheckbox(layoutPanel, 'checkbox.clipOverflow', 'tooltip.clipOverflow', dialogState, 'clipOverflow', updateEnabledStatesAndPreview);
@@ -3035,16 +3088,13 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             updatePreviewFromFields();
         };
 
-        /* シンボル化は［並べ方］パネルの下 / Symbolize sits under the Layout panel */
-        addStateCheckbox(panelColumns.columns[0], 'checkbox.symbolize', 'tooltip.symbolize', dialogState, 'symbolize');
+        /* ［個別に回転］パネル：回転・1つおきに180°回転 / Rotate Each panel: Rotate and Flip Every Other */
+        var tileRotationPanel = panelColumns.columns[1].add('panel', undefined, getLabel('panel.tileRotation'));
+        setupPanel(tileRotationPanel, 6);
 
-        /* タイル（個別に回転・1つおきに180°回転・ゆらぎ・選び方）/ Tiles: Rotate Each, Flip Every Other, Jitter and Order */
-        var tilePanel = panelColumns.columns[1].add('panel', undefined, getLabel('panel.tile'));
-        setupPanel(tilePanel, 6);
-
-        /* 個別に回転：項目名の代わりにチェックボックスを置き、オフなら欄をディム表示にする。回転は送り（外接矩形）を変えるので周期も写し直す
-           Rotate Each: a checkbox in place of the label dims the field when off. Rotation changes the step, so the period is refreshed too */
-        var rotationRow = tilePanel.add('group');
+        /* 回転：項目名の代わりにチェックボックスを置き、オフなら欄をディム表示にする。回転は送り（外接矩形）を変えるので周期も写し直す
+           Rotate: a checkbox in place of the label dims the field when off. Rotation changes the step, so the period is refreshed too */
+        var rotationRow = tileRotationPanel.add('group');
         setupRow(rotationRow, ['fill', 'center']);
         var rotationCheckbox = addStateCheckbox(rotationRow, 'fieldLabel.rotation', 'tooltip.rotation', dialogState, 'tileRotationOn', function () {
             updateEnabledStates();
@@ -3056,26 +3106,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         rotationField.characters = LENGTH_FIELD_CHARACTERS;
         rotationField.onChanging = updatePeriodAndPreview;
 
-        /* 1つおきに180°（項目名の幅だけ空けて欄の列にそろえる）/ Flip every other tile, lined up with the field column */
-        var alternateFlipRow = tilePanel.add('group');
-        setupRow(alternateFlipRow, ['left', 'center']);
-        var alternateFlipIndent = alternateFlipRow.add('group');
-        alternateFlipIndent.preferredSize.width = TILE_LABEL_WIDTH;
-        addStateCheckbox(alternateFlipRow, 'checkbox.alternateFlip', 'tooltip.alternateFlip', dialogState, 'alternateFlip', updatePreviewFromFields);
-
-        /* ゆらぎ（回転・大きさのばらつきをまとめてオン・オフ）/ Jitter: turns rotation and size jitter on and off together */
-        addStateCheckbox(tilePanel, 'checkbox.jitter', 'tooltip.jitter', dialogState, 'jitter', updateEnabledStatesAndPreview);
-        var rotationJitterField = addPanelNumberRow(tilePanel, 'fieldLabel.rotationJitter', TILE_LABEL_WIDTH, getSavedFieldText('rotationJitter', 0, DEGREE_UNIT),
-            'tooltip.rotationJitter', { min: 0, max: 180, unit: DEGREE_UNIT }, updatePreviewFromFields);
-        var scaleJitterField = addPanelNumberRow(tilePanel, 'fieldLabel.scaleJitter', TILE_LABEL_WIDTH, getSavedFieldText('scaleJitter', 0, PERCENT_UNIT),
-            'tooltip.scaleJitter', { min: 0, max: SCALE_JITTER_MAX, unit: PERCENT_UNIT }, updatePreviewFromFields);
-
-        /* 選び方（敷き詰めるオブジェクトが複数のときだけ）。2つのラジオは同じ行に入れるので排他は自動
-           Order, only with several objects to tile; both radios share the row, so exclusivity is automatic */
-        var tileOrderRow = addFieldRow(tilePanel, 'fieldLabel.tileOrder', TILE_LABEL_WIDTH);
-        addStateRadio(tileOrderRow, 'radio.orderSequence', 'tooltip.tileOrder', dialogState, 'tileOrder', 'sequence', updatePreviewFromFields);
-        addStateRadio(tileOrderRow, 'radio.orderRandom', 'tooltip.tileOrder', dialogState, 'tileOrder', 'random', updatePreviewFromFields);
-        tileOrderRow.enabled = (fillTarget.tiles.length > 1);
+        /* 1つおきに180°（パネルの幅を抑えるため字下げしない）/ Flip every other tile, not indented to keep the panel narrow */
+        addStateCheckbox(tileRotationPanel, 'checkbox.alternateFlip', 'tooltip.alternateFlip', dialogState, 'alternateFlip', updatePreviewFromFields);
 
         /* 敷き詰め先（敷き詰めたあとの扱い）。［不透明度］は値の欄と同じ行に入るので、ラジオの排他は手で切り替える
            Fill area, after tiling. The Opacity radio shares a row with its field, so exclusivity is handled by hand */
@@ -3091,6 +3123,9 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         var opacityField = addNumberField(opacityRow, getSavedFieldText('containerOpacity', 100, PERCENT_UNIT), 'tooltip.opacityContainer',
             { min: 0, max: 100, unit: PERCENT_UNIT });
         opacityField.characters = LENGTH_FIELD_CHARACTERS;
+
+        /* シンボル化は右の列の［敷き詰め先］パネルの下 / Symbolize sits under the Fill Area panel in the right column */
+        addStateCheckbox(panelColumns.columns[1], 'checkbox.symbolize', 'tooltip.symbolize', dialogState, 'symbolize');
 
         /* ボタン（左にプレビュー）/ Buttons, with Preview on the left */
         var buttonRow = addButtonRow(fillDialog);
@@ -3126,10 +3161,13 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         }
 
         /**
-         * 並べ方を選んだら、ディム表示と周期・プレビューを更新する
+         * 並べ方を選んだら、並べ方と選び方に分けて控え、ディム表示と周期・プレビューを更新する
          * @returns {void}
          */
         function onLayoutChange() {
+            var isShuffled = (dialogState.layoutChoice === 'randomShuffle');
+            dialogState.layoutType = isShuffled ? 'random' : dialogState.layoutChoice;
+            dialogState.tileOrder = isShuffled ? 'random' : 'sequence';
             updateEnabledStates();
             updatePeriodAndPreview();
         }
@@ -3172,14 +3210,13 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
                 layoutType: dialogState.layoutType,
                 centerAlign: dialogState.centerAlign,
                 clipOverflow: dialogState.clipOverflow,
-                density: readFieldNumber(densityField, 100, 1, 100),
+                density: readFieldNumber(densityControls.field, 100, 1, 100),
                 randomSeed: dialogState.randomSeed,
                 tileRotationOn: dialogState.tileRotationOn,
                 tileRotation: readFieldNumber(rotationField, 0),
                 alternateFlip: dialogState.alternateFlip,
-                jitter: dialogState.jitter,
-                rotationJitter: readFieldNumber(rotationJitterField, 0, 0, 180),
-                scaleJitter: readFieldNumber(scaleJitterField, 0, 0, SCALE_JITTER_MAX),
+                rotationJitter: readFieldNumber(rotationJitterControls.field, 0, 0, 180),
+                scaleJitter: readFieldNumber(scaleJitterControls.field, 0, 0, SCALE_JITTER_MAX),
                 tileOrder: dialogState.tileOrder,
                 symbolize: dialogState.symbolize,
                 preview: dialogState.preview,
@@ -3200,7 +3237,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         /**
          * 選択に合わせて、使わない項目をディム表示にする
          * （ランダムは調整X・Y・並びの角度・中央そろえを使わず、密度はランダムだけ。マスクはオフセットを使わない。
-         * ばらつきは［ゆらぎ］、個別に回転の角度は［個別に回転］、不透明度の値は［不透明度］がオンのときだけ）
+         * 個別に回転の角度は［個別に回転］、不透明度の値は［不透明度］がオンのときだけ）
          * @returns {void}
          */
         function updateEnabledStates() {
@@ -3208,13 +3245,10 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             setGroupEnabled(shiftXControls.row, !isRandom);
             setGroupEnabled(shiftYControls.row, !isRandom);
             setGroupEnabled(layoutAngleControls.row, !isRandom);
-            setGroupEnabled(densityRow, isRandom);
+            setGroupEnabled(densityControls.row, isRandom);
             centerAlignCheckbox.enabled = !isRandom;
             setGroupEnabled(offsetControls.row, !dialogState.clipOverflow);
             setGroupEnabled(opacityField.parent, dialogState.containerAction === 'opacity');
-            /* 欄の行は「∧∨と欄のグループ」の親 / A field's row is the parent of its stepper group */
-            setGroupEnabled(rotationJitterField.parent.parent, dialogState.jitter);
-            setGroupEnabled(scaleJitterField.parent.parent, dialogState.jitter);
             setGroupEnabled(rotationField.parent, dialogState.tileRotationOn);
         }
 
@@ -3263,14 +3297,16 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             selectedItems.push({ item: doc.selection[i], info: getBoundsInfo(doc.selection[i]) });
             if (selectedItems[i].info.area > selectedItems[containerIndex].info.area) containerIndex = i;
         }
+        /* タイルのテキストは字形の範囲で測り直す / Text tiles are measured again by their glyphs */
         var tiles = [];
         for (var j = 0; j < selectedItems.length; j++) {
             if (j === containerIndex) continue;
-            if (selectedItems[j].info.width <= 0 || selectedItems[j].info.height <= 0) {
+            var tileEntry = { item: selectedItems[j].item, info: getTileInfo(selectedItems[j].item) };
+            if (tileEntry.info.width <= 0 || tileEntry.info.height <= 0) {
                 alert(getLabel('alert.emptyTile'));
                 return;
             }
-            tiles.push(selectedItems[j]);
+            tiles.push(tileEntry);
         }
         var fillTarget = {
             container: selectedItems[containerIndex].item,
@@ -3388,7 +3424,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
 
         for (var i = 0; i < placements.length; i++) {
             var tileEntry = fillTarget.tiles[placements[i].tileIndex];
-            placeTileCopy(tileEntry.item.duplicate(previewGroup, ElementPlacement.PLACEATBEGINNING), placements[i], tileEntry.info);
+            placeTileCopy(tileEntry.item.duplicate(previewGroup, ElementPlacement.PLACEATBEGINNING), placements[i], tileEntry.info, false);
         }
         if (previewSettings.clipOverflow && placements.length) addClipPath(fillTarget.container, previewGroup);
 
@@ -3400,18 +3436,36 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
      * タイルの複製を縦横同じ比率で拡大・縮小し（線幅・パターン・グラデーションも）、中心を置く位置に合わせて回す
      * @param {PageItem} tileCopy - 複製したタイル（シンボルのインスタンスも可）
      * @param {Object} placement - 置く位置（computePlacements() の要素）
-     * @param {Object|null} sourceInfo - 複製元の境界情報。拡大・縮小しても中心は変わらないので測らずに使う。null なら置いてから測る
+     * @param {Object} tileInfo - 複製元の境界情報（getTileInfo() の結果）
+     * @param {boolean} needsMeasure - 置いてから枠を測るなら true（シンボルのインスタンス）。false なら複製元と同じ位置にあるとして測らない
      * @returns {void}
      */
-    function placeTileCopy(tileCopy, placement, sourceInfo) {
+    function placeTileCopy(tileCopy, placement, tileInfo, needsMeasure) {
         if (Math.abs(placement.scale - 100) > ANGLE_TOLERANCE) {
             tileCopy.resize(placement.scale, placement.scale, true, true, true, true, placement.scale);
         }
-        var currentInfo = sourceInfo || getBoundsInfo(tileCopy);
-        tileCopy.translate(placement.x - (currentInfo.left + currentInfo.right) / 2, placement.y - (currentInfo.top + currentInfo.bottom) / 2);
+        /* 拡大・縮小と回転は枠の中心が基準。テキストの字形の中心は、そこから centerShift に倍率を掛けた分ずれる
+           Scaling and rotation pivot on the box center; text glyphs sit centerShift (times the scale) away from it */
+        var shiftX = tileInfo.centerShift[0] * placement.scale / 100;
+        var shiftY = tileInfo.centerShift[1] * placement.scale / 100;
+        var boxCenterX, boxCenterY;
+        if (needsMeasure) {
+            var currentInfo = getBoundsInfo(tileCopy);
+            boxCenterX = (currentInfo.left + currentInfo.right) / 2;
+            boxCenterY = (currentInfo.top + currentInfo.bottom) / 2;
+        } else {
+            boxCenterX = (tileInfo.left + tileInfo.right) / 2 - tileInfo.centerShift[0];
+            boxCenterY = (tileInfo.top + tileInfo.bottom) / 2 - tileInfo.centerShift[1];
+        }
+        tileCopy.translate(placement.x - shiftX - boxCenterX, placement.y - shiftY - boxCenterY);
         var turnAngle = normalizeFullTurn(placement.angle);
         if (Math.abs(turnAngle) > ANGLE_TOLERANCE) {
             tileCopy.rotate(turnAngle, true, true, true, true, Transformation.CENTER);
+            /* 枠の中心で回すと字形の中心が動くので、置く位置へ戻す / Rotating about the box center moves the glyphs, so bring them back */
+            if (shiftX || shiftY) {
+                var rotatedShift = rotatePoint(shiftX, shiftY, turnAngle);
+                tileCopy.translate(shiftX - rotatedShift[0], shiftY - rotatedShift[1]);
+            }
         }
     }
 
@@ -3512,7 +3566,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             /* 元のタイルと同じ場所はスキップ / Skip the original tile's own spot */
             if (isOriginalTileSpot(placements[j], tileEntry.info)) continue;
             /* シンボルのインスタンスは置いた位置が決まっていないので測る / Symbol instances land anywhere, so measure them */
-            placeTileCopy(addTileCopy(placements[j].tileIndex), placements[j], symbolDefinitions[placements[j].tileIndex] ? null : tileEntry.info);
+            placeTileCopy(addTileCopy(placements[j].tileIndex), placements[j], tileEntry.info, !!symbolDefinitions[placements[j].tileIndex]);
             placedCount++;
         }
         if (fillSettings.clipOverflow && placedCount) addClipPath(fillTarget.container, gridGroup);
