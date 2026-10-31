@@ -75,6 +75,7 @@ After release, we continue to fix bugs and make adjustments through daily use.
 - [Unified type panel](readme-en/UnifiedTypePalette.md)
 - [Outline text and restore it later](readme-en/AiTextOutlineRestorePalette.md)
 - [Adjust font size and horizontal / vertical scale](readme-en/AdjustFontSize.md)
+- [Step the font size of text, or the stroke weight of other objects](readme-en/AdjustFontSizeOrStroke.md)
 - [Adds a bullet or a sequential number to the start of e…](readme-en/AddBulletsAndNumbers.md)
 - [A floating memo palette for Illustrator](readme-en/AiMemoPalette.md)
 - [Randomizes the baseline shift, scale, rotation and kerning of each character](readme-en/AutoTouchType.md)
