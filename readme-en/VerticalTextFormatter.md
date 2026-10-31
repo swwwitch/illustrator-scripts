@@ -18,7 +18,7 @@
 ### Features
 
 - Simple, Detailed and Wizard modes (switch at the top left of the dialog box; Simple by default)
-  - **Simple**: shows only rotation, Tate-Chu-Yoko digits (2/3/4), fixed-width forms, separator conversion, and full-width single digits, non-TCY digits and letters
+  - **Simple**: shows only rotation, Tate-Chu-Yoko digits (2/3/4), fixed-width forms, separator conversion, and full-width single digits, numbers of 3+ digits, non-TCY digits, single letters and capitals of up to 3 letters
   - **Detailed**: shows every option
   - **Wizard**: choose what you want to do with checkboxes, and the matching detailed options are set for you (Detailed-mode settings are kept; unchecked options are off; presets are unavailable). Option-click a checkbox to turn all on (when all are on, only the clicked one stays on). OK is unavailable until at least one usable goal is checked
     - Rotate Roman text upright (runs of 5 or more characters stay sideways)
@@ -65,8 +65,10 @@
   - **"!" "?" to full-width**: ! and ? that are not in Tate-Chu-Yoko become full-width (on by default)
   - **Full-width for words of [N] or fewer letters** (Detailed mode): words of at most the given number of letters become full-width (OK → ＯＫ). The length is linked to one below "Skip Roman text of [N] or more characters" (5 and 4 by default). Unit squares and capital Tate-Chu-Yoko take priority
   - **Single letters to full-width**: a lone letter such as the A in Aランク
+  - **Capitals of up to 3 letters to full-width**: all-capital words of up to three letters stand upright in full-width (PDF → ＰＤＦ, OK → ＯＫ; runs such as NHK BS word by word). Tate-Chu-Yoko for capitals takes priority when it is on
 - Numbers
   - **Single digits to full-width**: keeps a single digit upright
+  - **Numbers of 3+ digits to full-width**: numbers of three or more digits that are not in Tate-Chu-Yoko stand upright in full-width (2026 → ２０２６, 3,000 → ３、０００). Numbers with separators count their integer digits; phone numbers are left (dimmed while "Non-TCY digits to full-width" is on)
   - **Non-TCY digits to full-width**: makes every digit not in Tate-Chu-Yoko full-width so it stands upright, including digits next to separators and in phone numbers, but not those made kanji (off by default; dims "Single digits to full-width" when on)
   - **Units to squares**: turns mm, cm, km, m, mg, g, kg, t, ml, dL, kL, L, cal, kcal, cc right after digits into ㍉ ㌢ ㌖ ㍍ ㍉㌘ ㌘ ㌕ ㌧ ㍉㍑ ㌥㍑ ㌔㍑ ㍑ ㌍ ㌔㌍ ㏄ (10cm → 10㌢), and m2, cm3, m² etc. into ㎡ ㎤. A space between the digits and the unit is removed (5 mm → 5㍉), and full-width units count too. Units followed by letters or / (km/h, mmHg) are left. Off by default because some fonts lack these glyphs
   - **Western years to Japanese era**: 2026年 → 令和8年. When the month and day follow, they decide which side of an era change the date falls on (2019年4月30日 → 平成31年, 2019年5月1日 → 令和元年); a bare year of an era change uses the new era. Year 1 is written 元年
@@ -124,6 +126,7 @@ https://note.com/dtp_tranist/n/ndb55c5516fd6
 
 ### Update History
 
+- v1.28.0 (2026-11-01) Added "Numbers of 3+ digits to full-width" and "Capitals of up to 3 letters to full-width" (Simple and Detailed modes)
 - v1.27.0 (2026-10-29) Added "Do not tighten 一" to Character and Paragraph in the Detailed mode: removes proportional metrics and tsume from 一 (on by default; always applied in the Simple mode and the wizard too)
 - v1.26.1 (2026-10-23) The built-in presets Standard, "Arabic, TCY for 2 digits only" and "Arabic, TCY for 2–3 digits (magazines, ads)" now turn on "Kanji numerals to Arabic digits"
 - v1.26.0 (2026-10-23) Added "Kanji numerals to Arabic digits" to Numbers in the Detailed mode: stray kanji numerals as in 2019年四月30日 become digits before Tate-Chu-Yoko and full-width are decided

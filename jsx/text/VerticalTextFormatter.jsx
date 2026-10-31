@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.VerticalTextFormatter
 Name=縦組みの欧文回転・縦中横・数字の書き換えをまとめて適用
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.27.0
+Version=1.28.0
 Release-Date=2026-10-15
 Description-BEGIN
 選択したテキストを縦組みにし、欧文回転・縦中横・数字の書き換え（全角・漢数字・和暦）・禁則・文字組みなどをまとめて適用します。
@@ -49,10 +49,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/VerticalTe
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "VerticalTextFormatter";        /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.27.0";                      /* バージョン / version */
+var SCRIPT_VERSION  = "v1.28.0";                      /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-15";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-29";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-11-01";                   /* 更新日 / last updated */
 
 var SCRIPT_DESCRIPTION_JA = "縦組みの欧文回転・縦中横・数字の書き換えをまとめて適用"; /* README の見出し / README title (Japanese) */
 
@@ -82,6 +82,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         tcyExclamation: false,
         tcyGlyphByLength: true,
         singleDigitFullwidth: false,
+        longDigitsFullwidth: false,
         nonTcyDigitsFullwidth: false,
         japaneseEra: false,
         kanjiToArabic: false,
@@ -103,6 +104,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         rangeToWave: true,
         exclamFullwidth: true,
         singleLetterFullwidth: false,
+        shortCapsFullwidth: false,
         unitsKumimoji: false,
         proportionalFullwidthLatin: true,
         ichiNoTightening: true,
@@ -122,9 +124,9 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
 
     /* ダイアログの真偽値の項目（設定のキーとコントロール名が同じ） / Boolean dialog options (setting key = control name) */
     var CHECKBOX_SETTING_KEYS = ["rotateRoman", "tcyNumbers", "tcyDigits2", "tcyDigits3", "tcyDigits4", "tcyExcludeAdjacent", "tcyCapitals",
-        "tcyExclamation", "tcyGlyphByLength", "singleDigitFullwidth", "nonTcyDigitsFullwidth", "japaneseEra", "kanjiToArabic", "kanji", "kanjiZeroRei", "kanjiIchiSen", "halfwidthAlnum",
+        "tcyExclamation", "tcyGlyphByLength", "singleDigitFullwidth", "longDigitsFullwidth", "nonTcyDigitsFullwidth", "japaneseEra", "kanjiToArabic", "kanji", "kanjiZeroRei", "kanjiIchiSen", "halfwidthAlnum",
         "colorCheck", "areaAutoSize", "areaHeightToSize", "periodToNakaguro", "symbolsFullwidth", "quotesToChonchon", "rangeToWave", "exclamFullwidth", "singleLetterFullwidth",
-        "unitsKumimoji", "proportionalFullwidthLatin", "ichiNoTightening", "rotateSkipLongLatin", "shortWordFullwidth"];
+        "shortCapsFullwidth", "unitsKumimoji", "proportionalFullwidthLatin", "ichiNoTightening", "rotateSkipLongLatin", "shortWordFullwidth"];
 
     /* 簡易モードで表示していなくてもオフにしない項目（常にかける） / Options kept on even when hidden in the simple mode (always applied) */
     var ALWAYS_APPLIED_KEYS = ["areaHeightToSize", "ichiNoTightening"];
@@ -325,8 +327,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     var PRESET_ICON_SIZE    = [20, 18];   /* プリセットの保存・削除アイコンの大きさ / preset save and delete icon size */
     var PRESET_DROPDOWN_WIDTH = 150; /* プリセットのドロップダウンの幅（長い名前は選択中の表示だけ切れる） / preset dropdown width (long names are cut only in the closed menu) */
     var PRESET_NAME_CHARS   = 20;    /* プリセット名の入力欄の文字数 / preset name field width */
-    var PARAGRAPH_LABEL_WIDTH = 60;
-    var PARAGRAPH_OPTION_TOP_MARGIN = 5;   /* 「文字・段落」のチェックボックスの上の余白 / gap above the checkboxes in Character and Paragraph */  /* 段落のドロップダウンの項目名の幅（右揃え） / paragraph dropdown label width (right-aligned) */
+    var PARAGRAPH_LABEL_WIDTH = 60;  /* 段落のドロップダウンの項目名の幅（右揃え） / paragraph dropdown label width (right-aligned) */
+    var PARAGRAPH_OPTION_TOP_MARGIN = 5;   /* 「文字・段落」のチェックボックスの上の余白 / gap above the checkboxes in Character and Paragraph */
 
     // UI の明暗（再利用パーツ） / UI theme (reusable)
 
@@ -1244,9 +1246,11 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             rangeToWave: { ja: "範囲の「-」「~」→「〜」", en: "Range \"-\" \"~\" → \"〜\"" },
             exclamFullwidth: { ja: "「!」「?」を全角に", en: "\"!\" \"?\" to full-width" },
             singleLetterFullwidth: { ja: "1文字の英字を全角に", en: "Single letters to full-width" },
+            shortCapsFullwidth: { ja: "3文字以内の大文字の英単語を全角に", en: "Capitals of up to 3 letters to full-width" },
             proportionalFullwidthLatin: { ja: "全角英数字にプロポーショナルメトリクス", en: "Proportional metrics for full-width alphanumerics" },
             ichiNoTightening: { ja: "「一」を詰めない", en: "Do not tighten 一" },
             singleDigitFullwidth: { ja: "1桁の数字を全角に", en: "Single digits to full-width" },
+            longDigitsFullwidth: { ja: "3桁以上の数字を全角に", en: "Numbers of 3+ digits to full-width" },
             nonTcyDigitsFullwidth: { ja: "縦中横以外の数字を全角に", en: "Non-TCY digits to full-width" },
             japaneseEra: { ja: "西暦を和暦に", en: "Western years to Japanese era" },
             kanjiToArabic: { ja: "漢数字を算用数字にそろえる", en: "Kanji numerals to Arabic digits" },
@@ -1453,6 +1457,14 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
                 en: "Makes a lone letter (the A in Aランク) full-width"
             },
             singleDigitFullwidth: { ja: "1桁の数字を全角にして正立させます", en: "Makes single digits full-width so they stand upright" },
+            longDigitsFullwidth: {
+                ja: "縦中横にしない3桁以上の数字を全角にして正立させます（2026 → ２０２６）。桁区切り・小数点のある数は整数部の桁数で数えます。電話番号は除く",
+                en: "Makes numbers of three or more digits that are not in Tate-Chu-Yoko full-width (2026 → ２０２６); numbers with separators count their integer digits; phone numbers are left"
+            },
+            shortCapsFullwidth: {
+                ja: "大文字だけの3文字以内の英単語を全角にして正立させます（PDF → ＰＤＦ、A → Ａ）。［大文字の英字（2〜3字）を縦中横］がオンなら縦中横を優先します",
+                en: "Makes all-capital words of up to three letters full-width so they stand upright (PDF → ＰＤＦ); TCY for capitals takes priority when it is on"
+            },
             nonTcyDigitsFullwidth: {
                 ja: "縦中横にしない数字をすべて全角にして正立させます（桁区切り・小数点の隣や電話番号の数字も。漢数字にする数字は除く）",
                 en: "Makes all digits not in Tate-Chu-Yoko full-width so they stand upright (including those next to separators and in phone numbers; not those made kanji)"
@@ -2715,8 +2727,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
      * その位置から始まる1語を読む。単語の途中・数字＋単位（5mm など。［単位を組文字に］の対象）は語として扱わない
      * @param {string} text - 対象の文字列
      * @param {number} startIndex - 調べる位置
-     * @returns {{end: number, isSentenceEnd: boolean, isCapsTcy: boolean}|null} 終わり（含まない）、文末のピリオドで終わるか、
-     *     縦中横にする大文字（半角2〜3字）か。語でなければ null
+     * @returns {{end: number, isSentenceEnd: boolean, isCapsTcy: boolean, isShortCaps: boolean}|null} 終わり（含まない）、文末のピリオドで終わるか、
+     *     縦中横にする大文字（半角2〜3字）か、全角にする大文字（半角1〜3字）か。語でなければ null
      */
     function readLatinWord(text, startIndex) {
         var previousChar = text.charAt(startIndex - 1);
@@ -2735,15 +2747,17 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         var coreText = wordText.replace(/\.+$/, "");
         var isSentenceEnd = coreText !== wordText && coreText.length >= 4 && coreText.indexOf(".") < 0;
         var isCapsTcy = /^[A-Z]{2,3}$/.test(wordText);
-        return { end: wordEnd, isSentenceEnd: isSentenceEnd, isCapsTcy: isCapsTcy };
+        var isShortCaps = /^[A-Z]{1,3}$/.test(wordText);
+        return { end: wordEnd, isSentenceEnd: isSentenceEnd, isCapsTcy: isCapsTcy, isShortCaps: isShortCaps };
     }
 
     /**
      * その位置から始まる欧文のまとまりの終わりと語数を返す
-     * ［大文字を縦中横に］がオンで、全部の語が縦中横にする大文字（NHK BS など）なら、最初の1語だけを返す
+     * ［大文字を縦中横に］がオンで、全部の語が縦中横にする大文字（NHK BS など）なら、最初の1語だけを返す。
+     * ［3文字以内の大文字の英単語を全角に］がオンで、全部の語が3文字以内の大文字なら同じく最初の1語だけ
      * @param {string} text - 対象の文字列
      * @param {number} startIndex - 調べる位置（どこでもよい）
-     * @param {Object} formatOptions - 変換の設定（tcyCapitals を見る）
+     * @param {Object} formatOptions - 変換の設定（tcyCapitals・shortCapsFullwidth を見る）
      * @returns {{end: number, wordCount: number}|null} 終わり（含まない）と語数。語で始まらなければ null
      */
     function scanLatinRun(text, startIndex, formatOptions) {
@@ -2753,6 +2767,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         var wordEnd = word.end;
         var wordCount = 1;
         var isAllCapsTcy = word.isCapsTcy;
+        var isAllShortCaps = word.isShortCaps;
         while (true) {
             /* つなぎ：スペースの並び、または前後にスペースを挟んでよい「&」 / joiner: spaces, or & with optional spaces around it */
             var nextIndex = wordEnd;
@@ -2772,8 +2787,10 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             wordEnd = word.end;
             wordCount++;
             if (!word.isCapsTcy) isAllCapsTcy = false;
+            if (!word.isShortCaps) isAllShortCaps = false;
         }
-        if (wordCount >= 2 && isAllCapsTcy && formatOptions && formatOptions.tcyCapitals) return { end: firstWordEnd, wordCount: 1 };
+        var splitsCaps = formatOptions && ((isAllCapsTcy && formatOptions.tcyCapitals) || (isAllShortCaps && formatOptions.shortCapsFullwidth));
+        if (wordCount >= 2 && splitsCaps) return { end: firstWordEnd, wordCount: 1 };
         return { end: wordEnd, wordCount: wordCount };
     }
 
@@ -3039,17 +3056,31 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     }
 
     /**
+     * 縦中横にしない数字を全角にするか（［縦中横以外の数字を全角に］［1桁の数字を全角に］［3桁以上の数字を全角に］）
+     * @param {number} digitCount - 並びの桁数
+     * @param {number} numberDigitCount - 3桁以上の判定に使う桁数（桁区切り・小数点のある数は整数部の桁数）
+     * @param {Object} formatOptions - 変換の設定
+     * @returns {boolean} 全角にするなら true
+     */
+    function isFullwidthDigitCount(digitCount, numberDigitCount, formatOptions) {
+        if (formatOptions.nonTcyDigitsFullwidth) return true;
+        if (formatOptions.singleDigitFullwidth && digitCount === 1) return true;
+        return formatOptions.longDigitsFullwidth && numberDigitCount >= 3;
+    }
+
+    /**
      * 数字だけの並び（1つの digits）を、縦中横・全角・そのままのどれかにして出力に足す
      * @param {string} digitText - 半角数字の文字列
      * @param {Object} formatOptions - 変換の設定
      * @param {function(string, boolean): void} emit - 出力に足す関数（文字列、縦中横にするか）
+     * @param {number} [numberDigitCount] - 3桁以上の判定に使う桁数（桁区切りのある数の一部のときは数全体の整数部の桁数。省くと並びの桁数）
      * @returns {void}
      */
-    function emitDigitRun(digitText, formatOptions, emit) {
+    function emitDigitRun(digitText, formatOptions, emit, numberDigitCount) {
         var digitCount = digitText.length;
         if (formatOptions.tcyNumbers && formatOptions["tcyDigits" + digitCount] === true) {
             emit(digitText, true);
-        } else if (formatOptions.nonTcyDigitsFullwidth || (formatOptions.singleDigitFullwidth && digitCount === 1)) {
+        } else if (isFullwidthDigitCount(digitCount, numberDigitCount || digitCount, formatOptions)) {
             emit(toFullwidthAscii(digitText), false);
         } else {
             emit(digitText, false);
@@ -3091,15 +3122,16 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         } else if (formatOptions.tcyExcludeAdjacent) {
             /* 桁区切り・小数点の隣の数字は縦中横にしない（全角は［縦中横以外の数字を全角に］のときだけ）
                Numbers next to separators get no TCY (full-width only with "Non-TCY digits to full-width") */
+            var isFullwidthNumber = formatOptions.nonTcyDigitsFullwidth || (formatOptions.longDigitsFullwidth && numberToken.integerDigits >= 3);
             for (var p = 0; p < numberToken.parts.length; p++) {
                 var part = numberToken.parts[p];
                 if (part.type !== "digits") emit(convertNumberMark(part, formatOptions), false);
-                else emit(formatOptions.nonTcyDigitsFullwidth ? toFullwidthAscii(part.text) : part.text, false);
+                else emit(isFullwidthNumber ? toFullwidthAscii(part.text) : part.text, false);
             }
         } else {
             for (var q = 0; q < numberToken.parts.length; q++) {
                 var numberPart = numberToken.parts[q];
-                if (numberPart.type === "digits") emitDigitRun(numberPart.text, formatOptions, emit);
+                if (numberPart.type === "digits") emitDigitRun(numberPart.text, formatOptions, emit, numberToken.integerDigits);
                 else emit(convertNumberMark(numberPart, formatOptions), false);
             }
         }
@@ -3276,8 +3308,9 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
                 while (i < text.length && isLatinLetter(text.charAt(i))) i++;
                 var letterText = text.substring(runStart, i);
                 var isCapsTcy = formatOptions.tcyCapitals && letterText.length >= 2 && letterText.length <= 3 && letterText === letterText.toUpperCase();
+                var isShortCaps = formatOptions.shortCapsFullwidth && /^[A-Z]{1,3}$/.test(letterText);
                 if (isCapsTcy) emit(letterText, true);
-                else if (isShortWordForFullwidth(letterText, formatOptions)) emit(toFullwidthAscii(letterText), false);
+                else if (isShortCaps || isShortWordForFullwidth(letterText, formatOptions)) emit(toFullwidthAscii(letterText), false);
                 else emit(letterText, false);
             } else if (isExclamOrQuestion(currentChar)) {
                 while (i < text.length && isExclamOrQuestion(text.charAt(i))) i++;
@@ -4995,6 +5028,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             dialogControls.exclamFullwidth = addOptionCheckbox(replacePanel, "checkbox.exclamFullwidth", settings.exclamFullwidth);
         }
         dialogControls.singleLetterFullwidth = addOptionCheckbox(replacePanel, "checkbox.singleLetterFullwidth", settings.singleLetterFullwidth);
+        dialogControls.shortCapsFullwidth = addOptionCheckbox(replacePanel, "checkbox.shortCapsFullwidth", settings.shortCapsFullwidth);
         if (isDetail) {
             /* ☑［4］文字以下の英単語を全角に / Full-width for words of [4] or fewer letters */
             var shortWordRow = replacePanel.add("group");
@@ -5006,6 +5040,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         /* 簡易モードは「数字」パネルを作らず、1桁の全角もここに入れる / The simple mode has no Numbers panel; single digits go here */
         if (!isDetail) {
             dialogControls.singleDigitFullwidth = addOptionCheckbox(replacePanel, "checkbox.singleDigitFullwidth", settings.singleDigitFullwidth);
+            dialogControls.longDigitsFullwidth = addOptionCheckbox(replacePanel, "checkbox.longDigitsFullwidth", settings.longDigitsFullwidth);
             dialogControls.nonTcyDigitsFullwidth = addOptionCheckbox(replacePanel, "checkbox.nonTcyDigitsFullwidth", settings.nonTcyDigitsFullwidth);
         }
     }
@@ -5021,6 +5056,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         var numberPanel = parent.add("panel", undefined, getLabel("panel.numbers"));
         setupPanel(numberPanel, 6);
         dialogControls.singleDigitFullwidth = addOptionCheckbox(numberPanel, "checkbox.singleDigitFullwidth", settings.singleDigitFullwidth);
+        dialogControls.longDigitsFullwidth = addOptionCheckbox(numberPanel, "checkbox.longDigitsFullwidth", settings.longDigitsFullwidth);
         dialogControls.nonTcyDigitsFullwidth = addOptionCheckbox(numberPanel, "checkbox.nonTcyDigitsFullwidth", settings.nonTcyDigitsFullwidth);
         dialogControls.unitsKumimoji = addOptionCheckbox(numberPanel, "checkbox.unitsKumimoji", settings.unitsKumimoji);
         dialogControls.japaneseEra = addOptionCheckbox(numberPanel, "checkbox.japaneseEra", settings.japaneseEra);
@@ -5463,8 +5499,9 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             setEnabledIfExists("tcyDigits3", dialogControls.tcyNumbers.value);
             setEnabledIfExists("tcyDigits4", dialogControls.tcyNumbers.value);
             setEnabledIfExists("tcyExcludeAdjacent", dialogControls.tcyNumbers.value);
-            /* 全角にする数字に1桁も含まれる / Non-TCY digits already include single digits */
+            /* 全角にする数字に1桁・3桁以上も含まれる / Non-TCY digits already include single and 3+ digit numbers */
             setEnabledIfExists("singleDigitFullwidth", !dialogControls.nonTcyDigitsFullwidth.value);
+            setEnabledIfExists("longDigitsFullwidth", !dialogControls.nonTcyDigitsFullwidth.value);
             /* 漢数字の項目は詳細モードだけ / Kanji options exist only in the detailed mode */
             if (dialogControls.kanji) {
                 setEnabledIfExists("kanjiToArabic", !dialogControls.kanji.value);
