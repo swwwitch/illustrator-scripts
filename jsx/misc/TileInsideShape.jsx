@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.PatternFill
 Name=大きいオブジェクトの形の内側に小さいオブジェクトを敷き詰める
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=2.0.1
+Version=2.1.0
 Release-Date=2025-10-26
 Description-BEGIN
 オブジェクトを2つ以上選択し、いちばん大きいものの形の内側に、ほかのオブジェクトを複製して敷き詰めます。
@@ -47,7 +47,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TileInside
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "TileInsideShape";              /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v2.0.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v2.1.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-10-26";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-31";                   /* 更新日 / last updated */
@@ -75,10 +75,9 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
        Initial layout: "grid", "brick" (rows), "brickVertical" (columns) or "random" */
     var DEFAULT_LAYOUT_TYPE = "brick";
 
-    /* ［シンボル化］［プレビュー］［中央にそろえる］［はみ出しも残してマスク］の初期値
-       Initial state of Symbolize, Preview, Center and Keep Overflow and Mask */
+    /* ［シンボル化］［中央にそろえる］［はみ出しも残してマスク］の初期値
+       Initial state of Symbolize, Center and Keep Overflow and Mask */
     var DEFAULT_SYMBOLIZE = true;
-    var DEFAULT_PREVIEW = true;
     var DEFAULT_CENTER_ALIGN = true;
     var DEFAULT_CLIP_OVERFLOW = false;
 
@@ -98,7 +97,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     var SCALE_JITTER_MAX = 90;
 
     /* プレビューの不透明度（%）/ Opacity of the preview (%) */
-    var PREVIEW_OPACITY = 60;
+    var PREVIEW_OPACITY = 100;
 
     /* 敷き詰めたタイルを入れるグループ名（プレビューは名前で探して消す）/ Group names; previews are found and removed by name */
     var GRID_GROUP_NAME = 'TiledGrid';
@@ -1638,7 +1637,6 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             centerAlign: { ja: "中央にそろえる", en: "Center" },
             clipOverflow: { ja: "はみ出しも残してマスク", en: "Keep Overflow and Mask" },
             alternateFlip: { ja: "1つおきに180°回転", en: "Flip Every Other 180°" },
-            preview: { ja: "プレビュー", en: "Preview" },
             symbolize: { ja: "シンボル化", en: "Symbolize" }
         },
         tooltip: {
@@ -1719,7 +1717,10 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
                 ja: "タイルごとに、この割合までランダムに小さくします。",
                 en: "Shrinks each tile at random by up to this percentage."
             },
-            preview: { ja: "設定をドキュメント上にプレビューします。", en: "Previews the result in the document." },
+            reset: {
+                ja: "すべての項目を初期値に戻します（前回の設定ではなく、スクリプトの初期値）。",
+                en: "Restores every setting to the script's defaults, not the last settings."
+            },
             symbolize: {
                 ja: "タイルをシンボルとして複製します。あとからまとめて差し替えられます。",
                 en: "Duplicates the tile as a symbol, so every copy can be swapped later at once."
@@ -1755,7 +1756,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         button: {
             ok: { ja: "OK", en: "OK" },
             cancel: { ja: "キャンセル", en: "Cancel" },
-            reshuffle: { ja: "再配置", en: "Reshuffle" }
+            reshuffle: { ja: "再配置", en: "Reshuffle" },
+            reset: { ja: "リセット", en: "Reset" }
         }
     };
 
@@ -2800,7 +2802,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
      * ラジオ・チェックボックスの状態を、前回の設定（無ければ初期値）から作る。
      * 表示前の value は読み戻せないので、状態はこのオブジェクトに控えて読む
      * @param {Object|null} lastSettings - loadLastSettings() の結果
-     * @returns {Object} ダイアログの状態（layoutType / tileOrder / layoutChoice / centerAlign / clipOverflow / tileRotationOn / alternateFlip / symbolize / preview / containerAction / randomSeed）
+     * @returns {Object} ダイアログの状態（layoutType / tileOrder / layoutChoice / centerAlign / clipOverflow / tileRotationOn / alternateFlip / symbolize / containerAction / randomSeed）
      */
     function createDialogState(lastSettings) {
         var layoutType = getSavedSetting(lastSettings, 'layoutType', null);
@@ -2824,7 +2826,6 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             tileRotationOn: getSavedSetting(lastSettings, 'tileRotationOn', getSavedSetting(lastSettings, 'tileRotation', 0) !== 0),
             alternateFlip: getSavedSetting(lastSettings, 'alternateFlip', false),
             symbolize: getSavedSetting(lastSettings, 'symbolize', DEFAULT_SYMBOLIZE),
-            preview: getSavedSetting(lastSettings, 'preview', DEFAULT_PREVIEW),
             containerAction: containerAction,
             /* ランダムな並び・ばらつきはダイアログを開くたびに変え、開いている間は［再配置］まで固定する（プレビューと実行をそろえる）
                New random arrangement and jitter per dialog, kept until Reshuffle so the preview matches the result */
@@ -2854,6 +2855,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         var stateCheckbox = parent.add('checkbox', undefined, getLabel(labelPath));
         stateCheckbox.helpTip = getLabel(tooltipPath);
         stateCheckbox.value = dialogState[stateName];
+        stateCheckbox.stateName = stateName; /* syncStateControls() で状態から写し直す / for syncStateControls() */
         stateCheckbox.onClick = function () {
             dialogState[stateName] = stateCheckbox.value;
             if (onToggle) onToggle();
@@ -2878,6 +2880,9 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         var stateRadio = parent.add('radiobutton', undefined, getLabel(labelPath));
         stateRadio.helpTip = getLabel(tooltipPath);
         stateRadio.value = (dialogState[stateName] === stateValue);
+        /* syncStateControls() で状態から写し直す / for syncStateControls() */
+        stateRadio.stateName = stateName;
+        stateRadio.stateValue = stateValue;
         stateRadio.onClick = function () {
             dialogState[stateName] = stateValue;
             if (radioGroup) {
@@ -2887,6 +2892,22 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         };
         if (radioGroup) radioGroup.push(stateRadio);
         return stateRadio;
+    }
+
+    /**
+     * addStateCheckbox() / addStateRadio() で足したコントロールの値を、ダイアログの状態から写し直す（中のグループ・パネルもたどる）
+     * @param {Window|Group|Panel} container - たどる起点
+     * @param {Object} dialogState - createDialogState() の結果
+     * @returns {void}
+     */
+    function syncStateControls(container, dialogState) {
+        for (var i = 0; i < container.children.length; i++) {
+            var control = container.children[i];
+            if (control.stateName !== undefined) {
+                control.value = (control.stateValue !== undefined) ? (dialogState[control.stateName] === control.stateValue) : dialogState[control.stateName];
+            }
+            if (control.children) syncStateControls(control, dialogState);
+        }
     }
 
     /**
@@ -2978,18 +2999,32 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         var dialogState = createDialogState(lastSettings);
         /* 欄がすべてそろうまでプレビューを描かない / No preview until every field exists */
         var isDialogReady = false;
+        /* ［リセット］で戻す欄の文字列（設定の名前ごと）/ Field texts restored by Reset, by setting name */
+        var defaultFieldTexts = {};
 
         /**
-         * 前回の数値を、単位付きの欄の文字列にする
-         * @param {string} settingName - 設定の名前
-         * @param {number} fallbackValue - 前回の値が無いときの値
+         * 数値を単位付きの欄の文字列にする
+         * @param {number} fieldValue - 値（長さは pt）
          * @param {string} fieldUnit - 欄の単位（長さの欄なら lengthUnit。値は pt から換算する）
          * @returns {string} 欄に入れる文字列
          */
-        function getSavedFieldText(settingName, fallbackValue, fieldUnit) {
-            var savedValue = getSavedSetting(lastSettings, settingName, fallbackValue);
-            if (fieldUnit === lengthUnit) savedValue = ptToUnit(savedValue, rulerUnit);
-            return formatStepperNumber(savedValue) + fieldUnit;
+        function formatFieldText(fieldValue, fieldUnit) {
+            if (fieldUnit === lengthUnit) fieldValue = ptToUnit(fieldValue, rulerUnit);
+            return formatStepperNumber(fieldValue) + fieldUnit;
+        }
+
+        /**
+         * 前回の数値を、単位付きの欄の文字列にする（初期値は［リセット］用に控える）
+         * @param {string} settingName - 設定の名前
+         * @param {number} defaultValue - 初期値（長さは pt）
+         * @param {string} fieldUnit - 欄の単位（長さの欄なら lengthUnit）
+         * @param {number} [savedFallback] - 前回の値が無いときの値（省略時は初期値）
+         * @returns {string} 欄に入れる文字列
+         */
+        function getSavedFieldText(settingName, defaultValue, fieldUnit, savedFallback) {
+            defaultFieldTexts[settingName] = formatFieldText(defaultValue, fieldUnit);
+            var savedValue = getSavedSetting(lastSettings, settingName, (savedFallback !== undefined) ? savedFallback : defaultValue);
+            return formatFieldText(savedValue, fieldUnit);
         }
 
         /* 上段は1段組み：項目名・欄・スライダー（スライダーはどの行も同じ長さ。間隔の2行だけ、その右に連動アイコン）
@@ -3006,7 +3041,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
 
         /* 間隔（横・縦）。v1.7.0 で控えた間隔（gap）は両方に使う。2行のスライダーの右に連動アイコン
            Horizontal and vertical spacing; the single gap kept by v1.7.0 serves both. The link icon sits to the right of both sliders */
-        var defaultSpacingPt = getSavedSetting(lastSettings, 'gap', unitToPt(Math.round(maxTileWidthInUnit * DEFAULT_GAP_RATIO), rulerUnit));
+        var defaultSpacingPt = unitToPt(Math.round(maxTileWidthInUnit * DEFAULT_GAP_RATIO), rulerUnit);
+        var savedSpacingPt = getSavedSetting(lastSettings, 'gap', defaultSpacingPt);
         var spacingSliderRange = { min: 0, max: maxTileWidthInUnit * SPACING_SLIDER_MAX_RATIO };
         var spacingPairRow = fillDialog.add('group');
         spacingPairRow.orientation = 'row';
@@ -3018,9 +3054,9 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         spacingFieldColumn.alignment = ['left', 'center'];
         spacingFieldColumn.alignChildren = ['fill', 'top'];
         spacingFieldColumn.spacing = WINDOW_SPACING;
-        var spacingXControls = addSliderFieldRow(spacingFieldColumn, 'fieldLabel.spacingX', getSavedFieldText('gapX', defaultSpacingPt, lengthUnit), 'tooltip.spacingX',
+        var spacingXControls = addSliderFieldRow(spacingFieldColumn, 'fieldLabel.spacingX', getSavedFieldText('gapX', defaultSpacingPt, lengthUnit, savedSpacingPt), 'tooltip.spacingX',
             { min: 0, unit: lengthUnit }, spacingSliderRange, function () { onSpacingChange(spacingXControls); });
-        var spacingYControls = addSliderFieldRow(spacingFieldColumn, 'fieldLabel.spacingY', getSavedFieldText('gapY', defaultSpacingPt, lengthUnit), 'tooltip.spacingY',
+        var spacingYControls = addSliderFieldRow(spacingFieldColumn, 'fieldLabel.spacingY', getSavedFieldText('gapY', defaultSpacingPt, lengthUnit, savedSpacingPt), 'tooltip.spacingY',
             { min: 0, unit: lengthUnit }, spacingSliderRange, function () { onSpacingChange(spacingYControls); });
         var spacingLinkToggle = addLinkToggle(spacingPairRow, getSavedSetting(lastSettings, 'gapLinked', true), function () { onSpacingChange(spacingXControls); });
         spacingLinkToggle.helpTip = getLabel('tooltip.linkSpacing');
@@ -3127,9 +3163,11 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         /* シンボル化は右の列の［敷き詰め先］パネルの下 / Symbolize sits under the Fill Area panel in the right column */
         addStateCheckbox(panelColumns.columns[1], 'checkbox.symbolize', 'tooltip.symbolize', dialogState, 'symbolize');
 
-        /* ボタン（左にプレビュー）/ Buttons, with Preview on the left */
+        /* ボタン（左にリセット）/ Buttons, with Reset on the left */
         var buttonRow = addButtonRow(fillDialog);
-        addStateCheckbox(buttonRow.leftGroup, 'checkbox.preview', 'tooltip.preview', dialogState, 'preview', updatePreviewFromFields);
+        var resetButton = buttonRow.leftGroup.add('button', undefined, getLabel('button.reset'));
+        resetButton.helpTip = getLabel('tooltip.reset');
+        resetButton.onClick = resetToDefaults;
         buttonRow.rightGroup.add('button', undefined, getLabel('button.cancel'), { name: 'cancel' });
         buttonRow.rightGroup.add('button', undefined, getLabel('button.ok'), { name: 'ok' });
 
@@ -3168,6 +3206,33 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             var isShuffled = (dialogState.layoutChoice === 'randomShuffle');
             dialogState.layoutType = isShuffled ? 'random' : dialogState.layoutChoice;
             dialogState.tileOrder = isShuffled ? 'random' : 'sequence';
+            updateEnabledStates();
+            updatePeriodAndPreview();
+        }
+
+        /**
+         * すべての項目をスクリプトの初期値に戻し、プレビューを描き直す（ランダムな並びの種はそのまま）
+         * @returns {void}
+         */
+        function resetToDefaults() {
+            var defaultState = createDialogState(null);
+            defaultState.randomSeed = dialogState.randomSeed;
+            for (var stateName in defaultState) dialogState[stateName] = defaultState[stateName];
+            syncStateControls(fillDialog, dialogState);
+            setLinkToggleValue(spacingLinkToggle, true);
+
+            var sliderFields = {
+                scale: scaleControls, gapX: spacingXControls, gapY: spacingYControls, offset: offsetControls,
+                shiftX: shiftXControls, shiftY: shiftYControls, layoutAngle: layoutAngleControls,
+                rotationJitter: rotationJitterControls, scaleJitter: scaleJitterControls, density: densityControls
+            };
+            for (var settingName in sliderFields) {
+                sliderFields[settingName].field.text = defaultFieldTexts[settingName];
+                sliderFields[settingName].syncSlider();
+            }
+            rotationField.text = defaultFieldTexts.tileRotation;
+            opacityField.text = defaultFieldTexts.containerOpacity;
+
             updateEnabledStates();
             updatePeriodAndPreview();
         }
@@ -3219,7 +3284,6 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
                 scaleJitter: readFieldNumber(scaleJitterControls.field, 0, 0, SCALE_JITTER_MAX),
                 tileOrder: dialogState.tileOrder,
                 symbolize: dialogState.symbolize,
-                preview: dialogState.preview,
                 containerAction: dialogState.containerAction,
                 containerOpacity: readFieldNumber(opacityField, 100, 0, 100)
             };
@@ -3317,12 +3381,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
 
         var fillSettings = showFillDialog(fillTarget, function(previewSettings) {
             var placements = computePlacements(fillTarget, previewSettings);
-            if (previewSettings.preview) {
-                renderPreview(fillTarget, previewSettings, placements);
-            } else {
-                clearPreview(fillTarget);
-                app.redraw();
-            }
+            renderPreview(fillTarget, previewSettings, placements);
             return placements.length;
         });
         clearPreview(fillTarget);
