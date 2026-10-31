@@ -185,6 +185,7 @@ After release, we continue to fix bugs and make adjustments through daily use.
 - [Set text on manuscript paper](readme-en/GenkoYoshiMaker.md)
 - [Convert strokes to fills, merge and expand](readme-en/MergeExpand.md)
 - [Draw a branching Sankey diagram from the selected obj…](readme-en/SankeyFlowMaker.md)
+- [Start a text appearance from a new fill](readme-en/StartTextAppearance.md)
 - [Generate rain-like rules](readme-en/VTRainMaker.md)
 
 

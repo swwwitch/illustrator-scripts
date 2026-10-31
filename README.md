@@ -186,6 +186,7 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 - [テキストを原稿用紙に組む](readme-ja/GenkoYoshiMaker.md)
 - [線を塗りに変換してから合流して分割](readme-ja/MergeExpand.md)
 - [選択したオブジェクトから枝分かれするサンキー図を作る](readme-ja/SankeyFlowMaker.md)
+- [テキストのアピアランスを新規塗りから始める](readme-ja/StartTextAppearance.md)
 - [雨のような罫線を生成](readme-ja/VTRainMaker.md)
 
 
