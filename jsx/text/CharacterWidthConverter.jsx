@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.CharacterWidthConverter
 Name=CharacterWidthConverter
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.1.0
+Version=1.2.0
 Release-Date=2026-10-30
 Description-BEGIN
 カタカナ・英数字・スペース・句読点・括弧・記号を、文字の種類ごとに「そのまま／半角／全角」を選んで変換します。
@@ -47,10 +47,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CharacterW
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "CharacterWidthConverter";      /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.2.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-30";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-30";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-31";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/CharacterWidthConverter.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CharacterWidthConverter.md"; /* README (English) */
@@ -772,7 +772,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
 
     var LABELS = {
         dialog: {
-            title: { ja: "全角・半角の変換", en: "Convert Character Width" }
+            title: { ja: "全角・半角の変換と整形", en: "Convert Width & Clean Up Text" }
         },
         panel: {
             target: { ja: "対象", en: "Scope" },
@@ -819,7 +819,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             greaterThan: { ja: "大なり", en: "Greater-than sign" },
             question: { ja: "疑問符", en: "Question mark" },
             exclamationQuestion: { ja: "感嘆符疑問符", en: "Exclamation-question" },
-            exclamationRun: { ja: "感嘆符（2個以上）", en: "Two or more exclamation marks" },
+            exclamationRun: { ja: "2個以上の感嘆符", en: "Two or more exclamation marks" },
             atSign: { ja: "アットマーク", en: "At sign" },
             leftBracket: { ja: "左大かっこ", en: "Left bracket" },
             backslash: { ja: "バックスラッシュ", en: "Backslash" },
@@ -839,6 +839,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         },
         fieldLabel: {
             preset: { ja: "プリセット", en: "Preset" },
+            /* 「…」は ScriptUI で天地中央に出るので「...」で書く / Written as "..." since "…" sits vertically centered in ScriptUI */
+            toEllipsis: { ja: "...に変換", en: "Convert to ..." },
             punctuationStyle: { ja: "句読点の種類", en: "Punctuation style" },
             quoteForm: { ja: "全角の引用符", en: "Full-width quotes" },
             hyphenForm: { ja: "全角のハイフン", en: "Full-width hyphen" },
@@ -847,7 +849,12 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         },
         checkbox: {
             digitsByLength: { ja: "数字は1桁を全角、2桁以上を半角にする", en: "Digits: one digit full-width, two or more half-width" },
-            spaceBetweenJapaneseOnly: { ja: "スペースは前後が和文の文字のときだけ変換", en: "Convert spaces only between Japanese characters" },
+            spaceBetweenJapaneseOnly: { ja: "和文にはさまれたスペースだけを変換", en: "Convert spaces only between Japanese characters" },
+            japaneseLatinSpace: { ja: "和欧間のスペースを削除", en: "Remove spaces between Japanese and Western text" },
+            nakaguroToEllipsis: { ja: "・・・", en: "・・・" },
+            periodsToEllipsis: { ja: "...", en: "..." },
+            kutenToEllipsis: { ja: "。。。", en: "。。。" },
+            westernPunctuationSpace: { ja: "欧文の,.:のあとにスペースを入れる", en: "Add a space after , . : in Western text" },
             bracketInnerSpace: { ja: "括弧の内側のスペースを削除", en: "Remove spaces inside brackets" },
             bracketOuterSpace: { ja: "括弧の外側のスペースを削除", en: "Remove spaces outside brackets" },
             numberCommaToTouten: { ja: "数字の中の「,」を「、」にする", en: "\",\" in numbers to \"、\"" },
@@ -900,6 +907,26 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
                 en: "The space row converts only spaces with Japanese characters (kana, kanji, full-width characters) on both sides."
             },
             punctuationStyle: { ja: "，．（全角コンマ・ピリオド）と、。のどちらかにそろえます。", en: "Unifies Japanese punctuation to either 、。 or ，．." },
+            japaneseLatinSpace: {
+                ja: "和文の文字（かな・漢字・全角文字）と英数字のあいだのスペース（半角・全角）を削除します（第 3 章 → 第3章）。",
+                en: "Removes spaces (half- or full-width) between Japanese characters (kana, kanji, full-width characters) and Latin letters or digits (第 3 章 → 第3章)."
+            },
+            westernPunctuationSpace: {
+                ja: "英数字と英字にはさまれた半角の「,」、英字にはさまれた「:」、小文字と大文字にはさまれた「.」のあとに半角スペースを入れます（apples,oranges → apples, oranges、end.Next → end. Next）。1,000 や example.com、10:30 は変えません。",
+                en: "Adds a space after a half-width \",\" between a letter or digit and a letter, a \":\" between letters, and a \".\" between a lowercase and an uppercase letter (apples,oranges → apples, oranges; end.Next → end. Next). 1,000, example.com and 10:30 are left alone."
+            },
+            nakaguroToEllipsis: {
+                ja: "3つ続く中黒（・ ･）を三点リーダー（…）にします。6つなら……になります。",
+                en: "Turns three middle dots in a row (・ or ･) into an ellipsis (…); six become ……."
+            },
+            periodsToEllipsis: {
+                ja: "3つ続くピリオド（. ．）を三点リーダー（…）にします。6つなら……になります。",
+                en: "Turns three periods in a row (. or ．) into an ellipsis (…); six become ……."
+            },
+            kutenToEllipsis: {
+                ja: "3つ続く句点（。 ｡）を三点リーダー（…）にします。6つなら……になります。",
+                en: "Turns three Japanese full stops in a row (。 or ｡) into an ellipsis (…); six become ……."
+            },
             bracketInnerSpace: {
                 ja: "開き括弧の直後と閉じ括弧の直前のスペース（半角・全角）を削除します。向きの無い \" ' と < > は対象外です。",
                 en: "Removes spaces (half- or full-width) right after opening brackets and right before closing brackets. Straight quotes and < > are not affected."
@@ -952,6 +979,11 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         },
         resultLabel: {
             punctuationStyle: { ja: "句読点の種類", en: "Punctuation style" },
+            westernPunctuationSpace: { ja: "欧文の,.:のあとのスペース", en: "Spaces after , . : in Western text" },
+            japaneseLatinSpace: { ja: "和欧間のスペース", en: "Spaces between Japanese and Western text" },
+            nakaguroToEllipsis: { ja: "・・・ → …", en: "・・・ → …" },
+            periodsToEllipsis: { ja: "... → …", en: "... → …" },
+            kutenToEllipsis: { ja: "。。。 → …", en: "。。。 → …" },
             bracketInnerSpace: { ja: "括弧の内側のスペース", en: "Spaces inside brackets" },
             bracketOuterSpace: { ja: "括弧の外側のスペース", en: "Spaces outside brackets" },
             numberCommaToTouten: { ja: "数字の中の「,」", en: "\",\" in numbers" },
@@ -1121,7 +1153,12 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     var EXTRA_SETTING_DEFS = [
         { key: "digitsByLength", valueCount: 2 },
         { key: "spaceBetweenJapaneseOnly", valueCount: 2 },
+        { key: "japaneseLatinSpace", valueCount: 2 },
         { key: "punctuationStyle", valueCount: 3 },
+        { key: "nakaguroToEllipsis", valueCount: 2 },
+        { key: "periodsToEllipsis", valueCount: 2 },
+        { key: "kutenToEllipsis", valueCount: 2 },
+        { key: "westernPunctuationSpace", valueCount: 2 },
         { key: "bracketInnerSpace", valueCount: 2 },
         { key: "bracketOuterSpace", valueCount: 2 },
         { key: "quoteForm", valueCount: 3 },
@@ -1148,6 +1185,13 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         { "\u3001": "\uFF0C", "\u3002": "\uFF0E" }   /* 、。 → ，． */
     ];
 
+    /* 3つ続くと三点リーダーにする文字（設定のキー → 半角・全角の文字）/ Characters that become an ellipsis when three run together (setting key → half- and full-width characters) */
+    var ELLIPSIS_SOURCES = [
+        { key: "nakaguroToEllipsis", chars: "\u30FB\uFF65" },  /* ・ ･ */
+        { key: "periodsToEllipsis", chars: ".\uFF0E" },         /* . ． */
+        { key: "kutenToEllipsis", chars: "\u3002\uFF61" }      /* 。 ｡ */
+    ];
+
     /* 括弧の内側のスペースを削除する括弧（向きの無い " ' と不等号、アポストロフィと紛れる ‘ ’ は含めない）/ Brackets for removing inner spaces (straight quotes, < >, and ‘ ’ which look like apostrophes are excluded) */
     var OPENING_BRACKETS = "([{\uFF08\uFF3B\uFF5B\uFF62\u300C\u300E\u3010\u3014\u3008\u300A\u201C\u301D";
     var CLOSING_BRACKETS = ")]}\uFF09\uFF3D\uFF5D\uFF63\u300D\u300F\u3011\u3015\u3009\u300B\u201D\u301F";
@@ -1167,6 +1211,12 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     var DIGIT_SEPARATORS = ",.\uFF0C\uFF0E";
     /* 括弧のまわりで削除するスペース（半角・全角）/ Spaces removed around brackets (half- and full-width) */
     var BRACKET_SPACES = " \u3000";
+    /* スペースを入れる欧文の「,」「.」「:」の前後（「,」は英数字と英字、「.」は小文字と大文字、「:」は英字どうし）/ Neighbors of Western ",", "." and ":" that get a space ("," letter or digit then letter, "." lowercase then uppercase, ":" letters) */
+    var WESTERN_PUNCTUATION_SPACE_RULES = {
+        ",": { previous: /[A-Za-z0-9]/, next: /[A-Za-z]/ },
+        ".": { previous: /[a-z]/, next: /[A-Z]/ },
+        ":": { previous: /[A-Za-z]/, next: /[A-Za-z]/ }
+    };
 
     // =========================================
     // 前提チェック / Preconditions
@@ -1279,9 +1329,11 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         },
         {
             /* 縦組み：数字は1桁を全角・2桁以上を半角（縦中横向け）、!? !! は半角、和文の間のスペースは全角、チルダは波ダッシュ。
-               英字・コンマ・ピリオド・引用符の行はそのまま（欧文の単語を崩さない）、数字の中の「,」「.」は「、」「・」/
+               英字・コンマ・ピリオド・引用符の行はそのまま（欧文の単語を崩さない）、数字の中の「,」「.」は「、」「・」。
+               和欧間のスペースは削除し、・・・ ... 。。。 は … にする /
                Vertical: one digit full-width, two or more half-width (for tate-chu-yoko); !? and !! half-width; spaces between Japanese full-width;
-               tildes become wave dashes. Letter, comma, period and quote rows are kept so English words stay intact; "," and "." in numbers become 、 and ・ */
+               tildes become wave dashes. Letter, comma, period and quote rows are kept so English words stay intact; "," and "." in numbers become 、 and ・.
+               Spaces between Japanese and Western text are removed, and ・・・ ... 。。。 become … */
             name: getLabel(LABELS.preset.vertical), builtIn: true,
             rowOptions: rowOptionsWith(OPTION_FULL, {
                 alphabet: OPTION_KEEP,
@@ -1296,18 +1348,25 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
                 spaceBetweenJapaneseOnly: 1,
                 tildeForm: 1,
                 numberCommaToTouten: 1,
-                decimalToNakaguro: 1
+                decimalToNakaguro: 1,
+                japaneseLatinSpace: 1,
+                nakaguroToEllipsis: 1,
+                periodsToEllipsis: 1,
+                kutenToEllipsis: 1
             })
         },
         {
-            /* 欧文組版：ASCII にある文字（全角スペース・円マークも）はすべて半角、和文のカタカナ・約物はそのまま / Western typesetting: everything with an ASCII form (ideographic space and yen too) to half-width; Japanese kana and punctuation kept */
+            /* 欧文組版：ASCII にある文字（全角スペース・円マークも）はすべて半角、和文のカタカナ・約物はそのまま、... は … にし、欧文の,.:のあとにスペース /
+               Western typesetting: everything with an ASCII form (ideographic space and yen too) to half-width; Japanese kana and punctuation kept; ... becomes …; a space after , . : */
             name: getLabel(LABELS.preset.western), builtIn: true,
             rowOptions: rowOptionsWith(OPTION_HALF, {
                 katakana: OPTION_KEEP,
                 kanaPunctuation: OPTION_KEEP,
                 middleDot: OPTION_KEEP,
                 kanaLeftBracket: OPTION_KEEP,
-                kanaRightBracket: OPTION_KEEP
+                kanaRightBracket: OPTION_KEEP,
+                periodsToEllipsis: 1,
+                westernPunctuationSpace: 1
             })
         }
     ];
@@ -1504,7 +1563,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
      * 設定から、変換元の文字 → 変換後の文字の表と、ほかの処理の有無をまとめる
      * @param {Object} rowOptions - 設定のキー → 値
      * @returns {{map: Object, rowKeyBySource: Object, runUnits: Array, size: number, digitsByLength: boolean,
-     *     spaceBetweenJapaneseOnly: boolean, punctuationStyle: number, bracketInnerSpace: boolean, bracketOuterSpace: boolean,
+     *     spaceBetweenJapaneseOnly: boolean, japaneseLatinSpace: boolean, punctuationStyle: number, nakaguroToEllipsis: boolean, periodsToEllipsis: boolean, kutenToEllipsis: boolean, westernPunctuationSpace: boolean,
+     *     bracketInnerSpace: boolean, bracketOuterSpace: boolean,
      *     numberCommaToTouten: boolean, decimalToNakaguro: boolean}}
      *     変換表（値は文字列、向きで決まる引用符は [開き, 閉じ]）・変換元の行のキー・連続する文字の組・実際に変換する項目の数（守るだけの組は数えない）とほかの処理
      */
@@ -1556,7 +1616,12 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             size: mapSize,
             digitsByLength: digitsByLength,
             spaceBetweenJapaneseOnly: (rowOptions.spaceBetweenJapaneseOnly === 1),
+            japaneseLatinSpace: (rowOptions.japaneseLatinSpace === 1),
             punctuationStyle: rowOptions.punctuationStyle || 0,
+            nakaguroToEllipsis: (rowOptions.nakaguroToEllipsis === 1),
+            periodsToEllipsis: (rowOptions.periodsToEllipsis === 1),
+            kutenToEllipsis: (rowOptions.kutenToEllipsis === 1),
+            westernPunctuationSpace: (rowOptions.westernPunctuationSpace === 1),
             bracketInnerSpace: (rowOptions.bracketInnerSpace === 1),
             bracketOuterSpace: (rowOptions.bracketOuterSpace === 1),
             numberCommaToTouten: (rowOptions.numberCommaToTouten === 1),
@@ -1571,6 +1636,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
      */
     function hasConversionWork(conversion) {
         return conversion.size > 0 || conversion.digitsByLength || conversion.punctuationStyle > 0 ||
+            conversion.japaneseLatinSpace || conversion.nakaguroToEllipsis || conversion.periodsToEllipsis || conversion.kutenToEllipsis || conversion.westernPunctuationSpace ||
             conversion.bracketInnerSpace || conversion.bracketOuterSpace || conversion.numberCommaToTouten || conversion.decimalToNakaguro;
     }
 
@@ -1719,6 +1785,36 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     }
 
     /**
+     * 3つ続く中黒・ピリオド・句点を三点リーダーにする箇所を集める（半角・全角が混ざっていてもよい）
+     * @param {string} fullText - 対象の文字列
+     * @param {Object} conversion - buildConversionMap() の戻り値（nakaguroToEllipsis などでどれを置き換えるかを見る）
+     * @returns {Array<{offset: number, sourceText: string, text: string, key: string}>} 置き換える箇所
+     */
+    function findEllipsisReplacements(fullText, conversion) {
+        var replacements = [];
+        var offset = 0;
+        while (offset <= fullText.length - 3) {
+            var matchedKey = null;
+            for (var i = 0; i < ELLIPSIS_SOURCES.length; i++) {
+                var source = ELLIPSIS_SOURCES[i];
+                if (!conversion[source.key]) continue;
+                if (source.chars.indexOf(fullText.charAt(offset)) >= 0 && source.chars.indexOf(fullText.charAt(offset + 1)) >= 0 &&
+                    source.chars.indexOf(fullText.charAt(offset + 2)) >= 0) {
+                    matchedKey = source.key;
+                    break;
+                }
+            }
+            if (!matchedKey) {
+                offset++;
+                continue;
+            }
+            replacements.push({ offset: offset, sourceText: fullText.substring(offset, offset + 3), text: "\u2026", key: matchedKey });
+            offset += 3;
+        }
+        return replacements;
+    }
+
+    /**
      * 句読点の種類をそろえる箇所を集める
      * @param {string} fullText - 対象の文字列
      * @param {Object} styleMap - 元の文字 → 置き換え後の文字（PUNCTUATION_STYLE_MAPS の要素）
@@ -1806,6 +1902,49 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             if (!DIGIT_PATTERN.test(fullText.charAt(offset + i))) return false;
         }
         return !DIGIT_PATTERN.test(fullText.charAt(offset + 3));
+    }
+
+    /**
+     * 欧文の「,」「.」「:」のあとにスペースを入れる箇所を集める（前後の文字は WESTERN_PUNCTUATION_SPACE_RULES）
+     * @param {string} fullText - 対象の文字列
+     * @returns {Array<{offset: number, sourceText: string, text: string, key: string}>} 置き換える箇所（text は記号＋スペース）
+     */
+    function findWesternPunctuationSpaceReplacements(fullText) {
+        var replacements = [];
+        for (var i = 1; i < fullText.length - 1; i++) {
+            var currentChar = fullText.charAt(i);
+            if (!WESTERN_PUNCTUATION_SPACE_RULES.hasOwnProperty(currentChar)) continue;
+            var rule = WESTERN_PUNCTUATION_SPACE_RULES[currentChar];
+            if (rule.previous.test(fullText.charAt(i - 1)) && rule.next.test(fullText.charAt(i + 1))) {
+                replacements.push({ offset: i, sourceText: currentChar, text: currentChar + " ", key: "westernPunctuationSpace" });
+            }
+        }
+        return replacements;
+    }
+
+    /**
+     * 和文の文字と英数字のあいだのスペース（半角・全角が続いていてもまとめて）を削除する箇所を集める
+     * @param {string} fullText - 対象の文字列
+     * @returns {Array<{offset: number, sourceText: string, text: string, key: string}>} 削除する箇所（text は空文字）
+     */
+    function findJapaneseLatinSpaceReplacements(fullText) {
+        var replacements = [];
+        var offset = 0;
+        while (offset < fullText.length) {
+            if (BRACKET_SPACES.indexOf(fullText.charAt(offset)) < 0) {
+                offset++;
+                continue;
+            }
+            var runEnd = offset;
+            while (runEnd < fullText.length && BRACKET_SPACES.indexOf(fullText.charAt(runEnd)) >= 0) runEnd++;
+            var previousChar = (offset > 0) ? fullText.charAt(offset - 1) : "";
+            var nextChar = fullText.charAt(runEnd);
+            var isTarget = (JAPANESE_CHAR_PATTERN.test(previousChar) && LATIN_ALNUM_PATTERN.test(nextChar)) ||
+                (LATIN_ALNUM_PATTERN.test(previousChar) && JAPANESE_CHAR_PATTERN.test(nextChar));
+            if (isTarget) replacements.push({ offset: offset, sourceText: fullText.substring(offset, runEnd), text: "", key: "japaneseLatinSpace" });
+            offset = runEnd;
+        }
+        return replacements;
     }
 
     /**
@@ -1940,7 +2079,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
 
     /**
      * 対象の文字を設定に従って変換する。
-     * 変換表 → 句読点の種類 → 数字の桁数 → 数字の中の「,」「.」 → 括弧のまわりのスペースの順に処理する。characters 単位の書き換えなので、文字の書式はそのまま残る
+     * 三点リーダー → 和欧間のスペース → 変換表 → 句読点の種類 → 数字の桁数 → 数字の中の「,」「.」 → 欧文の,.:のあとのスペース → 括弧のまわりのスペースの順に処理する。characters 単位の書き換えなので、文字の書式はそのまま残る
      * @param {Array} targets - 対象の配列
      * @param {Object} conversion - buildConversionMap() の戻り値に highlightColor（変換した文字に付ける色、付けないなら null）を足したもの
      * @returns {{converted: number, failed: number, countsByKey: Object}} 変換できた数・できなかった数・キーごとの数
@@ -1951,6 +2090,12 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         var highlightColor = conversion.highlightColor || null;
         for (var i = 0; i < targets.length; i++) {
             var target = targets[i];
+            /* 行の変換より先に置き換える（中黒・ピリオド・句点が1つずつ変換されて数が重ならないように）/ Before the rows, so the dots are not converted one by one first */
+            if (conversion.nakaguroToEllipsis || conversion.periodsToEllipsis || conversion.kutenToEllipsis) {
+                runReplacePass(target, function (fullText) { return findEllipsisReplacements(fullText, conversion); }, result, highlightColor);
+            }
+            /* 英数字を全角にする前に、元の文字で和欧間を判定する / Judged on the original characters, before letters and digits turn full-width */
+            if (conversion.japaneseLatinSpace) runReplacePass(target, findJapaneseLatinSpaceReplacements, result, highlightColor);
             if (conversion.size > 0) {
                 runReplacePass(target, function (fullText) { return findTableReplacements(fullText, conversion); }, result, highlightColor);
             }
@@ -1962,6 +2107,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             if (conversion.numberCommaToTouten || conversion.decimalToNakaguro) {
                 runReplacePass(target, function (fullText) { return findNumberMarkReplacements(fullText, conversion); }, result, highlightColor);
             }
+            /* 行の変換のあと（半角のまま残った「,」「.」「:」だけが対象）/ After the rows, so only "," "." ":" left half-width are touched */
+            if (conversion.westernPunctuationSpace) runReplacePass(target, findWesternPunctuationSpaceReplacements, result, highlightColor);
             if (conversion.bracketInnerSpace) {
                 runReplacePass(target, function (fullText) { return findBracketSpaceReplacements(fullText, true); }, result, highlightColor);
             }
@@ -2481,6 +2628,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         addExtraCheckbox(characterTypeExtrasGroup, "digitsByLength", LABELS.checkbox.digitsByLength, LABELS.tooltip.digitsByLength, tableContext);
         addExtraCheckbox(characterTypeExtrasGroup, "spaceBetweenJapaneseOnly", LABELS.checkbox.spaceBetweenJapaneseOnly,
             LABELS.tooltip.spaceBetweenJapaneseOnly, tableContext);
+        addExtraCheckbox(characterTypeExtrasGroup, "japaneseLatinSpace", LABELS.checkbox.japaneseLatinSpace, LABELS.tooltip.japaneseLatinSpace, tableContext);
+        addExtraCheckbox(characterTypeExtrasGroup, "westernPunctuationSpace", LABELS.checkbox.westernPunctuationSpace, LABELS.tooltip.westernPunctuationSpace, tableContext);
 
         var punctuationPanel = leftColumnGroup.add("panel", undefined, getLabel(LABELS.panel.punctuation));
         setupPanel(punctuationPanel);
@@ -2488,6 +2637,13 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         addExtraDropdown(punctuationPanel, "punctuationStyle", LABELS.fieldLabel.punctuationStyle,
             [LABELS.dropdown.punctuationStyleKeep, LABELS.dropdown.punctuationStyleJapanese, LABELS.dropdown.punctuationStyleWestern],
             LABELS.tooltip.punctuationStyle, tableContext);
+        /* 三点リーダーにする文字（「...に変換 : ☐・・・ ☐... ☐。。。」の1行）/ Characters turned into an ellipsis, on one row */
+        var ellipsisRowGroup = punctuationPanel.add("group");
+        setupRow(ellipsisRowGroup, "left", 6);
+        ellipsisRowGroup.add("statictext", undefined, labelText(LABELS.fieldLabel.toEllipsis));
+        addExtraCheckbox(ellipsisRowGroup, "nakaguroToEllipsis", LABELS.checkbox.nakaguroToEllipsis, LABELS.tooltip.nakaguroToEllipsis, tableContext);
+        addExtraCheckbox(ellipsisRowGroup, "periodsToEllipsis", LABELS.checkbox.periodsToEllipsis, LABELS.tooltip.periodsToEllipsis, tableContext);
+        addExtraCheckbox(ellipsisRowGroup, "kutenToEllipsis", LABELS.checkbox.kutenToEllipsis, LABELS.tooltip.kutenToEllipsis, tableContext);
 
         var middleColumnGroup = columnsGroup.add("group");
         middleColumnGroup.orientation = "column";
@@ -2773,7 +2929,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     }
 
     /* 内訳に出す、行以外のキー（行のあとに並べる）/ Keys besides the rows shown in the breakdown, listed after the rows */
-    var RESULT_EXTRA_KEYS = ["punctuationStyle", "numberCommaToTouten", "decimalToNakaguro", "bracketInnerSpace", "bracketOuterSpace"];
+    var RESULT_EXTRA_KEYS = ["nakaguroToEllipsis", "periodsToEllipsis", "kutenToEllipsis", "japaneseLatinSpace", "punctuationStyle", "numberCommaToTouten", "decimalToNakaguro", "westernPunctuationSpace", "bracketInnerSpace", "bracketOuterSpace"];
 
     /**
      * 変換した数の内訳を、行の並び順で「項目名 : 数」の行にする
