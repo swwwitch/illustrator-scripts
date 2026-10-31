@@ -8,14 +8,14 @@ Script-ID=com.swwwitch.illustrator.CharacterWidthConverter
 Name=文字の種類ごとに全角・半角を変換
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.2.0
+Version=1.3.0
 Release-Date=2026-10-30
 Description-BEGIN
 カタカナ・英数字・スペース・句読点・括弧・記号を、文字の種類ごとに「そのまま／半角／全角」を選んで変換します。
-数字の桁数による切り替えや括弧のまわりのスペースの削除もでき、縦組み用・欧文組版用などのプリセットで設定を切り替えられます。
+設定は［横組み］［縦組み］のタブごとに持ち、開いているタブの設定で変換します。縦組み用・欧文組版用などのプリセットで設定を切り替えられます。
 
 Converts katakana, letters, digits, spaces, punctuation, brackets and symbols between half-width and full-width, choosing "Keep", "Half" or "Full" for each kind of character.
-It can also switch digits by length and remove spaces around brackets, with presets such as vertical and Western typesetting.
+The Horizontal and Vertical tabs each keep their own settings, and the open tab's settings are used. Presets such as vertical and Western typesetting switch the settings.
 Description-END
 SCRIPTMETA-END
 */
@@ -25,7 +25,7 @@ SCRIPTMETA-END
 ### 概要
 
 カタカナ・英数字・スペース・句読点・括弧・記号を、文字の種類ごとに「そのまま／半角／全角」を選んで変換します。
-数字の桁数による切り替えや括弧のまわりのスペースの削除もでき、縦組み用・欧文組版用などのプリセットで設定を切り替えられます。
+設定は［横組み］［縦組み］のタブごとに持ち、開いているタブの設定で変換します。縦組み用・欧文組版用などのプリセットで設定を切り替えられます。
 
 詳細は README を参照してください。
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/CharacterWidthConverter.md
@@ -36,7 +36,7 @@ https://note.com/dtp_tranist/n/nf9d7245b0653
 ### Overview
 
 Converts katakana, letters, digits, spaces, punctuation, brackets and symbols between half-width and full-width, choosing "Keep", "Half" or "Full" for each kind of character.
-It can also switch digits by length and remove spaces around brackets, with presets such as vertical and Western typesetting.
+The Horizontal and Vertical tabs each keep their own settings, and the open tab's settings are used. Presets such as vertical and Western typesetting switch the settings.
 
 See the README for details.
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CharacterWidthConverter.md
@@ -47,10 +47,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CharacterW
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "CharacterWidthConverter";      /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.2.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.3.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-30";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-31";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-11-01";                   /* 更新日 / last updated */
 
 var SCRIPT_DESCRIPTION_JA = "文字の種類ごとに全角・半角を変換"; /* README の見出し / README title (Japanese) */
 
@@ -776,6 +776,10 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         dialog: {
             title: { ja: "全角・半角の変換と整形", en: "Convert Width & Clean Up Text" }
         },
+        tab: {
+            horizontal: { ja: "横組み", en: "Horizontal" },
+            vertical: { ja: "縦組み", en: "Vertical" }
+        },
         panel: {
             target: { ja: "対象", en: "Scope" },
             characterType: { ja: "文字種", en: "Character Types" },
@@ -861,6 +865,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             bracketOuterSpace: { ja: "括弧の外側のスペースを削除", en: "Remove spaces outside brackets" },
             numberCommaToTouten: { ja: "数字の中の「,」を「、」にする", en: "\",\" in numbers to \"、\"" },
             decimalToNakaguro: { ja: "数字の中の「.」を「・」にする", en: "\".\" in numbers to \"・\"" },
+            longDigitsFullwidth: { ja: "3桁以上の数字は全角にする", en: "Numbers of 3+ digits to full-width" },
+            shortCapsFullwidth: { ja: "3文字以内の大文字で構成する英単語は全角にする", en: "All-capital words of up to 3 letters to full-width" },
             highlightChanges: { ja: "変換した文字に色を付ける", en: "Color converted characters" }
         },
         preset: {
@@ -949,6 +955,14 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
                 ja: "数字にはさまれた「.」「．」を「・」にします（12.5 → 12・5）。",
                 en: "Turns \".\" and \"．\" between digits into \"・\" (12.5 → 12・5)."
             },
+            longDigitsFullwidth: {
+                ja: "3桁以上の数字を全角にします（2026 → ２０２６）。3.5 や 1,000 のように区切りをはさむ数字はひとつながりとして数え、英字に続く数字は変えません。1〜2桁の数字は数字の行（または［数字は1桁を全角、2桁以上を半角にする］）に従います。",
+                en: "Makes numbers of three or more digits full-width (2026 → ２０２６). Numbers such as 3.5 or 1,000 count as one number, and digits next to letters are left alone. Numbers of one or two digits follow the digits row (or \"Digits: one digit full-width…\")."
+            },
+            shortCapsFullwidth: {
+                ja: "大文字だけでできた3文字以内の英単語を全角にします（PDF → ＰＤＦ、A → Ａ）。数字や記号を含む語（A4、U.S.）と4文字以上の語は変えません。",
+                en: "Makes words of up to three capital letters full-width (PDF → ＰＤＦ, A → Ａ). Words with digits or marks (A4, U.S.) and longer words are left alone."
+            },
             highlightChanges: {
                 ja: "変換した文字の塗りを赤にします（仕上がりの確認用。元の色には戻りません）。削除したスペースには付きません。",
                 en: "Fills converted characters with red (for checking; the original colors are not restored). Removed spaces are not marked."
@@ -989,7 +1003,9 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             bracketInnerSpace: { ja: "括弧の内側のスペース", en: "Spaces inside brackets" },
             bracketOuterSpace: { ja: "括弧の外側のスペース", en: "Spaces outside brackets" },
             numberCommaToTouten: { ja: "数字の中の「,」", en: "\",\" in numbers" },
-            decimalToNakaguro: { ja: "数字の中の「.」", en: "\".\" in numbers" }
+            decimalToNakaguro: { ja: "数字の中の「.」", en: "\".\" in numbers" },
+            longDigitsFullwidth: { ja: "3桁以上の数字", en: "Numbers of 3+ digits" },
+            shortCapsFullwidth: { ja: "3文字以内の大文字の英単語", en: "Capital words of up to 3 letters" }
         }
     };
 
@@ -1151,7 +1167,10 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         apostrophe: { settingKey: "quoteForm", forms: [["\uFF07"], ["\u2018", "\u2019"], ["\uFF07"]] }  /* ミニュートに一重は無いので ＇ / minutes have no single form, so ＇ */
     };
 
-    /* 行のほかの設定（キーと選べる値の数。値は 0 から数え、0 が既定）。プリセットにも入る / Settings besides the rows (key and number of values, counted from 0, with 0 as the default); saved in presets too */
+    /* 行のほかの設定（キーと選べる値の数。値は 0 から数え、0 が既定）。プリセットにも入る。
+       tab があるものはそのタブにだけ置き、ほかのタブでは 0 のまま /
+       Settings besides the rows (key and number of values, counted from 0, with 0 as the default); saved in presets too.
+       Those with a tab appear only on that tab and stay 0 on the other */
     var EXTRA_SETTING_DEFS = [
         { key: "digitsByLength", valueCount: 2 },
         { key: "spaceBetweenJapaneseOnly", valueCount: 2 },
@@ -1160,16 +1179,21 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         { key: "nakaguroToEllipsis", valueCount: 2 },
         { key: "periodsToEllipsis", valueCount: 2 },
         { key: "kutenToEllipsis", valueCount: 2 },
-        { key: "westernPunctuationSpace", valueCount: 2 },
+        { key: "westernPunctuationSpace", valueCount: 2, tab: "horizontal" },
         { key: "bracketInnerSpace", valueCount: 2 },
         { key: "bracketOuterSpace", valueCount: 2 },
         { key: "quoteForm", valueCount: 3 },
         { key: "hyphenForm", valueCount: 3 },
         { key: "tildeForm", valueCount: 2 },
         { key: "asteriskForm", valueCount: 2 },
-        { key: "numberCommaToTouten", valueCount: 2 },
-        { key: "decimalToNakaguro", valueCount: 2 }
+        { key: "numberCommaToTouten", valueCount: 2, tab: "vertical" },
+        { key: "decimalToNakaguro", valueCount: 2, tab: "vertical" },
+        { key: "longDigitsFullwidth", valueCount: 2, tab: "vertical" },
+        { key: "shortCapsFullwidth", valueCount: 2, tab: "vertical" }
     ];
+
+    /* 設定を別々に持つタブ（組み方向）の並び / Tabs (text directions), each with its own settings */
+    var TAB_KEYS = ["horizontal", "vertical"];
 
     /* 行と行のほかの設定をまとめた一覧と、キーごとの値の数 / Every setting (rows and extras) and the number of values per key */
     var SETTING_DEFS = [];
@@ -1207,6 +1231,13 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     var LATIN_LETTER_PATTERN = /[A-Za-z\u00C0-\u024F\uFF21-\uFF3A\uFF41-\uFF5A]/;
     /* 欧文の英数字（アポストロフィの判定に使う）/ Latin letters and digits, for apostrophes */
     var LATIN_ALNUM_PATTERN = /[A-Za-z0-9\u00C0-\u024F]/;
+    /* 英単語をつくる文字（半角・全角の英数字）と、前後が英数字のときだけ語の一部になるつなぎ（U.S. や AT&T）/ Characters forming a Latin word, and joiners that belong to the word only between two of them (U.S., AT&T) */
+    var WORD_CHAR_PATTERN = /[A-Za-z0-9\u00C0-\u024F\uFF10-\uFF19\uFF21-\uFF3A\uFF41-\uFF5A]/;
+    var WORD_JOINERS = "'\u2019-.&";
+    /* ［3文字以内の大文字で構成する英単語は全角にする］の対象（半角・全角の大文字だけで1〜3文字）/ Words for "all-capital words of up to 3 letters" (one to three capitals, half- or full-width) */
+    var SHORT_CAPS_WORD_PATTERN = /^[A-Z\uFF21-\uFF3A]{1,3}$/;
+    /* ［3桁以上の数字は全角にする］の桁数 / Digit count for "numbers of 3+ digits to full-width" */
+    var LONG_DIGIT_COUNT = 3;
 
     /* 数字と、数字のあいだにはさまる区切り（3.5 や 1,000 をひとつながりにする）/ Digits, and the separators kept inside a number such as 3.5 or 1,000 */
     var DIGIT_PATTERN = /[0-9\uFF10-\uFF19]/;
@@ -1293,28 +1324,58 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     }
 
     /**
+     * そのタブに置かない設定を 0 にした写しを返す
+     * @param {Object} rowOptions - 設定のキー → 値（すべてのキーの値が入ったもの）
+     * @param {string} tabKey - "horizontal" または "vertical"
+     * @returns {Object} 設定のキー → 値（新しいオブジェクト）
+     */
+    function rowOptionsForTab(rowOptions, tabKey) {
+        var tabOptions = {};
+        for (var i = 0; i < SETTING_DEFS.length; i++) {
+            var settingDef = SETTING_DEFS[i];
+            tabOptions[settingDef.key] = (settingDef.tab && settingDef.tab !== tabKey) ? 0 : rowOptions[settingDef.key];
+        }
+        return tabOptions;
+    }
+
+    /**
      * 前回の設定を読む（無ければ既定値）
-     * @returns {{rowOptions: Object, scope: string|null}} 設定と対象
+     * @returns {{rowOptionsByTab: Object, activeTab: string, scope: string|null, highlightChanges: boolean}} タブごとの設定・開いていたタブ・対象・色を付けるか
      */
     function loadSettings() {
-        var saved = sessionStore.load({ rowOptions: {}, scope: "", highlightChanges: false });
-        return { rowOptions: copyRowOptions(saved.rowOptions, getDefaultRowOptions()), scope: saved.scope || null, highlightChanges: saved.highlightChanges };
+        var saved = sessionStore.load({ rowOptionsByTab: { horizontal: {}, vertical: {} }, activeTab: "horizontal", scope: "", highlightChanges: false });
+        var rowOptionsByTab = {};
+        for (var i = 0; i < TAB_KEYS.length; i++) {
+            var tabKey = TAB_KEYS[i];
+            rowOptionsByTab[tabKey] = rowOptionsForTab(copyRowOptions(saved.rowOptionsByTab[tabKey], getDefaultRowOptions()), tabKey);
+        }
+        return {
+            rowOptionsByTab: rowOptionsByTab,
+            activeTab: (saved.activeTab === "vertical") ? "vertical" : "horizontal",
+            scope: saved.scope || null,
+            highlightChanges: saved.highlightChanges
+        };
     }
 
     /**
      * 設定を覚える（Illustrator を終了するまで）
-     * @param {{rowOptions: Object, scope: string, highlightChanges: boolean}} settings - 設定・対象・色を付けるか
+     * @param {{rowOptionsByTab: Object, activeTab: string, scope: string, highlightChanges: boolean}} settings - タブごとの設定・開いているタブ・対象・色を付けるか
      * @returns {void}
      */
     function saveSettings(settings) {
-        sessionStore.save({ rowOptions: settings.rowOptions, scope: settings.scope, highlightChanges: settings.highlightChanges });
+        sessionStore.save({
+            rowOptionsByTab: settings.rowOptionsByTab,
+            activeTab: settings.activeTab,
+            scope: settings.scope,
+            highlightChanges: settings.highlightChanges
+        });
     }
 
     // =========================================
     // プリセット / Presets
     // =========================================
 
-    /* 組み込みのプリセット（削除・上書きはできない）/ Built-in presets (cannot be deleted or overwritten) */
+    /* 組み込みのプリセット（削除・上書きはできない）。tab があるものは、選ぶとそのタブに切り替えて反映する / Built-in presets (cannot be deleted or overwritten); choosing one with a tab switches to that tab */
     var BUILTIN_PRESETS = [
         { name: getLabel(LABELS.preset.standard), builtIn: true, rowOptions: getDefaultRowOptions() },
         {
@@ -1336,7 +1397,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
                Vertical: one digit full-width, two or more half-width (for tate-chu-yoko); !? and !! half-width; spaces between Japanese full-width;
                tildes become wave dashes. Letter, comma, period and quote rows are kept so English words stay intact; "," and "." in numbers become 、 and ・.
                Spaces between Japanese and Western text are removed, and ・・・ ... 。。。 become … */
-            name: getLabel(LABELS.preset.vertical), builtIn: true,
+            name: getLabel(LABELS.preset.vertical), builtIn: true, tab: "vertical",
             rowOptions: rowOptionsWith(OPTION_FULL, {
                 alphabet: OPTION_KEEP,
                 digits: OPTION_KEEP,
@@ -1360,7 +1421,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         {
             /* 欧文組版：ASCII にある文字（全角スペース・円マークも）はすべて半角、和文のカタカナ・約物はそのまま、... は … にし、欧文の,.:のあとにスペース /
                Western typesetting: everything with an ASCII form (ideographic space and yen too) to half-width; Japanese kana and punctuation kept; ... becomes …; a space after , . : */
-            name: getLabel(LABELS.preset.western), builtIn: true,
+            name: getLabel(LABELS.preset.western), builtIn: true, tab: "horizontal",
             rowOptions: rowOptionsWith(OPTION_HALF, {
                 katakana: OPTION_KEEP,
                 kanaPunctuation: OPTION_KEEP,
@@ -1395,8 +1456,18 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     }
 
     /**
+     * プリセットがそのタブの設定か（tab の無いプリセットはどちらのタブの設定にもなる）。今の設定に合うプリセットを探すときに使う
+     * @param {{tab: string|null}} preset - プリセット
+     * @param {string} tabKey - "horizontal" または "vertical"
+     * @returns {boolean} そのタブの設定なら true
+     */
+    function isPresetForTab(preset, tabKey) {
+        return !preset.tab || preset.tab === tabKey;
+    }
+
+    /**
      * 保存してあるユーザーのプリセットを読む
-     * @returns {Array<{name: string, builtIn: boolean, rowOptions: Object}>} プリセットの配列
+     * @returns {Array<{name: string, builtIn: boolean, tab: string|null, rowOptions: Object}>} プリセットの配列
      */
     function loadUserPresets() {
         var storedPresets = presetStore.load({ presets: [] }).presets;
@@ -1404,11 +1475,15 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         for (var i = 0; i < storedPresets.length; i++) {
             var storedPreset = storedPresets[i];
             if (!storedPreset || typeof storedPreset.name !== "string" || storedPreset.name === "") continue;
+            /* タブを持たない（v1.2.0 までに保存した）プリセットは、開いているタブに反映する / Presets without a tab (saved up to v1.2.0) apply to the open tab */
+            var presetTab = (storedPreset.tab === "horizontal" || storedPreset.tab === "vertical") ? storedPreset.tab : null;
             /* 保存に無い行は「そのまま」/ Rows missing from the file are "Keep" */
+            var presetOptions = copyRowOptions(storedPreset.rowOptions, rowOptionsWith(OPTION_KEEP));
             userPresets.push({
                 name: storedPreset.name,
                 builtIn: false,
-                rowOptions: copyRowOptions(storedPreset.rowOptions, rowOptionsWith(OPTION_KEEP))
+                tab: presetTab,
+                rowOptions: presetTab ? rowOptionsForTab(presetOptions, presetTab) : presetOptions
             });
         }
         return userPresets;
@@ -1416,13 +1491,15 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
 
     /**
      * ユーザーのプリセットをファイルに保存する
-     * @param {Array<{name: string, rowOptions: Object}>} userPresets - プリセットの配列
+     * @param {Array<{name: string, tab: string|null, rowOptions: Object}>} userPresets - プリセットの配列
      * @returns {boolean} 保存できたら true
      */
     function saveUserPresets(userPresets) {
         var storedPresets = [];
         for (var i = 0; i < userPresets.length; i++) {
-            storedPresets.push({ name: userPresets[i].name, rowOptions: userPresets[i].rowOptions });
+            var storedPreset = { name: userPresets[i].name, rowOptions: userPresets[i].rowOptions };
+            if (userPresets[i].tab) storedPreset.tab = userPresets[i].tab;
+            storedPresets.push(storedPreset);
         }
         return presetStore.save({ presets: storedPresets });
     }
@@ -1567,7 +1644,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
      * @returns {{map: Object, rowKeyBySource: Object, runUnits: Array, size: number, digitsByLength: boolean,
      *     spaceBetweenJapaneseOnly: boolean, japaneseLatinSpace: boolean, punctuationStyle: number, nakaguroToEllipsis: boolean, periodsToEllipsis: boolean, kutenToEllipsis: boolean, westernPunctuationSpace: boolean,
      *     bracketInnerSpace: boolean, bracketOuterSpace: boolean,
-     *     numberCommaToTouten: boolean, decimalToNakaguro: boolean}}
+     *     numberCommaToTouten: boolean, decimalToNakaguro: boolean, longDigitsFullwidth: boolean, shortCapsFullwidth: boolean}}
      *     変換表（値は文字列、向きで決まる引用符は [開き, 閉じ]）・変換元の行のキー・連続する文字の組・実際に変換する項目の数（守るだけの組は数えない）とほかの処理
      */
     function buildConversionMap(rowOptions) {
@@ -1627,7 +1704,9 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             bracketInnerSpace: (rowOptions.bracketInnerSpace === 1),
             bracketOuterSpace: (rowOptions.bracketOuterSpace === 1),
             numberCommaToTouten: (rowOptions.numberCommaToTouten === 1),
-            decimalToNakaguro: (rowOptions.decimalToNakaguro === 1)
+            decimalToNakaguro: (rowOptions.decimalToNakaguro === 1),
+            longDigitsFullwidth: (rowOptions.longDigitsFullwidth === 1),
+            shortCapsFullwidth: (rowOptions.shortCapsFullwidth === 1)
         };
     }
 
@@ -1639,7 +1718,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     function hasConversionWork(conversion) {
         return conversion.size > 0 || conversion.digitsByLength || conversion.punctuationStyle > 0 ||
             conversion.japaneseLatinSpace || conversion.nakaguroToEllipsis || conversion.periodsToEllipsis || conversion.kutenToEllipsis || conversion.westernPunctuationSpace ||
-            conversion.bracketInnerSpace || conversion.bracketOuterSpace || conversion.numberCommaToTouten || conversion.decimalToNakaguro;
+            conversion.bracketInnerSpace || conversion.bracketOuterSpace || conversion.numberCommaToTouten || conversion.decimalToNakaguro ||
+            conversion.longDigitsFullwidth || conversion.shortCapsFullwidth;
     }
 
     /**
@@ -1755,6 +1835,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         var replacement = conversion.map[sourceText];
         /* 守るだけの組（元と同じ）は書き換えない / Units that are only protected (mapped to themselves) are left untouched */
         if (replacement === sourceText) return null;
+        if (isLeftToLaterPass(fullText, offset, conversion.rowKeyBySource[sourceText], conversion)) return null;
         if (conversion.spaceBetweenJapaneseOnly && (sourceText === " " || sourceText === "　")) {
             var neighbors = getNeighborChars(fullText, offset, sourceText.length);
             if (!JAPANESE_CHAR_PATTERN.test(neighbors.previous) || !JAPANESE_CHAR_PATTERN.test(neighbors.next)) return null;
@@ -1832,12 +1913,176 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     }
 
     /**
-     * 数字のつながりを、1桁なら全角、2桁以上なら半角にする箇所を集める（英字に続く数字は半角）。
+     * 位置から始まる数字のつながりを読む（3.5 や 1,000 のように、数字にはさまれた区切りもつながりに含める）
+     * @param {string} text - 文字列
+     * @param {number} startOffset - つながりの先頭（数字）の位置
+     * @returns {{end: number, digitCount: number}} 終わり（含まない）と数字の数
+     */
+    function readDigitRun(text, startOffset) {
+        var runEnd = startOffset;
+        var digitCount = 0;
+        while (runEnd < text.length) {
+            if (DIGIT_PATTERN.test(text.charAt(runEnd))) {
+                digitCount++;
+                runEnd++;
+            } else if (DIGIT_SEPARATORS.indexOf(text.charAt(runEnd)) >= 0 && DIGIT_PATTERN.test(text.charAt(runEnd + 1))) {
+                runEnd++;
+            } else {
+                break;
+            }
+        }
+        return { end: runEnd, digitCount: digitCount };
+    }
+
+    /**
+     * 数字のつながりを［3桁以上の数字は全角にする］で全角にするか（英字に続くものは除く）
+     * @param {string} text - 文字列
+     * @param {number} runStart - つながりの先頭
+     * @param {{end: number, digitCount: number}} digitRun - readDigitRun() の戻り値
+     * @returns {boolean} 全角にするなら true
+     */
+    function isLongDigitRun(text, runStart, digitRun) {
+        return digitRun.digitCount >= LONG_DIGIT_COUNT &&
+            !LATIN_LETTER_PATTERN.test(text.charAt(runStart - 1)) && !LATIN_LETTER_PATTERN.test(text.charAt(digitRun.end));
+    }
+
+    /**
+     * 位置の数字が、［3桁以上の数字は全角にする］で全角にするつながりの中にあるか
+     * @param {string} text - 文字列
+     * @param {number} offset - 数字の位置
+     * @returns {boolean} 中にあれば true
+     */
+    function isInLongDigitRun(text, offset) {
+        var runStart = offset;
+        while (runStart > 0) {
+            if (DIGIT_PATTERN.test(text.charAt(runStart - 1))) runStart--;
+            else if (DIGIT_SEPARATORS.indexOf(text.charAt(runStart - 1)) >= 0 && DIGIT_PATTERN.test(text.charAt(runStart - 2))) runStart -= 2;
+            else break;
+        }
+        return isLongDigitRun(text, runStart, readDigitRun(text, runStart));
+    }
+
+    /**
+     * 位置の文字が英単語の一部か（つなぎは前後が英数字のときだけ）
+     * @param {string} text - 文字列
+     * @param {number} offset - 位置
+     * @returns {boolean} 英単語の一部なら true
+     */
+    function isWordCharAt(text, offset) {
+        var currentChar = text.charAt(offset);
+        if (currentChar === "") return false;
+        if (WORD_CHAR_PATTERN.test(currentChar)) return true;
+        return WORD_JOINERS.indexOf(currentChar) >= 0 && WORD_CHAR_PATTERN.test(text.charAt(offset - 1)) && WORD_CHAR_PATTERN.test(text.charAt(offset + 1));
+    }
+
+    /**
+     * 位置の文字を含む英単語の範囲を返す
+     * @param {string} text - 文字列
+     * @param {number} offset - 英単語の中の位置
+     * @returns {{start: number, end: number}} 先頭と終わり（含まない）
+     */
+    function findWordBounds(text, offset) {
+        var wordStart = offset;
+        while (wordStart > 0 && isWordCharAt(text, wordStart - 1)) wordStart--;
+        var wordEnd = offset + 1;
+        while (wordEnd < text.length && isWordCharAt(text, wordEnd)) wordEnd++;
+        return { start: wordStart, end: wordEnd };
+    }
+
+    /**
+     * 位置の文字が、［3文字以内の大文字で構成する英単語は全角にする］の対象の語の中にあるか
+     * @param {string} text - 文字列
+     * @param {number} offset - 位置
+     * @returns {boolean} 中にあれば true
+     */
+    function isInShortCapsWord(text, offset) {
+        var wordBounds = findWordBounds(text, offset);
+        return SHORT_CAPS_WORD_PATTERN.test(text.substring(wordBounds.start, wordBounds.end));
+    }
+
+    /**
+     * 数字の幅をそろえる（区切りはそのまま）
+     * @param {string} sourceText - 数字のつながり
+     * @param {boolean} toFullWidth - true なら全角、false なら半角
+     * @returns {string} そろえた文字列
+     */
+    function setDigitWidth(sourceText, toFullWidth) {
+        var digitText = "";
+        for (var i = 0; i < sourceText.length; i++) {
+            var charCode = sourceText.charCodeAt(i);
+            if (toFullWidth && charCode >= 0x30 && charCode <= 0x39) charCode += FULL_WIDTH_OFFSET;
+            else if (!toFullWidth && charCode >= 0xFF10 && charCode <= 0xFF19) charCode -= FULL_WIDTH_OFFSET;
+            digitText += String.fromCharCode(charCode);
+        }
+        return digitText;
+    }
+
+    /**
+     * 数字のつながりの置き換えを決める。［3桁以上の数字は全角にする］の対象なら全角、
+     * ［数字は1桁を全角、2桁以上を半角にする］なら1桁を全角・2桁以上を半角（英字に続く数字は半角）、どちらでもなければ変えない
+     * @param {string} text - 文字列
+     * @param {number} runStart - つながりの先頭
+     * @param {{end: number, digitCount: number}} digitRun - readDigitRun() の戻り値
+     * @param {{digitsByLength: boolean, longDigitsFullwidth: boolean}} conversion - どちらの処理をするか
+     * @returns {{key: string, text: string}|null} 置き換え。変えなければ null
+     */
+    function decideDigitRunReplacement(text, runStart, digitRun, conversion) {
+        var sourceText = text.substring(runStart, digitRun.end);
+        var replacementKey;
+        var toFullWidth;
+        if (conversion.longDigitsFullwidth && isLongDigitRun(text, runStart, digitRun)) {
+            replacementKey = "longDigitsFullwidth";
+            toFullWidth = true;
+        } else if (conversion.digitsByLength) {
+            replacementKey = "digits";
+            toFullWidth = (digitRun.digitCount === 1 && !LATIN_LETTER_PATTERN.test(text.charAt(runStart - 1)) && !LATIN_LETTER_PATTERN.test(text.charAt(digitRun.end)));
+        } else {
+            return null;
+        }
+        var digitText = setDigitWidth(sourceText, toFullWidth);
+        return (digitText === sourceText) ? null : { key: replacementKey, text: digitText };
+    }
+
+    /**
+     * 英単語の置き換えを決める（大文字だけの3文字以内の語なら、半角の大文字を全角にする）
+     * @param {string} text - 文字列
+     * @param {{start: number, end: number}} wordBounds - 英単語の範囲
+     * @returns {{key: string, text: string}|null} 置き換え。変えなければ null
+     */
+    function decideShortCapsReplacement(text, wordBounds) {
+        var wordText = text.substring(wordBounds.start, wordBounds.end);
+        if (!SHORT_CAPS_WORD_PATTERN.test(wordText)) return null;
+        var fullText = "";
+        for (var i = 0; i < wordText.length; i++) {
+            var charCode = wordText.charCodeAt(i);
+            fullText += String.fromCharCode((charCode >= 0x41 && charCode <= 0x5A) ? charCode + FULL_WIDTH_OFFSET : charCode);
+        }
+        return (fullText === wordText) ? null : { key: "shortCapsFullwidth", text: fullText };
+    }
+
+    /**
+     * 変換表の置き換えを、［3桁以上の数字は全角にする］［3文字以内の大文字で構成する英単語は全角にする］に任せるか
+     * （その処理で全角にする文字は、数字・アルファベットの行で変えない）
+     * @param {string} text - 文字列
+     * @param {number} offset - 置き換える文字の位置
+     * @param {string} rowKey - 置き換える文字の行のキー
+     * @param {{longDigitsFullwidth: boolean, shortCapsFullwidth: boolean}} conversion - どちらの処理をするか
+     * @returns {boolean} 任せるなら true
+     */
+    function isLeftToLaterPass(text, offset, rowKey, conversion) {
+        if (rowKey === "digits") return conversion.longDigitsFullwidth && isInLongDigitRun(text, offset);
+        if (rowKey === "alphabet") return conversion.shortCapsFullwidth && isInShortCapsWord(text, offset);
+        return false;
+    }
+
+    /**
+     * 数字のつながりを置き換える箇所を集める（置き換え方は decideDigitRunReplacement()）。
      * 3.5 や 1,000 のように、数字にはさまれた区切りはひとつながりとして数える
      * @param {string} fullText - 対象の文字列
+     * @param {Object} conversion - buildConversionMap() の戻り値
      * @returns {Array<{offset: number, sourceText: string, text: string, key: string}>} 置き換える箇所
      */
-    function findDigitRunReplacements(fullText) {
+    function findDigitRunReplacements(fullText, conversion) {
         var replacements = [];
         var offset = 0;
         while (offset < fullText.length) {
@@ -1845,30 +2090,33 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
                 offset++;
                 continue;
             }
-            var runEnd = offset;
-            var digitCount = 0;
-            while (runEnd < fullText.length) {
-                if (DIGIT_PATTERN.test(fullText.charAt(runEnd))) {
-                    digitCount++;
-                    runEnd++;
-                } else if (DIGIT_SEPARATORS.indexOf(fullText.charAt(runEnd)) >= 0 && DIGIT_PATTERN.test(fullText.charAt(runEnd + 1))) {
-                    runEnd++;
-                } else {
-                    break;
-                }
+            var digitRun = readDigitRun(fullText, offset);
+            var replacement = decideDigitRunReplacement(fullText, offset, digitRun, conversion);
+            if (replacement) replacements.push({ offset: offset, sourceText: fullText.substring(offset, digitRun.end), text: replacement.text, key: replacement.key });
+            offset = digitRun.end;
+        }
+        return replacements;
+    }
+
+    /**
+     * 大文字だけでできた3文字以内の英単語を全角にする箇所を集める
+     * @param {string} fullText - 対象の文字列
+     * @returns {Array<{offset: number, sourceText: string, text: string, key: string}>} 置き換える箇所
+     */
+    function findShortCapsReplacements(fullText) {
+        var replacements = [];
+        var offset = 0;
+        while (offset < fullText.length) {
+            if (!isWordCharAt(fullText, offset)) {
+                offset++;
+                continue;
             }
-            var sourceText = fullText.substring(offset, runEnd);
-            var neighbors = getNeighborChars(fullText, offset, sourceText.length);
-            var toFullWidth = (digitCount === 1 && !LATIN_LETTER_PATTERN.test(neighbors.previous) && !LATIN_LETTER_PATTERN.test(neighbors.next));
-            var digitText = "";
-            for (var i = 0; i < sourceText.length; i++) {
-                var charCode = sourceText.charCodeAt(i);
-                if (toFullWidth && charCode >= 0x30 && charCode <= 0x39) charCode += FULL_WIDTH_OFFSET;
-                else if (!toFullWidth && charCode >= 0xFF10 && charCode <= 0xFF19) charCode -= FULL_WIDTH_OFFSET;
-                digitText += String.fromCharCode(charCode);
+            var wordBounds = findWordBounds(fullText, offset);
+            var replacement = decideShortCapsReplacement(fullText, wordBounds);
+            if (replacement) {
+                replacements.push({ offset: wordBounds.start, sourceText: fullText.substring(wordBounds.start, wordBounds.end), text: replacement.text, key: replacement.key });
             }
-            if (digitText !== sourceText) replacements.push({ offset: offset, sourceText: sourceText, text: digitText, key: "digits" });
-            offset = runEnd;
+            offset = wordBounds.end;
         }
         return replacements;
     }
@@ -2081,7 +2329,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
 
     /**
      * 対象の文字を設定に従って変換する。
-     * 三点リーダー → 和欧間のスペース → 変換表 → 句読点の種類 → 数字の桁数 → 数字の中の「,」「.」 → 欧文の,.:のあとのスペース → 括弧のまわりのスペースの順に処理する。characters 単位の書き換えなので、文字の書式はそのまま残る
+     * 三点リーダー → 和欧間のスペース → 変換表 → 句読点の種類 → 数字の桁数 → 3文字以内の大文字の英単語 → 数字の中の「,」「.」 → 欧文の,.:のあとのスペース → 括弧のまわりのスペースの順に処理する。characters 単位の書き換えなので、文字の書式はそのまま残る
      * @param {Array} targets - 対象の配列
      * @param {Object} conversion - buildConversionMap() の戻り値に highlightColor（変換した文字に付ける色、付けないなら null）を足したもの
      * @returns {{converted: number, failed: number, countsByKey: Object}} 変換できた数・できなかった数・キーごとの数
@@ -2104,7 +2352,10 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             if (styleMap) {
                 runReplacePass(target, function (fullText) { return findPunctuationStyleReplacements(fullText, styleMap); }, result, highlightColor);
             }
-            if (conversion.digitsByLength) runReplacePass(target, findDigitRunReplacements, result, highlightColor);
+            if (conversion.digitsByLength || conversion.longDigitsFullwidth) {
+                runReplacePass(target, function (fullText) { return findDigitRunReplacements(fullText, conversion); }, result, highlightColor);
+            }
+            if (conversion.shortCapsFullwidth) runReplacePass(target, findShortCapsReplacements, result, highlightColor);
             /* 数字の桁数を決めたあとに区切りを置き換える（「、」「・」で数字のつながりが切れないように）/ After the digit lengths, so 、 and ・ do not split the runs */
             if (conversion.numberCommaToTouten || conversion.decimalToNakaguro) {
                 runReplacePass(target, function (fullText) { return findNumberMarkReplacements(fullText, conversion); }, result, highlightColor);
@@ -2538,16 +2789,180 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     }
 
     /**
+     * 組み方向のタブを足し、文字種・句読点・括弧・記号のパネルを3カラムで並べる。
+     * 縦組みのタブには［縦組み用］、横組みのタブには［欧文の,.:のあとにスペースを入れる］を置く
+     * @param {TabbedPanel} tabbedPanel - タブを足す先
+     * @param {string} tabKey - "horizontal" または "vertical"
+     * @param {Function} onRowChange - 選択肢を変えたときの処理（引数はこのタブのコントロール）
+     * @returns {{tab: Tab, tabKey: string, rowControls: Object, extraControls: Object, rowLabels: StaticText[], headerSpacers: StaticText[], onRowChange: Function}}
+     *     タブと、そのタブの行のコントロール・行のほかの設定のコントロール・幅を揃える項目名と見出しの空きラベル
+     */
+    function addSettingsTab(tabbedPanel, tabKey, onRowChange) {
+        var settingsTab = tabbedPanel.add("tab", undefined, getLabel(LABELS.tab[tabKey]));
+        setupTab(settingsTab);
+        var isVerticalTab = (tabKey === "vertical");
+        var tabControls = {
+            tab: settingsTab,
+            tabKey: tabKey,
+            rowControls: {},
+            extraControls: {},
+            rowLabels: [],
+            headerSpacers: [],
+            onRowChange: function () { onRowChange(tabControls); }
+        };
+
+        /* 3カラム（左：文字種・句読点、中：括弧、右：記号）。縦に積むと画面に収まらない / Three columns (left: character types and punctuation; middle: brackets; right: symbols); stacked, the dialog does not fit the screen */
+        var columnsGroup = settingsTab.add("group");
+        columnsGroup.orientation = "row";
+        columnsGroup.alignChildren = ["left", "fill"];
+        columnsGroup.spacing = COLUMN_SPACING;
+
+        var leftColumnGroup = columnsGroup.add("group");
+        leftColumnGroup.orientation = "column";
+        leftColumnGroup.alignChildren = ["fill", "top"];
+        leftColumnGroup.spacing = PANEL_SPACING;
+
+        var characterTypePanel = leftColumnGroup.add("panel", undefined, getLabel(LABELS.panel.characterType));
+        setupPanel(characterTypePanel);
+        addOptionTable(characterTypePanel, CHARACTER_TYPE_ROWS, tabControls);
+        var characterTypeExtrasGroup = characterTypePanel.add("group");
+        characterTypeExtrasGroup.orientation = "column";
+        characterTypeExtrasGroup.alignChildren = ["left", "top"];
+        characterTypeExtrasGroup.spacing = 6;
+        addExtraCheckbox(characterTypeExtrasGroup, "digitsByLength", LABELS.checkbox.digitsByLength, LABELS.tooltip.digitsByLength, tabControls);
+        addExtraCheckbox(characterTypeExtrasGroup, "spaceBetweenJapaneseOnly", LABELS.checkbox.spaceBetweenJapaneseOnly,
+            LABELS.tooltip.spaceBetweenJapaneseOnly, tabControls);
+        addExtraCheckbox(characterTypeExtrasGroup, "japaneseLatinSpace", LABELS.checkbox.japaneseLatinSpace, LABELS.tooltip.japaneseLatinSpace, tabControls);
+        if (!isVerticalTab) {
+            addExtraCheckbox(characterTypeExtrasGroup, "westernPunctuationSpace", LABELS.checkbox.westernPunctuationSpace, LABELS.tooltip.westernPunctuationSpace, tabControls);
+        }
+
+        var punctuationPanel = leftColumnGroup.add("panel", undefined, getLabel(LABELS.panel.punctuation));
+        setupPanel(punctuationPanel);
+        addOptionTable(punctuationPanel, PUNCTUATION_ROWS, tabControls);
+        addExtraDropdown(punctuationPanel, "punctuationStyle", LABELS.fieldLabel.punctuationStyle,
+            [LABELS.dropdown.punctuationStyleKeep, LABELS.dropdown.punctuationStyleJapanese, LABELS.dropdown.punctuationStyleWestern],
+            LABELS.tooltip.punctuationStyle, tabControls);
+        /* 三点リーダーにする文字（「...に変換 : ☐・・・ ☐... ☐。。。」の1行）/ Characters turned into an ellipsis, on one row */
+        var ellipsisRowGroup = punctuationPanel.add("group");
+        setupRow(ellipsisRowGroup, "left", 6);
+        ellipsisRowGroup.add("statictext", undefined, labelText(LABELS.fieldLabel.toEllipsis));
+        addExtraCheckbox(ellipsisRowGroup, "nakaguroToEllipsis", LABELS.checkbox.nakaguroToEllipsis, LABELS.tooltip.nakaguroToEllipsis, tabControls);
+        addExtraCheckbox(ellipsisRowGroup, "periodsToEllipsis", LABELS.checkbox.periodsToEllipsis, LABELS.tooltip.periodsToEllipsis, tabControls);
+        addExtraCheckbox(ellipsisRowGroup, "kutenToEllipsis", LABELS.checkbox.kutenToEllipsis, LABELS.tooltip.kutenToEllipsis, tabControls);
+
+        var middleColumnGroup = columnsGroup.add("group");
+        middleColumnGroup.orientation = "column";
+        middleColumnGroup.alignChildren = ["fill", "top"];
+        middleColumnGroup.spacing = PANEL_SPACING;
+
+        var bracketPanel = middleColumnGroup.add("panel", undefined, getLabel(LABELS.panel.bracket));
+        setupPanel(bracketPanel);
+        addOptionTable(bracketPanel, BRACKET_ROWS, tabControls);
+        var bracketExtrasGroup = bracketPanel.add("group");
+        bracketExtrasGroup.orientation = "column";
+        bracketExtrasGroup.alignChildren = ["left", "top"];
+        bracketExtrasGroup.spacing = 6;
+        addExtraCheckbox(bracketExtrasGroup, "bracketInnerSpace", LABELS.checkbox.bracketInnerSpace, LABELS.tooltip.bracketInnerSpace, tabControls);
+        addExtraCheckbox(bracketExtrasGroup, "bracketOuterSpace", LABELS.checkbox.bracketOuterSpace, LABELS.tooltip.bracketOuterSpace, tabControls);
+        addExtraDropdown(bracketPanel, "quoteForm", LABELS.fieldLabel.quoteForm,
+            [LABELS.dropdown.quoteFormPlain, LABELS.dropdown.quoteFormCurly, LABELS.dropdown.quoteFormMinute], LABELS.tooltip.quoteForm, tabControls);
+
+        /* 縦組み用（縦組みのタブだけ）/ Vertical text (vertical tab only) */
+        if (isVerticalTab) {
+            var verticalPanel = middleColumnGroup.add("panel", undefined, getLabel(LABELS.panel.vertical));
+            setupPanel(verticalPanel, 6);
+            addExtraCheckbox(verticalPanel, "longDigitsFullwidth", LABELS.checkbox.longDigitsFullwidth, LABELS.tooltip.longDigitsFullwidth, tabControls);
+            addExtraCheckbox(verticalPanel, "numberCommaToTouten", LABELS.checkbox.numberCommaToTouten, LABELS.tooltip.numberCommaToTouten, tabControls);
+            addExtraCheckbox(verticalPanel, "decimalToNakaguro", LABELS.checkbox.decimalToNakaguro, LABELS.tooltip.decimalToNakaguro, tabControls);
+            addExtraCheckbox(verticalPanel, "shortCapsFullwidth", LABELS.checkbox.shortCapsFullwidth, LABELS.tooltip.shortCapsFullwidth, tabControls);
+        }
+
+        var rightColumnGroup = columnsGroup.add("group");
+        rightColumnGroup.orientation = "column";
+        rightColumnGroup.alignChildren = ["fill", "top"];
+        rightColumnGroup.spacing = PANEL_SPACING;
+
+        var symbolPanel = rightColumnGroup.add("panel", undefined, getLabel(LABELS.panel.symbol));
+        setupPanel(symbolPanel);
+        addOptionTable(symbolPanel, SYMBOL_ROWS, tabControls);
+        addExtraDropdown(symbolPanel, "hyphenForm", LABELS.fieldLabel.hyphenForm,
+            [LABELS.dropdown.hyphenFormPlain, LABELS.dropdown.hyphenFormHyphen, LABELS.dropdown.hyphenFormMinus], LABELS.tooltip.hyphenForm, tabControls);
+        addExtraDropdown(symbolPanel, "asteriskForm", LABELS.fieldLabel.asteriskForm,
+            [LABELS.dropdown.asteriskFormPlain, LABELS.dropdown.asteriskFormReference], LABELS.tooltip.asteriskForm, tabControls);
+        addExtraDropdown(symbolPanel, "tildeForm", LABELS.fieldLabel.tildeForm,
+            [LABELS.dropdown.tildeFormPlain, LABELS.dropdown.tildeFormWave], LABELS.tooltip.tildeForm, tabControls);
+
+        return tabControls;
+    }
+
+    /**
+     * 設定（行の選択肢と行のほかの設定）をタブにまとめて反映する（タブに無い設定は飛ばす）
+     * @param {{rowControls: Object, extraControls: Object}} tabControls - タブのコントロール
+     * @param {Object} rowOptions - 設定のキー → 値
+     * @returns {void}
+     */
+    function applyRowOptions(tabControls, rowOptions) {
+        for (var settingKey in rowOptions) {
+            if (!rowOptions.hasOwnProperty(settingKey)) continue;
+            if (tabControls.rowControls[settingKey]) setRowOption(tabControls.rowControls[settingKey], rowOptions[settingKey]);
+            else if (tabControls.extraControls[settingKey]) tabControls.extraControls[settingKey].setValue(rowOptions[settingKey]);
+        }
+        updateDependentControls(tabControls);
+    }
+
+    /**
+     * タブの今の設定を返す（タブに無い設定は 0）
+     * @param {{rowControls: Object, extraControls: Object}} tabControls - タブのコントロール
+     * @returns {Object} 設定のキー → 値（すべてのキー）
+     */
+    function readRowOptions(tabControls) {
+        var currentOptions = rowOptionsWith(OPTION_KEEP);
+        for (var rowKey in tabControls.rowControls) {
+            if (tabControls.rowControls.hasOwnProperty(rowKey)) currentOptions[rowKey] = getRowOption(tabControls.rowControls[rowKey]);
+        }
+        for (var extraKey in tabControls.extraControls) {
+            if (tabControls.extraControls.hasOwnProperty(extraKey)) currentOptions[extraKey] = tabControls.extraControls[extraKey].value;
+        }
+        return currentOptions;
+    }
+
+    /**
+     * ほかの設定で使えるかが決まるコントロールを更新する。
+     * 数字を桁数で決めるときは数字の行のラジオを、行が「そのまま」のときは全角の字形のドロップダウンを使えなくする
+     * （半角にするときも、選んだ字形だけを戻すので使う。引用符は二重引用符・引用符の両方が「そのまま」なら）
+     * @param {{rowControls: Object, extraControls: Object}} tabControls - タブのコントロール
+     * @returns {void}
+     */
+    function updateDependentControls(tabControls) {
+        var rowControls = tabControls.rowControls;
+        var digitsByLengthControl = tabControls.extraControls.digitsByLength;
+        var isByLength = !!digitsByLengthControl && (digitsByLengthControl.value === 1);
+        for (var i = 0; i < rowControls.digits.radios.length; i++) rowControls.digits.radios[i].enabled = !isByLength;
+
+        var isUsedBySetting = {};
+        for (var rowKey in FULL_FORM_CHOICES) {
+            if (!FULL_FORM_CHOICES.hasOwnProperty(rowKey)) continue;
+            var formSettingKey = FULL_FORM_CHOICES[rowKey].settingKey;
+            isUsedBySetting[formSettingKey] = isUsedBySetting[formSettingKey] || (getRowOption(rowControls[rowKey]) !== OPTION_KEEP);
+        }
+        for (var settingKey in isUsedBySetting) {
+            if (isUsedBySetting.hasOwnProperty(settingKey)) tabControls.extraControls[settingKey].setEnabled(isUsedBySetting[settingKey]);
+        }
+    }
+
+    /**
      * 変換の設定ダイアログを表示する
-     * @param {{rowOptions: Object, scope: string|null}} settings - 前回の設定
+     * @param {{rowOptionsByTab: Object, activeTab: string, scope: string|null, highlightChanges: boolean}} settings - 前回の設定
      * @param {{selection: boolean}} scopeAvailability - 選べる対象
-     * @returns {{rowOptions: Object, scope: string}|null} 設定。キャンセルなら null
+     * @returns {{rowOptionsByTab: Object, activeTab: string, scope: string, highlightChanges: boolean}|null} 設定。キャンセルなら null
      */
     function showConvertDialog(settings, scopeAvailability) {
         var mainDialog = new Window("dialog", getLabel(LABELS.dialog.title) + " " + SCRIPT_VERSION);
         setupWindow(mainDialog);
 
-        /* 上の行：左に対象、右にプリセット（間はスペーサーで空ける）。2つのパネルの高さは揃える / Top row: scope on the left, presets on the right with a spacer between; both panels share the height */
+        /* 上の行：左に対象と確認用の色分け、右にプリセット（間はスペーサーで空ける）。パネルの高さは揃える /
+           Top row: scope and check coloring on the left, presets on the right with a spacer between; the panels share the height */
         var topRowGroup = mainDialog.add("group");
         setupRow(topRowGroup, "fill", COLUMN_SPACING);
         topRowGroup.alignChildren = ["left", "fill"];
@@ -2574,12 +2989,25 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         }
         scopeRadios[initialScope].value = true;
 
+        /* 確認用の色分け（どちらのタブでも使う。表示前の value は読み戻せないので値は自前で持つ）/
+           Check coloring (used with either tab; the value is kept here, since value cannot be read back before show) */
+        var highlightPanel = topRowGroup.add("panel", undefined, getLabel(LABELS.panel.highlight));
+        setupPanel(highlightPanel);
+        highlightPanel.orientation = "row";
+        highlightPanel.alignment = ["left", "fill"];
+        highlightPanel.alignChildren = ["left", "center"];
+        var highlightCheckbox = highlightPanel.add("checkbox", undefined, getLabel(LABELS.checkbox.highlightChanges));
+        highlightCheckbox.helpTip = getLabel(LABELS.tooltip.highlightChanges);
+        var highlightChanges = (settings.highlightChanges === true);
+        highlightCheckbox.value = highlightChanges;
+        highlightCheckbox.onClick = function () { highlightChanges = highlightCheckbox.value; };
+
         /* 余りの幅を吸って、プリセットを右端に寄せる / Absorbs the extra width so the presets sit at the right edge */
         var topRowSpacer = topRowGroup.add("group");
         topRowSpacer.alignment = ["fill", "fill"];
         topRowSpacer.minimumSize.width = 0;
 
-        /* プリセット（タイトルなしのパネル）/ Presets (untitled panel) */
+        /* プリセット（タイトルなしのパネル。開いているタブに反映する）/ Presets (untitled panel; applied to the open tab) */
         var presetPanel = topRowGroup.add("panel");
         setupPanel(presetPanel);
         presetPanel.orientation = "row";
@@ -2596,164 +3024,34 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         var btnDeletePreset = presetRowGroup.add("button", undefined, getLabel(LABELS.button.deletePreset));
         btnDeletePreset.helpTip = getLabel(LABELS.tooltip.deletePreset);
 
-        var rowControls = {};
-        var tableContext = {
-            rowControls: rowControls,
-            extraControls: {},
-            rowLabels: [],
-            headerSpacers: [],
-            onRowChange: function () {
-                updateDigitRadios();
-                updateFormDropdowns();
+        /* 横組み・縦組みのタブ（設定はタブごと。変換には開いているタブの設定を使う）/ Horizontal and vertical tabs (each keeps its own settings; the open tab's are used) */
+        var tabbedPanel = mainDialog.add("tabbedpanel");
+        tabbedPanel.alignChildren = ["fill", "top"];
+        var tabControlsByKey = {};
+        var rowLabels = [];
+        var headerSpacers = [];
+        for (var tabIndex = 0; tabIndex < TAB_KEYS.length; tabIndex++) {
+            var tabControls = addSettingsTab(tabbedPanel, TAB_KEYS[tabIndex], function (changedTabControls) {
+                updateDependentControls(changedTabControls);
                 syncPresetSelection();
-            }
-        };
-
-        /* 3カラム（左：文字種・句読点、中：括弧、右：記号）。縦に積むと画面に収まらない / Three columns (left: character types and punctuation; middle: brackets; right: symbols); stacked, the dialog does not fit the screen */
-        var columnsGroup = mainDialog.add("group");
-        columnsGroup.orientation = "row";
-        columnsGroup.alignChildren = ["left", "fill"];
-        columnsGroup.spacing = COLUMN_SPACING;
-
-        var leftColumnGroup = columnsGroup.add("group");
-        leftColumnGroup.orientation = "column";
-        leftColumnGroup.alignChildren = ["fill", "top"];
-        leftColumnGroup.spacing = PANEL_SPACING;
-
-        var characterTypePanel = leftColumnGroup.add("panel", undefined, getLabel(LABELS.panel.characterType));
-        setupPanel(characterTypePanel);
-        addOptionTable(characterTypePanel, CHARACTER_TYPE_ROWS, tableContext);
-        var characterTypeExtrasGroup = characterTypePanel.add("group");
-        characterTypeExtrasGroup.orientation = "column";
-        characterTypeExtrasGroup.alignChildren = ["left", "top"];
-        characterTypeExtrasGroup.spacing = 6;
-        addExtraCheckbox(characterTypeExtrasGroup, "digitsByLength", LABELS.checkbox.digitsByLength, LABELS.tooltip.digitsByLength, tableContext);
-        addExtraCheckbox(characterTypeExtrasGroup, "spaceBetweenJapaneseOnly", LABELS.checkbox.spaceBetweenJapaneseOnly,
-            LABELS.tooltip.spaceBetweenJapaneseOnly, tableContext);
-        addExtraCheckbox(characterTypeExtrasGroup, "japaneseLatinSpace", LABELS.checkbox.japaneseLatinSpace, LABELS.tooltip.japaneseLatinSpace, tableContext);
-        addExtraCheckbox(characterTypeExtrasGroup, "westernPunctuationSpace", LABELS.checkbox.westernPunctuationSpace, LABELS.tooltip.westernPunctuationSpace, tableContext);
-
-        var punctuationPanel = leftColumnGroup.add("panel", undefined, getLabel(LABELS.panel.punctuation));
-        setupPanel(punctuationPanel);
-        addOptionTable(punctuationPanel, PUNCTUATION_ROWS, tableContext);
-        addExtraDropdown(punctuationPanel, "punctuationStyle", LABELS.fieldLabel.punctuationStyle,
-            [LABELS.dropdown.punctuationStyleKeep, LABELS.dropdown.punctuationStyleJapanese, LABELS.dropdown.punctuationStyleWestern],
-            LABELS.tooltip.punctuationStyle, tableContext);
-        /* 三点リーダーにする文字（「...に変換 : ☐・・・ ☐... ☐。。。」の1行）/ Characters turned into an ellipsis, on one row */
-        var ellipsisRowGroup = punctuationPanel.add("group");
-        setupRow(ellipsisRowGroup, "left", 6);
-        ellipsisRowGroup.add("statictext", undefined, labelText(LABELS.fieldLabel.toEllipsis));
-        addExtraCheckbox(ellipsisRowGroup, "nakaguroToEllipsis", LABELS.checkbox.nakaguroToEllipsis, LABELS.tooltip.nakaguroToEllipsis, tableContext);
-        addExtraCheckbox(ellipsisRowGroup, "periodsToEllipsis", LABELS.checkbox.periodsToEllipsis, LABELS.tooltip.periodsToEllipsis, tableContext);
-        addExtraCheckbox(ellipsisRowGroup, "kutenToEllipsis", LABELS.checkbox.kutenToEllipsis, LABELS.tooltip.kutenToEllipsis, tableContext);
-
-        var middleColumnGroup = columnsGroup.add("group");
-        middleColumnGroup.orientation = "column";
-        middleColumnGroup.alignChildren = ["fill", "top"];
-        middleColumnGroup.spacing = PANEL_SPACING;
-
-        var bracketPanel = middleColumnGroup.add("panel", undefined, getLabel(LABELS.panel.bracket));
-        setupPanel(bracketPanel);
-        addOptionTable(bracketPanel, BRACKET_ROWS, tableContext);
-        var bracketExtrasGroup = bracketPanel.add("group");
-        bracketExtrasGroup.orientation = "column";
-        bracketExtrasGroup.alignChildren = ["left", "top"];
-        bracketExtrasGroup.spacing = 6;
-        addExtraCheckbox(bracketExtrasGroup, "bracketInnerSpace", LABELS.checkbox.bracketInnerSpace, LABELS.tooltip.bracketInnerSpace, tableContext);
-        addExtraCheckbox(bracketExtrasGroup, "bracketOuterSpace", LABELS.checkbox.bracketOuterSpace, LABELS.tooltip.bracketOuterSpace, tableContext);
-        addExtraDropdown(bracketPanel, "quoteForm", LABELS.fieldLabel.quoteForm,
-            [LABELS.dropdown.quoteFormPlain, LABELS.dropdown.quoteFormCurly, LABELS.dropdown.quoteFormMinute], LABELS.tooltip.quoteForm, tableContext);
-
-        /* 縦組み用 / Vertical text */
-        var verticalPanel = middleColumnGroup.add("panel", undefined, getLabel(LABELS.panel.vertical));
-        setupPanel(verticalPanel, 6);
-        addExtraCheckbox(verticalPanel, "numberCommaToTouten", LABELS.checkbox.numberCommaToTouten, LABELS.tooltip.numberCommaToTouten, tableContext);
-        addExtraCheckbox(verticalPanel, "decimalToNakaguro", LABELS.checkbox.decimalToNakaguro, LABELS.tooltip.decimalToNakaguro, tableContext);
-
-        /* 確認用の色分け（表示前の value は読み戻せないので値は自前で持つ）/ Check coloring (the value is kept here, since value cannot be read back before show) */
-        var highlightPanel = middleColumnGroup.add("panel", undefined, getLabel(LABELS.panel.highlight));
-        setupPanel(highlightPanel, 6);
-        var highlightCheckbox = highlightPanel.add("checkbox", undefined, getLabel(LABELS.checkbox.highlightChanges));
-        highlightCheckbox.helpTip = getLabel(LABELS.tooltip.highlightChanges);
-        var highlightChanges = (settings.highlightChanges === true);
-        highlightCheckbox.value = highlightChanges;
-        highlightCheckbox.onClick = function () { highlightChanges = highlightCheckbox.value; };
-
-        var rightColumnGroup = columnsGroup.add("group");
-        rightColumnGroup.orientation = "column";
-        rightColumnGroup.alignChildren = ["fill", "top"];
-        rightColumnGroup.spacing = PANEL_SPACING;
-
-        var symbolPanel = rightColumnGroup.add("panel", undefined, getLabel(LABELS.panel.symbol));
-        setupPanel(symbolPanel);
-        addOptionTable(symbolPanel, SYMBOL_ROWS, tableContext);
-        addExtraDropdown(symbolPanel, "hyphenForm", LABELS.fieldLabel.hyphenForm,
-            [LABELS.dropdown.hyphenFormPlain, LABELS.dropdown.hyphenFormHyphen, LABELS.dropdown.hyphenFormMinus], LABELS.tooltip.hyphenForm, tableContext);
-        addExtraDropdown(symbolPanel, "asteriskForm", LABELS.fieldLabel.asteriskForm,
-            [LABELS.dropdown.asteriskFormPlain, LABELS.dropdown.asteriskFormReference], LABELS.tooltip.asteriskForm, tableContext);
-        addExtraDropdown(symbolPanel, "tildeForm", LABELS.fieldLabel.tildeForm,
-            [LABELS.dropdown.tildeFormPlain, LABELS.dropdown.tildeFormWave], LABELS.tooltip.tildeForm, tableContext);
+            });
+            tabControlsByKey[TAB_KEYS[tabIndex]] = tabControls;
+            rowLabels = rowLabels.concat(tabControls.rowLabels);
+            headerSpacers = headerSpacers.concat(tabControls.headerSpacers);
+        }
 
         /* 項目名の幅をすべての表で同じにし、見出しの空きも同じ幅にする / Give every table the same label width, and the header gap too */
-        var rowLabelWidth = alignLabelWidths(tableContext.rowLabels, "right");
-        for (var spacerIndex = 0; spacerIndex < tableContext.headerSpacers.length; spacerIndex++) {
-            tableContext.headerSpacers[spacerIndex].preferredSize.width = rowLabelWidth;
+        var rowLabelWidth = alignLabelWidths(rowLabels, "right");
+        for (var spacerIndex = 0; spacerIndex < headerSpacers.length; spacerIndex++) {
+            headerSpacers[spacerIndex].preferredSize.width = rowLabelWidth;
         }
 
         /**
-         * 設定（行の選択肢と行のほかの設定）をまとめて反映する
-         * @param {Object} rowOptions - 設定のキー → 値
-         * @returns {void}
+         * 開いているタブのコントロールを返す
+         * @returns {Object} タブのコントロール（addSettingsTab() の戻り値）
          */
-        function applyRowOptions(rowOptions) {
-            for (var settingKey in rowOptions) {
-                if (!rowOptions.hasOwnProperty(settingKey)) continue;
-                if (rowControls[settingKey]) setRowOption(rowControls[settingKey], rowOptions[settingKey]);
-                else if (tableContext.extraControls[settingKey]) tableContext.extraControls[settingKey].setValue(rowOptions[settingKey]);
-            }
-            updateDigitRadios();
-            updateFormDropdowns();
-        }
-
-        /**
-         * 今の設定（行の選択肢と行のほかの設定）を返す
-         * @returns {Object} 設定のキー → 値
-         */
-        function readRowOptions() {
-            var currentOptions = {};
-            for (var rowKey in rowControls) {
-                if (rowControls.hasOwnProperty(rowKey)) currentOptions[rowKey] = getRowOption(rowControls[rowKey]);
-            }
-            for (var extraKey in tableContext.extraControls) {
-                if (tableContext.extraControls.hasOwnProperty(extraKey)) currentOptions[extraKey] = tableContext.extraControls[extraKey].value;
-            }
-            return currentOptions;
-        }
-
-        /**
-         * 数字を桁数で決めるときは、数字の行のラジオを使えなくする
-         * @returns {void}
-         */
-        function updateDigitRadios() {
-            var digitsControl = rowControls.digits;
-            var isByLength = (tableContext.extraControls.digitsByLength.value === 1);
-            for (var i = 0; i < digitsControl.radios.length; i++) digitsControl.radios[i].enabled = !isByLength;
-        }
-
-        /**
-         * 全角の字形のドロップダウンは、その行が「そのまま」のときは使えなくする（半角にするときも、選んだ字形だけを戻すので使う。引用符は二重引用符・引用符の両方が「そのまま」なら）
-         * @returns {void}
-         */
-        function updateFormDropdowns() {
-            var isUsedBySetting = {};
-            for (var rowKey in FULL_FORM_CHOICES) {
-                if (!FULL_FORM_CHOICES.hasOwnProperty(rowKey)) continue;
-                var formSettingKey = FULL_FORM_CHOICES[rowKey].settingKey;
-                isUsedBySetting[formSettingKey] = isUsedBySetting[formSettingKey] || (getRowOption(rowControls[rowKey]) !== OPTION_KEEP);
-            }
-            for (var settingKey in isUsedBySetting) {
-                if (isUsedBySetting.hasOwnProperty(settingKey)) tableContext.extraControls[settingKey].setEnabled(isUsedBySetting[settingKey]);
-            }
+        function getActiveTabControls() {
+            return (tabbedPanel.selection === tabControlsByKey.vertical.tab) ? tabControlsByKey.vertical : tabControlsByKey.horizontal;
         }
 
         /* ドロップダウンの項目番号 → プリセット（「カスタム」と区切り線は null）/ Dropdown item index → preset ("Custom" and separators are null) */
@@ -2762,7 +3060,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         var isUpdatingPresetDropdown = false;
 
         /**
-         * プリセットのドロップダウンを作り直す（組み込み → 区切り線 → ユーザーのプリセット）
+         * プリセットのドロップダウンを作り直す（組み込み → 区切り線 → ユーザーのプリセット。どちらのタブでもすべて並べる）
          * @returns {void}
          */
         function rebuildPresetDropdown() {
@@ -2788,14 +3086,15 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         }
 
         /**
-         * 今の設定に合うプリセットをドロップダウンで選ぶ（合うものが無ければ「カスタム」）
+         * 開いているタブの設定に合うプリセットをドロップダウンで選ぶ（合うものが無ければ「カスタム」）。ほかのタブのプリセットは合わせない
          * @returns {void}
          */
         function syncPresetSelection() {
-            var currentOptions = readRowOptions();
+            var activeTabControls = getActiveTabControls();
+            var currentOptions = readRowOptions(activeTabControls);
             var matchedIndex = 0;
             for (var i = 0; i < presetItems.length; i++) {
-                if (presetItems[i] && isSameRowOptions(presetItems[i].rowOptions, currentOptions)) {
+                if (presetItems[i] && isPresetForTab(presetItems[i], activeTabControls.tabKey) && isSameRowOptions(rowOptionsForTab(presetItems[i].rowOptions, activeTabControls.tabKey), currentOptions)) {
                     matchedIndex = i;
                     break;
                 }
@@ -2831,7 +3130,14 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             if (isUpdatingPresetDropdown || !presetDropdown.selection) return;
             var chosenPreset = presetItems[presetDropdown.selection.index];
             btnDeletePreset.enabled = !!(chosenPreset && !chosenPreset.builtIn);
-            if (chosenPreset) applyRowOptions(chosenPreset.rowOptions);
+            if (!chosenPreset) return;
+            /* タブを持つプリセット（「縦組み用」など）は、そのタブに切り替えて反映する / A preset with a tab (such as vertical) switches to that tab */
+            var targetTabControls = chosenPreset.tab ? tabControlsByKey[chosenPreset.tab] : getActiveTabControls();
+            applyRowOptions(targetTabControls, chosenPreset.rowOptions);
+            if (tabbedPanel.selection !== targetTabControls.tab) {
+                tabbedPanel.selection = targetTabControls.tab;
+                syncPresetSelection();
+            }
         };
 
         btnSavePreset.onClick = function () {
@@ -2847,7 +3153,9 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
                     return;
                 }
             }
-            var newPreset = { name: presetName, builtIn: false, rowOptions: readRowOptions() };
+            /* 選ぶと保存したタブに切り替える / Choosing it later switches to the tab it was saved from */
+            var activeTabControls = getActiveTabControls();
+            var newPreset = { name: presetName, builtIn: false, tab: activeTabControls.tabKey, rowOptions: readRowOptions(activeTabControls) };
             var existingIndex = findUserPresetIndex(presetName);
             if (existingIndex >= 0) {
                 if (!confirm(getLabel(LABELS.confirm.overwritePreset, { name: presetName }), true)) return;
@@ -2866,14 +3174,19 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             storeUserPresets();
         };
 
-        applyRowOptions(settings.rowOptions);
+        for (var applyIndex = 0; applyIndex < TAB_KEYS.length; applyIndex++) {
+            applyRowOptions(tabControlsByKey[TAB_KEYS[applyIndex]], settings.rowOptionsByTab[TAB_KEYS[applyIndex]]);
+        }
+        tabbedPanel.selection = tabControlsByKey[settings.activeTab].tab;
         rebuildPresetDropdown();
+        /* タブを切り替えたら、そのタブの設定に合うプリセットを選び直す / Switching tabs re-selects the preset matching that tab */
+        tabbedPanel.onChange = function () { syncPresetSelection(); };
 
         var buttonRow = addButtonRow(mainDialog);
         var btnRestoreDefaults = buttonRow.leftGroup.add("button", undefined, getLabel(LABELS.button.restoreDefaults));
         btnRestoreDefaults.helpTip = getLabel(LABELS.tooltip.restoreDefaults);
         btnRestoreDefaults.onClick = function () {
-            applyRowOptions(getDefaultRowOptions());
+            applyRowOptions(getActiveTabControls(), getDefaultRowOptions());
             syncPresetSelection();
         };
 
@@ -2886,12 +3199,20 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         prepareDialogWindow(mainDialog, SCRIPT_NAME);
         if (mainDialog.show() !== 1) return null;
 
-        var chosenRowOptions = readRowOptions();
+        var chosenRowOptionsByTab = {};
+        for (var readIndex = 0; readIndex < TAB_KEYS.length; readIndex++) {
+            chosenRowOptionsByTab[TAB_KEYS[readIndex]] = readRowOptions(tabControlsByKey[TAB_KEYS[readIndex]]);
+        }
         var chosenScope = "document";
         for (var scopeKey in scopeRadios) {
             if (scopeRadios.hasOwnProperty(scopeKey) && scopeRadios[scopeKey].value) chosenScope = scopeKey;
         }
-        return { rowOptions: chosenRowOptions, scope: chosenScope, highlightChanges: highlightChanges };
+        return {
+            rowOptionsByTab: chosenRowOptionsByTab,
+            activeTab: getActiveTabControls().tabKey,
+            scope: chosenScope,
+            highlightChanges: highlightChanges
+        };
     }
 
     // =========================================
@@ -2909,7 +3230,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         if (!settings) return;
         saveSettings(settings);
 
-        var conversion = buildConversionMap(settings.rowOptions);
+        /* 開いていたタブの設定で変換する（タブに無い設定は 0）/ Convert with the open tab's settings (settings not on that tab are 0) */
+        var conversion = buildConversionMap(settings.rowOptionsByTab[settings.activeTab]);
         if (!hasConversionWork(conversion)) {
             alert(getLabel(LABELS.alert.allKeep));
             return;
@@ -2931,7 +3253,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     }
 
     /* 内訳に出す、行以外のキー（行のあとに並べる）/ Keys besides the rows shown in the breakdown, listed after the rows */
-    var RESULT_EXTRA_KEYS = ["nakaguroToEllipsis", "periodsToEllipsis", "kutenToEllipsis", "japaneseLatinSpace", "punctuationStyle", "numberCommaToTouten", "decimalToNakaguro", "westernPunctuationSpace", "bracketInnerSpace", "bracketOuterSpace"];
+    var RESULT_EXTRA_KEYS = ["nakaguroToEllipsis", "periodsToEllipsis", "kutenToEllipsis", "japaneseLatinSpace", "punctuationStyle", "longDigitsFullwidth", "shortCapsFullwidth",
+        "numberCommaToTouten", "decimalToNakaguro", "westernPunctuationSpace", "bracketInnerSpace", "bracketOuterSpace"];
 
     /**
      * 変換した数の内訳を、行の並び順で「項目名 : 数」の行にする
