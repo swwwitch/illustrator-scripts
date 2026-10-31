@@ -226,6 +226,8 @@ After release, we continue to fix bugs and make adjustments through daily use.
 - [Distribute colors across objects and text](readme-en/AiDistributeColors.md)
 - [Generate swatches and gradients from the colors of selected objects](readme-en/CreateGradientFromSelection.md)
 - [Swap, convert, or clear fill and stroke](readme-en/FillStrokeSwitcher.md)
+- [Set the fill to black and the stroke to None](readme-en/FillBlack.md)
+- [Set the fill to white and the stroke to None](readme-en/FillWhite.md)
 - [Bake opacity into the fill color](readme-en/FlattenOpacityPro.md)
 - [An Illustrator script to register fill and stroke colo…](readme-en/RegisterAndApplySwatches.md)
 - [Adds a specified number of intermediate color stops to…](readme-en/Convert2SeparateGradient.md)
