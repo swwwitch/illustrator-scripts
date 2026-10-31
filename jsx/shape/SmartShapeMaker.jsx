@@ -6,7 +6,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 /*
 SCRIPTMETA-BEGIN
 Script-ID=com.swwwitch.illustrator.SmartShapeMaker
-Name=SmartShapeMaker
+Name=円・正多角形・スター・スーパー楕円・ルーローを作成
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=2.4.8
@@ -52,6 +52,8 @@ var SCRIPT_VERSION  = "v2.4.8";                       /* バージョン / versi
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-05-02";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last updated */
+
+var SCRIPT_DESCRIPTION_JA = "円・正多角形・スター・スーパー楕円・ルーローを作成"; /* README の見出し / README title (Japanese) */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartShapeMaker.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartShapeMaker.md"; /* README (English) */

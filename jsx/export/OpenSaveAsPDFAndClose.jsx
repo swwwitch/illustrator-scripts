@@ -5,7 +5,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 /*
 SCRIPTMETA-BEGIN
 Script-ID=com.swwwitch.illustrator.OpenSaveAsPDFAndClose
-Name=OpenSaveAsPDFAndClose
+Name=指定したファイルを開いて PDF として保存し、閉じる
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.1.2
@@ -48,6 +48,8 @@ var SCRIPT_VERSION  = "v1.1.2";                       /* バージョン / versi
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-08";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-16";                   /* 更新日 / last updated */
+
+var SCRIPT_DESCRIPTION_JA = "指定したファイルを開いて PDF として保存し、閉じる"; /* README の見出し / README title (Japanese) */
 
 var SCRIPT_README_JA  = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/OpenSaveAsPDFAndClose.md"; /* README（日本語） */
 var SCRIPT_README_EN  = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/OpenSaveAsPDFAndClose.md"; /* README (English) */

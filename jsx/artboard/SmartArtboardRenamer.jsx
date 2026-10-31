@@ -5,7 +5,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 /*
 SCRIPTMETA-BEGIN
 Script-ID=com.swwwitch.illustrator.SmartArtboardRenamer
-Name=SmartArtboardRenamer
+Name=アートボード名を最前面のテキストや特定のレイヤーのテキストに設定
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.5.11
@@ -51,6 +51,8 @@ var SCRIPT_VERSION  = "v1.5.11";                       /* バージョン / vers
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-05-09";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last updated */
+
+var SCRIPT_DESCRIPTION_JA = "アートボード名を最前面のテキストや特定のレイヤーのテキストに設定"; /* README の見出し / README title (Japanese) */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartArtboardRenamer.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartArtboardRenamer.md"; /* README (English) */

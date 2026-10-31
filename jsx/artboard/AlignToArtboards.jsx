@@ -5,7 +5,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 /*
 SCRIPTMETA-BEGIN
 Script-ID=com.swwwitch.illustrator.AlignToArtboards
-Name=AlignToArtboards
+Name=選択オブジェクトを各アートボードの9点へ整列
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.2.10
@@ -51,6 +51,8 @@ var SCRIPT_VERSION  = "v1.2.10";                      /* バージョン / versi
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-12-17";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-29";                   /* 更新日 / last updated */
+
+var SCRIPT_DESCRIPTION_JA = "選択オブジェクトを各アートボードの9点へ整列"; /* README の見出し / README title (Japanese) */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AlignToArtboards.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AlignToArtboards.md"; /* README (English) */

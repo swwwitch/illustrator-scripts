@@ -5,7 +5,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 /*
 SCRIPTMETA-BEGIN
 Script-ID=com.swwwitch.illustrator.ArtboardExporter
-Name=ArtboardExporter
+Name=アートボードを選んで PNG・JPEG・PDF で書き出し
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.1.3
@@ -48,6 +48,8 @@ var SCRIPT_VERSION  = "v1.1.3";                       /* バージョン / versi
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-09-30";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-29";                   /* 更新日 / last updated */
+
+var SCRIPT_DESCRIPTION_JA = "アートボードを選んで PNG・JPEG・PDF で書き出し"; /* README の見出し / README title (Japanese) */
 
 var SCRIPT_README_JA  = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ArtboardExporter.md"; /* README（日本語） */
 var SCRIPT_README_EN  = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ArtboardExporter.md"; /* README (English) */

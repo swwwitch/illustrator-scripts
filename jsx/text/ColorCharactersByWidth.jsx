@@ -5,7 +5,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 /*
 SCRIPTMETA-BEGIN
 Script-ID=com.swwwitch.illustrator.ColorCharactersByWidth
-Name=ColorCharactersByWidth
+Name=全角・半角の英数字と等幅字形を色で塗り分け
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.4.0
@@ -52,6 +52,8 @@ var SCRIPT_VERSION  = "v1.4.0";                       /* バージョン / versi
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-16";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-16";                   /* 更新日 / last updated */
+
+var SCRIPT_DESCRIPTION_JA = "全角・半角の英数字と等幅字形を色で塗り分け"; /* README の見出し / README title (Japanese) */
 
 var SCRIPT_README_JA  = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ColorCharactersByWidth.md"; /* README（日本語） */
 var SCRIPT_README_EN  = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ColorCharactersByWidth.md"; /* README (English) */

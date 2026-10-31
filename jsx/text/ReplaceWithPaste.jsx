@@ -5,7 +5,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 /*
 SCRIPTMETA-BEGIN
 Script-ID=com.swwwitch.illustrator.ReplaceWithPaste
-Name=ReplaceWithPaste
+Name=クリップボードの内容で選択を置き換える
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=2.0.11
@@ -51,6 +51,8 @@ var SCRIPT_VERSION  = "v2.0.11";                      /* バージョン / versi
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2024-10-28";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-16";                   /* 更新日 / last updated */
+
+var SCRIPT_DESCRIPTION_JA = "クリップボードの内容で選択を置き換える"; /* README の見出し / README title (Japanese) */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ReplaceWithPaste.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ReplaceWithPaste.md"; /* README (English) */

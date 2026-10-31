@@ -5,7 +5,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 /*
 SCRIPTMETA-BEGIN
 Script-ID=com.swwwitch.illustrator.ParagraphStyles
-Name=段落スタイル
+Name=選択したテキストの体裁を段落スタイルとして登録
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.0.8
@@ -43,6 +43,8 @@ var SCRIPT_VERSION  = "v1.0.8";                       /* バージョン / versi
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-06";                   /* 更新日 / last updated */
+
+var SCRIPT_DESCRIPTION_JA = "選択したテキストの体裁を段落スタイルとして登録"; /* README の見出し / README title (Japanese) */
 
 var SCRIPT_README_JA  = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/段落スタイル.md"; /* README（日本語） */
 var SCRIPT_README_EN  = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/段落スタイル.md"; /* README (English) */

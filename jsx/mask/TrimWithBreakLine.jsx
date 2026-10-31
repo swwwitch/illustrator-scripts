@@ -5,7 +5,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 /*
 SCRIPTMETA-BEGIN
 Script-ID=com.swwwitch.illustrator.TrimWithBreakLine
-Name=TrimWithBreakLine
+Name=画像を省略線でトリミング
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.3.0
@@ -47,6 +47,8 @@ var SCRIPT_VERSION  = "v1.3.0";                       /* バージョン / versi
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-09-20";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-11";                   /* 更新日 / last updated */
+
+var SCRIPT_DESCRIPTION_JA = "画像を省略線でトリミング"; /* README の見出し / README title (Japanese) */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TrimWithBreakLine.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TrimWithBreakLine.md"; /* README (English) */

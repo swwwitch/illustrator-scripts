@@ -5,7 +5,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 /*
 SCRIPTMETA-BEGIN
 Script-ID=com.swwwitch.illustrator.MaskSpotlight
-Name=MaskSpotlight
+Name=マスクした複製で、ぼかし・スポットライト・ルーペ・部分拡大をつくる
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.1.8
@@ -47,6 +47,8 @@ var SCRIPT_VERSION  = "v1.1.8";                       /* バージョン / versi
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-09-20";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last updated */
+
+var SCRIPT_DESCRIPTION_JA = "マスクした複製で、ぼかし・スポットライト・ルーペ・部分拡大をつくる"; /* README の見出し / README title (Japanese) */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/MaskSpotlight.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/MaskSpotlight.md"; /* README (English) */

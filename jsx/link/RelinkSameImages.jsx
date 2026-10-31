@@ -4,7 +4,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 /*
 SCRIPTMETA-BEGIN
 Script-ID=com.swwwitch.illustrator.RelinkSameImages
-Name=RelinkSameImages
+Name=同じリンクを参照する配置画像をドキュメント全体で差し替え
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.2.3
@@ -50,6 +50,8 @@ var SCRIPT_VERSION  = "v1.2.3";                       /* バージョン / versi
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2024-06-15";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last updated */
+
+var SCRIPT_DESCRIPTION_JA = "同じリンクを参照する配置画像をドキュメント全体で差し替え"; /* README の見出し / README title (Japanese) */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/RelinkSameImages.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RelinkSameImages.md"; /* README (English) */

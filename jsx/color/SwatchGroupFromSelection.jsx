@@ -4,7 +4,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 /*
 SCRIPTMETA-BEGIN
 Script-ID=com.swwwitch.illustrator.SwatchGroupFromSelection
-Name=SwatchGroupFromSelection
+Name=配置順で塗り色を抽出してスウォッチグループに登録
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.3.2
@@ -47,6 +47,8 @@ var SCRIPT_VERSION  = "v1.3.2";                       /* バージョン / versi
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-01-28";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-30";                   /* 更新日 / last updated */
+
+var SCRIPT_DESCRIPTION_JA = "配置順で塗り色を抽出してスウォッチグループに登録"; /* README の見出し / README title (Japanese) */
 
 var SCRIPT_README_JA  = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SwatchGroupFromSelection.md"; /* README（日本語） */
 var SCRIPT_README_EN  = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SwatchGroupFromSelection.md"; /* README (English) */

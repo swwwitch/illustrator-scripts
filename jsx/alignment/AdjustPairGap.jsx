@@ -5,7 +5,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 /*
 SCRIPTMETA-BEGIN
 Script-ID=com.swwwitch.illustrator.AdjustPairGap
-Name=AdjustPairGap
+Name=基準にする側を決めて、間隔と位置をそろえる
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.4.11
@@ -55,6 +55,8 @@ var SCRIPT_VERSION  = "v1.4.11";                      /* バージョン / versi
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-06-08";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-29";                   /* 更新日 / last updated */
+
+var SCRIPT_DESCRIPTION_JA = "基準にする側を決めて、間隔と位置をそろえる"; /* README の見出し / README title (Japanese) */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AdjustPairGap.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AdjustPairGap.md"; /* README (English) */

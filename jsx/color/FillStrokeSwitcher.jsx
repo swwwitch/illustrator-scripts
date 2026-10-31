@@ -5,7 +5,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 /*
 SCRIPTMETA-BEGIN
 Script-ID=com.swwwitch.illustrator.FillStrokeSwitcher
-Name=FillStrokeSwitcher
+Name=塗りと線の入れ替え・変換・消去
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.2.1
@@ -54,6 +54,8 @@ var SCRIPT_VERSION  = "v1.2.1";                       /* バージョン / versi
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-03-25";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-20";                   /* 更新日 / last updated */
+
+var SCRIPT_DESCRIPTION_JA = "塗りと線の入れ替え・変換・消去"; /* README の見出し / README title (Japanese) */
 
 var SCRIPT_README_JA     = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/FillStrokeSwitcher.md"; /* README（日本語） */
 var SCRIPT_README_EN     = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FillStrokeSwitcher.md"; /* README (English) */

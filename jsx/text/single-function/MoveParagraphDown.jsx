@@ -5,7 +5,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 /*
 SCRIPTMETA-BEGIN
 Script-ID=com.swwwitch.illustrator.MoveParagraphDown
-Name=MoveParagraphDown
+Name=カーソルのある段落をひとつ下へ移動
 Author=sky-chaser-high
 Target-App=Illustrator
 Version=1.1.0
@@ -49,6 +49,8 @@ var SCRIPT_AUTHOR   = "sky-chaser-high";              /* 作者 / author */
 var SCRIPT_MODIFIED = "Masahiro Takano (@swwwitch)";  /* 改変 / modified by */
 var SCRIPT_RELEASED = "2026-08-27";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-30";                   /* 更新日 / last updated */
+
+var SCRIPT_DESCRIPTION_JA = "カーソルのある段落をひとつ下へ移動"; /* README の見出し / README title (Japanese) */
 
 var SCRIPT_README_JA  = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/MoveParagraphDown.md"; /* README（日本語） */
 var SCRIPT_README_EN  = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/MoveParagraphDown.md"; /* README (English) */

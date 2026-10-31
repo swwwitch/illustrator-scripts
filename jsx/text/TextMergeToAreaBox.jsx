@@ -4,7 +4,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 /*
 SCRIPTMETA-BEGIN
 Script-ID=com.swwwitch.illustrator.TextMergeToAreaBox
-Name=TextMergeToAreaBox
+Name=PDFをイラレで開いたときのバラバラ文字を、ひとつのエリア内文字に再構成するスクリプト
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.3.2
@@ -50,6 +50,8 @@ var SCRIPT_VERSION  = "v1.3.2";                       /* バージョン / versi
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-07-18";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last updated */
+
+var SCRIPT_DESCRIPTION_JA = "PDFをイラレで開いたときのバラバラ文字を、ひとつのエリア内文字に再構成するスクリプト"; /* README の見出し / README title (Japanese) */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TextMergeToAreaBox.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TextMergeToAreaBox.md"; /* README (English) */

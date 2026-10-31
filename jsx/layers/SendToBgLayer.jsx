@@ -4,7 +4,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 /*
 SCRIPTMETA-BEGIN
 Script-ID=com.swwwitch.illustrator.SendToBgLayer
-Name=SendToBgLayer
+Name=選択しているオブジェクトを新規レイヤーに移動し、そのレイヤーを最背面に移動してロック
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.1
@@ -50,6 +50,8 @@ var SCRIPT_VERSION  = "v1.1";                         /* バージョン / versi
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2024-06-24";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2024-06-25";                   /* 更新日 / last updated */
+
+var SCRIPT_DESCRIPTION_JA = "選択しているオブジェクトを新規レイヤーに移動し、そのレイヤーを最背面に移動してロック"; /* README の見出し / README title (Japanese) */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SendToBgLayer.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SendToBgLayer.md"; /* README (English) */

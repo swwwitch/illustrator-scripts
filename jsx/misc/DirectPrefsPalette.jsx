@@ -5,7 +5,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 /*
 SCRIPTMETA-BEGIN
 Script-ID=com.swwwitch.illustrator.DirectPrefsPalette
-Name=DirectPrefsPalette
+Name=「角度の制限」と「キー増加」を変更
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.1.6
@@ -43,6 +43,8 @@ var SCRIPT_VERSION  = "v1.1.6";                       /* バージョン / versi
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-29";                   /* 更新日 / last updated */
+
+var SCRIPT_DESCRIPTION_JA = "「角度の制限」と「キー増加」を変更"; /* README の見出し / README title (Japanese) */
 
 var SCRIPT_README_JA  = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/DirectPrefsPalette.md"; /* README（日本語） */
 var SCRIPT_README_EN  = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/DirectPrefsPalette.md"; /* README (English) */

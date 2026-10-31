@@ -5,7 +5,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 /*
 SCRIPTMETA-BEGIN
 Script-ID=com.swwwitch.illustrator.FontPresetCollector
-Name=FontPresetCollector
+Name=ドキュメント内の段落書式を一覧にして、まとめて変更・置換
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.1.10
@@ -50,6 +50,8 @@ var SCRIPT_VERSION  = "v1.1.10";                      /* バージョン / versi
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-09-26";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-16";                   /* 更新日 / last updated */
+
+var SCRIPT_DESCRIPTION_JA = "ドキュメント内の段落書式を一覧にして、まとめて変更・置換"; /* README の見出し / README title (Japanese) */
 
 var SCRIPT_README_JA  = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/FontPresetCollector.md"; /* README（日本語） */
 var SCRIPT_README_EN  = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FontPresetCollector.md"; /* README (English) */

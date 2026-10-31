@@ -5,7 +5,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 /*
 SCRIPTMETA-BEGIN
 Script-ID=com.swwwitch.illustrator.FavoriteFontPickerPalette
-Name=FavoriteFontPickerPalette
+Name=よく使うフォントだけを一覧から選んで適用
 Author=KOUJI & 相棒（Gem）
 Target-App=Illustrator
 Version=1.2.5
@@ -52,6 +52,8 @@ var SCRIPT_AUTHOR   = "KOUJI & 相棒（Gem）";              /* 作者 / author
 var SCRIPT_MODIFIED = "Masahiro Takano (@swwwitch)";  /* 改変 / modified by */
 var SCRIPT_RELEASED = "2026-10-01";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-10";                   /* 更新日 / last updated */
+
+var SCRIPT_DESCRIPTION_JA = "よく使うフォントだけを一覧から選んで適用"; /* README の見出し / README title (Japanese) */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/FavoriteFontPickerPalette.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FavoriteFontPickerPalette.md"; /* README (English) */

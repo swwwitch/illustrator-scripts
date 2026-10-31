@@ -4,7 +4,7 @@ app.preferences.setBooleanPreference("ShowExternalJSXWarning", false);
 /*
 SCRIPTMETA-BEGIN
 Script-ID=com.swwwitch.illustrator.InsertNewTextELong
-Name=InsertNewTextELong
+Name=表示領域の中心に長めの欧文ポイントテキストを作成
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.1.1
@@ -48,6 +48,8 @@ var SCRIPT_VERSION  = "v1.1.1";                       /* バージョン / versi
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-04-01";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last updated */
+
+var SCRIPT_DESCRIPTION_JA = "表示領域の中心に長めの欧文ポイントテキストを作成"; /* README の見出し / README title (Japanese) */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/InsertNewTextELong.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/InsertNewTextELong.md"; /* README (English) */

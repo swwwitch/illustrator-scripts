@@ -5,7 +5,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 /*
 SCRIPTMETA-BEGIN
 Script-ID=com.swwwitch.illustrator.PresetManagerArtboard
-Name=PresetManagerArtboard
+Name=アートボード名と枠線の表示設定を切り替える
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.0.8
@@ -44,6 +44,8 @@ var SCRIPT_VERSION  = "v1.0.8";                       /* バージョン / versi
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-03-23";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last updated */
+
+var SCRIPT_DESCRIPTION_JA = "アートボード名と枠線の表示設定を切り替える"; /* README の見出し / README title (Japanese) */
 
 var SCRIPT_README_JA  = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/PresetManagerArtboard.md"; /* README（日本語） */
 var SCRIPT_README_EN  = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PresetManagerArtboard.md"; /* README (English) */

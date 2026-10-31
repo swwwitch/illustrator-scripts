@@ -4,7 +4,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 /*
 SCRIPTMETA-BEGIN
 Script-ID=com.swwwitch.illustrator.AreaTypeCenterMiddle
-Name=AreaTypeCenterMiddle
+Name=エリア内文字を天地・左右とも中央にそろえる
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.0.3
@@ -43,6 +43,8 @@ var SCRIPT_VERSION  = "v1.0.3";                       /* バージョン / versi
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-08-28";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last updated */
+
+var SCRIPT_DESCRIPTION_JA = "エリア内文字を天地・左右とも中央にそろえる"; /* README の見出し / README title (Japanese) */
 
 var SCRIPT_README_JA  = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AreaTypeCenterMiddle.md"; /* README（日本語） */
 var SCRIPT_README_EN  = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AreaTypeCenterMiddle.md"; /* README (English) */

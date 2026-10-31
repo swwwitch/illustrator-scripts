@@ -5,7 +5,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 /*
 SCRIPTMETA-BEGIN
 Script-ID=com.swwwitch.illustrator.SetTemplateLayer
-Name=SetTemplateLayer
+Name=指定したレイヤーをテンプレート化して接頭辞を付ける
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.0.9
@@ -43,6 +43,8 @@ var SCRIPT_VERSION  = "v1.0.9";                       /* バージョン / versi
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-16";                   /* 更新日 / last updated */
+
+var SCRIPT_DESCRIPTION_JA = "指定したレイヤーをテンプレート化して接頭辞を付ける"; /* README の見出し / README title (Japanese) */
 
 var SCRIPT_README_JA  = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SetTemplateLayer.md"; /* README（日本語） */
 var SCRIPT_README_EN  = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SetTemplateLayer.md"; /* README (English) */

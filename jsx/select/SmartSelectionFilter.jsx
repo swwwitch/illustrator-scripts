@@ -5,7 +5,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 /*
 SCRIPTMETA-BEGIN
 Script-ID=com.swwwitch.illustrator.SmartSelectionFilter
-Name=SmartSelectionFilter
+Name=選択オブジェクトを条件で絞り込み再選択
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.1.4
@@ -51,6 +51,8 @@ var SCRIPT_VERSION  = "v1.1.4";                       /* バージョン / versi
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-05-02";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last updated */
+
+var SCRIPT_DESCRIPTION_JA = "選択オブジェクトを条件で絞り込み再選択"; /* README の見出し / README title (Japanese) */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartSelectionFilter.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartSelectionFilter.md"; /* README (English) */

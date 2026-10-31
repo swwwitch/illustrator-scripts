@@ -6,26 +6,31 @@ SCRIPTMETA（https://github.com/Yamonov/SCRIPTMETA）の同期ツール。
 ヘッダーの「### 概要」「### Overview」から SCRIPTMETA ブロック（Local Subset）を作り直す。
 更新確認は使わないので Meta-URL は書かない。
 あわせて基本情報ブロックの SCRIPT_SOURCE_URL（GitHub 上の最新版へのリンク）をファイルの置き場所から書き直す。
+SCRIPT_README_JA が指す README の見出し（# 行）を基本情報ブロックの SCRIPT_DESCRIPTION_JA と SCRIPTMETA の Name に入れる。
+README が無ければ SCRIPT_DESCRIPTION_JA は置かず、Name は SCRIPT_NAME にする。
 
-SCRIPT_VERSION を上げたり概要を書き換えたり、スクリプトを追加・移動・改名したりしたら、コミット前に実行する。
+SCRIPT_VERSION を上げたり概要や README の見出しを書き換えたり、スクリプトを追加・移動・改名したりしたら、コミット前に実行する。
 
     python3 helpers/sync-scriptmeta.py          # 書き換える
     python3 helpers/sync-scriptmeta.py --check  # 差分があれば一覧を出して終了コード1
 
 Syncs the SCRIPTMETA block (Local Subset, no Meta-URL) in every .jsx from its basic info block
-and header overview, and rewrites SCRIPT_SOURCE_URL from the file's location. Run it before committing.
+and header overview, and rewrites SCRIPT_SOURCE_URL from the file's location. The Japanese README title
+goes into SCRIPT_DESCRIPTION_JA and Name (SCRIPT_NAME when there is no README). Run it before committing.
 """
 import glob
 import os
 import re
 import sys
 import unicodedata
+import urllib.parse
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ID_PREFIX = "com.swwwitch.illustrator."
 TARGET_APP = "Illustrator"
 SOURCE_URL_BASE = "https://github.com/swwwitch/illustrator-scripts/blob/master/"
 SOURCE_URL_COMMENT = "/* 最新版のソース / latest source */"
+DESCRIPTION_COMMENT = "/* README の見出し / README title (Japanese) */"
 EXCLUDE_DIRS = ("/_templates/",)
 
 # Script-ID に使えない文字（A-Z a-z 0-9 . _ - 以外）を含む SCRIPT_NAME と、改名したスクリプトの旧名の ID。
@@ -52,6 +57,24 @@ def read_var(text, key):
     return m.group(1) if m else None
 
 
+def read_readme_title(text):
+    """SCRIPT_README_JA が指す README の見出し（# 行）を返す。README が無ければ None"""
+    m = re.search(r"/blob/[^/]+/(.+)$", read_var(text, "SCRIPT_README_JA") or "")
+    if not m:
+        return None
+    path = os.path.join(ROOT, urllib.parse.unquote(m.group(1)))
+    if not os.path.isfile(path):
+        return None
+    with open(path, encoding="utf-8") as fp:
+        heading = re.search(r"^# (.+)$", fp.read(), re.M)
+    if not heading:
+        return None
+    title = unicodedata.normalize("NFC", heading.group(1).strip())
+    if '"' in title or "\\" in title or "*/" in title:
+        raise ValueError("README の見出しに \" \\ */ があります: " + title)
+    return title
+
+
 def read_section(text, heading, stop_prefixes):
     """「### 見出し」から README 案内の手前までの段落を返す"""
     start = text.find(heading)
@@ -67,7 +90,7 @@ def read_section(text, heading, stop_prefixes):
     return "\n".join(out).strip("\n")
 
 
-def build_block(path, text):
+def build_block(path, text, title):
     name = read_var(text, "SCRIPT_NAME")
     version = read_var(text, "SCRIPT_VERSION")
     if not name or not version:
@@ -86,7 +109,7 @@ def build_block(path, text):
         if line.strip() in ("Description-END", "SCRIPTMETA-END") or "*/" in line:
             raise ValueError("説明文に使えない行があります: " + line)
 
-    lines = ["/*", "SCRIPTMETA-BEGIN", "Script-ID=" + script_id, "Name=" + name]
+    lines = ["/*", "SCRIPTMETA-BEGIN", "Script-ID=" + script_id, "Name=" + (title or name)]
     author = read_var(text, "SCRIPT_AUTHOR")
     if author:
         lines.append("Author=" + author)
@@ -116,13 +139,19 @@ def insert_block(text, block):
     return text[:pos] + block + text[pos:]
 
 
-def sync_source_url(text, rel):
-    """基本情報ブロックの URL の組（README・記事など）の末尾に SCRIPT_SOURCE_URL を置き、組の = をそろえ直す"""
+def sync_basic_info(text, rel, title):
+    """基本情報ブロックの URL の組（README・記事など）の末尾に SCRIPT_SOURCE_URL を置き、組の = をそろえ直す。
+    1組目と URL の組のあいだに SCRIPT_DESCRIPTION_JA だけの組を置く（README が無ければ置かない）"""
     lines = text.split("\n")
     try:
         start = lines.index("// 基本情報 / Basic info") + 2
     except ValueError:
         raise ValueError("基本情報ブロックがありません")
+    # 前回置いた SCRIPT_DESCRIPTION_JA の組はいったん外して作り直す
+    for i in range(start, len(lines) - 1):
+        if lines[i] == "" and lines[i + 1].startswith("var SCRIPT_DESCRIPTION_JA "):
+            del lines[i:i + 2]
+            break
     end = start
     while end < len(lines) and lines[end].startswith("var SCRIPT_"):
         end += 1
@@ -146,7 +175,10 @@ def sync_source_url(text, rel):
     group = ["var %s =%s" % (name.ljust(width), rest) for name, rest in pairs]
     if group_start == end:
         group = [""] + group
-    return "\n".join(lines[:group_start] + group + lines[group_end:])
+    lines = lines[:group_start] + group + lines[group_end:]
+    if title:
+        lines[end:end] = ["", 'var SCRIPT_DESCRIPTION_JA = "%s"; %s' % (title, DESCRIPTION_COMMENT)]
+    return "\n".join(lines)
 
 
 def main():
@@ -161,7 +193,8 @@ def main():
         with open(path, encoding="utf-8", newline="") as fp:
             text = fp.read()
         try:
-            script_id, block = build_block(path, text)
+            title = read_readme_title(text)
+            script_id, block = build_block(path, text, title)
         except ValueError as e:
             errors.append(rel + ": " + str(e))
             continue
@@ -170,7 +203,7 @@ def main():
             continue
         seen[script_id] = rel
         try:
-            new_text = sync_source_url(insert_block(text, block), rel)
+            new_text = sync_basic_info(insert_block(text, block), rel, title)
         except ValueError as e:
             errors.append(rel + ": " + str(e))
             continue

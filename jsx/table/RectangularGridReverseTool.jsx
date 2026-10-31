@@ -5,7 +5,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 /*
 SCRIPTMETA-BEGIN
 Script-ID=com.swwwitch.illustrator.RectangularGridReverseTool
-Name=RectangularGridReverseTool
+Name=水平線・垂直線を長方形グリッドとして再構成
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.4.0
@@ -51,6 +51,8 @@ var SCRIPT_VERSION  = "v1.4.0";                       /* バージョン / versi
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-04-27";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-20";                   /* 更新日 / last updated */
+
+var SCRIPT_DESCRIPTION_JA = "水平線・垂直線を長方形グリッドとして再構成"; /* README の見出し / README title (Japanese) */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/RectangularGridReverseTool.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RectangularGridReverseTool.md"; /* README (English) */

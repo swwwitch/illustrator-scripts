@@ -5,7 +5,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 /*
 SCRIPTMETA-BEGIN
 Script-ID=com.swwwitch.illustrator.AverageRulesInRectangle
-Name=AverageRulesInRectangle
+Name=外枠の中で罫線を均等に再配置
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.0.9
@@ -51,6 +51,8 @@ var SCRIPT_VERSION  = "v1.0.9";                       /* バージョン / versi
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-04-29";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-20";                   /* 更新日 / last updated */
+
+var SCRIPT_DESCRIPTION_JA = "外枠の中で罫線を均等に再配置"; /* README の見出し / README title (Japanese) */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AverageRulesInRectangle.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AverageRulesInRectangle.md"; /* README (English) */

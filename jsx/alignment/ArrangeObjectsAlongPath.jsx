@@ -5,7 +5,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 /*
 SCRIPTMETA-BEGIN
 Script-ID=com.swwwitch.illustrator.ArrangeObjectsAlongPath
-Name=ArrangeObjectsAlongPath
+Name=パスに沿ってオブジェクトを等間隔に配置
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.6.9
@@ -51,6 +51,8 @@ var SCRIPT_VERSION  = "v1.6.9";                       /* バージョン / versi
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-03-03";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-31";                   /* 更新日 / last updated */
+
+var SCRIPT_DESCRIPTION_JA = "パスに沿ってオブジェクトを等間隔に配置"; /* README の見出し / README title (Japanese) */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ArrangeObjectsAlongPath.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ArrangeObjectsAlongPath.md"; /* README (English) */

@@ -5,7 +5,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 /*
 SCRIPTMETA-BEGIN
 Script-ID=com.swwwitch.illustrator.LockHistoryPalette
-Name=LockHistoryPalette
+Name=ロックしたオブジェクトを履歴に残して戻す
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.0.9
@@ -61,6 +61,8 @@ var SCRIPT_VERSION  = "v1.0.9";                       /* バージョン / versi
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-09-23";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-10";                   /* 更新日 / last updated */
+
+var SCRIPT_DESCRIPTION_JA = "ロックしたオブジェクトを履歴に残して戻す"; /* README の見出し / README title (Japanese) */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/LockHistoryPalette.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/LockHistoryPalette.md"; /* README (English) */

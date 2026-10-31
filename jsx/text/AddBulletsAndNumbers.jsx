@@ -5,7 +5,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 /*
 SCRIPTMETA-BEGIN
 Script-ID=com.swwwitch.illustrator.AddBulletsAndNumbers
-Name=AddBulletsAndNumbers
+Name=行頭に箇条書き記号・連番を付ける
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.4.10
@@ -51,6 +51,8 @@ var SCRIPT_VERSION  = "v1.4.10";                       /* バージョン / vers
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-05-30";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-22";                   /* 更新日 / last updated */
+
+var SCRIPT_DESCRIPTION_JA = "行頭に箇条書き記号・連番を付ける"; /* README の見出し / README title (Japanese) */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AddBulletsAndNumbers.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AddBulletsAndNumbers.md"; /* README (English) */

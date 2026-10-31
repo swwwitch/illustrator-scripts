@@ -5,7 +5,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 /*
 SCRIPTMETA-BEGIN
 Script-ID=com.swwwitch.illustrator.TextCountStatsPalette
-Name=TextCountStatsPalette
+Name=テキストの文字情報を統計的に可視化
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.1.7
@@ -44,6 +44,8 @@ var SCRIPT_VERSION  = "v1.1.7";                       /* バージョン / versi
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-08-06";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-10";                   /* 更新日 / last updated */
+
+var SCRIPT_DESCRIPTION_JA = "テキストの文字情報を統計的に可視化"; /* README の見出し / README title (Japanese) */
 
 var SCRIPT_README_JA  = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TextCountStatsPalette.md"; /* README（日本語） */
 var SCRIPT_README_EN  = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TextCountStatsPalette.md"; /* README (English) */

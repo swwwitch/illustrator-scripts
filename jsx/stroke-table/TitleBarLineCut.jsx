@@ -5,7 +5,7 @@ try { app.preferences.setBooleanPreference('ShowExternalJSXWarning', false); } c
 /*
 SCRIPTMETA-BEGIN
 Script-ID=com.swwwitch.illustrator.TitleBarLineCut
-Name=TitleBarLineCut
+Name=テキストの周りで罫線が欠けたタイトル帯を作成
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.2.10
@@ -47,6 +47,8 @@ var SCRIPT_VERSION  = "v1.2.10";                      /* バージョン / versi
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-16";                   /* 更新日 / last updated */
+
+var SCRIPT_DESCRIPTION_JA = "テキストの周りで罫線が欠けたタイトル帯を作成"; /* README の見出し / README title (Japanese) */
 
 var SCRIPT_README_JA  = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TitleBarLineCut.md"; /* README（日本語） */
 var SCRIPT_README_EN  = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TitleBarLineCut.md"; /* README (English) */

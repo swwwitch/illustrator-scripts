@@ -4,7 +4,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 /*
 SCRIPTMETA-BEGIN
 Script-ID=com.swwwitch.illustrator.ClipWithSquare
-Name=ClipWithSquare
+Name=画像を中心基準の正方形でクリップ
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.1.1
@@ -43,6 +43,8 @@ var SCRIPT_VERSION  = "v1.1.1";                       /* バージョン / versi
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2023-11-26";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-30";                   /* 更新日 / last updated */
+
+var SCRIPT_DESCRIPTION_JA = "画像を中心基準の正方形でクリップ"; /* README の見出し / README title (Japanese) */
 
 var SCRIPT_README_JA  = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ClipWithSquare.md"; /* README（日本語） */
 var SCRIPT_README_EN  = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ClipWithSquare.md"; /* README (English) */

@@ -5,7 +5,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 /*
 SCRIPTMETA-BEGIN
 Script-ID=com.swwwitch.illustrator.RectangleToArrow
-Name=RectangleToArrow
+Name=長方形を矢印に置き換え
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.7.1
@@ -51,6 +51,8 @@ var SCRIPT_VERSION  = "v1.7.1";                       /* バージョン / versi
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-10";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-18";                   /* 更新日 / last updated */
+
+var SCRIPT_DESCRIPTION_JA = "長方形を矢印に置き換え"; /* README の見出し / README title (Japanese) */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/RectangleToArrow.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RectangleToArrow.md"; /* README (English) */

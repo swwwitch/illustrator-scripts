@@ -4,7 +4,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 /*
 SCRIPTMETA-BEGIN
 Script-ID=com.swwwitch.illustrator.PasteInAllDocs
-Name=PasteInAllDocs
+Name=開いているすべてのドキュメントへ同じ位置にペースト
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.1.1
@@ -46,6 +46,8 @@ var SCRIPT_VERSION  = "v1.1.1";                       /* バージョン / versi
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-07-29";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last updated */
+
+var SCRIPT_DESCRIPTION_JA = "開いているすべてのドキュメントへ同じ位置にペースト"; /* README の見出し / README title (Japanese) */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/PasteInAllDocs.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PasteInAllDocs.md"; /* README (English) */

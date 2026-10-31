@@ -5,7 +5,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 /*
 SCRIPTMETA-BEGIN
 Script-ID=com.swwwitch.illustrator.Group2Artboards
-Name=Group2Artboards
+Name=グループの境界にマージンを加えてアートボード化
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.4.10
@@ -48,6 +48,8 @@ var SCRIPT_VERSION  = "v1.4.10";                      /* バージョン / versi
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-07-03";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-16";                   /* 更新日 / last updated */
+
+var SCRIPT_DESCRIPTION_JA = "グループの境界にマージンを加えてアートボード化"; /* README の見出し / README title (Japanese) */
 
 var SCRIPT_README_JA  = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/Group2Artboards.md"; /* README（日本語） */
 var SCRIPT_README_EN  = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/Group2Artboards.md"; /* README (English) */

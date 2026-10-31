@@ -5,7 +5,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 /*
 SCRIPTMETA-BEGIN
 Script-ID=com.swwwitch.illustrator.CopyAsPngLikeFigmaWithDialog
-Name=CopyAsPngLikeFigmaWithDialog
+Name=選択オブジェクトをPNG相当でクリップボードにコピー
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.1.5
@@ -48,6 +48,8 @@ var SCRIPT_VERSION  = "v1.1.5";                       /* バージョン / versi
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-05-02";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last updated */
+
+var SCRIPT_DESCRIPTION_JA = "選択オブジェクトをPNG相当でクリップボードにコピー"; /* README の見出し / README title (Japanese) */
 
 var SCRIPT_README_JA  = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/CopyAsPngLikeFigmaWithDialog.md"; /* README（日本語） */
 var SCRIPT_README_EN  = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CopyAsPngLikeFigmaWithDialog.md"; /* README (English) */

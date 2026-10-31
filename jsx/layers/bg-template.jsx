@@ -5,7 +5,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 /*
 SCRIPTMETA-BEGIN
 Script-ID=com.swwwitch.illustrator.bg-template
-Name=bg-template
+Name=アートボードと同じ大きさの背景をテンプレート化して最背面へ
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.1.8
@@ -44,6 +44,8 @@ var SCRIPT_VERSION  = "v1.1.8";                       /* バージョン / versi
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-07-29";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-16";                   /* 更新日 / last updated */
+
+var SCRIPT_DESCRIPTION_JA = "アートボードと同じ大きさの背景をテンプレート化して最背面へ"; /* README の見出し / README title (Japanese) */
 
 var SCRIPT_README_JA  = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/bg-template.md"; /* README（日本語） */
 var SCRIPT_README_EN  = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/bg-template.md"; /* README (English) */

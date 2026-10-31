@@ -4,7 +4,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 /*
 SCRIPTMETA-BEGIN
 Script-ID=com.swwwitch.illustrator.MakeClippingMask
-Name=MakeClippingMask
+Name=クリッピングマスクの作成と解除を切り替える
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.0.1
@@ -47,6 +47,8 @@ var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / versi
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2024-11-18";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-30";                   /* 更新日 / last updated */
+
+var SCRIPT_DESCRIPTION_JA = "クリッピングマスクの作成と解除を切り替える"; /* README の見出し / README title (Japanese) */
 
 var SCRIPT_README_JA  = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/MakeClippingMask.md"; /* README（日本語） */
 var SCRIPT_README_EN  = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/MakeClippingMask.md"; /* README (English) */

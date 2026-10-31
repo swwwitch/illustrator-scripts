@@ -5,7 +5,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 /*
 SCRIPTMETA-BEGIN
 Script-ID=com.swwwitch.illustrator.PatternFill
-Name=TileInsideShape
+Name=大きいオブジェクトの形の内側に小さいオブジェクトを敷き詰める
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=2.0.0
@@ -51,6 +51,8 @@ var SCRIPT_VERSION  = "v2.0.0";                       /* バージョン / versi
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-10-26";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-27";                   /* 更新日 / last updated */
+
+var SCRIPT_DESCRIPTION_JA = "大きいオブジェクトの形の内側に小さいオブジェクトを敷き詰める"; /* README の見出し / README title (Japanese) */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TileInsideShape.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TileInsideShape.md"; /* README (English) */
