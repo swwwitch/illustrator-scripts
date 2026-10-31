@@ -73,6 +73,10 @@ It can also round the frame corners, fill the cells with random gray tints, and 
 - "Group" puts the cell shapes in one group (when off, they stay separate)
 - "Convert to area type per cell" replaces each text with area type the size of its cell (centered horizontally, with the vertical alignment in Area Type Options set to Center)
 
+#### Options
+
+- "Grayscale" makes the strokes of the selected paths and the fill of the texts black (100% gray), converts path fills (such as the fill of an existing frame rectangle) to grayscale of the same lightness, and fills the cell shapes with grayscale colors (grayscale even in CMYK documents, not K-only CMYK). While it is on, "Stroke color" and "Text color" are unavailable
+
 #### General
 
 - Numeric fields step with the up/down buttons and arrow keys (Shift snaps to 10s, Option steps by 0.1). Width, height and radius use the ruler units; the stroke weight uses the stroke units
@@ -112,6 +116,7 @@ It can also round the frame corners, fill the cells with random gray tints, and 
 
 ### Update History
 
+- v1.10.0 (2026-10-30) Added the Options panel below the Cells panel, with "Grayscale" (black strokes and text, grayscale path and cell fills)
 - v1.9.0 (2026-10-30) Added "Text color" to the Text panel (applies the color picked in the Color Picker to the fill of the selected texts)
 - v1.8.0 (2026-10-27) Added "Capsule shape" to the Frame panel (applies the Round Corners effect with half the shorter side of the frame as the radius, making both ends semicircles). Fixed cell fills not being rounded by more than half their shorter side (a cell rounded only at a frame corner can now be rounded across its full side)
 - v1.7.3 (2026-10-27) The script now also runs with two or more vertical rules crossed by a single horizontal rule (or the other way round): the horizontal rule becomes one side of the frame, a line is added across the ends on the side where the vertical rules run longer, and the overhanging rules are trimmed to the frame corners (the frame stays as lines)

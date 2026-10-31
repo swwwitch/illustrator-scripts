@@ -5,10 +5,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 /*
 SCRIPTMETA-BEGIN
 Script-ID=com.swwwitch.illustrator.ArrangeLikeTableCells
-Name=ArrangeLikeTableCells
+Name=罫線で区切った表を整え、テキストをセルの中央に配置
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.9.0
+Version=1.10.0
 Release-Date=2026-10-20
 Description-BEGIN
 外枠と罫線で区切った表で、外枠の大きさ・罫線の間隔・線幅を整え、各テキストをセルの中央に配置します（天地は欧文のベースラインをそろえる）。テキストだけ、縦罫だけ・横罫だけ、または縦罫と横罫1本（横罫と縦罫1本）だけを選択したときは、足りない外枠と罫線を作ります。
@@ -43,10 +43,12 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ArrangeLik
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ArrangeLikeTableCells";        /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.9.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.10.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-20";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-30";                   /* 更新日 / last updated */
+
+var SCRIPT_DESCRIPTION_JA = "罫線で区切った表を整え、テキストをセルの中央に配置"; /* README の見出し / README title (Japanese) */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ArrangeLikeTableCells.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ArrangeLikeTableCells.md"; /* README (English) */
@@ -146,6 +148,9 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     /* ［テキストのカラー］の初期値 / Initial value of "Text color" */
     var APPLY_TEXT_COLOR = false;
 
+    /* ［グレースケール］の初期値（線とテキストを黒、セルの塗りをグレースケールにする） / Initial value of "Grayscale" (black strokes and text, grayscale cell fills) */
+    var GRAYSCALE = false;
+
     /* テキストだけを選択したときに作る表の、テキストの上下左右の余白（文字サイズに対する割合）と線幅（pt）
        Space around each text in a table made from texts alone (ratio to the text size) and its stroke weight (pt) */
     var AUTO_TABLE_PADDING_EM = 0.4;
@@ -172,6 +177,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     var STROKE_COLOR_TOP_GAP      = 10;  /* ［線のカラー］の上に足す余白 / extra space above "Stroke color" */
     var SUB_OPTION_INDENT         = 12;  /* チェックボックスの下に置く項目（塗り方・線幅のラジオボタン）の字下げ / indent of items placed under a checkbox (fill radios, stroke weight options) */
     var COLOR_SWATCH_SIZE         = [40, 20];  /* 線・テキストのカラーの色見本の大きさ / stroke and text color swatch size */
+    var COLOR_SWATCH_DIM_OPACITY  = 0.3; /* 操作できない色見本の不透明度 / opacity of a disabled color swatch */
     var CORNER_RADIUS_FIELD_CHARS = 4;   /* ［角を丸くする］の欄の幅（文字数） / width of the "Round corners" field (characters) */
     var AREA_TEXT_TOP_GAP         = 10;  /* ［セルごとにエリア内文字にする］の上に足す余白 / extra space above "Convert to area type per cell" */
     var TEXT_COLOR_TOP_GAP        = 10;  /* ［テキストのカラー］の上に足す余白 / extra space above "Text color" */
@@ -1013,7 +1019,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             horizontalSpacing: { ja: "横罫の間隔", en: "Horizontal Rule Spacing" },
             stroke: { ja: "線のカラーと線幅", en: "Stroke Color and Weight" },
             text: { ja: "テキスト", en: "Text" },
-            cells: { ja: "セル", en: "Cells" }
+            cells: { ja: "セル", en: "Cells" },
+            options: { ja: "オプション", en: "Options" }
         },
         checkbox: {
             previewBounds: { ja: "プレビュー境界", en: "Preview bounds" },
@@ -1028,7 +1035,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             convertToAreaText: { ja: "セルごとにエリア内文字にする", en: "Convert to area type per cell" },
             centerInCells: { ja: "セルの中央に配置", en: "Center in cells" },
             justifyCenter: { ja: "中央揃えにする", en: "Align center" },
-            applyTextColor: { ja: "テキストのカラー", en: "Text color" }
+            applyTextColor: { ja: "テキストのカラー", en: "Text color" },
+            grayscale: { ja: "グレースケール", en: "Grayscale" }
         },
         fieldLabel: {
             frameWidth: { ja: "幅", en: "Width" },
@@ -1094,6 +1102,10 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             textColor: {
                 ja: "クリックしてカラーピッカーで文字の色を選びます。選ぶと［テキストのカラー］がオンになります。",
                 en: "Click to pick the text color in the Color Picker. Picking a color turns on \"Text color\"."
+            },
+            grayscale: {
+                ja: "選択したパスの線とテキストの塗りを黒（グレースケール）に、パスの塗り（元の長方形の塗りなど）とセルの図形の塗りをグレースケールにします（［線のカラー］［テキストのカラー］より優先）。",
+                en: "Makes the strokes of the selected paths and the fill of the texts black (grayscale), and turns path fills (such as the fill of an existing rectangle) and the cell shapes grayscale (overrides \"Stroke color\" and \"Text color\")."
             },
             strokeWidthMax: {
                 ja: "いちばん太い線に合わせます。",
@@ -2385,12 +2397,13 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     }
 
     /**
-     * セルの塗りに使う、K の濃さの色を返す（CMYK ドキュメントは K だけの CMYK、RGB ドキュメントはグレースケール）
+     * セルの塗りに使う、K の濃さの色を返す（CMYK ドキュメントは K だけの CMYK、RGB ドキュメントと isGrayscale のときはグレースケール）
      * @param {number} tint - 濃さ（%）
+     * @param {boolean} [isGrayscale] - true ならカラーモードを問わずグレースケール
      * @returns {Color} 塗りの色
      */
-    function createTintColor(tint) {
-        if (app.activeDocument.documentColorSpace === DocumentColorSpace.CMYK) {
+    function createTintColor(tint, isGrayscale) {
+        if (!isGrayscale && app.activeDocument.documentColorSpace === DocumentColorSpace.CMYK) {
             var cmykColor = new CMYKColor();
             cmykColor.cyan = 0;
             cmykColor.magenta = 0;
@@ -2431,9 +2444,10 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
      * @param {number[]} cellTints - セルごとのランダムな濃さ（足りない分はここに足していき、プレビューのたびに色が変わらないようにする）
      * @param {PageItem} backmostItem - 選択の中でいちばん背面のオブジェクト（このオブジェクトのレイヤー・グループの最背面に置く）
      * @param {boolean} isGrouped - グループにまとめるなら true
+     * @param {boolean} isGrayscale - グレースケールで塗るなら true
      * @returns {PageItem[]} 作ったもの（グループなら1つ、ばらなら長方形の配列）
      */
-    function createCellFills(rules, cornerRadius, fillMode, cellTints, backmostItem, isGrouped) {
+    function createCellFills(rules, cornerRadius, fillMode, cellTints, backmostItem, isGrouped, isGrayscale) {
         var grid = getCellGrid(rules);
         var lastColumn = grid.columnEdges.length - 2;
         var lastRow = grid.rowEdges.length - 2;
@@ -2457,7 +2471,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
                     grid.columnEdges[column], grid.rowEdges[row], grid.columnEdges[column + 1], grid.rowEdges[row + 1], radii));
                 cellFill.stroked = false;
                 cellFill.filled = true;
-                cellFill.fillColor = createTintColor(fillMode === "random" ? cellTints[cellIndex] : FILL_UNIFORM_TINT);
+                cellFill.fillColor = createTintColor(fillMode === "random" ? cellTints[cellIndex] : FILL_UNIFORM_TINT, isGrayscale);
             }
         }
 
@@ -3075,9 +3089,9 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     // =========================================
 
     /**
-     * 編集前のパスの座標・線の有無・線幅・線端・線のカラーを保存する
+     * 編集前のパスの座標・線の有無・線幅・線端・線と塗りのカラーを保存する
      * @param {PathItem[]} targetPathItems - 保存するパス
-     * @returns {Object[]} パスごとのアンカーポイントの状態・線の有無・線幅・線端・線のカラー（線が無ければ null）
+     * @returns {Object[]} パスごとのアンカーポイントの状態・線の有無・線幅・線端・線と塗りのカラー（線・塗りが無ければ null）
      */
     function savePathState(targetPathItems) {
         var pathStates = [];
@@ -3099,7 +3113,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
 
             pathStates.push({
                 pathItem: pathItem, pointStates: pointStates, stroked: pathItem.stroked, strokeWidth: pathItem.strokeWidth, strokeCap: pathItem.strokeCap,
-                strokeColor: pathItem.stroked ? pathItem.strokeColor : null
+                strokeColor: pathItem.stroked ? pathItem.strokeColor : null,
+                fillColor: pathItem.filled ? pathItem.fillColor : null
             });
         }
 
@@ -3107,7 +3122,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     }
 
     /**
-     * 保存しておいた座標・線の有無・線幅・線端・線のカラーへ戻す
+     * 保存しておいた座標・線の有無・線幅・線端・線のカラー・塗りのカラーへ戻す
      * @param {Object[]} pathStates - savePathState() の戻り値
      * @returns {void}
      */
@@ -3130,7 +3145,37 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             pathItem.strokeWidth = pathStates[pathIndex].strokeWidth;
             pathItem.strokeCap = pathStates[pathIndex].strokeCap;
             if (pathStates[pathIndex].strokeColor) pathItem.strokeColor = pathStates[pathIndex].strokeColor;
+            if (pathStates[pathIndex].fillColor) pathItem.fillColor = pathStates[pathIndex].fillColor;
         }
+    }
+
+    /**
+     * 選択したパスの線を黒に、塗りを元の色の明るさのグレースケールにする（元からの長方形・閉じたパスも含む）
+     * @param {Object[]} pathStates - savePathState() の戻り値（元の塗りから換算する）
+     * @returns {void}
+     */
+    function setPathsGrayscale(pathStates) {
+        for (var i = 0; i < pathStates.length; i++) {
+            var pathItem = pathStates[i].pathItem;
+            if (pathItem.stroked) pathItem.strokeColor = createBlackColor();
+            if (!pathItem.filled || !pathStates[i].fillColor) continue;
+            var grayFill = createGrayscaleColor(pathStates[i].fillColor);
+            if (grayFill) pathItem.fillColor = grayFill;
+        }
+    }
+
+    /**
+     * 色を、見た目の明るさが同じグレースケールにする
+     * @param {Color} sourceColor - 色
+     * @returns {GrayColor|null} グレースケールの色。グラデーション・パターンなど換算できない色は null
+     */
+    function createGrayscaleColor(sourceColor) {
+        var displayRgb = getDisplayRgb(sourceColor);
+        if (!displayRgb) return null;
+        var luminance = 0.299 * displayRgb[0] + 0.587 * displayRgb[1] + 0.114 * displayRgb[2];
+        var grayColor = new GrayColor();
+        grayColor.gray = Math.round((1 - luminance) * 1000) / 10;
+        return grayColor;
     }
 
     /**
@@ -3369,7 +3414,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
 
         /**
          * 元の状態に戻したうえで、設定どおりに均等化・配置する
-         * @param {{frameWidth: number, frameHeight: number, usePreviewBounds: boolean, verticalSpacing: string, horizontalSpacing: string, matchRuleLengths: boolean, convertFrame: boolean, convertFrameToLines: boolean, roundCorners: boolean, cornerRadius: number, capsule: boolean, matchStrokeWidths: boolean, strokeWidthMode: string, strokeWidth: number, applyStrokeColor: boolean, strokeColor: Color, createCellShapes: boolean, fillMode: string, groupFills: boolean, convertToAreaText: boolean, centerInCells: boolean, justifyCenter: boolean, applyTextColor: boolean, textColor: Color}} settings - 設定（frameWidth・frameHeight・cornerRadius・strokeWidth は pt）
+         * @param {{frameWidth: number, frameHeight: number, usePreviewBounds: boolean, verticalSpacing: string, horizontalSpacing: string, matchRuleLengths: boolean, convertFrame: boolean, convertFrameToLines: boolean, roundCorners: boolean, cornerRadius: number, capsule: boolean, matchStrokeWidths: boolean, strokeWidthMode: string, strokeWidth: number, applyStrokeColor: boolean, strokeColor: Color, createCellShapes: boolean, fillMode: string, groupFills: boolean, convertToAreaText: boolean, centerInCells: boolean, justifyCenter: boolean, applyTextColor: boolean, textColor: Color, grayscale: boolean}} settings - 設定（frameWidth・frameHeight・cornerRadius・strokeWidth は pt）
          * @param {boolean} [isFinal] - ［OK］で確定するとき true（角丸の効果を複製ではなく外枠そのものに適用する）
          * @returns {number} セルが見つからず移動しなかったテキストの数
          */
@@ -3395,8 +3440,12 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             }
             /* 線幅・カラーは角丸の複製より先に掛け、複製にも引き継がせる / Set before the round-corner duplicate so it inherits them */
             var strokedPathItems = frameRectangle ? tablePathItems.concat([frameRectangle]) : tablePathItems.concat(convertedFrameLines);
-            if (settings.matchStrokeWidths && rules) setStrokeWidths(strokedPathItems, getTargetStrokeWidth(settings), settings.strokeColor || createBlackColor());
-            if (settings.applyStrokeColor && settings.strokeColor && rules) setStrokeColors(strokedPathItems, settings.strokeColor);
+            /* ［グレースケール］は［線のカラー］より優先して黒にする / "Grayscale" overrides "Stroke color" with black */
+            var strokeColor = settings.grayscale ? createBlackColor() : settings.strokeColor;
+            if (settings.matchStrokeWidths && rules) setStrokeWidths(strokedPathItems, getTargetStrokeWidth(settings), strokeColor || createBlackColor());
+            if ((settings.grayscale || settings.applyStrokeColor) && strokeColor && rules) setStrokeColors(strokedPathItems, strokeColor);
+            /* 外枠・罫線と認識しなかったパスも含め、選択したパスの塗り・線をグレースケールにする / Gray out every selected path, including those not taken as the frame or rules */
+            if (settings.grayscale) setPathsGrayscale(pathState);
 
             /* 角丸は外枠が長方形のときだけ（線4本にしたときは掛けない） / Round corners only when the frame is a rectangle (not after converting it to lines) */
             var frameShape = frameRectangle || ((rules && !convertedFrameLines.length) ? rules.outerRect : null);
@@ -3420,10 +3469,11 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
                 applyRoundCornersEffect(frameShape, cornerRadius);
             }
             if (settings.createCellShapes && rules) {
-                cellFillItems = createCellFills(rules, cornerRadius, settings.fillMode, cellTints, backmostItem, settings.groupFills);
+                cellFillItems = createCellFills(rules, cornerRadius, settings.fillMode, cellTints, backmostItem, settings.groupFills, settings.grayscale);
             }
             /* エリア内文字の複製にも引き継がせるので、配置より先に掛ける / Set before placing so the area type duplicates inherit it */
-            if (settings.applyTextColor && settings.textColor) setTextFillColors(textState, settings.textColor);
+            if (settings.grayscale) setTextFillColors(textState, createBlackColor());
+            else if (settings.applyTextColor && settings.textColor) setTextFillColors(textState, settings.textColor);
             var skippedCount = placeTextsInCells(textCells, settings, positionMap, frameScale);
             if (settings.convertToAreaText && rules) cellAreaTexts = createCellAreaTexts(textCells, positionMap, frameScale, !!isFinal);
             return skippedCount;
@@ -3472,7 +3522,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             centerInCells: CENTER_IN_CELLS,
             justifyCenter: JUSTIFY_CENTER,
             applyTextColor: APPLY_TEXT_COLOR && hasText,
-            textColor: getFirstTextFillColor(textFrames)
+            textColor: getFirstTextFillColor(textFrames),
+            grayscale: GRAYSCALE
         };
 
         if (rules && autoTablePaths.length) {
@@ -3521,6 +3572,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         var justifyCenterCheckbox = dialogControls.justifyCenterCheckbox;
         var applyTextColorCheckbox = dialogControls.applyTextColorCheckbox;
         var textColorSwatch = dialogControls.textColorSwatch;
+        var grayscaleCheckbox = dialogControls.grayscaleCheckbox;
 
         /**
          * チェックボックスの状態を設定にまとめる（表示前は value を読み戻せないので、ユーザー操作のあとだけ呼ぶ）
@@ -3551,7 +3603,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
                 centerInCells: centerInCellsCheckbox.value,
                 justifyCenter: justifyCenterCheckbox.value,
                 applyTextColor: applyTextColorCheckbox.value,
-                textColor: textColorSwatch.swatchColor
+                textColor: textColorSwatch.swatchColor,
+                grayscale: grayscaleCheckbox.value
             };
         }
 
@@ -3611,7 +3664,21 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         }
 
         updateCornerRowEnabled(initialSettings.convertFrame, initialSettings.convertFrameToLines, initialSettings.capsule);
+        /**
+         * ［グレースケール］がオンのあいだは、［線のカラー］［テキストのカラー］を操作できないようにする
+         * （行のグループを切るだけでは子がディム表示にならないので、チェックボックスと色見本を直接切る）
+         * @param {boolean} isGrayscale - ［グレースケール］がオンなら true
+         * @returns {void}
+         */
+        function updateColorOptionsEnabled(isGrayscale) {
+            var colorControls = [applyStrokeColorCheckbox, strokeColorSwatch, applyTextColorCheckbox, textColorSwatch];
+            for (var i = 0; i < colorControls.length; i++) colorControls[i].enabled = !isGrayscale;
+            redrawStepperGroup(strokeColorSwatch);
+            redrawStepperGroup(textColorSwatch);
+        }
+
         updateCellShapeOptionsEnabled(initialSettings.createCellShapes);
+        updateColorOptionsEnabled(initialSettings.grayscale);
         updateStrokeOptionsEnabled(initialSettings.matchStrokeWidths, initialSettings.strokeWidthMode === "specified");
 
         /* 欄の値（pt）。不正な値が入ったら直前の値に戻す / Field values in pt; invalid input falls back to the previous value */
@@ -3816,6 +3883,10 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         centerInCellsCheckbox.onClick = updatePreview;
         justifyCenterCheckbox.onClick = updatePreview;
         applyTextColorCheckbox.onClick = updatePreview;
+        grayscaleCheckbox.onClick = function () {
+            updateColorOptionsEnabled(grayscaleCheckbox.value);
+            updatePreview();
+        };
         textColorSwatch.onColorChange = function () {
             /* 色を選んだら適用するものとしてオンにする / Picking a color means applying it */
             applyTextColorCheckbox.value = true;
@@ -4085,8 +4156,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
      * @param {boolean} hasText - テキストを選択しているなら true（false なら［テキスト］パネルと［テキストに合わせる］を無効にする）
      * @param {{label: string, pointsPerUnit: number}} rulerUnit - 定規の単位
      * @param {{label: string, pointsPerUnit: number}} strokeUnit - 線の単位
-     * @param {{frameWidth: number, frameHeight: number, usePreviewBounds: boolean, verticalSpacing: string, horizontalSpacing: string, matchRuleLengths: boolean, convertFrame: boolean, convertFrameToLines: boolean, roundCorners: boolean, cornerRadius: number, capsule: boolean, matchStrokeWidths: boolean, strokeWidthMode: string, strokeWidth: number, averageStrokeWidth: number, applyStrokeColor: boolean, strokeColor: Color, createCellShapes: boolean, fillMode: string, groupFills: boolean, centerInCells: boolean, justifyCenter: boolean, applyTextColor: boolean, textColor: Color}} initialSettings - コントロールの初期値（strokeWidth・averageStrokeWidth は pt。strokeColor は線のあるパスが無ければ null）
-     * @returns {{mainDialog: Window, frameWidthInput: EditText, frameHeightInput: EditText, previewBoundsCheckbox: Checkbox, verticalSpacingRadios: Object, horizontalSpacingRadios: Object, convertFrameCheckbox: Checkbox, convertFrameToLinesCheckbox: Checkbox, cornerRow: Group, roundCornersCheckbox: Checkbox, cornerRadiusInput: EditText, capsuleCheckbox: Checkbox, matchStrokeCheckbox: Checkbox, strokeModeRow: Group, strokeModeRadios: Object, strokeWidthInputGroup: Group, strokeWidthInput: EditText, applyStrokeColorCheckbox: Checkbox, strokeColorSwatch: Group, createCellShapesCheckbox: Checkbox, fillModeGroup: Group, uniformFillRadio: RadioButton, randomFillRadio: RadioButton, groupFillsCheckbox: Checkbox, centerInCellsCheckbox: Checkbox, justifyCenterCheckbox: Checkbox, applyTextColorCheckbox: Checkbox, textColorSwatch: Group, btnCancel: Button, btnOK: Button}} ダイアログとコントロール
+     * @param {{frameWidth: number, frameHeight: number, usePreviewBounds: boolean, verticalSpacing: string, horizontalSpacing: string, matchRuleLengths: boolean, convertFrame: boolean, convertFrameToLines: boolean, roundCorners: boolean, cornerRadius: number, capsule: boolean, matchStrokeWidths: boolean, strokeWidthMode: string, strokeWidth: number, averageStrokeWidth: number, applyStrokeColor: boolean, strokeColor: Color, createCellShapes: boolean, fillMode: string, groupFills: boolean, centerInCells: boolean, justifyCenter: boolean, applyTextColor: boolean, textColor: Color, grayscale: boolean}} initialSettings - コントロールの初期値（strokeWidth・averageStrokeWidth は pt。strokeColor は線のあるパスが無ければ null）
+     * @returns {{mainDialog: Window, frameWidthInput: EditText, frameHeightInput: EditText, previewBoundsCheckbox: Checkbox, verticalSpacingRadios: Object, horizontalSpacingRadios: Object, convertFrameCheckbox: Checkbox, convertFrameToLinesCheckbox: Checkbox, cornerRow: Group, roundCornersCheckbox: Checkbox, cornerRadiusInput: EditText, capsuleCheckbox: Checkbox, matchStrokeCheckbox: Checkbox, strokeModeRow: Group, strokeModeRadios: Object, strokeWidthInputGroup: Group, strokeWidthInput: EditText, applyStrokeColorCheckbox: Checkbox, strokeColorSwatch: Group, createCellShapesCheckbox: Checkbox, fillModeGroup: Group, uniformFillRadio: RadioButton, randomFillRadio: RadioButton, groupFillsCheckbox: Checkbox, centerInCellsCheckbox: Checkbox, justifyCenterCheckbox: Checkbox, applyTextColorCheckbox: Checkbox, textColorSwatch: Group, grayscaleCheckbox: Checkbox, btnCancel: Button, btnOK: Button}} ダイアログとコントロール
      */
     function buildDialog(verticalRuleCount, horizontalRuleCount, rules, hasText, rulerUnit, strokeUnit, initialSettings) {
         var hasFrameLines = !!(rules && rules.frameLines);
@@ -4218,6 +4289,12 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         var convertToAreaTextCheckbox = addOptionCheckbox(areaTextGroup,
             "checkbox.convertToAreaText", "tooltip.convertToAreaText", hasText && !!rules, initialSettings.convertToAreaText);
 
+        var optionsPanel = rightColumn.add("panel", undefined, getLabel("panel.options"));
+        setupPanel(optionsPanel, 6);
+
+        var grayscaleCheckbox = addOptionCheckbox(optionsPanel,
+            "checkbox.grayscale", "tooltip.grayscale", true, initialSettings.grayscale);
+
         var textPanel = leftColumn.add("panel", undefined, getLabel("panel.text"));
         setupPanel(textPanel, 6);
         textPanel.enabled = hasText;
@@ -4270,6 +4347,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             justifyCenterCheckbox: justifyCenterCheckbox,
             applyTextColorCheckbox: applyTextColorCheckbox,
             textColorSwatch: textColorSwatch,
+            grayscaleCheckbox: grayscaleCheckbox,
             btnCancel: btnCancel,
             btnOK: btnOK
         };
@@ -4428,6 +4506,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         colorSwatch.isChanged = false;
         colorSwatch.onDraw = function () { drawColorSwatch(colorSwatch); };
         colorSwatch.addEventListener("mousedown", function () {
+            if (!colorSwatch.enabled) return;
             /* キャンセルでは渡した色がそのまま返るので、中身を比べて変化を見る / Cancel returns the passed color, so compare */
             var pickedColor = app.showColorPicker(colorSwatch.swatchColor);
             if (!pickedColor || isSameColor(pickedColor, colorSwatch.swatchColor)) return;
@@ -4459,18 +4538,20 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         var swatchWidth = COLOR_SWATCH_SIZE[0];
         var swatchHeight = COLOR_SWATCH_SIZE[1];
         var displayRgb = getDisplayRgb(colorSwatch.swatchColor);
+        /* 操作できないときは薄く描く / Draw faded while disabled */
+        var swatchOpacity = colorSwatch.enabled ? 1 : COLOR_SWATCH_DIM_OPACITY;
         swatchGraphics.newPath();
         swatchGraphics.rectPath(0, 0, swatchWidth, swatchHeight);
-        swatchGraphics.fillPath(swatchGraphics.newBrush(swatchGraphics.BrushType.SOLID_COLOR, displayRgb ? displayRgb.concat([1]) : [1, 1, 1, 1]));
+        swatchGraphics.fillPath(swatchGraphics.newBrush(swatchGraphics.BrushType.SOLID_COLOR, (displayRgb || [1, 1, 1]).concat([swatchOpacity])));
         if (!displayRgb) {
             swatchGraphics.newPath();
             swatchGraphics.moveTo(1, swatchHeight - 1);
             swatchGraphics.lineTo(swatchWidth - 1, 1);
-            swatchGraphics.strokePath(swatchGraphics.newPen(swatchGraphics.PenType.SOLID_COLOR, [0.9, 0.1, 0.1, 1], 1.5));
+            swatchGraphics.strokePath(swatchGraphics.newPen(swatchGraphics.PenType.SOLID_COLOR, [0.9, 0.1, 0.1, swatchOpacity], 1.5));
         }
         swatchGraphics.newPath();
         swatchGraphics.rectPath(0.5, 0.5, swatchWidth - 1, swatchHeight - 1);
-        swatchGraphics.strokePath(swatchGraphics.newPen(swatchGraphics.PenType.SOLID_COLOR, [0.5, 0.5, 0.5, 1], 1));
+        swatchGraphics.strokePath(swatchGraphics.newPen(swatchGraphics.PenType.SOLID_COLOR, [0.5, 0.5, 0.5, swatchOpacity], 1));
     }
 
     /**
