@@ -8,13 +8,13 @@ Script-ID=com.swwwitch.illustrator.DrawMarkerBehindText
 Name=文字にマーカー・アンダーライン・取り消し線を引く
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.3.1
+Version=1.4.0
 Release-Date=2026-11-01
 Description-BEGIN
-文字ツールで選んだ文字やテキストオブジェクトに、字面に合わせてマーカー・アンダーライン・取り消し線などの線や、長方形・円・六角形・傍点を描きます（文字の背面・前面を選べ、複数行は行ごと）。
+文字ツールで選んだ文字やテキストオブジェクトに、字面に合わせてマーカー・アンダーライン・取り消し線などの線や、長方形・円・六角形・傍点を描きます（文字の背面・前面を選べ、複数行は行ごと。行頭・行長・行送りの間隔もそろえられます）。
 種類・カラー・線幅などはダイアログボックスで選び、設定はプリセットとして保存できます。
 
-Draws lines such as markers, underlines and strikethroughs, or boxes, circles, hexagons and emphasis dots, on the characters selected with the Type tool or on text objects, fitted to their glyphs (behind or in front of the text, line by line).
+Draws lines such as markers, underlines and strikethroughs, or boxes, circles, hexagons and emphasis dots, on the characters selected with the Type tool or on text objects, fitted to their glyphs (behind or in front of the text, line by line, with line starts, lengths and leading optionally aligned).
 Choose the style, colors, weight and more in the dialog box, and save the settings as presets.
 Description-END
 SCRIPTMETA-END
@@ -24,7 +24,7 @@ SCRIPTMETA-END
 
 ### 概要
 
-文字ツールで選んだ文字やテキストオブジェクトに、字面に合わせてマーカー・アンダーライン・取り消し線などの線や、長方形・円・六角形・傍点を描きます（文字の背面・前面を選べ、複数行は行ごと）。
+文字ツールで選んだ文字やテキストオブジェクトに、字面に合わせてマーカー・アンダーライン・取り消し線などの線や、長方形・円・六角形・傍点を描きます（文字の背面・前面を選べ、複数行は行ごと。行頭・行長・行送りの間隔もそろえられます）。
 種類・カラー・線幅などはダイアログボックスで選び、設定はプリセットとして保存できます。
 
 詳細は README を参照してください。
@@ -35,7 +35,7 @@ https://note.com/dtp_tranist/n/na1804afb7fe2
 
 ### Overview
 
-Draws lines such as markers, underlines and strikethroughs, or boxes, circles, hexagons and emphasis dots, on the characters selected with the Type tool or on text objects, fitted to their glyphs (behind or in front of the text, line by line).
+Draws lines such as markers, underlines and strikethroughs, or boxes, circles, hexagons and emphasis dots, on the characters selected with the Type tool or on text objects, fitted to their glyphs (behind or in front of the text, line by line, with line starts, lengths and leading optionally aligned).
 Choose the style, colors, weight and more in the dialog box, and save the settings as presets.
 
 See the README for details.
@@ -47,7 +47,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TextHighli
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "TextHighlighter";              /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.3.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.4.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-11-01";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-11-02";                   /* 更新日 / last updated */
@@ -164,7 +164,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     /* ギザギザ（ジグザグ効果）の初期値。大きさは［手書き風］の揺れの大きさにも使う
        Initial values of the zigzag (Zig Zag effect); the size is also the Hand-Drawn roughness */
     var DEFAULT_ZIGZAG_SIZE = 3;      /* 大きさ（pt） / size (pt) */
-    var DEFAULT_ZIGZAG_RIDGES = 10;   /* 折り返し（線の端から端まで） / ridges from end to end */
+    var DEFAULT_ZIGZAG_RIDGES = 12;   /* 折り返し（1インチあたり。［ラフ］効果の詳細） / ridges per inch (Roughen detail) */
     var DEFAULT_ZIGZAG_POINTS = "cornerPoints"; /* ポイント（"smoothPoints"：滑らか / "cornerPoints"：直線的） / points */
 
     /* 線の既定（"solidLine"：直線 / "dashedLine"：破線 / "dottedLine"：ドット） / Default line type */
@@ -184,12 +184,16 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     /* 線端の既定（"buttCap"：なし / "roundCap"：丸型） / Default line cap */
     var DEFAULT_STROKE_CAP = "buttCap";
 
-    /* ［行長］の［揃える］の初期値（複数行のとき、短い行の線や図形もいちばん長い行の長さにそろえる）
-       Initial state of Equal Line Lengths (short lines get the length of the longest one) */
+    /* ［行長］の［行頭］の初期値（複数行のとき、線や図形の始まりを、いちばん前から始まる行にそろえる。縦組みは上端）
+       Initial state of Align Starts (lines and shapes start where the earliest line starts; the top in vertical text) */
+    var DEFAULT_ALIGN_LINE_STARTS = false;
+
+    /* ［行長］の［行頭行末］の初期値（複数行のとき、短い行の線や図形もいちばん長い行の長さにそろえる）
+       Initial state of Align Both Ends (short lines get the length of the longest one) */
     var DEFAULT_EQUAL_LINE_LENGTHS = false;
 
-    /* ［行長］の［行送りベース］の初期値（行ごとの図形の高さ（縦組みは幅）を、字面ではなく行送りで決める）
-       Initial state of Leading-Based (the line shapes take their height, or width in vertical text, from the leading) */
+    /* ［行送り］の［均等］の初期値（行ごとの図形の高さ（縦組みは幅）を、字面ではなく行送りで決める）
+       Initial state of Even under Leading (the line shapes take their height, or width in vertical text, from the leading) */
     var DEFAULT_LEADING_BASED = false;
 
     /* ［余白（横）］［余白（縦）］の連動の初期値 / Initial link state of Padding (H) and Padding (V) */
@@ -234,6 +238,13 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             }
         },
         {
+            name: { ja: "ギザギザ", en: "Zigzag" },
+            settings: {
+                lineStyle: "zigzag", stackOrder: "stackBack", zigzagSizePt: 0.68, zigzagRidges: 30, zigzagPoints: "cornerPoints", strokeColorChoice: "red", opacity: 100,
+                strokeWidthPt: 1, verticalOffsetPt: 1.984, leadingBased: true, dashStyle: "solidLine", strokeCap: "buttCap", whiteText: false
+            }
+        },
+        {
             name: { ja: "黄色のマーカー", en: "Yellow Marker" },
             settings: { lineStyle: "marker", stackOrder: "stackBack", strokeColorChoice: "yellow", opacity: 100, strokeWidthRatio: 0.4, verticalOffsetPt: 0, dashStyle: "solidLine", strokeCap: "buttCap", whiteText: false }
         },
@@ -257,6 +268,14 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             settings: {
                 lineStyle: "box", shapeFill: true, shapeStroke: false, stackOrder: "stackBack", boxRotation: 0, isPerChar: false, colorChoice: "custom", opacity: 100, customColor: { rgb: [79, 155, 216], cmyk: [65, 25, 0, 0] },
                 boxPaddingRatio: 0.12, cornerRadiusRatio: 0.2, squareLineJoins: true, verticalOffsetPt: 0, whiteText: true
+            }
+        },
+        {
+            name: { ja: "行ごとに帯", en: "Band per Line" },
+            settings: {
+                lineStyle: "box", shapeFill: true, shapeStroke: false, stackOrder: "stackBack", boxRotation: 0, isPerChar: false, colorChoice: "custom", opacity: 100, customColor: { rgb: [79, 155, 216], cmyk: [65, 25, 0, 0] },
+                boxPaddingPt: 3.969, boxPaddingVPt: -0.85, boxPaddingLinked: false, cornerRadiusPt: 0, squareLineJoins: true, alignLineStarts: true, equalLineLengths: false, leadingBased: true,
+                verticalOffsetPt: 0, whiteText: true
             }
         },
         {
@@ -2489,6 +2508,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             kerningBefore:  { ja: "カーニング（前）", en: "Kerning (Before)" },
             kerningAfter:   { ja: "カーニング（後）", en: "Kerning (After)" },
             lineLength:     { ja: "行長", en: "Line Length" },
+            leading:        { ja: "行送り", en: "Leading" },
             textFill:       { ja: "テキスト", en: "Text" },
             lineJoins:      { ja: "連続処理", en: "Continuity" }
         },
@@ -2499,8 +2519,9 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             shapeFill:   { ja: "塗り", en: "Fill" },
             shapeStroke: { ja: "線", en: "Stroke" },
             squareLineJoins: { ja: "複数行", en: "Multi-Line" },
-            equalLineLengths: { ja: "揃える", en: "Equalize" },
-            leadingBased: { ja: "行送りベース", en: "Leading-Based" }
+            alignLineStarts: { ja: "行頭", en: "Align Starts" },
+            equalLineLengths: { ja: "行頭行末", en: "Align Both Ends" },
+            leadingBased: { ja: "均等", en: "Even" }
         },
         radio: {
             yellow:         { ja: "黄色", en: "Yellow" },
@@ -2527,7 +2548,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             underline:     { ja: "字面のすぐ下に、線の上端を合わせて引きます", en: "Draws the line just below the glyphs, its top edge on their bottom" },
             marker:        { ja: "字面の下端を線の中心にして引きます", en: "Draws the line centered on the bottom edge of the glyphs" },
             straightShear: { ja: "線に［パスの自由変形］効果を掛けて、両端を斜めにします", en: "Applies the Free Distort effect to slant both ends of the line" },
-            zigzag:        { ja: "線に［ジグザグ］効果を掛けます", en: "Applies the Zig Zag effect to the line" },
+            zigzag:        { ja: "線に［ラフ］効果でポイントを足してから、［ジグザグ］効果を掛けます", en: "Adds points to the line with the Roughen effect, then applies the Zig Zag effect" },
             roughMarker: {
                 ja: "マーカーと同じ位置に引き、［ラフ］効果で縁を揺らします（揺れは［大きさ］）",
                 en: "Draws where Marker does and roughens the edges with the Roughen effect (amount set by Size)"
@@ -2602,7 +2623,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
                 en: "Angle of the slanted ends (-80 to 80°); positive slants to the upper right, negative to the upper left"
             },
             zigzagSize:   { ja: "ギザギザの山の高さ、手書き風の揺れの大きさです", en: "Height of the zigzag ridges, or the Hand-Drawn roughness" },
-            zigzagRidges: { ja: "線の端から端までの折り返しの数です", en: "Number of ridges from one end of the line to the other" },
+            zigzagRidges: { ja: "線の長さ1インチ（25.4 mm）あたりの折り返しの数です", en: "Number of ridges per inch (25.4 mm) of the line" },
             smoothPoints: { ja: "折り返しを曲線にして、波線にします", en: "Curves the ridges into a wavy line" },
             cornerPoints: { ja: "折り返しを角にして、ギザギザにします", en: "Keeps the ridges as sharp corners" },
             boxPadding: {
@@ -2611,6 +2632,10 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             },
             boxPaddingLink: { ja: "［余白（横）］と［余白（縦）］を同じ値にします", en: "Keeps Padding (H) and Padding (V) the same" },
             cornerRadius: { ja: "［長方形］の角丸の半径です。0 で角丸なし", en: "Corner radius of Box; 0 for square corners" },
+            alignLineStarts: {
+                ja: "複数行のとき、線や図形の始まりを、いちばん前から始まる行にそろえます（縦組みは列の上端）。行末はそろえません",
+                en: "For multi-line text, starts the lines and shapes where the earliest line starts (the top of the column in vertical text); the ends stay as they are"
+            },
             equalLineLengths: {
                 ja: "複数行のとき、文字数が少ない行の線や図形も、いちばん長い行の長さにそろえます（縦組みは列の長さ）",
                 en: "For multi-line text, extends the lines and shapes of short lines to the length of the longest one (column length in vertical text)"
@@ -3122,7 +3147,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             [
                 markerControls.lineStyleRow.label, markerControls.stackOrderRow.label, markerControls.whiteTextOption.label, markerControls.shapePaintRow.label,
                 markerControls.fillColorRow.label, markerControls.strokeColorRow.label, markerControls.opacityInput.fieldLabel, markerControls.strokeWidthInput.fieldLabel, markerControls.verticalOffsetInput.fieldLabel,
-                markerControls.equalLineLengthsOption.label
+                markerControls.equalLineLengthsOption.label, markerControls.leadingBasedOption.label
             ],
             [
                 markerControls.dashStyleRow.label, markerControls.dashSegmentsInput.fieldLabel, markerControls.dashGapInput.fieldLabel, markerControls.strokeCapRow.label,
@@ -3195,7 +3220,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     }
 
     /**
-     * ［設定］の左の列に、重ね順・テキスト（白抜き）・図形・塗りのカラー・線のカラー・不透明度・線幅・位置調整・行長を作り、markerControls に入れる
+     * ［設定］の左の列に、重ね順・テキスト（白抜き）・図形・塗りのカラー・線のカラー・不透明度・線幅・位置調整・行長・行送りを作り、markerControls に入れる
      * @param {Group} commonColumn - 左の列
      * @param {Object} markerControls - 作ったコントロールを入れるオブジェクト（rulerUnit・strokeUnit 付き）
      * @param {Document} doc - 対象ドキュメント
@@ -3228,7 +3253,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         markerControls.verticalOffsetInput = addMarkerNumberField(commonColumn, "verticalOffset", {
             text: "0 " + rulerUnit.label, characters: 7, step: 1, unit: " " + rulerUnit.label
         }, onSettingChange);
-        /* ［行長］は項目名の右に［揃える］［行送りベース］を縦に並べる / Line Length stacks Equalize and Leading-Based right of its label */
+        /* ［行長］は項目名の右に［行頭］［行頭行末］を縦に並べる / Line Length stacks Align Starts and Align Both Ends right of its label */
         var lineLengthRow = commonColumn.add("group");
         setupRow(lineLengthRow, "left", 8);
         lineLengthRow.alignChildren = ["left", "top"];
@@ -3237,9 +3262,17 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         lineLengthOptionsGroup.orientation = "column";
         lineLengthOptionsGroup.alignChildren = ["left", "center"];
         lineLengthOptionsGroup.spacing = 6;
-        markerControls.equalLineLengthsOption = addOptionCheckbox(lineLengthOptionsGroup, "equalLineLengths", DEFAULT_EQUAL_LINE_LENGTHS, onSettingChange);
+        /* ［行頭行末］は行頭もそろえるので、［行頭］とはどちらか一方だけをオンにする / Align Both Ends includes Align Starts, so only one of them is on */
+        markerControls.alignLineStartsOption = addOptionCheckbox(lineLengthOptionsGroup, "alignLineStarts", DEFAULT_ALIGN_LINE_STARTS && !DEFAULT_EQUAL_LINE_LENGTHS, function () {
+            if (markerControls.alignLineStartsOption.getValue()) markerControls.equalLineLengthsOption.setValue(false);
+            onSettingChange();
+        });
+        markerControls.equalLineLengthsOption = addOptionCheckbox(lineLengthOptionsGroup, "equalLineLengths", DEFAULT_EQUAL_LINE_LENGTHS, function () {
+            if (markerControls.equalLineLengthsOption.getValue()) markerControls.alignLineStartsOption.setValue(false);
+            onSettingChange();
+        });
         markerControls.equalLineLengthsOption.label = lineLengthLabel;
-        markerControls.leadingBasedOption = addOptionCheckbox(lineLengthOptionsGroup, "leadingBased", DEFAULT_LEADING_BASED, onSettingChange);
+        markerControls.leadingBasedOption = addLabeledOptionCheckbox(commonColumn, "leading", "leadingBased", DEFAULT_LEADING_BASED, onSettingChange);
     }
 
     /**
@@ -3487,6 +3520,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         markerControls.squareLineJoinsOption.checkbox.enabled = usesSquareLineJoins;
         markerControls.squareLineJoinsOption.label.enabled = usesSquareLineJoins;
         var usesEqualLineLengths = isLineStyle || (usesShape && !markerControls.perCharOption.getValue());
+        markerControls.alignLineStartsOption.checkbox.enabled = usesEqualLineLengths;
         markerControls.equalLineLengthsOption.checkbox.enabled = usesEqualLineLengths;
 
         markerControls.shapePaintRow.row.enabled = usesShape;
@@ -3575,7 +3609,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     /**
      * 今のダイアログボックスの指定を、線を引くための値にまとめる
      * @param {Object} markerControls - addMarkerControls() の戻り値
-     * @returns {Object} { fillColor, fillUseTextColor, opacity, strokeWidth（pt）, verticalOffset（pt）, lineStyle, shearAngle（度）, zigzagSize（pt）, zigzagRidges, isZigzagSmooth, boxPadding（横、pt）, boxPaddingV（縦、pt）, cornerRadius（pt）, boxRotation（度）, lineGap（pt）, dotSize（pt）, dashStyle, dashSegments（空欄なら null）, dashGap（pt）, strokeCap, isFront, isPerChar, squareLineJoins, equalLineLengths, isLeadingBased, isShapeFill, isShapeStroke, strokeColor, strokeUseTextColor, kerningChoice, tracking・kerningBefore・kerningAfter（空欄なら null）, whiteText }
+     * @returns {Object} { fillColor, fillUseTextColor, opacity, strokeWidth（pt）, verticalOffset（pt）, lineStyle, shearAngle（度）, zigzagSize（pt）, zigzagRidges, isZigzagSmooth, boxPadding（横、pt）, boxPaddingV（縦、pt）, cornerRadius（pt）, boxRotation（度）, lineGap（pt）, dotSize（pt）, dashStyle, dashSegments（空欄なら null）, dashGap（pt）, strokeCap, isFront, isPerChar, squareLineJoins, alignLineStarts, equalLineLengths, isLeadingBased, isShapeFill, isShapeStroke, strokeColor, strokeUseTextColor, kerningChoice, tracking・kerningBefore・kerningAfter（空欄なら null）, whiteText }
      */
     function readMarkerOptions(markerControls) {
         var fillColorOptions = markerControls.fillColorRow.getColorOptions();
@@ -3604,6 +3638,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             isFront: (markerControls.stackOrderRow.getChoice() === "stackFront"),
             isPerChar: markerControls.perCharOption.getValue(),
             squareLineJoins: markerControls.squareLineJoinsOption.getValue(),
+            alignLineStarts: markerControls.alignLineStartsOption.getValue(),
             equalLineLengths: markerControls.equalLineLengthsOption.getValue(),
             isLeadingBased: markerControls.leadingBasedOption.getValue(),
             isShapeFill: markerControls.shapePaintRow.fillOption.getValue(),
@@ -3938,6 +3973,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             stackOrder: markerControls.stackOrderRow.getChoice(),
             isPerChar: markerControls.perCharOption.getValue(),
             squareLineJoins: markerControls.squareLineJoinsOption.getValue(),
+            alignLineStarts: markerControls.alignLineStartsOption.getValue(),
             equalLineLengths: markerControls.equalLineLengthsOption.getValue(),
             leadingBased: markerControls.leadingBasedOption.getValue(),
             shapeFill: markerControls.shapePaintRow.fillOption.getValue(),
@@ -4023,6 +4059,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         if (presetData.stackOrder) markerControls.stackOrderRow.setChoice(presetData.stackOrder);
         if (typeof presetData.isPerChar === "boolean") markerControls.perCharOption.setValue(presetData.isPerChar);
         if (typeof presetData.squareLineJoins === "boolean") markerControls.squareLineJoinsOption.setValue(presetData.squareLineJoins);
+        /* 前の版のプリセットには［行頭］が無いのでオフにする / Presets from earlier versions have no Align Starts, so it goes off */
+        markerControls.alignLineStartsOption.setValue(presetData.alignLineStarts === true && presetData.equalLineLengths !== true);
         if (typeof presetData.equalLineLengths === "boolean") markerControls.equalLineLengthsOption.setValue(presetData.equalLineLengths);
         /* 縦横が別の値なら連動を切る（旧版のプリセットは連動） / Unlink when the two paddings differ (earlier presets stay linked) */
         if (typeof presetData.boxPaddingLinked === "boolean") setLinkToggleValue(markerControls.boxPaddingLink, presetData.boxPaddingLinked);
@@ -4798,7 +4836,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     /**
      * ［ジグザグ］効果の XML を返す（大きさは絶対値）
      * @param {number} amountPt - 大きさ（pt）
-     * @param {number} ridges - 線分あたりの折り返し
+     * @param {number} ridges - 線分あたりの折り返し（0 ならアンカーポイントを交互にずらすだけ）
      * @param {boolean} isSmooth - ポイントを滑らかにするか（false なら直線的に）
      * @returns {string} LiveEffect の XML
      */
@@ -4816,6 +4854,15 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     function createRoughenXml(sizePt, detail) {
         return '<LiveEffect name="Adobe Roughen"><Dict data="R asize ' + sizePt + ' R size 0 R absoluteness 1 R detail ' + detail +
             ' R roundness 1 "/></LiveEffect>';
+    }
+
+    /**
+     * 大きさ 0 の［ラフ］効果の XML を返す（形は変えずに、詳細の数だけポイントを足す。ポイントはギザギザ）
+     * @param {number} detail - 詳細（1インチあたりの数）
+     * @returns {string} LiveEffect の XML
+     */
+    function createAddPointsRoughenXml(detail) {
+        return '<LiveEffect name="Adobe Roughen"><Dict data="R asiz 0 R size 0 R absoluteness 0 R dtal ' + detail + ' R roundness 0 "/></LiveEffect>';
     }
 
     /**
@@ -4864,7 +4911,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         var sourceFrame = markerTarget.sourceFrame;
         var isVertical = markerTarget.isVertical;
         var lineBoundsList = getMarkerLineBoundsList(markerTarget, markerOptions.isLeadingBased);
-        if (markerOptions.equalLineLengths) lineBoundsList = equalizeLineLengths(lineBoundsList, isVertical);
+        if (markerOptions.equalLineLengths || markerOptions.alignLineStarts) lineBoundsList = alignLineEdges(lineBoundsList, isVertical, markerOptions.equalLineLengths);
         var markerLines = [];
         for (var i = 0; i < lineBoundsList.length; i++) {
             var lineBounds = lineBoundsList[i];
@@ -4898,12 +4945,13 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     }
 
     /**
-     * 行ごとの範囲の長さを、いちばん長い行にそろえる（横組みは左端・右端、縦組みは上端・下端を、全行の外側にそろえる）
+     * 行ごとの範囲の行頭（横組みは左端、縦組みは上端）を全行の外側にそろえる。alignsBothEnds なら行末（右端・下端）もそろえ、いちばん長い行の長さにする
      * @param {Object[]} lineBoundsList - 行ごとの範囲 { left, top, right, bottom }
      * @param {boolean} isVertical - 縦組みか
+     * @param {boolean} alignsBothEnds - 行末もそろえるか
      * @returns {Object[]} そろえた範囲（新しいオブジェクト）
      */
-    function equalizeLineLengths(lineBoundsList, isVertical) {
+    function alignLineEdges(lineBoundsList, isVertical, alignsBothEnds) {
         var outerExtent = null;
         for (var i = 0; i < lineBoundsList.length; i++) {
             var lineBounds = lineBoundsList[i];
@@ -4913,8 +4961,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         for (var j = 0; j < lineBoundsList.length; j++) {
             var sourceBounds = lineBoundsList[j];
             equalizedList.push(isVertical
-                ? { left: sourceBounds.left, top: outerExtent.top, right: sourceBounds.right, bottom: outerExtent.bottom }
-                : { left: outerExtent.left, top: sourceBounds.top, right: outerExtent.right, bottom: sourceBounds.bottom });
+                ? { left: sourceBounds.left, top: outerExtent.top, right: sourceBounds.right, bottom: alignsBothEnds ? outerExtent.bottom : sourceBounds.bottom }
+                : { left: outerExtent.left, top: sourceBounds.top, right: alignsBothEnds ? outerExtent.right : sourceBounds.right, bottom: sourceBounds.bottom });
         }
         return equalizedList;
     }
@@ -4974,10 +5022,13 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         markerLine.opacity = markerOptions.opacity;
         /* 効果は分割せずに残す。後から掛けたものほど下に並び、後で処理される
            Effects stay live; later ones go lower in the list and are processed later */
-        /* ギザギザは中心線を折ってからアウトラインにする（線は1本なので、折り返しは端から端までの数）
-           Zigzag folds the center line before it is outlined; the line has one segment, so ridges span end to end */
+        /* ギザギザは中心線を折ってからアウトラインにする。先に［ラフ］効果で1インチあたり［折り返し］の数だけポイントを足し、
+           ［ジグザグ］効果は折り返し 0 でそのポイントを交互にずらす（線の長さにかかわらず、山の間隔がそろう）
+           Zigzag folds the center line before it is outlined: Roughen first adds Ridges points per inch,
+           then Zig Zag with 0 ridges moves those points alternately, so the ridge pitch does not depend on the line length */
         if (lineStyle === "zigzag") {
-            markerLine.applyEffect(createZigzagXml(markerOptions.zigzagSize, markerOptions.zigzagRidges, markerOptions.isZigzagSmooth));
+            markerLine.applyEffect(createAddPointsRoughenXml(markerOptions.zigzagRidges));
+            markerLine.applyEffect(createZigzagXml(markerOptions.zigzagSize, 0, markerOptions.isZigzagSmooth));
         }
         applyOutlineStrokeEffect(markerLine);
         /* 手書き風はアウトラインにした面の縁を揺らす / Hand-Drawn roughens the edges of the outlined shape */
@@ -5074,26 +5125,34 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     }
 
     /**
-     * 対象の字面を行（縦組みは列）に分けて返す。行送りベースなら、行の高さ（縦組みは幅）を行送りにし、
-     * 行の文字の中心の中央値を行の中心にする（括弧・g・p・句読点に引っぱられない）。行の長さの向きは字面のまま
+     * 対象の字面を行（縦組みは列）に分けて返す。［行送り］の［均等］なら、行の高さ（縦組みは幅）を行送りにし、
+     * 行の文字の中心の中央値を行の中心にする（括弧・g・p・句読点に引っぱられない）。続けて並ぶ行は行送りちょうどの間隔に並べ直す。行の長さの向きは字面のまま
      * @param {Object} markerTarget - collectMarkerTargets() の要素（selectTargetLayout() で選んだあと）
      * @param {boolean} isLeadingBased - 行の高さを行送りにするか
-     * @returns {Object[]} groupCharBoundsByLine() の戻り値（行送りベースなら範囲を書き換えたもの）
+     * @returns {Object[]} groupCharBoundsByLine() の戻り値（［行送り］の［均等］なら範囲を書き換えたもの）
      */
     function getTargetTextLines(markerTarget, isLeadingBased) {
         var isVertical = markerTarget.isVertical;
         var textLines = groupCharBoundsByLine(getTargetCharBounds(markerTarget), isVertical);
         if (!isLeadingBased) return textLines;
+        var lineCenters = [];
+        var lineLeadings = [];
         for (var i = 0; i < textLines.length; i++) {
-            var textLine = textLines[i];
             var charCenters = [];
             var lineLeading = 0;
-            for (var j = 0; j < textLine.chars.length; j++) {
-                var charBounds = textLine.chars[j];
+            for (var j = 0; j < textLines[i].chars.length; j++) {
+                var charBounds = textLines[i].chars[j];
                 charCenters.push(isVertical ? (charBounds.left + charBounds.right) / 2 : (charBounds.top + charBounds.bottom) / 2);
                 lineLeading = Math.max(lineLeading, getCharLeading(markerTarget, charBounds.charIndex));
             }
-            var lineCenter = getMedian(charCenters);
+            lineCenters.push(getMedian(charCenters));
+            lineLeadings.push(lineLeading);
+        }
+        lineCenters = snapLineCentersToLeading(lineCenters, lineLeadings);
+        for (var k = 0; k < textLines.length; k++) {
+            var textLine = textLines[k];
+            var lineCenter = lineCenters[k];
+            lineLeading = lineLeadings[k];
             if (isVertical) {
                 textLine.left = lineCenter - lineLeading / 2;
                 textLine.right = lineCenter + lineLeading / 2;
@@ -5103,6 +5162,36 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             }
         }
         return textLines;
+    }
+
+    /**
+     * 続けて並ぶ行（縦組みは列）の中心を、行送りちょうどの間隔に並べ直す。
+     * 文字の中心の中央値は、かなが多い行・欧文の行などで少しずれるので、そのままでは図形の間隔がそろわない。
+     * 前の行との間隔が行送りに近い（差が行送りの 1/4 以内で、行送りも同じ）行を1続きとし、
+     * 1続きの中では中心からのずれの中央値だけ全体をずらす。段落前後のアキや空行で離れたところは別の続きにする
+     * @param {number[]} lineCenters - 行ごとの中心（横組みは Y、縦組みは X 座標。先頭の行から順に、座標は小さくなっていく）
+     * @param {number[]} lineLeadings - 行ごとの行送り（pt）
+     * @returns {number[]} 並べ直した中心（新しい配列）
+     */
+    function snapLineCentersToLeading(lineCenters, lineLeadings) {
+        var snappedCenters = lineCenters.slice(0);
+        var runStart = 0;
+        for (var i = 1; i <= lineCenters.length; i++) {
+            var lineLeading = lineLeadings[runStart];
+            var continuesRun = (i < lineCenters.length && lineLeading > 0
+                && Math.abs(lineLeadings[i] - lineLeading) < 0.01
+                && Math.abs(lineCenters[i - 1] - lineCenters[i] - lineLeading) <= lineLeading / 4);
+            if (continuesRun) continue;
+            if (i - runStart > 1) {
+                /* 1続きの先頭の行を基準に、行送りの何行分かを引いた位置からのずれ / Offsets from the run start minus whole leadings */
+                var centerOffsets = [];
+                for (var j = runStart; j < i; j++) centerOffsets.push(lineCenters[j] + (j - runStart) * lineLeading - lineCenters[runStart]);
+                var runOffset = getMedian(centerOffsets);
+                for (var k = runStart; k < i; k++) snappedCenters[k] = lineCenters[runStart] + runOffset - (k - runStart) * lineLeading;
+            }
+            runStart = i;
+        }
+        return snappedCenters;
     }
 
     /**
@@ -5155,7 +5244,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
 
     /**
      * ［重ね順］の位置（元のテキストの背面か前面）へ、字面を囲む図形（長方形・円・六角形）を描いてグループにする。
-     * 図形は行ごとか1文字ずつで（［行送りベース］なら行ごとの高さは行送り）、まわりに［余白（横）］［余白（縦）］を足し、［位置調整］の分ずらす。［回転］が 0 でなければ1つずつその中心で回転する。
+     * 図形は行ごとか1文字ずつで（［行送り］の［均等］なら行ごとの高さは行送り）、まわりに［余白（横）］［余白（縦）］を足し、［位置調整］の分ずらす。［回転］が 0 でなければ1つずつその中心で回転する。
      * ［塗り］も［線］もオフなら、図形は描かない
      * @param {Object} markerTarget - collectMarkerTargets() の要素（1文字ずつの範囲は初回に測って charBounds に控える）
      * @param {Object} markerOptions - readMarkerOptions() の戻り値
@@ -5171,7 +5260,9 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         var shapeAreas = getShapeAreas(textLines, markerOptions.isPerChar, markerTarget.isVertical, function (charBounds) {
             return isPerCharSkipped(markerTarget, charBounds);
         });
-        if (markerOptions.equalLineLengths && !markerOptions.isPerChar) shapeAreas = equalizeLineLengths(shapeAreas, markerTarget.isVertical);
+        if ((markerOptions.equalLineLengths || markerOptions.alignLineStarts) && !markerOptions.isPerChar) {
+            shapeAreas = alignLineEdges(shapeAreas, markerTarget.isVertical, markerOptions.equalLineLengths);
+        }
         /* 行ごとの長方形を1続きに見せるときは、行の継ぎ目側の角を丸めない / Keep the corners square where the lines continue */
         var joinsLines = (markerOptions.lineStyle === "box" && !markerOptions.isPerChar && markerOptions.squareLineJoins && shapeAreas.length > 1);
         for (var i = 0; i < shapeAreas.length; i++) {
@@ -5643,7 +5734,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
 
     /**
      * ［重ね順］の位置（元のテキストの背面か前面）へ、1文字ずつ丸い点（傍点）を置いてグループにする。
-     * 横組みは行の字面（［行送りベース］なら行送り）の上端から［余白（縦）］離した上、縦組みは列の右端から［余白（横）］離した右に、字面の中央にそろえて置く。
+     * 横組みは行の字面（［行送り］の［均等］なら行送り）の上端から［余白（縦）］離した上、縦組みは列の右端から［余白（横）］離した右に、字面の中央にそろえて置く。
      * PER_CHAR_SKIP_CHARS の文字には置かない
      * @param {Object} markerTarget - collectMarkerTargets() の要素
      * @param {Object} markerOptions - readMarkerOptions() の戻り値

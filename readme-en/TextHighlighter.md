@@ -11,7 +11,7 @@
 ### Overview
 
 - Draws lines such as markers, underlines and strikethroughs, or boxes, circles, hexagons and emphasis dots, on the characters selected with the Type tool or on the selected text objects, fitted to their glyphs (the shape of the outlined characters).
-- They can go behind or in front of the text. Multi-line text is drawn line by line.
+- They can go behind or in front of the text. Multi-line text is drawn line by line, and the line starts, lengths and leading can be aligned.
 - Choose the style, colors, weight and more in the dialog box and check the result in the preview. The settings can be saved as presets.
 - The lines and shapes are paths with live effects, so they can be adjusted later in the Appearance panel.
 
@@ -27,7 +27,7 @@ Chosen in the dropdown at the top of Settings. The dropdown's tooltip describes 
   - Underline: drawn just below the glyphs, with the top edge of the line on their bottom.
   - Marker: centered on the bottom edge of the glyphs (the default).
   - Straight + Shear: where Marker goes, with both ends slanted by the Free Distort effect (slanting keeps it centered).
-  - Zigzag: where Marker goes, with the Zig Zag effect.
+  - Zigzag: where Marker goes; points are added with the Roughen effect (size 0), then the Zig Zag effect (0 ridges) is applied, so the ridge pitch stays the same whatever the line length.
   - Hand-Drawn: where Marker goes, with the edges roughened by the Roughen effect.
   - Fill: fills the glyph area (the line width is the glyph height).
   - Strikethrough: through the vertical center of the glyphs.
@@ -51,7 +51,11 @@ Chosen in the dropdown at the top of Settings. The dropdown's tooltip describes 
 - Opacity: opacity of the lines and shapes (100% by default).
 - Weight: 40% of the glyph height by default, in the Stroke unit from Preferences.
 - Offset: moves the line or shape up or down from the style's position (positive is up, negative is down; in vertical text it moves left or right, positive is left).
-- Line Length: with Equalize on, for multi-line text, extends the lines and shapes of short lines to the length of the longest one (column length in vertical text). With Leading-Based on, lines, shapes and dots are positioned and sized by the leading instead of the glyph height of each line (width in vertical text), so every line gets the same height, centered on its characters (works with every style; Fill becomes as thick as the leading, and Per Character as large).
+- Line Length: how the lines and shapes of multi-line text are aligned.
+  - Align Starts: starts the lines and shapes where the earliest line starts (the top of the column in vertical text). The ends stay as they are.
+  - Align Both Ends: extends the lines and shapes of short lines to the length of the longest one (column length in vertical text).
+  - Only one of Align Starts and Align Both Ends can be on. They work with line styles and with shapes when Per Character is off.
+- Leading: with Even on, positions and sizes lines, shapes and dots by the leading instead of the glyph height of each line (width in vertical text). Every line gets the same height, centered on its characters, and consecutive lines are spaced exactly one leading apart (spacing restarts after paragraph space or blank lines). Works with every style; Fill becomes as thick as the leading, and Per Character as large.
 
 #### Settings (right column)
 
@@ -61,7 +65,7 @@ Chosen in the dropdown at the top of Settings. The dropdown's tooltip describes 
   - Gap starts at the line width.
 - Cap: Butt or Round.
 - Angle: the slant of Straight + Shear (-80 to 80°; positive slants to the upper right).
-- Size, Ridges, Points: the ridge height, the number of ridges from end to end, and Smooth (wavy) or Corner (zigzag) for Zigzag. Size is also the Hand-Drawn roughness.
+- Size, Ridges, Points: the ridge height, the number of ridges per inch (25.4 mm) of the line (Detail of the Roughen effect), and Smooth (wavy) or Corner (zigzag) for Zigzag. Size is also the Hand-Drawn roughness.
 - Padding (H), Padding (V): the left/right and top/bottom space around the glyphs for shapes, or the distance from the glyphs to the dots for Emphasis Dots (Padding (V) in horizontal text, Padding (H) in vertical text; negative values pull inward). While the link icon on the right is on, the two keep the same value (on by default).
 - Corner Radius: the corner radius of Box (0 for square corners).
 - Continuity: with Multi-Line on, makes a rounded Box spanning several lines look continuous. Only the left end of the first line and the right end of the last are rounded, and the line breaks keep square corners. With Stroke on, the stroke is left open on the edges where the lines continue (the left edge of every line but the first and the right edge of every line but the last; in vertical text, the top of the first column and the bottom of the last are rounded, and the top and bottom edges are left open).
@@ -82,9 +86,10 @@ Changes the formatting of the target characters. The preview reflects it, and th
 #### Presets
 
 - Click a preset in the list on the left to load it. The icons below the list save the current settings under a name or delete a preset. Saved presets remain after restarting Illustrator.
-- Built-in presets: Underline, Dotted Underline, Wavy Line, Yellow Marker, Slanted Highlighter, Text-Color Strikethrough, Double Strikethrough, Rounded Box, Frame, Redaction, Box per Character, Circle per Character, Hexagon per Character and Emphasis Dots.
-  - Except for Redaction, Underline and Box per Character, lengths such as the weight follow the glyph height of the first target.
-  - Box per Character, Circle per Character, Hexagon per Character and Rounded Box turn on White under Text. Redaction uses Front for Stacking Order; the others use Back.
+- Built-in presets: Underline, Dotted Underline, Wavy Line, Zigzag, Yellow Marker, Slanted Highlighter, Text-Color Strikethrough, Double Strikethrough, Rounded Box, Band per Line, Frame, Redaction, Box per Character, Circle per Character, Hexagon per Character and Emphasis Dots.
+  - Except for Redaction, Underline, Zigzag, Box per Character and Band per Line, lengths such as the weight follow the glyph height of the first target.
+  - Box per Character, Circle per Character, Hexagon per Character, Rounded Box and Band per Line turn on White under Text. Redaction uses Front for Stacking Order; the others use Back.
+  - Band per Line draws a box for each line with Align Starts, Even (Leading) and Multi-Line on (the paddings unlinked).
   - Built-in presets cannot be deleted; a preset saved under the same name is used instead.
 
 #### Preview
@@ -125,10 +130,11 @@ https://note.com/dtp_tranist/n/na1804afb7fe2
 
 ### Script info
 
-- Version: v1.3.1
+- Version: v1.4.0
 
 ### Update History
 
+- v1.4.0 (2026-11-02) Added Align Starts to Line Length (for multi-line text, only the starts of the lines and shapes are aligned to the earliest line; the top of the column in vertical text); renamed Equalize to Align Both Ends and Leading-Based to Even under its own Leading row; added the Zigzag and Band per Line built-in presets (Band per Line: a box for each line, with aligned starts and even leading); Zigzag (Wavy Line) now adds points with the Roughen effect before the Zig Zag effect, and Ridges is now per inch instead of end to end (short and long lines get the same ridge pitch; initial value 12); fixed Even (Leading) sometimes shifting the shapes of kana-heavy or Latin lines slightly up or down (left or right in vertical text), leaving uneven gaps between lines
 - v1.3.1 (2026-11-02) The dialog box now remembers its state at close (settings, chosen preset and Preview) and restores it the next time it opens, until Illustrator quits; the first time after Illustrator starts, the Yellow Marker preset is chosen
 - v1.3.0 (2026-11-01) Added Leading-Based to Line Length (lines, shapes and dots are positioned and sized by the leading instead of the glyph height of each line, so every line gets the same height, centered on the line); moved Stacking Order, Text and Shape to the top of the left column and Line Length to its bottom, and Line Type, Segments, Gap and Cap to the top of the right column; Multi-Line now sits under the Continuity label and, with Stroke on, leaves the stroke open where the lines continue (a multi-line Frame looks continuous); split Padding into Padding (H) and Padding (V) with a link icon (presets from earlier versions load the same value into both); fixed the script sometimes stopping with an MRAP error while measuring the glyphs
 - v1.2.1 (2026-11-01) Supports vertical text: line styles now draw a vertical line for each column instead of one horizontal line over the whole selection (styles placed at the bottom edge go to the right edge); renamed Vertical Offset to Offset, Equal Line Lengths to Equalize under Line Length, and White Text to White under Text; in vertical text, Offset now moves lines, shapes and emphasis dots left or right (positive is left); Equalize (Line Length) now also works for line styles in vertical text; fixed lines and shapes sometimes breaking at tate-chu-yoko numbers such as "90"
