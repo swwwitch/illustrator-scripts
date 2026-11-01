@@ -119,6 +119,10 @@
 字面の測り方は、デザインゴリラさんの記事をもとにしています。  
 https://note.com/gorilla_gg/n/naa26b079cb75
 
+### 紹介記事
+
+https://note.com/dtp_tranist/n/na1804afb7fe2
+
 ### スクリプト情報
 
 - バージョン: v1.3.1

@@ -119,6 +119,10 @@ The settings, the chosen preset and Preview at the time the dialog box closes (O
 The way the glyphs are measured is based on an article by デザインゴリラ (Design Gorilla).  
 https://note.com/gorilla_gg/n/naa26b079cb75
 
+### Article
+
+https://note.com/dtp_tranist/n/na1804afb7fe2
+
 ### Script info
 
 - Version: v1.3.1
