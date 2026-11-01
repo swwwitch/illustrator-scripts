@@ -80,37 +80,63 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
     /* 開いたときに選んでおくカラー（"yellow" / "red" / "textColor" / "custom"） / Color chosen when the dialog box opens */
     var DEFAULT_COLOR_CHOICE = "yellow";
 
-    /* ［文字色］の線の不透明度の初期値（%） / Initial opacity (%) of the line in the text color */
-    var TEXT_COLOR_OPACITY = 30;
+    /* 線・長方形の不透明度の初期値（%） / Initial opacity (%) of the lines and boxes */
+    var DEFAULT_OPACITY = 100;
 
     /* 線幅の初期値：字面の高さに対する比率 / Initial line width as a ratio of the glyph height */
     var MARKER_WEIGHT_RATIO = 0.4;
 
-    /* 線の種類の既定（"underline"：アンダーライン / "marker"：マーカー / "straightShear"：直線＋シアー / "zigzag"：ギザギザ /
-       "fill"：塗りつぶし / "box"：長方形 / "charBox"：1文字ずつの長方形 / "strikethrough"：取り消し線） / Default line style */
+    /* 種類の既定（"underline"：アンダーライン / "marker"：マーカー / "straightShear"：直線＋シアー / "zigzag"：ギザギザ /
+       "roughMarker"：手書き風 / "fill"：塗りつぶし / "strikethrough"：取り消し線 / "doubleStrikethrough"：二重取り消し線 /
+       "box"：長方形 / "frame"：囲み罫 / "circle"：円 / "hexagon"：六角形 / "emphasisDots"：傍点） / Default style */
     var DEFAULT_LINE_STYLE = "marker";
 
-    /* ［長方形］［1文字ずつの長方形］の余白の初期値：字面の高さに対する比率 / Initial box padding as a ratio of the glyph height */
+    /* ［余白］の初期値：字面の高さに対する比率（長方形・囲み罫は字面のまわり、傍点は字面から点まで）
+       Initial padding as a ratio of the glyph height (around the glyphs for boxes and frames, glyph-to-dot distance for emphasis dots) */
     var BOX_PADDING_RATIO = 0.08;
+
+    /* ［二重取り消し線］の線の間隔の初期値：字面の高さに対する比率 / Initial gap of Double Strikethrough as a ratio of the glyph height */
+    var LINE_GAP_RATIO = 0.08;
+
+    /* ［傍点］の点の大きさ（直径）の初期値：字面の高さに対する比率 / Initial dot diameter of Emphasis Dots as a ratio of the glyph height */
+    var DOT_SIZE_RATIO = 0.18;
+
+    /* ［傍点］と［1文字ずつ］の図形で飛ばす文字（句読点・括弧・記号・スペース）
+       Characters skipped by Emphasis Dots and the per-character shapes (punctuation, brackets, symbols, spaces) */
+    var PER_CHAR_SKIP_CHARS = "、。，．,.・:;：；!?！？「」『』（）()［］[]【】〈〉《》〔〕…‥ー―-— 　\t\r\n";
+
+    /* ［手書き風］の［ラフ］効果の詳細（1インチあたりの数） / Detail (per inch) of the Roughen effect in Hand-Drawn */
+    var ROUGHEN_DETAIL = 20;
+
+    /* ［長方形］［囲み罫］［円］の［1文字ずつ］の初期値 / Initial state of Per Character for Box, Frame and Circle */
+    var DEFAULT_PER_CHAR = false;
+
+    /* ［自動カーニング］の初期値（"keepKerning"：変更しない / "zeroKerning"：0 / "metricsKerning"：メトリクス / "opticalKerning"：オプティカル）と、
+       ［トラッキング］の初期値（空欄なら変更しない。1/1000 em）
+       Initial Auto Kerning choice, and initial Tracking (blank leaves it unchanged; 1/1000 em) */
+    var DEFAULT_KERNING_CHOICE = "keepKerning";
+    var DEFAULT_TRACKING_TEXT = "";
 
     /* ［文字を白抜きに］の初期値と、白抜きにする色 / Initial state of White Text, and the color it applies */
     var DEFAULT_WHITE_TEXT = false;
     var WHITE_TEXT_COLOR = { rgb: [255, 255, 255], cmyk: [0, 0, 0, 0] };
 
-    /* ［長方形］［1文字ずつの長方形］の角丸の半径の初期値（pt。0 で角丸なし） / Initial corner radius of the boxes (pt; 0 for square corners) */
+    /* ［長方形］［囲み罫］の角丸の半径の初期値（pt。0 で角丸なし） / Initial corner radius of the boxes (pt; 0 for square corners) */
     var DEFAULT_CORNER_RADIUS = 0;
 
     /* ［直線＋シアー］の角度の初期値（度。プラスで右上がり） / Initial shear angle in degrees (positive slants to the upper right) */
     var DEFAULT_SHEAR_ANGLE = 30;
 
-    /* ギザギザ（ジグザグ効果）の初期値 / Initial values of the zigzag (Zig Zag effect) */
+    /* ギザギザ（ジグザグ効果）の初期値。大きさは［手書き風］の揺れの大きさにも使う
+       Initial values of the zigzag (Zig Zag effect); the size is also the Hand-Drawn roughness */
     var DEFAULT_ZIGZAG_SIZE = 3;      /* 大きさ（pt） / size (pt) */
     var DEFAULT_ZIGZAG_RIDGES = 10;   /* 折り返し（線の端から端まで） / ridges from end to end */
+    var DEFAULT_ZIGZAG_POINTS = "cornerPoints"; /* ポイント（"smoothPoints"：滑らかに / "cornerPoints"：直線的に） / points */
 
-    /* 線の既定（"solidLine"：直線 / "dashedLine"：破線 / "dottedLine"：ドット点線） / Default line type */
+    /* 線の既定（"solidLine"：直線 / "dashedLine"：破線 / "dottedLine"：ドット） / Default line type */
     var DEFAULT_DASH_STYLE = "solidLine";
 
-    /* 破線の線分と間隔、ドット点線の点の間隔（中心から中心）：線幅に対する比率
+    /* 破線の線分と間隔、ドットの点の間隔（中心から中心）：線幅に対する比率
        Dash and gap of Dashed, and dot pitch (center to center) of Dotted, as ratios of the line width */
     var DASHED_LINE_RATIOS = [2, 1];
     var DOTTED_LINE_PITCH_RATIO = 2;
@@ -129,45 +155,100 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
        customColor is { rgb, cmyk }, picked by the document color mode */
     var BUILTIN_PRESETS = [
         {
+            name: { ja: "墨消し", en: "Redaction" },
+            settings: {
+                lineStyle: "box", isPerChar: false, colorChoice: "textColor", opacity: 80, boxPaddingPt: 0.85, cornerRadiusPt: 0,
+                verticalOffsetPt: 0, whiteText: false
+            }
+        },
+        {
+            name: { ja: "アンダーライン", en: "Underline" },
+            settings: {
+                lineStyle: "underline", colorChoice: "textColor", opacity: 100, strokeWidthPt: 0.65, verticalOffsetPt: -1.134,
+                dashStyle: "solidLine", strokeCap: "roundCap", whiteText: false
+            }
+        },
+        {
+            name: { ja: "ドットのアンダーライン", en: "Dotted Underline" },
+            settings: {
+                lineStyle: "underline", colorChoice: "textColor", opacity: 100, strokeWidthRatio: 0.06, verticalOffsetPt: 0,
+                dashStyle: "dottedLine", whiteText: false
+            }
+        },
+        {
             name: { ja: "黄色のマーカー", en: "Yellow Marker" },
-            settings: { lineStyle: "marker", colorChoice: "yellow", strokeWidthRatio: 0.4, verticalOffsetPt: 0, dashStyle: "solidLine", strokeCap: "buttCap", whiteText: false }
+            settings: { lineStyle: "marker", colorChoice: "yellow", opacity: 100, strokeWidthRatio: 0.4, verticalOffsetPt: 0, dashStyle: "solidLine", strokeCap: "buttCap", whiteText: false }
         },
         {
             name: { ja: "斜めの蛍光ペン", en: "Slanted Highlighter" },
-            settings: { lineStyle: "straightShear", shearAngle: 30, colorChoice: "yellow", strokeWidthRatio: 0.5, verticalOffsetPt: 0, dashStyle: "solidLine", strokeCap: "buttCap", whiteText: false }
-        },
-        {
-            name: { ja: "赤のアンダーライン", en: "Red Underline" },
-            settings: { lineStyle: "underline", colorChoice: "red", strokeWidthRatio: 0.06, verticalOffsetPt: 0, dashStyle: "solidLine", strokeCap: "buttCap", whiteText: false }
+            settings: { lineStyle: "straightShear", shearAngle: 30, colorChoice: "yellow", opacity: 100, strokeWidthRatio: 0.5, verticalOffsetPt: 0, dashStyle: "solidLine", strokeCap: "buttCap", whiteText: false }
         },
         {
             name: { ja: "赤の波線", en: "Red Wavy Line" },
             settings: {
-                lineStyle: "zigzag", zigzagSizeRatio: 0.06, zigzagRidges: 12, colorChoice: "red",
+                lineStyle: "zigzag", zigzagSizeRatio: 0.06, zigzagRidges: 12, zigzagPoints: "smoothPoints", colorChoice: "red", opacity: 100,
                 strokeWidthRatio: 0.04, verticalOffsetPt: 0, dashStyle: "solidLine", strokeCap: "roundCap", whiteText: false
             }
         },
         {
-            name: { ja: "うすい文字色の塗りつぶし", en: "Light Text-Color Fill" },
-            settings: { lineStyle: "fill", colorChoice: "textColor", textColorOpacity: 15, verticalOffsetPt: 0, dashStyle: "solidLine", strokeCap: "buttCap", whiteText: false }
-        },
-        {
             name: { ja: "1文字ずつの長方形（ピンク）", en: "Box per Character (Pink)" },
             settings: {
-                lineStyle: "charBox", colorChoice: "custom", customColor: { rgb: [214, 96, 112], cmyk: [0, 70, 40, 10] },
+                lineStyle: "box", isPerChar: true, colorChoice: "custom", opacity: 100, customColor: { rgb: [214, 96, 112], cmyk: [0, 70, 40, 10] },
                 boxPaddingRatio: 0.08, cornerRadiusPt: 0, verticalOffsetPt: 0, whiteText: true
+            }
+        },
+        {
+            name: { ja: "1文字ずつの円（ピンク）", en: "Circle per Character (Pink)" },
+            settings: {
+                lineStyle: "circle", isPerChar: true, colorChoice: "custom", opacity: 100, customColor: { rgb: [214, 96, 112], cmyk: [0, 70, 40, 10] },
+                boxPaddingRatio: 0.1, verticalOffsetPt: 0, whiteText: true
+            }
+        },
+        {
+            name: { ja: "1文字ずつの六角形（青）", en: "Hexagon per Character (Blue)" },
+            settings: {
+                lineStyle: "hexagon", isPerChar: true, colorChoice: "custom", opacity: 100, customColor: { rgb: [79, 155, 216], cmyk: [65, 25, 0, 0] },
+                boxPaddingRatio: 0.06, verticalOffsetPt: 0, whiteText: true
             }
         },
         {
             name: { ja: "角丸の長方形（青）", en: "Rounded Box (Blue)" },
             settings: {
-                lineStyle: "box", colorChoice: "custom", customColor: { rgb: [79, 155, 216], cmyk: [65, 25, 0, 0] },
+                lineStyle: "box", isPerChar: false, colorChoice: "custom", opacity: 100, customColor: { rgb: [79, 155, 216], cmyk: [65, 25, 0, 0] },
                 boxPaddingRatio: 0.12, cornerRadiusRatio: 0.2, verticalOffsetPt: 0, whiteText: true
             }
         },
         {
+            name: { ja: "手書き風のマーカー", en: "Hand-Drawn Marker" },
+            settings: {
+                lineStyle: "roughMarker", zigzagSizeRatio: 0.04, colorChoice: "yellow", opacity: 100,
+                strokeWidthRatio: 0.4, verticalOffsetPt: 0, dashStyle: "solidLine", strokeCap: "roundCap", whiteText: false
+            }
+        },
+        {
+            name: { ja: "囲み罫", en: "Frame" },
+            settings: {
+                lineStyle: "frame", isPerChar: false, colorChoice: "textColor", opacity: 100, strokeWidthRatio: 0.04,
+                boxPaddingRatio: 0.12, cornerRadiusPt: 0, verticalOffsetPt: 0, dashStyle: "solidLine", whiteText: false
+            }
+        },
+        {
+            name: { ja: "傍点", en: "Emphasis Dots" },
+            settings: {
+                lineStyle: "emphasisDots", colorChoice: "textColor", opacity: 100,
+                dotSizeRatio: 0.18, boxPaddingRatio: 0.08, verticalOffsetPt: 0, whiteText: false
+            }
+        },
+        {
+            name: { ja: "二重取り消し線", en: "Double Strikethrough" },
+            settings: {
+                lineStyle: "doubleStrikethrough", colorChoice: "textColor", opacity: 100, strokeWidthRatio: 0.05,
+                lineGapRatio: 0.08, verticalOffsetPt: 0, dashStyle: "solidLine", strokeCap: "buttCap", whiteText: false
+            }
+        },
+        {
             name: { ja: "文字色の取り消し線", en: "Text-Color Strikethrough" },
-            settings: { lineStyle: "strikethrough", colorChoice: "textColor", textColorOpacity: 100, strokeWidthRatio: 0.06, verticalOffsetPt: 0, dashStyle: "solidLine", strokeCap: "buttCap", whiteText: false }
+            settings: { lineStyle: "strikethrough", colorChoice: "textColor", opacity: 100, strokeWidthRatio: 0.18, verticalOffsetPt: 0, dashStyle: "solidLine", strokeCap: "buttCap", whiteText: false }
         }
     ];
 
@@ -314,7 +395,8 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
     // UIレイアウト（再利用パーツ）ここまで / End of the reusable UI layout
 
     var COLOR_SWATCH_SIZE = [30, 20];      /* 色見本の大きさ / swatch size */
-    var PRESET_DROPDOWN_WIDTH = 140;       /* プリセットのドロップダウンの幅 / preset dropdown width */
+    var PRESET_LIST_SIZE = [170, 240];     /* プリセットのリストの大きさ（高さは［設定］パネルに合わせて伸びる） / preset list size (grows to the Settings panel height) */
+    var LINE_STYLE_DROPDOWN_WIDTH = 170;   /* ［種類］のドロップダウンの幅 / Style dropdown width */
     var PRESET_ICON_SIZE = [20, 18];       /* プリセットの保存・削除アイコンの大きさ / preset save and delete icon size */
     var PRESET_NAME_CHARS = 20;            /* プリセット名の入力欄の文字数 / preset name field width */
 
@@ -1901,53 +1983,70 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
 
     var LABELS = {
         dialog: {
-            title:      { ja: "マーカーを引く", en: "Draw Marker" },
+            title:      { ja: "文字の背面に線・長方形を描く", en: "Draw Lines and Boxes Behind Text" },
             presetSave: { ja: "プリセットを保存", en: "Save Preset" }
         },
         panel: {
-            lineStyle: { ja: "種類", en: "Style" },
-            settings:  { ja: "設定", en: "Settings" }
+            preset:   { ja: "プリセット", en: "Presets" },
+            settings: { ja: "設定", en: "Settings" },
+            textFormat: { ja: "文字", en: "Text" }
         },
         dropdown: {
-            presetPlaceholder: { ja: "---", en: "---" }
-        },
-        fieldLabel: {
-            preset:       { ja: "プリセット", en: "Preset" },
-            presetName:   { ja: "プリセット名", en: "Preset name" },
-            shearAngle:   { ja: "角度", en: "Angle" },
-            zigzagSize:   { ja: "大きさ", en: "Size" },
-            zigzagRidges: { ja: "折り返し", en: "Ridges" },
-            boxPadding:   { ja: "余白", en: "Padding" },
-            cornerRadius: { ja: "角丸の半径", en: "Corner Radius" },
-            opacity:     { ja: "不透明度", en: "Opacity" },
-            verticalOffset: { ja: "上下位置", en: "Vertical Offset" },
-            color:       { ja: "カラー", en: "Color" },
-            strokeWidth: { ja: "線幅", en: "Weight" },
-            dashStyle:   { ja: "線", en: "Line" },
-            strokeCap:   { ja: "線端", en: "Cap" }
-        },
-        checkbox: {
-            preview:   { ja: "プレビュー", en: "Preview" },
-            whiteText: { ja: "文字を白抜きに", en: "White Text" }
-        },
-        radio: {
             underline: { ja: "アンダーライン", en: "Underline" },
             marker:    { ja: "マーカー", en: "Marker" },
             straightShear: { ja: "直線＋シアー", en: "Straight + Shear" },
             zigzag:    { ja: "ギザギザ", en: "Zigzag" },
+            roughMarker: { ja: "手書き風", en: "Hand-Drawn" },
             fill:      { ja: "塗りつぶし", en: "Fill" },
-            box:       { ja: "長方形", en: "Box" },
-            charBox:   { ja: "1文字ずつの長方形", en: "Box per Character" },
             strikethrough: { ja: "取り消し線", en: "Strikethrough" },
+            doubleStrikethrough: { ja: "二重取り消し線", en: "Double Strikethrough" },
+            box:       { ja: "長方形", en: "Box" },
+            frame:     { ja: "囲み罫", en: "Frame" },
+            circle:    { ja: "円", en: "Circle" },
+            hexagon:   { ja: "六角形", en: "Hexagon" },
+            emphasisDots: { ja: "傍点", en: "Emphasis Dots" }
+        },
+        fieldLabel: {
+            lineStyle:    { ja: "種類", en: "Style" },
+            presetName:   { ja: "プリセット名", en: "Preset name" },
+            shearAngle:   { ja: "角度", en: "Angle" },
+            zigzagSize:   { ja: "大きさ", en: "Size" },
+            zigzagRidges: { ja: "折り返し", en: "Ridges" },
+            zigzagPoints: { ja: "ポイント", en: "Points" },
+            boxPadding:   { ja: "余白", en: "Padding" },
+            cornerRadius: { ja: "角丸の半径", en: "Corner Radius" },
+            lineGap:      { ja: "線の間隔", en: "Line Gap" },
+            dotSize:      { ja: "点の大きさ", en: "Dot Size" },
+            autoKerning:  { ja: "自動カーニング", en: "Auto Kerning" },
+            tracking:     { ja: "トラッキング", en: "Tracking" },
+            opacity:     { ja: "不透明度", en: "Opacity" },
+            verticalOffset: { ja: "上下位置", en: "Vertical Offset" },
+            color:       { ja: "カラー", en: "Color" },
+            strokeWidth: { ja: "線幅", en: "Weight" },
+            dashStyle:   { ja: "線の種類", en: "Line Type" },
+            strokeCap:   { ja: "線端", en: "Cap" }
+        },
+        checkbox: {
+            preview:   { ja: "プレビュー", en: "Preview" },
+            whiteText: { ja: "文字を白抜きに", en: "White Text" },
+            perChar:   { ja: "1文字ずつ", en: "Per Character" }
+        },
+        radio: {
             yellow:   { ja: "黄色", en: "Yellow" },
             red:       { ja: "赤", en: "Red" },
             textColor: { ja: "文字色", en: "Text Color" },
             custom:    { ja: "カスタム", en: "Custom" },
             buttCap:  { ja: "なし", en: "Butt" },
             roundCap: { ja: "丸型", en: "Round" },
+            smoothPoints: { ja: "滑らかに", en: "Smooth" },
+            cornerPoints: { ja: "直線的に", en: "Corner" },
             solidLine:  { ja: "直線", en: "Solid" },
             dashedLine: { ja: "破線", en: "Dashed" },
-            dottedLine: { ja: "ドット点線", en: "Dotted" }
+            dottedLine: { ja: "ドット", en: "Dotted" },
+            keepKerning:    { ja: "変更しない", en: "No Change" },
+            zeroKerning:    { ja: "0", en: "0" },
+            metricsKerning: { ja: "メトリクス", en: "Metrics" },
+            opticalKerning: { ja: "オプティカル", en: "Optical" }
         },
         tooltip: {
             swatch:    { ja: "クリックしてカラーピッカーで変更", en: "Click to change in the Color Picker" },
@@ -1955,7 +2054,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
                 ja: "対象の先頭の文字の塗りを使います（テキストオブジェクトごと）",
                 en: "Uses the fill of the first target character (per text object)"
             },
-            opacity:   { ja: "［文字色］の線の不透明度です", en: "Opacity of the line in Text Color" },
+            opacity:   { ja: "線・長方形の不透明度です", en: "Opacity of the lines and boxes" },
             verticalOffset: {
                 ja: "種類ごとの位置から線を上下にずらす量です。プラスで上、マイナスで下へずれます",
                 en: "Moves the line up or down from the style's position; positive moves it up, negative down"
@@ -1990,29 +2089,65 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             },
             zigzag:    { ja: "線に［ジグザグ］効果を掛けます", en: "Applies the Zig Zag effect to the line" },
             fill:      { ja: "字面の範囲を塗りつぶします（線幅は字面の高さ）", en: "Fills the glyph area (the line width is the glyph height)" },
-            charBox: {
-                ja: "1文字ずつ、字面を囲む長方形を描きます（高さは行の字面にそろえ、幅は高さ以上）",
-                en: "Draws a box around each character (as tall as the line's glyphs, at least as wide as tall)"
+            roughMarker: {
+                ja: "マーカーと同じ位置に引き、［ラフ］効果で縁を揺らします（揺れは［大きさ］）",
+                en: "Draws where Marker does and roughens the edges with the Roughen effect (amount set by Size)"
+            },
+            circle: {
+                ja: "字面を囲む楕円を、行（縦組みは列）ごとに1つ描きます。［1文字ずつ］なら文字ごとの円です",
+                en: "Draws one ellipse around the glyphs of each line or column; with Per Character, a circle per character"
+            },
+            hexagon: {
+                ja: "字面を囲む、左右（縦組みは上下）がとがった六角形を、行ごとに1つ描きます。［1文字ずつ］なら文字ごとの正六角形です",
+                en: "Draws one hexagon pointed at the sides (top and bottom in vertical text) around each line; with Per Character, a regular hexagon per character"
+            },
+            perChar: {
+                ja: "［長方形］［囲み罫］［円］［六角形］を1文字ずつ描きます（高さは行の字面にそろえ、幅は高さ以上。円・六角形は長い辺に合わせます）。句読点・括弧・スペースは飛ばします",
+                en: "Draws Box, Frame, Circle or Hexagon per character (as tall as the line's glyphs, at least as wide as tall; Circle and Hexagon fit the longer side); skips punctuation, brackets and spaces"
             },
             box: {
-                ja: "字面を囲む長方形を、行ごとに1つ描きます",
-                en: "Draws one box around the glyphs of each line"
+                ja: "字面を囲む長方形を、行（縦組みは列）ごとに1つ描きます",
+                en: "Draws one box around the glyphs of each line (column in vertical text)"
             },
-            boxPadding:   { ja: "［長方形］［1文字ずつの長方形］の、字面のまわりの余白です", en: "Space around the glyphs in Box and Box per Character" },
+            frame: {
+                ja: "字面を囲む線だけの長方形を、行（縦組みは列）ごとに1つ描きます（線幅・線の種類を使います）",
+                en: "Draws one stroked box around the glyphs of each line or column (uses Weight and Line Type)"
+            },
+            emphasisDots: {
+                ja: "1文字ずつ、字の上（縦組みは右）に丸い点を置きます。句読点・括弧・スペースには付けません",
+                en: "Places a round dot above each character (right of it in vertical text); skips punctuation, brackets and spaces"
+            },
+            boxPadding: {
+                ja: "［長方形］［囲み罫］［円］［六角形］は字面のまわりの余白、［傍点］は字面から点までの距離です。マイナスで内側へ寄せます",
+                en: "Space around the glyphs for Box, Frame, Circle and Hexagon; distance from the glyphs to the dots for Emphasis Dots. Negative values pull inward"
+            },
             cornerRadius: {
-                ja: "［長方形］［1文字ずつの長方形］の角丸の半径です。0 で角丸なし",
-                en: "Corner radius of Box and Box per Character; 0 for square corners"
+                ja: "［長方形］［囲み罫］の角丸の半径です。0 で角丸なし",
+                en: "Corner radius of Box and Frame; 0 for square corners"
+            },
+            lineGap:      { ja: "［二重取り消し線］の2本の線のあいだの間隔です", en: "Space between the two lines of Double Strikethrough" },
+            dotSize:      { ja: "［傍点］の点の直径です", en: "Diameter of the emphasis dots" },
+            zeroKerning:  { ja: "自動カーニングを切り、手動のカーニングも 0 にします", en: "Turns auto kerning off and sets manual kerning to 0" },
+            tracking: {
+                ja: "対象の文字のトラッキングです（1/1000 em）。空欄なら変更しません",
+                en: "Tracking of the target characters (1/1000 em); leave blank to keep it"
             },
             strikethrough: { ja: "字面の上下中央に線を引きます", en: "Draws the line through the vertical center of the glyphs" },
-            preset:       { ja: "保存した設定を読み込みます", en: "Loads a saved set of settings" },
+            doubleStrikethrough: {
+                ja: "字面の上下中央に2本の線を引きます（間隔は［線の間隔］）",
+                en: "Draws two lines through the vertical center of the glyphs (spaced by Line Gap)"
+            },
+            preset:       { ja: "クリックすると、その設定を読み込みます", en: "Click to load the settings" },
             presetSave:   { ja: "今の設定に名前を付けて保存します", en: "Saves the current settings under a name" },
             presetDelete: {
                 ja: "選んでいるプリセットを削除します（最初からあるものは削除できません）",
                 en: "Deletes the selected preset (built-in presets cannot be deleted)"
             },
             presetName:   { ja: "保存する設定の名前です。同じ名前は上書きします", en: "Name the settings are saved under. The same name is overwritten" },
-            zigzagSize:   { ja: "ギザギザの山の高さです", en: "Height of the zigzag ridges" },
-            zigzagRidges: { ja: "線の端から端までの折り返しの数です", en: "Number of ridges from one end of the line to the other" }
+            zigzagSize:   { ja: "ギザギザの山の高さ、手書き風の揺れの大きさです", en: "Height of the zigzag ridges, or the Hand-Drawn roughness" },
+            zigzagRidges: { ja: "線の端から端までの折り返しの数です", en: "Number of ridges from one end of the line to the other" },
+            smoothPoints: { ja: "折り返しを曲線にして、波線にします", en: "Curves the ridges into a wavy line" },
+            cornerPoints: { ja: "折り返しを角にして、ギザギザにします", en: "Keeps the ridges as sharp corners" }
         },
         button: {
             ok:     { ja: "OK", en: "OK" },
@@ -2025,8 +2160,8 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
                 en: "Select characters with the Type tool, or select text objects."
             },
             noGlyphs: {
-                ja: "選択した文字に字形がありません。\nスペースや改行だけの範囲にはマーカーを引けません。",
-                en: "The selected characters have no glyphs.\nA marker cannot be drawn over spaces or line breaks only."
+                ja: "選択した文字に字形がありません。\nスペースや改行だけの範囲には線や長方形を描けません。",
+                en: "The selected characters have no glyphs.\nNothing can be drawn over spaces or line breaks only."
             },
             presetSaveFailed: { ja: "プリセットを保存できませんでした。", en: "Could not save the preset." }
         },
@@ -2135,8 +2270,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
      * @param {boolean} isTextColorUsable - ［文字色］を使えるか（false なら無効にする）
      * @param {Function} onColorChange - カラーを選び直したあとに呼ぶ関数
      * @returns {{label: StaticText, getColorOptions: Function, getChoice: Function, setChoice: Function, getCustomColor: Function, setCustomColor: Function}}
-     *     項目名、{ color, useTextColor, opacity } を返す getColorOptions、選んだキーの読み書き、［カスタム］の色の読み書き、
-     *     ［文字色］の不透明度の入力欄 opacityInput
+     *     項目名、{ color, useTextColor } を返す getColorOptions、選んだキーの読み書き、［カスタム］の色の読み書き
      */
     function addColorChoiceRow(parent, doc, isTextColorUsable, onColorChange) {
         var colorRow = parent.add("group");
@@ -2164,8 +2298,6 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             for (var radioKey in choiceRadios) {
                 if (choiceRadios.hasOwnProperty(radioKey)) choiceRadios[radioKey].value = (radioKey === choiceKey);
             }
-            /* ［不透明度］は［文字色］のときだけ使える / Opacity is used only for Text Color */
-            if (opacityInput) setSteppedFieldEnabled(opacityInput, choiceKey === "textColor");
         }
 
         function selectChoice(choiceKey) {
@@ -2183,16 +2315,9 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
 
         addChoiceRadio(choiceColumn, "yellow");
         addChoiceRadio(choiceColumn, "red");
-        var opacityInput = null;
-        var textColorRow = choiceColumn.add("group");
-        setupRow(textColorRow, "left", 8);
-        var textColorRadio = addChoiceRadio(textColorRow, "textColor");
+        var textColorRadio = addChoiceRadio(choiceColumn, "textColor");
         textColorRadio.helpTip = getLabel("tooltip.textColor");
         textColorRadio.enabled = isTextColorUsable;
-        opacityInput = addMarkerNumberField(textColorRow, "opacity", {
-            text: TEXT_COLOR_OPACITY + "%", characters: 5, step: 5, min: 0, max: 100, unit: "%"
-        }, onColorChange);
-        setSteppedFieldEnabled(opacityInput, chosenKey === "textColor");
 
         var customRow = choiceColumn.add("group");
         setupRow(customRow, "left", 8);
@@ -2207,8 +2332,8 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             label: colorLabel,
             /* ［文字色］の色は対象ごとに違うので、線を引くときに対象から取る / Text Color differs per target, so it is read from each target when drawing */
             getColorOptions: function () {
-                if (chosenKey === "textColor") return { color: null, useTextColor: true, opacity: parseFloat(opacityInput.text) };
-                return { color: choiceColors[chosenKey], useTextColor: false, opacity: 100 };
+                if (chosenKey === "textColor") return { color: null, useTextColor: true };
+                return { color: choiceColors[chosenKey], useTextColor: false };
             },
             getChoice: function () { return chosenKey; },
             /* 知らないキーと、使えない［文字色］は［黄色］にする / unknown keys and an unusable Text Color fall back to Yellow */
@@ -2216,7 +2341,6 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
                 var isUsable = choiceRadios.hasOwnProperty(choiceKey) && (choiceKey !== "textColor" || isTextColorUsable);
                 checkChoiceRadio(isUsable ? choiceKey : "yellow");
             },
-            opacityInput: opacityInput,
             getCustomColor: function () { return choiceColors.custom; },
             setCustomColor: function (newColor) {
                 choiceColors.custom = newColor;
@@ -2229,7 +2353,8 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
      * 項目名・∧∨・入力欄の、数値を入れる1行を作る
      * @param {Window|Panel|Group} parent - 追加先
      * @param {string} labelKey - LABELS.fieldLabel のキー（LABELS.tooltip に同じキーがあれば入力欄の helpTip にする）
-     * @param {Object} fieldOptions - addSteppedField() の text / characters / step / min / max / integer / unit
+     * @param {Object} fieldOptions - addSteppedField() の text / characters / step / min / max / integer / unit。
+     *     allowBlank が true なら空欄を残す（「変更しない」の意味に使う）
      * @param {Function} onValueChange - 値を変えたあとに呼ぶ関数
      * @returns {EditText} 入力欄（項目名は .fieldLabel）
      */
@@ -2242,7 +2367,12 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
            Refresh after the part's onChange has normalized the value (a change listener runs before it) */
         var normalizeValue = numberInput.onChange;
         numberInput.onChange = function () {
-            normalizeValue();
+            if (fieldOptions.allowBlank && /^\s*$/.test(numberInput.text)) {
+                numberInput.text = "";
+                numberInput.lastValidText = "";
+            } else {
+                normalizeValue();
+            }
             onValueChange();
         };
         return numberInput;
@@ -2301,115 +2431,197 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
     }
 
     /**
-     * プレビューの線を出し入れするオブジェクトを作る
+     * プレビューの線・長方形を出し入れするオブジェクトを作る
      * @param {Document} doc - 対象ドキュメント
      * @param {Object[]} markerTargets - collectMarkerTargets() の戻り値
-     * @returns {{update: Function, clear: Function}} 線を引き直す update(markerOptions) と、消す clear()
+     * @returns {{update: Function, clear: Function}} 描き直す update(markerOptions) と、消す clear()
      */
     function createMarkerPreview(doc, markerTargets) {
-        var previewLines = [];
-        /* ［文字を白抜きに］は、白くした複製を前面に置いて元のテキストを隠して見せる
-           White Text is previewed with a whitened copy in front while the original is hidden */
-        var whiteTextCopies = [];
+        var previewItems = [];
+        /* 文字の書式を変えるときは、書式を変えた複製を前面に置いて元のテキストを隠して見せる（markerTargets と同じ順）
+           Text formatting is previewed with a formatted copy in front while the original is hidden (same order as markerTargets) */
+        var textCopies = [];
 
-        function clearPreviewLines() {
-            for (var i = 0; i < previewLines.length; i++) previewLines[i].remove();
-            previewLines = [];
-            for (var j = 0; j < whiteTextCopies.length; j++) {
-                whiteTextCopies[j].remove();
+        function clearPreviewItems() {
+            for (var i = 0; i < previewItems.length; i++) previewItems[i].remove();
+            previewItems = [];
+            for (var j = 0; j < textCopies.length; j++) {
+                textCopies[j].remove();
                 markerTargets[j].sourceFrame.hidden = false;
             }
-            whiteTextCopies = [];
+            textCopies = [];
         }
 
         return {
             update: function (markerOptions) {
-                clearPreviewLines();
+                clearPreviewItems();
                 /* 選択の反転表示やバウンディングボックスで線が見えにくいので、選択を外す（閉じたあと main() で戻す）
                    The selection highlight hides the line, so deselect it (main() restores it after closing) */
                 doc.selection = null;
-                previewLines = placeMarkerLines(markerTargets, markerOptions);
-                if (!markerOptions.whiteText) return;
-                var whiteColor = createDocumentColor(doc, WHITE_TEXT_COLOR.rgb, WHITE_TEXT_COLOR.cmyk);
+                if (!hasTextFormatChange(markerOptions)) {
+                    previewItems = placeMarkers(markerTargets, markerOptions, null);
+                    return;
+                }
+                /* 字面は書式を変えた複製で測る。複製は hidden を引き継ぐので、元を隠す前に作る
+                   Measure the glyphs on the formatted copies; a duplicate inherits hidden, so copy before hiding */
                 for (var i = 0; i < markerTargets.length; i++) {
                     var sourceFrame = markerTargets[i].sourceFrame;
-                    /* 複製は hidden を引き継ぐので、隠す前に作る / a duplicate inherits hidden, so copy before hiding */
                     var textCopy = sourceFrame.duplicate(sourceFrame, ElementPlacement.PLACEBEFORE);
-                    fillTargetSpan(textCopy, markerTargets[i], whiteColor);
-                    sourceFrame.hidden = true;
-                    whiteTextCopies.push(textCopy);
+                    applyTextFormat(doc, textCopy, markerTargets[i], markerOptions);
+                    textCopies.push(textCopy);
                 }
+                previewItems = placeMarkers(markerTargets, markerOptions, textCopies);
+                for (var j = 0; j < markerTargets.length; j++) markerTargets[j].sourceFrame.hidden = true;
             },
-            clear: clearPreviewLines
+            clear: clearPreviewItems
         };
     }
 
     /**
-     * 項目名・ドロップダウン・保存と削除のアイコンの、プリセットの1行を作る
-     * @param {Window|Panel|Group} parent - 追加先
-     * @returns {{label: StaticText, presetDropdown: DropDownList, presetSaveIcon: Group, presetDeleteIcon: Group}} 項目名とコントロール
+     * ［プリセット］パネル（プリセット名のリストと、保存・削除のアイコン）を作る
+     * @param {Group} parent - 追加先（パネルを横に並べるグループ）
+     * @returns {{presetList: ListBox, presetSaveIcon: Group, presetDeleteIcon: Group}} コントロール
      */
-    function addPresetRow(parent) {
-        var presetRow = parent.add("group");
-        setupRow(presetRow, "center", 8);
-        var presetLabel = presetRow.add("statictext", undefined, labelText("fieldLabel.preset"));
-        var presetDropdown = presetRow.add("dropdownlist", undefined, []);
-        presetDropdown.helpTip = getLabel("tooltip.preset");
-        presetDropdown.preferredSize.width = PRESET_DROPDOWN_WIDTH;
-        var presetSaveIcon = addIconButton(presetRow, PRESET_ICON_SIZE, drawSaveIcon);
+    function addPresetPanel(parent) {
+        var presetPanel = parent.add("panel", undefined, getLabel("panel.preset"));
+        setupPanel(presetPanel);
+        presetPanel.alignChildren = ["fill", "fill"];
+        var presetList = presetPanel.add("listbox", undefined, []);
+        presetList.preferredSize = PRESET_LIST_SIZE;
+        presetList.helpTip = getLabel("tooltip.preset");
+        var presetIconRow = presetPanel.add("group");
+        setupRow(presetIconRow, ["left", "bottom"], 8);
+        var presetSaveIcon = addIconButton(presetIconRow, PRESET_ICON_SIZE, drawSaveIcon);
         presetSaveIcon.helpTip = getLabel("tooltip.presetSave");
-        var presetDeleteIcon = addIconButton(presetRow, PRESET_ICON_SIZE, drawTrashIcon);
+        var presetDeleteIcon = addIconButton(presetIconRow, PRESET_ICON_SIZE, drawTrashIcon);
         presetDeleteIcon.helpTip = getLabel("tooltip.presetDelete");
         return {
-            label: presetLabel,
-            presetDropdown: presetDropdown,
+            presetList: presetList,
             presetSaveIcon: presetSaveIcon,
             presetDeleteIcon: presetDeleteIcon
         };
     }
 
     /**
-     * 左に［種類］、右に［設定］（カラー・線幅・線端など）のパネルを並べてコントロールを作る
-     * @param {Window} markerDialog - 追加先のダイアログボックス
+     * ［設定］パネルと、その下の［文字］パネルを作る。［設定］は先頭に［種類］、その下の左の列に共通の項目（カラー・線幅など）、
+     * 右の列に種類ごとの項目（角度・余白など）を置く
+     * @param {Group} parent - 追加先（パネルを縦に並べるグループ）
      * @param {Document} doc - 対象ドキュメント
      * @param {number} glyphHeightPt - 線幅と余白の初期値のもとにする字面の高さ（pt）
      * @param {boolean} isTextColorUsable - ［文字色］を使えるか
      * @param {Function} onSettingChange - 設定を変えたあとに呼ぶ関数
-     * @returns {Object} コントロールと単位 { lineStyleRow, shearAngleInput, zigzagSizeInput, zigzagRidgesInput, boxPaddingInput, cornerRadiusInput, colorRow, strokeWidthInput, verticalOffsetInput, dashStyleRow, strokeCapRow, getWhiteText, setWhiteText, rulerUnit, strokeUnit, labelColumns }
-     *     （labelColumns は［設定］パネルの列ごとの項目名）
+     * @returns {Object} コントロールと単位 { lineStyleRow, shearAngleInput, zigzagSizeInput, zigzagRidgesInput, zigzagPointsRow, boxPaddingInput, cornerRadiusInput, lineGapInput, dotSizeInput, colorRow, opacityInput, strokeWidthInput, verticalOffsetInput, dashStyleRow, strokeCapRow, kerningRow, trackingInput, whiteTextOption, perCharOption, rulerUnit, strokeUnit, labelColumns }
+     *     （labelColumns は列ごとの項目名）
      */
-    function addMarkerControls(markerDialog, doc, glyphHeightPt, isTextColorUsable, onSettingChange) {
-        var rulerUnit = getUnitInfo();
-        var strokeUnit = getUnitInfo("strokeUnits");
-        var markerControls = { rulerUnit: rulerUnit, strokeUnit: strokeUnit };
-
-        var columnGroup = markerDialog.add("group");
-        columnGroup.orientation = "row";
-        columnGroup.alignChildren = ["fill", "top"];
-        columnGroup.spacing = COLUMN_SPACING;
-        var lineStylePanel = columnGroup.add("panel", undefined, getLabel("panel.lineStyle"));
-        setupPanel(lineStylePanel);
-        var settingsPanel = columnGroup.add("panel", undefined, getLabel("panel.settings"));
-        setupPanel(settingsPanel);
-
-        var lineStyleKeys = ["underline", "marker", "straightShear", "zigzag", "fill", "box", "charBox", "strikethrough"];
-        /* 項目名はパネルの見出しが兼ねる / the panel title serves as the label */
-        markerControls.lineStyleRow = addRadioChoiceRow(lineStylePanel, null, lineStyleKeys, DEFAULT_LINE_STYLE, function () {
+    function addMarkerControls(parent, doc, glyphHeightPt, isTextColorUsable, onSettingChange) {
+        var markerControls = { rulerUnit: getUnitInfo(), strokeUnit: getUnitInfo("strokeUnits") };
+        /* 種類や線の種類を変えたら、使える項目を切り替えてからプレビューする / Switch the usable fields before previewing */
+        function onStyleChange() {
             updateStyleFieldsEnabled(markerControls);
             onSettingChange();
-        }, true);
-        markerControls.lineStyleRow.row.alignment = ["left", "top"];
-        for (var i = 0; i < lineStyleKeys.length; i++) {
-            markerControls.lineStyleRow.radios[lineStyleKeys[i]].helpTip = getLabel("tooltip." + lineStyleKeys[i]);
         }
-        /* ［設定］は左に共通の項目、右に種類ごとの項目の2列 / Settings: common items on the left, style-specific items on the right */
-        settingsPanel.orientation = "row";
-        settingsPanel.alignChildren = ["fill", "top"];
-        settingsPanel.spacing = COLUMN_SPACING;
-        var commonColumn = addSettingsColumn(settingsPanel);
-        var styleColumn = addSettingsColumn(settingsPanel);
 
+        var settingsPanel = parent.add("panel", undefined, getLabel("panel.settings"));
+        setupPanel(settingsPanel);
+        addLineStyleDropdown(settingsPanel, markerControls, onStyleChange);
+        var settingsColumnsGroup = settingsPanel.add("group");
+        settingsColumnsGroup.orientation = "row";
+        settingsColumnsGroup.alignChildren = ["fill", "top"];
+        settingsColumnsGroup.spacing = COLUMN_SPACING;
+
+        addCommonSettingFields(addSettingsColumn(settingsColumnsGroup), markerControls, doc, glyphHeightPt, isTextColorUsable,
+            onSettingChange, onStyleChange);
+        addStyleSettingFields(addSettingsColumn(settingsColumnsGroup), markerControls, glyphHeightPt, onSettingChange);
+        addTextFormatPanel(parent, markerControls, onSettingChange);
+
+        /* 項目名の幅は列ごとにそろえる / Label widths are aligned per column */
+        markerControls.labelColumns = [
+            [
+                markerControls.lineStyleRow.label, markerControls.colorRow.label, markerControls.opacityInput.fieldLabel, markerControls.strokeWidthInput.fieldLabel, markerControls.verticalOffsetInput.fieldLabel,
+                markerControls.dashStyleRow.label, markerControls.strokeCapRow.label
+            ],
+            [
+                markerControls.shearAngleInput.fieldLabel, markerControls.zigzagSizeInput.fieldLabel, markerControls.zigzagRidgesInput.fieldLabel,
+                markerControls.zigzagPointsRow.label,
+                markerControls.boxPaddingInput.fieldLabel, markerControls.cornerRadiusInput.fieldLabel,
+                markerControls.lineGapInput.fieldLabel, markerControls.dotSizeInput.fieldLabel
+            ],
+            [markerControls.kerningRow.label, markerControls.trackingInput.fieldLabel]
+        ];
+        updateStyleFieldsEnabled(markerControls);
+        return markerControls;
+    }
+
+    /**
+     * ［設定］パネルの先頭に［種類］のドロップダウンを作り、markerControls.lineStyleRow に入れる。
+     * ドロップダウンの helpTip は選んでいる種類の説明にする
+     * @param {Panel} settingsPanel - ［設定］パネル
+     * @param {Object} markerControls - 作ったコントロールを入れるオブジェクト
+     * @param {Function} onStyleChange - 種類を選び直したあとに呼ぶ関数
+     * @returns {void}
+     */
+    function addLineStyleDropdown(settingsPanel, markerControls, onStyleChange) {
+        var lineStyleKeys = [
+            "underline", "marker", "straightShear", "zigzag", "roughMarker", "fill", "strikethrough", "doubleStrikethrough",
+            "box", "frame", "circle", "hexagon", "emphasisDots"
+        ];
+        var lineStyleNames = [];
+        for (var i = 0; i < lineStyleKeys.length; i++) lineStyleNames.push(getLabel("dropdown." + lineStyleKeys[i]));
+
+        var lineStyleRow = settingsPanel.add("group");
+        setupRow(lineStyleRow, "left", 8);
+        var lineStyleLabel = lineStyleRow.add("statictext", undefined, labelText("fieldLabel.lineStyle"));
+        var lineStyleDropdown = lineStyleRow.add("dropdownlist", undefined, lineStyleNames);
+        lineStyleDropdown.preferredSize.width = LINE_STYLE_DROPDOWN_WIDTH;
+        var chosenKey = DEFAULT_LINE_STYLE;
+        /* selection の代入でも onChange が来るので、書き込み中は無視する / Assigning selection fires onChange too, so ignore it while writing */
+        var isWritingSelection = false;
+
+        /* 種類を選んだ状態にする（知らないキーは無視） / Select a style (unknown keys are ignored) */
+        function selectLineStyle(lineStyleKey) {
+            for (var j = 0; j < lineStyleKeys.length; j++) {
+                if (lineStyleKeys[j] !== lineStyleKey) continue;
+                chosenKey = lineStyleKey;
+                isWritingSelection = true;
+                lineStyleDropdown.selection = j;
+                isWritingSelection = false;
+                lineStyleDropdown.helpTip = getLabel("tooltip." + lineStyleKey);
+                return;
+            }
+        }
+
+        lineStyleDropdown.onChange = function () {
+            if (isWritingSelection || !lineStyleDropdown.selection) return;
+            chosenKey = lineStyleKeys[lineStyleDropdown.selection.index];
+            lineStyleDropdown.helpTip = getLabel("tooltip." + chosenKey);
+            onStyleChange();
+        };
+        selectLineStyle(DEFAULT_LINE_STYLE);
+        markerControls.lineStyleRow = {
+            label: lineStyleLabel,
+            getChoice: function () { return chosenKey; },
+            setChoice: selectLineStyle
+        };
+    }
+
+    /**
+     * ［設定］の左の列に、カラー・不透明度・線幅・上下位置・線の種類・線端を作り、markerControls に入れる
+     * @param {Group} commonColumn - 左の列
+     * @param {Object} markerControls - 作ったコントロールを入れるオブジェクト（rulerUnit・strokeUnit 付き）
+     * @param {Document} doc - 対象ドキュメント
+     * @param {number} glyphHeightPt - 線幅の初期値のもとにする字面の高さ（pt）
+     * @param {boolean} isTextColorUsable - ［文字色］を使えるか
+     * @param {Function} onSettingChange - 設定を変えたあとに呼ぶ関数
+     * @param {Function} onStyleChange - 線の種類を選び直したあとに呼ぶ関数
+     * @returns {void}
+     */
+    function addCommonSettingFields(commonColumn, markerControls, doc, glyphHeightPt, isTextColorUsable, onSettingChange, onStyleChange) {
+        var rulerUnit = markerControls.rulerUnit;
+        var strokeUnit = markerControls.strokeUnit;
         markerControls.colorRow = addColorChoiceRow(commonColumn, doc, isTextColorUsable, onSettingChange);
+        markerControls.opacityInput = addMarkerNumberField(commonColumn, "opacity", {
+            text: DEFAULT_OPACITY + "%", characters: 7, step: 5, min: 0, max: 100, unit: "%"
+        }, onSettingChange);
         markerControls.strokeWidthInput = addMarkerNumberField(commonColumn, "strokeWidth", {
             text: formatStepperNumber(ptToUnit(glyphHeightPt * MARKER_WEIGHT_RATIO, strokeUnit)) + " " + strokeUnit.label,
             characters: 7, step: 1, min: 0.1, unit: " " + strokeUnit.label
@@ -2417,73 +2629,103 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         markerControls.verticalOffsetInput = addMarkerNumberField(commonColumn, "verticalOffset", {
             text: "0 " + rulerUnit.label, characters: 7, step: 1, unit: " " + rulerUnit.label
         }, onSettingChange);
-        markerControls.dashStyleRow = addRadioChoiceRow(commonColumn, "dashStyle", ["solidLine", "dashedLine", "dottedLine"], DEFAULT_DASH_STYLE, function () {
-            updateStyleFieldsEnabled(markerControls);
-            onSettingChange();
-        });
+        markerControls.dashStyleRow = addRadioChoiceRow(commonColumn, "dashStyle", ["solidLine", "dashedLine", "dottedLine"], DEFAULT_DASH_STYLE, onStyleChange);
         markerControls.dashStyleRow.radios.dashedLine.helpTip = getLabel("tooltip.dashedLine");
         markerControls.dashStyleRow.radios.dottedLine.helpTip = getLabel("tooltip.dottedLine");
         markerControls.strokeCapRow = addRadioChoiceRow(commonColumn, "strokeCap", ["buttCap", "roundCap"], DEFAULT_STROKE_CAP, onSettingChange);
         markerControls.strokeCapRow.radios.roundCap.helpTip = getLabel("tooltip.roundCap");
 
+    }
 
-        /* show() 前に代入した value は読み戻せないので、オンオフは変数で持つ / value set before show() cannot be read back, so keep the state in a variable */
-        var isWhiteText = DEFAULT_WHITE_TEXT;
-        var whiteTextCheckbox = commonColumn.add("checkbox", undefined, getLabel("checkbox.whiteText"));
-        whiteTextCheckbox.alignment = "left";
-        whiteTextCheckbox.helpTip = getLabel("tooltip.whiteText");
-        whiteTextCheckbox.value = isWhiteText;
-        whiteTextCheckbox.onClick = function () {
-            isWhiteText = whiteTextCheckbox.value;
-            onSettingChange();
-        };
-        markerControls.getWhiteText = function () { return isWhiteText; };
-        markerControls.setWhiteText = function (shouldWhiten) {
-            isWhiteText = shouldWhiten;
-            whiteTextCheckbox.value = shouldWhiten;
-        };
+    /**
+     * ［文字］パネル（自動カーニング・トラッキング・［文字を白抜きに］）を作り、markerControls に入れる
+     * @param {Group} parent - 追加先
+     * @param {Object} markerControls - 作ったコントロールを入れるオブジェクト
+     * @param {Function} onSettingChange - 設定を変えたあとに呼ぶ関数
+     * @returns {void}
+     */
+    function addTextFormatPanel(parent, markerControls, onSettingChange) {
+        var textFormatPanel = parent.add("panel", undefined, getLabel("panel.textFormat"));
+        setupPanel(textFormatPanel);
+        markerControls.kerningRow = addRadioChoiceRow(textFormatPanel, "autoKerning",
+            ["keepKerning", "zeroKerning", "metricsKerning", "opticalKerning"], DEFAULT_KERNING_CHOICE, onSettingChange);
+        markerControls.kerningRow.radios.zeroKerning.helpTip = getLabel("tooltip.zeroKerning");
+        markerControls.trackingInput = addMarkerNumberField(textFormatPanel, "tracking", {
+            text: DEFAULT_TRACKING_TEXT, characters: 7, step: 10, min: -1000, max: 10000, allowBlank: true
+        }, onSettingChange);
+        markerControls.whiteTextOption = addOptionCheckbox(textFormatPanel, "whiteText", DEFAULT_WHITE_TEXT, onSettingChange);
+    }
 
+    /**
+     * オンオフを変数で持つチェックボックスを作る（show() 前に代入した value は読み戻せないため）
+     * @param {Group} parent - 追加先
+     * @param {string} labelKey - LABELS.checkbox と LABELS.tooltip のキー
+     * @param {boolean} initialValue - 最初のオンオフ
+     * @param {Function} onValueChange - クリックで切り替えたあとに呼ぶ関数
+     * @returns {{checkbox: Checkbox, getValue: Function, setValue: Function}} チェックボックスと、オンオフの読み書き
+     */
+    function addOptionCheckbox(parent, labelKey, initialValue, onValueChange) {
+        var isChecked = initialValue;
+        var optionCheckbox = parent.add("checkbox", undefined, getLabel("checkbox." + labelKey));
+        optionCheckbox.alignment = "left";
+        optionCheckbox.helpTip = getLabel("tooltip." + labelKey);
+        optionCheckbox.value = isChecked;
+        optionCheckbox.onClick = function () {
+            isChecked = optionCheckbox.value;
+            onValueChange();
+        };
+        return {
+            checkbox: optionCheckbox,
+            getValue: function () { return isChecked; },
+            setValue: function (shouldCheck) {
+                isChecked = shouldCheck;
+                optionCheckbox.value = shouldCheck;
+            }
+        };
+    }
+
+    /**
+     * ［設定］の右の列に、種類ごとの項目（1文字ずつ・角度・大きさ・折り返し・ポイント・余白・角丸の半径・線の間隔・点の大きさ）を作り、markerControls に入れる
+     * @param {Group} styleColumn - 右の列
+     * @param {Object} markerControls - 作ったコントロールを入れるオブジェクト（rulerUnit 付き）
+     * @param {number} glyphHeightPt - 余白の初期値のもとにする字面の高さ（pt）
+     * @param {Function} onSettingChange - 設定を変えたあとに呼ぶ関数
+     * @returns {void}
+     */
+    function addStyleSettingFields(styleColumn, markerControls, glyphHeightPt, onSettingChange) {
+        var rulerUnit = markerControls.rulerUnit;
+        /* 長さの欄（定規の単位）の指定を作る（minValue を省くと下限なし） / Options for a length field in the ruler unit (no lower limit when minValue is omitted) */
+        function lengthFieldOptions(valuePt, minValue) {
+            return {
+                text: formatStepperNumber(ptToUnit(valuePt, rulerUnit)) + " " + rulerUnit.label,
+                characters: 7, step: 1, min: minValue, unit: " " + rulerUnit.label
+            };
+        }
+        markerControls.perCharOption = addOptionCheckbox(styleColumn, "perChar", DEFAULT_PER_CHAR, onSettingChange);
         markerControls.shearAngleInput = addMarkerNumberField(styleColumn, "shearAngle", {
             text: DEFAULT_SHEAR_ANGLE + "°", characters: 7, step: 1, min: -80, max: 80, unit: "°"
         }, onSettingChange);
-        markerControls.zigzagSizeInput = addMarkerNumberField(styleColumn, "zigzagSize", {
-            text: formatStepperNumber(ptToUnit(DEFAULT_ZIGZAG_SIZE, rulerUnit)) + " " + rulerUnit.label,
-            characters: 7, step: 1, min: 0.1, unit: " " + rulerUnit.label
-        }, onSettingChange);
+        markerControls.zigzagSizeInput = addMarkerNumberField(styleColumn, "zigzagSize", lengthFieldOptions(DEFAULT_ZIGZAG_SIZE, 0.1), onSettingChange);
         markerControls.zigzagRidgesInput = addMarkerNumberField(styleColumn, "zigzagRidges", {
             text: String(DEFAULT_ZIGZAG_RIDGES), characters: 7, step: 1, min: 1, integer: true
         }, onSettingChange);
-        markerControls.boxPaddingInput = addMarkerNumberField(styleColumn, "boxPadding", {
-            text: formatStepperNumber(ptToUnit(glyphHeightPt * BOX_PADDING_RATIO, rulerUnit)) + " " + rulerUnit.label,
-            characters: 7, step: 1, min: 0, unit: " " + rulerUnit.label
-        }, onSettingChange);
-        markerControls.cornerRadiusInput = addMarkerNumberField(styleColumn, "cornerRadius", {
-            text: formatStepperNumber(ptToUnit(DEFAULT_CORNER_RADIUS, rulerUnit)) + " " + rulerUnit.label,
-            characters: 7, step: 1, min: 0, unit: " " + rulerUnit.label
-        }, onSettingChange);
-
-        /* 項目名の幅は列ごとにそろえる / Label widths are aligned per column */
-        markerControls.labelColumns = [
-            [
-                markerControls.colorRow.label, markerControls.strokeWidthInput.fieldLabel, markerControls.verticalOffsetInput.fieldLabel,
-                markerControls.dashStyleRow.label, markerControls.strokeCapRow.label
-            ],
-            [
-                markerControls.shearAngleInput.fieldLabel, markerControls.zigzagSizeInput.fieldLabel, markerControls.zigzagRidgesInput.fieldLabel,
-                markerControls.boxPaddingInput.fieldLabel, markerControls.cornerRadiusInput.fieldLabel
-            ]
-        ];
-        updateStyleFieldsEnabled(markerControls);
-        return markerControls;
+        markerControls.zigzagPointsRow = addRadioChoiceRow(styleColumn, "zigzagPoints", ["smoothPoints", "cornerPoints"], DEFAULT_ZIGZAG_POINTS, onSettingChange);
+        markerControls.zigzagPointsRow.radios.smoothPoints.helpTip = getLabel("tooltip.smoothPoints");
+        markerControls.zigzagPointsRow.radios.cornerPoints.helpTip = getLabel("tooltip.cornerPoints");
+        markerControls.boxPaddingInput = addMarkerNumberField(styleColumn, "boxPadding",
+            lengthFieldOptions(glyphHeightPt * BOX_PADDING_RATIO), onSettingChange);
+        markerControls.cornerRadiusInput = addMarkerNumberField(styleColumn, "cornerRadius", lengthFieldOptions(DEFAULT_CORNER_RADIUS, 0), onSettingChange);
+        markerControls.lineGapInput = addMarkerNumberField(styleColumn, "lineGap", lengthFieldOptions(glyphHeightPt * LINE_GAP_RATIO, 0), onSettingChange);
+        markerControls.dotSizeInput = addMarkerNumberField(styleColumn, "dotSize", lengthFieldOptions(glyphHeightPt * DOT_SIZE_RATIO, 0.1), onSettingChange);
     }
 
     /**
      * ［設定］パネルの1列を作る
-     * @param {Panel} settingsPanel - 追加先の［設定］パネル
+     * @param {Group} settingsColumnsGroup - 列を横に並べるグループ
      * @returns {Group} 列のグループ
      */
-    function addSettingsColumn(settingsPanel) {
-        var settingsColumn = settingsPanel.add("group");
+    function addSettingsColumn(settingsColumnsGroup) {
+        var settingsColumn = settingsColumnsGroup.add("group");
         settingsColumn.orientation = "column";
         settingsColumn.alignChildren = ["fill", "top"];
         settingsColumn.alignment = ["fill", "top"];
@@ -2492,25 +2734,31 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
     }
 
     /**
-     * ［角度］は［直線＋シアー］、［大きさ］［折り返し］は［ギザギザ］のときだけ使えるようにする。
-     * ［塗りつぶし］は線幅が字面の高さで決まるので、［線幅］を使えなくする。
-     * ［長方形］［1文字ずつの長方形］は線を引かないので、［線幅］［線］［線端］のかわりに［余白］［角丸の半径］を使えるようにする。
-     * ［ドット点線］のときは［線端］を使えなくする
+     * 種類に合わせて、使う項目だけを使えるようにする。
+     * ［線幅］は線を引く種類と［囲み罫］、［線の種類］はさらに［塗りつぶし］でも使い、［線端］は線を引く種類だけ（［ドット］のときは丸型に固定）。
+     * ［余白］は長方形の仲間と［傍点］、［角丸の半径］は長方形の仲間で使う
      * @param {Object} markerControls - addMarkerControls() の戻り値
      * @returns {void}
      */
     function updateStyleFieldsEnabled(markerControls) {
         var lineStyle = markerControls.lineStyleRow.getChoice();
         var isBoxStyle = isBoxLineStyle(lineStyle);
+        var isDots = (lineStyle === "emphasisDots");
+        var isLineStyle = !isBoxStyle && !isDots;
+        var isStrokedStyle = isLineStyle || lineStyle === "frame";
         setSteppedFieldEnabled(markerControls.shearAngleInput, lineStyle === "straightShear");
-        setSteppedFieldEnabled(markerControls.zigzagSizeInput, lineStyle === "zigzag");
+        setSteppedFieldEnabled(markerControls.zigzagSizeInput, lineStyle === "zigzag" || lineStyle === "roughMarker");
         setSteppedFieldEnabled(markerControls.zigzagRidgesInput, lineStyle === "zigzag");
-        setSteppedFieldEnabled(markerControls.boxPaddingInput, isBoxStyle);
-        setSteppedFieldEnabled(markerControls.cornerRadiusInput, isBoxStyle);
-        setSteppedFieldEnabled(markerControls.strokeWidthInput, lineStyle !== "fill" && !isBoxStyle);
-        setRadiosEnabled(markerControls.dashStyleRow, !isBoxStyle);
-        /* ドット点線は丸型の線端で点にするので、［線端］は選べない / Dotted needs round caps for its dots, so Cap is not selectable */
-        setRadiosEnabled(markerControls.strokeCapRow, !isBoxStyle && markerControls.dashStyleRow.getChoice() !== "dottedLine");
+        setRadiosEnabled(markerControls.zigzagPointsRow, lineStyle === "zigzag");
+        setSteppedFieldEnabled(markerControls.boxPaddingInput, isBoxStyle || isDots);
+        setSteppedFieldEnabled(markerControls.cornerRadiusInput, lineStyle === "box" || lineStyle === "frame");
+        markerControls.perCharOption.checkbox.enabled = isBoxStyle;
+        setSteppedFieldEnabled(markerControls.lineGapInput, lineStyle === "doubleStrikethrough");
+        setSteppedFieldEnabled(markerControls.dotSizeInput, isDots);
+        setSteppedFieldEnabled(markerControls.strokeWidthInput, isStrokedStyle && lineStyle !== "fill");
+        setRadiosEnabled(markerControls.dashStyleRow, isStrokedStyle);
+        /* ドットは丸型の線端で点にするので、［線端］は選べない / Dotted needs round caps for its dots, so Cap is not selectable */
+        setRadiosEnabled(markerControls.strokeCapRow, isLineStyle && markerControls.dashStyleRow.getChoice() !== "dottedLine");
     }
 
     /**
@@ -2526,36 +2774,81 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
     }
 
     /**
-     * 線のかわりに長方形を描く種類かを返す
+     * 線のかわりに図形（長方形・円・六角形）を描く種類かを返す
      * @param {string} lineStyle - 種類のキー
-     * @returns {boolean} ［長方形］［1文字ずつの長方形］なら true
+     * @returns {boolean} ［長方形］［囲み罫］［円］［六角形］なら true
      */
     function isBoxLineStyle(lineStyle) {
-        return lineStyle === "box" || lineStyle === "charBox";
+        return lineStyle === "box" || lineStyle === "frame" || lineStyle === "circle" || lineStyle === "hexagon";
+    }
+
+    /**
+     * 範囲を囲む六角形の頂点を返す。
+     * 1文字ずつなら、範囲の中心に、長い辺を平らな辺どうしの間隔にした正六角形（左右がとがる）。
+     * 行ごとなら、範囲の左右（縦組みは上下）に 60° でとがった先を足した六角形
+     * @param {number} areaLeft - 範囲の左端
+     * @param {number} areaTop - 範囲の上端
+     * @param {number} areaWidth - 範囲の幅
+     * @param {number} areaHeight - 範囲の高さ
+     * @param {boolean} isPerChar - 1文字ずつか
+     * @param {boolean} isVertical - 縦組みか
+     * @returns {number[][]} 頂点 [x, y] の配列
+     */
+    function getHexagonPoints(areaLeft, areaTop, areaWidth, areaHeight, isPerChar, isVertical) {
+        var centerX = areaLeft + areaWidth / 2;
+        var centerY = areaTop - areaHeight / 2;
+        var areaRight = areaLeft + areaWidth;
+        var areaBottom = areaTop - areaHeight;
+        if (isPerChar) {
+            var halfFlat = Math.max(areaWidth, areaHeight) / 2;
+            var sideLength = halfFlat * 2 / Math.sqrt(3);
+            return [
+                [centerX - sideLength, centerY], [centerX - sideLength / 2, centerY + halfFlat], [centerX + sideLength / 2, centerY + halfFlat],
+                [centerX + sideLength, centerY], [centerX + sideLength / 2, centerY - halfFlat], [centerX - sideLength / 2, centerY - halfFlat]
+            ];
+        }
+        if (isVertical) {
+            var tipHeight = areaWidth / (2 * Math.sqrt(3));
+            return [
+                [centerX, areaTop + tipHeight], [areaRight, areaTop], [areaRight, areaBottom],
+                [centerX, areaBottom - tipHeight], [areaLeft, areaBottom], [areaLeft, areaTop]
+            ];
+        }
+        var tipWidth = areaHeight / (2 * Math.sqrt(3));
+        return [
+            [areaLeft - tipWidth, centerY], [areaLeft, areaTop], [areaRight, areaTop],
+            [areaRight + tipWidth, centerY], [areaRight, areaBottom], [areaLeft, areaBottom]
+        ];
     }
 
     /**
      * 今のダイアログボックスの指定を、線を引くための値にまとめる
      * @param {Object} markerControls - addMarkerControls() の戻り値
-     * @returns {Object} { color, useTextColor, opacity, strokeWidth（pt）, verticalOffset（pt）, lineStyle, shearAngle（度）, zigzagSize（pt）, zigzagRidges, boxPadding（pt）, cornerRadius（pt）, dashStyle, strokeCap, whiteText }
+     * @returns {Object} { color, useTextColor, opacity, strokeWidth（pt）, verticalOffset（pt）, lineStyle, shearAngle（度）, zigzagSize（pt）, zigzagRidges, isZigzagSmooth, boxPadding（pt）, cornerRadius（pt）, lineGap（pt）, dotSize（pt）, dashStyle, strokeCap, isPerChar, kerningChoice, tracking（空欄なら null）, whiteText }
      */
     function readMarkerOptions(markerControls) {
         var colorOptions = markerControls.colorRow.getColorOptions();
         return {
             color: colorOptions.color,
             useTextColor: colorOptions.useTextColor,
-            opacity: colorOptions.opacity,
+            opacity: parseFloat(markerControls.opacityInput.text),
             strokeWidth: unitToPt(parseFloat(markerControls.strokeWidthInput.text), markerControls.strokeUnit),
             verticalOffset: unitToPt(parseFloat(markerControls.verticalOffsetInput.text), markerControls.rulerUnit),
             lineStyle: markerControls.lineStyleRow.getChoice(),
             shearAngle: parseFloat(markerControls.shearAngleInput.text),
             zigzagSize: unitToPt(parseFloat(markerControls.zigzagSizeInput.text), markerControls.rulerUnit),
             zigzagRidges: parseInt(markerControls.zigzagRidgesInput.text, 10),
+            isZigzagSmooth: (markerControls.zigzagPointsRow.getChoice() === "smoothPoints"),
             boxPadding: unitToPt(parseFloat(markerControls.boxPaddingInput.text), markerControls.rulerUnit),
             cornerRadius: unitToPt(parseFloat(markerControls.cornerRadiusInput.text), markerControls.rulerUnit),
+            lineGap: unitToPt(parseFloat(markerControls.lineGapInput.text), markerControls.rulerUnit),
+            dotSize: unitToPt(parseFloat(markerControls.dotSizeInput.text), markerControls.rulerUnit),
             dashStyle: markerControls.dashStyleRow.getChoice(),
             strokeCap: (markerControls.strokeCapRow.getChoice() === "roundCap") ? StrokeCap.ROUNDENDCAP : StrokeCap.BUTTENDCAP,
-            whiteText: markerControls.getWhiteText()
+            isPerChar: markerControls.perCharOption.getValue(),
+            kerningChoice: markerControls.kerningRow.getChoice(),
+            tracking: /^\s*$/.test(markerControls.trackingInput.text) ? null : parseFloat(markerControls.trackingInput.text),
+            whiteText: markerControls.whiteTextOption.getValue()
         };
     }
 
@@ -2572,17 +2865,25 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         var markerPreview = createMarkerPreview(doc, markerTargets);
         /* show() 前に代入した value は読み戻せないので、オンオフは変数で持つ / value set before show() cannot be read back, so keep the state in a variable */
         var isPreviewOn = PREVIEW_ON_OPEN;
-        /* プリセットの書き込み中は、項目ごとのプレビューを止める / suspend per-field previews while a preset is written */
-        var isApplyingPreset = false;
 
-        var presetControls = addPresetRow(markerDialog);
+        /* 左に［プリセット］、右に［設定］と［文字］ / Presets on the left, Settings and Text on the right */
+        var panelColumnsGroup = markerDialog.add("group");
+        panelColumnsGroup.orientation = "row";
+        panelColumnsGroup.alignChildren = ["fill", "fill"];
+        panelColumnsGroup.spacing = COLUMN_SPACING;
+        var presetControls = addPresetPanel(panelColumnsGroup);
         /* 線幅・余白の初期値と、最初からあるプリセットの比率は、先頭の対象の字面の高さから
            Initial width and padding, and the built-in preset ratios, come from the first target's glyph height */
-        var firstBounds = markerTargets[0].glyphBounds;
-        var glyphHeightPt = firstBounds.top - firstBounds.bottom;
+        var firstGlyphBounds = markerTargets[0].glyphBounds;
+        var glyphHeightPt = firstGlyphBounds.top - firstGlyphBounds.bottom;
         presetControls.builtinPresets = createBuiltinPresets(doc, glyphHeightPt);
-        var markerControls = addMarkerControls(markerDialog, doc, glyphHeightPt, areTextColorsUsable(markerTargets), refreshPreview);
+        var rightPanelsGroup = panelColumnsGroup.add("group");
+        rightPanelsGroup.orientation = "column";
+        rightPanelsGroup.alignChildren = ["fill", "top"];
+        rightPanelsGroup.spacing = WINDOW_SPACING;
+        var markerControls = addMarkerControls(rightPanelsGroup, doc, glyphHeightPt, areTextColorsUsable(markerTargets), refreshPreview);
         for (var i = 0; i < markerControls.labelColumns.length; i++) alignLabelWidths(markerControls.labelColumns[i]);
+        bindPresetControls(presetControls, markerControls, refreshPreview);
 
         var buttonRow = addButtonRow(markerDialog);
         var previewCheckbox = buttonRow.leftGroup.add("checkbox", undefined, getLabel("checkbox.preview"));
@@ -2592,53 +2893,62 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             isPreviewOn = previewCheckbox.value;
             refreshPreview();
         };
-        var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
-        var btnOK = buttonRow.rightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+        buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+        buttonRow.rightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
         alignRightOnlyButtonRow(buttonRow);
 
-        /* プレビューの線を今の指定で引き直す（オフなら消すだけ） / Redraw the preview line with the current settings (just remove it when off) */
+        /* プレビューを今の指定で描き直す（オフなら消すだけ） / Redraw the preview with the current settings (just remove it when off) */
         function refreshPreview() {
-            if (isApplyingPreset) return;
             if (isPreviewOn) markerPreview.update(readMarkerOptions(markerControls));
             else markerPreview.clear();
             app.redraw();
         }
 
-        /* ドロップダウンを作り直して名前を選ぶ（onChange は無視させる） / Refill the dropdown, ignoring its onChange */
-        function refreshPresetDropdown(selectedName) {
-            isApplyingPreset = true;
-            fillPresetDropdown(presetControls, selectedName);
-            isApplyingPreset = false;
+        if (isPreviewOn) refreshPreview();
+        prepareDialogWindow(markerDialog, SCRIPT_NAME);
+        var dialogResult = markerDialog.show();
+        /* 確定でも消して、main() で描き直す / Removed on OK too; main() draws the final result */
+        markerPreview.clear();
+        if (dialogResult !== 1) return null;
+        return readMarkerOptions(markerControls);
+    }
+
+    /**
+     * プリセットのリスト・保存・削除の動作を付け、リストを埋める
+     * @param {Object} presetControls - addPresetPanel() の戻り値（builtinPresets 付き）
+     * @param {Object} markerControls - addMarkerControls() の戻り値
+     * @param {Function} onPresetApplied - プリセットを書き込んだあとに呼ぶ関数
+     * @returns {void}
+     */
+    function bindPresetControls(presetControls, markerControls, onPresetApplied) {
+        /* selection の代入でも onChange が来るので、作り直しの間は無視する / Assigning selection fires onChange too, so ignore it while refilling */
+        var isRefillingList = false;
+
+        function refreshPresetList(selectedName) {
+            isRefillingList = true;
+            fillPresetList(presetControls, selectedName);
+            isRefillingList = false;
         }
 
-        presetControls.presetDropdown.onChange = function () {
-            if (isApplyingPreset) return;
+        presetControls.presetList.onChange = function () {
+            if (isRefillingList) return;
             var presetName = getSelectedPresetName(presetControls);
             setIconButtonEnabled(presetControls.presetDeleteIcon, isSavedPreset(presetName));
             var presetData = findPresetData(presetControls, presetName);
             if (!presetData) return;
-            isApplyingPreset = true;
+            /* 欄への代入ではイベントが来ないので、書き込んだあとでまとめて反映する / Writing the fields fires no events, so refresh once afterwards */
             applyPresetData(markerControls, presetData);
-            isApplyingPreset = false;
             updateStyleFieldsEnabled(markerControls);
-            refreshPreview();
+            onPresetApplied();
         };
         presetControls.presetSaveIcon.onClick = function () {
             var savedName = saveCurrentPreset(markerControls, presetControls);
-            if (savedName) refreshPresetDropdown(savedName);
+            if (savedName) refreshPresetList(savedName);
         };
         presetControls.presetDeleteIcon.onClick = function () {
-            if (deleteSelectedPreset(presetControls)) refreshPresetDropdown(null);
+            if (deleteSelectedPreset(presetControls)) refreshPresetList(null);
         };
-        refreshPresetDropdown(null);
-
-        if (isPreviewOn) refreshPreview();
-        prepareDialogWindow(markerDialog, SCRIPT_NAME);
-        var dialogResult = markerDialog.show();
-        /* 確定でも消して、main() で引き直す / Removed on OK too; main() draws the final line */
-        markerPreview.clear();
-        if (dialogResult !== 1) return null;
-        return readMarkerOptions(markerControls);
+        refreshPresetList(null);
     }
 
     // =========================================
@@ -2679,7 +2989,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
 
     /**
      * プリセット名の設定を返す（保存したものを、同じ名前の最初からあるものより優先する）
-     * @param {Object} presetControls - addPresetRow() の戻り値（builtinPresets 付き）
+     * @param {Object} presetControls - addPresetPanel() の戻り値（builtinPresets 付き）
      * @param {string|null} presetName - プリセット名
      * @returns {Object|null} プリセット。見つからなければ null
      */
@@ -2775,16 +3085,22 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             shearAngle: markerOptions.shearAngle,
             zigzagSizePt: markerOptions.zigzagSize,
             zigzagRidges: markerOptions.zigzagRidges,
+            zigzagPoints: markerControls.zigzagPointsRow.getChoice(),
             boxPaddingPt: markerOptions.boxPadding,
             cornerRadiusPt: markerOptions.cornerRadius,
+            lineGapPt: markerOptions.lineGap,
+            dotSizePt: markerOptions.dotSize,
             colorChoice:markerControls.colorRow.getChoice(),
-            textColorOpacity: parseFloat(markerControls.colorRow.opacityInput.text),
+            opacity: parseFloat(markerControls.opacityInput.text),
             customColor: serializeColor(markerControls.colorRow.getCustomColor()),
             strokeWidthPt: markerOptions.strokeWidth,
             verticalOffsetPt: markerOptions.verticalOffset,
             dashStyle: markerOptions.dashStyle,
             strokeCap: markerControls.strokeCapRow.getChoice(),
-            whiteText: markerControls.getWhiteText()
+            isPerChar: markerControls.perCharOption.getValue(),
+            kerningChoice: markerControls.kerningRow.getChoice(),
+            trackingText: markerControls.trackingInput.text,
+            whiteText: markerControls.whiteTextOption.getValue()
         };
     }
 
@@ -2806,64 +3122,86 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
      */
     function applyPresetData(markerControls, presetData) {
         /* 旧版の［直線］は［マーカー］と同じ位置 / the former Straight sits where Marker does */
-        if (presetData.lineStyle) markerControls.lineStyleRow.setChoice(presetData.lineStyle === "straight" ? "marker" : presetData.lineStyle);
-        if (typeof presetData.shearAngle === "number") setMarkerFieldValue(markerControls.shearAngleInput, presetData.shearAngle);
-        if (typeof presetData.zigzagSizePt === "number") {
-            setMarkerFieldValue(markerControls.zigzagSizeInput, ptToUnit(presetData.zigzagSizePt, markerControls.rulerUnit));
+        /* 旧版の種類を今の種類と［1文字ずつ］に読み替える / Map former styles to the current style and Per Character */
+        var formerStyles = {
+            straight: { lineStyle: "marker" },
+            charBox: { lineStyle: "box", isPerChar: true },
+            charCircle: { lineStyle: "circle", isPerChar: true }
+        };
+        var formerStyle = formerStyles.hasOwnProperty(presetData.lineStyle) ? formerStyles[presetData.lineStyle] : null;
+        if (formerStyle) {
+            markerControls.lineStyleRow.setChoice(formerStyle.lineStyle);
+            if (formerStyle.isPerChar) markerControls.perCharOption.setValue(true);
+        } else if (presetData.lineStyle) {
+            markerControls.lineStyleRow.setChoice(presetData.lineStyle);
         }
-        if (typeof presetData.zigzagRidges === "number") setMarkerFieldValue(markerControls.zigzagRidgesInput, presetData.zigzagRidges);
-        if (typeof presetData.boxPaddingPt === "number") {
-            setMarkerFieldValue(markerControls.boxPaddingInput, ptToUnit(presetData.boxPaddingPt, markerControls.rulerUnit));
+        /* 数値の欄：[プリセットのキー, 入力欄, pt から換算する単位（null なら換算しない）]
+           Number fields: [preset key, input, unit converted from pt (null for no conversion)] */
+        var numberFields = [
+            ["shearAngle", markerControls.shearAngleInput, null],
+            ["zigzagSizePt", markerControls.zigzagSizeInput, markerControls.rulerUnit],
+            ["zigzagRidges", markerControls.zigzagRidgesInput, null],
+            ["boxPaddingPt", markerControls.boxPaddingInput, markerControls.rulerUnit],
+            ["cornerRadiusPt", markerControls.cornerRadiusInput, markerControls.rulerUnit],
+            ["lineGapPt", markerControls.lineGapInput, markerControls.rulerUnit],
+            ["dotSizePt", markerControls.dotSizeInput, markerControls.rulerUnit],
+            ["opacity", markerControls.opacityInput, null],
+            ["strokeWidthPt", markerControls.strokeWidthInput, markerControls.strokeUnit],
+            ["verticalOffsetPt", markerControls.verticalOffsetInput, markerControls.rulerUnit]
+        ];
+        for (var i = 0; i < numberFields.length; i++) {
+            var presetValue = presetData[numberFields[i][0]];
+            if (typeof presetValue !== "number") continue;
+            var fieldUnit = numberFields[i][2];
+            setMarkerFieldValue(numberFields[i][1], fieldUnit ? ptToUnit(presetValue, fieldUnit) : presetValue);
         }
-        if (typeof presetData.cornerRadiusPt === "number") {
-            setMarkerFieldValue(markerControls.cornerRadiusInput, ptToUnit(presetData.cornerRadiusPt, markerControls.rulerUnit));
+        /* 旧版の不透明度は［文字色］のときだけ効いた / the former opacity applied only to Text Color */
+        if (typeof presetData.opacity !== "number" && typeof presetData.textColorOpacity === "number") {
+            setMarkerFieldValue(markerControls.opacityInput, presetData.colorChoice === "textColor" ? presetData.textColorOpacity : 100);
         }
         var customColor = deserializeColor(presetData.customColor);
         if (customColor) markerControls.colorRow.setCustomColor(customColor);
-        if (typeof presetData.textColorOpacity === "number") setMarkerFieldValue(markerControls.colorRow.opacityInput, presetData.textColorOpacity);
         if (presetData.colorChoice) markerControls.colorRow.setChoice(presetData.colorChoice);
-        if (typeof presetData.strokeWidthPt === "number") {
-            setMarkerFieldValue(markerControls.strokeWidthInput, ptToUnit(presetData.strokeWidthPt, markerControls.strokeUnit));
-        }
-        if (typeof presetData.verticalOffsetPt === "number") {
-            setMarkerFieldValue(markerControls.verticalOffsetInput, ptToUnit(presetData.verticalOffsetPt, markerControls.rulerUnit));
-        }
+        if (presetData.zigzagPoints) markerControls.zigzagPointsRow.setChoice(presetData.zigzagPoints);
         if (presetData.dashStyle) markerControls.dashStyleRow.setChoice(presetData.dashStyle);
         if (presetData.strokeCap) markerControls.strokeCapRow.setChoice(presetData.strokeCap);
-        if (typeof presetData.whiteText === "boolean") markerControls.setWhiteText(presetData.whiteText);
+        if (typeof presetData.isPerChar === "boolean") markerControls.perCharOption.setValue(presetData.isPerChar);
+        if (presetData.kerningChoice) markerControls.kerningRow.setChoice(presetData.kerningChoice);
+        if (typeof presetData.trackingText === "string") {
+            markerControls.trackingInput.text = presetData.trackingText;
+            markerControls.trackingInput.lastValidText = presetData.trackingText;
+        }
+        if (typeof presetData.whiteText === "boolean") markerControls.whiteTextOption.setValue(presetData.whiteText);
     }
 
     /**
-     * プリセットのドロップダウンを作り直し、指定の名前を選ぶ。
-     * 最初からあるプリセット、区切り線、保存したプリセット（名前順）の順に並べる
-     * @param {Object} presetControls - addPresetRow() の戻り値（builtinPresets 付き）
-     * @param {string|null} selectedName - 選んでおくプリセット名（null なら「---」）
+     * プリセットのリストを作り直し、指定の名前を選ぶ。
+     * 最初からあるプリセット、保存したプリセット（名前順）の順に並べる
+     * @param {Object} presetControls - addPresetPanel() の戻り値（builtinPresets 付き）
+     * @param {string|null} selectedName - 選んでおくプリセット名（null なら選ばない）
      * @returns {void}
      */
-    function fillPresetDropdown(presetControls, selectedName) {
-        var presetDropdown = presetControls.presetDropdown;
-        var builtinNames = presetControls.builtinPresets.names;
-        var presetNames = builtinNames.concat(getSavedPresetNames(presetControls.builtinPresets.map));
-        var selectedIndex = 0;
-        presetDropdown.removeAll();
-        presetDropdown.add("item", getLabel("dropdown.presetPlaceholder"));
+    function fillPresetList(presetControls, selectedName) {
+        var presetList = presetControls.presetList;
+        var presetNames = presetControls.builtinPresets.names.concat(getSavedPresetNames(presetControls.builtinPresets.map));
+        var selectedIndex = -1;
+        presetList.removeAll();
         for (var i = 0; i < presetNames.length; i++) {
-            if (i > 0 && i === builtinNames.length) presetDropdown.add("separator");
-            presetDropdown.add("item", presetNames[i]);
-            if (presetNames[i] === selectedName) selectedIndex = presetDropdown.items.length - 1;
+            presetList.add("item", presetNames[i]);
+            if (presetNames[i] === selectedName) selectedIndex = i;
         }
-        presetDropdown.selection = selectedIndex;
-        setIconButtonEnabled(presetControls.presetDeleteIcon, isSavedPreset(selectedName) && selectedIndex > 0);
+        presetList.selection = (selectedIndex >= 0) ? selectedIndex : null;
+        setIconButtonEnabled(presetControls.presetDeleteIcon, selectedIndex >= 0 && isSavedPreset(selectedName));
     }
 
     /**
      * 選んでいるプリセット名を返す
-     * @param {Object} presetControls - addPresetRow() の戻り値
-     * @returns {string|null} プリセット名。「---」なら null
+     * @param {Object} presetControls - addPresetPanel() の戻り値
+     * @returns {string|null} プリセット名。選んでいなければ null
      */
     function getSelectedPresetName(presetControls) {
-        var presetSelection = presetControls.presetDropdown.selection;
-        return (presetSelection && presetSelection.index > 0) ? presetSelection.text : null;
+        var presetSelection = presetControls.presetList.selection;
+        return presetSelection ? presetSelection.text : null;
     }
 
     /**
@@ -2890,14 +3228,14 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         if (nameDialog.show() !== 1) return null;
 
         var presetName = nameInput.text.replace(/^\s+|\s+$/g, "");
-        if (!presetName || presetName === getLabel("dropdown.presetPlaceholder")) return null;
+        if (!presetName) return null;
         return presetName;
     }
 
     /**
      * 今の設定を名前を付けて保存する（同じ名前は、最初からあるものも含めて確認してから上書き）
      * @param {Object} markerControls - addMarkerControls() の戻り値
-     * @param {Object} presetControls - addPresetRow() の戻り値（選んでいるプリセット名を名前の入力欄に入れておく）
+     * @param {Object} presetControls - addPresetPanel() の戻り値（選んでいるプリセット名を名前の入力欄に入れておく）
      * @returns {string|null} 保存したプリセット名。保存しなかったら null
      */
     function saveCurrentPreset(markerControls, presetControls) {
@@ -2916,7 +3254,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
 
     /**
      * 選んでいるプリセットを確認してから削除する（最初からあるものは削除しない）
-     * @param {Object} presetControls - addPresetRow() の戻り値
+     * @param {Object} presetControls - addPresetPanel() の戻り値
      * @returns {boolean} 削除したら true
      */
     function deleteSelectedPreset(presetControls) {
@@ -3367,8 +3705,17 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
      * @returns {boolean} 塗りがあれば true
      */
     function hasGlyphFill(glyphItem) {
-        var fillSource = (glyphItem.typename === "CompoundPathItem") ? glyphItem.pathItems[0] : glyphItem;
+        var fillSource = getGlyphFillSource(glyphItem);
         return !!fillSource && fillSource.filled && fillSource.fillColor.typename !== "NoColor";
+    }
+
+    /**
+     * 字形の塗りを持つパスを返す（複合パスは先頭の構成パス）
+     * @param {PageItem} glyphItem - 字形のパスか複合パス
+     * @returns {PathItem} 塗りを読むパス
+     */
+    function getGlyphFillSource(glyphItem) {
+        return (glyphItem.typename === "CompoundPathItem") ? glyphItem.pathItems[0] : glyphItem;
     }
 
     /**
@@ -3438,6 +3785,17 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
     }
 
     /**
+     * 字面を測るための下書き用の複製を、元のテキストの直後に作る（すべての文字の塗りを外す）
+     * @param {TextFrame} sourceFrame - 元のテキストフレーム
+     * @returns {TextFrame} 複製
+     */
+    function createDraftFrame(sourceFrame) {
+        var draftFrame = sourceFrame.duplicate(sourceFrame, ElementPlacement.PLACEAFTER);
+        draftFrame.textRange.characterAttributes.fillColor = new NoColor();
+        return draftFrame;
+    }
+
+    /**
      * 選んだ範囲の字面の範囲を測る。
      * 下書き用の複製では選んだ範囲の外の塗りを外しておき、アウトライン化して塗りの残った字形だけを囲む
      * @param {TextFrame} sourceFrame - 元のテキストフレーム
@@ -3446,16 +3804,11 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
      * @returns {Object|null} 字面の範囲 { left, top, right, bottom }。字形が無ければ null
      */
     function measureGlyphBounds(sourceFrame, spanStart, spanLength) {
-        var draftFrame = sourceFrame.duplicate(sourceFrame, ElementPlacement.PLACEAFTER);
+        var draftFrame = createDraftFrame(sourceFrame);
         var draftFill = new GrayColor();
         draftFill.gray = 100;
-
-        /* 全体の塗りを外し、選んだ範囲だけ1つの TextRange として塗り直す
-           Clear the fill of the whole copy, then refill only the selected span as one TextRange */
-        draftFrame.textRange.characterAttributes.fillColor = new NoColor();
-        var draftSpan = draftFrame.characters[spanStart];
-        draftSpan.length = spanLength;
-        draftSpan.characterAttributes.fillColor = draftFill;
+        /* 選んだ範囲だけ1つの TextRange として塗り直す / Refill only the selected span as one TextRange */
+        fillCharacterSpan(draftFrame, spanStart, spanLength, draftFill);
 
         /* createOutline() は複製を消費するので、片付けるのは戻り値のグループ / createOutline() consumes the copy, so remove the returned group */
         var outlineGroup = draftFrame.createOutline();
@@ -3470,13 +3823,13 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
      * @param {TextFrame} sourceFrame - 元のテキストフレーム
      * @param {number} spanStart - 選んだ範囲の先頭の文字番号（フレーム内、0始まり）
      * @param {number} spanLength - 選んだ範囲の文字数
-     * @returns {Object[]} 字面の範囲 { left, top, right, bottom } の配列（文字の順。スペースなど字形の無い文字は除く）
+     * @returns {Object[]} 字面の範囲 { left, top, right, bottom, charIndex } の配列（文字の順。スペースなど字形の無い文字は除く。
+     *     charIndex は範囲の先頭からの文字番号）
      */
     function measureCharGlyphBounds(sourceFrame, spanStart, spanLength) {
         /* 色はドキュメントのカラーモードのまま読み戻せるように、同じモードで作る / Use the document color mode so the colors read back unchanged */
         var isRgbDocument = (app.activeDocument.documentColorSpace === DocumentColorSpace.RGB);
-        var draftFrame = sourceFrame.duplicate(sourceFrame, ElementPlacement.PLACEAFTER);
-        draftFrame.textRange.characterAttributes.fillColor = new NoColor();
+        var draftFrame = createDraftFrame(sourceFrame);
         for (var i = 0; i < spanLength; i++) {
             draftFrame.characters[spanStart + i].characterAttributes.fillColor = createCharIndexColor(i, isRgbDocument);
         }
@@ -3486,8 +3839,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         var boundsByIndex = [];
         for (var j = 0; j < glyphItems.length; j++) {
             if (!hasGlyphFill(glyphItems[j])) continue;
-            var fillSource = (glyphItems[j].typename === "CompoundPathItem") ? glyphItems[j].pathItems[0] : glyphItems[j];
-            var charIndex = readCharIndexColor(fillSource.fillColor, isRgbDocument);
+            var charIndex = readCharIndexColor(getGlyphFillSource(glyphItems[j]).fillColor, isRgbDocument);
             if (charIndex < 0 || charIndex >= spanLength) continue;
             boundsByIndex[charIndex] = extendGlyphExtent(boundsByIndex[charIndex] || null, glyphItems[j].geometricBounds);
         }
@@ -3495,7 +3847,9 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
 
         var charBoundsList = [];
         for (var k = 0; k < spanLength; k++) {
-            if (boundsByIndex[k]) charBoundsList.push(boundsByIndex[k]);
+            if (!boundsByIndex[k]) continue;
+            boundsByIndex[k].charIndex = k;
+            charBoundsList.push(boundsByIndex[k]);
         }
         return charBoundsList;
     }
@@ -3505,14 +3859,26 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
     // =========================================
 
     /**
-     * ［ジグザグ］効果の XML を返す（大きさは絶対値、折り返しの角は直線）
+     * ［ジグザグ］効果の XML を返す（大きさは絶対値）
      * @param {number} amountPt - 大きさ（pt）
      * @param {number} ridges - 線分あたりの折り返し
+     * @param {boolean} isSmooth - ポイントを滑らかにするか（false なら直線的に）
      * @returns {string} LiveEffect の XML
      */
-    function createZigzagXml(amountPt, ridges) {
+    function createZigzagXml(amountPt, ridges, isSmooth) {
         return '<LiveEffect name="Adobe Zigzag"><Dict data="R amount ' + amountPt +
-            ' R relAmount 0 R absoluteness 1 R ridges ' + ridges + ' R roundness 0 "/></LiveEffect>';
+            ' R relAmount 0 R absoluteness 1 R ridges ' + ridges + ' R roundness ' + (isSmooth ? 1 : 0) + ' "/></LiveEffect>';
+    }
+
+    /**
+     * ［ラフ］効果の XML を返す（大きさは絶対値、ポイントは丸く）
+     * @param {number} sizePt - 大きさ（pt）
+     * @param {number} detail - 詳細（1インチあたりの数）
+     * @returns {string} LiveEffect の XML
+     */
+    function createRoughenXml(sizePt, detail) {
+        return '<LiveEffect name="Adobe Roughen"><Dict data="R asize ' + sizePt + ' R size 0 R absoluteness 1 R detail ' + detail +
+            ' R roundness 1 "/></LiveEffect>';
     }
 
     /**
@@ -3555,70 +3921,118 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
     }
 
     /**
-     * 元のテキストの直後（背面）へマーカーの線を引く。
-     * ［塗りつぶし］［取り消し線］は字面の上下中央、［アンダーライン］は字面の下端に線の上端、ほかは字面の下端を線の中心にする
+     * 元のテキストの直後（背面）へマーカーの線を引く（［二重取り消し線］は2本をグループにする）
      * @param {Object} markerTarget - collectMarkerTargets() の要素 { sourceFrame, glyphBounds, textColor }
      * @param {Object} markerOptions - readMarkerOptions() の戻り値
-     * @returns {PathItem} 引いた線
+     * @returns {PathItem|GroupItem} 引いた線（2本ならグループ）
      */
     function placeMarkerLine(markerTarget, markerOptions) {
         var sourceFrame = markerTarget.sourceFrame;
-        var glyphBounds = markerTarget.glyphBounds;
-        var markerLine = sourceFrame.layer.pathItems.add();
+        var glyphBounds = markerTarget.activeLayout.glyphBounds;
+        /* ［塗りつぶし］は字面の高さちょうどの線にする / Fill uses a line exactly as wide as the glyph height */
+        var lineWidth = (markerOptions.lineStyle === "fill") ? (glyphBounds.top - glyphBounds.bottom) : markerOptions.strokeWidth;
+        var lineYs = getMarkerLineYs(glyphBounds, markerOptions, lineWidth);
+        var markerLines = [];
+        for (var i = 0; i < lineYs.length; i++) {
+            markerLines.push(drawMarkerLinePath(markerTarget, markerOptions, lineYs[i], lineWidth));
+        }
+        /* 効果を掛け終えてから元のテキストの隣（グループの中かもしれない）へ移す / Move next to the text (possibly inside a group) after the effects are applied */
+        var placedItem = markerLines[0];
+        if (markerLines.length > 1) {
+            placedItem = sourceFrame.layer.groupItems.add();
+            for (var j = 0; j < markerLines.length; j++) markerLines[j].move(placedItem, ElementPlacement.PLACEATEND);
+        }
+        placedItem.move(sourceFrame, ElementPlacement.PLACEAFTER);
+        return placedItem;
+    }
+
+    /**
+     * 線の中心の高さを返す。
+     * ［塗りつぶし］［取り消し線］［二重取り消し線］は字面の上下中央、［アンダーライン］は字面の下端に線の上端、ほかは字面の下端を線の中心にし、
+     * ［上下位置］の分ずらす。［二重取り消し線］は中央から上下に［線の間隔］の半分と線幅の半分ずつ離した2本
+     * @param {Object} glyphBounds - 字面の範囲 { left, top, right, bottom }
+     * @param {Object} markerOptions - readMarkerOptions() の戻り値
+     * @param {number} lineWidth - 線幅（pt）
+     * @returns {number[]} 線の中心の Y 座標（1本か2本）
+     */
+    function getMarkerLineYs(glyphBounds, markerOptions, lineWidth) {
         var lineStyle = markerOptions.lineStyle;
-        var lineY = glyphBounds.bottom;
-        if (lineStyle === "fill" || lineStyle === "strikethrough") lineY = (glyphBounds.top + glyphBounds.bottom) / 2;
-        else if (lineStyle === "underline") lineY = glyphBounds.bottom - markerOptions.strokeWidth / 2;
+        var centerY = glyphBounds.bottom;
+        if (lineStyle === "fill" || lineStyle === "strikethrough" || lineStyle === "doubleStrikethrough") {
+            centerY = (glyphBounds.top + glyphBounds.bottom) / 2;
+        } else if (lineStyle === "underline") {
+            centerY = glyphBounds.bottom - lineWidth / 2;
+        }
         /* ［上下位置］の分だけずらす（プラスで上） / Shift by the vertical offset (positive is up) */
-        lineY += markerOptions.verticalOffset;
+        centerY += markerOptions.verticalOffset;
+        if (lineStyle !== "doubleStrikethrough") return [centerY];
+        var lineOffset = (lineWidth + markerOptions.lineGap) / 2;
+        return [centerY + lineOffset, centerY - lineOffset];
+    }
+
+    /**
+     * レイヤーの直下に1本の線を描き、種類に応じた効果を掛ける（元のテキストの隣へは移さない）
+     * @param {Object} markerTarget - collectMarkerTargets() の要素
+     * @param {Object} markerOptions - readMarkerOptions() の戻り値
+     * @param {number} lineY - 線の中心の Y 座標
+     * @param {number} lineWidth - 線幅（pt）
+     * @returns {PathItem} 線
+     */
+    function drawMarkerLinePath(markerTarget, markerOptions, lineY, lineWidth) {
+        var glyphBounds = markerTarget.activeLayout.glyphBounds;
+        var lineStyle = markerOptions.lineStyle;
+        var markerLine = markerTarget.sourceFrame.layer.pathItems.add();
         markerLine.setEntirePath([[glyphBounds.left, lineY], [glyphBounds.right, lineY]]);
         markerLine.filled = false;
         markerLine.stroked = true;
         markerLine.strokeColor = markerOptions.useTextColor ? markerTarget.textColor : markerOptions.color;
-        /* ［塗りつぶし］は字面の高さちょうどの線にする / Fill uses a line exactly as wide as the glyph height */
-        markerLine.strokeWidth = (lineStyle === "fill") ? (glyphBounds.top - glyphBounds.bottom) : markerOptions.strokeWidth;
-        /* ドット点線は長さ0の線分を丸型の線端で点にする / Dotted draws zero-length dashes as dots with round caps */
-        var dashStyle = markerOptions.dashStyle;
-        var lineWidth = markerLine.strokeWidth;
-        markerLine.strokeCap = (dashStyle === "dottedLine") ? StrokeCap.ROUNDENDCAP : markerOptions.strokeCap;
-        if (dashStyle === "dashedLine") markerLine.strokeDashes = [lineWidth * DASHED_LINE_RATIOS[0], lineWidth * DASHED_LINE_RATIOS[1]];
-        else if (dashStyle === "dottedLine") markerLine.strokeDashes = [0, lineWidth * DOTTED_LINE_PITCH_RATIO];
-        else markerLine.strokeDashes = [];
+        markerLine.strokeWidth = lineWidth;
+        applyLineDashes(markerLine, markerOptions);
         markerLine.opacity = markerOptions.opacity;
         /* 効果は分割せずに残す。後から掛けたものほど下に並び、後で処理される
            Effects stay live; later ones go lower in the list and are processed later */
         /* ギザギザは中心線を折ってからアウトラインにする（線は1本なので、折り返しは端から端までの数）
            Zigzag folds the center line before it is outlined; the line has one segment, so ridges span end to end */
         if (lineStyle === "zigzag") {
-            markerLine.applyEffect(createZigzagXml(markerOptions.zigzagSize, markerOptions.zigzagRidges));
+            markerLine.applyEffect(createZigzagXml(markerOptions.zigzagSize, markerOptions.zigzagRidges, markerOptions.isZigzagSmooth));
         }
         applyOutlineStrokeEffect(markerLine);
+        /* 手書き風はアウトラインにした面の縁を揺らす / Hand-Drawn roughens the edges of the outlined shape */
+        if (lineStyle === "roughMarker") {
+            markerLine.applyEffect(createRoughenXml(markerOptions.zigzagSize, ROUGHEN_DETAIL));
+        }
         /* シアーはアウトラインにした面（線幅の高さがある）を変形する / Shear distorts the outlined shape, which has the stroke's height */
         if (lineStyle === "straightShear") {
             /* 線幅（外形の高さ）× tan(角度) だけ上辺をずらす。比率は線の外形の幅に対して取る
                Shift the top edge by stroke width x tan(angle), as a ratio of the outline width */
             var outlineBounds = markerLine.visibleBounds;
-            var topShiftPt = markerOptions.strokeWidth * Math.tan(markerOptions.shearAngle * Math.PI / 180);
+            var topShiftPt = lineWidth * Math.tan(markerOptions.shearAngle * Math.PI / 180);
             markerLine.applyEffect(createShearXml(topShiftPt / (outlineBounds[2] - outlineBounds[0])));
         }
-        /* 効果を掛け終えてから元のテキストの隣（グループの中かもしれない）へ移す / Move next to the text (possibly inside a group) after the effects are applied */
-        markerLine.move(sourceFrame, ElementPlacement.PLACEAFTER);
         return markerLine;
     }
 
     /**
-     * 1文字ずつの字面の範囲を行に分ける。
-     * 文字の上下中央がそれまでの行の上端・下端の間から外れたら、次の行とみなす
+     * 1文字ずつの字面の範囲を行（縦組みは列）に分ける。
+     * 文字の中心がそれまでの行の上端・下端（縦組みは左端・右端）の間から外れたら、次の行とみなす
      * @param {Object[]} charBoundsList - measureCharGlyphBounds() の戻り値（文字の順）
+     * @param {boolean} isVertical - 縦組みか
      * @returns {Object[]} 行 { left, top, right, bottom, chars }（範囲は行の字面全体、chars はその行の文字の範囲）
      */
-    function groupCharBoundsByLine(charBoundsList) {
+    function groupCharBoundsByLine(charBoundsList, isVertical) {
         var textLines = [];
         var currentLine = null;
         for (var i = 0; i < charBoundsList.length; i++) {
             var charBounds = charBoundsList[i];
-            var centerY = (charBounds.top + charBounds.bottom) / 2;
-            if (!currentLine || centerY > currentLine.top || centerY < currentLine.bottom) {
+            var isNewLine = !currentLine;
+            if (currentLine && isVertical) {
+                var centerX = (charBounds.left + charBounds.right) / 2;
+                isNewLine = (centerX < currentLine.left || centerX > currentLine.right);
+            } else if (currentLine) {
+                var centerY = (charBounds.top + charBounds.bottom) / 2;
+                isNewLine = (centerY > currentLine.top || centerY < currentLine.bottom);
+            }
+            if (isNewLine) {
                 currentLine = { left: charBounds.left, top: charBounds.top, right: charBounds.right, bottom: charBounds.bottom, chars: [] };
                 textLines.push(currentLine);
             }
@@ -3630,61 +4044,111 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
 
     /**
      * 長方形を描く範囲（余白を足す前）を返す。
-     * ［長方形］は行ごとに行の字面全体、［1文字ずつの長方形］は文字ごとに、高さを行の字面にそろえ、
-     * 幅は字面の幅か高さの大きいほうで字面の左右中央に置く
+     * 行ごとなら行の字面全体。1文字ずつなら文字ごとに、行の字面の高さ（縦組みは列の幅）にそろえ、
+     * もう一方の向きは字面の大きさか行の高さの大きいほうで字面の中央に置く
      * @param {Object[]} charBoundsList - measureCharGlyphBounds() の戻り値（文字の順）
      * @param {boolean} isPerChar - 1文字ずつにするか
+     * @param {boolean} isVertical - 縦組みか
+     * @param {Function} [isSkippedChar] - 1文字ずつのとき、飛ばす文字なら true を返す関数（文字の範囲を渡す）
      * @returns {Object[]} 範囲 { left, top, right, bottom }
      */
-    function getBoxAreas(charBoundsList, isPerChar) {
+    function getBoxAreas(charBoundsList, isPerChar, isVertical, isSkippedChar) {
         var boxAreas = [];
-        var textLines = groupCharBoundsByLine(charBoundsList);
+        var textLines = groupCharBoundsByLine(charBoundsList, isVertical);
         for (var i = 0; i < textLines.length; i++) {
             var textLine = textLines[i];
             if (!isPerChar) {
                 boxAreas.push({ left: textLine.left, top: textLine.top, right: textLine.right, bottom: textLine.bottom });
                 continue;
             }
-            var lineHeight = textLine.top - textLine.bottom;
             for (var j = 0; j < textLine.chars.length; j++) {
                 var charBounds = textLine.chars[j];
-                var halfWidth = Math.max(charBounds.right - charBounds.left, lineHeight) / 2;
-                var centerX = (charBounds.left + charBounds.right) / 2;
-                boxAreas.push({ left: centerX - halfWidth, top: textLine.top, right: centerX + halfWidth, bottom: textLine.bottom });
+                if (isSkippedChar && isSkippedChar(charBounds)) continue;
+                if (isVertical) {
+                    var halfHeight = Math.max(charBounds.top - charBounds.bottom, textLine.right - textLine.left) / 2;
+                    var centerY = (charBounds.top + charBounds.bottom) / 2;
+                    boxAreas.push({ left: textLine.left, top: centerY + halfHeight, right: textLine.right, bottom: centerY - halfHeight });
+                } else {
+                    var halfWidth = Math.max(charBounds.right - charBounds.left, textLine.top - textLine.bottom) / 2;
+                    var centerX = (charBounds.left + charBounds.right) / 2;
+                    boxAreas.push({ left: centerX - halfWidth, top: textLine.top, right: centerX + halfWidth, bottom: textLine.bottom });
+                }
             }
         }
         return boxAreas;
     }
 
     /**
+     * 対象の1文字ずつの字面の範囲を返す（今の書式の組み合わせで初回に測って控える）
+     * @param {Object} markerTarget - collectMarkerTargets() の要素（selectTargetLayout() で選んだあと）
+     * @returns {Object[]} measureCharGlyphBounds() の戻り値
+     */
+    function getTargetCharBounds(markerTarget) {
+        var activeLayout = markerTarget.activeLayout;
+        if (!activeLayout.charBounds) {
+            activeLayout.charBounds = measureCharGlyphBounds(markerTarget.measureFrame, markerTarget.spanStart, markerTarget.spanLength);
+        }
+        return activeLayout.charBounds;
+    }
+
+    /**
      * 元のテキストの直後（背面）へ、字面を囲む長方形を描いてグループにする。
-     * まわりに［余白］を足し、［角丸の半径］が 0 より大きければ角を丸める（半径は短い辺の半分まで）
+     * まわりに［余白］を足し、［角丸の半径］が 0 より大きければ角を丸める（半径は短い辺の半分まで）。
+     * ［囲み罫］は塗りなしで線だけにする。［円］は楕円（［1文字ずつ］なら長い辺を直径にした円）、［六角形］は getHexagonPoints() の形で、
+     * どちらも角丸は使わない
      * @param {Object} markerTarget - collectMarkerTargets() の要素（1文字ずつの範囲は初回に測って charBounds に控える）
      * @param {Object} markerOptions - readMarkerOptions() の戻り値
      * @returns {GroupItem} 長方形のグループ
      */
     function placeTextBoxes(markerTarget, markerOptions) {
-        if (!markerTarget.charBounds) {
-            markerTarget.charBounds = measureCharGlyphBounds(markerTarget.sourceFrame, markerTarget.spanStart, markerTarget.spanLength);
-        }
         var sourceFrame = markerTarget.sourceFrame;
         var boxColor = markerOptions.useTextColor ? markerTarget.textColor : markerOptions.color;
         var boxPadding = markerOptions.boxPadding;
+        var isFrame = (markerOptions.lineStyle === "frame");
+        var isCircle = (markerOptions.lineStyle === "circle");
+        var isPerChar = markerOptions.isPerChar;
         var boxGroup = sourceFrame.layer.groupItems.add();
-        var boxAreas = getBoxAreas(markerTarget.charBounds, markerOptions.lineStyle === "charBox");
+        var boxAreas = getBoxAreas(getTargetCharBounds(markerTarget), isPerChar, markerTarget.isVertical, function (charBounds) {
+            return isPerCharSkipped(markerTarget, charBounds);
+        });
         for (var i = 0; i < boxAreas.length; i++) {
             var boxWidth = boxAreas[i].right - boxAreas[i].left + boxPadding * 2;
             var boxHeight = boxAreas[i].top - boxAreas[i].bottom + boxPadding * 2;
             var boxLeft = boxAreas[i].left - boxPadding;
             /* ［上下位置］の分だけずらす（プラスで上） / Shift by the vertical offset (positive is up) */
             var boxTop = boxAreas[i].top + boxPadding + markerOptions.verticalOffset;
-            var cornerRadius = Math.min(markerOptions.cornerRadius, boxWidth / 2, boxHeight / 2);
-            var textBox = (cornerRadius > 0)
-                ? boxGroup.pathItems.roundedRectangle(boxTop, boxLeft, boxWidth, boxHeight, cornerRadius, cornerRadius)
-                : boxGroup.pathItems.rectangle(boxTop, boxLeft, boxWidth, boxHeight);
-            textBox.filled = true;
-            textBox.fillColor = boxColor;
-            textBox.stroked = false;
+            /* 負の余白で幅か高さが無くなったものは描かない / Skip shapes that a negative padding has collapsed */
+            if (boxWidth <= 0 || boxHeight <= 0) continue;
+            var textBox;
+            if (isCircle && isPerChar) {
+                /* 直径は長い辺。範囲の中心にそろえる / The diameter is the longer side, centered on the area */
+                var circleSize = Math.max(boxWidth, boxHeight);
+                textBox = boxGroup.pathItems.ellipse(boxTop - (boxHeight - circleSize) / 2, boxLeft - (circleSize - boxWidth) / 2, circleSize, circleSize);
+            } else if (isCircle) {
+                textBox = boxGroup.pathItems.ellipse(boxTop, boxLeft, boxWidth, boxHeight);
+            } else if (markerOptions.lineStyle === "hexagon") {
+                textBox = boxGroup.pathItems.add();
+                textBox.setEntirePath(getHexagonPoints(boxLeft, boxTop, boxWidth, boxHeight, isPerChar, markerTarget.isVertical));
+                textBox.closed = true;
+            } else {
+                var cornerRadius = Math.min(markerOptions.cornerRadius, boxWidth / 2, boxHeight / 2);
+                textBox = (cornerRadius > 0)
+                    ? boxGroup.pathItems.roundedRectangle(boxTop, boxLeft, boxWidth, boxHeight, cornerRadius, cornerRadius)
+                    : boxGroup.pathItems.rectangle(boxTop, boxLeft, boxWidth, boxHeight);
+            }
+            if (isFrame) {
+                textBox.filled = false;
+                textBox.stroked = true;
+                textBox.strokeColor = boxColor;
+                textBox.strokeWidth = markerOptions.strokeWidth;
+                applyLineDashes(textBox, markerOptions);
+                /* 閉じたパスなので、ドット以外は線端を問わない / A closed path: the cap matters only for Dotted */
+                if (markerOptions.dashStyle !== "dottedLine") textBox.strokeCap = StrokeCap.BUTTENDCAP;
+            } else {
+                textBox.filled = true;
+                textBox.fillColor = boxColor;
+                textBox.stroked = false;
+            }
         }
         boxGroup.opacity = markerOptions.opacity;
         boxGroup.move(sourceFrame, ElementPlacement.PLACEAFTER);
@@ -3692,31 +4156,165 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
     }
 
     /**
-     * すべての対象にマーカーの線（［長方形］［1文字ずつの長方形］なら長方形のグループ）を引く
-     * @param {Object[]} markerTargets - collectMarkerTargets() の戻り値
-     * @param {Object} markerOptions - readMarkerOptions() の戻り値
-     * @returns {PageItem[]} 引いた線と長方形のグループ
+     * 線の種類（直線・破線・ドット）と線端を設定する。長さは線幅に比例させる。
+     * ドットは長さ0の線分を丸型の線端で点にする
+     * @param {PathItem} markerLine - 線（線幅は設定済み）
+     * @param {Object} markerOptions - readMarkerOptions() の戻り値（dashStyle・strokeCap）
+     * @returns {void}
      */
-    function placeMarkerLines(markerTargets, markerOptions) {
-        var markerLines = [];
-        for (var i = 0; i < markerTargets.length; i++) {
-            if (isBoxLineStyle(markerOptions.lineStyle)) markerLines.push(placeTextBoxes(markerTargets[i], markerOptions));
-            else markerLines.push(placeMarkerLine(markerTargets[i], markerOptions));
-        }
-        return markerLines;
+    function applyLineDashes(markerLine, markerOptions) {
+        var dashStyle = markerOptions.dashStyle;
+        var lineWidth = markerLine.strokeWidth;
+        markerLine.strokeCap = (dashStyle === "dottedLine") ? StrokeCap.ROUNDENDCAP : markerOptions.strokeCap;
+        if (dashStyle === "dashedLine") markerLine.strokeDashes = [lineWidth * DASHED_LINE_RATIOS[0], lineWidth * DASHED_LINE_RATIOS[1]];
+        else if (dashStyle === "dottedLine") markerLine.strokeDashes = [0, lineWidth * DOTTED_LINE_PITCH_RATIO];
+        else markerLine.strokeDashes = [];
     }
 
     /**
-     * 対象の文字の範囲の塗りを変える
-     * @param {TextFrame} textFrame - 対象の元のテキストフレーム、またはその複製
-     * @param {Object} markerTarget - collectMarkerTargets() の要素（spanStart・spanLength を使う）
+     * すべての対象にマーカーの線（長方形の仲間なら長方形のグループ、［傍点］なら点のグループ）を描く
+     * @param {Object[]} markerTargets - collectMarkerTargets() の戻り値
+     * @param {Object} markerOptions - readMarkerOptions() の戻り値
+     * @param {TextFrame[]|null} measureFrames - 字面を測るテキスト（markerTargets と同じ順。null なら元のテキスト）
+     * @returns {PageItem[]} 描いた線と長方形のグループ
+     */
+    function placeMarkers(markerTargets, markerOptions, measureFrames) {
+        var markerItems = [];
+        var layoutKey = getTextLayoutKey(markerOptions);
+        for (var i = 0; i < markerTargets.length; i++) {
+            selectTargetLayout(markerTargets[i], layoutKey, measureFrames ? measureFrames[i] : markerTargets[i].sourceFrame);
+            if (markerOptions.lineStyle === "emphasisDots") markerItems.push(placeEmphasisDots(markerTargets[i], markerOptions));
+            else if (isBoxLineStyle(markerOptions.lineStyle)) markerItems.push(placeTextBoxes(markerTargets[i], markerOptions));
+            else markerItems.push(placeMarkerLine(markerTargets[i], markerOptions));
+        }
+        return markerItems;
+    }
+
+    /**
+     * 1文字ずつの図形・傍点で飛ばす文字（PER_CHAR_SKIP_CHARS）かを返す
+     * @param {Object} markerTarget - collectMarkerTargets() の要素
+     * @param {Object} charBounds - measureCharGlyphBounds() の要素（charIndex 付き）
+     * @returns {boolean} 飛ばす文字なら true
+     */
+    function isPerCharSkipped(markerTarget, charBounds) {
+        var charText = markerTarget.sourceFrame.characters[markerTarget.spanStart + charBounds.charIndex].contents;
+        return PER_CHAR_SKIP_CHARS.indexOf(charText) >= 0;
+    }
+
+    /**
+     * 字の配置を変える書式（自動カーニング・トラッキング）の組み合わせを、字面の測り直しを見分けるキーにする
+     * @param {Object} markerOptions - readMarkerOptions() の戻り値
+     * @returns {string} キー（書式を変えないなら空文字）
+     */
+    function getTextLayoutKey(markerOptions) {
+        if (markerOptions.kerningChoice === "keepKerning" && markerOptions.tracking === null) return "";
+        return markerOptions.kerningChoice + "|" + markerOptions.tracking;
+    }
+
+    /**
+     * 文字の書式（自動カーニング・トラッキング・白抜き）を変えるかを返す
+     * @param {Object} markerOptions - readMarkerOptions() の戻り値
+     * @returns {boolean} 変えるなら true
+     */
+    function hasTextFormatChange(markerOptions) {
+        return markerOptions.whiteText || getTextLayoutKey(markerOptions) !== "";
+    }
+
+    /**
+     * 対象の文字に書式（自動カーニング・トラッキング・白抜き）を設定する（変えない項目はそのまま）
+     * @param {Document} doc - 対象ドキュメント
+     * @param {TextFrame} textFrame - 元のテキストフレーム、またはその複製
+     * @param {Object} markerTarget - collectMarkerTargets() の要素（spanStart・spanLength）
+     * @param {Object} markerOptions - readMarkerOptions() の戻り値
+     * @returns {void}
+     */
+    function applyTextFormat(doc, textFrame, markerTarget, markerOptions) {
+        var targetSpan = textFrame.characters[markerTarget.spanStart];
+        targetSpan.length = markerTarget.spanLength;
+        var spanAttributes = targetSpan.characterAttributes;
+        var kerningChoice = markerOptions.kerningChoice;
+        if (kerningChoice === "metricsKerning") spanAttributes.kerningMethod = AutoKernType.AUTO;
+        else if (kerningChoice === "opticalKerning") spanAttributes.kerningMethod = AutoKernType.OPTICAL;
+        else if (kerningChoice === "zeroKerning") {
+            /* 自動を切っても手動の値は残るので、文字ごとに 0 にする / Manual values survive turning auto off, so zero each character */
+            spanAttributes.kerningMethod = AutoKernType.NOAUTOKERN;
+            for (var i = 0; i < markerTarget.spanLength; i++) textFrame.characters[markerTarget.spanStart + i].kerning = 0;
+        }
+        if (markerOptions.tracking !== null) spanAttributes.tracking = markerOptions.tracking;
+        if (markerOptions.whiteText) spanAttributes.fillColor = createWhiteTextColor(doc);
+    }
+
+    /**
+     * 対象の字面の測り方を、書式の組み合わせ（layoutKey）に切り替える。初めての組み合わせなら measureFrame で測って控える
+     * @param {Object} markerTarget - collectMarkerTargets() の要素（layouts・activeLayout・measureFrame を持たせる）
+     * @param {string} layoutKey - getTextLayoutKey() の戻り値
+     * @param {TextFrame} measureFrame - その書式になっているテキスト（元か複製）
+     * @returns {void}
+     */
+    function selectTargetLayout(markerTarget, layoutKey, measureFrame) {
+        if (!markerTarget.layouts.hasOwnProperty(layoutKey)) {
+            var glyphBounds = measureGlyphBounds(measureFrame, markerTarget.spanStart, markerTarget.spanLength);
+            markerTarget.layouts[layoutKey] = { glyphBounds: glyphBounds || markerTarget.glyphBounds, charBounds: null };
+        }
+        markerTarget.activeLayout = markerTarget.layouts[layoutKey];
+        markerTarget.measureFrame = measureFrame;
+    }
+
+    /**
+     * 元のテキストの直後へ、1文字ずつ丸い点（傍点）を置いてグループにする。
+     * 横組みは行の字面の上端から［余白］離した上、縦組みは列の字面の右端から離した右に、字面の中央にそろえて置く。
+     * PER_CHAR_SKIP_CHARS の文字には置かない
+     * @param {Object} markerTarget - collectMarkerTargets() の要素
+     * @param {Object} markerOptions - readMarkerOptions() の戻り値
+     * @returns {GroupItem} 点のグループ
+     */
+    function placeEmphasisDots(markerTarget, markerOptions) {
+        var sourceFrame = markerTarget.sourceFrame;
+        var dotColor = markerOptions.useTextColor ? markerTarget.textColor : markerOptions.color;
+        var dotSize = markerOptions.dotSize;
+        var dotDistance = markerOptions.boxPadding + dotSize / 2;
+        var dotGroup = sourceFrame.layer.groupItems.add();
+        var textLines = groupCharBoundsByLine(getTargetCharBounds(markerTarget), markerTarget.isVertical);
+        for (var i = 0; i < textLines.length; i++) {
+            for (var j = 0; j < textLines[i].chars.length; j++) {
+                var charBounds = textLines[i].chars[j];
+                if (isPerCharSkipped(markerTarget, charBounds)) continue;
+                var centerX = markerTarget.isVertical ? textLines[i].right + dotDistance : (charBounds.left + charBounds.right) / 2;
+                var centerY = markerTarget.isVertical ? (charBounds.top + charBounds.bottom) / 2 : textLines[i].top + dotDistance;
+                /* ［上下位置］の分だけずらす（プラスで上） / Shift by the vertical offset (positive is up) */
+                centerY += markerOptions.verticalOffset;
+                var emphasisDot = dotGroup.pathItems.ellipse(centerY + dotSize / 2, centerX - dotSize / 2, dotSize, dotSize);
+                emphasisDot.filled = true;
+                emphasisDot.fillColor = dotColor;
+                emphasisDot.stroked = false;
+            }
+        }
+        dotGroup.opacity = markerOptions.opacity;
+        dotGroup.move(sourceFrame, ElementPlacement.PLACEAFTER);
+        return dotGroup;
+    }
+
+    /**
+     * 文字の範囲の塗りを変える（1つの TextRange として塗る）
+     * @param {TextFrame} textFrame - テキストフレーム
+     * @param {number} spanStart - 範囲の先頭の文字番号（フレーム内、0始まり）
+     * @param {number} spanLength - 範囲の文字数
      * @param {Color} fillColor - 塗りの色
      * @returns {void}
      */
-    function fillTargetSpan(textFrame, markerTarget, fillColor) {
-        var targetSpan = textFrame.characters[markerTarget.spanStart];
-        targetSpan.length = markerTarget.spanLength;
-        targetSpan.characterAttributes.fillColor = fillColor;
+    function fillCharacterSpan(textFrame, spanStart, spanLength, fillColor) {
+        var characterSpan = textFrame.characters[spanStart];
+        characterSpan.length = spanLength;
+        characterSpan.characterAttributes.fillColor = fillColor;
+    }
+
+    /**
+     * ［文字を白抜きに］で使う白を、ドキュメントのカラーモードで作る
+     * @param {Document} doc - 対象ドキュメント
+     * @returns {Color} 白
+     */
+    function createWhiteTextColor(doc) {
+        return createDocumentColor(doc, WHITE_TEXT_COLOR.rgb, WHITE_TEXT_COLOR.cmyk);
     }
 
     /**
@@ -3745,7 +4343,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
      * 選択からマーカーを引く対象を集める。
      * 文字ツールで選んだ文字ならその範囲、テキストオブジェクトならそれぞれのすべての文字を1つの対象にする
      * @param {TextRange|Array} docSelection - doc.selection
-     * @returns {Object[]|null} 対象 { sourceFrame, spanStart, spanLength, glyphBounds, textColor } の配列（字形の無いものは除く）。
+     * @returns {Object[]|null} 対象 { sourceFrame, spanStart, spanLength, glyphBounds, textColor, isVertical } の配列（字形の無いものは除く）。
      *     テキストが選ばれていなければ null
      */
     function collectMarkerTargets(docSelection) {
@@ -3756,7 +4354,10 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             if (!glyphBounds) return;
             markerTargets.push({
                 sourceFrame: sourceFrame, spanStart: spanStart, spanLength: spanLength,
-                glyphBounds: glyphBounds, textColor: getTextFillColor(colorRange)
+                glyphBounds: glyphBounds, textColor: getTextFillColor(colorRange),
+                isVertical: (sourceFrame.orientation === TextOrientation.VERTICAL),
+                /* 書式の組み合わせごとの字面（"" は今の書式） / Glyph bounds per formatting combination ("" is the current formatting) */
+                layouts: { "": { glyphBounds: glyphBounds, charBounds: null } }
             });
         }
 
@@ -3817,11 +4418,11 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
 
         var markerOptions = showMarkerDialog(doc, markerTargets);
         if (markerOptions) {
-            placeMarkerLines(markerTargets, markerOptions);
-            if (markerOptions.whiteText) {
-                var whiteColor = createDocumentColor(doc, WHITE_TEXT_COLOR.rgb, WHITE_TEXT_COLOR.cmyk);
-                for (var i = 0; i < markerTargets.length; i++) fillTargetSpan(markerTargets[i].sourceFrame, markerTargets[i], whiteColor);
+            /* 書式を先に変えて、変えたあとの字面で描く / Format the text first, then draw on the reformatted glyphs */
+            if (hasTextFormatChange(markerOptions)) {
+                for (var i = 0; i < markerTargets.length; i++) applyTextFormat(doc, markerTargets[i].sourceFrame, markerTargets[i], markerOptions);
             }
+            placeMarkers(markerTargets, markerOptions, null);
         }
         restoreSelection(doc, savedSelection);
     }
