@@ -344,7 +344,7 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 - [常駐エンジンで動いている各種フローティングパレットをまとめて閉じるユーティリティ](readme-ja/CloseAllPalettes.md)
 - [環境設定の「角度の制限」（Shiftキーを押したときの角度）と「キー増加」（矢印キーの移動量）の変更、](readme-ja/DirectPrefsPalette.md)
 - [選択したオブジェクトを 1 つずつ選び直しながら、それぞれにアピアランスの分割を適用します](readme-ja/ExpandAppearanceEachObject.md)
-- [ダイアログの「スタイルを読み込み」ボタンで AI ファイルを指定し、そのファイル内のグラフィックスタイルを取…](readme-ja/ImportGraphicStyles.md)
+- [ダイアログボックスの［ファイルを選択...］で AI ファイルを指定し、そのファイル内のグラフィックスタイルを取…](readme-ja/ImportGraphicStyles.md)
 - [表示領域の中心にエリア内文字を作成し、サンプルテキストを流し込む](readme-ja/InsertNewAreaText.md)
 - [表示領域の中心に黒い正方形を作成し、シェイプに変換とピクセルグリッドに最適化を適用](readme-ja/InsertNewRectangle.md)
 - [表示領域の中心付近に黒い正方形を5つ、重ならないように配置](readme-ja/InsertNewRectangle5Times.md)

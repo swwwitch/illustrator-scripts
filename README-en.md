@@ -341,7 +341,7 @@ After release, we continue to fix bugs and make adjustments through daily use.
 - [A utility that closes every floating palette running i…](readme-en/CloseAllPalettes.md)
 - [A palette for changing the "constrain angle" preferenc…](readme-en/DirectPrefsPalette.md)
 - [Re-selects each selected object in turn and expands it…](readme-en/ExpandAppearanceEachObject.md)
-- [The Load Styles button picks an AI file and imports th…](readme-en/ImportGraphicStyles.md)
+- [The Choose File... button picks an AI file and import…](readme-en/ImportGraphicStyles.md)
 - [Create an area text filled with sample text at the center of the view](readme-en/InsertNewAreaText.md)
 - [Create a black square at the center of the view, then convert to shape and make pixel perfect](readme-en/InsertNewRectangle.md)
 - [Create five black squares near the center of the view without overlapping](readme-en/InsertNewRectangle5Times.md)

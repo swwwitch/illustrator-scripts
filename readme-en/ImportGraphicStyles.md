@@ -10,25 +10,32 @@
 
 ### Overview
 
-- The Load Styles button picks an AI file and imports the graphic styles defined in it
+- The Choose File... button picks an AI file and imports the graphic styles defined in it
 - Radio buttons are generated automatically from the imported style names, and the chosen style is applied to the selection
 - The chosen file is remembered and reused on later runs, until another file is picked with the button
+- Option-click Choose File... or the file name to reveal the source file in Finder (or Path Finder when it is running)
 
 ### Process Flow
 
 1. Select the target objects and run the script
 2. If a file is remembered, its styles are imported and shown as radio buttons
-3. Picking another file with Load Styles re-imports it and refreshes the radios
+3. Picking another file with Choose File... re-imports it and refreshes the radios
 4. Choose a style and click Apply to apply it to the selected objects
 
 ### Notes
 
-- During import the content is pasted onto a temporary `// _imported` layer, which is deleted together with its contents once the asset is registered (nothing changes visually)
+- During import the content is pasted onto a temporary `// _imported` layer and deleted as soon as the graphic styles are registered (nothing changes visually, even with Paste Remembers Layers turned on)
+- A source file that is already open is left open
 - The source file path is stored in `Folder.userData/illustrator-scripts/ImportGraphicStyles.json` (the former `swwwitch_ImportGraphicStyles.txt` is read once), not inside the script
 - The radios are generated from the graphic style names in the source file; the default style at index 0 is excluded
 
+### Article
+
+[Managing graphic styles with a script in Illustrator (Japanese)](https://note.com/dtp_tranist/n/n0b929db4a4ad)
+
 ### Update History
 
+- v1.8.0 (2026-11-01) Option-clicking Choose File... or the file name now reveals the source file in Finder. Fixed the source file being closed without saving when it was already open. Fixed pasted content staying in the document when Paste Remembers Layers is on. Fixed the selection being lost after a cancel, which also kept the dialog from moving off the selection. Running with characters selected by the Type tool now shows a warning instead of doing nothing. Revised the dialog wording (Apply Graphic Style, Source File, Choose File...) and show the full path in the file name tooltip
 - v1.7.11 (2026-10-16) Right-only button rows are now centered when the dialog's inner width is up to 240 px (was 200 px) (shared part update)
 - v1.7.10 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.7.9 (2026-10-01): Added space below the button row to match Illustrator's own dialogs
@@ -49,4 +56,4 @@
 
 ### Script info
 
-- Version: v1.7.10
+- Version: v1.8.0
