@@ -37,7 +37,7 @@ To use separate shortcuts for increasing, decreasing or each multiplier, duplica
 
 ### Notes
 
-- The font size stays within 0.1–1296 pt and the stroke weight within 0.1–1000 pt (never 0 pt, so a thinned stroke does not become invisible).
+- The font size stays within 5.5–1296 pt and the stroke weight within 0.1–1000 pt (never 0 pt, so a thinned stroke does not become invisible). Text already smaller than 5.5 pt is left as it is when decreasing.
 - Character strokes on text are not changed (text only gets its font size changed).
 - Strokes added in the Appearance panel are not changed (only the basic stroke is).
 - Locked or hidden objects inside groups are left alone.
@@ -48,3 +48,4 @@ To use separate shortcuts for increasing, decreasing or each multiplier, duplica
 - v1.0.0 (2026-11-01): Initial release
 - v1.0.1 (2026-11-01): Raised the minimum stroke weight from 0 pt to 0.1 pt, so a thinned stroke does not become invisible
 - v1.0.2 (2026-11-02): Fixed paragraph returns and forced line breaks changing size twice when the font size is stepped; they now change by the same amount as the other characters
+- v1.0.3 (2026-11-02): Raised the minimum font size from 0.1 pt to 5.5 pt
