@@ -1,8 +1,8 @@
-# Draw markers, underlines and strikethroughs behind text
+# Draw markers, underlines and strikethroughs on text
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-DrawMarkerBehindText.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/DrawMarkerBehindText.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-TextHighlighter.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/TextHighlighter.jsx)
 
-[![Japanese](https://img.shields.io/badge/README-Japanese-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/DrawMarkerBehindText.md)
+[![Japanese](https://img.shields.io/badge/README-Japanese-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TextHighlighter.md)
 
 [![Direct](https://img.shields.io/badge/Back%20to%20home-All%20scripts-cccccc.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/README.md)
 
@@ -10,7 +10,7 @@
 
 ### Overview
 
-- Draws a line behind the characters selected with the Type tool, or behind the selected text objects, fitted to the extent of their glyphs (the shape of the outlined characters).
+- Draws a line on the characters selected with the Type tool, or on the selected text objects, fitted to the extent of their glyphs (the shape of the outlined characters). The line can go behind or in front of the text.
 - Choose the style (marker, underline, strikethrough, fill and more), color and weight in the dialog box, and check the result in the preview.
 - The line is a path with live effects, so it can be adjusted later in the Appearance panel.
 
@@ -39,16 +39,17 @@
 - Opacity: opacity of the lines and boxes (100% by default), for any color.
 - Weight: 40% of the glyph height by default, in the Stroke unit from Preferences.
 - Vertical Offset: moves the line up or down from the style's position (positive is up, negative is down).
-- Line Type: Solid, Dashed or Dotted. Dashed places dashes twice the line width, spaced by the line width; Dotted places round dots as large as the line width, every two line widths (Dotted always uses round caps).
+- Line Type: Solid, Dashed or Dotted. Dashed places dashes about twice the line width, spaced by the line width, with the dash length fitted to the line so both ends finish with a dash; Dotted places round dots as large as the line width, about every two line widths, with dots at both ends (Dotted always uses round caps).
 - Cap: Butt or Round.
+- Stacking Order: Front or Back. Back (the default) draws behind the text; Front draws in front of it.
 - Text (formatting of the target characters, also shown in the preview)
-  - Auto Kerning: No Change, 0, Metrics or Optical. 0 turns auto kerning off and sets manual kerning to 0.
+  - Auto Kerning: No Change, 0, Metrics or Optical. 0 turns auto kerning off and sets manual kerning to 0. 0 and Optical also turn Proportional Metrics off.
   - Tracking: in 1/1000 em. Leave blank to keep it.
   - White Text: when on, sets the fill of the target characters to white.
   - Lines and shapes are drawn on the glyphs after the formatting changes.
 - Line styles get the Outline Stroke effect. Box groups filled rectangles, Circle groups filled circles, Hexagon groups filled hexagons, Frame groups stroked rectangles, and Emphasis Dots groups filled circles.
 - Presets: click a preset in the list on the left of the dialog box to load it. Save the current settings under a name, or delete a preset, with the icons below the list. Saved presets remain after Illustrator restarts.
-  - Built-in presets: Redaction, Underline, Dotted Underline, Yellow Marker, Slanted Highlighter, Red Wavy Line, Box per Character (Pink), Circle per Character (Pink), Hexagon per Character (Blue), Rounded Box (Blue), Hand-Drawn Marker, Frame, Emphasis Dots, Double Strikethrough and Text-Color Strikethrough. Except for Redaction and Underline, lengths such as the weight follow the glyph height of the first target. Box per Character (Pink), Circle per Character (Pink), Hexagon per Character (Blue) and Rounded Box (Blue) turn on White Text. They cannot be deleted; a preset saved under the same name is used instead.
+  - Built-in presets: Redaction, Underline, Dotted Underline, Yellow Marker, Slanted Highlighter, Wavy Line, Box per Character (Pink), Circle per Character (Pink), Hexagon per Character (Blue), Rounded Box (Blue), Hand-Drawn Marker, Frame, Emphasis Dots, Double Strikethrough and Text-Color Strikethrough. Except for Redaction, Underline and Box per Character (Pink), lengths such as the weight follow the glyph height of the first target. Box per Character (Pink), Circle per Character (Pink), Hexagon per Character (Blue) and Rounded Box (Blue) turn on White Text. Redaction uses Front for Stacking Order; the others use Back. They cannot be deleted; a preset saved under the same name is used instead.
 - Preview: while on, the selection is cleared and the line is shown. Closing the dialog box restores the original selection.
 
 ### Usage
@@ -63,7 +64,7 @@
 - With text objects selected, one line is drawn for all characters of each object. Text inside groups is included; locked or hidden text is skipped.
 - For multi-line text, line styles draw one line for the combined extent of all lines, not one per line. Boxes and Emphasis Dots are drawn per line.
 - Line styles are meant for horizontal text; in vertical text the lines stay horizontal.
-- The line is placed directly behind the original text.
+- The line is placed directly behind the original text (in front of it when Stacking Order is Front).
 - A selection of only spaces or line breaks has no glyphs, so nothing can be drawn.
 - Text Color cannot be chosen when the first target character has no fill.
 - Custom colors saved in presets are limited to RGB, CMYK and Grayscale.
@@ -71,13 +72,14 @@
 
 ### Original / Acknowledgements
 
-Based on an idea by デザインゴリラ (Design Gorilla).  
+The way the glyphs are measured is based on an article by デザインゴリラ (Design Gorilla).  
 https://note.com/gorilla_gg/n/naa26b079cb75
 
 ### Script info
 
-- Version: v1.0.0
+- Version: v1.1.0
 
 ### Update History
 
+- v1.1.0 (2026-11-01) Renamed the file from DrawMarkerBehindText.jsx to TextHighlighter.jsx (saved presets carry over); added Stacking Order (Front / Back) to Settings; Dashed now fits the dash length to the line so both ends finish with a dash, and Dotted fits the dot spacing so dots land on both ends; fixed the Outline Stroke effect not being applied (so Straight + Shear did not slant, for example) when characters were selected with the Type tool; Auto Kerning 0 and Optical now turn Proportional Metrics off; Dotted Underline now has a Vertical Offset of -0.6 mm, and Box per Character (Pink) a Padding of -0.1 mm; Straight + Shear stays centered when slanted (the bottom edge shifts the opposite way to the top); Red Wavy Line is renamed Wavy Line and uses the text color
 - v1.0.0 (2026-11-01) Initial release

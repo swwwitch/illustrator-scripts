@@ -38,6 +38,7 @@ EXCLUDE_DIRS = ("/_templates/",)
 # Script-ID に使えない文字（A-Z a-z 0-9 . _ - 以外）を含む SCRIPT_NAME と、改名したスクリプトの旧名の ID。
 # 一度公開した ID は変えない / IDs for names Script-ID does not allow, and the old IDs of renamed scripts. Never change once published
 ID_OVERRIDES = {
+    "TextHighlighter": "DrawMarkerBehindText",  # 2026-11-01 改名。公開済みの Script-ID を保つ
     "ガイドをテンプレートに": "GuidesToTemplate",
     "レイヤーをテンプレートに": "LayersToTemplate",
     "丸型先端にする": "SetRoundCap",
