@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.AdjustFontSizeOrStroke
 Name=テキストは文字サイズ、それ以外は線幅を一定量ずつ増減
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.0.1
+Version=1.0.2
 Release-Date=2026-11-01
 Description-BEGIN
 選択したテキストは文字サイズを、それ以外のオブジェクトは線幅を、環境設定の単位で一定量ずつ増減します（ダイアログボックスは出しません）。
@@ -40,10 +40,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AdjustFont
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AdjustFontSizeOrStroke";       /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-11-01";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-11-01";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-11-02";                   /* 更新日 / last updated */
 
 var SCRIPT_DESCRIPTION_JA = "テキストは文字サイズ、それ以外は線幅を一定量ずつ増減"; /* README の見出し / README title (Japanese) */
 
@@ -301,7 +301,9 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
     }
 
     /**
-     * テキストの文字サイズを変える。文字ごとにサイズが異なることがあるので1文字ずつ足す
+     * テキストの文字サイズを変える。文字ごとにサイズが異なることがあるので1文字ずつ足す。
+     * 改行（段落・強制改行）の直前の文字にサイズを入れると改行にも同じサイズが入るので、
+     * 先に全部の文字のサイズを読んでから書き込む（読みながら書くと改行だけ2回足される）
      * @param {TextRange} textRange - 対象のテキスト
      * @param {SizeAdjustment} sizeAdjustment - 単位と足す量
      * @returns {number} サイズを変えた文字の数
@@ -309,9 +311,13 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
     function adjustFontSizes(textRange, sizeAdjustment) {
         var textCharacters = textRange.characters;
         var characterCount = textCharacters.length;
+        var originalSizes = [];
         for (var i = 0; i < characterCount; i++) {
-            var characterAttrs = textCharacters[i].characterAttributes;
-            characterAttrs.size = addUnitStep(characterAttrs.size, sizeAdjustment.textUnit, sizeAdjustment.fontSizeStep, FONT_SIZE_MIN_PT, FONT_SIZE_MAX_PT);
+            originalSizes.push(textCharacters[i].characterAttributes.size);
+        }
+        /* 前から書くので、改行には直前の文字のあとで自分のサイズが入る / writing in order, each line break gets its own size last */
+        for (var j = 0; j < characterCount; j++) {
+            textCharacters[j].characterAttributes.size = addUnitStep(originalSizes[j], sizeAdjustment.textUnit, sizeAdjustment.fontSizeStep, FONT_SIZE_MIN_PT, FONT_SIZE_MAX_PT);
         }
         return characterCount;
     }

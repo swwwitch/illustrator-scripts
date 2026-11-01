@@ -47,3 +47,4 @@ To use separate shortcuts for increasing, decreasing or each multiplier, duplica
 
 - v1.0.0 (2026-11-01): Initial release
 - v1.0.1 (2026-11-01): Raised the minimum stroke weight from 0 pt to 0.1 pt, so a thinned stroke does not become invisible
+- v1.0.2 (2026-11-02): Fixed paragraph returns and forced line breaks changing size twice when the font size is stepped; they now change by the same amount as the other characters
