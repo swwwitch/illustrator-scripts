@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.CharacterWidthConverter
 Name=文字の種類ごとに全角・半角を変換
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.3.0
+Version=1.4.0
 Release-Date=2026-10-30
 Description-BEGIN
 カタカナ・英数字・スペース・句読点・括弧・記号を、文字の種類ごとに「そのまま／半角／全角」を選んで変換します。
@@ -47,7 +47,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CharacterW
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "CharacterWidthConverter";      /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.3.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.4.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-30";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-11-01";                   /* 更新日 / last updated */
@@ -848,6 +848,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             /* 「…」は ScriptUI で天地中央に出るので「...」で書く / Written as "..." since "…" sits vertically centered in ScriptUI */
             toEllipsis: { ja: "...に変換", en: "Convert to ..." },
             punctuationStyle: { ja: "句読点の種類", en: "Punctuation style" },
+            dashForm: { ja: "ダッシュ", en: "Dashes" },
             quoteForm: { ja: "全角の引用符", en: "Full-width quotes" },
             hyphenForm: { ja: "全角のハイフン", en: "Full-width hyphen" },
             tildeForm: { ja: "全角のチルダ", en: "Full-width tilde" },
@@ -866,7 +867,10 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             numberCommaToTouten: { ja: "数字の中の「,」を「、」にする", en: "\",\" in numbers to \"、\"" },
             decimalToNakaguro: { ja: "数字の中の「.」を「・」にする", en: "\".\" in numbers to \"・\"" },
             longDigitsFullwidth: { ja: "3桁以上の数字は全角にする", en: "Numbers of 3+ digits to full-width" },
+            twoDigitGlyphForm: { ja: "2桁の数字は等幅2桁字形にする", en: "Half-width forms for 2-digit numbers" },
+            threeDigitGlyphForm: { ja: "3桁の数字は等幅3桁字形にする", en: "Third-width forms for 3-digit numbers" },
             shortCapsFullwidth: { ja: "3文字以内の大文字で構成する英単語は全角にする", en: "All-capital words of up to 3 letters to full-width" },
+            unitsKumimoji: { ja: "数字の直後の単位を組文字にする（kg → ㌕）", en: "Units after digits to squares (kg → ㌕)" },
             highlightChanges: { ja: "変換した文字に色を付ける", en: "Color converted characters" }
         },
         preset: {
@@ -882,6 +886,10 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             punctuationStyleKeep: { ja: "そのまま", en: "Keep" },
             punctuationStyleJapanese: { ja: "、。にそろえる", en: "Unify to 、。" },
             punctuationStyleWestern: { ja: "，．にそろえる", en: "Unify to ，．" },
+            dashFormKeep: { ja: "そのまま", en: "Keep" },
+            dashFormEmDash: { ja: "—（全角ダッシュ）にそろえる", en: "Unify to — (em dash)" },
+            dashFormHorizontalBar: { ja: "―（水平バー）にそろえる", en: "Unify to ― (horizontal bar)" },
+            dashFormBoxDrawing: { ja: "─（罫線）にそろえる", en: "Unify to ─ (box drawing)" },
             quoteFormPlain: { ja: "＂＇（全角）", en: "＂＇ (full-width)" },
             quoteFormCurly: { ja: "“ ” ‘ ’（向きあり）", en: "“ ” ‘ ’ (curly)" },
             quoteFormMinute: { ja: "〝 〟（ミニュート）", en: "〝 〟 (minutes)" },
@@ -959,9 +967,25 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
                 ja: "3桁以上の数字を全角にします（2026 → ２０２６）。3.5 や 1,000 のように区切りをはさむ数字はひとつながりとして数え、英字に続く数字は変えません。1〜2桁の数字は数字の行（または［数字は1桁を全角、2桁以上を半角にする］）に従います。",
                 en: "Makes numbers of three or more digits full-width (2026 → ２０２６). Numbers such as 3.5 or 1,000 count as one number, and digits next to letters are left alone. Numbers of one or two digits follow the digits row (or \"Digits: one digit full-width…\")."
             },
+            twoDigitGlyphForm: {
+                ja: "半角2桁の数字に等幅半角の字形を適用し、2桁で全角1字分の幅にします（縦中横向け。縦中横は設定しません）。3.5 や 1,000 のように区切りをはさむ数字、英字に続く数字、全角の数字は変えません。",
+                en: "Applies half-width forms to two half-width digits so they take one full-width character (for Tate-Chu-Yoko, which is not set). Numbers with separators (3.5, 1,000), digits next to letters and full-width digits are left alone."
+            },
+            threeDigitGlyphForm: {
+                ja: "半角3桁の数字に等幅三分の字形を適用し、3桁で全角1字分の幅にします（縦中横向け。縦中横は設定しません）。3.5 や 1,000 のように区切りをはさむ数字、英字に続く数字、全角の数字は変えません。［3桁以上の数字は全角にする］で全角にした数字も変えません。",
+                en: "Applies third-width forms to three half-width digits so they take one full-width character (for Tate-Chu-Yoko, which is not set). Numbers with separators (3.5, 1,000), digits next to letters and full-width digits are left alone, including those made full-width by \"Numbers of 3+ digits to full-width\"."
+            },
             shortCapsFullwidth: {
                 ja: "大文字だけでできた3文字以内の英単語を全角にします（PDF → ＰＤＦ、A → Ａ）。数字や記号を含む語（A4、U.S.）と4文字以上の語は変えません。",
                 en: "Makes words of up to three capital letters full-width (PDF → ＰＤＦ, A → Ａ). Words with digits or marks (A4, U.S.) and longer words are left alone."
+            },
+            unitsKumimoji: {
+                ja: "数字の直後（間の半角スペースは詰める）の mm・cm・km・m・mg・g・kg・t・ml・dL・kL・L・cal・kcal・cc を ㍉・㌢・㌖・㍍・㍉㌘・㌘・㌕・㌧・㍉㍑・㌥㍑・㌔㍑・㍑・㌍・㌔㌍・㏄ に、m2・cm3・m² などを ㎡・㎤ にします。全角の英字も対象です。km/h・mmHg・5m20 のように後ろに英字・数字・「/」が続くものは変えません。字形の無いフォントもあります。",
+                en: "Turns units right after digits (a space between is removed), such as mm, cm, kg, ml, kcal and cc, into squares, and m2, cm3, m² into ㎡, ㎤; full-width letters too. Units followed by letters, digits or / (km/h, mmHg, 5m20) are left alone. Some fonts lack these glyphs."
+            },
+            dashForm: {
+                ja: "—（U+2014 全角ダッシュ）・―（U+2015 水平バー）・─（U+2500 罫線）を、選んだ字形にそろえます。続いたもの（—— ―― ──）は1字ずつ変えます。—だけの続きで、前後がどちらも和文の文字でないもの（word—word や 2020—2021）は欧文のダッシュとして残します。",
+                en: "Unifies — (U+2014 em dash), ― (U+2015 horizontal bar) and ─ (U+2500 box drawing) to the chosen form; runs (——, ――, ──) are converted one by one. Runs of — alone with no Japanese character on either side (word—word, 2020—2021) are left as Western dashes."
             },
             highlightChanges: {
                 ja: "変換した文字の塗りを赤にします（仕上がりの確認用。元の色には戻りません）。削除したスペースには付きません。",
@@ -1000,12 +1024,16 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             nakaguroToEllipsis: { ja: "・・・ → …", en: "・・・ → …" },
             periodsToEllipsis: { ja: "... → …", en: "... → …" },
             kutenToEllipsis: { ja: "。。。 → …", en: "。。。 → …" },
+            dashForm: { ja: "ダッシュ", en: "Dashes" },
             bracketInnerSpace: { ja: "括弧の内側のスペース", en: "Spaces inside brackets" },
             bracketOuterSpace: { ja: "括弧の外側のスペース", en: "Spaces outside brackets" },
             numberCommaToTouten: { ja: "数字の中の「,」", en: "\",\" in numbers" },
             decimalToNakaguro: { ja: "数字の中の「.」", en: "\".\" in numbers" },
             longDigitsFullwidth: { ja: "3桁以上の数字", en: "Numbers of 3+ digits" },
-            shortCapsFullwidth: { ja: "3文字以内の大文字の英単語", en: "Capital words of up to 3 letters" }
+            twoDigitGlyphForm: { ja: "2桁の数字の等幅2桁字形", en: "Half-width forms for 2-digit numbers" },
+            threeDigitGlyphForm: { ja: "3桁の数字の等幅3桁字形", en: "Third-width forms for 3-digit numbers" },
+            shortCapsFullwidth: { ja: "3文字以内の大文字の英単語", en: "Capital words of up to 3 letters" },
+            unitsKumimoji: { ja: "単位の組文字", en: "Units to squares" }
         }
     };
 
@@ -1179,6 +1207,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         { key: "nakaguroToEllipsis", valueCount: 2 },
         { key: "periodsToEllipsis", valueCount: 2 },
         { key: "kutenToEllipsis", valueCount: 2 },
+        { key: "dashForm", valueCount: 4 },
         { key: "westernPunctuationSpace", valueCount: 2, tab: "horizontal" },
         { key: "bracketInnerSpace", valueCount: 2 },
         { key: "bracketOuterSpace", valueCount: 2 },
@@ -1189,7 +1218,10 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         { key: "numberCommaToTouten", valueCount: 2, tab: "vertical" },
         { key: "decimalToNakaguro", valueCount: 2, tab: "vertical" },
         { key: "longDigitsFullwidth", valueCount: 2, tab: "vertical" },
-        { key: "shortCapsFullwidth", valueCount: 2, tab: "vertical" }
+        { key: "twoDigitGlyphForm", valueCount: 2, tab: "vertical" },
+        { key: "threeDigitGlyphForm", valueCount: 2, tab: "vertical" },
+        { key: "shortCapsFullwidth", valueCount: 2, tab: "vertical" },
+        { key: "unitsKumimoji", valueCount: 2, tab: "vertical" }
     ];
 
     /* 設定を別々に持つタブ（組み方向）の並び / Tabs (text directions), each with its own settings */
@@ -1218,6 +1250,10 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         { key: "kutenToEllipsis", chars: "\u3002\uFF61" }      /* 。 ｡ */
     ];
 
+    /* ダッシュ（— ― ─。混在の続きも1つ）と、dashForm の値 → そろえる字形（0 はそのまま）/ Dashes (mixed — ― ─ runs count as one) and dashForm value → target form (0 keeps) */
+    var DASH_CHARS = "\u2014\u2015\u2500";
+    var DASH_FORMS = [null, "\u2014", "\u2015", "\u2500"];
+
     /* 括弧の内側のスペースを削除する括弧（向きの無い " ' と不等号、アポストロフィと紛れる ‘ ’ は含めない）/ Brackets for removing inner spaces (straight quotes, < >, and ‘ ’ which look like apostrophes are excluded) */
     var OPENING_BRACKETS = "([{\uFF08\uFF3B\uFF5B\uFF62\u300C\u300E\u3010\u3014\u3008\u300A\u201C\u301D";
     var CLOSING_BRACKETS = ")]}\uFF09\uFF3D\uFF5D\uFF63\u300D\u300F\u3011\u3015\u3009\u300B\u201D\u301F";
@@ -1238,6 +1274,27 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     var SHORT_CAPS_WORD_PATTERN = /^[A-Z\uFF21-\uFF3A]{1,3}$/;
     /* ［3桁以上の数字は全角にする］の桁数 / Digit count for "numbers of 3+ digits to full-width" */
     var LONG_DIGIT_COUNT = 3;
+    /* ［2桁の数字は等幅2桁字形にする］［3桁の数字は等幅3桁字形にする］の対象（半角の数字だけ）と、桁数 → 設定のキー・字形 /
+       Targets of the fixed-width form options (half-width digits only), and digit count → setting key and glyph form */
+    var HALF_WIDTH_DIGITS_PATTERN = /^[0-9]+$/;
+    var DIGIT_GLYPH_FORM_DEFS = {
+        2: { settingKey: "twoDigitGlyphForm", glyphForm: AlternateGlyphsForm.HALFWIDTH },
+        3: { settingKey: "threeDigitGlyphForm", glyphForm: AlternateGlyphsForm.THIRDWIDTH }
+    };
+    /* ［数字の直後の単位を組文字にする］の単位（英字の部分。全角も可）、面積・体積（m2・m²・cm3 など）、英字の範囲、数字との間に入れてよいスペース（全角スペースは除く）/
+       Units for "units after digits to squares" (letters, full-width too), area and volume units (m2, m², cm3 ...), unit letters, and spaces allowed between digits and units (not the ideographic space) */
+    var UNIT_KUMIMOJI = {
+        mm: "\u3349", cm: "\u3322", km: "\u3316", m: "\u334D",
+        mg: "\u3349\u3318", g: "\u3318", kg: "\u3315", t: "\u3327",
+        ml: "\u3349\u3351", mL: "\u3349\u3351", dl: "\u3325\u3351", dL: "\u3325\u3351", kl: "\u3314\u3351", kL: "\u3314\u3351", l: "\u3351", L: "\u3351",
+        cal: "\u330D", kcal: "\u3314\u330D", cc: "\u33C4"
+    };
+    var UNIT_POWER_KUMIMOJI = {
+        mm2: "\u339F", cm2: "\u33A0", m2: "\u33A1", km2: "\u33A2",
+        mm3: "\u33A3", cm3: "\u33A4", m3: "\u33A5", km3: "\u33A6"
+    };
+    var UNIT_LETTER_PATTERN = /[A-Za-z\uFF21-\uFF3A\uFF41-\uFF5A]/;
+    var UNIT_GAP_PATTERN = /[ \u00A0\u2000-\u200A\u202F]/;
 
     /* 数字と、数字のあいだにはさまる区切り（3.5 や 1,000 をひとつながりにする）/ Digits, and the separators kept inside a number such as 3.5 or 1,000 */
     var DIGIT_PATTERN = /[0-9\uFF10-\uFF19]/;
@@ -1642,9 +1699,11 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
      * 設定から、変換元の文字 → 変換後の文字の表と、ほかの処理の有無をまとめる
      * @param {Object} rowOptions - 設定のキー → 値
      * @returns {{map: Object, rowKeyBySource: Object, runUnits: Array, size: number, digitsByLength: boolean,
-     *     spaceBetweenJapaneseOnly: boolean, japaneseLatinSpace: boolean, punctuationStyle: number, nakaguroToEllipsis: boolean, periodsToEllipsis: boolean, kutenToEllipsis: boolean, westernPunctuationSpace: boolean,
+     *     spaceBetweenJapaneseOnly: boolean, japaneseLatinSpace: boolean, punctuationStyle: number, nakaguroToEllipsis: boolean, periodsToEllipsis: boolean, kutenToEllipsis: boolean,
+     *     dashForm: number, westernPunctuationSpace: boolean,
      *     bracketInnerSpace: boolean, bracketOuterSpace: boolean,
-     *     numberCommaToTouten: boolean, decimalToNakaguro: boolean, longDigitsFullwidth: boolean, shortCapsFullwidth: boolean}}
+     *     numberCommaToTouten: boolean, decimalToNakaguro: boolean, longDigitsFullwidth: boolean, unitsKumimoji: boolean, twoDigitGlyphForm: boolean, threeDigitGlyphForm: boolean,
+     *     shortCapsFullwidth: boolean}}
      *     変換表（値は文字列、向きで決まる引用符は [開き, 閉じ]）・変換元の行のキー・連続する文字の組・実際に変換する項目の数（守るだけの組は数えない）とほかの処理
      */
     function buildConversionMap(rowOptions) {
@@ -1700,12 +1759,16 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             nakaguroToEllipsis: (rowOptions.nakaguroToEllipsis === 1),
             periodsToEllipsis: (rowOptions.periodsToEllipsis === 1),
             kutenToEllipsis: (rowOptions.kutenToEllipsis === 1),
+            dashForm: rowOptions.dashForm || 0,
             westernPunctuationSpace: (rowOptions.westernPunctuationSpace === 1),
             bracketInnerSpace: (rowOptions.bracketInnerSpace === 1),
             bracketOuterSpace: (rowOptions.bracketOuterSpace === 1),
             numberCommaToTouten: (rowOptions.numberCommaToTouten === 1),
             decimalToNakaguro: (rowOptions.decimalToNakaguro === 1),
             longDigitsFullwidth: (rowOptions.longDigitsFullwidth === 1),
+            unitsKumimoji: (rowOptions.unitsKumimoji === 1),
+            twoDigitGlyphForm: (rowOptions.twoDigitGlyphForm === 1),
+            threeDigitGlyphForm: (rowOptions.threeDigitGlyphForm === 1),
             shortCapsFullwidth: (rowOptions.shortCapsFullwidth === 1)
         };
     }
@@ -1717,9 +1780,10 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
      */
     function hasConversionWork(conversion) {
         return conversion.size > 0 || conversion.digitsByLength || conversion.punctuationStyle > 0 ||
-            conversion.japaneseLatinSpace || conversion.nakaguroToEllipsis || conversion.periodsToEllipsis || conversion.kutenToEllipsis || conversion.westernPunctuationSpace ||
+            conversion.japaneseLatinSpace || conversion.nakaguroToEllipsis || conversion.periodsToEllipsis || conversion.kutenToEllipsis || conversion.dashForm > 0 ||
+            conversion.westernPunctuationSpace ||
             conversion.bracketInnerSpace || conversion.bracketOuterSpace || conversion.numberCommaToTouten || conversion.decimalToNakaguro ||
-            conversion.longDigitsFullwidth || conversion.shortCapsFullwidth;
+            conversion.longDigitsFullwidth || conversion.unitsKumimoji || conversion.twoDigitGlyphForm || conversion.threeDigitGlyphForm || conversion.shortCapsFullwidth;
     }
 
     /**
@@ -2099,6 +2163,129 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     }
 
     /**
+     * 2桁・3桁の数字に等幅字形を適用する箇所を集める（［2桁の数字は等幅2桁字形にする］［3桁の数字は等幅3桁字形にする］）。
+     * 半角の数字だけで区切りをはさまず、前後が英字でない数字が対象（文字は変えないので text は元のまま）
+     * @param {string} fullText - 対象の文字列
+     * @param {{twoDigitGlyphForm: boolean, threeDigitGlyphForm: boolean}} conversion - どちらの処理をするか
+     * @returns {Array<{offset: number, sourceText: string, text: string, key: string, glyphForm: AlternateGlyphsForm}>} 適用する箇所
+     */
+    function findDigitGlyphFormReplacements(fullText, conversion) {
+        var replacements = [];
+        var offset = 0;
+        while (offset < fullText.length) {
+            if (!DIGIT_PATTERN.test(fullText.charAt(offset))) {
+                offset++;
+                continue;
+            }
+            var digitRun = readDigitRun(fullText, offset);
+            var sourceText = fullText.substring(offset, digitRun.end);
+            var glyphFormDef = HALF_WIDTH_DIGITS_PATTERN.test(sourceText) ? DIGIT_GLYPH_FORM_DEFS[sourceText.length] : null;
+            if (glyphFormDef && conversion[glyphFormDef.settingKey] &&
+                !LATIN_LETTER_PATTERN.test(fullText.charAt(offset - 1)) && !LATIN_LETTER_PATTERN.test(fullText.charAt(digitRun.end))) {
+                replacements.push({ offset: offset, sourceText: sourceText, text: sourceText, key: glyphFormDef.settingKey, glyphForm: glyphFormDef.glyphForm });
+            }
+            offset = digitRun.end;
+        }
+        return replacements;
+    }
+
+    /**
+     * 全角の英数字・記号を半角にする
+     * @param {string} sourceText - 文字列
+     * @returns {string} 半角にした文字列
+     */
+    function toHalfWidthAscii(sourceText) {
+        var asciiText = "";
+        for (var i = 0; i < sourceText.length; i++) {
+            var charCode = sourceText.charCodeAt(i);
+            asciiText += String.fromCharCode((charCode >= 0xFF01 && charCode <= 0xFF5E) ? charCode - FULL_WIDTH_OFFSET : charCode);
+        }
+        return asciiText;
+    }
+
+    /**
+     * 位置から始まる単位（全角の英字も可）を組文字にした文字列と、元の文字数を返す。
+     * 2・3・²・³ が続けば面積・体積の組文字に。後ろに英字・数字・「/」が続くもの（km/h、mmHg、5m20）は単位とみなさない
+     * @param {string} text - 文字列
+     * @param {number} startOffset - 単位の先頭の位置
+     * @returns {{length: number, text: string}|null} 単位でなければ null
+     */
+    function matchUnitKumimoji(text, startOffset) {
+        var letterEnd = startOffset;
+        while (letterEnd < text.length && UNIT_LETTER_PATTERN.test(text.charAt(letterEnd))) letterEnd++;
+        if (letterEnd === startOffset) return null;
+        var unitText = toHalfWidthAscii(text.substring(startOffset, letterEnd));
+        var powerText = toHalfWidthAscii(text.charAt(letterEnd)).replace("\u00B2", "2").replace("\u00B3", "3");
+        var squareText = null;
+        var unitLength = letterEnd - startOffset;
+        if ((powerText === "2" || powerText === "3") && UNIT_POWER_KUMIMOJI.hasOwnProperty(unitText + powerText)) {
+            squareText = UNIT_POWER_KUMIMOJI[unitText + powerText];
+            unitLength++;
+        } else if (UNIT_KUMIMOJI.hasOwnProperty(unitText)) {
+            squareText = UNIT_KUMIMOJI[unitText];
+        }
+        if (!squareText) return null;
+        var nextChar = text.charAt(startOffset + unitLength);
+        if (UNIT_LETTER_PATTERN.test(nextChar) || DIGIT_PATTERN.test(nextChar) || nextChar === "/" || nextChar === "\uFF0F") return null;
+        return { length: unitLength, text: squareText };
+    }
+
+    /**
+     * 数字の直後の単位を組文字にする箇所を集める（数字との間の半角スペースは詰める）
+     * @param {string} fullText - 対象の文字列
+     * @returns {Array<{offset: number, sourceText: string, text: string, key: string}>} 置き換える箇所
+     */
+    function findUnitKumimojiReplacements(fullText) {
+        var replacements = [];
+        var offset = 1;
+        while (offset < fullText.length) {
+            if (!DIGIT_PATTERN.test(fullText.charAt(offset - 1))) {
+                offset++;
+                continue;
+            }
+            var gapLength = UNIT_GAP_PATTERN.test(fullText.charAt(offset)) ? 1 : 0;
+            var unitMatch = matchUnitKumimoji(fullText, offset + gapLength);
+            if (!unitMatch) {
+                offset++;
+                continue;
+            }
+            var sourceLength = gapLength + unitMatch.length;
+            replacements.push({ offset: offset, sourceText: fullText.substr(offset, sourceLength), text: unitMatch.text, key: "unitsKumimoji" });
+            offset += sourceLength;
+        }
+        return replacements;
+    }
+
+    /**
+     * ダッシュの続きを選んだ字形にそろえる箇所を集める（— だけの続きで前後がどちらも和文の文字でなければ、欧文のダッシュとして残す）
+     * @param {string} fullText - 対象の文字列
+     * @param {string} dashChar - そろえる字形（DASH_FORMS の値）
+     * @returns {Array<{offset: number, sourceText: string, text: string, key: string}>} 置き換える箇所
+     */
+    function findDashReplacements(fullText, dashChar) {
+        var replacements = [];
+        var offset = 0;
+        while (offset < fullText.length) {
+            if (DASH_CHARS.indexOf(fullText.charAt(offset)) < 0) {
+                offset++;
+                continue;
+            }
+            var runEnd = offset;
+            while (runEnd < fullText.length && DASH_CHARS.indexOf(fullText.charAt(runEnd)) >= 0) runEnd++;
+            var sourceText = fullText.substring(offset, runEnd);
+            var isWesternDash = false;
+            if (/^\u2014+$/.test(sourceText)) {
+                var neighbors = getNeighborChars(fullText, offset, sourceText.length);
+                isWesternDash = !JAPANESE_CHAR_PATTERN.test(neighbors.previous) && !JAPANESE_CHAR_PATTERN.test(neighbors.next);
+            }
+            var dashText = sourceText.replace(/[\u2014\u2015\u2500]/g, dashChar);
+            if (!isWesternDash && dashText !== sourceText) replacements.push({ offset: offset, sourceText: sourceText, text: dashText, key: "dashForm" });
+            offset = runEnd;
+        }
+        return replacements;
+    }
+
+    /**
      * 大文字だけでできた3文字以内の英単語を全角にする箇所を集める
      * @param {string} fullText - 対象の文字列
      * @returns {Array<{offset: number, sourceText: string, text: string, key: string}>} 置き換える箇所
@@ -2267,16 +2454,17 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
 
     /**
      * 1か所を置き換える。書式を残すため characters 単位で書き換える：
-     * 長さが同じなら変わる文字だけを差し替え、長さが変わるときは先頭の1文字に新しい文字列を入れて残りを消す
+     * 長さが同じなら変わる文字だけを差し替え、長さが変わるときは先頭の1文字に新しい文字列を入れて残りを消す。glyphForm があれば文字は変えずに字形を適用する
      * @param {{base: TextRange, start: number, length: number}} target - 対象
-     * @param {{offset: number, sourceText: string, text: string}} replacement - 置き換える箇所
+     * @param {{offset: number, sourceText: string, text: string, glyphForm: AlternateGlyphsForm}} replacement - 置き換える箇所（glyphForm は字形を適用するときだけ）
      * @param {RGBColor|CMYKColor|null} highlightColor - 変換した文字に付ける色（付けないなら null）。書き換える前の文字に付け、書き換えで引き継がせる
-     * @returns {void}
+     * @returns {boolean|void} 字形がすでに同じで変えなかったときは false
      */
     function applyReplacement(target, replacement, highlightColor) {
         var firstIndex = target.start + replacement.offset;
         var sourceText = replacement.sourceText;
         var replacementText = replacement.text;
+        if (replacement.glyphForm) return applyGlyphForm(target, firstIndex, sourceText.length, replacement.glyphForm, highlightColor);
         if (replacementText.length === sourceText.length) {
             for (var i = sourceText.length - 1; i >= 0; i--) {
                 if (sourceText.charAt(i) === replacementText.charAt(i)) continue;
@@ -2294,6 +2482,34 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         }
         if (highlightColor) firstChar.characterAttributes.fillColor = highlightColor;
         firstChar.contents = replacementText;
+    }
+
+    /**
+     * 範囲に等幅字形を適用する。直接の代入が効かなければ、一時的な文字スタイル経由で入れる
+     * （文字スタイルの方法は uske-s「Illustratorで字形を置換するスクリプト」による。VerticalTextFormatter と同じ）
+     * @param {{base: TextRange, start: number, length: number}} target - 対象
+     * @param {number} firstIndex - 範囲の先頭（target.base の中の位置）
+     * @param {number} spanLength - 文字数
+     * @param {AlternateGlyphsForm} glyphForm - 字形
+     * @param {RGBColor|CMYKColor|null} highlightColor - 変換した文字に付ける色（付けないなら null）
+     * @returns {boolean} 適用したら true、すでにその字形なら false
+     */
+    function applyGlyphForm(target, firstIndex, spanLength, glyphForm, highlightColor) {
+        var spanRange = target.base.characters[firstIndex];
+        spanRange.length = spanLength;
+        if (spanRange.characterAttributes.alternateGlyphs === glyphForm) return false;
+        if (highlightColor) spanRange.characterAttributes.fillColor = highlightColor;
+        spanRange.characterAttributes.alternateGlyphs = glyphForm;
+        if (spanRange.characterAttributes.alternateGlyphs === glyphForm) return true;
+        var tempStyle = activeDocument.characterStyles.add(SCRIPT_NAME + "_" + new Date().getTime());
+        try {
+            tempStyle.characterAttributes.alternateGlyphs = glyphForm;
+            /* false：手動の書式は残す / false keeps the local formatting */
+            tempStyle.applyTo(spanRange, false);
+        } finally {
+            tempStyle.remove();
+        }
+        return true;
     }
 
     /**
@@ -2316,7 +2532,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         for (var i = replacements.length - 1; i >= 0; i--) {
             var replacement = replacements[i];
             try {
-                applyReplacement(target, replacement, highlightColor);
+                if (applyReplacement(target, replacement, highlightColor) === false) continue;
                 /* 選択した文字の範囲は、増えた・減った文字数に合わせる / Keep a selected range in step with added or removed characters */
                 if (target.length >= 0) target.length += replacement.text.length - replacement.sourceText.length;
                 result.converted++;
@@ -2329,7 +2545,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
 
     /**
      * 対象の文字を設定に従って変換する。
-     * 三点リーダー → 和欧間のスペース → 変換表 → 句読点の種類 → 数字の桁数 → 3文字以内の大文字の英単語 → 数字の中の「,」「.」 → 欧文の,.:のあとのスペース → 括弧のまわりのスペースの順に処理する。characters 単位の書き換えなので、文字の書式はそのまま残る
+     * 三点リーダー → ダッシュ → 和欧間のスペース → 単位の組文字 → 変換表 → 句読点の種類 → 数字の桁数 → 3文字以内の大文字の英単語 → 2・3桁の数字の等幅字形 → 数字の中の「,」「.」 → 欧文の,.:のあとのスペース → 括弧のまわりのスペースの順に処理する。characters 単位の書き換えなので、文字の書式はそのまま残る
      * @param {Array} targets - 対象の配列
      * @param {Object} conversion - buildConversionMap() の戻り値に highlightColor（変換した文字に付ける色、付けないなら null）を足したもの
      * @returns {{converted: number, failed: number, countsByKey: Object}} 変換できた数・できなかった数・キーごとの数
@@ -2344,8 +2560,14 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             if (conversion.nakaguroToEllipsis || conversion.periodsToEllipsis || conversion.kutenToEllipsis) {
                 runReplacePass(target, function (fullText) { return findEllipsisReplacements(fullText, conversion); }, result, highlightColor);
             }
+            if (conversion.dashForm > 0) {
+                runReplacePass(target, function (fullText) { return findDashReplacements(fullText, DASH_FORMS[conversion.dashForm]); }, result, highlightColor);
+            }
             /* 英数字を全角にする前に、元の文字で和欧間を判定する / Judged on the original characters, before letters and digits turn full-width */
             if (conversion.japaneseLatinSpace) runReplacePass(target, findJapaneseLatinSpaceReplacements, result, highlightColor);
+            /* 英字の行・数字の桁数より先に（kg が全角になったり、英字に続く数字として扱われたりしないように）/
+               Before the letter row and digit lengths, so kg is not made full-width and digits are not treated as next to letters */
+            if (conversion.unitsKumimoji) runReplacePass(target, findUnitKumimojiReplacements, result, highlightColor);
             if (conversion.size > 0) {
                 runReplacePass(target, function (fullText) { return findTableReplacements(fullText, conversion); }, result, highlightColor);
             }
@@ -2356,6 +2578,11 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
                 runReplacePass(target, function (fullText) { return findDigitRunReplacements(fullText, conversion); }, result, highlightColor);
             }
             if (conversion.shortCapsFullwidth) runReplacePass(target, findShortCapsReplacements, result, highlightColor);
+            /* 数字の幅を決めたあと（半角のまま残った数字だけが対象）、区切りを「、」「・」にする前（1,000 の 000 を拾わないように）/
+               After the digit widths (only digits left half-width), before separators become 、 and ・ (so 000 in 1,000 is not picked up) */
+            if (conversion.twoDigitGlyphForm || conversion.threeDigitGlyphForm) {
+                runReplacePass(target, function (fullText) { return findDigitGlyphFormReplacements(fullText, conversion); }, result, highlightColor);
+            }
             /* 数字の桁数を決めたあとに区切りを置き換える（「、」「・」で数字のつながりが切れないように）/ After the digit lengths, so 、 and ・ do not split the runs */
             if (conversion.numberCommaToTouten || conversion.decimalToNakaguro) {
                 runReplacePass(target, function (fullText) { return findNumberMarkReplacements(fullText, conversion); }, result, highlightColor);
@@ -2850,6 +3077,9 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         addExtraCheckbox(ellipsisRowGroup, "nakaguroToEllipsis", LABELS.checkbox.nakaguroToEllipsis, LABELS.tooltip.nakaguroToEllipsis, tabControls);
         addExtraCheckbox(ellipsisRowGroup, "periodsToEllipsis", LABELS.checkbox.periodsToEllipsis, LABELS.tooltip.periodsToEllipsis, tabControls);
         addExtraCheckbox(ellipsisRowGroup, "kutenToEllipsis", LABELS.checkbox.kutenToEllipsis, LABELS.tooltip.kutenToEllipsis, tabControls);
+        addExtraDropdown(punctuationPanel, "dashForm", LABELS.fieldLabel.dashForm,
+            [LABELS.dropdown.dashFormKeep, LABELS.dropdown.dashFormEmDash, LABELS.dropdown.dashFormHorizontalBar, LABELS.dropdown.dashFormBoxDrawing],
+            LABELS.tooltip.dashForm, tabControls);
 
         var middleColumnGroup = columnsGroup.add("group");
         middleColumnGroup.orientation = "column";
@@ -2873,9 +3103,12 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             var verticalPanel = middleColumnGroup.add("panel", undefined, getLabel(LABELS.panel.vertical));
             setupPanel(verticalPanel, 6);
             addExtraCheckbox(verticalPanel, "longDigitsFullwidth", LABELS.checkbox.longDigitsFullwidth, LABELS.tooltip.longDigitsFullwidth, tabControls);
+            addExtraCheckbox(verticalPanel, "twoDigitGlyphForm", LABELS.checkbox.twoDigitGlyphForm, LABELS.tooltip.twoDigitGlyphForm, tabControls);
+            addExtraCheckbox(verticalPanel, "threeDigitGlyphForm", LABELS.checkbox.threeDigitGlyphForm, LABELS.tooltip.threeDigitGlyphForm, tabControls);
             addExtraCheckbox(verticalPanel, "numberCommaToTouten", LABELS.checkbox.numberCommaToTouten, LABELS.tooltip.numberCommaToTouten, tabControls);
             addExtraCheckbox(verticalPanel, "decimalToNakaguro", LABELS.checkbox.decimalToNakaguro, LABELS.tooltip.decimalToNakaguro, tabControls);
             addExtraCheckbox(verticalPanel, "shortCapsFullwidth", LABELS.checkbox.shortCapsFullwidth, LABELS.tooltip.shortCapsFullwidth, tabControls);
+            addExtraCheckbox(verticalPanel, "unitsKumimoji", LABELS.checkbox.unitsKumimoji, LABELS.tooltip.unitsKumimoji, tabControls);
         }
 
         var rightColumnGroup = columnsGroup.add("group");
@@ -3253,8 +3486,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     }
 
     /* 内訳に出す、行以外のキー（行のあとに並べる）/ Keys besides the rows shown in the breakdown, listed after the rows */
-    var RESULT_EXTRA_KEYS = ["nakaguroToEllipsis", "periodsToEllipsis", "kutenToEllipsis", "japaneseLatinSpace", "punctuationStyle", "longDigitsFullwidth", "shortCapsFullwidth",
-        "numberCommaToTouten", "decimalToNakaguro", "westernPunctuationSpace", "bracketInnerSpace", "bracketOuterSpace"];
+    var RESULT_EXTRA_KEYS = ["nakaguroToEllipsis", "periodsToEllipsis", "kutenToEllipsis", "dashForm", "japaneseLatinSpace", "unitsKumimoji", "punctuationStyle",
+        "longDigitsFullwidth", "twoDigitGlyphForm", "threeDigitGlyphForm", "shortCapsFullwidth", "numberCommaToTouten", "decimalToNakaguro", "westernPunctuationSpace", "bracketInnerSpace", "bracketOuterSpace"];
 
     /**
      * 変換した数の内訳を、行の並び順で「項目名 : 数」の行にする

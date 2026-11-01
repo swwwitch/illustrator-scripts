@@ -59,8 +59,8 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
     // =========================================
     // ユーザー設定 / User Settings
     // =========================================
-    var STEP_SIGN = 1;              /* 正負の切り替え。1 で大きく・太く、-1 で小さく・細く / 1 to increase, -1 to decrease */
-    var STEP_MULTIPLIER = 1;        /* 倍率の切り替え。1 / 5 / 10 / step multiplier: 1, 5 or 10 */
+    var SW_STEP_SIGN = 1;           /* 正負の切り替え。1 で大きく・太く、-1 で小さく・細く / 1 to increase, -1 to decrease */
+    var SW_STEP_MULTIPLIER = 1;     /* 倍率の切り替え。1 / 5 / 10 / step multiplier: 1, 5 or 10 */
 
     var FONT_SIZE_STEP = 1;         /* 文字サイズの1回分の量（環境設定の［文字］の単位） / font size step, in the type unit set in Preferences */
     var STROKE_STEP = 0.1;          /* 線幅の1回分の量（環境設定の［線］の単位） / stroke weight step, in the stroke unit set in Preferences */
@@ -248,7 +248,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             alert(getLabel(LABELS.alert.noSelection));
             return;
         }
-        var stepFactor = STEP_SIGN * STEP_MULTIPLIER;
+        var stepFactor = SW_STEP_SIGN * SW_STEP_MULTIPLIER;
         var sizeAdjustment = {
             textUnit: getUnitInfo("text/units"),
             strokeUnit: getUnitInfo("strokeUnits"),
