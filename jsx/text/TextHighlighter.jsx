@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.DrawMarkerBehindText
 Name=文字にマーカー・アンダーライン・取り消し線を引く
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.4.0
+Version=1.5.0
 Release-Date=2026-11-01
 Description-BEGIN
 文字ツールで選んだ文字やテキストオブジェクトに、字面に合わせてマーカー・アンダーライン・取り消し線などの線や、長方形・円・六角形・傍点を描きます（文字の背面・前面を選べ、複数行は行ごと。行頭・行長・行送りの間隔もそろえられます）。
@@ -47,7 +47,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TextHighli
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "TextHighlighter";              /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.4.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.5.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-11-01";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-11-02";                   /* 更新日 / last updated */
@@ -97,7 +97,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     var MARKER_WEIGHT_RATIO = 0.4;
 
     /* 種類の既定（"underline"：アンダーライン / "marker"：マーカー / "straightShear"：直線＋シアー / "zigzag"：ギザギザ /
-       "roughMarker"：手書き風 / "fill"：塗りつぶし / "strikethrough"：取り消し線 / "doubleStrikethrough"：二重取り消し線 /
+       "fill"：塗りつぶし / "strikethrough"：取り消し線 / "doubleStrikethrough"：二重取り消し線 /
        "box"：長方形 / "circle"：円 / "hexagon"：六角形 / "emphasisDots"：傍点） / Default style */
     var DEFAULT_LINE_STYLE = "marker";
 
@@ -115,8 +115,11 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
        Characters skipped by Emphasis Dots and the per-character shapes (punctuation, brackets, symbols, spaces) */
     var PER_CHAR_SKIP_CHARS = "、。，．,.・:;：；!?！？「」『』（）()［］[]【】〈〉《》〔〕…‥ー―-— 　\t\r\n";
 
-    /* ［手書き風］の［ラフ］効果の詳細（1インチあたりの数） / Detail (per inch) of the Roughen effect in Hand-Drawn */
-    var ROUGHEN_DETAIL = 20;
+    /* ［ラフ］の初期値：［手書き風］のオンオフ、サイズ（線や図形の大きさに対する％）、詳細（1インチあたりの数）
+       Initial Roughen values: Hand-Drawn on/off, size (% of the line or shape) and detail (per inch) */
+    var DEFAULT_ROUGHEN = false;
+    var DEFAULT_ROUGHEN_SIZE_PERCENT = 1;
+    var DEFAULT_ROUGHEN_DETAIL = 10;
 
     /* 字面を測るアウトライン化の回数の上限。アウトライン直後の字形に読めない参照（MRAP）が混じったら作り直す
        Maximum outline attempts when measuring glyphs; retried when an outlined glyph cannot be read (MRAP) */
@@ -219,105 +222,184 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         {
             name: { ja: "アンダーライン", en: "Underline" },
             settings: {
-                lineStyle: "underline", stackOrder: "stackBack", strokeColorChoice: "textColor", opacity: 100, strokeWidthPt: 0.65, verticalOffsetPt: -1.134,
-                dashStyle: "solidLine", strokeCap: "roundCap", whiteText: false
+                lineStyle: "underline", stackOrder: "stackBack", strokeColorChoice: "textColor", strokeWidthPt: 0.65, dashStyle: "solidLine",
+                strokeCap: "roundCap", opacity: 100, verticalOffsetPt: -1.134, roughen: false, alignLineStarts: false, equalLineLengths: false,
+                leadingBased: false, kerningChoice: "keepKerning", trackingText: "", kerningBeforeText: "", kerningAfterText: "", whiteText: false
             }
         },
         {
             name: { ja: "ドットのアンダーライン", en: "Dotted Underline" },
             settings: {
-                lineStyle: "underline", stackOrder: "stackBack", strokeColorChoice: "textColor", opacity: 100, strokeWidthRatio: 0.06, verticalOffsetPt: -1.701,
-                dashStyle: "dottedLine", whiteText: false
+                lineStyle: "underline", stackOrder: "stackBack", strokeColorChoice: "textColor", strokeWidthPt: 1, dashStyle: "dottedLine", dashGapPt: 2,
+                strokeCap: "roundCap", opacity: 100, verticalOffsetPt: -1.701, roughen: false, alignLineStarts: false, equalLineLengths: false,
+                leadingBased: false, kerningChoice: "keepKerning", trackingText: "", kerningBeforeText: "", kerningAfterText: "", whiteText: false
+            }
+        },
+        {
+            name: { ja: "黄色のマーカー", en: "Yellow Marker" },
+            settings: {
+                lineStyle: "marker", stackOrder: "stackBack", strokeColorChoice: "yellow", strokeWidthPt: 5, dashStyle: "solidLine", strokeCap: "roundCap",
+                opacity: 100, verticalOffsetPt: 0, roughen: false, alignLineStarts: false, equalLineLengths: false, leadingBased: false,
+                kerningChoice: "keepKerning", trackingText: "", kerningBeforeText: "", kerningAfterText: "", whiteText: false
+            }
+        },
+        {
+            name: { ja: "黄色のマーカー（手書き風）", en: "Yellow Marker (Hand-Drawn)" },
+            settings: {
+                lineStyle: "marker", stackOrder: "stackBack", strokeColorChoice: "yellow", strokeWidthPt: 5, dashStyle: "solidLine", strokeCap: "roundCap",
+                opacity: 100, verticalOffsetPt: 0, roughen: true, roughenSizePercent: 1, roughenDetail: 10, alignLineStarts: false, equalLineLengths: false,
+                leadingBased: false, kerningChoice: "keepKerning", trackingText: "", kerningBeforeText: "", kerningAfterText: "", whiteText: false
+            }
+        },
+        {
+            name: { ja: "斜めの蛍光ペン", en: "Slanted Highlighter" },
+            settings: {
+                lineStyle: "straightShear", stackOrder: "stackBack", strokeColorChoice: "yellow", strokeWidthPt: 5.63, dashStyle: "solidLine",
+                strokeCap: "buttCap", shearAngle: 30, opacity: 100, verticalOffsetPt: 5.669, roughen: false, alignLineStarts: false, equalLineLengths: false,
+                leadingBased: true, kerningChoice: "keepKerning", trackingText: "", kerningBeforeText: "", kerningAfterText: "", whiteText: false
             }
         },
         {
             name: { ja: "波線", en: "Wavy Line" },
             settings: {
-                lineStyle: "zigzag", stackOrder: "stackBack", zigzagSizeRatio: 0.06, zigzagRidges: 12, zigzagPoints: "smoothPoints", strokeColorChoice: "textColor", opacity: 100,
-                strokeWidthRatio: 0.04, verticalOffsetPt: -1.417, dashStyle: "solidLine", strokeCap: "roundCap", whiteText: false
+                lineStyle: "zigzag", stackOrder: "stackBack", strokeColorChoice: "textColor", strokeWidthPt: 0.45, dashStyle: "solidLine", strokeCap: "roundCap",
+                zigzagSizePt: 0.68, zigzagRidges: 12, zigzagPoints: "smoothPoints", opacity: 100, verticalOffsetPt: -2.835, roughen: false,
+                alignLineStarts: false, equalLineLengths: false, leadingBased: false, kerningChoice: "keepKerning", trackingText: "", kerningBeforeText: "",
+                kerningAfterText: "", whiteText: false
             }
         },
         {
             name: { ja: "ギザギザ", en: "Zigzag" },
             settings: {
-                lineStyle: "zigzag", stackOrder: "stackBack", zigzagSizePt: 0.68, zigzagRidges: 30, zigzagPoints: "cornerPoints", strokeColorChoice: "red", opacity: 100,
-                strokeWidthPt: 1, verticalOffsetPt: 1.984, leadingBased: true, dashStyle: "solidLine", strokeCap: "buttCap", whiteText: false
+                lineStyle: "zigzag", stackOrder: "stackBack", strokeColorChoice: "red", strokeWidthPt: 1, dashStyle: "solidLine", strokeCap: "buttCap",
+                zigzagSizePt: 0.68, zigzagRidges: 30, zigzagPoints: "cornerPoints", opacity: 100, verticalOffsetPt: 1.984, roughen: false,
+                alignLineStarts: false, equalLineLengths: false, leadingBased: true, kerningChoice: "keepKerning", trackingText: "", kerningBeforeText: "",
+                kerningAfterText: "", whiteText: false
             }
         },
         {
-            name: { ja: "黄色のマーカー", en: "Yellow Marker" },
-            settings: { lineStyle: "marker", stackOrder: "stackBack", strokeColorChoice: "yellow", opacity: 100, strokeWidthRatio: 0.4, verticalOffsetPt: 0, dashStyle: "solidLine", strokeCap: "buttCap", whiteText: false }
-        },
-        {
-            name: { ja: "斜めの蛍光ペン", en: "Slanted Highlighter" },
-            settings: { lineStyle: "straightShear", stackOrder: "stackBack", shearAngle: 30, strokeColorChoice: "yellow", opacity: 100, strokeWidthRatio: 0.5, verticalOffsetPt: 0, dashStyle: "solidLine", strokeCap: "buttCap", whiteText: false }
-        },
-        {
             name: { ja: "文字色の取り消し線", en: "Text-Color Strikethrough" },
-            settings: { lineStyle: "strikethrough", stackOrder: "stackBack", strokeColorChoice: "textColor", opacity: 100, strokeWidthRatio: 0.18, verticalOffsetPt: 0, dashStyle: "solidLine", strokeCap: "buttCap", whiteText: false }
+            settings: {
+                lineStyle: "strikethrough", stackOrder: "stackBack", strokeColorChoice: "textColor", strokeWidthRatio: 0.18, dashStyle: "solidLine",
+                strokeCap: "buttCap", opacity: 100, verticalOffsetPt: 0, roughen: false, alignLineStarts: false, equalLineLengths: false, leadingBased: false,
+                kerningChoice: "keepKerning", trackingText: "", kerningBeforeText: "", kerningAfterText: "", whiteText: false
+            }
         },
         {
             name: { ja: "二重取り消し線", en: "Double Strikethrough" },
             settings: {
-                lineStyle: "doubleStrikethrough", stackOrder: "stackBack", strokeColorChoice: "textColor", opacity: 100, strokeWidthRatio: 0.05,
-                lineGapRatio: 0.2, verticalOffsetPt: 0, dashStyle: "solidLine", strokeCap: "buttCap", whiteText: false
+                lineStyle: "doubleStrikethrough", stackOrder: "stackBack", strokeColorChoice: "textColor", strokeWidthRatio: 0.05, dashStyle: "solidLine",
+                strokeCap: "buttCap", lineGapRatio: 0.2, opacity: 100, verticalOffsetPt: 0, roughen: false, alignLineStarts: false, equalLineLengths: false,
+                leadingBased: false, kerningChoice: "keepKerning", trackingText: "", kerningBeforeText: "", kerningAfterText: "", whiteText: false
             }
         },
         {
             name: { ja: "角丸の長方形", en: "Rounded Box" },
             settings: {
-                lineStyle: "box", shapeFill: true, shapeStroke: false, stackOrder: "stackBack", boxRotation: 0, isPerChar: false, colorChoice: "custom", opacity: 100, customColor: { rgb: [79, 155, 216], cmyk: [65, 25, 0, 0] },
-                boxPaddingRatio: 0.12, cornerRadiusRatio: 0.2, squareLineJoins: true, verticalOffsetPt: 0, whiteText: true
+                lineStyle: "box", stackOrder: "stackBack", shapeFill: true, shapeStroke: false, isPerChar: false, boxRotation: 0, colorChoice: "custom",
+                customColor: { rgb: [79, 155, 216], cmyk: [65, 25, 0, 0] }, boxPaddingPt: 4.819, boxPaddingVPt: -1.701, boxPaddingLinked: false,
+                cornerRadiusPt: 5.669, squareLineJoins: true, opacity: 100, verticalOffsetPt: 0, roughen: false, alignLineStarts: true, equalLineLengths: false,
+                leadingBased: true, kerningChoice: "keepKerning", trackingText: "", kerningBeforeText: "600", kerningAfterText: "600", whiteText: true
             }
         },
         {
             name: { ja: "行ごとに帯", en: "Band per Line" },
             settings: {
-                lineStyle: "box", shapeFill: true, shapeStroke: false, stackOrder: "stackBack", boxRotation: 0, isPerChar: false, colorChoice: "custom", opacity: 100, customColor: { rgb: [79, 155, 216], cmyk: [65, 25, 0, 0] },
-                boxPaddingPt: 3.969, boxPaddingVPt: -0.85, boxPaddingLinked: false, cornerRadiusPt: 0, squareLineJoins: true, alignLineStarts: true, equalLineLengths: false, leadingBased: true,
-                verticalOffsetPt: 0, whiteText: true
+                lineStyle: "box", stackOrder: "stackBack", shapeFill: true, shapeStroke: false, isPerChar: false, boxRotation: 0, colorChoice: "custom",
+                customColor: { rgb: [79, 155, 216], cmyk: [65, 25, 0, 0] }, boxPaddingPt: 3.969, boxPaddingVPt: -0.85, boxPaddingLinked: false,
+                cornerRadiusPt: 0, squareLineJoins: true, opacity: 100, verticalOffsetPt: 0, roughen: false, alignLineStarts: true, equalLineLengths: false,
+                leadingBased: true, kerningChoice: "keepKerning", trackingText: "", kerningBeforeText: "", kerningAfterText: "", whiteText: true
+            }
+        },
+        {
+            name: { ja: "行ごとに帯（隣接）", en: "Band per Line (Touching)" },
+            settings: {
+                lineStyle: "box", stackOrder: "stackBack", shapeFill: true, shapeStroke: false, isPerChar: false, boxRotation: 0, colorChoice: "custom",
+                customColor: { rgb: [79, 155, 216], cmyk: [65, 25, 0, 0] }, boxPaddingPt: 3.969, boxPaddingVPt: 0, boxPaddingLinked: false, cornerRadiusPt: 0,
+                squareLineJoins: false, opacity: 100, verticalOffsetPt: 0, roughen: false, alignLineStarts: true, equalLineLengths: false, leadingBased: true,
+                kerningChoice: "keepKerning", trackingText: "", kerningBeforeText: "", kerningAfterText: "", whiteText: true
+            }
+        },
+        {
+            name: { ja: "行ごとに帯（手書き風）", en: "Band per Line (Hand-Drawn)" },
+            settings: {
+                lineStyle: "box", stackOrder: "stackBack", shapeFill: true, shapeStroke: false, isPerChar: false, boxRotation: 0, colorChoice: "custom",
+                customColor: { rgb: [79, 155, 216], cmyk: [65, 25, 0, 0] }, boxPaddingPt: 3.969, boxPaddingVPt: -0.85, boxPaddingLinked: false,
+                cornerRadiusPt: 0, squareLineJoins: true, opacity: 100, verticalOffsetPt: 0, roughen: true, roughenSizePercent: 0.7, roughenDetail: 3,
+                alignLineStarts: true, equalLineLengths: false, leadingBased: true, kerningChoice: "keepKerning", trackingText: "", kerningBeforeText: "",
+                kerningAfterText: "", whiteText: true
             }
         },
         {
             name: { ja: "囲み罫", en: "Frame" },
             settings: {
-                lineStyle: "box", shapeFill: false, shapeStroke: true, strokeColorChoice: "textColor", stackOrder: "stackBack", boxRotation: 0, isPerChar: false, opacity: 100, strokeWidthRatio: 0.04,
-                boxPaddingRatio: 0.12, cornerRadiusPt: 0, verticalOffsetPt: 0, dashStyle: "solidLine", whiteText: false
+                lineStyle: "box", stackOrder: "stackBack", shapeFill: false, shapeStroke: true, isPerChar: false, boxRotation: 0, strokeColorChoice: "textColor",
+                strokeWidthPt: 0.45, dashStyle: "solidLine", boxPaddingPt: 3.402, boxPaddingVPt: -2.551, boxPaddingLinked: false, cornerRadiusPt: 0,
+                squareLineJoins: true, opacity: 100, verticalOffsetPt: 0, roughen: false, alignLineStarts: false, equalLineLengths: false, leadingBased: true,
+                kerningChoice: "keepKerning", trackingText: "", kerningBeforeText: "", kerningAfterText: "", whiteText: false
+            }
+        },
+        {
+            name: { ja: "囲み罫（行ごと）", en: "Frame per Line" },
+            settings: {
+                lineStyle: "box", stackOrder: "stackBack", shapeFill: false, shapeStroke: true, isPerChar: false, boxRotation: 0, strokeColorChoice: "textColor",
+                strokeWidthPt: 0.45, dashStyle: "solidLine", boxPaddingPt: 3.402, boxPaddingVPt: -2.551, boxPaddingLinked: false, cornerRadiusPt: 0,
+                squareLineJoins: false, opacity: 100, verticalOffsetPt: 0, roughen: false, alignLineStarts: true, equalLineLengths: false, leadingBased: true,
+                kerningChoice: "keepKerning", trackingText: "", kerningBeforeText: "", kerningAfterText: "", whiteText: false
+            }
+        },
+        {
+            name: { ja: "囲み罫（行ごと）手書き風", en: "Frame per Line (Hand-Drawn)" },
+            settings: {
+                lineStyle: "box", stackOrder: "stackBack", shapeFill: false, shapeStroke: true, isPerChar: false, boxRotation: 0, strokeColorChoice: "textColor",
+                strokeWidthPt: 0.45, dashStyle: "solidLine", boxPaddingPt: 3.402, boxPaddingVPt: -2.551, boxPaddingLinked: false, cornerRadiusPt: 0,
+                squareLineJoins: false, opacity: 100, verticalOffsetPt: 0, roughen: true, roughenSizePercent: 0.4, roughenDetail: 10, alignLineStarts: true,
+                equalLineLengths: false, leadingBased: true, kerningChoice: "keepKerning", trackingText: "", kerningBeforeText: "", kerningAfterText: "",
+                whiteText: false
             }
         },
         {
             name: { ja: "墨消し", en: "Redaction" },
             settings: {
-                lineStyle: "box", shapeFill: true, shapeStroke: false, stackOrder: "stackFront", boxRotation: 0, isPerChar: false, colorChoice: "textColor", opacity: 80, boxPaddingPt: 0.85, cornerRadiusPt: 0,
-                verticalOffsetPt: 0, whiteText: false
+                lineStyle: "box", stackOrder: "stackBack", shapeFill: true, shapeStroke: false, isPerChar: false, boxRotation: 0, colorChoice: "textColor",
+                boxPaddingPt: 1.984, boxPaddingVPt: -0.567, boxPaddingLinked: false, cornerRadiusPt: 0, squareLineJoins: true, opacity: 80, verticalOffsetPt: 0,
+                roughen: false, alignLineStarts: true, equalLineLengths: false, leadingBased: true, kerningChoice: "keepKerning", trackingText: "",
+                kerningBeforeText: "", kerningAfterText: "", whiteText: false
             }
         },
         {
             name: { ja: "1文字ずつの長方形", en: "Box per Character" },
             settings: {
-                lineStyle: "box", shapeFill: true, shapeStroke: false, stackOrder: "stackBack", boxRotation: 0, isPerChar: true, colorChoice: "custom", opacity: 100, customColor: { rgb: [214, 96, 112], cmyk: [0, 70, 40, 10] },
-                boxPaddingPt: -0.283, cornerRadiusPt: 0, verticalOffsetPt: 0, whiteText: true
+                lineStyle: "box", stackOrder: "stackBack", shapeFill: true, shapeStroke: false, isPerChar: true, boxRotation: 0, colorChoice: "custom",
+                customColor: { rgb: [214, 96, 112], cmyk: [0, 70, 40, 10] }, boxPaddingPt: 0.567, boxPaddingVPt: 0.567, boxPaddingLinked: true,
+                cornerRadiusPt: 0, squareLineJoins: true, opacity: 100, verticalOffsetPt: 0, roughen: false, alignLineStarts: false, equalLineLengths: false,
+                leadingBased: false, kerningChoice: "zeroKerning", trackingText: "170", kerningBeforeText: "", kerningAfterText: "", whiteText: true
             }
         },
         {
             name: { ja: "1文字ずつの円", en: "Circle per Character" },
             settings: {
-                lineStyle: "circle", shapeFill: true, shapeStroke: false, stackOrder: "stackBack", boxRotation: 0, isPerChar: true, colorChoice: "custom", opacity: 100, customColor: { rgb: [214, 96, 112], cmyk: [0, 70, 40, 10] },
-                boxPaddingRatio: 0.1, verticalOffsetPt: 0, whiteText: true
+                lineStyle: "circle", stackOrder: "stackBack", shapeFill: true, shapeStroke: false, isPerChar: true, boxRotation: 0, colorChoice: "custom",
+                customColor: { rgb: [214, 96, 112], cmyk: [0, 70, 40, 10] }, boxPaddingPt: 1.106, boxPaddingVPt: 1.106, boxPaddingLinked: true, opacity: 100,
+                verticalOffsetPt: 0, roughen: false, alignLineStarts: false, equalLineLengths: false, leadingBased: false, kerningChoice: "zeroKerning",
+                trackingText: "170", kerningBeforeText: "", kerningAfterText: "", whiteText: true
             }
         },
         {
             name: { ja: "1文字ずつの六角形", en: "Hexagon per Character" },
             settings: {
-                lineStyle: "hexagon", shapeFill: true, shapeStroke: false, stackOrder: "stackBack", boxRotation: 0, isPerChar: true, colorChoice: "custom", opacity: 100, customColor: { rgb: [79, 155, 216], cmyk: [65, 25, 0, 0] },
-                boxPaddingRatio: 0.06, verticalOffsetPt: 0, whiteText: true
+                lineStyle: "hexagon", stackOrder: "stackBack", shapeFill: true, shapeStroke: false, isPerChar: true, boxRotation: 30, colorChoice: "custom",
+                customColor: { rgb: [79, 155, 216], cmyk: [65, 25, 0, 0] }, boxPaddingPt: 0.652, boxPaddingVPt: 0.652, boxPaddingLinked: true, opacity: 100,
+                verticalOffsetPt: 0, roughen: false, alignLineStarts: false, equalLineLengths: false, leadingBased: false, kerningChoice: "zeroKerning",
+                trackingText: "170", kerningBeforeText: "", kerningAfterText: "", whiteText: true
             }
         },
         {
             name: { ja: "傍点", en: "Emphasis Dots" },
             settings: {
-                lineStyle: "emphasisDots", stackOrder: "stackBack", colorChoice: "textColor", opacity: 100,
-                dotSizeRatio: 0.18, boxPaddingRatio: 0.08, verticalOffsetPt: 0, whiteText: false
+                lineStyle: "emphasisDots", stackOrder: "stackBack", colorChoice: "textColor", dotSizePt: 2.041, boxPaddingPt: 0.907, boxPaddingVPt: 0.907,
+                boxPaddingLinked: true, opacity: 100, verticalOffsetPt: -3.969, alignLineStarts: false, equalLineLengths: false, leadingBased: true,
+                kerningChoice: "keepKerning", trackingText: "", kerningBeforeText: "", kerningAfterText: "", whiteText: false
             }
         }
     ];
@@ -1453,6 +1535,30 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         ], iconColor);
     }
 
+    /**
+     * 上書き保存アイコン（フロッピーディスク）を描く。800×800 の絵。右上の欠けた角は細い長方形を斜めに並べる
+     * @param {ScriptUIGraphics} iconGraphics - 描画先
+     * @param {number} iconWidth - アイコンの幅
+     * @param {number} iconHeight - アイコンの高さ
+     * @param {number[]} iconColor - [r, g, b, a]
+     * @returns {void}
+     */
+    function drawOverwriteIcon(iconGraphics, iconWidth, iconHeight, iconColor) {
+        var designRects = [
+            [0, 0, 620, 70], [0, 70, 70, 800], [730, 180, 800, 800], [70, 730, 730, 800], /* 外枠 / outer frame */
+            [200, 70, 540, 240],                                                          /* シャッター / shutter */
+            [150, 420, 650, 490], [150, 490, 220, 730], [580, 490, 650, 730]              /* ラベル / label */
+        ];
+        var sliceCount = 12;
+        /* 右上の斜めの辺（(620, 0) から (800, 180)）。線の太さ 70 は横幅で約 99 / the bevelled corner */
+        for (var k = 0; k < sliceCount; k++) {
+            var sliceTop = 180 * k / sliceCount;
+            var edgeX = 620 + sliceTop + 180 / sliceCount / 2;
+            designRects.push([edgeX - 99, sliceTop, edgeX, sliceTop + 180 / sliceCount]);
+        }
+        fillIconButtonRects(iconGraphics, iconWidth, iconHeight, [800, 800], designRects, iconColor);
+    }
+
     // アイコンのボタン（再利用パーツ）ここまで / End of the reusable icon buttons
 
     // リンクアイコン（再利用パーツ） / Link toggle (reusable)
@@ -2470,7 +2576,6 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             marker:              { ja: "マーカー", en: "Marker" },
             straightShear:       { ja: "直線＋シアー", en: "Straight + Shear" },
             zigzag:              { ja: "ギザギザ", en: "Zigzag" },
-            roughMarker:         { ja: "手書き風", en: "Hand-Drawn" },
             fill:                { ja: "塗りつぶし", en: "Fill" },
             strikethrough:       { ja: "取り消し線", en: "Strikethrough" },
             doubleStrikethrough: { ja: "二重取り消し線", en: "Double Strikethrough" },
@@ -2509,6 +2614,9 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             kerningAfter:   { ja: "カーニング（後）", en: "Kerning (After)" },
             lineLength:     { ja: "行長", en: "Line Length" },
             leading:        { ja: "行送り", en: "Leading" },
+            roughen:        { ja: "ラフ", en: "Roughen" },
+            roughenSize:    { ja: "サイズ", en: "Size" },
+            roughenDetail:  { ja: "詳細", en: "Detail" },
             textFill:       { ja: "テキスト", en: "Text" },
             lineJoins:      { ja: "連続処理", en: "Continuity" }
         },
@@ -2521,7 +2629,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             squareLineJoins: { ja: "複数行", en: "Multi-Line" },
             alignLineStarts: { ja: "行頭", en: "Align Starts" },
             equalLineLengths: { ja: "行頭行末", en: "Align Both Ends" },
-            leadingBased: { ja: "均等", en: "Even" }
+            leadingBased: { ja: "均等", en: "Even" },
+            roughen:      { ja: "手書き風", en: "Hand-Drawn" }
         },
         radio: {
             yellow:         { ja: "黄色", en: "Yellow" },
@@ -2549,10 +2658,6 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             marker:        { ja: "字面の下端を線の中心にして引きます", en: "Draws the line centered on the bottom edge of the glyphs" },
             straightShear: { ja: "線に［パスの自由変形］効果を掛けて、両端を斜めにします", en: "Applies the Free Distort effect to slant both ends of the line" },
             zigzag:        { ja: "線に［ラフ］効果でポイントを足してから、［ジグザグ］効果を掛けます", en: "Adds points to the line with the Roughen effect, then applies the Zig Zag effect" },
-            roughMarker: {
-                ja: "マーカーと同じ位置に引き、［ラフ］効果で縁を揺らします（揺れは［大きさ］）",
-                en: "Draws where Marker does and roughens the edges with the Roughen effect (amount set by Size)"
-            },
             fill:          { ja: "字面の範囲を塗りつぶします（線幅は字面の高さ）", en: "Fills the glyph area (the line width is the glyph height)" },
             strikethrough: { ja: "字面の上下中央に線を引きます", en: "Draws the line through the vertical center of the glyphs" },
             doubleStrikethrough: {
@@ -2622,10 +2727,16 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
                 ja: "線の両端を傾ける角度です（-80〜80°）。プラスで右上がり、マイナスで左上がりになります",
                 en: "Angle of the slanted ends (-80 to 80°); positive slants to the upper right, negative to the upper left"
             },
-            zigzagSize:   { ja: "ギザギザの山の高さ、手書き風の揺れの大きさです", en: "Height of the zigzag ridges, or the Hand-Drawn roughness" },
+            zigzagSize:   { ja: "ギザギザの山の高さです", en: "Height of the zigzag ridges" },
             zigzagRidges: { ja: "線の長さ1インチ（25.4 mm）あたりの折り返しの数です", en: "Number of ridges per inch (25.4 mm) of the line" },
             smoothPoints: { ja: "折り返しを曲線にして、波線にします", en: "Curves the ridges into a wavy line" },
             cornerPoints: { ja: "折り返しを角にして、ギザギザにします", en: "Keeps the ridges as sharp corners" },
+            roughen: {
+                ja: "線や図形に［ラフ］効果を掛けて、縁を手書きのように揺らします（ポイントはギザギザ。［傍点］には掛けません）",
+                en: "Applies the Roughen effect to the lines and shapes so their edges wobble like hand drawing (corner points; not for Emphasis Dots)"
+            },
+            roughenSize:   { ja: "［ラフ］効果のサイズです（線や図形の大きさに対する％）", en: "Size of the Roughen effect (% of the line or shape)" },
+            roughenDetail: { ja: "［ラフ］効果の詳細です（1インチあたりの数）", en: "Detail of the Roughen effect (per inch)" },
             boxPadding: {
                 ja: "［長方形］［円］［六角形］は字面のまわりの余白（左右・上下）、［傍点］は字面から点までの距離です（横組みは縦、縦組みは横）。マイナスで内側へ寄せます",
                 en: "Space around the glyphs for Box, Circle and Hexagon (left/right and top/bottom); distance from the glyphs to the dots for Emphasis Dots (V in horizontal text, H in vertical text). Negative values pull inward"
@@ -2675,6 +2786,11 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             /* プリセット / Presets */
             preset:     { ja: "クリックすると、その設定を読み込みます", en: "Click to load the settings" },
             presetSave: { ja: "今の設定に名前を付けて保存します", en: "Saves the current settings under a name" },
+            presetOverwrite: { ja: "「{name}」に今の設定を上書き保存します", en: "Overwrites \"{name}\" with the current settings" },
+            presetOverwriteNone: {
+                ja: "選んでいるプリセット（設定を変える前に選んでいたもの）に、今の設定を上書き保存します",
+                en: "Overwrites the selected preset (or the one selected before your changes) with the current settings"
+            },
             presetDelete: {
                 ja: "選んでいるプリセットを削除します（最初からあるものは削除できません）",
                 en: "Deletes the selected preset (built-in presets cannot be deleted)"
@@ -3084,7 +3200,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     /**
      * ［プリセット］パネル（プリセット名のリストと、保存・削除のアイコン）を作る
      * @param {Group} parent - 追加先（パネルを横に並べるグループ）
-     * @returns {{presetList: ListBox, presetSaveIcon: Group, presetDeleteIcon: Group}} コントロール
+     * @returns {{presetList: ListBox, presetSaveIcon: Group, presetOverwriteIcon: Group, presetDeleteIcon: Group}} コントロール
      */
     function addPresetPanel(parent) {
         var presetPanel = parent.add("panel", undefined, getLabel("panel.preset"));
@@ -3097,11 +3213,14 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         setupRow(presetIconRow, ["left", "bottom"], 8);
         var presetSaveIcon = addIconButton(presetIconRow, PRESET_ICON_SIZE, drawSaveIcon);
         presetSaveIcon.helpTip = getLabel("tooltip.presetSave");
+        var presetOverwriteIcon = addIconButton(presetIconRow, PRESET_ICON_SIZE, drawOverwriteIcon);
+        presetOverwriteIcon.helpTip = getLabel("tooltip.presetOverwriteNone");
         var presetDeleteIcon = addIconButton(presetIconRow, PRESET_ICON_SIZE, drawTrashIcon);
         presetDeleteIcon.helpTip = getLabel("tooltip.presetDelete");
         return {
             presetList: presetList,
             presetSaveIcon: presetSaveIcon,
+            presetOverwriteIcon: presetOverwriteIcon,
             presetDeleteIcon: presetDeleteIcon
         };
     }
@@ -3147,7 +3266,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             [
                 markerControls.lineStyleRow.label, markerControls.stackOrderRow.label, markerControls.whiteTextOption.label, markerControls.shapePaintRow.label,
                 markerControls.fillColorRow.label, markerControls.strokeColorRow.label, markerControls.opacityInput.fieldLabel, markerControls.strokeWidthInput.fieldLabel, markerControls.verticalOffsetInput.fieldLabel,
-                markerControls.equalLineLengthsOption.label, markerControls.leadingBasedOption.label
+                markerControls.equalLineLengthsOption.label, markerControls.leadingBasedOption.label,
+                markerControls.roughenOption.label, markerControls.roughenSizeInput.fieldLabel, markerControls.roughenDetailInput.fieldLabel
             ],
             [
                 markerControls.dashStyleRow.label, markerControls.dashSegmentsInput.fieldLabel, markerControls.dashGapInput.fieldLabel, markerControls.strokeCapRow.label,
@@ -3172,7 +3292,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
      */
     function addLineStyleDropdown(settingsPanel, markerControls, onStyleChange) {
         var lineStyleKeys = [
-            "underline", "marker", "straightShear", "zigzag", "roughMarker", "fill", "strikethrough", "doubleStrikethrough",
+            "underline", "marker", "straightShear", "zigzag", "fill", "strikethrough", "doubleStrikethrough",
             "box", "circle", "hexagon", "emphasisDots"
         ];
         var lineStyleNames = [];
@@ -3220,7 +3340,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     }
 
     /**
-     * ［設定］の左の列に、重ね順・テキスト（白抜き）・図形・塗りのカラー・線のカラー・不透明度・線幅・位置調整・行長・行送りを作り、markerControls に入れる
+     * ［設定］の左の列に、重ね順・テキスト（白抜き）・図形・塗りのカラー・線のカラー・不透明度・線幅・位置調整・行長・行送り・ラフを作り、markerControls に入れる
      * @param {Group} commonColumn - 左の列
      * @param {Object} markerControls - 作ったコントロールを入れるオブジェクト（rulerUnit・strokeUnit 付き）
      * @param {Document} doc - 対象ドキュメント
@@ -3273,6 +3393,17 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         });
         markerControls.equalLineLengthsOption.label = lineLengthLabel;
         markerControls.leadingBasedOption = addLabeledOptionCheckbox(commonColumn, "leading", "leadingBased", DEFAULT_LEADING_BASED, onSettingChange);
+        /* ［ラフ］：［手書き風］をオンにすると、サイズと詳細を使う / Roughen: Size and Detail are used while Hand-Drawn is on */
+        markerControls.roughenOption = addLabeledOptionCheckbox(commonColumn, "roughen", "roughen", DEFAULT_ROUGHEN, function () {
+            updateStyleFieldsEnabled(markerControls);
+            onSettingChange();
+        });
+        markerControls.roughenSizeInput = addMarkerNumberField(commonColumn, "roughenSize", {
+            text: DEFAULT_ROUGHEN_SIZE_PERCENT + "%", characters: 7, step: 1, min: 0, max: 100, unit: "%"
+        }, onSettingChange);
+        markerControls.roughenDetailInput = addMarkerNumberField(commonColumn, "roughenDetail", {
+            text: String(DEFAULT_ROUGHEN_DETAIL), characters: 7, step: 1, min: 1, max: 100, integer: true
+        }, onSettingChange);
     }
 
     /**
@@ -3509,9 +3640,13 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         var isShapeStroke = usesShape && markerControls.shapePaintRow.strokeOption.getValue();
         var isStrokedStyle = isLineStyle || isShapeStroke;
         setSteppedFieldEnabled(markerControls.shearAngleInput, lineStyle === "straightShear");
-        setSteppedFieldEnabled(markerControls.zigzagSizeInput, lineStyle === "zigzag" || lineStyle === "roughMarker");
+        setSteppedFieldEnabled(markerControls.zigzagSizeInput, lineStyle === "zigzag");
         setSteppedFieldEnabled(markerControls.zigzagRidgesInput, lineStyle === "zigzag");
         setRadiosEnabled(markerControls.zigzagPointsRow, lineStyle === "zigzag");
+        markerControls.roughenOption.checkbox.enabled = !isDots;
+        var usesRoughen = !isDots && markerControls.roughenOption.getValue();
+        setSteppedFieldEnabled(markerControls.roughenSizeInput, usesRoughen);
+        setSteppedFieldEnabled(markerControls.roughenDetailInput, usesRoughen);
         setSteppedFieldEnabled(markerControls.boxPaddingInput, usesShape || isDots);
         setSteppedFieldEnabled(markerControls.boxPaddingVInput, usesShape || isDots);
         setLinkToggleEnabled(markerControls.boxPaddingLink, usesShape || isDots);
@@ -3609,7 +3744,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     /**
      * 今のダイアログボックスの指定を、線を引くための値にまとめる
      * @param {Object} markerControls - addMarkerControls() の戻り値
-     * @returns {Object} { fillColor, fillUseTextColor, opacity, strokeWidth（pt）, verticalOffset（pt）, lineStyle, shearAngle（度）, zigzagSize（pt）, zigzagRidges, isZigzagSmooth, boxPadding（横、pt）, boxPaddingV（縦、pt）, cornerRadius（pt）, boxRotation（度）, lineGap（pt）, dotSize（pt）, dashStyle, dashSegments（空欄なら null）, dashGap（pt）, strokeCap, isFront, isPerChar, squareLineJoins, alignLineStarts, equalLineLengths, isLeadingBased, isShapeFill, isShapeStroke, strokeColor, strokeUseTextColor, kerningChoice, tracking・kerningBefore・kerningAfter（空欄なら null）, whiteText }
+     * @returns {Object} { fillColor, fillUseTextColor, opacity, strokeWidth（pt）, verticalOffset（pt）, lineStyle, shearAngle（度）, zigzagSize（pt）, zigzagRidges, isZigzagSmooth, isRoughen, roughenSize（％）, roughenDetail, boxPadding（横、pt）, boxPaddingV（縦、pt）, cornerRadius（pt）, boxRotation（度）, lineGap（pt）, dotSize（pt）, dashStyle, dashSegments（空欄なら null）, dashGap（pt）, strokeCap, isFront, isPerChar, squareLineJoins, alignLineStarts, equalLineLengths, isLeadingBased, isShapeFill, isShapeStroke, strokeColor, strokeUseTextColor, kerningChoice, tracking・kerningBefore・kerningAfter（空欄なら null）, whiteText }
      */
     function readMarkerOptions(markerControls) {
         var fillColorOptions = markerControls.fillColorRow.getColorOptions();
@@ -3625,6 +3760,9 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             lineStyle: markerControls.lineStyleRow.getChoice(),
             shearAngle: parseFloat(markerControls.shearAngleInput.text),
             zigzagSize: readLengthPt(markerControls.zigzagSizeInput, markerControls.rulerUnit),
+            isRoughen: (markerControls.lineStyleRow.getChoice() !== "emphasisDots" && markerControls.roughenOption.getValue()),
+            roughenSize: parseFloat(markerControls.roughenSizeInput.text),
+            roughenDetail: parseInt(markerControls.roughenDetailInput.text, 10),
             zigzagRidges: parseInt(markerControls.zigzagRidgesInput.text, 10),
             isZigzagSmooth: (markerControls.zigzagPointsRow.getChoice() === "smoothPoints"),
             boxPadding: readLengthPt(markerControls.boxPaddingInput, markerControls.rulerUnit),
@@ -3704,7 +3842,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         rightPanelsGroup.orientation = "column";
         rightPanelsGroup.alignChildren = ["fill", "top"];
         rightPanelsGroup.spacing = WINDOW_SPACING;
-        var markerControls = addMarkerControls(rightPanelsGroup, doc, glyphHeightPt, areTextColorsUsable(markerTargets), refreshPreview);
+        var markerControls = addMarkerControls(rightPanelsGroup, doc, glyphHeightPt, areTextColorsUsable(markerTargets), onSettingEdited);
         for (var i = 0; i < markerControls.labelColumns.length; i++) alignLabelWidths(markerControls.labelColumns[i]);
         bindPresetControls(presetControls, markerControls, refreshPreview);
         restoreDialogState(presetControls, markerControls, hasSessionState ? sessionState : null);
@@ -3720,6 +3858,16 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
         buttonRow.rightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
         alignRightOnlyButtonRow(buttonRow);
+
+        /**
+         * 設定を手で変えたら、プリセットの選択を外してから描き直す。
+         * 選んだままだと、同じプリセットをクリックしても onChange が来ず、保存した値に戻せない
+         * @returns {void}
+         */
+        function onSettingEdited() {
+            presetControls.clearPresetSelection();
+            refreshPreview();
+        }
 
         /**
          * プレビューを今の指定で描き直す（オフなら消すだけ）
@@ -3786,6 +3934,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     function bindPresetControls(presetControls, markerControls, onPresetApplied) {
         /* selection の代入でも onChange が来るので、作り直しの間は無視する / Assigning selection fires onChange too, so ignore it while refilling */
         var isRefillingList = false;
+        /* プリセットを書き込んでいる間は、設定の変更で選択を外さない / Keep the selection while a preset is being written */
+        var isApplyingPreset = false;
 
         /**
          * プリセットのリストを作り直す（作り直しの間の onChange は無視する）
@@ -3801,16 +3951,32 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         presetControls.presetList.onChange = function () {
             if (isRefillingList) return;
             var presetName = getSelectedPresetName(presetControls);
-            setIconButtonEnabled(presetControls.presetDeleteIcon, isSavedPreset(presetName));
+            presetControls.editedPresetName = null;
+            updatePresetIcons(presetControls);
             var presetData = findPresetData(presetControls, presetName);
             if (!presetData) return;
             /* 欄への代入ではイベントが来ないので、書き込んだあとでまとめて反映する / Writing the fields fires no events, so refresh once afterwards */
+            isApplyingPreset = true;
             applyPresetData(markerControls, presetData);
             updateStyleFieldsEnabled(markerControls);
+            isApplyingPreset = false;
             onPresetApplied();
+        };
+        /* 設定を変えたらリストの選択を外す（名前は保存のときの初期値に残す） / Deselect after an edit; the name stays as the default for saving */
+        presetControls.clearPresetSelection = function () {
+            if (isApplyingPreset || isRefillingList || !presetControls.presetList.selection) return;
+            presetControls.editedPresetName = getSelectedPresetName(presetControls);
+            isRefillingList = true;
+            presetControls.presetList.selection = null;
+            isRefillingList = false;
+            updatePresetIcons(presetControls);
         };
         presetControls.presetSaveIcon.onClick = function () {
             var savedName = saveCurrentPreset(markerControls, presetControls);
+            if (savedName) refreshPresetList(savedName);
+        };
+        presetControls.presetOverwriteIcon.onClick = function () {
+            var savedName = overwritePreset(markerControls, presetControls);
             if (savedName) refreshPresetList(savedName);
         };
         presetControls.presetDeleteIcon.onClick = function () {
@@ -3953,6 +4119,9 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             lineStyle: markerOptions.lineStyle,
             shearAngle: markerOptions.shearAngle,
             zigzagSizePt: markerOptions.zigzagSize,
+            roughen: markerControls.roughenOption.getValue(),
+            roughenSizePercent: markerOptions.roughenSize,
+            roughenDetail: markerOptions.roughenDetail,
             zigzagRidges: markerOptions.zigzagRidges,
             zigzagPoints: markerControls.zigzagPointsRow.getChoice(),
             boxPaddingPt: markerOptions.boxPadding,
@@ -4012,7 +4181,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             straight: { lineStyle: "marker" },
             charBox: { lineStyle: "box", isPerChar: true },
             charCircle: { lineStyle: "circle", isPerChar: true },
-            frame: { lineStyle: "box" }
+            frame: { lineStyle: "box" },
+            roughMarker: { lineStyle: "marker" }
         };
         var formerStyle = formerStyles.hasOwnProperty(presetData.lineStyle) ? formerStyles[presetData.lineStyle] : null;
         if (formerStyle) {
@@ -4028,6 +4198,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             ["shearAngle", markerControls.shearAngleInput, null],
             ["zigzagSizePt", markerControls.zigzagSizeInput, markerControls.rulerUnit],
             ["zigzagRidges", markerControls.zigzagRidgesInput, null],
+            ["roughenSizePercent", markerControls.roughenSizeInput, null],
+            ["roughenDetail", markerControls.roughenDetailInput, null],
             ["boxPaddingPt", markerControls.boxPaddingInput, markerControls.rulerUnit],
             /* 旧版のプリセットは［余白（縦）］も［余白］の値にする / Presets from earlier versions use Padding for both */
             [(typeof presetData.boxPaddingVPt === "number") ? "boxPaddingVPt" : "boxPaddingPt", markerControls.boxPaddingVInput, markerControls.rulerUnit],
@@ -4066,6 +4238,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         if (typeof presetData.boxPaddingLinked === "boolean") setLinkToggleValue(markerControls.boxPaddingLink, presetData.boxPaddingLinked);
         else if (typeof presetData.boxPaddingPt === "number") setLinkToggleValue(markerControls.boxPaddingLink, true);
         if (typeof presetData.leadingBased === "boolean") markerControls.leadingBasedOption.setValue(presetData.leadingBased);
+        /* 旧版の種類［手書き風］は［マーカー］の［手書き風］オン。持っていないプリセットはオフ / The former Hand-Drawn style is Marker with Hand-Drawn on; presets without it turn it off */
+        markerControls.roughenOption.setValue(presetData.roughen === true || presetData.lineStyle === "roughMarker");
         if (presetData.kerningChoice) markerControls.kerningRow.setChoice(presetData.kerningChoice);
         /* 空欄にできる欄は、保存した文字列をそのまま入れる / Blank-able fields take the saved text as is */
         var textFields = [
@@ -4125,7 +4299,31 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             if (presetNames[i] === selectedName) selectedIndex = i;
         }
         presetList.selection = (selectedIndex >= 0) ? selectedIndex : null;
-        setIconButtonEnabled(presetControls.presetDeleteIcon, selectedIndex >= 0 && isSavedPreset(selectedName));
+        if (selectedIndex >= 0) presetControls.editedPresetName = null;
+        updatePresetIcons(presetControls);
+    }
+
+    /**
+     * 上書き保存するプリセット名を返す（選んでいるもの。設定を変えて選択が外れたなら、その前に選んでいたもの）
+     * @param {Object} presetControls - addPresetPanel() の戻り値
+     * @returns {string|null} プリセット名。どちらも無ければ null
+     */
+    function getOverwriteTargetName(presetControls) {
+        return getSelectedPresetName(presetControls) || presetControls.editedPresetName || null;
+    }
+
+    /**
+     * 上書き保存・削除のアイコンを、選んでいるプリセットに合わせて有効／無効にし、上書き保存のツールチップに名前を入れる
+     * @param {Object} presetControls - addPresetPanel() の戻り値
+     * @returns {void}
+     */
+    function updatePresetIcons(presetControls) {
+        var targetName = getOverwriteTargetName(presetControls);
+        setIconButtonEnabled(presetControls.presetOverwriteIcon, !!targetName);
+        presetControls.presetOverwriteIcon.helpTip = targetName
+            ? getLabel("tooltip.presetOverwrite", { name: targetName })
+            : getLabel("tooltip.presetOverwriteNone");
+        setIconButtonEnabled(presetControls.presetDeleteIcon, isSavedPreset(getSelectedPresetName(presetControls)));
     }
 
     /**
@@ -4173,11 +4371,30 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
      * @returns {string|null} 保存したプリセット名。保存しなかったら null
      */
     function saveCurrentPreset(markerControls, presetControls) {
-        var presetName = showPresetNameDialog(getSelectedPresetName(presetControls) || "");
+        var presetName = showPresetNameDialog(getOverwriteTargetName(presetControls) || "");
         if (!presetName) return null;
         var presetMap = loadPresetMap();
         var isExistingName = presetMap.hasOwnProperty(presetName) || presetControls.builtinPresets.map.hasOwnProperty(presetName);
         if (isExistingName && !confirm(getLabel("confirm.presetOverwrite", { name: presetName }), true)) return null;
+        presetMap[presetName] = collectPresetData(markerControls);
+        if (!presetSettingsStore.save(presetMap)) {
+            alert(getLabel("alert.presetSaveFailed"));
+            return null;
+        }
+        return presetName;
+    }
+
+    /**
+     * 選んでいるプリセット（設定を変える前に選んでいたもの）に、名前を尋ねず確認もせずに今の設定を上書き保存する。
+     * 最初からあるプリセットなら、同じ名前の保存したプリセットになる（削除すると最初の設定に戻る）
+     * @param {Object} markerControls - addMarkerControls() の戻り値
+     * @param {Object} presetControls - addPresetPanel() の戻り値
+     * @returns {string|null} 保存したプリセット名。保存しなかったら null
+     */
+    function overwritePreset(markerControls, presetControls) {
+        var presetName = getOverwriteTargetName(presetControls);
+        if (!presetName) return null;
+        var presetMap = loadPresetMap();
         presetMap[presetName] = collectPresetData(markerControls);
         if (!presetSettingsStore.save(presetMap)) {
             alert(getLabel("alert.presetSaveFailed"));
@@ -4846,23 +5063,26 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     }
 
     /**
-     * ［ラフ］効果の XML を返す（大きさは絶対値、ポイントは丸く）
-     * @param {number} sizePt - 大きさ（pt）
+     * ［ラフ］効果の XML を返す（サイズはパーセント）。サイズ 0 なら形は変えず、詳細の数だけポイントを足す
+     * @param {number} sizePercent - サイズ（線の大きさに対する％）
      * @param {number} detail - 詳細（1インチあたりの数）
+     * @param {boolean} isSmooth - ポイントを丸くするか（false ならギザギザ）
      * @returns {string} LiveEffect の XML
      */
-    function createRoughenXml(sizePt, detail) {
-        return '<LiveEffect name="Adobe Roughen"><Dict data="R asize ' + sizePt + ' R size 0 R absoluteness 1 R detail ' + detail +
-            ' R roundness 1 "/></LiveEffect>';
+    function createRoughenXml(sizePercent, detail, isSmooth) {
+        return '<LiveEffect name="Adobe Roughen"><Dict data="R asiz 0 R size ' + sizePercent + ' R absoluteness 0 R dtal ' + detail +
+            ' R roundness ' + (isSmooth ? 1 : 0) + ' "/></LiveEffect>';
     }
 
     /**
-     * 大きさ 0 の［ラフ］効果の XML を返す（形は変えずに、詳細の数だけポイントを足す。ポイントはギザギザ）
-     * @param {number} detail - 詳細（1インチあたりの数）
-     * @returns {string} LiveEffect の XML
+     * ［手書き風］がオンなら、［ラフ］効果（ポイントはギザギザ）を掛ける
+     * @param {PageItem} targetItem - 線や図形
+     * @param {Object} markerOptions - readMarkerOptions() の戻り値（isRoughen・roughenSize・roughenDetail）
+     * @returns {void}
      */
-    function createAddPointsRoughenXml(detail) {
-        return '<LiveEffect name="Adobe Roughen"><Dict data="R asiz 0 R size 0 R absoluteness 0 R dtal ' + detail + ' R roundness 0 "/></LiveEffect>';
+    function applyRoughenEffect(targetItem, markerOptions) {
+        if (!markerOptions.isRoughen) return;
+        targetItem.applyEffect(createRoughenXml(markerOptions.roughenSize, markerOptions.roughenDetail, false));
     }
 
     /**
@@ -5027,14 +5247,13 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
            Zigzag folds the center line before it is outlined: Roughen first adds Ridges points per inch,
            then Zig Zag with 0 ridges moves those points alternately, so the ridge pitch does not depend on the line length */
         if (lineStyle === "zigzag") {
-            markerLine.applyEffect(createAddPointsRoughenXml(markerOptions.zigzagRidges));
+            markerLine.applyEffect(createRoughenXml(0, markerOptions.zigzagRidges, false));
             markerLine.applyEffect(createZigzagXml(markerOptions.zigzagSize, 0, markerOptions.isZigzagSmooth));
         }
+        /* ［手書き風］は中心線を揺らしてからアウトラインにする（縁ではなく線そのものが揺れる）
+           Hand-Drawn roughens the center line before it is outlined, so the line itself wobbles rather than its edges */
+        applyRoughenEffect(markerLine, markerOptions);
         applyOutlineStrokeEffect(markerLine);
-        /* 手書き風はアウトラインにした面の縁を揺らす / Hand-Drawn roughens the edges of the outlined shape */
-        if (lineStyle === "roughMarker") {
-            markerLine.applyEffect(createRoughenXml(markerOptions.zigzagSize, ROUGHEN_DETAIL));
-        }
         /* シアーはアウトラインにした面（線幅の太さがある）を変形する / Shear distorts the outlined shape, which has the stroke's thickness */
         if (lineStyle === "straightShear") {
             /* 両辺のずれの合計は 線幅 × tan(角度)。比率は線の外形の長さ（横の線は幅、縦の線は高さ）に対して取る
@@ -5282,6 +5501,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             /* 図形ごとに、その中心で回転する / Rotate each shape about its own center */
             if (markerOptions.boxRotation) textShape.rotate(markerOptions.boxRotation, true, false, false, false, Transformation.CENTER);
             if (textShape.typename === "PathItem") paintShapePath(textShape, fillColor, strokeColor, markerOptions);
+            applyRoughenEffect(textShape, markerOptions);
         }
         shapeGroup.opacity = markerOptions.opacity;
         moveToStackPosition(shapeGroup, markerTarget, markerOptions);

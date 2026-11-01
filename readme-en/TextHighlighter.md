@@ -28,7 +28,6 @@ Chosen in the dropdown at the top of Settings. The dropdown's tooltip describes 
   - Marker: centered on the bottom edge of the glyphs (the default).
   - Straight + Shear: where Marker goes, with both ends slanted by the Free Distort effect (slanting keeps it centered).
   - Zigzag: where Marker goes; points are added with the Roughen effect (size 0), then the Zig Zag effect (0 ridges) is applied, so the ridge pitch stays the same whatever the line length.
-  - Hand-Drawn: where Marker goes, with the edges roughened by the Roughen effect.
   - Fill: fills the glyph area (the line width is the glyph height).
   - Strikethrough: through the vertical center of the glyphs.
   - Double Strikethrough: two lines through the vertical center of the glyphs.
@@ -55,6 +54,7 @@ Chosen in the dropdown at the top of Settings. The dropdown's tooltip describes 
   - Align Starts: starts the lines and shapes where the earliest line starts (the top of the column in vertical text). The ends stay as they are.
   - Align Both Ends: extends the lines and shapes of short lines to the length of the longest one (column length in vertical text).
   - Only one of Align Starts and Align Both Ends can be on. They work with line styles and with shapes when Per Character is off.
+- Roughen: with Hand-Drawn on, the Roughen effect (corner points) is applied to the lines and shapes so their edges wobble like hand drawing (line styles get it on the center line, before Outline Stroke). Size is a percentage of the line or shape (initially 1%) and Detail is per inch (initially 10). Works with every style except Emphasis Dots.
 - Leading: with Even on, positions and sizes lines, shapes and dots by the leading instead of the glyph height of each line (width in vertical text). Every line gets the same height, centered on its characters, and consecutive lines are spaced exactly one leading apart (spacing restarts after paragraph space or blank lines). Works with every style; Fill becomes as thick as the leading, and Per Character as large.
 
 #### Settings (right column)
@@ -65,7 +65,7 @@ Chosen in the dropdown at the top of Settings. The dropdown's tooltip describes 
   - Gap starts at the line width.
 - Cap: Butt or Round.
 - Angle: the slant of Straight + Shear (-80 to 80°; positive slants to the upper right).
-- Size, Ridges, Points: the ridge height, the number of ridges per inch (25.4 mm) of the line (Detail of the Roughen effect), and Smooth (wavy) or Corner (zigzag) for Zigzag. Size is also the Hand-Drawn roughness.
+- Size, Ridges, Points: the ridge height, the number of ridges per inch (25.4 mm) of the line (Detail of the Roughen effect), and Smooth (wavy) or Corner (zigzag) for Zigzag.
 - Padding (H), Padding (V): the left/right and top/bottom space around the glyphs for shapes, or the distance from the glyphs to the dots for Emphasis Dots (Padding (V) in horizontal text, Padding (H) in vertical text; negative values pull inward). While the link icon on the right is on, the two keep the same value (on by default).
 - Corner Radius: the corner radius of Box (0 for square corners).
 - Continuity: with Multi-Line on, makes a rounded Box spanning several lines look continuous. Only the left end of the first line and the right end of the last are rounded, and the line breaks keep square corners. With Stroke on, the stroke is left open on the edges where the lines continue (the left edge of every line but the first and the right edge of every line but the last; in vertical text, the top of the first column and the bottom of the last are rounded, and the top and bottom edges are left open).
@@ -85,11 +85,17 @@ Changes the formatting of the target characters. The preview reflects it, and th
 
 #### Presets
 
-- Click a preset in the list on the left to load it. The icons below the list save the current settings under a name or delete a preset. Saved presets remain after restarting Illustrator.
-- Built-in presets: Underline, Dotted Underline, Wavy Line, Zigzag, Yellow Marker, Slanted Highlighter, Text-Color Strikethrough, Double Strikethrough, Rounded Box, Band per Line, Frame, Redaction, Box per Character, Circle per Character, Hexagon per Character and Emphasis Dots.
-  - Except for Redaction, Underline, Zigzag, Box per Character and Band per Line, lengths such as the weight follow the glyph height of the first target.
-  - Box per Character, Circle per Character, Hexagon per Character, Rounded Box and Band per Line turn on White under Text. Redaction uses Front for Stacking Order; the others use Back.
-  - Band per Line draws a box for each line with Align Starts, Even (Leading) and Multi-Line on (the paddings unlinked).
+- Click a preset in the list on the left to load it. The icons below the list are, from the left, Save (saves the current settings under a name), Overwrite (writes the current settings into the selected preset without asking for a name or confirmation) and Delete. Saved presets remain after restarting Illustrator.
+- Built-in presets (in Style order): Underline, Dotted Underline, Yellow Marker, Yellow Marker (Hand-Drawn), Slanted Highlighter, Wavy Line, Zigzag, Text-Color Strikethrough, Double Strikethrough, Rounded Box, Band per Line, Band per Line (Touching), Band per Line (Hand-Drawn), Frame, Frame per Line, Frame per Line (Hand-Drawn), Redaction, Box per Character, Circle per Character, Hexagon per Character and Emphasis Dots.
+  - Text-Color Strikethrough and Double Strikethrough take lengths such as the weight from the glyph height of the first target; the others use fixed lengths.
+  - Rounded Box, Band per Line, Band per Line (Touching), Band per Line (Hand-Drawn), Box per Character, Circle per Character and Hexagon per Character turn on White under Text. All use Back for Stacking Order.
+  - Band per Line draws a box for each line with small gaps, looking continuous (Multi-Line on); Band per Line (Touching) leaves no gaps, with Multi-Line off. Both turn on Align Starts and Even (Leading).
+  - Frame per Line draws Frame for each line, with Align Starts on and Multi-Line off.
+  - The Hand-Drawn presets turn on Hand-Drawn under Roughen (Yellow Marker (Hand-Drawn): Size 1%, Detail 10; Band per Line (Hand-Drawn): 0.7%, 3; Frame per Line (Hand-Drawn): 0.4%, 10).
+  - The three per-character presets set Kerning to 0 and Tracking to 170 under Text; Rounded Box sets Kerning (Before) and Kerning (After) to 600.
+  - Every preset carries the Line Length, Leading, Roughen and Text settings, so choosing another preset switches them too.
+  - Changing a setting deselects the list, so clicking the same preset again brings its settings back. After that, Overwrite still writes into the preset chosen just before (its name appears in the tooltip), and Save offers that name too.
+  - Overwriting a built-in preset makes a saved preset of the same name; deleting it brings back the original settings.
   - Built-in presets cannot be deleted; a preset saved under the same name is used instead.
 
 #### Preview
@@ -130,10 +136,11 @@ https://note.com/dtp_tranist/n/na1804afb7fe2
 
 ### Script info
 
-- Version: v1.4.0
+- Version: v1.5.0
 
 ### Update History
 
+- v1.5.0 (2026-11-02) Added an Overwrite icon to Presets (writes the current settings into the selected preset without asking for a name or confirmation); turned the Hand-Drawn style into a Hand-Drawn option under Roughen that works with every style (with Size in % and Detail; the former Hand-Drawn style loads as Marker with Hand-Drawn on); retuned the built-in presets, added Yellow Marker (Hand-Drawn), Band per Line (Touching), Band per Line (Hand-Drawn), Frame per Line and Frame per Line (Hand-Drawn), and reordered them by Style (fixed lengths except Text-Color Strikethrough and Double Strikethrough; Redaction now uses Back; every preset carries the Line Length, Leading and Text settings); fixed clicking the chosen preset again after changing settings not loading it, so the saved Offset, Weight and so on could not be brought back (changing a setting now deselects the list)
 - v1.4.0 (2026-11-02) Added Align Starts to Line Length (for multi-line text, only the starts of the lines and shapes are aligned to the earliest line; the top of the column in vertical text); renamed Equalize to Align Both Ends and Leading-Based to Even under its own Leading row; added the Zigzag and Band per Line built-in presets (Band per Line: a box for each line, with aligned starts and even leading); Zigzag (Wavy Line) now adds points with the Roughen effect before the Zig Zag effect, and Ridges is now per inch instead of end to end (short and long lines get the same ridge pitch; initial value 12); fixed Even (Leading) sometimes shifting the shapes of kana-heavy or Latin lines slightly up or down (left or right in vertical text), leaving uneven gaps between lines
 - v1.3.1 (2026-11-02) The dialog box now remembers its state at close (settings, chosen preset and Preview) and restores it the next time it opens, until Illustrator quits; the first time after Illustrator starts, the Yellow Marker preset is chosen
 - v1.3.0 (2026-11-01) Added Leading-Based to Line Length (lines, shapes and dots are positioned and sized by the leading instead of the glyph height of each line, so every line gets the same height, centered on the line); moved Stacking Order, Text and Shape to the top of the left column and Line Length to its bottom, and Line Type, Segments, Gap and Cap to the top of the right column; Multi-Line now sits under the Continuity label and, with Stroke on, leaves the stroke open where the lines continue (a multi-line Frame looks continuous); split Padding into Padding (H) and Padding (V) with a link icon (presets from earlier versions load the same value into both); fixed the script sometimes stopping with an MRAP error while measuring the glyphs
