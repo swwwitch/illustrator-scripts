@@ -26,30 +26,35 @@
   - Strikethrough: drawn through the vertical center of the glyphs.
   - Double Strikethrough: two lines through the vertical center of the glyphs, spaced by Line Gap.
   - Box: draws one box around the glyphs of each line (column in vertical text).
-  - Frame: the Box area as a stroked outline with no fill, using Weight and Line Type.
   - Circle: an ellipse inscribed in the Box area.
   - Hexagon: the Box area with 60° points added on the left and right (top and bottom in vertical text).
-  - For Box, Frame, Circle and Hexagon, set the space around the glyphs with Padding (negative values pull inward); Box and Frame take Corner Radius (0 for square corners).
-  - Per Character: draws Box, Frame, Circle or Hexagon for each character. Shapes are as tall as the line's glyphs and as wide as the glyph or as tall, whichever is larger (nearly square for kanji and kana; swapped in vertical text); Circle becomes a circle whose diameter is the longer side, and Hexagon a regular hexagon whose flat-to-flat width is the longer side. Punctuation, brackets and spaces are skipped, like Emphasis Dots.
+  - For Box, Circle and Hexagon, turn Fill and Stroke in Shape on or off independently (Fill uses Fill Color; Stroke uses Stroke Color, Weight and Line Type), and set the space around the glyphs with Padding (negative values pull inward); Box takes Corner Radius (0 for square corners). With Multi-Line on, a rounded Box spanning several lines looks continuous: only the left end of the first line and the right end of the last are rounded, and the line breaks keep square corners (the top of the first column and the bottom of the last in vertical text). Rotate (-360 to 360°; positive is counterclockwise) turns each shape about its own center.
+  - Per Character: draws Box, Circle or Hexagon for each character. Shapes are as tall as the line's glyphs and as wide as the glyph or as tall, whichever is larger (nearly square for kanji and kana; swapped in vertical text); Circle becomes a circle whose diameter is the longer side, and Hexagon a regular hexagon whose flat-to-flat width is the longer side. Punctuation, brackets and spaces are skipped, like Emphasis Dots.
   - Emphasis Dots: a round dot above each character (right of it in vertical text). Set the diameter with Dot Size and the distance from the glyphs with Padding. Punctuation, brackets and spaces get no dot.
-- Color
-  - Yellow (Y100), Red (M100Y100)
-  - Text Color: uses the fill of the first target character.
-  - Custom: click the swatch to choose a color with Illustrator's standard color picker.
+- Fill Color / Stroke Color
+  - Stroke Color: used for lines such as Underline, Marker and Strikethrough, and for the Stroke of Box, Circle and Hexagon.
+  - Fill Color: used for Fill, Emphasis Dots and the Fill of Box, Circle and Hexagon.
+  - Stroke Color offers Yellow (Y100), Red (M100Y100), Text Color and Custom; Fill Color offers White, Text Color and Custom. Text Color is the fill of the first target character; for Custom, click the swatch to choose with Illustrator's standard color picker. Stroke Color defaults to Yellow and Fill Color to Text Color.
+  - The one not in use is dimmed.
 - Opacity: opacity of the lines and boxes (100% by default), for any color.
+- White Text: when on, sets the fill of the target characters to white (also in the preview). It sits in the right column of Settings, above Shape.
 - Weight: 40% of the glyph height by default, in the Stroke unit from Preferences.
 - Vertical Offset: moves the line up or down from the style's position (positive is up, negative is down).
-- Line Type: Solid, Dashed or Dotted. Dashed places dashes about twice the line width, spaced by the line width, with the dash length fitted to the line so both ends finish with a dash; Dotted places round dots as large as the line width, about every two line widths, with dots at both ends (Dotted always uses round caps).
+- Line Type: Solid, Dashed or Dotted.
+  - Dashed: Segments dashes spaced by Gap, with the dash length fitted to the line so both ends finish with a dash.
+  - Dotted: round dots as large as the line width, spaced close to Gap, with dots at both ends (Dotted always uses round caps).
+  - Segments and Gap: Segments (Dashed only) is the number of dashes per line; leave it blank for dashes about twice the line width. Gap is the space between dashes or dots and starts at the line width.
 - Cap: Butt or Round.
+- Equal Line Lengths: for multi-line text, extends the lines and shapes of short lines to the length of the longest one (column length in vertical text; line styles in horizontal text only; not with Per Character).
 - Stacking Order: Front or Back. Back (the default) draws behind the text; Front draws in front of it.
 - Text (formatting of the target characters, also shown in the preview)
-  - Auto Kerning: No Change, 0, Metrics or Optical. 0 turns auto kerning off and sets manual kerning to 0. 0 and Optical also turn Proportional Metrics off.
+  - Kerning: No Change, 0, Auto or Optical. 0 turns auto kerning off and sets manual kerning to 0. 0 and Optical also turn Proportional Metrics off.
   - Tracking: in 1/1000 em. Leave blank to keep it.
-  - White Text: when on, sets the fill of the target characters to white.
+  - Kerning (Before) / Kerning (After): manual kerning before the first target character and after the last one (1/1000 em). Leave blank to keep it. Kerning (After) is unused when no character follows.
   - Lines and shapes are drawn on the glyphs after the formatting changes.
-- Line styles get the Outline Stroke effect. Box groups filled rectangles, Circle groups filled circles, Hexagon groups filled hexagons, Frame groups stroked rectangles, and Emphasis Dots groups filled circles.
+- Line styles get the Outline Stroke effect. Box, Circle and Hexagon group their shapes (filled and/or stroked, following Shape), and Emphasis Dots groups filled circles.
 - Presets: click a preset in the list on the left of the dialog box to load it. Save the current settings under a name, or delete a preset, with the icons below the list. Saved presets remain after Illustrator restarts.
-  - Built-in presets: Redaction, Underline, Dotted Underline, Yellow Marker, Slanted Highlighter, Wavy Line, Box per Character (Pink), Circle per Character (Pink), Hexagon per Character (Blue), Rounded Box (Blue), Hand-Drawn Marker, Frame, Emphasis Dots, Double Strikethrough and Text-Color Strikethrough. Except for Redaction, Underline and Box per Character (Pink), lengths such as the weight follow the glyph height of the first target. Box per Character (Pink), Circle per Character (Pink), Hexagon per Character (Blue) and Rounded Box (Blue) turn on White Text. Redaction uses Front for Stacking Order; the others use Back. They cannot be deleted; a preset saved under the same name is used instead.
+  - Built-in presets: Underline, Dotted Underline, Wavy Line, Yellow Marker, Slanted Highlighter, Text-Color Strikethrough, Double Strikethrough, Rounded Box, Frame, Redaction, Box per Character, Circle per Character, Hexagon per Character and Emphasis Dots. Except for Redaction, Underline and Box per Character, lengths such as the weight follow the glyph height of the first target. Box per Character, Circle per Character, Hexagon per Character and Rounded Box turn on White Text. Redaction uses Front for Stacking Order; the others use Back. They cannot be deleted; a preset saved under the same name is used instead.
 - Preview: while on, the selection is cleared and the line is shown. Closing the dialog box restores the original selection.
 
 ### Usage
@@ -62,7 +67,7 @@
 ### Notes
 
 - With text objects selected, one line is drawn for all characters of each object. Text inside groups is included; locked or hidden text is skipped.
-- For multi-line text, line styles draw one line for the combined extent of all lines, not one per line. Boxes and Emphasis Dots are drawn per line.
+- For multi-line text, line styles, shapes and Emphasis Dots are all drawn per line (line styles in vertical text draw one line over the whole selection). Initial values such as the weight come from the glyph height of the first target's first line.
 - Line styles are meant for horizontal text; in vertical text the lines stay horizontal.
 - The line is placed directly behind the original text (in front of it when Stacking Order is Front).
 - A selection of only spaces or line breaks has no glyphs, so nothing can be drawn.
@@ -77,9 +82,10 @@ https://note.com/gorilla_gg/n/naa26b079cb75
 
 ### Script info
 
-- Version: v1.1.0
+- Version: v1.2.0
 
 ### Update History
 
-- v1.1.0 (2026-11-01) Renamed the file from DrawMarkerBehindText.jsx to TextHighlighter.jsx (saved presets carry over); added Stacking Order (Front / Back) to Settings; Dashed now fits the dash length to the line so both ends finish with a dash, and Dotted fits the dot spacing so dots land on both ends; fixed the Outline Stroke effect not being applied (so Straight + Shear did not slant, for example) when characters were selected with the Type tool; Auto Kerning 0 and Optical now turn Proportional Metrics off; Dotted Underline now has a Vertical Offset of -0.6 mm, and Box per Character (Pink) a Padding of -0.1 mm; Straight + Shear stays centered when slanted (the bottom edge shifts the opposite way to the top); Red Wavy Line is renamed Wavy Line and uses the text color
+- v1.2.0 (2026-11-01) Reordered the built-in presets to follow Style; Added Equal Line Lengths (short lines get the length of the longest one); Added Segments (dashes per line; blank for automatic) and Gap (space between dashes) to Dashed, and Gap (space between dots) to Dotted; Added Multi-Line to Box (a rounded Box spanning several lines is rounded only at its start and end); The initial Line Gap of Double Strikethrough, and that of the preset of the same name, is now 1/5 of the glyph height; Hide Edges is toggled while the script runs and toggled back at the end; Line styles are now drawn per line in multi-line text (initial values such as the weight come from the first line); fixed a line being split in two when it starts with a small glyph such as "…" or "-"; renamed the dialog box to "Draw Lines and Shapes on Text", Auto Kerning to Kerning and its Metrics to Auto (as in Illustrator's Character panel); added tooltips to Stacking Order; renamed the presets Box per Character (Pink), Circle per Character (Pink) and Hexagon per Character (Blue) to Box per Character, Circle per Character and Hexagon per Character, and Rounded Box (Blue) to Rounded Box; Added Kerning (Before) and Kerning (After) (manual kerning) to Text; added Shape (Fill and Stroke, each on or off), and Rotate to Box, Circle and Hexagon, and merged Frame into a stroked Box (presets saved with Frame still load); split Color into Fill Color (White, Text Color, Custom) and Stroke Color (Yellow, Red, Text Color, Custom), with line styles using Stroke Color (presets from earlier versions still load); removed the Hand-Drawn Marker built-in preset; Wavy Line now has a Vertical Offset of -0.5 mm
+- v1.1.0 (2026-11-01) Renamed the file from DrawMarkerBehindText.jsx to TextHighlighter.jsx (saved presets carry over); added Stacking Order (Front / Back) to Settings; Dashed now fits the dash length to the line so both ends finish with a dash, and Dotted fits the dot spacing so dots land on both ends; fixed the Outline Stroke effect not being applied (so Straight + Shear did not slant, for example) when characters were selected with the Type tool; Auto Kerning 0 and Optical now turn Proportional Metrics off; Dotted Underline now has a Vertical Offset of -0.6 mm, and Box per Character a Padding of -0.1 mm; Straight + Shear stays centered when slanted (the bottom edge shifts the opposite way to the top); Red Wavy Line is renamed Wavy Line and uses the text color
 - v1.0.0 (2026-11-01) Initial release
