@@ -35,12 +35,12 @@ Chosen in the dropdown at the top of Settings. The dropdown's tooltip describes 
   - Box: one box around the glyphs of each line (column in vertical text).
   - Circle: an ellipse inscribed in the Box area.
   - Hexagon: the Box area with 60° points added at the left and right (top and bottom in vertical text).
-  - Per Character (right of the dropdown): draws a shape for each character. Shapes are as tall as the line's glyphs and as wide as the glyph or as tall, whichever is larger (nearly square for kanji and kana; swapped in vertical text). Circle becomes a circle whose diameter is the longer side, and Hexagon a regular hexagon whose flat-to-flat distance is the longer side. Punctuation, brackets and spaces are skipped.
+  - Unit (bottom right of the right column under Settings): Line (the default) draws one shape per line (column in vertical text); Per Character draws a shape for each character. Shapes are as tall as the line's glyphs and as wide as the glyph or as tall, whichever is larger (nearly square for kanji and kana; swapped in vertical text). Circle becomes a circle whose diameter is the longer side, and Hexagon a regular hexagon whose flat-to-flat distance is the longer side. Punctuation, brackets and spaces are skipped.
 - Emphasis Dots: a round dot above each character (right of it in vertical text). Punctuation, brackets and spaces get no dot.
 
 #### Settings (left column)
 
-- Stacking Order: Front or Back. Back (the default) draws behind the text; Front draws in front of it.
+- Stacking Order (right of Style): Front or Back. Back (the default) draws behind the text; Front draws in front of it.
 - Text: with White on, sets the fill of the target characters to white.
 - Shape: turns Fill and Stroke on or off independently. Fill uses Fill Color; Stroke uses Stroke Color, Weight and Line Type.
 - Fill Color: used for Fill, Emphasis Dots and the Fill of shapes. Choose White, Text Color or Custom (Text Color by default).
@@ -53,9 +53,9 @@ Chosen in the dropdown at the top of Settings. The dropdown's tooltip describes 
 - Line Length: how the lines and shapes of multi-line text are aligned.
   - Align Starts: starts the lines and shapes where the earliest line starts (the top of the column in vertical text). The ends stay as they are.
   - Align Both Ends: extends the lines and shapes of short lines to the length of the longest one (column length in vertical text).
-  - Only one of Align Starts and Align Both Ends can be on. They work with line styles and with shapes when Per Character is off.
-- Roughen: with Hand-Drawn on, the Roughen effect (corner points) is applied to the lines and shapes so their edges wobble like hand drawing (line styles get it on the center line, before Outline Stroke). Size is a percentage of the line or shape (initially 1%) and Detail is per inch (initially 10). Works with every style except Emphasis Dots.
+  - Only one of Align Starts and Align Both Ends can be on. They work with line styles and with shapes when Unit is Line.
 - Leading: with Even on, positions and sizes lines, shapes and dots by the leading instead of the glyph height of each line (width in vertical text). Every line gets the same height, centered on its characters, and consecutive lines are spaced exactly one leading apart (spacing restarts after paragraph space or blank lines). Works with every style; Fill becomes as thick as the leading, and Per Character as large.
+- Padding (H), Padding (V): the left/right and top/bottom space around the glyphs for shapes, or the distance from the glyphs to the dots for Emphasis Dots (Padding (V) in horizontal text, Padding (H) in vertical text; negative values pull inward). While the link icon on the right is on, the two keep the same value (on by default).
 
 #### Settings (right column)
 
@@ -65,8 +65,8 @@ Chosen in the dropdown at the top of Settings. The dropdown's tooltip describes 
   - Gap starts at the line width.
 - Cap: Butt or Round.
 - Angle: the slant of Straight + Shear (-80 to 80°; positive slants to the upper right).
-- Size, Ridges, Points: the ridge height, the number of ridges per inch (25.4 mm) of the line (Detail of the Roughen effect), and Smooth (wavy) or Corner (zigzag) for Zigzag.
-- Padding (H), Padding (V): the left/right and top/bottom space around the glyphs for shapes, or the distance from the glyphs to the dots for Emphasis Dots (Padding (V) in horizontal text, Padding (H) in vertical text; negative values pull inward). While the link icon on the right is on, the two keep the same value (on by default).
+- Size, Ridges, Points: the ridge height, the number of ridges per inch (25.4 mm) of the line, and Smooth (wavy) or Corner (zigzag) for Zigzag. Ridges is also the Roughen detail for Hand-Drawn (Zigzag and Hand-Drawn together share the number).
+- Roughen: with Hand-Drawn on, the Roughen effect (corner points) is applied to the lines and shapes so their edges wobble like hand drawing (line styles get it on the center line, before Outline Stroke). Size is a percentage of the line or shape (initially 1%); the detail uses Ridges (per inch). Works with every style except Emphasis Dots.
 - Corner Radius: the corner radius of Box (0 for square corners).
 - Continuity: with Multi-Line on, makes a rounded Box spanning several lines look continuous. Only the left end of the first line and the right end of the last are rounded, and the line breaks keep square corners. With Stroke on, the stroke is left open on the edges where the lines continue (the left edge of every line but the first and the right edge of every line but the last; in vertical text, the top of the first column and the bottom of the last are rounded, and the top and bottom edges are left open).
 - Rotate: turns each shape about its own center (-360 to 360°; positive is counterclockwise).
@@ -136,10 +136,11 @@ https://note.com/dtp_tranist/n/na1804afb7fe2
 
 ### Script info
 
-- Version: v1.5.0
+- Version: v1.6.0
 
 ### Update History
 
+- v1.6.0 (2026-11-02) Merged the Roughen detail into Ridges, moved Roughen below the Zigzag fields in the right column and Padding (H) / Padding (V) to the bottom of the left column; turned the Per Character checkbox into Unit radio buttons (Line / Per Character); moved Stacking Order to the right of Style and Unit to the bottom right of the right column under Settings
 - v1.5.0 (2026-11-02) Added an Overwrite icon to Presets (writes the current settings into the selected preset without asking for a name or confirmation); turned the Hand-Drawn style into a Hand-Drawn option under Roughen that works with every style (with Size in % and Detail; the former Hand-Drawn style loads as Marker with Hand-Drawn on); retuned the built-in presets, added Yellow Marker (Hand-Drawn), Band per Line (Touching), Band per Line (Hand-Drawn), Frame per Line and Frame per Line (Hand-Drawn), and reordered them by Style (fixed lengths except Text-Color Strikethrough and Double Strikethrough; Redaction now uses Back; every preset carries the Line Length, Leading and Text settings); fixed clicking the chosen preset again after changing settings not loading it, so the saved Offset, Weight and so on could not be brought back (changing a setting now deselects the list)
 - v1.4.0 (2026-11-02) Added Align Starts to Line Length (for multi-line text, only the starts of the lines and shapes are aligned to the earliest line; the top of the column in vertical text); renamed Equalize to Align Both Ends and Leading-Based to Even under its own Leading row; added the Zigzag and Band per Line built-in presets (Band per Line: a box for each line, with aligned starts and even leading); Zigzag (Wavy Line) now adds points with the Roughen effect before the Zig Zag effect, and Ridges is now per inch instead of end to end (short and long lines get the same ridge pitch; initial value 12); fixed Even (Leading) sometimes shifting the shapes of kana-heavy or Latin lines slightly up or down (left or right in vertical text), leaving uneven gaps between lines
 - v1.3.1 (2026-11-02) The dialog box now remembers its state at close (settings, chosen preset and Preview) and restores it the next time it opens, until Illustrator quits; the first time after Illustrator starts, the Yellow Marker preset is chosen

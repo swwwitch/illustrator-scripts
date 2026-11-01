@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.DrawMarkerBehindText
 Name=文字にマーカー・アンダーライン・取り消し線を引く
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.5.0
+Version=1.6.0
 Release-Date=2026-11-01
 Description-BEGIN
 文字ツールで選んだ文字やテキストオブジェクトに、字面に合わせてマーカー・アンダーライン・取り消し線などの線や、長方形・円・六角形・傍点を描きます（文字の背面・前面を選べ、複数行は行ごと。行頭・行長・行送りの間隔もそろえられます）。
@@ -47,7 +47,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TextHighli
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "TextHighlighter";              /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.5.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.6.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-11-01";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-11-02";                   /* 更新日 / last updated */
@@ -115,11 +115,10 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
        Characters skipped by Emphasis Dots and the per-character shapes (punctuation, brackets, symbols, spaces) */
     var PER_CHAR_SKIP_CHARS = "、。，．,.・:;：；!?！？「」『』（）()［］[]【】〈〉《》〔〕…‥ー―-— 　\t\r\n";
 
-    /* ［ラフ］の初期値：［手書き風］のオンオフ、サイズ（線や図形の大きさに対する％）、詳細（1インチあたりの数）
-       Initial Roughen values: Hand-Drawn on/off, size (% of the line or shape) and detail (per inch) */
+    /* ［ラフ］の初期値：［手書き風］のオンオフ、サイズ（線や図形の大きさに対する％）。詳細は［折り返し］の値を使う
+       Initial Roughen values: Hand-Drawn on/off and size (% of the line or shape); the detail comes from Ridges */
     var DEFAULT_ROUGHEN = false;
     var DEFAULT_ROUGHEN_SIZE_PERCENT = 1;
-    var DEFAULT_ROUGHEN_DETAIL = 10;
 
     /* 字面を測るアウトライン化の回数の上限。アウトライン直後の字形に読めない参照（MRAP）が混じったら作り直す
        Maximum outline attempts when measuring glyphs; retried when an outlined glyph cannot be read (MRAP) */
@@ -247,7 +246,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             name: { ja: "黄色のマーカー（手書き風）", en: "Yellow Marker (Hand-Drawn)" },
             settings: {
                 lineStyle: "marker", stackOrder: "stackBack", strokeColorChoice: "yellow", strokeWidthPt: 5, dashStyle: "solidLine", strokeCap: "roundCap",
-                opacity: 100, verticalOffsetPt: 0, roughen: true, roughenSizePercent: 1, roughenDetail: 10, alignLineStarts: false, equalLineLengths: false,
+                opacity: 100, verticalOffsetPt: 0, roughen: true, roughenSizePercent: 1, zigzagRidges: 10, alignLineStarts: false, equalLineLengths: false,
                 leadingBased: false, kerningChoice: "keepKerning", trackingText: "", kerningBeforeText: "", kerningAfterText: "", whiteText: false
             }
         },
@@ -325,7 +324,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             settings: {
                 lineStyle: "box", stackOrder: "stackBack", shapeFill: true, shapeStroke: false, isPerChar: false, boxRotation: 0, colorChoice: "custom",
                 customColor: { rgb: [79, 155, 216], cmyk: [65, 25, 0, 0] }, boxPaddingPt: 3.969, boxPaddingVPt: -0.85, boxPaddingLinked: false,
-                cornerRadiusPt: 0, squareLineJoins: true, opacity: 100, verticalOffsetPt: 0, roughen: true, roughenSizePercent: 0.7, roughenDetail: 3,
+                cornerRadiusPt: 0, squareLineJoins: true, opacity: 100, verticalOffsetPt: 0, roughen: true, roughenSizePercent: 0.7, zigzagRidges: 3,
                 alignLineStarts: true, equalLineLengths: false, leadingBased: true, kerningChoice: "keepKerning", trackingText: "", kerningBeforeText: "",
                 kerningAfterText: "", whiteText: true
             }
@@ -353,7 +352,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             settings: {
                 lineStyle: "box", stackOrder: "stackBack", shapeFill: false, shapeStroke: true, isPerChar: false, boxRotation: 0, strokeColorChoice: "textColor",
                 strokeWidthPt: 0.45, dashStyle: "solidLine", boxPaddingPt: 3.402, boxPaddingVPt: -2.551, boxPaddingLinked: false, cornerRadiusPt: 0,
-                squareLineJoins: false, opacity: 100, verticalOffsetPt: 0, roughen: true, roughenSizePercent: 0.4, roughenDetail: 10, alignLineStarts: true,
+                squareLineJoins: false, opacity: 100, verticalOffsetPt: 0, roughen: true, roughenSizePercent: 0.4, zigzagRidges: 10, alignLineStarts: true,
                 equalLineLengths: false, leadingBased: true, kerningChoice: "keepKerning", trackingText: "", kerningBeforeText: "", kerningAfterText: "",
                 whiteText: false
             }
@@ -2616,13 +2615,12 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             leading:        { ja: "行送り", en: "Leading" },
             roughen:        { ja: "ラフ", en: "Roughen" },
             roughenSize:    { ja: "サイズ", en: "Size" },
-            roughenDetail:  { ja: "詳細", en: "Detail" },
+            drawUnit:       { ja: "単位", en: "Unit" },
             textFill:       { ja: "テキスト", en: "Text" },
             lineJoins:      { ja: "連続処理", en: "Continuity" }
         },
         checkbox: {
             preview:     { ja: "プレビュー", en: "Preview" },
-            perChar:     { ja: "1文字ずつ", en: "Per Character" },
             whiteText:   { ja: "白抜きに", en: "White" },
             shapeFill:   { ja: "塗り", en: "Fill" },
             shapeStroke: { ja: "線", en: "Stroke" },
@@ -2645,6 +2643,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             roundCap:       { ja: "丸型", en: "Round" },
             stackFront:     { ja: "前", en: "Front" },
             stackBack:      { ja: "後", en: "Back" },
+            perLine:        { ja: "行", en: "Line" },
+            perChar:        { ja: "1文字ずつ", en: "Per Character" },
             smoothPoints:   { ja: "滑らか", en: "Smooth" },
             cornerPoints:   { ja: "直線的", en: "Corner" },
             keepKerning:    { ja: "変更しない", en: "No Change" },
@@ -2681,6 +2681,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
                 en: "Places a round dot above each character (right of it in vertical text); skips punctuation, brackets and spaces"
             },
             /* 設定 / Settings */
+            perLine: { ja: "［長方形］［円］［六角形］を行（縦組みは列）ごとに1つ描きます", en: "Draws one Box, Circle or Hexagon per line (column in vertical text)" },
             perChar: {
                 ja: "［長方形］［円］［六角形］を1文字ずつ描きます（高さは行の字面にそろえ、幅は高さ以上。円・六角形は長い辺に合わせます）。句読点・括弧・スペースは飛ばします",
                 en: "Draws Box, Circle or Hexagon per character (as tall as the line's glyphs, at least as wide as tall; Circle and Hexagon fit the longer side); skips punctuation, brackets and spaces"
@@ -2728,7 +2729,10 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
                 en: "Angle of the slanted ends (-80 to 80°); positive slants to the upper right, negative to the upper left"
             },
             zigzagSize:   { ja: "ギザギザの山の高さです", en: "Height of the zigzag ridges" },
-            zigzagRidges: { ja: "線の長さ1インチ（25.4 mm）あたりの折り返しの数です", en: "Number of ridges per inch (25.4 mm) of the line" },
+            zigzagRidges: {
+                ja: "線の長さ1インチ（25.4 mm）あたりの折り返しの数です。［手書き風］では［ラフ］効果の詳細にも使います",
+                en: "Number of ridges per inch (25.4 mm) of the line; also the Roughen detail for Hand-Drawn"
+            },
             smoothPoints: { ja: "折り返しを曲線にして、波線にします", en: "Curves the ridges into a wavy line" },
             cornerPoints: { ja: "折り返しを角にして、ギザギザにします", en: "Keeps the ridges as sharp corners" },
             roughen: {
@@ -2736,7 +2740,6 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
                 en: "Applies the Roughen effect to the lines and shapes so their edges wobble like hand drawing (corner points; not for Emphasis Dots)"
             },
             roughenSize:   { ja: "［ラフ］効果のサイズです（線や図形の大きさに対する％）", en: "Size of the Roughen effect (% of the line or shape)" },
-            roughenDetail: { ja: "［ラフ］効果の詳細です（1インチあたりの数）", en: "Detail of the Roughen effect (per inch)" },
             boxPadding: {
                 ja: "［長方形］［円］［六角形］は字面のまわりの余白（左右・上下）、［傍点］は字面から点までの距離です（横組みは縦、縦組みは横）。マイナスで内側へ寄せます",
                 en: "Space around the glyphs for Box, Circle and Hexagon (left/right and top/bottom); distance from the glyphs to the dots for Emphasis Dots (V in horizontal text, H in vertical text). Negative values pull inward"
@@ -3250,30 +3253,49 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         var settingsPanel = parent.add("panel", undefined, getLabel("panel.settings"));
         setupPanel(settingsPanel);
         addLineStyleDropdown(settingsPanel, markerControls, onStyleChange);
-        /* ［1文字ずつ］は［種類］の右に置く / Per Character sits right of Style */
-        markerControls.perCharOption = addOptionCheckbox(markerControls.lineStyleRow.row, "perChar", DEFAULT_PER_CHAR, onStyleChange);
+        /* ［重ね順］は［種類］の右に置く / Stacking Order sits right of Style */
+        markerControls.stackOrderRow = addRadioChoiceRow(markerControls.lineStyleRow.row, "stackOrder", ["stackFront", "stackBack"], DEFAULT_STACK_ORDER, onSettingChange);
+        markerControls.stackOrderRow.row.margins = [12, 0, 0, 0];
+        markerControls.stackOrderRow.radios.stackFront.helpTip = getLabel("tooltip.stackFront");
+        markerControls.stackOrderRow.radios.stackBack.helpTip = getLabel("tooltip.stackBack");
         var settingsColumnsGroup = settingsPanel.add("group");
         settingsColumnsGroup.orientation = "row";
         settingsColumnsGroup.alignChildren = ["fill", "top"];
         settingsColumnsGroup.spacing = COLUMN_SPACING;
 
-        addCommonSettingFields(addSettingsColumn(settingsColumnsGroup), markerControls, doc, glyphHeightPt, isTextColorUsable, onSettingChange);
-        addStyleSettingFields(addSettingsColumn(settingsColumnsGroup), markerControls, glyphHeightPt, onSettingChange, onStyleChange);
+        var commonColumn = addSettingsColumn(settingsColumnsGroup);
+        addCommonSettingFields(commonColumn, markerControls, doc, glyphHeightPt, isTextColorUsable, onSettingChange);
+        /* ［余白（横）］［余白（縦）］は左の列の末尾に置く（右の列で作る） / Padding (H) and (V) go at the bottom of the left column (built with the right column) */
+        markerControls.paddingColumn = commonColumn;
+        var styleColumn = addSettingsColumn(settingsColumnsGroup);
+        addStyleSettingFields(styleColumn, markerControls, glyphHeightPt, onSettingChange, onStyleChange);
+        /* ［単位］（行／1文字ずつ）は右の列の右下に置く（列を左の列の高さまで伸ばす） / Unit sits at the bottom right of the right column, stretched to the left column's height */
+        styleColumn.alignment = ["fill", "fill"];
+        var drawUnitGroup = styleColumn.add("group");
+        drawUnitGroup.alignment = ["right", "bottom"];
+        markerControls.drawUnitRow = addRadioChoiceRow(drawUnitGroup, "drawUnit", ["perLine", "perChar"], DEFAULT_PER_CHAR ? "perChar" : "perLine", onStyleChange);
+        markerControls.drawUnitRow.radios.perLine.helpTip = getLabel("tooltip.perLine");
+        markerControls.drawUnitRow.radios.perChar.helpTip = getLabel("tooltip.perChar");
+        /* ほかの処理からは［1文字ずつ］のオンオフとして読み書きする / Read and written elsewhere as Per Character on or off */
+        markerControls.perCharOption = {
+            getValue: function () { return markerControls.drawUnitRow.getChoice() === "perChar"; },
+            setValue: function (isPerChar) { markerControls.drawUnitRow.setChoice(isPerChar ? "perChar" : "perLine"); }
+        };
         addTextFormatPanel(parent, markerControls, onSettingChange);
 
         /* 項目名の幅は列ごとにそろえる / Label widths are aligned per column */
         markerControls.labelColumns = [
             [
-                markerControls.lineStyleRow.label, markerControls.stackOrderRow.label, markerControls.whiteTextOption.label, markerControls.shapePaintRow.label,
+                markerControls.lineStyleRow.label, markerControls.whiteTextOption.label, markerControls.shapePaintRow.label,
                 markerControls.fillColorRow.label, markerControls.strokeColorRow.label, markerControls.opacityInput.fieldLabel, markerControls.strokeWidthInput.fieldLabel, markerControls.verticalOffsetInput.fieldLabel,
                 markerControls.equalLineLengthsOption.label, markerControls.leadingBasedOption.label,
-                markerControls.roughenOption.label, markerControls.roughenSizeInput.fieldLabel, markerControls.roughenDetailInput.fieldLabel
+                markerControls.boxPaddingInput.fieldLabel, markerControls.boxPaddingVInput.fieldLabel
             ],
             [
                 markerControls.dashStyleRow.label, markerControls.dashSegmentsInput.fieldLabel, markerControls.dashGapInput.fieldLabel, markerControls.strokeCapRow.label,
                 markerControls.shearAngleInput.fieldLabel, markerControls.zigzagSizeInput.fieldLabel, markerControls.zigzagRidgesInput.fieldLabel,
-                markerControls.zigzagPointsRow.label,
-                markerControls.boxPaddingInput.fieldLabel, markerControls.boxPaddingVInput.fieldLabel, markerControls.cornerRadiusInput.fieldLabel, markerControls.squareLineJoinsOption.label, markerControls.boxRotationInput.fieldLabel,
+                markerControls.zigzagPointsRow.label, markerControls.roughenOption.label, markerControls.roughenSizeInput.fieldLabel,
+                markerControls.cornerRadiusInput.fieldLabel, markerControls.squareLineJoinsOption.label, markerControls.boxRotationInput.fieldLabel,
                 markerControls.lineGapInput.fieldLabel, markerControls.dotSizeInput.fieldLabel
             ],
             [markerControls.trackingInput.fieldLabel, markerControls.kerningBeforeInput.fieldLabel, markerControls.kerningAfterInput.fieldLabel]
@@ -3340,7 +3362,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     }
 
     /**
-     * ［設定］の左の列に、重ね順・テキスト（白抜き）・図形・塗りのカラー・線のカラー・不透明度・線幅・位置調整・行長・行送り・ラフを作り、markerControls に入れる
+     * ［設定］の左の列に、テキスト（白抜き）・図形・塗りのカラー・線のカラー・不透明度・線幅・位置調整・行長・行送りを作り（余白は右の列の項目と一緒に、addStyleSettingFields() が末尾に足す）、markerControls に入れる
      * @param {Group} commonColumn - 左の列
      * @param {Object} markerControls - 作ったコントロールを入れるオブジェクト（rulerUnit・strokeUnit 付き）
      * @param {Document} doc - 対象ドキュメント
@@ -3352,9 +3374,6 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     function addCommonSettingFields(commonColumn, markerControls, doc, glyphHeightPt, isTextColorUsable, onSettingChange) {
         var rulerUnit = markerControls.rulerUnit;
         var strokeUnit = markerControls.strokeUnit;
-        markerControls.stackOrderRow = addRadioChoiceRow(commonColumn, "stackOrder", ["stackFront", "stackBack"], DEFAULT_STACK_ORDER, onSettingChange);
-        markerControls.stackOrderRow.radios.stackFront.helpTip = getLabel("tooltip.stackFront");
-        markerControls.stackOrderRow.radios.stackBack.helpTip = getLabel("tooltip.stackBack");
         markerControls.whiteTextOption = addLabeledOptionCheckbox(commonColumn, "textFill", "whiteText", DEFAULT_WHITE_TEXT, onSettingChange);
         /* 塗り・線で使う項目が変わるので、切り替えたら使える項目も切り替える / Fill and Stroke change the usable fields */
         markerControls.shapePaintRow = addShapePaintRow(commonColumn, function () {
@@ -3393,17 +3412,6 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         });
         markerControls.equalLineLengthsOption.label = lineLengthLabel;
         markerControls.leadingBasedOption = addLabeledOptionCheckbox(commonColumn, "leading", "leadingBased", DEFAULT_LEADING_BASED, onSettingChange);
-        /* ［ラフ］：［手書き風］をオンにすると、サイズと詳細を使う / Roughen: Size and Detail are used while Hand-Drawn is on */
-        markerControls.roughenOption = addLabeledOptionCheckbox(commonColumn, "roughen", "roughen", DEFAULT_ROUGHEN, function () {
-            updateStyleFieldsEnabled(markerControls);
-            onSettingChange();
-        });
-        markerControls.roughenSizeInput = addMarkerNumberField(commonColumn, "roughenSize", {
-            text: DEFAULT_ROUGHEN_SIZE_PERCENT + "%", characters: 7, step: 1, min: 0, max: 100, unit: "%"
-        }, onSettingChange);
-        markerControls.roughenDetailInput = addMarkerNumberField(commonColumn, "roughenDetail", {
-            text: String(DEFAULT_ROUGHEN_DETAIL), characters: 7, step: 1, min: 1, max: 100, integer: true
-        }, onSettingChange);
     }
 
     /**
@@ -3485,7 +3493,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     }
 
     /**
-     * ［設定］の右の列に、種類ごとの項目（線の種類・分割数・間隔・線端・角度・大きさ・折り返し・ポイント・余白・角丸の半径・回転・線の間隔・点の大きさ）を作り、markerControls に入れる
+     * ［設定］の右の列に、種類ごとの項目（線の種類・分割数・間隔・線端・角度・大きさ・折り返し・ポイント・ラフ・角丸の半径・回転・線の間隔・点の大きさ）を作り、markerControls に入れる
      * @param {Group} styleColumn - 右の列
      * @param {Object} markerControls - 作ったコントロールを入れるオブジェクト（rulerUnit・strokeUnit 付き）
      * @param {number} glyphHeightPt - 線幅・余白の初期値のもとにする字面の高さ（pt）
@@ -3530,7 +3538,12 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         markerControls.zigzagPointsRow = addRadioChoiceRow(styleColumn, "zigzagPoints", ["smoothPoints", "cornerPoints"], DEFAULT_ZIGZAG_POINTS, onSettingChange);
         markerControls.zigzagPointsRow.radios.smoothPoints.helpTip = getLabel("tooltip.smoothPoints");
         markerControls.zigzagPointsRow.radios.cornerPoints.helpTip = getLabel("tooltip.cornerPoints");
-        addBoxPaddingFields(styleColumn, markerControls, lengthFieldOptions, glyphHeightPt, onSettingChange);
+        /* ［ラフ］：［手書き風］をオンにするとサイズを使い、詳細は［折り返し］の値を使う / Roughen: Size is used while Hand-Drawn is on; the detail is Ridges */
+        markerControls.roughenOption = addLabeledOptionCheckbox(styleColumn, "roughen", "roughen", DEFAULT_ROUGHEN, onStyleChange);
+        markerControls.roughenSizeInput = addMarkerNumberField(styleColumn, "roughenSize", {
+            text: DEFAULT_ROUGHEN_SIZE_PERCENT + "%", characters: 7, step: 1, min: 0, max: 100, unit: "%"
+        }, onSettingChange);
+        addBoxPaddingFields(markerControls.paddingColumn, markerControls, lengthFieldOptions, glyphHeightPt, onSettingChange);
         markerControls.cornerRadiusInput = addMarkerNumberField(styleColumn, "cornerRadius", lengthFieldOptions(DEFAULT_CORNER_RADIUS, 0), onSettingChange);
         markerControls.squareLineJoinsOption = addLabeledOptionCheckbox(styleColumn, "lineJoins", "squareLineJoins", DEFAULT_SQUARE_LINE_JOINS, onSettingChange);
         markerControls.boxRotationInput = addMarkerNumberField(styleColumn, "boxRotation", {
@@ -3543,16 +3556,16 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     /**
      * ［余白（横）］［余白（縦）］の2欄と、2つを連動させるリンクアイコンを作り、markerControls に入れる。
      * 連動中は、片方を変えるともう片方を同じ値にする
-     * @param {Group} styleColumn - 右の列
+     * @param {Group} paddingColumn - 追加先の列（左の列）
      * @param {Object} markerControls - 作ったコントロールを入れるオブジェクト
      * @param {Function} lengthFieldOptions - 長さの欄の指定を作る関数（初期値 pt を渡す）
      * @param {number} glyphHeightPt - 余白の初期値のもとにする字面の高さ（pt）
      * @param {Function} onSettingChange - 設定を変えたあとに呼ぶ関数
      * @returns {void}
      */
-    function addBoxPaddingFields(styleColumn, markerControls, lengthFieldOptions, glyphHeightPt, onSettingChange) {
+    function addBoxPaddingFields(paddingColumn, markerControls, lengthFieldOptions, glyphHeightPt, onSettingChange) {
         /* 2欄を縦に積んだ group とアイコンを横に並べる / Put the stacked fields and the icon side by side */
-        var paddingRowGroup = styleColumn.add("group");
+        var paddingRowGroup = paddingColumn.add("group");
         paddingRowGroup.orientation = "row";
         paddingRowGroup.alignChildren = ["left", "center"];
         paddingRowGroup.spacing = 6;
@@ -3641,12 +3654,11 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         var isStrokedStyle = isLineStyle || isShapeStroke;
         setSteppedFieldEnabled(markerControls.shearAngleInput, lineStyle === "straightShear");
         setSteppedFieldEnabled(markerControls.zigzagSizeInput, lineStyle === "zigzag");
-        setSteppedFieldEnabled(markerControls.zigzagRidgesInput, lineStyle === "zigzag");
+        var usesRoughen = !isDots && markerControls.roughenOption.getValue();
+        setSteppedFieldEnabled(markerControls.zigzagRidgesInput, lineStyle === "zigzag" || usesRoughen);
         setRadiosEnabled(markerControls.zigzagPointsRow, lineStyle === "zigzag");
         markerControls.roughenOption.checkbox.enabled = !isDots;
-        var usesRoughen = !isDots && markerControls.roughenOption.getValue();
         setSteppedFieldEnabled(markerControls.roughenSizeInput, usesRoughen);
-        setSteppedFieldEnabled(markerControls.roughenDetailInput, usesRoughen);
         setSteppedFieldEnabled(markerControls.boxPaddingInput, usesShape || isDots);
         setSteppedFieldEnabled(markerControls.boxPaddingVInput, usesShape || isDots);
         setLinkToggleEnabled(markerControls.boxPaddingLink, usesShape || isDots);
@@ -3665,7 +3677,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         markerControls.fillColorRow.setEnabled(isFillLine || isDots || isShapeFill);
         markerControls.strokeColorRow.setEnabled((isLineStyle && !isFillLine) || isShapeStroke);
         setSteppedFieldEnabled(markerControls.boxRotationInput, usesShape);
-        markerControls.perCharOption.checkbox.enabled = usesShape;
+        setRadiosEnabled(markerControls.drawUnitRow, usesShape);
         setSteppedFieldEnabled(markerControls.lineGapInput, lineStyle === "doubleStrikethrough");
         setSteppedFieldEnabled(markerControls.dotSizeInput, isDots);
         setSteppedFieldEnabled(markerControls.strokeWidthInput, isStrokedStyle && lineStyle !== "fill");
@@ -3744,7 +3756,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     /**
      * 今のダイアログボックスの指定を、線を引くための値にまとめる
      * @param {Object} markerControls - addMarkerControls() の戻り値
-     * @returns {Object} { fillColor, fillUseTextColor, opacity, strokeWidth（pt）, verticalOffset（pt）, lineStyle, shearAngle（度）, zigzagSize（pt）, zigzagRidges, isZigzagSmooth, isRoughen, roughenSize（％）, roughenDetail, boxPadding（横、pt）, boxPaddingV（縦、pt）, cornerRadius（pt）, boxRotation（度）, lineGap（pt）, dotSize（pt）, dashStyle, dashSegments（空欄なら null）, dashGap（pt）, strokeCap, isFront, isPerChar, squareLineJoins, alignLineStarts, equalLineLengths, isLeadingBased, isShapeFill, isShapeStroke, strokeColor, strokeUseTextColor, kerningChoice, tracking・kerningBefore・kerningAfter（空欄なら null）, whiteText }
+     * @returns {Object} { fillColor, fillUseTextColor, opacity, strokeWidth（pt）, verticalOffset（pt）, lineStyle, shearAngle（度）, zigzagSize（pt）, zigzagRidges, isZigzagSmooth, isRoughen, roughenSize（％）, boxPadding（横、pt）, boxPaddingV（縦、pt）, cornerRadius（pt）, boxRotation（度）, lineGap（pt）, dotSize（pt）, dashStyle, dashSegments（空欄なら null）, dashGap（pt）, strokeCap, isFront, isPerChar, squareLineJoins, alignLineStarts, equalLineLengths, isLeadingBased, isShapeFill, isShapeStroke, strokeColor, strokeUseTextColor, kerningChoice, tracking・kerningBefore・kerningAfter（空欄なら null）, whiteText }
      */
     function readMarkerOptions(markerControls) {
         var fillColorOptions = markerControls.fillColorRow.getColorOptions();
@@ -3762,7 +3774,6 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             zigzagSize: readLengthPt(markerControls.zigzagSizeInput, markerControls.rulerUnit),
             isRoughen: (markerControls.lineStyleRow.getChoice() !== "emphasisDots" && markerControls.roughenOption.getValue()),
             roughenSize: parseFloat(markerControls.roughenSizeInput.text),
-            roughenDetail: parseInt(markerControls.roughenDetailInput.text, 10),
             zigzagRidges: parseInt(markerControls.zigzagRidgesInput.text, 10),
             isZigzagSmooth: (markerControls.zigzagPointsRow.getChoice() === "smoothPoints"),
             boxPadding: readLengthPt(markerControls.boxPaddingInput, markerControls.rulerUnit),
@@ -4121,7 +4132,6 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             zigzagSizePt: markerOptions.zigzagSize,
             roughen: markerControls.roughenOption.getValue(),
             roughenSizePercent: markerOptions.roughenSize,
-            roughenDetail: markerOptions.roughenDetail,
             zigzagRidges: markerOptions.zigzagRidges,
             zigzagPoints: markerControls.zigzagPointsRow.getChoice(),
             boxPaddingPt: markerOptions.boxPadding,
@@ -4199,7 +4209,6 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             ["zigzagSizePt", markerControls.zigzagSizeInput, markerControls.rulerUnit],
             ["zigzagRidges", markerControls.zigzagRidgesInput, null],
             ["roughenSizePercent", markerControls.roughenSizeInput, null],
-            ["roughenDetail", markerControls.roughenDetailInput, null],
             ["boxPaddingPt", markerControls.boxPaddingInput, markerControls.rulerUnit],
             /* 旧版のプリセットは［余白（縦）］も［余白］の値にする / Presets from earlier versions use Padding for both */
             [(typeof presetData.boxPaddingVPt === "number") ? "boxPaddingVPt" : "boxPaddingPt", markerControls.boxPaddingVInput, markerControls.rulerUnit],
@@ -4240,6 +4249,10 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         if (typeof presetData.leadingBased === "boolean") markerControls.leadingBasedOption.setValue(presetData.leadingBased);
         /* 旧版の種類［手書き風］は［マーカー］の［手書き風］オン。持っていないプリセットはオフ / The former Hand-Drawn style is Marker with Hand-Drawn on; presets without it turn it off */
         markerControls.roughenOption.setValue(presetData.roughen === true || presetData.lineStyle === "roughMarker");
+        /* v1.5.0 の［詳細］は［折り返し］にまとめた（［ギザギザ］以外で手書き風のときだけ読む） / v1.5.0 Detail merged into Ridges (read only for Hand-Drawn outside Zigzag) */
+        if (presetData.roughen === true && typeof presetData.roughenDetail === "number" && presetData.lineStyle !== "zigzag") {
+            setMarkerFieldValue(markerControls.zigzagRidgesInput, presetData.roughenDetail);
+        }
         if (presetData.kerningChoice) markerControls.kerningRow.setChoice(presetData.kerningChoice);
         /* 空欄にできる欄は、保存した文字列をそのまま入れる / Blank-able fields take the saved text as is */
         var textFields = [
@@ -5077,12 +5090,12 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     /**
      * ［手書き風］がオンなら、［ラフ］効果（ポイントはギザギザ）を掛ける
      * @param {PageItem} targetItem - 線や図形
-     * @param {Object} markerOptions - readMarkerOptions() の戻り値（isRoughen・roughenSize・roughenDetail）
+     * @param {Object} markerOptions - readMarkerOptions() の戻り値（isRoughen・roughenSize・zigzagRidges）
      * @returns {void}
      */
     function applyRoughenEffect(targetItem, markerOptions) {
         if (!markerOptions.isRoughen) return;
-        targetItem.applyEffect(createRoughenXml(markerOptions.roughenSize, markerOptions.roughenDetail, false));
+        targetItem.applyEffect(createRoughenXml(markerOptions.roughenSize, markerOptions.zigzagRidges, false));
     }
 
     /**
