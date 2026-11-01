@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.DrawMarkerBehindText
 Name=文字にマーカー・アンダーライン・取り消し線を引く
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.3.0
+Version=1.3.1
 Release-Date=2026-11-01
 Description-BEGIN
 文字ツールで選んだ文字やテキストオブジェクトに、字面に合わせてマーカー・アンダーライン・取り消し線などの線や、長方形・円・六角形・傍点を描きます（文字の背面・前面を選べ、複数行は行ごと）。
@@ -44,10 +44,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TextHighli
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "TextHighlighter";              /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.3.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.3.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-11-01";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-11-01";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-11-02";                   /* 更新日 / last updated */
 
 var SCRIPT_DESCRIPTION_JA = "文字にマーカー・アンダーライン・取り消し線を引く"; /* README の見出し / README title (Japanese) */
 
@@ -196,6 +196,10 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
 
     /* ダイアログボックスを開いたときにプレビューするか / Preview when the dialog box opens */
     var PREVIEW_ON_OPEN = true;
+
+    /* Illustrator を起動して最初に開いたときに選ぶプリセット（BUILTIN_PRESETS の名前）。2回目からは前回閉じたときの状態に戻す
+       Preset chosen the first time after Illustrator starts (a BUILTIN_PRESETS name); later, the state at the last close comes back */
+    var INITIAL_PRESET_NAME = { ja: "黄色のマーカー", en: "Yellow Marker" };
 
     /* 最初から用意するプリセット（ドロップダウンの先頭にこの順で並ぶ。削除はできず、同じ名前で保存したものが優先）。
        書き方は保存したプリセットと同じで、長さは〜Pt のかわりに〜Ratio（先頭の対象の字面の高さに対する比率）でも書ける。
@@ -2341,6 +2345,10 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         }
     });
 
+    /* 前回ダイアログボックスを閉じたときの状態（設定・選んでいたプリセット・プレビュー）。Illustrator の終了まで残す（#targetengine が必須）
+       State at the last close of the dialog box (settings, chosen preset, preview), kept until Illustrator quits (needs #targetengine) */
+    var dialogSessionStore = createSettingsStore(SCRIPT_NAME, "session");
+
     // =========================================
     // ローカライズ / Localization
     // =========================================
@@ -3638,6 +3646,10 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         var markerPreview = createMarkerPreview(doc, markerTargets);
         /* show() 前に代入した value は読み戻せないので、オンオフは変数で持つ / value set before show() cannot be read back, so keep the state in a variable */
         var isPreviewOn = PREVIEW_ON_OPEN;
+        /* 前回閉じたときの状態（無ければ空） / State at the last close (empty if none) */
+        var sessionState = dialogSessionStore.load({});
+        var hasSessionState = !!sessionState.settings;
+        if (typeof sessionState.previewOn === "boolean") isPreviewOn = sessionState.previewOn;
 
         /* 左に［プリセット］、右に［設定］と［文字］ / Presets on the left, Settings and Text on the right */
         var panelColumnsGroup = markerDialog.add("group");
@@ -3656,6 +3668,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         var markerControls = addMarkerControls(rightPanelsGroup, doc, glyphHeightPt, areTextColorsUsable(markerTargets), refreshPreview);
         for (var i = 0; i < markerControls.labelColumns.length; i++) alignLabelWidths(markerControls.labelColumns[i]);
         bindPresetControls(presetControls, markerControls, refreshPreview);
+        restoreDialogState(presetControls, markerControls, hasSessionState ? sessionState : null);
 
         var buttonRow = addButtonRow(markerDialog);
         var previewCheckbox = buttonRow.leftGroup.add("checkbox", undefined, getLabel("checkbox.preview"));
@@ -3682,10 +3695,33 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         if (isPreviewOn) refreshPreview();
         prepareDialogWindow(markerDialog, SCRIPT_NAME);
         var dialogResult = markerDialog.show();
+        /* ［OK］でも［キャンセル］でも、閉じたときの状態を覚える / Remember the state at close, whether OK or Cancel */
+        dialogSessionStore.save({
+            settings: collectPresetData(markerControls),
+            presetName: getSelectedPresetName(presetControls),
+            previewOn: isPreviewOn
+        });
         /* 確定でも消して、main() で描き直す / Removed on OK too; main() draws the final result */
         markerPreview.clear();
         if (dialogResult !== 1) return null;
         return readMarkerOptions(markerControls);
+    }
+
+    /**
+     * ダイアログボックスを開いたときの設定にする。
+     * 前回閉じたときの状態があれば、その設定と選んでいたプリセットに戻す。無ければ（Illustrator を起動して最初）INITIAL_PRESET_NAME のプリセットを選んで読み込む
+     * @param {Object} presetControls - addPresetPanel() の戻り値（builtinPresets 付き、bindPresetControls() のあと）
+     * @param {Object} markerControls - addMarkerControls() の戻り値
+     * @param {Object|null} sessionState - 前回閉じたときの状態 { settings, presetName }（無ければ null）
+     * @returns {void}
+     */
+    function restoreDialogState(presetControls, markerControls, sessionState) {
+        var presetName = sessionState ? sessionState.presetName : getLabel(INITIAL_PRESET_NAME);
+        var presetData = sessionState ? sessionState.settings : findPresetData(presetControls, presetName);
+        if (presetData) applyPresetData(markerControls, presetData);
+        updateStyleFieldsEnabled(markerControls);
+        /* リストは選ぶだけにする（選び直しで読み込むと、前回の調整が消える） / Only select in the list; reloading would drop the last adjustments */
+        presetControls.refreshPresetList((typeof presetName === "string") ? presetName : null);
     }
 
     /**
@@ -3702,7 +3738,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
     }
 
     /**
-     * プリセットのリスト・保存・削除の動作を付け、リストを埋める
+     * プリセットのリスト・保存・削除の動作を付け、リストを埋める（作り直しの関数を presetControls.refreshPresetList に置く）
      * @param {Object} presetControls - addPresetPanel() の戻り値（builtinPresets 付き）
      * @param {Object} markerControls - addMarkerControls() の戻り値
      * @param {Function} onPresetApplied - プリセットを書き込んだあとに呼ぶ関数
@@ -3741,6 +3777,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         presetControls.presetDeleteIcon.onClick = function () {
             if (deleteSelectedPreset(presetControls)) refreshPresetList(null);
         };
+        presetControls.refreshPresetList = refreshPresetList;
         refreshPresetList(null);
     }
 

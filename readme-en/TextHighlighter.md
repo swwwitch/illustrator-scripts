@@ -91,6 +91,10 @@ Changes the formatting of the target characters. The preview reflects it, and th
 
 While on, the selection is cleared so the lines and shapes are visible. Closing the dialog box restores the original selection.
 
+#### Last state
+
+The settings, the chosen preset and Preview at the time the dialog box closes (OK or Cancel) come back the next time it opens. They are kept until Illustrator quits; the first time after Illustrator starts, the Yellow Marker preset is chosen.
+
 ### Usage
 
 1. Select characters with the Type tool (or select text objects)
@@ -117,10 +121,11 @@ https://note.com/gorilla_gg/n/naa26b079cb75
 
 ### Script info
 
-- Version: v1.3.0
+- Version: v1.3.1
 
 ### Update History
 
+- v1.3.1 (2026-11-02) The dialog box now remembers its state at close (settings, chosen preset and Preview) and restores it the next time it opens, until Illustrator quits; the first time after Illustrator starts, the Yellow Marker preset is chosen
 - v1.3.0 (2026-11-01) Added Leading-Based to Line Length (lines, shapes and dots are positioned and sized by the leading instead of the glyph height of each line, so every line gets the same height, centered on the line); moved Stacking Order, Text and Shape to the top of the left column and Line Length to its bottom, and Line Type, Segments, Gap and Cap to the top of the right column; Multi-Line now sits under the Continuity label and, with Stroke on, leaves the stroke open where the lines continue (a multi-line Frame looks continuous); split Padding into Padding (H) and Padding (V) with a link icon (presets from earlier versions load the same value into both); fixed the script sometimes stopping with an MRAP error while measuring the glyphs
 - v1.2.1 (2026-11-01) Supports vertical text: line styles now draw a vertical line for each column instead of one horizontal line over the whole selection (styles placed at the bottom edge go to the right edge); renamed Vertical Offset to Offset, Equal Line Lengths to Equalize under Line Length, and White Text to White under Text; in vertical text, Offset now moves lines, shapes and emphasis dots left or right (positive is left); Equalize (Line Length) now also works for line styles in vertical text; fixed lines and shapes sometimes breaking at tate-chu-yoko numbers such as "90"
 - v1.2.0 (2026-11-01) Reordered the built-in presets to follow Style; Added Equal Line Lengths (short lines get the length of the longest one); Added Segments (dashes per line; blank for automatic) and Gap (space between dashes) to Dashed, and Gap (space between dots) to Dotted; Added Multi-Line to Box (a rounded Box spanning several lines is rounded only at its start and end); The initial Line Gap of Double Strikethrough, and that of the preset of the same name, is now 1/5 of the glyph height; Hide Edges is toggled while the script runs and toggled back at the end; Line styles are now drawn per line in multi-line text (initial values such as the weight come from the first line); fixed a line being split in two when it starts with a small glyph such as "…" or "-"; renamed the dialog box to "Draw Lines and Shapes on Text", Auto Kerning to Kerning and its Metrics to Auto (as in Illustrator's Character panel); added tooltips to Stacking Order; renamed the presets Box per Character (Pink), Circle per Character (Pink) and Hexagon per Character (Blue) to Box per Character, Circle per Character and Hexagon per Character, and Rounded Box (Blue) to Rounded Box; Added Kerning (Before) and Kerning (After) (manual kerning) to Text; added Shape (Fill and Stroke, each on or off), and Rotate to Box, Circle and Hexagon, and merged Frame into a stroked Box (presets saved with Frame still load); split Color into Fill Color (White, Text Color, Custom) and Stroke Color (Yellow, Red, Text Color, Custom), with line styles using Stroke Color (presets from earlier versions still load); removed the Hand-Drawn Marker built-in preset; Wavy Line now has a Vertical Offset of -0.5 mm
