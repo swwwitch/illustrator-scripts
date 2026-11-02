@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.SpeechBubbleMaker
 Name=テキストに吹き出しのしっぽ付きの下線・囲みを描く
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.0.1
+Version=1.0.2
 Release-Date=2026-11-02
 Description-BEGIN
 選択したテキストに、吹き出しのしっぽ（V字・斜線・すぼまり）の付いた下線・コの字・囲みを描きます。線は上下左右のどの側にも描けます。
@@ -44,7 +44,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SpeechBubb
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SpeechBubbleMaker";            /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-11-02";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-11-02";                   /* 更新日 / last updated */
@@ -111,6 +111,13 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             choices: { shapeKey: "notch", directionKey: "center", rootKey: "edge", frameKey: "box", capKey: "butt" },
             position: 72,
             ratios: { gapWidth: 0.47, tailWidth: 0.59, tailHeight: 0.47, offset: 0.5, extension: 0.5, tickHeight: 0.31, cornerRadius: 0.31, shadowDistance: 0, strokeWidth: 0.04 }
+        },
+        {
+            /* 保存したプリセットから昇格（12pt・mm で作ったものを比率に直した） / promoted from a saved preset made at 12 pt in mm, converted to ratios */
+            name: { ja: "ひろがりカーリー", en: "Wide curly" },
+            choices: { shapeKey: "curly", directionKey: "center", rootKey: "edge", frameKey: "underline", capKey: "round" },
+            position: 48,
+            ratios: { gapWidth: 1.65, tailWidth: 0.59, tailHeight: 0.47, offset: 0.47, extension: 0.24, tickHeight: 0.59, cornerRadius: 0, shadowDistance: 0, strokeWidth: 0.04 }
         },
         null, /* 区切り線 / separator */
         {

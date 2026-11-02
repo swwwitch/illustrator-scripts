@@ -19,7 +19,7 @@ The dialog box has Presets centered at the top, the Tail and Text Options panels
 #### Presets
 
 - Picking a preset switches the tail and line/frame settings at once.
-- Eleven built-in presets are included (simple speech bubble, underline with a V, a V down right, slashes down right and left; bracket with a slash; rounded bracket with a V; box with a slash; rounded box with a slash; box with a V and shadow; curly bracket). Built-in presets size themselves to the font size of the first character.
+- Twelve built-in presets are included (simple speech bubble, wide curly, underline with a V, a V down right, slashes down right and left; bracket with a slash; rounded bracket with a V; box with a slash; rounded box with a slash; box with a V and shadow; curly bracket). Built-in presets size themselves to the font size of the first character.
 - The save icon stores the current settings under a name; the trash icon deletes the selected saved preset (built-in presets cannot be deleted, and their names cannot be reused). Saved presets keep their sizes as saved and survive quitting Illustrator.
 - Changing a setting by hand clears the preset selection.
 
@@ -79,3 +79,4 @@ The dialog box has Presets centered at the top, the Tail and Text Options panels
 
 - v1.0.0 (2026-11-02): Initial release
 - v1.0.1 (2026-11-02): Added the built-in preset Simple speech bubble and grouped the built-in presets with separators (staple, underlines, brackets, boxes). Renamed the Options panel to Text Options and Center the text as area type to Center as area type. Moved Shadow below Corner radius and made the save icon slightly smaller. The position slider moves in 10% steps with Shift held. Fixed the Color Picker sometimes opening in grayscale
+- v1.0.2 (2026-11-02): Added the built-in preset Wide curly (an underline with a taper and round caps)
