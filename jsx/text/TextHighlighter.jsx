@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.DrawMarkerBehindText
 Name=文字にマーカー・アンダーライン・取り消し線を引く
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.7.3
+Version=1.7.4
 Release-Date=2026-11-01
 Description-BEGIN
 文字ツールで選んだ文字やテキストオブジェクトに、字面に合わせてマーカー・アンダーライン・取り消し線などの線や、長方形・円・六角形・傍点を描きます（文字の背面・前面を選べ、複数行は行ごと。行頭・行長・行送りの間隔もそろえられます）。
@@ -47,7 +47,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TextHighli
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "TextHighlighter";              /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.7.3";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.7.4";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-11-01";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-11-02";                   /* 更新日 / last updated */
@@ -146,8 +146,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     var DEFAULT_KERNING_BEFORE_TEXT = "";
     var DEFAULT_KERNING_AFTER_TEXT = "";
 
-    /* ［余白に合わせる］の初期値（［長方形］［円］［六角形］を行ごとに描くとき、カーニング（前・後）を［余白（横）］÷ 文字サイズ × 1000 にする。縦組みは［余白（縦）］）
-       Initial state of Match Padding (for Box, Circle and Hexagon per line, Kerning (Before) / (After) become Padding (H) / type size x 1000; Padding (V) in vertical text) */
+    /* ［余白に合わせてカーニングを自動調整］の初期値（［長方形］［円］［六角形］を行ごとに描くとき、カーニング（前・後）を［余白（横）］÷ 文字サイズ × 1000 にする。縦組みは［余白（縦）］）
+       Initial state of Auto-Adjust Kerning to Padding (for Box, Circle and Hexagon per line, Kerning (Before) / (After) become Padding (H) / type size x 1000; Padding (V) in vertical text) */
     var DEFAULT_KERNING_FROM_PADDING = true;
 
     /* ［テキストカラー］に並べる選択肢（"keepTextColor" は文字の塗りを変えない。"custom" は先頭に色見本付きで置く）と、開いたときに選んでおくもの
@@ -2629,7 +2629,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             equalLineLengths: { ja: "行頭行末", en: "Align Both Ends" },
             leadingBased: { ja: "行送り基準", en: "Leading-Based" },
             roughen:      { ja: "手書き風", en: "Hand-Drawn" },
-            kerningFromPadding: { ja: "余白に合わせる", en: "Match Padding" }
+            kerningFromPadding: { ja: "余白に合わせてカーニングを自動調整", en: "Auto-Adjust Kerning to Padding" }
         },
         radio: {
             yellow:         { ja: "黄色", en: "Yellow" },
@@ -2802,8 +2802,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             presetName: { ja: "保存する設定の名前です。同じ名前は上書きします", en: "Name the settings are saved under. The same name is overwritten" },
             /* ボタン行・∧∨ / Button row and steppers */
             reset: {
-                ja: "ダイアログボックスを開いたときの設定と、選んでいたプリセットに戻します。カーニング（前・後）とトラッキングは空欄にし、［余白に合わせる］はオフにします（保存したプリセットはそのまま）",
-                en: "Returns to the settings and the preset chosen when the dialog box opened, with Kerning (Before) / (After) and Tracking cleared and Match Padding off (saved presets stay as they are)"
+                ja: "ダイアログボックスを開いたときの設定と、選んでいたプリセットに戻します。カーニング（前・後）とトラッキングは空欄にし、［余白に合わせてカーニングを自動調整］はオフにします（保存したプリセットはそのまま）",
+                en: "Returns to the settings and the preset chosen when the dialog box opened, with Kerning (Before) / (After) and Tracking cleared and Auto-Adjust Kerning to Padding off (saved presets stay as they are)"
             },
             stepUp: {
                 ja: "値を増やす（shift＋クリックで10の倍数へ、option＋クリックで0.1ずつ）",
@@ -3437,13 +3437,13 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     }
 
     /**
-     * ［文字］パネル（テキストカラー・自動カーニング・カーニング（前）・トラッキング・カーニング（後）・余白に合わせる）を作り、markerControls に入れる。
+     * ［文字］パネル（テキストカラー・自動カーニング・カーニング（前）・トラッキング・カーニング（後）・余白に合わせてカーニングを自動調整）を作り、markerControls に入れる。
      * テキストカラーとカーニングは1行ずつ、その下にカーニング（前）・トラッキング・カーニング（後）を、項目名を上にして3つ並べる
      * @param {Group} parent - 追加先
      * @param {Object} markerControls - 作ったコントロールを入れるオブジェクト
      * @param {Document} doc - 対象ドキュメント（カラーモード）
      * @param {Function} onSettingChange - 設定を変えたあとに呼ぶ関数
-     * @param {Function} onStyleChange - ［余白に合わせる］を切り替えたあとに呼ぶ関数（使える項目も切り替える）
+     * @param {Function} onStyleChange - ［余白に合わせてカーニングを自動調整］を切り替えたあとに呼ぶ関数（使える項目も切り替える）
      * @returns {void}
      */
     function addTextFormatPanel(parent, markerControls, doc, onSettingChange, onStyleChange) {
@@ -3458,8 +3458,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         markerControls.kerningRow.radios.metricsKerning.helpTip = getLabel("tooltip.metricsKerning");
         markerControls.kerningRow.radios.opticalKerning.helpTip = getLabel("tooltip.opticalKerning");
 
-        /* 3つの欄と［余白に合わせる］は、項目名の列のぶん右から始める（空の項目名の幅は、項目名をそろえたあとで合わせる）
-           The three fields and Match Padding start after the label column (the empty label gets its width after the labels are aligned) */
+        /* 3つの欄と［余白に合わせてカーニングを自動調整］は、項目名の列のぶん右から始める（空の項目名の幅は、項目名をそろえたあとで合わせる）
+           The three fields and Auto-Adjust Kerning to Padding start after the label column (the empty label gets its width after the labels are aligned) */
         var spacingRow = textFormatPanel.add("group");
         setupRow(spacingRow, "left", 8);
         spacingRow.alignChildren = ["left", "top"];
@@ -3472,7 +3472,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         setupRow(spacingFieldsGroup, "left", COLUMN_SPACING);
         spacingFieldsGroup.alignChildren = ["left", "top"];
 
-        /* ［余白に合わせる］のとき、欄で変えた分は計算した値からの微調整として控える / With Match Padding, edits are kept as adjustments to the computed values */
+        /* ［余白に合わせてカーニングを自動調整］のとき、欄で変えた分は計算した値からの微調整として控える / With Auto-Adjust Kerning to Padding, edits are kept as adjustments to the computed values */
         markerControls.kerningAdjustments = { before: 0, after: 0 };
         markerControls.kerningBeforeInput = addStackedNumberField(spacingFieldsGroup, "kerningBefore", {
             text: DEFAULT_KERNING_BEFORE_TEXT, characters: 7, step: 10, min: -1000, max: 10000, allowBlank: true
@@ -3686,7 +3686,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
      * ［線幅］は線を引く種類と、［線］の［描画］がオンの長方形の仲間、［線の種類］はさらに［塗りつぶし］でも使い、［線端］は線を引く種類だけ（［ドット］のときは丸型に固定）。
      * ［余白（横）］［余白（縦）］と連動のアイコンは長方形の仲間と［傍点］、［図形］［回転］［1文字ずつ］は長方形の仲間、［角丸の半径］は［長方形］で使う。
      * ［線］のカラーは線で引く種類（［塗りつぶし］を除く）と［線］の［描画］がオンの長方形の仲間、［塗り］のカラーは［塗りつぶし］［傍点］と［塗り］の［描画］がオンの長方形の仲間で使う。
-     * ［余白に合わせる］は行ごとの長方形の仲間で使い、オンの間はカーニング（前・後）の欄に計算した値（微調整込み）を出す
+     * ［余白に合わせてカーニングを自動調整］は行ごとの長方形の仲間で使い、オンの間はカーニング（前・後）の欄に計算した値（微調整込み）を出す
      * @param {Object} markerControls - addMarkerControls() の戻り値
      * @returns {void}
      */
@@ -3748,7 +3748,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     }
 
     /**
-     * ［余白に合わせる］が効いているか（行ごとの長方形の仲間で、オン）を返す
+     * ［余白に合わせてカーニングを自動調整］が効いているか（行ごとの長方形の仲間で、オン）を返す
      * @param {Object} markerControls - addMarkerControls() の戻り値
      * @returns {boolean} 効いていれば true
      */
@@ -3758,7 +3758,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     }
 
     /**
-     * ［余白に合わせる］が効いているとき、カーニング（前・後）の欄に、先頭の対象で計算した値に微調整を足して出す
+     * ［余白に合わせてカーニングを自動調整］が効いているとき、カーニング（前・後）の欄に、先頭の対象で計算した値に微調整を足して出す
      * @param {Object} markerControls - addMarkerControls() の戻り値（kerningReference 付き。無ければ何もしない）
      * @returns {void}
      */
@@ -3775,7 +3775,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     }
 
     /**
-     * ［余白に合わせる］が効いているときに、カーニングの欄の値と計算した値の差を微調整として控える（空欄なら微調整なし）
+     * ［余白に合わせてカーニングを自動調整］が効いているときに、カーニングの欄の値と計算した値の差を微調整として控える（空欄なら微調整なし）
      * @param {Object} markerControls - addMarkerControls() の戻り値
      * @param {string} edgeKey - "before"（前）か "after"（後）
      * @returns {void}
@@ -3789,7 +3789,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     }
 
     /**
-     * ［余白に合わせる］の計算に使う、カーニング（前・後）の欄・余白・先頭の対象の文字サイズを返す
+     * ［余白に合わせてカーニングを自動調整］の計算に使う、カーニング（前・後）の欄・余白・先頭の対象の文字サイズを返す
      * @param {Object} markerControls - addMarkerControls() の戻り値（kerningReference 付き）
      * @returns {{before: Object, after: Object}} それぞれ { input, paddingPt, fontSize }
      */
@@ -3818,7 +3818,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     }
 
     /**
-     * 対象の先頭と最後の文字のサイズを返す（［余白に合わせる］の計算に使う）
+     * 対象の先頭と最後の文字のサイズを返す（［余白に合わせてカーニングを自動調整］の計算に使う）
      * @param {TextFrame} textFrame - 元のテキストフレーム、またはその複製
      * @param {Object} markerTarget - collectMarkerTargets() の要素（spanStart・spanLength）
      * @returns {{firstSize: number, lastSize: number}} 文字サイズ（pt）
@@ -3894,7 +3894,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     /**
      * 今のダイアログボックスの指定を、線を引くための値にまとめる
      * @param {Object} markerControls - addMarkerControls() の戻り値
-     * @returns {Object} { fillColor, fillUseTextColor, opacity, strokeWidth（pt）, verticalOffset（pt）, lineStyle, shearAngle（度）, zigzagSize（pt）, zigzagRidges, isZigzagSmooth, isRoughen, roughenSize（％）, boxPadding（横、pt）, boxPaddingV（縦、pt）, cornerRadius（pt）, boxRotation（度）, lineGap（pt）, dotSize（pt）, dashStyle, dashSegments（空欄なら null）, dashGap（pt）, strokeCap, isFront, isPerChar, squareLineJoins, alignLineStarts, equalLineLengths, isLeadingBased, isShapeFill, isShapeStroke, strokeColor, strokeUseTextColor, kerningChoice, tracking・kerningBefore・kerningAfter（空欄なら null）, kerningFromPadding, kerningAdjustBefore・kerningAdjustAfter（［余白に合わせる］の微調整）, textFillColor（［変更しない］なら null） }
+     * @returns {Object} { fillColor, fillUseTextColor, opacity, strokeWidth（pt）, verticalOffset（pt）, lineStyle, shearAngle（度）, zigzagSize（pt）, zigzagRidges, isZigzagSmooth, isRoughen, roughenSize（％）, boxPadding（横、pt）, boxPaddingV（縦、pt）, cornerRadius（pt）, boxRotation（度）, lineGap（pt）, dotSize（pt）, dashStyle, dashSegments（空欄なら null）, dashGap（pt）, strokeCap, isFront, isPerChar, squareLineJoins, alignLineStarts, equalLineLengths, isLeadingBased, isShapeFill, isShapeStroke, strokeColor, strokeUseTextColor, kerningChoice, tracking・kerningBefore・kerningAfter（空欄なら null）, kerningFromPadding, kerningAdjustBefore・kerningAdjustAfter（［余白に合わせてカーニングを自動調整］の微調整）, textFillColor（［変更しない］なら null） }
      */
     function readMarkerOptions(markerControls) {
         var fillColorOptions = markerControls.fillColorRow.getColorOptions();
@@ -4003,7 +4003,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         rightPanelsGroup.spacing = WINDOW_SPACING;
         var markerControls = addMarkerControls(rightPanelsGroup, doc, glyphHeightPt, areTextColorsUsable(markerTargets), onSettingEdited);
         alignMarkerLabels(markerControls);
-        /* ［余白に合わせる］の欄の値は、先頭の対象の文字サイズで計算する / Match Padding shows values for the first target's type size */
+        /* ［余白に合わせてカーニングを自動調整］の欄の値は、先頭の対象の文字サイズで計算する / Auto-Adjust Kerning to Padding shows values for the first target's type size */
         markerControls.kerningReference = getTargetEdgeFontSizes(markerTargets[0].sourceFrame, markerTargets[0]);
         markerControls.kerningReference.isVertical = markerTargets[0].isVertical;
         bindPresetControls(presetControls, markerControls, refreshPreview);
@@ -4059,7 +4059,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     }
 
     /**
-     * カーニング（前・後）とトラッキングを空欄（変更しない）にし、［余白に合わせる］と微調整を外す（［リセット］用）
+     * カーニング（前・後）とトラッキングを空欄（変更しない）にし、［余白に合わせてカーニングを自動調整］と微調整を外す（［リセット］用）
      * @param {Object} markerControls - addMarkerControls() の戻り値
      * @returns {void}
      */
@@ -4444,7 +4444,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     }
 
     /**
-     * プリセットの［文字］の設定（テキストカラー・カーニング・トラッキング・余白に合わせる）をダイアログボックスに書き込む
+     * プリセットの［文字］の設定（テキストカラー・カーニング・トラッキング・余白に合わせてカーニングを自動調整）をダイアログボックスに書き込む
      * @param {Object} markerControls - addMarkerControls() の戻り値
      * @param {Object} presetData - プリセット
      * @returns {void}
@@ -6084,8 +6084,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
      * @returns {string} キー（書式を変えないなら空文字）
      */
     function getTextLayoutKey(markerOptions) {
-        /* ［余白に合わせる］のカーニングは対象ごとに違うが、控えも対象ごとなので余白で見分ければよい
-           Match Padding kerning differs per target, but so does the cache, so the padding tells them apart */
+        /* ［余白に合わせてカーニングを自動調整］のカーニングは対象ごとに違うが、控えも対象ごとなので余白で見分ければよい
+           Auto-Adjust Kerning to Padding kerning differs per target, but so does the cache, so the padding tells them apart */
         var kerningKey = markerOptions.kerningFromPadding
             ? ["padding", markerOptions.boxPadding, markerOptions.boxPaddingV, markerOptions.kerningAdjustBefore, markerOptions.kerningAdjustAfter]
             : [markerOptions.kerningBefore, markerOptions.kerningAfter];
@@ -6105,7 +6105,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
 
     /**
      * 対象の文字に書式（自動カーニング・トラッキング・カーニング（前・後）・テキストカラー）を設定する（変えない項目はそのまま）。
-     * ［余白に合わせる］なら、カーニング（前・後）は余白と対象の先頭・最後の文字のサイズから計算し、微調整を足す
+     * ［余白に合わせてカーニングを自動調整］なら、カーニング（前・後）は余白と対象の先頭・最後の文字のサイズから計算し、微調整を足す
      * @param {TextFrame} textFrame - 元のテキストフレーム、またはその複製
      * @param {Object} markerTarget - collectMarkerTargets() の要素（spanStart・spanLength）
      * @param {Object} markerOptions - readMarkerOptions() の戻り値
@@ -6128,7 +6128,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         if (markerOptions.tracking !== null) spanAttributes.tracking = markerOptions.tracking;
         var kerningBefore = markerOptions.kerningBefore;
         var kerningAfter = markerOptions.kerningAfter;
-        /* ［余白に合わせる］は対象ごとの文字サイズで計算する（縦組みは列の向きの［余白（縦）］） / Match Padding uses each target's type size */
+        /* ［余白に合わせてカーニングを自動調整］は対象ごとの文字サイズで計算する（縦組みは列の向きの［余白（縦）］） / Auto-Adjust Kerning to Padding uses each target's type size */
         if (markerOptions.kerningFromPadding) {
             var paddingPt = markerTarget.isVertical ? markerOptions.boxPaddingV : markerOptions.boxPadding;
             var edgeSizes = getTargetEdgeFontSizes(textFrame, markerTarget);

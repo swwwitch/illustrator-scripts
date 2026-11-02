@@ -85,7 +85,7 @@ Changes the formatting of the target characters. The preview reflects it, and th
 - Kerning: No Change, 0, Auto or Optical. 0 turns auto kerning off and sets manual kerning to 0. 0 and Optical also turn Proportional Metrics off.
 - Kerning (Before) / Kerning (After): manual kerning before the first target character and after the last one (1/1000 em). Leave blank to keep it.
 - Tracking: in 1/1000 em. Leave blank to keep it.
-- Match Padding: when Box, Circle or Hexagon is drawn per line, sets Kerning (Before) / (After) to Padding (H) / type size x 1000 to make room for the shape (on by default; Padding (V) in vertical text; uses the size of the first and last target characters, and leaves the kerning unchanged when the padding is 0 or less). While on, the Kerning (Before) / (After) fields show the values computed for the first target. Editing a field keeps the difference from the computed value as a fine adjustment, which stays applied when the padding changes (clear the field to drop it). Adjustments are saved with presets.
+- Auto-Adjust Kerning to Padding: when Box, Circle or Hexagon is drawn per line, sets Kerning (Before) / (After) to Padding (H) / type size x 1000 to make room for the shape (on by default; Padding (V) in vertical text; uses the size of the first and last target characters, and leaves the kerning unchanged when the padding is 0 or less). While on, the Kerning (Before) / (After) fields show the values computed for the first target. Editing a field keeps the difference from the computed value as a fine adjustment, which stays applied when the padding changes (clear the field to drop it). Adjustments are saved with presets.
 
 #### Presets
 
@@ -96,7 +96,7 @@ Changes the formatting of the target characters. The preview reflects it, and th
   - Band per Line draws a box for each line with small gaps, looking continuous (Multi-Line on); Band per Line (Touching) leaves no gaps, with Multi-Line off. Both turn on Align Starts and Leading-Based.
   - Frame per Line draws Frame for each line, with Align Starts on and Multi-Line off.
   - The Hand-Drawn presets turn on Hand-Drawn under Roughen (Yellow Marker (Hand-Drawn): Size 1%, Detail 10; Band per Line (Hand-Drawn): 0.7%, 3; Frame per Line (Hand-Drawn): 0.4%, 10).
-  - The three per-character presets set Kerning to 0 and Tracking to 170 under Text; the presets that draw shapes per line turn on Match Padding.
+  - The three per-character presets set Kerning to 0 and Tracking to 170 under Text; the presets that draw shapes per line turn on Auto-Adjust Kerning to Padding.
   - Every preset carries the Line Length, Line Height, Roughen and Text settings, so choosing another preset switches them too.
   - Changing a setting deselects the list, so clicking the same preset again brings its settings back. After that, Overwrite still writes into the preset chosen just before (its name appears in the tooltip), and Save offers that name too.
   - Overwriting a built-in preset makes a saved preset of the same name; deleting it brings back the original settings.
@@ -105,7 +105,7 @@ Changes the formatting of the target characters. The preview reflects it, and th
 #### Preview and Reset
 
 While the dialog box is open, the selection is cleared and the lines and shapes are always previewed. Closing the dialog box restores the original selection.
-Reset returns to the settings and the preset chosen when the dialog box opened, with Kerning (Before) / (After) and Tracking cleared and Match Padding off.
+Reset returns to the settings and the preset chosen when the dialog box opened, with Kerning (Before) / (After) and Tracking cleared and Auto-Adjust Kerning to Padding off.
 
 #### Last state
 
@@ -141,10 +141,11 @@ https://note.com/dtp_tranist/n/na1804afb7fe2
 
 ### Script info
 
-- Version: v1.7.3
+- Version: v1.7.4
 
 ### Update History
 
+- v1.7.4 (2026-11-02) Renamed Match Padding to Auto-Adjust Kerning to Padding
 - v1.7.3 (2026-11-02) Added a tooltip to Auto under Kerning and expanded the Optical tooltip; internal cleanup (clearer names, shared duplicate code, split long functions)
 - v1.7.2 (2026-11-02) Merged Fill and Stroke under Shape into a Draw checkbox at the start of the Fill and Stroke rows (formerly Fill Color and Stroke Color); Stroke now lists Custom, Text Color, Yellow, then Red; renamed Even under Leading to Leading-Based under Line Height; updated the overview and README
 - v1.7.1 (2026-11-02) Fill Color now lists Custom, Text Color, then White
