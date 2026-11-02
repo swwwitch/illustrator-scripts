@@ -14,12 +14,12 @@ Draws an underline, a bracket or a box with a speech-bubble tail (a V, a slash o
 
 ### Features
 
-The dialog box has Presets centered at the top, the Tail and Options panels on the left below it, and the Line/Frame panel on the right. Preview sits at the left end of the button row.
+The dialog box has Presets centered at the top, the Tail and Text Options panels on the left below it, and the Line/Frame panel on the right. Preview sits at the left end of the button row.
 
 #### Presets
 
 - Picking a preset switches the tail and line/frame settings at once.
-- Ten built-in presets are included (underline with a V, a V down right, slashes down right and left; bracket with a slash; rounded bracket with a V; box with a slash; rounded box with a slash; box with a V and shadow; curly bracket). Built-in presets size themselves to the font size of the first character.
+- Eleven built-in presets are included (simple speech bubble, underline with a V, a V down right, slashes down right and left; bracket with a slash; rounded bracket with a V; box with a slash; rounded box with a slash; box with a V and shadow; curly bracket). Built-in presets size themselves to the font size of the first character.
 - The save icon stores the current settings under a name; the trash icon deletes the selected saved preset (built-in presets cannot be deleted, and their names cannot be reused). Saved presets keep their sizes as saved and survive quitting Illustrator.
 - Changing a setting by hand clears the preset selection.
 
@@ -31,7 +31,7 @@ The dialog box has Presets centered at the top, the Tail and Options panels on t
   - A slash leans to the right or left at Angle (Down keeps it straight).
 - Angle (slash pointing down right or left): measured from the line (default 45°, 5–90°; 90° is straight down). The slash's horizontal run follows Height and Angle.
 - Root (slash pointing down right or left): Center starts the slash at the middle of the gap, apart from the line; Edge starts it at the edge of the gap, joined to the line.
-- Position: from 0% (start of the line) to 100% (end), in the field or with the slider below it; default 50%. A tail that would run past the ends is pulled inward.
+- Position: from 0% (start of the line) to 100% (end), in the field or with the slider below it (hold Shift for 10% steps); default 50%. A tail that would run past the ends is pulled inward.
 - Gap: how much of the line is cut away at the tail; for a V or taper, the width of its base. A slash with 0 keeps the line whole.
 - Width (V or taper pointing down right or left): how far the tip moves sideways.
 - Height: how far the tail reaches out from the line.
@@ -46,15 +46,15 @@ The dialog box has Presets centered at the top, the Tail and Options panels on t
 - Extension: how far the line runs past the glyphs (negative values shorten it); the side padding of a box.
 - Ticks (bracket): length of the turned-up ends.
 - Corner radius (bracket or box): 0 keeps the corners sharp.
+- Shadow (box): adds a second line this far out on the right and bottom (0 for none). Its ends line up with where the box's corner rounding starts; the tail's right edge is offset in parallel and stops at the tip's height, and the bottom line stops short of the tail's left edge.
 - Weight: stroke weight of the line and tail.
 - Color: Text (default) uses the fill of each text's first character (black when it has no fill); the other radio button (custom, shown with just a swatch) uses the swatch's color. Clicking the swatch opens Illustrator's Color Picker and switches to custom.
 - Cap: Butt (default) or Round. Butt keeps the corners pointed; Round rounds the corners too.
-- Shadow (box): adds a second line this far out on the right and bottom (0 for none). Its ends line up with where the box's corner rounding starts; the tail's right edge is offset in parallel and stops at the tip's height, and the bottom line stops short of the tail's left edge.
 
-#### Options
+#### Text Options
 
 - Use the frame of area type (on by default; available when area type is selected): area type is drawn along its frame instead of its glyphs (Distance and Extension count as 0; the two fields are dimmed when every selected text is area type). Point type and type on a path are still measured by their glyphs. Saved in presets too.
-- Center the text as area type (box only): turns the text into area type the size of the box, centered horizontally and vertically. Point type is converted; area type gets its frame resized and moved (type on a path is left alone).
+- Center as area type (box only): turns the text into area type the size of the box, centered horizontally and vertically. Point type is converted; area type gets its frame resized and moved (type on a path is left alone).
 - Group with text: groups the line and tail together with the text. When off, the line and tail are grouped on their own, right in front of the text.
 
 #### Other
@@ -78,3 +78,4 @@ The dialog box has Presets centered at the top, the Tail and Options panels on t
 ### Update History
 
 - v1.0.0 (2026-11-02): Initial release
+- v1.0.1 (2026-11-02): Added the built-in preset Simple speech bubble and grouped the built-in presets with separators (staple, underlines, brackets, boxes). Renamed the Options panel to Text Options and Center the text as area type to Center as area type. Moved Shadow below Corner radius and made the save icon slightly smaller. The position slider moves in 10% steps with Shift held. Fixed the Color Picker sometimes opening in grayscale

@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.SpeechBubbleMaker
 Name=テキストに吹き出しのしっぽ付きの下線・囲みを描く
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.0.0
+Version=1.0.1
 Release-Date=2026-11-02
 Description-BEGIN
 選択したテキストに、吹き出しのしっぽ（V字・斜線・すぼまり）の付いた下線・コの字・囲みを描きます。線は上下左右のどの側にも描けます。
@@ -44,7 +44,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SpeechBubb
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SpeechBubbleMaker";            /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-11-02";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-11-02";                   /* 更新日 / last updated */
@@ -100,9 +100,19 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
     // プリセット / Presets
     // =========================================
 
-    /* 最初からあるプリセット。寸法は1文字目の文字サイズに対する比率（書かない項目は DEFAULT_SIZE_RATIOS、選択は DEFAULT_CHOICES）
-       Built-in presets. Sizes are ratios of the first character's font size; missing items fall back to the defaults */
+    /* 最初からあるプリセット。定番、下線、コの字、囲みの順に並べ、null の所に区切り線を入れる
+       寸法は1文字目の文字サイズに対する比率（書かない項目は DEFAULT_SIZE_RATIOS、選択は DEFAULT_CHOICES）
+       Built-in presets: the staple first, then underlines, brackets and boxes; null draws a separator.
+       Sizes are ratios of the first character's font size; missing items fall back to the defaults */
     var BUILTIN_PRESETS = [
+        {
+            /* 保存したプリセットから昇格（12pt・mm で作ったものを比率に直した） / promoted from a saved preset made at 12 pt in mm, converted to ratios */
+            name: { ja: "シンプルな吹き出し", en: "Simple speech bubble" },
+            choices: { shapeKey: "notch", directionKey: "center", rootKey: "edge", frameKey: "box", capKey: "butt" },
+            position: 72,
+            ratios: { gapWidth: 0.47, tailWidth: 0.59, tailHeight: 0.47, offset: 0.5, extension: 0.5, tickHeight: 0.31, cornerRadius: 0.31, shadowDistance: 0, strokeWidth: 0.04 }
+        },
+        null, /* 区切り線 / separator */
         {
             name: { ja: "下線・V字", en: "Underline, V" },
             choices: { shapeKey: "notch", directionKey: "center", frameKey: "underline" },
@@ -124,6 +134,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             choices: { shapeKey: "slash", directionKey: "left", rootKey: "center", frameKey: "underline" },
             ratios: { gapWidth: 0.5, tailWidth: 0.4, tailHeight: 0.4 }
         },
+        null, /* 区切り線 / separator */
         {
             name: { ja: "コの字・斜線（右下）", en: "Bracket, slash down right" },
             choices: { shapeKey: "slash", directionKey: "right", rootKey: "edge", frameKey: "bracket" },
@@ -136,6 +147,12 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             position: 75,
             ratios: { gapWidth: 0.4, tailWidth: 0.6, tailHeight: 0.5, extension: 0.4, tickHeight: 0.4, cornerRadius: 0.25 }
         },
+        {
+            name: { ja: "カーリーブラケット（波括弧）", en: "Curly bracket" },
+            choices: { shapeKey: "curly", directionKey: "center", frameKey: "bracket" },
+            ratios: { gapWidth: 0.4, tailHeight: 0.2, extension: 0.3, tickHeight: 0.25, cornerRadius: 0.25 }
+        },
+        null, /* 区切り線 / separator */
         {
             name: { ja: "囲み・斜線（右下）", en: "Box, slash down right" },
             choices: { shapeKey: "slash", directionKey: "right", rootKey: "edge", frameKey: "box" },
@@ -151,11 +168,6 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             choices: { shapeKey: "notch", directionKey: "left", frameKey: "box" },
             position: 65,
             ratios: { gapWidth: 0.6, tailWidth: 0.9, tailHeight: 0.8, offset: 0.5, extension: 0.5, cornerRadius: 0, shadowDistance: 0.25 }
-        },
-        {
-            name: { ja: "カーリーブラケット（波括弧）", en: "Curly bracket" },
-            choices: { shapeKey: "curly", directionKey: "center", frameKey: "bracket" },
-            ratios: { gapWidth: 0.4, tailHeight: 0.2, extension: 0.3, tickHeight: 0.25, cornerRadius: 0.25 }
         }
     ];
 
@@ -173,15 +185,15 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
     // レイアウト / Layout
     // =========================================
 
-    var TAIL_LABEL_WIDTH = 0;        /* 左の列（しっぽ）の項目名は文言なりで作り、あとでいちばん長いものに揃える / tail labels start at their natural width and are aligned to the widest later */
-    var LINE_LABEL_WIDTH = 0;        /* 右の列（線/枠）の項目名も文言なりで作り、あとでいちばん長いものに揃える / line labels are aligned to the widest later too */
     var FIELD_CHARACTERS = 7;        /* 数値欄の文字数 / characters of the numeric fields */
     var POSITION_SLIDER_RIGHT_INSET = 24; /* 位置のスライダーの右にあける余白 / room left at the right of the position slider */
+    var POSITION_SLIDER_SHIFT_STEP = 10; /* shift を押しながら動かしたときの位置のスライダーの刻み（％） / position slider step with Shift (%) */
     var POSITION_SLIDER_WIDTH = 100; /* 位置のスライダーの最小の幅（パネルの幅まで伸びる） / minimum width of the position slider (it stretches to the panel) */
     var SIDE_GRID_CELL_WIDTH = (String($.locale || "").indexOf("ja") === 0) ? 48 : 72; /* 配置の3行3列の1マスの幅（英語は語が長い） / cell width of the 3x3 side grid (English words are longer) */
     var COLOR_SWATCH_SIZE = [36, 18]; /* 線のカラーの色見本の大きさ / size of the line color swatch */
     var STACKED_RADIO_SPACING = 4;   /* 縦に並べたラジオボタンの間隔 / spacing of stacked radio buttons */
     var SIDE_GRID_SPACING = 2;       /* 配置の3行3列の行の間隔 / row spacing of the side grid */
+    var PRESET_SAVE_ICON_SIZE = [22, 22]; /* 保存アイコンの大きさ。横長の絵なので既定（24×22）より少し狭くして、ごみ箱と見た目をそろえる / the save icon is wide, so a little narrower than the default to match the trash icon */
     var PRESET_DROPDOWN_WIDTH = 220; /* プリセットのドロップダウンの幅 / width of the preset dropdown */
     var PRESET_ROW_SPACING = 6;      /* プリセットの行の間隔 / spacing in the preset row */
     var PRESET_NAME_CHARACTERS = 20; /* プリセット名の入力欄の文字数 / characters of the preset name field */
@@ -1104,7 +1116,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         panel: {
             tail: { ja: "しっぽ", en: "Tail" },
             line: { ja: "線/枠", en: "Line/Frame" },
-            options: { ja: "オプション", en: "Options" }
+            options: { ja: "テキストに関してのオプション", en: "Text Options" }
         },
         radio: {
             notch: { ja: "V字", en: "V" },
@@ -1151,50 +1163,129 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         },
         checkbox: {
             useAreaFrame: { ja: "エリア内文字は枠を基準にする", en: "Use the frame of area type" },
-            convertToAreaText: { ja: "テキストをエリア内文字にして中央に配置", en: "Center the text as area type" },
+            convertToAreaText: { ja: "エリア内文字にして中央に配置", en: "Center as area type" },
             groupWithText: { ja: "テキストとグループ化", en: "Group with text" },
             preview: { ja: "プレビュー", en: "Preview" }
         },
         tooltip: {
-            preset: { ja: "選ぶと設定をまとめて切り替えます。最初からあるプリセットの寸法は、1文字目の文字サイズに合わせます。", en: "Switches all the settings at once. Built-in presets size themselves to the font size of the first character." },
-            presetSave: { ja: "今の設定に名前を付けて、プリセットとして保存します。", en: "Saves the current settings as a named preset." },
-            presetDelete: { ja: "選んでいる保存したプリセットを削除します（最初からあるものは削除できません）。", en: "Deletes the selected saved preset (built-in presets cannot be deleted)." },
+            preset: {
+                ja: "選ぶと設定をまとめて切り替えます。最初からあるプリセットの寸法は、1文字目の文字サイズに合わせます。",
+                en: "Switches all the settings at once. Built-in presets size themselves to the font size of the first character."
+            },
+            presetSave: {
+                ja: "今の設定に名前を付けて、プリセットとして保存します。",
+                en: "Saves the current settings as a named preset."
+            },
+            presetDelete: {
+                ja: "選んでいる保存したプリセットを削除します（最初からあるものは削除できません）。",
+                en: "Deletes the selected saved preset (built-in presets cannot be deleted)."
+            },
             presetName: { ja: "プリセットの名前です。", en: "Name of the preset." },
             notch: { ja: "線をV字に折ってしっぽを作ります。", en: "Bends the line into a V." },
             slash: { ja: "線から斜線を出します。", en: "Draws a slash out of the line." },
-            curly: { ja: "カーリーブラケット（波括弧）の中央のように、線から曲線ですぼまってとがらせます。", en: "Tapers out of the line in curves to a point, like the middle of a curly bracket." },
-            straightDown: { ja: "V字・すぼまりの先端を切れ目の中央に置きます（斜線はまっすぐ下へ）。", en: "Puts the tip of a V or taper at the middle of the gap (a slash goes straight down)." },
-            downRight: { ja: "しっぽを右下へ出します。縦組みでは下寄りになります。", en: "The tail points down to the right. On vertical text it leans toward the bottom." },
-            downLeft: { ja: "しっぽを左下へ出します。縦組みでは上寄りになります。", en: "The tail points down to the left. On vertical text it leans toward the top." },
-            rootCenter: { ja: "斜線を切れ目の中央から出し、線とは離します。", en: "The slash starts at the middle of the gap, apart from the line." },
-            rootEdge: { ja: "斜線を切れ目の端から出し、線とつなげます。", en: "The slash starts at the edge of the gap, joined to the line." },
-            position: { ja: "線の始まりを0%、終わりを100%として、しっぽの位置を指定します。", en: "Where the tail sits along the line, from 0% (start) to 100% (end)." },
-            gapWidth: { ja: "しっぽのところで線を切る幅です。V字・すぼまりは付け根の幅です。斜線は 0 で線を切りません。", en: "How much of the line is cut away at the tail: the base of a V or taper, or the gap at a slash (0 keeps the line whole)." },
-            tailWidth: { ja: "右下・左下のV字・すぼまりの、先端の横方向のずれです。", en: "How far the tip of a V or taper pointing down right or left moves sideways." },
-            slashAngle: { ja: "右下・左下の斜線の、線から測った角度です（90°で真下）。長さは［高さ］で決まります。", en: "Angle of a slash pointing down right or left, measured from the line (90° is straight down). Its length follows Height." },
+            curly: {
+                ja: "カーリーブラケット（波括弧）の中央のように、線から曲線ですぼまってとがらせます。",
+                en: "Tapers out of the line in curves to a point, like the middle of a curly bracket."
+            },
+            straightDown: {
+                ja: "V字・すぼまりの先端を切れ目の中央に置きます（斜線はまっすぐ下へ）。",
+                en: "Puts the tip of a V or taper at the middle of the gap (a slash goes straight down)."
+            },
+            downRight: {
+                ja: "しっぽを右下へ出します。縦組みでは下寄りになります。",
+                en: "The tail points down to the right. On vertical text it leans toward the bottom."
+            },
+            downLeft: {
+                ja: "しっぽを左下へ出します。縦組みでは上寄りになります。",
+                en: "The tail points down to the left. On vertical text it leans toward the top."
+            },
+            rootCenter: {
+                ja: "斜線を切れ目の中央から出し、線とは離します。",
+                en: "The slash starts at the middle of the gap, apart from the line."
+            },
+            rootEdge: {
+                ja: "斜線を切れ目の端から出し、線とつなげます。",
+                en: "The slash starts at the edge of the gap, joined to the line."
+            },
+            position: {
+                ja: "線の始まりを0%、終わりを100%として、しっぽの位置を指定します。",
+                en: "Where the tail sits along the line, from 0% (start) to 100% (end)."
+            },
+            positionSlider: {
+                ja: "しっぽの位置を動かします（shift を押しながらで10%刻み）。",
+                en: "Moves the tail along the line (hold Shift for 10% steps)."
+            },
+            gapWidth: {
+                ja: "しっぽのところで線を切る幅です。V字・すぼまりは付け根の幅です。斜線は 0 で線を切りません。",
+                en: "How much of the line is cut away at the tail: the base of a V or taper, or the gap at a slash (0 keeps the line whole)."
+            },
+            tailWidth: {
+                ja: "右下・左下のV字・すぼまりの、先端の横方向のずれです。",
+                en: "How far the tip of a V or taper pointing down right or left moves sideways."
+            },
+            slashAngle: {
+                ja: "右下・左下の斜線の、線から測った角度です（90°で真下）。長さは［高さ］で決まります。",
+                en: "Angle of a slash pointing down right or left, measured from the line (90° is straight down). Its length follows Height."
+            },
             tailHeight: { ja: "線から外へ伸びるしっぽの長さです。", en: "How far the tail reaches out from the line." },
             underline: { ja: "字面の下に線を引きます。", en: "Draws a line below the glyphs." },
             bracket: { ja: "線の両端を文字の側へ立ち上げます。", en: "Turns both ends of the line up toward the text." },
             box: { ja: "字面を長方形で囲みます。", en: "Encloses the glyphs in a rectangle." },
             sideTop: { ja: "テキストの上に描きます（しっぽは上へ）。", en: "Draws above the text (the tail points up)." },
             sideBottom: { ja: "テキストの下に描きます。", en: "Draws below the text." },
-            sideLeft: { ja: "テキストの左に描きます（線の始まりは上）。", en: "Draws left of the text (the line starts at the top)." },
-            sideRight: { ja: "テキストの右に描きます（線の始まりは上）。", en: "Draws right of the text (the line starts at the top)." },
-            offset: { ja: "字面から線までの距離です。囲みでは上下の余白です。", en: "Distance from the glyphs to the line; the top and bottom padding of a box." },
-            extension: { ja: "字面の端から線を伸ばす長さです（マイナスで縮めます）。囲みでは左右の余白です。", en: "How far the line runs past the glyphs (negative values shorten it); the side padding of a box." },
+            sideLeft: {
+                ja: "テキストの左に描きます（線の始まりは上）。",
+                en: "Draws left of the text (the line starts at the top)."
+            },
+            sideRight: {
+                ja: "テキストの右に描きます（線の始まりは上）。",
+                en: "Draws right of the text (the line starts at the top)."
+            },
+            offset: {
+                ja: "字面から線までの距離です。囲みでは上下の余白です。",
+                en: "Distance from the glyphs to the line; the top and bottom padding of a box."
+            },
+            extension: {
+                ja: "字面の端から線を伸ばす長さです（マイナスで縮めます）。囲みでは左右の余白です。",
+                en: "How far the line runs past the glyphs (negative values shorten it); the side padding of a box."
+            },
             tickHeight: { ja: "コの字の両端を立ち上げる長さです。", en: "Length of the bracket's turned-up ends." },
-            cornerRadius: { ja: "コの字・囲みの角の丸みです。0 で角をとがらせます。", en: "Corner radius of a bracket or box. 0 keeps the corners sharp." },
-            shadowDistance: { ja: "囲みの右と下に、この間隔で線を重ねます。0 で影なし。", en: "Adds a second line this far out on the right and bottom of a box. 0 for none." },
+            cornerRadius: {
+                ja: "コの字・囲みの角の丸みです。0 で角をとがらせます。",
+                en: "Corner radius of a bracket or box. 0 keeps the corners sharp."
+            },
+            shadowDistance: {
+                ja: "囲みの右と下に、この間隔で線を重ねます。0 で影なし。",
+                en: "Adds a second line this far out on the right and bottom of a box. 0 for none."
+            },
             strokeWidth: { ja: "線としっぽの線幅です。", en: "Stroke weight of the line and tail." },
             buttCap: { ja: "線の端をパスの端で切ります。", en: "Ends the stroke flush with the path ends." },
             roundCap: { ja: "線の端を丸めます（角も丸くなります）。", en: "Rounds the stroke ends (and the corners)." },
-            colorText: { ja: "テキストごとに、1文字目の塗りと同じカラーにします。", en: "Uses the fill of each text's first character." },
+            colorText: {
+                ja: "テキストごとに、1文字目の塗りと同じカラーにします。",
+                en: "Uses the fill of each text's first character."
+            },
             colorCustom: { ja: "右の色見本のカラーにします。", en: "Uses the color of the swatch on the right." },
-            colorSwatch: { ja: "クリックすると、カラーピッカーで色を選べます。", en: "Click to choose a color in the Color Picker." },
-            useAreaFrame: { ja: "エリア内文字は、字面ではなく枠に沿って描きます（［間隔］［左右の伸び］は 0 として扱います）。", en: "Draws along the frame of area type instead of its glyphs (Distance and Extension count as 0)." },
-            convertToAreaText: { ja: "囲みのとき、テキストを長方形と同じ大きさのエリア内文字にして、左右・天地中央に揃えます。", en: "With a box, turns the text into area type the size of the rectangle, centered both ways." },
-            groupWithText: { ja: "線としっぽをテキストと一緒にグループにします。", en: "Groups the line and tail together with the text." },
-            preview: { ja: "結果を画面で確認します。キャンセルすると元に戻ります。", en: "Shows the result on the canvas. Cancel removes it." },
+            colorSwatch: {
+                ja: "クリックすると、カラーピッカーで色を選べます。",
+                en: "Click to choose a color in the Color Picker."
+            },
+            useAreaFrame: {
+                ja: "エリア内文字は、字面ではなく枠に沿って描きます（［間隔］［左右の伸び］は 0 として扱います）。",
+                en: "Draws along the frame of area type instead of its glyphs (Distance and Extension count as 0)."
+            },
+            convertToAreaText: {
+                ja: "囲みのとき、テキストを長方形と同じ大きさのエリア内文字にして、左右・天地中央に揃えます。",
+                en: "With a box, turns the text into area type the size of the rectangle, centered both ways."
+            },
+            groupWithText: {
+                ja: "線としっぽをテキストと一緒にグループにします。",
+                en: "Groups the line and tail together with the text."
+            },
+            preview: {
+                ja: "結果を画面で確認します。キャンセルすると元に戻ります。",
+                en: "Shows the result on the canvas. Cancel removes it."
+            },
             stepUp: {
                 ja: "値を増やす（shift＋クリックで10の倍数へ、option＋クリックで0.1ずつ）",
                 en: "Increase (Shift-click to snap to 10s, Option-click by 0.1)"
@@ -1216,11 +1307,17 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         },
         alert: {
             presetSaveFailed: { ja: "プリセットを保存できませんでした。", en: "Could not save the presets." },
-            presetBuiltinName: { ja: "最初からあるプリセットと同じ名前は使えません。", en: "That name is used by a built-in preset." },
+            presetBuiltinName: {
+                ja: "最初からあるプリセットと同じ名前は使えません。",
+                en: "That name is used by a built-in preset."
+            },
             noDocument: { ja: "ドキュメントが開かれていません。", en: "No document is open." },
             noText: { ja: "テキストを選択してください。", en: "Select some text." },
             skipped: { ja: "%1 個のテキストには描けませんでした。", en: "Could not draw for %1 text object(s)." },
-            areaTextFailed: { ja: "エリア内文字の天地中央揃えを設定できませんでした。", en: "Could not center the area type vertically." }
+            areaTextFailed: {
+                ja: "エリア内文字の天地中央揃えを設定できませんでした。",
+                en: "Could not center the area type vertically."
+            }
         },
         fallbackName: {
             tailGroup: { ja: "吹き出しのしっぽ", en: "Speech bubble tail" },
@@ -2376,8 +2473,8 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
      * @returns {number} 交点の x
      */
     function getXAtY(startVertex, endVertex, targetY) {
-        var ratio = (targetY - startVertex.y) / (endVertex.y - startVertex.y);
-        return startVertex.x + (endVertex.x - startVertex.x) * ratio;
+        var edgeRatio = (targetY - startVertex.y) / (endVertex.y - startVertex.y);
+        return startVertex.x + (endVertex.x - startVertex.x) * edgeRatio;
     }
 
     /**
@@ -2706,12 +2803,9 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
      * @returns {Color} 線に使うカラー
      */
     function readTextColor(textFrame) {
-        try {
-            var fillColor = textFrame.textRange.characters[0].characterAttributes.fillColor;
-            if (fillColor && fillColor.typename !== "NoColor") return fillColor;
-        } catch (e) {
-            /* 読めなければ黒にする / fall back to black */
-        }
+        /* 対象は空白だけでないテキストなので、1文字目はかならずある / targets are never blank, so the first character exists */
+        var fillColor = textFrame.textRange.characters[0].characterAttributes.fillColor;
+        if (fillColor.typename !== "NoColor") return fillColor;
         var blackColor = new GrayColor();
         blackColor.gray = 100;
         return blackColor;
@@ -2720,14 +2814,10 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
     /**
      * 1文字目の文字サイズを返す
      * @param {TextFrame} textFrame - テキストフレーム
-     * @returns {number} 文字サイズ（pt）。読めなければ 12
+     * @returns {number} 文字サイズ（pt）
      */
     function readFontSize(textFrame) {
-        try {
-            return textFrame.textRange.characters[0].characterAttributes.size;
-        } catch (e) {
-            return 12;
-        }
+        return textFrame.textRange.characters[0].characterAttributes.size;
     }
 
     /**
@@ -2747,11 +2837,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
      * @returns {boolean} 縦組みなら true
      */
     function isVerticalText(textFrame) {
-        try {
-            return textFrame.orientation === TextOrientation.VERTICAL;
-        } catch (e) {
-            return false;
-        }
+        return textFrame.orientation === TextOrientation.VERTICAL;
     }
 
     /**
@@ -3478,7 +3564,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
     // ボタン行（再利用パーツ）ここまで / End of the reusable button row
 
     // =========================================
-    // ダイアログ / Dialog
+    // 既定値とプリセットの保存 / Defaults and saved presets
     // =========================================
 
     /**
@@ -3548,6 +3634,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
      */
     function isBuiltinPresetName(presetName) {
         for (var i = 0; i < BUILTIN_PRESETS.length; i++) {
+            if (!BUILTIN_PRESETS[i]) continue;
             if (BUILTIN_PRESETS[i].name.ja === presetName || BUILTIN_PRESETS[i].name.en === presetName) return true;
         }
         return false;
@@ -3607,6 +3694,10 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         return presetName || null;
     }
 
+    // =========================================
+    // ダイアログのレイアウト補助 / Dialog layout helpers
+    // =========================================
+
     /**
      * 横に並べた列の下端をそろえる。低い列の最後のパネルを伸ばす（中身は上揃えのまま）。
      * 一度レイアウトしてから測り、preferredSize と size の両方に入れる（preferredSize だけでは効かない）
@@ -3654,9 +3745,630 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
      * @returns {number} 欄の単位の値
      */
     function readFieldNumber(numberInput) {
-        var value = parseFloat(numberInput.text);
-        return isNaN(value) ? 0 : value;
+        var fieldValue = parseFloat(numberInput.text);
+        return isNaN(fieldValue) ? 0 : fieldValue;
     }
+
+    // =========================================
+    // ダイアログの部品 / Dialog controls
+    // =========================================
+
+    /**
+     * 数値欄に値を書き込む（部品が直前の正しい値として控える lastValidText もそろえる）
+     * @param {EditText} numberInput - addSteppedField() で作った入力欄
+     * @param {string} fieldText - 入れる文字列（単位付き）
+     * @returns {void}
+     */
+    function writeFieldText(numberInput, fieldText) {
+        numberInput.text = fieldText;
+        numberInput.lastValidText = fieldText;
+    }
+
+    /**
+     * 直接入力を確定したときの処理を足す（部品の onChange で値をそろえたあとに呼ぶ）
+     * @param {EditText} numberInput - addSteppedField() で作った入力欄
+     * @param {Function} afterChange - そろえたあとに呼ぶ関数
+     * @returns {void}
+     */
+    function chainAfterChange(numberInput, afterChange) {
+        var normalizeOnChange = numberInput.onChange;
+        numberInput.onChange = function () {
+            normalizeOnChange();
+            afterChange();
+        };
+    }
+
+    /**
+     * 数値欄を足す（∧∨・↑↓キー・直接入力のどれで変えても onEdit を呼ぶ）
+     * @param {Panel} parent - 追加先
+     * @param {string} settingKey - 設定のキー（LABELS.fieldLabel・LABELS.tooltip も同じキー）
+     * @param {string} fieldText - 初期値の文字列（単位付き）
+     * @param {Object} fieldOptions - step / min / max / unit（addSteppedField() と同じ）
+     * @param {Function} onEdit - 値を変えたときに呼ぶ関数
+     * @returns {EditText} 入力欄（項目名は .fieldLabel）
+     */
+    function addNumberField(parent, settingKey, fieldText, fieldOptions, onEdit) {
+        var numberInput = addSteppedField(parent, {
+            label: labelText(LABELS.fieldLabel[settingKey]),
+            text: fieldText,
+            characters: FIELD_CHARACTERS, step: fieldOptions.step, min: fieldOptions.min, max: fieldOptions.max, unit: fieldOptions.unit,
+            onStep: onEdit
+        });
+        numberInput.helpTip = getLabel(LABELS.tooltip[settingKey]);
+        chainAfterChange(numberInput, onEdit);
+        return numberInput;
+    }
+
+    /**
+     * 長さの数値欄を足す（値は pt で受け取り、欄の単位を付けて表示する）
+     * @param {Panel} parent - 追加先
+     * @param {string} settingKey - 設定のキー
+     * @param {number} valuePt - 初期値（pt）
+     * @param {Object} unit - 欄の単位（getUnitInfo() の戻り値）
+     * @param {number|undefined} minValue - 下限（欄の単位。下限なしは undefined）
+     * @param {Function} onEdit - 値を変えたときに呼ぶ関数
+     * @returns {EditText} 入力欄
+     */
+    function addLengthField(parent, settingKey, valuePt, unit, minValue, onEdit) {
+        var unitSuffix = " " + unit.label;
+        return addNumberField(parent, settingKey, formatStepperNumber(ptToUnit(valuePt, unit)) + unitSuffix,
+            { step: 1, min: minValue, unit: unitSuffix }, onEdit);
+    }
+
+    /**
+     * 項目名の付いた行を足す（項目名の幅はあとで alignLabelWidths() でそろえる）
+     * @param {Panel} parent - 追加先
+     * @param {string} labelKey - LABELS.fieldLabel のキー
+     * @returns {Group} 行（.rowLabel で項目名）
+     */
+    function addLabeledRow(parent, labelKey) {
+        var labeledRow = parent.add("group");
+        setupRow(labeledRow);
+        labeledRow.rowLabel = labeledRow.add("statictext", undefined, labelText(LABELS.fieldLabel[labelKey]));
+        return labeledRow;
+    }
+
+    /**
+     * ラジオボタンの行に、設定の値で読み書きする関数を付ける（.radios の各ボタンは .settingValue を持つ）
+     * @param {Group} radioRow - ラジオボタンの行
+     * @param {string} selectedValue - 選んでおく設定の値（選択肢に無ければ先頭）
+     * @returns {void}
+     */
+    function attachRadioValueAccessors(radioRow, selectedValue) {
+        radioRow.getValue = function () {
+            for (var i = 0; i < radioRow.radios.length; i++) {
+                if (radioRow.radios[i].value) return radioRow.radios[i].settingValue;
+            }
+            return radioRow.radios[0].settingValue;
+        };
+        /* 選択肢に無い値なら先頭を選ぶ / pick the first when the value is not a choice */
+        radioRow.setValue = function (settingValue) {
+            var isFound = false;
+            for (var i = 0; i < radioRow.radios.length; i++) {
+                radioRow.radios[i].value = (radioRow.radios[i].settingValue === settingValue);
+                if (radioRow.radios[i].value) isFound = true;
+            }
+            if (!isFound) radioRow.radios[0].value = true;
+        };
+        radioRow.setValue(selectedValue);
+    }
+
+    /**
+     * ラジオボタンの行を足す。選択肢は [設定の値, LABELS.radio・LABELS.tooltip のキー] の組で渡す
+     * @param {Panel} parent - 追加先
+     * @param {string} labelKey - LABELS.fieldLabel のキー
+     * @param {string} selectedValue - 選んでおく設定の値
+     * @param {Array<string[]>} choices - [設定の値, ラベルのキー] の配列
+     * @param {Function} onChoice - 選び直したときに呼ぶ関数
+     * @param {boolean} [isStacked] - true ならラジオボタンを縦に並べる（項目名は1つ目の高さ）
+     * @returns {Group} 行（.getValue() / .setValue() / .radios / .rowLabel）
+     */
+    function addRadioRow(parent, labelKey, selectedValue, choices, onChoice, isStacked) {
+        var radioRow = addLabeledRow(parent, labelKey);
+        /* 縦に並べるときは同じ列のグループに入れる（同じ親なので排他は ScriptUI に任せられる） / stacked radios share one column group, so ScriptUI keeps them exclusive */
+        var radioContainer = radioRow;
+        if (isStacked) {
+            radioRow.alignChildren = ["left", "top"];
+            radioContainer = radioRow.add("group");
+            radioContainer.orientation = "column";
+            radioContainer.alignChildren = ["left", "center"];
+            radioContainer.spacing = STACKED_RADIO_SPACING;
+        }
+        radioRow.radios = [];
+        for (var i = 0; i < choices.length; i++) {
+            var radioButton = radioContainer.add("radiobutton", undefined, getLabel(LABELS.radio[choices[i][1]]));
+            radioButton.helpTip = getLabel(LABELS.tooltip[choices[i][1]]);
+            radioButton.settingValue = choices[i][0];
+            radioButton.onClick = onChoice;
+            radioRow.radios.push(radioButton);
+        }
+        attachRadioValueAccessors(radioRow, selectedValue);
+        return radioRow;
+    }
+
+    /**
+     * 配置のラジオボタンを、上下左右の位置に合わせて3行3列に並べる（項目名は真ん中の行の高さ）。
+     * 行ごとに別のグループに入るので、排他はクリックで手で保つ
+     * @param {Panel} parent - 追加先
+     * @param {string} selectedValue - 選んでおく側（"top" / "bottom" / "left" / "right"）
+     * @param {Function} onChoice - 選び直したときに呼ぶ関数
+     * @returns {Group} 行（addRadioRow() と同じ形）
+     */
+    function addSideGrid(parent, selectedValue, onChoice) {
+        var sideRow = addLabeledRow(parent, "side");
+        var gridColumn = sideRow.add("group");
+        gridColumn.orientation = "column";
+        gridColumn.alignChildren = ["left", "center"];
+        gridColumn.spacing = SIDE_GRID_SPACING;
+        /* 空きのマスは null / null marks an empty cell */
+        var gridLayout = [[null, "top", null], ["left", null, "right"], [null, "bottom", null]];
+        var radioLabelKeys = { top: "sideTop", bottom: "sideBottom", left: "sideLeft", right: "sideRight" };
+        sideRow.radios = [];
+
+        /**
+         * クリックしたラジオボタンだけを選び、ほかを外す
+         * @param {RadioButton} clickedRadio - クリックしたラジオボタン
+         * @returns {Function} onClick に入れる関数
+         */
+        function makeSideClickHandler(clickedRadio) {
+            return function () {
+                for (var k = 0; k < sideRow.radios.length; k++) sideRow.radios[k].value = (sideRow.radios[k] === clickedRadio);
+                onChoice();
+            };
+        }
+
+        for (var rowIndex = 0; rowIndex < gridLayout.length; rowIndex++) {
+            var gridRow = gridColumn.add("group");
+            gridRow.orientation = "row";
+            gridRow.alignChildren = ["left", "center"];
+            gridRow.spacing = 0;
+            gridRow.margins = 0;
+            for (var columnIndex = 0; columnIndex < gridLayout[rowIndex].length; columnIndex++) {
+                var cellSideKey = gridLayout[rowIndex][columnIndex];
+                if (!cellSideKey) {
+                    gridRow.add("group").preferredSize = [SIDE_GRID_CELL_WIDTH, 1];
+                    continue;
+                }
+                var sideRadio = gridRow.add("radiobutton", undefined, getLabel(LABELS.radio[radioLabelKeys[cellSideKey]]));
+                sideRadio.preferredSize.width = SIDE_GRID_CELL_WIDTH;
+                sideRadio.helpTip = getLabel(LABELS.tooltip[radioLabelKeys[cellSideKey]]);
+                sideRadio.settingValue = cellSideKey;
+                sideRadio.onClick = makeSideClickHandler(sideRadio);
+                sideRow.radios.push(sideRadio);
+            }
+        }
+        attachRadioValueAccessors(sideRow, selectedValue);
+        return sideRow;
+    }
+
+    /**
+     * カスタムのカラーの色見本を足す。クリックで Illustrator 標準のカラーピッカーを開き、色を選んだら onPicked を呼ぶ
+     * @param {Group} parent - 追加先（線のカラーの行）
+     * @param {{data: Object}} colorState - 今のカスタムのカラー（.data を書き換える）
+     * @param {Function} onPicked - 色を選んだときに呼ぶ関数
+     * @returns {Group} 色見本
+     */
+    function addColorSwatch(parent, colorState, onPicked) {
+        var swatchGroup = parent.add("group");
+        swatchGroup.preferredSize = COLOR_SWATCH_SIZE;
+        swatchGroup.minimumSize = COLOR_SWATCH_SIZE;
+        swatchGroup.maximumSize = COLOR_SWATCH_SIZE;
+        swatchGroup.helpTip = getLabel(LABELS.tooltip.colorSwatch);
+        swatchGroup.onDraw = function () {
+            var swatchGraphics = swatchGroup.graphics;
+            var swatchRgb = colorDataToScreenRgb(colorState.data);
+            /* newPath() を呼ばないとパスが積み重なる / without newPath() the paths accumulate */
+            swatchGraphics.newPath();
+            swatchGraphics.rectPath(0, 0, COLOR_SWATCH_SIZE[0], COLOR_SWATCH_SIZE[1]);
+            swatchGraphics.fillPath(swatchGraphics.newBrush(swatchGraphics.BrushType.SOLID_COLOR, [swatchRgb[0], swatchRgb[1], swatchRgb[2], 1]));
+            swatchGraphics.newPath();
+            swatchGraphics.rectPath(0.5, 0.5, COLOR_SWATCH_SIZE[0] - 1, COLOR_SWATCH_SIZE[1] - 1);
+            swatchGraphics.strokePath(swatchGraphics.newPen(swatchGraphics.PenType.SOLID_COLOR, [0.5, 0.5, 0.5, 1], 1));
+        };
+        swatchGroup.addEventListener("mousedown", function () {
+            /* グレーで渡すとグレースケールで開くので、ドキュメントのカラーモードにして渡す。
+               OK ならドキュメントのカラーモードの型、キャンセルなら渡した色がそのまま返る
+               A gray color opens the picker in grayscale, so pass the document's color mode; OK returns that mode, Cancel the passed color */
+            var pickedData = colorToColorData(app.showColorPicker(colorDataToColor(toDocumentColorData(colorState.data))));
+            if (!pickedData || pickedData.toSource() === colorState.data.toSource()) return;
+            colorState.data = pickedData;
+            /* group には notify() が無いので、隠して表示し直して描き直す / groups have no notify(), so hide and show to redraw */
+            swatchGroup.hide();
+            swatchGroup.show();
+            onPicked();
+        });
+        return swatchGroup;
+    }
+
+    /**
+     * チェックボックスを足す
+     * @param {Panel|Group} parent - 追加先
+     * @param {string} settingKey - 設定のキー（LABELS.checkbox・LABELS.tooltip も同じキー）
+     * @param {boolean} isChecked - 初期の状態
+     * @returns {Checkbox} チェックボックス
+     */
+    function addSettingCheckbox(parent, settingKey, isChecked) {
+        var settingCheckbox = parent.add("checkbox", undefined, getLabel(LABELS.checkbox[settingKey]));
+        settingCheckbox.helpTip = getLabel(LABELS.tooltip[settingKey]);
+        settingCheckbox.value = isChecked;
+        return settingCheckbox;
+    }
+
+    // =========================================
+    // ダイアログのパネル / Dialog panels
+    // =========================================
+
+    /**
+     * @typedef {Object} DialogHandlers
+     * @property {Function} onEdit - 数値・色を変えたとき（プリセットの選択を外してプレビュー）
+     * @property {Function} onChoice - ラジオボタンを選び直したとき（使わない項目の切り替えとプレビュー）
+     */
+
+    /**
+     * 上部中央のプリセットの行を作る
+     * @param {Window} bubbleDialog - ダイアログ
+     * @returns {{dropdown: DropDownList, saveIcon: Group, deleteIcon: Group}} プリセットのコントロール
+     */
+    function buildPresetRow(bubbleDialog) {
+        var presetRow = bubbleDialog.add("group");
+        setupRow(presetRow, "center", PRESET_ROW_SPACING);
+        presetRow.add("statictext", undefined, labelText(LABELS.fieldLabel.preset));
+        var presetDropdown = presetRow.add("dropdownlist");
+        presetDropdown.preferredSize.width = PRESET_DROPDOWN_WIDTH;
+        presetDropdown.helpTip = getLabel(LABELS.tooltip.preset);
+        var presetSaveIcon = addIconButton(presetRow, PRESET_SAVE_ICON_SIZE, drawSaveIcon);
+        presetSaveIcon.helpTip = getLabel(LABELS.tooltip.presetSave);
+        var presetDeleteIcon = addIconButton(presetRow, ICON_BUTTON_SIZE, drawTrashIcon);
+        presetDeleteIcon.helpTip = getLabel(LABELS.tooltip.presetDelete);
+        return { dropdown: presetDropdown, saveIcon: presetSaveIcon, deleteIcon: presetDeleteIcon };
+    }
+
+    /**
+     * ［しっぽ］パネルを作る
+     * @param {Group} parent - 追加先（左の列）
+     * @param {BubbleSettings} initialSettings - 開いたときの設定
+     * @param {Object} rulerUnit - 長さの単位
+     * @param {DialogHandlers} dialogHandlers - 変えたときの処理
+     * @returns {Object} しっぽのコントロール（.panel と各行・欄）
+     */
+    function buildTailPanel(parent, initialSettings, rulerUnit, dialogHandlers) {
+        var tailPanel = parent.add("panel", undefined, getLabel(LABELS.panel.tail));
+        setupPanel(tailPanel);
+        tailPanel.alignment = ["fill", "top"];
+        var tailControls = { panel: tailPanel };
+        tailControls.shapeRow = addRadioRow(tailPanel, "shape", initialSettings.shapeKey,
+            [["notch", "notch"], ["slash", "slash"], ["curly", "curly"]], dialogHandlers.onChoice);
+        tailControls.directionRow = addRadioRow(tailPanel, "direction", initialSettings.directionKey,
+            [["center", "straightDown"], ["right", "downRight"], ["left", "downLeft"]], dialogHandlers.onChoice);
+        tailControls.slashAngleInput = addNumberField(tailPanel, "slashAngle", formatStepperNumber(initialSettings.slashAngle) + "°",
+            { step: 5, min: MIN_SLASH_ANGLE, max: 90, unit: "°" }, dialogHandlers.onEdit);
+        tailControls.rootRow = addRadioRow(tailPanel, "root", initialSettings.rootKey,
+            [["center", "rootCenter"], ["edge", "rootEdge"]], dialogHandlers.onChoice);
+
+        /* 位置の数値欄とスライダーは、どちらで変えてももう一方に写す / the position field and slider mirror each other */
+        var positionInput = addNumberField(tailPanel, "position", formatStepperNumber(initialSettings.position) + "%",
+            { step: 5, min: 0, max: 100, unit: "%" }, function () {
+                positionSlider.value = readFieldNumber(positionInput);
+                dialogHandlers.onEdit();
+            });
+        /* 位置の下の行にスライダーを置き、項目名の幅だけ字下げして数値欄とそろえる。右端は少しあける
+           The slider sits on the next row, indented past the labels, with a little room on the right */
+        var positionSliderRow = tailPanel.add("group");
+        setupRow(positionSliderRow, ["fill", "center"], STEPPER_FIELD_SPACING);
+        positionSliderRow.margins = [0, 0, POSITION_SLIDER_RIGHT_INSET, 0];
+        var positionSliderIndent = positionSliderRow.add("group");
+        var positionSlider = positionSliderRow.add("slider", undefined, initialSettings.position, 0, 100);
+        positionSlider.preferredSize.width = POSITION_SLIDER_WIDTH;
+        positionSlider.alignment = ["fill", "center"];
+        positionSlider.helpTip = getLabel(LABELS.tooltip.positionSlider);
+        positionSlider.onChanging = function () {
+            /* shift を押しながらなら POSITION_SLIDER_SHIFT_STEP 刻みに吸着させる / snap to POSITION_SLIDER_SHIFT_STEP while Shift is held */
+            var sliderValue = Math.round(positionSlider.value);
+            if (ScriptUI.environment.keyboardState.shiftKey) {
+                sliderValue = Math.round(positionSlider.value / POSITION_SLIDER_SHIFT_STEP) * POSITION_SLIDER_SHIFT_STEP;
+                positionSlider.value = sliderValue;
+            }
+            writeFieldText(positionInput, formatStepperNumber(sliderValue) + "%");
+        };
+        positionSlider.onChange = function () {
+            positionSlider.onChanging();
+            dialogHandlers.onEdit();
+        };
+        tailControls.positionInput = positionInput;
+        tailControls.positionSlider = positionSlider;
+
+        tailControls.gapWidthInput = addLengthField(tailPanel, "gapWidth", initialSettings.gapWidth, rulerUnit, 0, dialogHandlers.onEdit);
+        tailControls.tailWidthInput = addLengthField(tailPanel, "tailWidth", initialSettings.tailWidth, rulerUnit, 0, dialogHandlers.onEdit);
+        tailControls.tailHeightInput = addLengthField(tailPanel, "tailHeight", initialSettings.tailHeight, rulerUnit, 0, dialogHandlers.onEdit);
+
+        /* 項目名をいちばん長いものに揃えて右揃えにし、スライダーの字下げも同じ幅にする / align the labels to the widest and indent the slider likewise */
+        positionSliderIndent.preferredSize.width = alignLabelWidths([
+            tailControls.shapeRow.rowLabel, tailControls.directionRow.rowLabel, tailControls.slashAngleInput.fieldLabel,
+            tailControls.rootRow.rowLabel, positionInput.fieldLabel, tailControls.gapWidthInput.fieldLabel,
+            tailControls.tailWidthInput.fieldLabel, tailControls.tailHeightInput.fieldLabel
+        ]);
+        return tailControls;
+    }
+
+    /**
+     * ［線/枠］パネルを作る
+     * @param {Group} parent - 追加先（2カラムの行）
+     * @param {BubbleSettings} initialSettings - 開いたときの設定
+     * @param {string} initialSideKey - 開いたときの配置（テキストの組み方から決めたもの）
+     * @param {Object} rulerUnit - 長さの単位
+     * @param {Object} strokeUnit - 線幅の単位
+     * @param {DialogHandlers} dialogHandlers - 変えたときの処理
+     * @returns {Object} 線/枠のコントロール（.panel と各行・欄、.colorState）
+     */
+    function buildLinePanel(parent, initialSettings, initialSideKey, rulerUnit, strokeUnit, dialogHandlers) {
+        var linePanel = parent.add("panel", undefined, getLabel(LABELS.panel.line));
+        setupPanel(linePanel);
+        /* 縦の fill は効かず天地中央に置かれるので、上に揃える（下端は表示前にそろえる） / vertical fill centers the panel, so pin it to the top and align the bottoms before showing */
+        linePanel.alignment = ["fill", "top"];
+        var lineControls = { panel: linePanel, colorState: { data: initialSettings.customColor } };
+        lineControls.frameRow = addRadioRow(linePanel, "frame", initialSettings.frameKey,
+            [["underline", "underline"], ["bracket", "bracket"], ["box", "box"]], dialogHandlers.onChoice, true);
+        lineControls.sideRow = addSideGrid(linePanel, initialSideKey, dialogHandlers.onChoice);
+        lineControls.offsetInput = addLengthField(linePanel, "offset", initialSettings.offset, rulerUnit, undefined, dialogHandlers.onEdit);
+        lineControls.extensionInput = addLengthField(linePanel, "extension", initialSettings.extension, rulerUnit, undefined, dialogHandlers.onEdit);
+        lineControls.tickHeightInput = addLengthField(linePanel, "tickHeight", initialSettings.tickHeight, rulerUnit, 0, dialogHandlers.onEdit);
+        lineControls.cornerRadiusInput = addLengthField(linePanel, "cornerRadius", initialSettings.cornerRadius, rulerUnit, 0, dialogHandlers.onEdit);
+        lineControls.shadowDistanceInput = addLengthField(linePanel, "shadowDistance", initialSettings.shadowDistance, rulerUnit, 0, dialogHandlers.onEdit);
+        lineControls.strokeWidthInput = addLengthField(linePanel, "strokeWidth", initialSettings.strokeWidth, strokeUnit, 0.1, dialogHandlers.onEdit);
+
+        var colorRow = addRadioRow(linePanel, "lineColor", initialSettings.colorKey,
+            [["text", "colorText"], ["custom", "colorCustom"]], dialogHandlers.onChoice);
+        /* カスタムのラジオボタンは文言を出さず、すぐ右の色見本をラベル代わりにする / the custom radio has no text; the swatch beside it is its label */
+        colorRow.radios[1].text = "";
+        addColorSwatch(colorRow, lineControls.colorState, function () {
+            colorRow.setValue("custom");
+            dialogHandlers.onEdit();
+        });
+        lineControls.colorRow = colorRow;
+        lineControls.capRow = addRadioRow(linePanel, "cap", initialSettings.capKey,
+            [["butt", "buttCap"], ["round", "roundCap"]], dialogHandlers.onChoice);
+
+        alignLabelWidths([
+            lineControls.frameRow.rowLabel, lineControls.sideRow.rowLabel, lineControls.offsetInput.fieldLabel,
+            lineControls.extensionInput.fieldLabel, lineControls.tickHeightInput.fieldLabel, lineControls.cornerRadiusInput.fieldLabel,
+            lineControls.shadowDistanceInput.fieldLabel, lineControls.strokeWidthInput.fieldLabel, colorRow.rowLabel, lineControls.capRow.rowLabel
+        ]);
+        return lineControls;
+    }
+
+    /**
+     * ［テキストに関してのオプション］パネルを作る
+     * @param {Group} parent - 追加先（左の列）
+     * @param {BubbleSettings} initialSettings - 開いたときの設定
+     * @returns {Object} オプションのコントロール（.panel と各チェックボックス）
+     */
+    function buildTextOptionsPanel(parent, initialSettings) {
+        var textOptionsPanel = parent.add("panel", undefined, getLabel(LABELS.panel.options));
+        setupPanel(textOptionsPanel, 6);
+        textOptionsPanel.alignment = ["fill", "top"];
+        return {
+            panel: textOptionsPanel,
+            useAreaFrameCheckbox: addSettingCheckbox(textOptionsPanel, "useAreaFrame", initialSettings.useAreaFrame),
+            convertToAreaTextCheckbox: addSettingCheckbox(textOptionsPanel, "convertToAreaText", initialSettings.convertToAreaText),
+            groupWithTextCheckbox: addSettingCheckbox(textOptionsPanel, "groupWithText", initialSettings.groupWithText)
+        };
+    }
+
+    // =========================================
+    // ダイアログの値 / Dialog values
+    // =========================================
+
+    /**
+     * ダイアログの値を pt の設定にまとめる
+     * @param {Object} dialogControls - 各パネルのコントロールをまとめたもの
+     * @param {Object} rulerUnit - 長さの単位
+     * @param {Object} strokeUnit - 線幅の単位
+     * @returns {BubbleSettings} 設定
+     */
+    function readControlSettings(dialogControls, rulerUnit, strokeUnit) {
+        var bubbleSettings = {};
+        for (var choiceKey in dialogControls.choiceRows) {
+            if (dialogControls.choiceRows.hasOwnProperty(choiceKey)) bubbleSettings[choiceKey] = dialogControls.choiceRows[choiceKey].getValue();
+        }
+        for (var sizeKey in dialogControls.lengthFields) {
+            if (!dialogControls.lengthFields.hasOwnProperty(sizeKey)) continue;
+            var lengthField = dialogControls.lengthFields[sizeKey];
+            bubbleSettings[sizeKey] = unitToPt(readFieldNumber(lengthField.input), lengthField.isStroke ? strokeUnit : rulerUnit);
+        }
+        bubbleSettings.position = readFieldNumber(dialogControls.positionInput);
+        bubbleSettings.slashAngle = readFieldNumber(dialogControls.slashAngleInput);
+        bubbleSettings.customColor = dialogControls.colorState.data;
+        bubbleSettings.useAreaFrame = dialogControls.useAreaFrameCheckbox.value;
+        bubbleSettings.convertToAreaText = dialogControls.convertToAreaTextCheckbox.value;
+        bubbleSettings.groupWithText = dialogControls.groupWithTextCheckbox.value;
+        bubbleSettings.preview = dialogControls.previewCheckbox.value;
+        return bubbleSettings;
+    }
+
+    /**
+     * プリセットの設定をダイアログに入れる（選択・位置・角度・寸法と、枠を基準にするか）
+     * @param {Object} dialogControls - 各パネルのコントロールをまとめたもの
+     * @param {Object} presetSettings - resolvePresetSettings() の戻り値
+     * @param {Object} rulerUnit - 長さの単位
+     * @param {Object} strokeUnit - 線幅の単位
+     * @returns {void}
+     */
+    function applySettingsToControls(dialogControls, presetSettings, rulerUnit, strokeUnit) {
+        /* 線のカラーはプリセットに入らないので触らない / the line color is not part of a preset */
+        for (var i = 0; i < PRESET_CHOICE_KEYS.length; i++) {
+            dialogControls.choiceRows[PRESET_CHOICE_KEYS[i]].setValue(presetSettings[PRESET_CHOICE_KEYS[i]]);
+        }
+        for (var sizeKey in dialogControls.lengthFields) {
+            if (!dialogControls.lengthFields.hasOwnProperty(sizeKey)) continue;
+            var lengthField = dialogControls.lengthFields[sizeKey];
+            var lengthUnit = lengthField.isStroke ? strokeUnit : rulerUnit;
+            writeFieldText(lengthField.input, formatStepperNumber(ptToUnit(presetSettings[sizeKey], lengthUnit)) + " " + lengthUnit.label);
+        }
+        writeFieldText(dialogControls.positionInput, formatStepperNumber(presetSettings.position) + "%");
+        dialogControls.positionSlider.value = presetSettings.position;
+        writeFieldText(dialogControls.slashAngleInput, formatStepperNumber(presetSettings.slashAngle) + "°");
+        dialogControls.useAreaFrameCheckbox.value = presetSettings.useAreaFrame;
+    }
+
+    /**
+     * 今の選択で使わない項目を無効にする
+     * @param {Object} dialogControls - 各パネルのコントロールをまとめたもの
+     * @param {boolean} isAllAreaText - 選択がすべてエリア内文字か
+     * @returns {void}
+     */
+    function updateControlsEnabled(dialogControls, isAllAreaText) {
+        var isSlash = (dialogControls.choiceRows.shapeKey.getValue() === "slash");
+        var isStraight = (dialogControls.choiceRows.directionKey.getValue() === "center");
+        var frameKey = dialogControls.choiceRows.frameKey.getValue();
+        var lengthFields = dialogControls.lengthFields;
+        dialogControls.choiceRows.rootKey.enabled = isSlash && !isStraight;
+        /* 斜線は横の長さを角度で決める / a slash takes its run from the angle */
+        setSteppedFieldEnabled(lengthFields.tailWidth.input, !isStraight && !isSlash);
+        setSteppedFieldEnabled(dialogControls.slashAngleInput, !isStraight && isSlash);
+        setSteppedFieldEnabled(lengthFields.tickHeight.input, frameKey === "bracket");
+        setSteppedFieldEnabled(lengthFields.cornerRadius.input, frameKey !== "underline");
+        setSteppedFieldEnabled(lengthFields.shadowDistance.input, frameKey === "box");
+        dialogControls.convertToAreaTextCheckbox.enabled = (frameKey === "box");
+        /* すべてエリア内文字で枠を基準にするときは、間隔・左右の伸びを使わない / unused when every text is area type measured by its frame */
+        var isLengthFromGlyphs = !(dialogControls.useAreaFrameCheckbox.value && isAllAreaText);
+        setSteppedFieldEnabled(lengthFields.offset.input, isLengthFromGlyphs);
+        setSteppedFieldEnabled(lengthFields.extension.input, isLengthFromGlyphs);
+    }
+
+    /**
+     * 設定をプリセットの形にする（寸法は pt）
+     * @param {BubbleSettings} bubbleSettings - 設定
+     * @returns {Object} { choices, position, slashAngle, useAreaFrame, sizes }
+     */
+    function settingsToPresetData(bubbleSettings) {
+        var presetData = { choices: {}, position: bubbleSettings.position, slashAngle: bubbleSettings.slashAngle, useAreaFrame: bubbleSettings.useAreaFrame, sizes: {} };
+        var i;
+        for (i = 0; i < PRESET_CHOICE_KEYS.length; i++) presetData.choices[PRESET_CHOICE_KEYS[i]] = bubbleSettings[PRESET_CHOICE_KEYS[i]];
+        for (i = 0; i < PRESET_SIZE_KEYS.length; i++) presetData.sizes[PRESET_SIZE_KEYS[i]] = bubbleSettings[PRESET_SIZE_KEYS[i]];
+        return presetData;
+    }
+
+    // =========================================
+    // プリセットの操作 / Preset controls
+    // =========================================
+
+    /**
+     * プリセットの行に、選ぶ・保存・削除の処理を付ける
+     * @param {{dropdown: DropDownList, saveIcon: Group, deleteIcon: Group}} presetControls - buildPresetRow() の戻り値
+     * @param {Function} readCurrentSettings - 今の設定を返す関数
+     * @param {Function} applyPresetData - プリセットをダイアログに入れる関数（プリセットのデータを受け取る）
+     * @returns {{clearSelection: Function, fill: Function}} 選択を外す関数と、ドロップダウンを作り直す関数
+     */
+    function bindPresetControls(presetControls, readCurrentSettings, applyPresetData) {
+        var presetDropdown = presetControls.dropdown;
+        var presetEntries = [];       /* ドロップダウンの項目ごとの { name, data, isSaved }（区切り線は null） / per item; null for separators */
+        var isFillingDropdown = false; /* 作り直し・選択を外す間は onChange を無視する / ignore onChange while rebuilding or clearing */
+
+        /**
+         * 選んでいるプリセットの項目を返す
+         * @returns {Object|null} { name, data, isSaved }。選んでいなければ null
+         */
+        function getSelectedPresetEntry() {
+            return presetDropdown.selection ? presetEntries[presetDropdown.selection.index] : null;
+        }
+
+        /**
+         * 削除のアイコンは、保存したプリセットを選んでいるときだけ使えるようにする
+         * @returns {void}
+         */
+        function updatePresetIcons() {
+            var selectedEntry = getSelectedPresetEntry();
+            setIconButtonEnabled(presetControls.deleteIcon, !!(selectedEntry && selectedEntry.isSaved));
+        }
+
+        /**
+         * ドロップダウンに項目か区切り線を足す
+         * @param {Object|null} presetEntry - { name, data, isSaved }。null なら区切り線
+         * @returns {void}
+         */
+        function addPresetEntry(presetEntry) {
+            presetDropdown.add(presetEntry ? "item" : "separator", presetEntry ? presetEntry.name : undefined);
+            presetEntries.push(presetEntry);
+        }
+
+        /**
+         * ドロップダウンを作り直す（最初からあるもの、区切り線、保存したもの）
+         * @param {string|null} selectedName - 選んでおく保存したプリセット名（なければ選ばない）
+         * @returns {void}
+         */
+        function fillPresetDropdown(selectedName) {
+            isFillingDropdown = true;
+            presetDropdown.removeAll();
+            presetEntries = [];
+            var i;
+            for (i = 0; i < BUILTIN_PRESETS.length; i++) {
+                addPresetEntry(BUILTIN_PRESETS[i] ? { name: getLabel(BUILTIN_PRESETS[i].name), data: BUILTIN_PRESETS[i], isSaved: false } : null);
+            }
+            var savedPresets = loadSavedPresets();
+            var savedNames = [];
+            for (var presetName in savedPresets) {
+                /* 最初からあるプリセットと同じ名前（昇格したもの）は出さない / skip saved presets named like a built-in (promoted ones) */
+                if (savedPresets.hasOwnProperty(presetName) && !isBuiltinPresetName(presetName)) savedNames.push(presetName);
+            }
+            savedNames.sort();
+            if (savedNames.length) addPresetEntry(null);
+            for (i = 0; i < savedNames.length; i++) {
+                addPresetEntry({ name: savedNames[i], data: savedPresets[savedNames[i]], isSaved: true });
+                if (savedNames[i] === selectedName) presetDropdown.selection = presetDropdown.items.length - 1;
+            }
+            isFillingDropdown = false;
+            updatePresetIcons();
+        }
+
+        /**
+         * 設定を手で変えたら、プリセットの選択を外す
+         * @returns {void}
+         */
+        function clearPresetSelection() {
+            if (isFillingDropdown || !presetDropdown.selection) return;
+            isFillingDropdown = true;
+            presetDropdown.selection = null;
+            isFillingDropdown = false;
+            updatePresetIcons();
+        }
+
+        presetDropdown.onChange = function () {
+            if (isFillingDropdown) return;
+            updatePresetIcons();
+            var selectedEntry = getSelectedPresetEntry();
+            if (selectedEntry) applyPresetData(selectedEntry.data);
+        };
+
+        presetControls.saveIcon.onClick = function () {
+            var selectedEntry = getSelectedPresetEntry();
+            var presetName = showPresetNameDialog((selectedEntry && selectedEntry.isSaved) ? selectedEntry.name : "");
+            if (!presetName) return;
+            if (isBuiltinPresetName(presetName)) {
+                alert(getLabel(LABELS.alert.presetBuiltinName));
+                return;
+            }
+            var savedPresets = loadSavedPresets();
+            /* 同じ名前の上書きは確認する（既定のボタンは［いいえ］） / confirm overwriting, defaulting to No */
+            if (savedPresets.hasOwnProperty(presetName) && !confirm(getLabel(LABELS.confirm.presetOverwrite, { name: presetName }), true)) return;
+            savedPresets[presetName] = settingsToPresetData(readCurrentSettings());
+            if (writeSavedPresets(savedPresets)) fillPresetDropdown(presetName);
+        };
+
+        presetControls.deleteIcon.onClick = function () {
+            var selectedEntry = getSelectedPresetEntry();
+            if (!selectedEntry || !selectedEntry.isSaved) return;
+            if (!confirm(getLabel(LABELS.confirm.presetDelete, { name: selectedEntry.name }), true)) return;
+            var savedPresets = loadSavedPresets();
+            delete savedPresets[selectedEntry.name];
+            if (writeSavedPresets(savedPresets)) fillPresetDropdown(null);
+        };
+
+        return { clearSelection: clearPresetSelection, fill: fillPresetDropdown };
+    }
+
+    // =========================================
+    // ダイアログ / Dialog
+    // =========================================
 
     /**
      * 吹き出しのダイアログを表示する。プレビューは線としっぽを描いては消す
@@ -3667,10 +4379,72 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
      * @returns {BubbleSettings|null} OK なら設定、キャンセルなら null
      */
     function showSpeechBubbleDialog(bubbleTargets, initialSettings, rulerUnit, strokeUnit) {
-        var dialog = new Window("dialog", getLabel(LABELS.dialog.title) + " " + SCRIPT_VERSION);
-        setupWindow(dialog);
-
+        var bubbleDialog = new Window("dialog", getLabel(LABELS.dialog.title) + " " + SCRIPT_VERSION);
+        setupWindow(bubbleDialog);
         var previewItems = [];
+        var dialogHandlers = {
+            onEdit: function () { refreshPreview(); },
+            onChoice: function () {
+                updateControlsEnabled(dialogControls, areaTextState.isAllAreaText);
+                refreshPreview();
+            }
+        };
+
+        var presetControls = buildPresetRow(bubbleDialog);
+
+        /* 左に［しっぽ］と［テキストに関してのオプション］、右に［線/枠］の2カラム / two columns: tail and text options on the left, line/frame on the right */
+        var columnsGroup = bubbleDialog.add("group");
+        columnsGroup.orientation = "row";
+        columnsGroup.alignChildren = ["fill", "top"];
+        columnsGroup.spacing = COLUMN_SPACING;
+        var leftColumn = columnsGroup.add("group");
+        leftColumn.orientation = "column";
+        leftColumn.alignChildren = ["fill", "top"];
+        leftColumn.alignment = ["fill", "top"];
+        leftColumn.spacing = WINDOW_SPACING;
+        var tailControls = buildTailPanel(leftColumn, initialSettings, rulerUnit, dialogHandlers);
+        var textOptionControls = buildTextOptionsPanel(leftColumn, initialSettings);
+        /* 配置は開くたびにテキストの組み方から選ぶ（横組みは下、縦組みは右） / the side is picked from the text orientation on every open */
+        var lineControls = buildLinePanel(columnsGroup, initialSettings, getAutoSideKey(bubbleTargets), rulerUnit, strokeUnit, dialogHandlers);
+
+        /* ボタン（左にプレビュー） / Buttons, with Preview on the left */
+        var buttonRow = addButtonRow(bubbleDialog);
+        var previewCheckbox = addSettingCheckbox(buttonRow.leftGroup, "preview", initialSettings.preview);
+        buttonRow.rightGroup.add("button", undefined, getLabel(LABELS.button.cancel), { name: "cancel" });
+        buttonRow.rightGroup.add("button", undefined, getLabel(LABELS.button.ok), { name: "ok" });
+        alignRightOnlyButtonRow(buttonRow);
+
+        /* 設定のキーと、それを入れる行・欄をまとめる / where each setting lives in the dialog */
+        var dialogControls = {
+            choiceRows: {
+                shapeKey: tailControls.shapeRow, directionKey: tailControls.directionRow, rootKey: tailControls.rootRow,
+                frameKey: lineControls.frameRow, sideKey: lineControls.sideRow, capKey: lineControls.capRow, colorKey: lineControls.colorRow
+            },
+            lengthFields: {
+                gapWidth: { input: tailControls.gapWidthInput }, tailWidth: { input: tailControls.tailWidthInput },
+                tailHeight: { input: tailControls.tailHeightInput }, offset: { input: lineControls.offsetInput },
+                extension: { input: lineControls.extensionInput }, tickHeight: { input: lineControls.tickHeightInput },
+                cornerRadius: { input: lineControls.cornerRadiusInput }, shadowDistance: { input: lineControls.shadowDistanceInput },
+                strokeWidth: { input: lineControls.strokeWidthInput, isStroke: true }
+            },
+            positionInput: tailControls.positionInput,
+            positionSlider: tailControls.positionSlider,
+            slashAngleInput: tailControls.slashAngleInput,
+            colorState: lineControls.colorState,
+            useAreaFrameCheckbox: textOptionControls.useAreaFrameCheckbox,
+            convertToAreaTextCheckbox: textOptionControls.convertToAreaTextCheckbox,
+            groupWithTextCheckbox: textOptionControls.groupWithTextCheckbox,
+            previewCheckbox: previewCheckbox
+        };
+        var areaTextState = getAreaTextState(bubbleTargets);
+
+        /**
+         * 今の設定を読む
+         * @returns {BubbleSettings} 設定
+         */
+        function readDialogSettings() {
+            return readControlSettings(dialogControls, rulerUnit, strokeUnit);
+        }
 
         /**
          * プレビューで描いたものを消す
@@ -3679,15 +4453,6 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         function clearPreview() {
             removePageItems(previewItems);
             previewItems = [];
-        }
-
-        /**
-         * 設定を手で変えたとき：プリセットの選択を外してプレビューを描き直す
-         * @returns {void}
-         */
-        function refreshPreview() {
-            clearPresetSelection();
-            drawPreview();
         }
 
         /**
@@ -3704,593 +4469,54 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         }
 
         /**
-         * 長さの数値欄を足す（値は pt で受け取り、単位を付けて表示する）
-         * @param {Panel} parent - 追加先
-         * @param {number} labelWidth - 項目名の幅（0 で文言なりの幅）
-         * @param {string} settingKey - 設定のキー（LABELS.fieldLabel・LABELS.tooltip も同じキー）
-         * @param {Object} unit - 欄の単位（getUnitInfo() の戻り値）
-         * @param {number} [minValue] - 下限（欄の単位）
-         * @returns {EditText} 入力欄
-         */
-        function addLengthField(parent, labelWidth, settingKey, unit, minValue) {
-            var unitSuffix = " " + unit.label;
-            var lengthInput = addSteppedField(parent, {
-                label: labelText(LABELS.fieldLabel[settingKey]), labelWidth: labelWidth,
-                text: formatStepperNumber(ptToUnit(initialSettings[settingKey], unit)) + unitSuffix,
-                characters: FIELD_CHARACTERS, step: 1, min: minValue, unit: unitSuffix,
-                onStep: refreshPreview
-            });
-            lengthInput.helpTip = getLabel(LABELS.tooltip[settingKey]);
-            refreshPreviewAfterChange(lengthInput);
-            return lengthInput;
-        }
-
-        /**
-         * 直接入力を確定したらプレビューを描き直す（部品の onChange で値をそろえたあとに呼ぶ）
-         * @param {EditText} numberInput - addSteppedField() で作った入力欄
+         * 設定を手で変えたとき：プリセットの選択を外してプレビューを描き直す
          * @returns {void}
          */
-        function refreshPreviewAfterChange(numberInput) {
-            var normalizeOnChange = numberInput.onChange;
-            numberInput.onChange = function () {
-                normalizeOnChange();
-                refreshPreview();
-            };
-        }
-
-        /**
-         * 項目名の付いたラジオボタンの行を足す（項目名は数値欄と同じ幅で右揃え）。
-         * 選択肢は [設定の値, LABELS.radio のキー] の組で渡し、設定の値と同じものを選んでおく
-         * @param {Panel} parent - 追加先
-         * @param {number} labelWidth - 項目名の幅（0 で文言なりの幅）
-         * @param {string} labelKey - LABELS.fieldLabel のキー
-         * @param {string} selectedValue - 選んでおく設定の値
-         * @param {Array<string[]>} choices - [設定の値, LABELS.radio・LABELS.tooltip のキー] の配列
-         * @param {boolean} [isStacked] - true ならラジオボタンを縦に並べる（項目名は1つ目の高さ）
-         * @returns {Group} 行（.getValue() で選んでいる設定の値、.radios でラジオボタン、.rowLabel で項目名）
-         */
-        function addRadioRow(parent, labelWidth, labelKey, selectedValue, choices, isStacked) {
-            var radioRow = parent.add("group");
-            setupRow(radioRow);
-            var rowLabel = radioRow.add("statictext", undefined, labelText(LABELS.fieldLabel[labelKey]));
-            if (labelWidth) {
-                rowLabel.preferredSize.width = labelWidth;
-                rowLabel.justify = "right";
-            }
-            radioRow.rowLabel = rowLabel;
-            /* 縦に並べるときは、同じ列のグループに入れる（同じ親なので排他は ScriptUI に任せられる） / stacked radios share one column group, so ScriptUI keeps them exclusive */
-            var radioContainer = radioRow;
-            if (isStacked) {
-                radioRow.alignChildren = ["left", "top"];
-                radioContainer = radioRow.add("group");
-                radioContainer.orientation = "column";
-                radioContainer.alignChildren = ["left", "center"];
-                radioContainer.spacing = STACKED_RADIO_SPACING;
-            }
-            radioRow.radios = [];
-            var hasSelection = false;
-            for (var i = 0; i < choices.length; i++) {
-                var radioButton = radioContainer.add("radiobutton", undefined, getLabel(LABELS.radio[choices[i][1]]));
-                radioButton.helpTip = getLabel(LABELS.tooltip[choices[i][1]]);
-                radioButton.settingValue = choices[i][0];
-                radioButton.value = (choices[i][0] === selectedValue);
-                if (radioButton.value) hasSelection = true;
-                radioButton.onClick = onChoiceClick;
-                radioRow.radios.push(radioButton);
-            }
-            /* 保存値が選択肢に無ければ先頭を選ぶ / pick the first when the saved value is not a choice */
-            if (!hasSelection) radioRow.radios[0].value = true;
-            radioRow.getValue = function () {
-                for (var j = 0; j < radioRow.radios.length; j++) {
-                    if (radioRow.radios[j].value) return radioRow.radios[j].settingValue;
-                }
-                return radioRow.radios[0].settingValue;
-            };
-            /* 設定の値で選び直す（選択肢に無ければ先頭） / select by setting value, the first when unknown */
-            radioRow.setValue = function (settingValue) {
-                var isFound = false;
-                for (var j = 0; j < radioRow.radios.length; j++) {
-                    radioRow.radios[j].value = (radioRow.radios[j].settingValue === settingValue);
-                    if (radioRow.radios[j].value) isFound = true;
-                }
-                if (!isFound) radioRow.radios[0].value = true;
-            };
-            return radioRow;
-        }
-
-        /**
-         * 配置のラジオボタンを、上下左右の位置に合わせて3行3列に並べる（項目名は真ん中の行の高さ）。
-         * 行ごとに別のグループに入るので、排他はクリックで手で保つ
-         * @param {Panel} parent - 追加先
-         * @param {number} labelWidth - 項目名の幅（0 で文言なりの幅）
-         * @param {string} selectedValue - 選んでおく側（"top" / "bottom" / "left" / "right"）
-         * @returns {Group} 行（addRadioRow() と同じく .getValue() / .setValue() / .radios / .rowLabel を持つ）
-         */
-        function addSideGrid(parent, labelWidth, selectedValue) {
-            var sideRow = parent.add("group");
-            setupRow(sideRow);
-            var rowLabel = sideRow.add("statictext", undefined, labelText(LABELS.fieldLabel.side));
-            if (labelWidth) {
-                rowLabel.preferredSize.width = labelWidth;
-                rowLabel.justify = "right";
-            }
-            sideRow.rowLabel = rowLabel;
-            var gridColumn = sideRow.add("group");
-            gridColumn.orientation = "column";
-            gridColumn.alignChildren = ["left", "center"];
-            gridColumn.spacing = SIDE_GRID_SPACING;
-            /* 空きのマスは null / null marks an empty cell */
-            var gridLayout = [[null, "top", null], ["left", null, "right"], [null, "bottom", null]];
-            var radioLabelKeys = { top: "sideTop", bottom: "sideBottom", left: "sideLeft", right: "sideRight" };
-            sideRow.radios = [];
-
-            /**
-             * クリックしたラジオボタンだけを選び、ほかを外す
-             * @param {RadioButton} clickedRadio - クリックしたラジオボタン
-             * @returns {Function} onClick に入れる関数
-             */
-            function makeSideClickHandler(clickedRadio) {
-                return function () {
-                    for (var k = 0; k < sideRow.radios.length; k++) sideRow.radios[k].value = (sideRow.radios[k] === clickedRadio);
-                    onChoiceClick();
-                };
-            }
-
-            for (var rowIndex = 0; rowIndex < gridLayout.length; rowIndex++) {
-                var gridRow = gridColumn.add("group");
-                gridRow.orientation = "row";
-                gridRow.alignChildren = ["left", "center"];
-                gridRow.spacing = 0;
-                gridRow.margins = 0;
-                for (var columnIndex = 0; columnIndex < gridLayout[rowIndex].length; columnIndex++) {
-                    var cellSideKey = gridLayout[rowIndex][columnIndex];
-                    if (!cellSideKey) {
-                        var emptyCell = gridRow.add("group");
-                        emptyCell.preferredSize = [SIDE_GRID_CELL_WIDTH, 1];
-                        continue;
-                    }
-                    var sideRadio = gridRow.add("radiobutton", undefined, getLabel(LABELS.radio[radioLabelKeys[cellSideKey]]));
-                    sideRadio.preferredSize.width = SIDE_GRID_CELL_WIDTH;
-                    sideRadio.helpTip = getLabel(LABELS.tooltip[radioLabelKeys[cellSideKey]]);
-                    sideRadio.settingValue = cellSideKey;
-                    sideRadio.onClick = makeSideClickHandler(sideRadio);
-                    sideRow.radios.push(sideRadio);
-                }
-            }
-            sideRow.getValue = function () {
-                for (var j = 0; j < sideRow.radios.length; j++) {
-                    if (sideRow.radios[j].value) return sideRow.radios[j].settingValue;
-                }
-                return "bottom";
-            };
-            /* 設定の値で選び直す（知らない値なら下） / select by setting value, bottom when unknown */
-            sideRow.setValue = function (settingValue) {
-                var isFound = false;
-                for (var j = 0; j < sideRow.radios.length; j++) {
-                    sideRow.radios[j].value = (sideRow.radios[j].settingValue === settingValue);
-                    if (sideRow.radios[j].value) isFound = true;
-                }
-                if (!isFound) sideRow.setValue("bottom");
-            };
-            sideRow.setValue(selectedValue);
-            return sideRow;
-        }
-
-        /**
-         * カスタムのカラーの色見本を足す。クリックで Illustrator 標準のカラーピッカーを開き、選んだら［カスタム］にする
-         * @param {Group} parent - 追加先（線のカラーの行）
-         * @returns {Group} 色見本
-         */
-        function addColorSwatch(parent) {
-            var swatchGroup = parent.add("group");
-            swatchGroup.preferredSize = COLOR_SWATCH_SIZE;
-            swatchGroup.minimumSize = COLOR_SWATCH_SIZE;
-            swatchGroup.maximumSize = COLOR_SWATCH_SIZE;
-            swatchGroup.helpTip = getLabel(LABELS.tooltip.colorSwatch);
-            swatchGroup.onDraw = function () {
-                var swatchGraphics = swatchGroup.graphics;
-                var swatchRgb = colorDataToScreenRgb(customColorData);
-                /* newPath() を呼ばないとパスが積み重なる / without newPath() the paths accumulate */
-                swatchGraphics.newPath();
-                swatchGraphics.rectPath(0, 0, COLOR_SWATCH_SIZE[0], COLOR_SWATCH_SIZE[1]);
-                swatchGraphics.fillPath(swatchGraphics.newBrush(swatchGraphics.BrushType.SOLID_COLOR, [swatchRgb[0], swatchRgb[1], swatchRgb[2], 1]));
-                swatchGraphics.newPath();
-                swatchGraphics.rectPath(0.5, 0.5, COLOR_SWATCH_SIZE[0] - 1, COLOR_SWATCH_SIZE[1] - 1);
-                swatchGraphics.strokePath(swatchGraphics.newPen(swatchGraphics.PenType.SOLID_COLOR, [0.5, 0.5, 0.5, 1], 1));
-            };
-            swatchGroup.addEventListener("mousedown", function () {
-                /* OK ならドキュメントのカラーモードの型で、キャンセルなら渡した色がそのまま返る / returns the document's color model on OK, the passed color on cancel */
-                var pickedData = colorToColorData(app.showColorPicker(colorDataToColor(toDocumentColorData(customColorData))));
-                if (!pickedData || pickedData.toSource() === customColorData.toSource()) return;
-                customColorData = pickedData;
-                /* group には notify() が無いので、隠して表示し直して描き直す / groups have no notify(), so hide and show to redraw */
-                swatchGroup.hide();
-                swatchGroup.show();
-                colorRow.setValue("custom");
-                refreshPreview();
-            });
-            return swatchGroup;
-        }
-
-        /**
-         * チェックボックスを足す
-         * @param {Panel|Group} parent - 追加先（オプションのパネルか、ボタン行の左のグループ）
-         * @param {string} settingKey - 設定のキー（LABELS.checkbox・LABELS.tooltip も同じキー）
-         * @returns {Checkbox} チェックボックス
-         */
-        function addSettingCheckbox(parent, settingKey) {
-            var settingCheckbox = parent.add("checkbox", undefined, getLabel(LABELS.checkbox[settingKey]));
-            settingCheckbox.helpTip = getLabel(LABELS.tooltip[settingKey]);
-            settingCheckbox.value = initialSettings[settingKey];
-            return settingCheckbox;
-        }
-
-        /* プリセット（上部の中央） / Presets, centered at the top */
-        var presetRow = dialog.add("group");
-        setupRow(presetRow, "center", PRESET_ROW_SPACING);
-        presetRow.add("statictext", undefined, labelText(LABELS.fieldLabel.preset));
-        var presetDropdown = presetRow.add("dropdownlist");
-        presetDropdown.preferredSize.width = PRESET_DROPDOWN_WIDTH;
-        presetDropdown.helpTip = getLabel(LABELS.tooltip.preset);
-        var presetSaveIcon = addIconButton(presetRow, ICON_BUTTON_SIZE, drawSaveIcon);
-        presetSaveIcon.helpTip = getLabel(LABELS.tooltip.presetSave);
-        var presetDeleteIcon = addIconButton(presetRow, ICON_BUTTON_SIZE, drawTrashIcon);
-        presetDeleteIcon.helpTip = getLabel(LABELS.tooltip.presetDelete);
-        var presetEntries = [];          /* ドロップダウンの項目ごとの { name, data, isSaved }（区切り線は null） / per item; null for the separator */
-        var isApplyingPreset = false;    /* プリセットを入れている間は選択を外さない / keep the selection while a preset is applied */
-
-        /* 左にしっぽ、右に線の2カラム / two columns: tail on the left, line on the right */
-        var columnsGroup = dialog.add("group");
-        columnsGroup.orientation = "row";
-        columnsGroup.alignChildren = ["fill", "top"];
-        columnsGroup.spacing = COLUMN_SPACING;
-
-        /* 左の列：しっぽとオプション / left column: tail and options */
-        var leftColumn = columnsGroup.add("group");
-        leftColumn.orientation = "column";
-        leftColumn.alignChildren = ["fill", "top"];
-        leftColumn.alignment = ["fill", "top"];
-        leftColumn.spacing = WINDOW_SPACING;
-
-        /* しっぽ / Tail */
-        var tailPanel = leftColumn.add("panel", undefined, getLabel(LABELS.panel.tail));
-        setupPanel(tailPanel);
-        tailPanel.alignment = ["fill", "top"];
-        var shapeRow = addRadioRow(tailPanel, TAIL_LABEL_WIDTH, "shape", initialSettings.shapeKey, [["notch", "notch"], ["slash", "slash"], ["curly", "curly"]]);
-        var directionRow = addRadioRow(tailPanel, TAIL_LABEL_WIDTH, "direction", initialSettings.directionKey, [["center", "straightDown"], ["right", "downRight"], ["left", "downLeft"]]);
-        var slashAngleInput = addSteppedField(tailPanel, {
-            label: labelText(LABELS.fieldLabel.slashAngle), labelWidth: TAIL_LABEL_WIDTH,
-            text: formatStepperNumber(initialSettings.slashAngle) + "°",
-            characters: FIELD_CHARACTERS, step: 5, min: MIN_SLASH_ANGLE, max: 90, unit: "°",
-            onStep: refreshPreview
-        });
-        slashAngleInput.helpTip = getLabel(LABELS.tooltip.slashAngle);
-        refreshPreviewAfterChange(slashAngleInput);
-        var rootRow = addRadioRow(tailPanel, TAIL_LABEL_WIDTH, "root", initialSettings.rootKey, [["center", "rootCenter"], ["edge", "rootEdge"]]);
-        var positionSlider;
-        var positionInput = addSteppedField(tailPanel, {
-            label: labelText(LABELS.fieldLabel.position), labelWidth: TAIL_LABEL_WIDTH,
-            text: formatStepperNumber(initialSettings.position) + "%",
-            characters: FIELD_CHARACTERS, step: 5, min: 0, max: 100, unit: "%",
-            onStep: onPositionFieldChange
-        });
-        positionInput.helpTip = getLabel(LABELS.tooltip.position);
-        var normalizePositionOnChange = positionInput.onChange;
-        positionInput.onChange = function () {
-            normalizePositionOnChange();
-            onPositionFieldChange();
-        };
-        /* 位置の下の行にスライダーを置き、位置の項目名の幅だけ字下げして数値欄とそろえる / the slider sits on the next row, indented past the Position label */
-        var positionSliderRow = tailPanel.add("group");
-        setupRow(positionSliderRow, ["fill", "center"], STEPPER_FIELD_SPACING);
-        /* 右端を少しあけて、パネルいっぱいまでは伸ばさない / leave a little room on the right */
-        positionSliderRow.margins = [0, 0, POSITION_SLIDER_RIGHT_INSET, 0];
-        var positionSliderIndent = positionSliderRow.add("group");
-        positionSlider = positionSliderRow.add("slider", undefined, initialSettings.position, 0, 100);
-        positionSlider.preferredSize.width = POSITION_SLIDER_WIDTH;
-        positionSlider.alignment = ["fill", "center"];
-        positionSlider.helpTip = getLabel(LABELS.tooltip.position);
-        positionSlider.onChanging = function () {
-            positionInput.text = formatStepperNumber(Math.round(positionSlider.value)) + "%";
-            positionInput.lastValidText = positionInput.text;
-        };
-        positionSlider.onChange = function () {
-            positionSlider.onChanging();
-            refreshPreview();
-        };
-
-        /**
-         * 位置の数値欄が変わったら、スライダーを合わせてプレビューを描き直す
-         * @returns {void}
-         */
-        function onPositionFieldChange() {
-            positionSlider.value = readFieldNumber(positionInput);
-            refreshPreview();
-        }
-        var gapWidthInput = addLengthField(tailPanel, TAIL_LABEL_WIDTH, "gapWidth", rulerUnit, 0);
-        var tailWidthInput = addLengthField(tailPanel, TAIL_LABEL_WIDTH, "tailWidth", rulerUnit, 0);
-        var tailHeightInput = addLengthField(tailPanel, TAIL_LABEL_WIDTH, "tailHeight", rulerUnit, 0);
-        /* しっぽの項目名をいちばん長いものに揃えて右揃えにし、スライダーの字下げも同じ幅にする
-           Align the tail labels to the widest, right-justified, and indent the slider by the same width */
-        positionSliderIndent.preferredSize.width = alignLabelWidths([
-            shapeRow.rowLabel, directionRow.rowLabel, slashAngleInput.fieldLabel, rootRow.rowLabel,
-            positionInput.fieldLabel, gapWidthInput.fieldLabel, tailWidthInput.fieldLabel, tailHeightInput.fieldLabel
-        ]);
-
-        /* 線 / Line */
-        var linePanel = columnsGroup.add("panel", undefined, getLabel(LABELS.panel.line));
-        setupPanel(linePanel);
-        /* 縦の fill は効かず天地中央に置かれるので、上に揃える（下端は表示前にそろえる） / vertical fill centers the panel, so pin it to the top and align the bottoms before showing */
-        linePanel.alignment = ["fill", "top"];
-        var frameRow = addRadioRow(linePanel, LINE_LABEL_WIDTH, "frame", initialSettings.frameKey, [["underline", "underline"], ["bracket", "bracket"], ["box", "box"]], true);
-        /* 配置は開くたびにテキストの組み方から選ぶ（横組みは下、縦組みは右） / the side is picked from the text orientation on every open */
-        var sideRow = addSideGrid(linePanel, LINE_LABEL_WIDTH, getAutoSideKey(bubbleTargets));
-        var offsetInput = addLengthField(linePanel, LINE_LABEL_WIDTH, "offset", rulerUnit);
-        var extensionInput = addLengthField(linePanel, LINE_LABEL_WIDTH, "extension", rulerUnit);
-        var tickHeightInput = addLengthField(linePanel, LINE_LABEL_WIDTH, "tickHeight", rulerUnit, 0);
-        var cornerRadiusInput = addLengthField(linePanel, LINE_LABEL_WIDTH, "cornerRadius", rulerUnit, 0);
-        var strokeWidthInput = addLengthField(linePanel, LINE_LABEL_WIDTH, "strokeWidth", strokeUnit, 0.1);
-        var colorRow = addRadioRow(linePanel, LINE_LABEL_WIDTH, "lineColor", initialSettings.colorKey, [["text", "colorText"], ["custom", "colorCustom"]]);
-        var customColorData = initialSettings.customColor;
-        /* カスタムのラジオボタンは文言を出さず、すぐ右の色見本をラベル代わりにする / the custom radio has no text; the swatch beside it is its label */
-        colorRow.radios[1].text = "";
-        var colorSwatch = addColorSwatch(colorRow);
-        var capRow = addRadioRow(linePanel, LINE_LABEL_WIDTH, "cap", initialSettings.capKey, [["butt", "buttCap"], ["round", "roundCap"]]);
-        var shadowDistanceInput = addLengthField(linePanel, LINE_LABEL_WIDTH, "shadowDistance", rulerUnit, 0);
-        alignLabelWidths([
-            frameRow.rowLabel, sideRow.rowLabel, offsetInput.fieldLabel, extensionInput.fieldLabel, tickHeightInput.fieldLabel,
-            cornerRadiusInput.fieldLabel, strokeWidthInput.fieldLabel, colorRow.rowLabel, capRow.rowLabel, shadowDistanceInput.fieldLabel
-        ]);
-
-        /* オプション（しっぽの下） / Options, below the tail panel */
-        var optionsPanel = leftColumn.add("panel", undefined, getLabel(LABELS.panel.options));
-        setupPanel(optionsPanel, 6);
-        optionsPanel.alignment = ["fill", "top"];
-        var useAreaFrameCheckbox = addSettingCheckbox(optionsPanel, "useAreaFrame");
-        var convertToAreaTextCheckbox = addSettingCheckbox(optionsPanel, "convertToAreaText");
-        var groupWithTextCheckbox = addSettingCheckbox(optionsPanel, "groupWithText");
-
-        /* ボタン（左にプレビュー） / Buttons, with Preview on the left */
-        var buttonRow = addButtonRow(dialog);
-        var previewCheckbox = addSettingCheckbox(buttonRow.leftGroup, "preview");
-        buttonRow.rightGroup.add("button", undefined, getLabel(LABELS.button.cancel), { name: "cancel" });
-        buttonRow.rightGroup.add("button", undefined, getLabel(LABELS.button.ok), { name: "ok" });
-        alignRightOnlyButtonRow(buttonRow);
-
-        /* 設定のキーと、それを入れる行・欄 / where each setting lives in the dialog */
-        var choiceRows = { shapeKey: shapeRow, directionKey: directionRow, rootKey: rootRow, frameKey: frameRow, sideKey: sideRow, capKey: capRow };
-        var lengthFields = {
-            gapWidth: [gapWidthInput, rulerUnit], tailWidth: [tailWidthInput, rulerUnit], tailHeight: [tailHeightInput, rulerUnit],
-            offset: [offsetInput, rulerUnit], extension: [extensionInput, rulerUnit], tickHeight: [tickHeightInput, rulerUnit],
-            cornerRadius: [cornerRadiusInput, rulerUnit], shadowDistance: [shadowDistanceInput, rulerUnit], strokeWidth: [strokeWidthInput, strokeUnit]
-        };
-
-        /**
-         * プリセットのドロップダウンを作り直す（最初からあるもの、区切り線、保存したもの）
-         * @param {string|null} selectedName - 選んでおく保存したプリセット名（なければ選ばない）
-         * @returns {void}
-         */
-        function fillPresetDropdown(selectedName) {
-            isApplyingPreset = true;
-            presetDropdown.removeAll();
-            presetEntries = [];
-            var i;
-            for (i = 0; i < BUILTIN_PRESETS.length; i++) {
-                presetDropdown.add("item", getLabel(BUILTIN_PRESETS[i].name));
-                presetEntries.push({ name: getLabel(BUILTIN_PRESETS[i].name), data: BUILTIN_PRESETS[i], isSaved: false });
-            }
-            var savedPresets = loadSavedPresets();
-            var savedNames = [];
-            for (var presetName in savedPresets) {
-                if (savedPresets.hasOwnProperty(presetName)) savedNames.push(presetName);
-            }
-            savedNames.sort();
-            if (savedNames.length) {
-                presetDropdown.add("separator");
-                presetEntries.push(null);
-            }
-            for (i = 0; i < savedNames.length; i++) {
-                presetDropdown.add("item", savedNames[i]);
-                presetEntries.push({ name: savedNames[i], data: savedPresets[savedNames[i]], isSaved: true });
-                if (savedNames[i] === selectedName) presetDropdown.selection = presetDropdown.items.length - 1;
-            }
-            isApplyingPreset = false;
-            updatePresetIcons();
-        }
-
-        /**
-         * 選んでいるプリセットの項目を返す
-         * @returns {Object|null} { name, data, isSaved }。選んでいなければ null
-         */
-        function getSelectedPresetEntry() {
-            return presetDropdown.selection ? presetEntries[presetDropdown.selection.index] : null;
-        }
-
-        /**
-         * 削除のアイコンは、保存したプリセットを選んでいるときだけ使えるようにする
-         * @returns {void}
-         */
-        function updatePresetIcons() {
-            var selectedEntry = getSelectedPresetEntry();
-            setIconButtonEnabled(presetDeleteIcon, !!(selectedEntry && selectedEntry.isSaved));
-        }
-
-        /**
-         * 設定を手で変えたら、プリセットの選択を外す
-         * @returns {void}
-         */
-        function clearPresetSelection() {
-            if (isApplyingPreset || !presetDropdown.selection) return;
-            isApplyingPreset = true;
-            presetDropdown.selection = null;
-            isApplyingPreset = false;
-            updatePresetIcons();
-        }
-
-        /**
-         * プリセットをダイアログに入れてプレビューを描き直す
-         * @param {Object} presetData - プリセット
-         * @returns {void}
-         */
-        function applyPreset(presetData) {
-            var presetSettings = resolvePresetSettings(presetData, bubbleTargets[0].fontSize, rulerUnit, strokeUnit);
-            isApplyingPreset = true;
-            /* 配置を決めていないプリセットは、テキストの組み方から選ぶ / presets without a side follow the text orientation */
-            if (presetSettings.sideKey === "auto") presetSettings.sideKey = getAutoSideKey(bubbleTargets);
-            for (var choiceKey in choiceRows) {
-                if (choiceRows.hasOwnProperty(choiceKey)) choiceRows[choiceKey].setValue(presetSettings[choiceKey]);
-            }
-            positionInput.text = formatStepperNumber(presetSettings.position) + "%";
-            positionInput.lastValidText = positionInput.text;
-            positionSlider.value = presetSettings.position;
-            slashAngleInput.text = formatStepperNumber(presetSettings.slashAngle) + "°";
-            slashAngleInput.lastValidText = slashAngleInput.text;
-            useAreaFrameCheckbox.value = presetSettings.useAreaFrame;
-            for (var sizeKey in lengthFields) {
-                if (!lengthFields.hasOwnProperty(sizeKey)) continue;
-                var lengthInput = lengthFields[sizeKey][0];
-                var lengthUnit = lengthFields[sizeKey][1];
-                lengthInput.text = formatStepperNumber(ptToUnit(presetSettings[sizeKey], lengthUnit)) + " " + lengthUnit.label;
-                lengthInput.lastValidText = lengthInput.text;
-            }
-            isApplyingPreset = false;
-            updateControlsEnabled();
+        function refreshPreview() {
+            presetBinding.clearSelection();
             drawPreview();
         }
 
-        /**
-         * 今の設定をプリセットの形にする（寸法は pt）
-         * @returns {Object} { choices, position, slashAngle, useAreaFrame, sizes }
-         */
-        function collectPresetData() {
-            var dialogSettings = readDialogSettings();
-            var presetData = { choices: {}, position: dialogSettings.position, slashAngle: dialogSettings.slashAngle, useAreaFrame: dialogSettings.useAreaFrame, sizes: {} };
-            var i;
-            for (i = 0; i < PRESET_CHOICE_KEYS.length; i++) presetData.choices[PRESET_CHOICE_KEYS[i]] = dialogSettings[PRESET_CHOICE_KEYS[i]];
-            for (i = 0; i < PRESET_SIZE_KEYS.length; i++) presetData.sizes[PRESET_SIZE_KEYS[i]] = dialogSettings[PRESET_SIZE_KEYS[i]];
-            return presetData;
-        }
-
-        presetDropdown.onChange = function () {
-            if (isApplyingPreset) return;
-            updatePresetIcons();
-            var selectedEntry = getSelectedPresetEntry();
-            if (selectedEntry) applyPreset(selectedEntry.data);
-        };
-
-        presetSaveIcon.onClick = function () {
-            var selectedEntry = getSelectedPresetEntry();
-            var presetName = showPresetNameDialog((selectedEntry && selectedEntry.isSaved) ? selectedEntry.name : "");
-            if (!presetName) return;
-            if (isBuiltinPresetName(presetName)) {
-                alert(getLabel(LABELS.alert.presetBuiltinName));
-                return;
-            }
-            var savedPresets = loadSavedPresets();
-            /* 同じ名前の上書きは確認する（既定のボタンは［いいえ］） / confirm overwriting, defaulting to No */
-            if (savedPresets.hasOwnProperty(presetName) && !confirm(getLabel(LABELS.confirm.presetOverwrite, { name: presetName }), true)) return;
-            savedPresets[presetName] = collectPresetData();
-            if (writeSavedPresets(savedPresets)) fillPresetDropdown(presetName);
-        };
-
-        presetDeleteIcon.onClick = function () {
-            var selectedEntry = getSelectedPresetEntry();
-            if (!selectedEntry || !selectedEntry.isSaved) return;
-            if (!confirm(getLabel(LABELS.confirm.presetDelete, { name: selectedEntry.name }), true)) return;
-            var savedPresets = loadSavedPresets();
-            delete savedPresets[selectedEntry.name];
-            if (writeSavedPresets(savedPresets)) fillPresetDropdown(null);
-        };
-
-        /**
-         * ダイアログの値を pt の設定にまとめる
-         * @returns {BubbleSettings} 設定
-         */
-        function readDialogSettings() {
-            return {
-                shapeKey: shapeRow.getValue(),
-                directionKey: directionRow.getValue(),
-                rootKey: rootRow.getValue(),
-                frameKey: frameRow.getValue(),
-                sideKey: sideRow.getValue(),
-                position: readFieldNumber(positionInput),
-                slashAngle: readFieldNumber(slashAngleInput),
-                gapWidth: unitToPt(readFieldNumber(gapWidthInput), rulerUnit),
-                tailWidth: unitToPt(readFieldNumber(tailWidthInput), rulerUnit),
-                tailHeight: unitToPt(readFieldNumber(tailHeightInput), rulerUnit),
-                offset: unitToPt(readFieldNumber(offsetInput), rulerUnit),
-                extension: unitToPt(readFieldNumber(extensionInput), rulerUnit),
-                tickHeight: unitToPt(readFieldNumber(tickHeightInput), rulerUnit),
-                cornerRadius: unitToPt(readFieldNumber(cornerRadiusInput), rulerUnit),
-                shadowDistance: unitToPt(readFieldNumber(shadowDistanceInput), rulerUnit),
-                strokeWidth: unitToPt(readFieldNumber(strokeWidthInput), strokeUnit),
-                capKey: capRow.getValue(),
-                colorKey: colorRow.getValue(),
-                customColor: customColorData,
-                useAreaFrame: useAreaFrameCheckbox.value,
-                convertToAreaText: convertToAreaTextCheckbox.value,
-                groupWithText: groupWithTextCheckbox.value,
-                preview: previewCheckbox.value
-            };
-        }
-
-        /**
-         * 今の選択で使わない項目を無効にする
-         * @returns {void}
-         */
-        function updateControlsEnabled() {
-            var isSlash = (shapeRow.getValue() === "slash");
-            var isStraight = (directionRow.getValue() === "center");
-            var frameKey = frameRow.getValue();
-            rootRow.enabled = isSlash && !isStraight;
-            /* 斜線は横の長さを角度で決める / a slash takes its run from the angle */
-            setSteppedFieldEnabled(tailWidthInput, !isStraight && !isSlash);
-            setSteppedFieldEnabled(slashAngleInput, !isStraight && isSlash);
-            setSteppedFieldEnabled(tickHeightInput, frameKey === "bracket");
-            setSteppedFieldEnabled(cornerRadiusInput, frameKey !== "underline");
-            setSteppedFieldEnabled(shadowDistanceInput, frameKey === "box");
-            convertToAreaTextCheckbox.enabled = (frameKey === "box");
-            /* すべてエリア内文字で枠を基準にするときは、間隔・左右の伸びを使わない / unused when every text is area type measured by its frame */
-            var isLengthFromGlyphs = !(useAreaFrameCheckbox.value && isAllAreaText);
-            setSteppedFieldEnabled(offsetInput, isLengthFromGlyphs);
-            setSteppedFieldEnabled(extensionInput, isLengthFromGlyphs);
-        }
-
-        /**
-         * ラジオボタンを切り替えたとき
-         * @returns {void}
-         */
-        function onChoiceClick() {
-            updateControlsEnabled();
-            refreshPreview();
-        }
+        var presetBinding = bindPresetControls(presetControls, readDialogSettings, function (presetData) {
+            var presetSettings = resolvePresetSettings(presetData, bubbleTargets[0].fontSize, rulerUnit, strokeUnit);
+            /* 配置を決めていないプリセットは、テキストの組み方から選ぶ / presets without a side follow the text orientation */
+            if (presetSettings.sideKey === "auto") presetSettings.sideKey = getAutoSideKey(bubbleTargets);
+            applySettingsToControls(dialogControls, presetSettings, rulerUnit, strokeUnit);
+            updateControlsEnabled(dialogControls, areaTextState.isAllAreaText);
+            drawPreview();
+        });
 
         previewCheckbox.onClick = drawPreview;
-        useAreaFrameCheckbox.onClick = function () {
-            updateControlsEnabled();
-            refreshPreview();
-        };
+        dialogControls.useAreaFrameCheckbox.onClick = dialogHandlers.onChoice;
         /* エリア内文字を選んでいないときは使わない / unused without area type in the selection */
-        var hasAreaText = false;
-        var isAllAreaText = true;
-        for (var targetIndex = 0; targetIndex < bubbleTargets.length; targetIndex++) {
-            if (bubbleTargets[targetIndex].areaFrameBounds) hasAreaText = true;
-            else isAllAreaText = false;
-        }
-        useAreaFrameCheckbox.enabled = hasAreaText;
-        fillPresetDropdown(null);
-        updateControlsEnabled();
+        dialogControls.useAreaFrameCheckbox.enabled = areaTextState.hasAreaText;
+        presetBinding.fill(null);
+        updateControlsEnabled(dialogControls, areaTextState.isAllAreaText);
 
         /* 開く前にプレビューを描いておく / draw the preview before the dialog opens */
         if (previewCheckbox.value) drawPreview();
 
-        alignColumnBottoms([{ column: leftColumn, lastPanel: optionsPanel }, { column: linePanel, lastPanel: linePanel }]);
-        prepareDialogWindow(dialog, SCRIPT_NAME);
-        var dialogResult = dialog.show();
+        alignColumnBottoms([{ column: leftColumn, lastPanel: textOptionControls.panel }, { column: lineControls.panel, lastPanel: lineControls.panel }]);
+        prepareDialogWindow(bubbleDialog, SCRIPT_NAME);
+        var dialogResult = bubbleDialog.show();
         var dialogSettings = readDialogSettings();
         clearPreview();
         app.redraw();
         return (dialogResult === 1) ? dialogSettings : null;
+    }
+
+    /**
+     * 選択の中のエリア内文字の有無を調べる
+     * @param {BubbleTarget[]} bubbleTargets - 対象
+     * @returns {{hasAreaText: boolean, isAllAreaText: boolean}} 1つでもあるか、すべてそうか
+     */
+    function getAreaTextState(bubbleTargets) {
+        var areaTextState = { hasAreaText: false, isAllAreaText: true };
+        for (var i = 0; i < bubbleTargets.length; i++) {
+            if (bubbleTargets[i].areaFrameBounds) areaTextState.hasAreaText = true;
+            else areaTextState.isAllAreaText = false;
+        }
+        return areaTextState;
     }
 
     // =========================================
