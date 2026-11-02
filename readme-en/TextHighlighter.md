@@ -42,7 +42,7 @@ Chosen in the dropdown at the top of Settings. The dropdown's tooltip describes 
 
 - Stacking Order (right of Style): Front or Back. Back (the default) draws behind the text; Front draws in front of it.
 - Shape: turns Fill and Stroke on or off independently. Fill uses Fill Color; Stroke uses Stroke Color, Weight and Line Type.
-- Fill Color: used for Fill, Emphasis Dots and the Fill of shapes. Choose Custom, White or Text Color (Text Color by default).
+- Fill Color: used for Fill, Emphasis Dots and the Fill of shapes. Choose Custom, Text Color or White (Text Color by default).
 - Stroke Color: used for line styles and the Stroke of shapes. Choose Custom, Yellow (Y100), Red (M100Y100) or Text Color (Yellow by default).
   - Text Color is the fill of the first target character; for Custom, click the swatch to choose with Illustrator's standard color picker.
   - The color not in use is dimmed.
@@ -141,10 +141,11 @@ https://note.com/dtp_tranist/n/na1804afb7fe2
 
 ### Script info
 
-- Version: v1.7.0
+- Version: v1.7.1
 
 ### Update History
 
+- v1.7.1 (2026-11-02) Fill Color now lists Custom, Text Color, then White
 - v1.7.0 (2026-11-02) Turned the White checkbox under Text into Text Color radio buttons (No Change, White, Custom); Custom takes its color from the Color Picker via the swatch (White in presets from earlier versions loads as White when on and No Change when off); added Match Padding to Text (for Box, Circle and Hexagon per line, Kerning (Before) / (After) come from Padding (H) and the type size, with fine adjustment in the fields; on by default, including presets from earlier versions); the preview is now always on, replacing the Preview checkbox with Reset (returns to the state at opening, clearing Kerning (Before) / (After) and Tracking and turning Match Padding off); preset icons now show Delete on the left and Save / Overwrite on the right; Shape, Fill Color and Stroke Color moved below Style as rows spanning both Settings columns, with their radio buttons on one line (Custom and its swatch first); regrouped the two Settings columns into lines and per-style effects on the left (Weight, Line Type, Segments, Gap, Cap, Line Gap, Angle, Zigzag, Roughen) and placement and size on the right (Opacity, Offset, Padding, Line Length, Leading, Unit, Corner Radius, Continuity, Rotate, Dot Size); moved Text Color to the top of the Text panel, laid the Kerning radio buttons out in a row, and turned Kerning (Before), Tracking and Kerning (After) into three fields with their labels above
 - v1.6.0 (2026-11-02) Merged the Roughen detail into Ridges, moved Roughen below the Zigzag fields in the right column and Padding (H) / Padding (V) to the bottom of the left column; turned the Per Character checkbox into Unit radio buttons (Line / Per Character); moved Stacking Order to the right of Style and Unit to the bottom right of the right column under Settings
 - v1.5.0 (2026-11-02) Added an Overwrite icon to Presets (writes the current settings into the selected preset without asking for a name or confirmation); turned the Hand-Drawn style into a Hand-Drawn option under Roughen that works with every style (with Size in % and Detail; the former Hand-Drawn style loads as Marker with Hand-Drawn on); retuned the built-in presets, added Yellow Marker (Hand-Drawn), Band per Line (Touching), Band per Line (Hand-Drawn), Frame per Line and Frame per Line (Hand-Drawn), and reordered them by Style (fixed lengths except Text-Color Strikethrough and Double Strikethrough; Redaction now uses Back; every preset carries the Line Length, Leading and Text settings); fixed clicking the chosen preset again after changing settings not loading it, so the saved Offset, Weight and so on could not be brought back (changing a setting now deselects the list)
