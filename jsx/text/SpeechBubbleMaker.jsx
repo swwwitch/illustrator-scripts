@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.SpeechBubbleMaker
 Name=テキストに吹き出しのしっぽ付きの下線・囲みを描く
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.1.0
+Version=1.1.2
 Release-Date=2026-11-02
 Description-BEGIN
 選択したテキストに、吹き出しのしっぽ（V字・斜線・すぼまり）の付いた下線・コの字・囲みを描きます。線は上下左右のどの側にも描けます。
@@ -44,7 +44,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SpeechBubb
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SpeechBubbleMaker";            /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-11-02";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-11-03";                   /* 更新日 / last updated */
@@ -136,7 +136,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         },
         {
             name: { ja: "下線・斜線（右下）", en: "Underline, slash down right" },
-            choices: { shapeKey: "slash", directionKey: "right", rootKey: "center", frameKey: "underline" },
+            choices: { shapeKey: "slash", directionKey: "right", rootKey: "center", frameKey: "underline", capKey: "round" },
             ratios: { gapWidth: 0.5, tailWidth: 0.4, tailHeight: 0.4 }
         },
         {
@@ -148,7 +148,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         },
         {
             name: { ja: "下線・斜線（左下）", en: "Underline, slash down left" },
-            choices: { shapeKey: "slash", directionKey: "left", rootKey: "center", frameKey: "underline" },
+            choices: { shapeKey: "slash", directionKey: "left", rootKey: "center", frameKey: "underline", capKey: "round" },
             ratios: { gapWidth: 0.5, tailWidth: 0.4, tailHeight: 0.4 }
         },
         null, /* 区切り線 / separator */
@@ -1251,8 +1251,8 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
                 en: "The slash starts at the edge of the gap, joined to the line."
             },
             slashShiftX: {
-                ja: "線と離した斜線を、線に沿ってずらします（プラスで右、配置が左右なら下）。",
-                en: "Shifts a detached slash along the line (positive moves it right, or down on the left or right side)."
+                ja: "線と離した斜線を、線に沿ってずらします（プラスで右、配置が左右なら下）。向きを選ぶと、［右へ］は線幅の半分のマイナス、［左へ］はプラスが入ります。",
+                en: "Shifts a detached slash along the line (positive moves it right, or down on the left or right side). Picking a direction sets it to minus half the weight for Right, plus for Left."
             },
             slashShiftY: {
                 ja: "線と離した斜線を、線と直角にずらします（プラスで外側＝しっぽの出る向き、マイナスで文字の側）。",
@@ -3666,6 +3666,18 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
     }
 
     /**
+     * 斜線の左右の調整の既定値を返す。斜線の傾きぶん線幅の半分だけ戻す（右へはマイナス、左へはプラス、真下は 0）
+     * @param {string} directionKey - しっぽの向き（"center" / "right" / "left"）
+     * @param {number} strokeWidth - 線幅（pt）
+     * @returns {number} 左右の調整（pt）
+     */
+    function getDefaultSlashShiftX(directionKey, strokeWidth) {
+        if (directionKey === "right") return -strokeWidth / 2;
+        if (directionKey === "left") return strokeWidth / 2;
+        return 0;
+    }
+
+    /**
      * 文字サイズに対する比率から、寸法（pt）を作る。単位の小数第1位で丸め、書かれていない項目は DEFAULT_SIZE_RATIOS を使う
      * @param {Object} sizeRatios - 寸法のキーと比率
      * @param {number} fontSize - 文字サイズ（pt）
@@ -3746,6 +3758,11 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         for (i = 0; i < PRESET_SIZE_KEYS.length; i++) {
             var sizeKey = PRESET_SIZE_KEYS[i];
             presetSettings[sizeKey] = (typeof savedSizes[sizeKey] === "number") ? savedSizes[sizeKey] : scaledSizes[sizeKey];
+        }
+        /* 左右の調整を決めていない斜線のプリセットは、向きに合わせて線幅の半分ずらす / slash presets without a nudge get half the weight by direction */
+        var hasSlashShiftX = (typeof savedSizes.slashShiftX === "number") || (presetData.ratios && typeof presetData.ratios.slashShiftX === "number");
+        if (presetSettings.shapeKey === "slash" && !hasSlashShiftX) {
+            presetSettings.slashShiftX = getDefaultSlashShiftX(presetSettings.directionKey, presetSettings.strokeWidth);
         }
         return presetSettings;
     }
@@ -4088,6 +4105,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
      * @typedef {Object} DialogHandlers
      * @property {Function} onEdit - 数値・色を変えたとき（プリセットの選択を外してプレビュー）
      * @property {Function} onChoice - ラジオボタンを選び直したとき（使わない項目の切り替えとプレビュー）
+     * @property {Function} onTailChoice - しっぽの形状・向きを選び直したとき（斜線の左右の調整を入れ直してから onChoice）
      */
 
     /**
@@ -4123,9 +4141,9 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         tailPanel.alignment = ["fill", "top"];
         var tailControls = { panel: tailPanel };
         tailControls.shapeRow = addRadioRow(tailPanel, "shape", initialSettings.shapeKey,
-            [["notch", "notch"], ["slash", "slash"], ["curly", "curly"]], dialogHandlers.onChoice);
+            [["notch", "notch"], ["slash", "slash"], ["curly", "curly"]], dialogHandlers.onTailChoice);
         tailControls.directionRow = addRadioRow(tailPanel, "direction", initialSettings.directionKey,
-            [["center", "straightDown"], ["right", "downRight"], ["left", "downLeft"]], dialogHandlers.onChoice);
+            [["center", "straightDown"], ["right", "downRight"], ["left", "downLeft"]], dialogHandlers.onTailChoice);
         tailControls.slashAngleInput = addNumberField(tailPanel, "slashAngle", formatStepperNumber(initialSettings.slashAngle) + "°",
             { step: 5, min: MIN_SLASH_ANGLE, max: 90, unit: "°" }, dialogHandlers.onEdit);
         tailControls.rootRow = addRadioRow(tailPanel, "root", initialSettings.rootKey,
@@ -4491,6 +4509,15 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             onChoice: function () {
                 updateControlsEnabled(dialogControls, areaTextState.isAllAreaText);
                 refreshPreview();
+            },
+            /* 形状・向きを選び直したら、斜線の左右の調整を向きに合わせて入れ直す / re-pick the slash nudge when the shape or direction changes */
+            onTailChoice: function () {
+                var currentSettings = readDialogSettings();
+                if (currentSettings.shapeKey === "slash") {
+                    var shiftX = getDefaultSlashShiftX(currentSettings.directionKey, currentSettings.strokeWidth);
+                    writeFieldText(dialogControls.lengthFields.slashShiftX.input, formatStepperNumber(ptToUnit(shiftX, rulerUnit)) + " " + rulerUnit.label);
+                }
+                dialogHandlers.onChoice();
             }
         };
 
