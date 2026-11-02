@@ -141,10 +141,11 @@ https://note.com/dtp_tranist/n/na1804afb7fe2
 
 ### Script info
 
-- Version: v1.7.2
+- Version: v1.7.3
 
 ### Update History
 
+- v1.7.3 (2026-11-02) Added a tooltip to Auto under Kerning and expanded the Optical tooltip; internal cleanup (clearer names, shared duplicate code, split long functions)
 - v1.7.2 (2026-11-02) Merged Fill and Stroke under Shape into a Draw checkbox at the start of the Fill and Stroke rows (formerly Fill Color and Stroke Color); Stroke now lists Custom, Text Color, Yellow, then Red; renamed Even under Leading to Leading-Based under Line Height; updated the overview and README
 - v1.7.1 (2026-11-02) Fill Color now lists Custom, Text Color, then White
 - v1.7.0 (2026-11-02) Turned the White checkbox under Text into Text Color radio buttons (No Change, White, Custom); Custom takes its color from the Color Picker via the swatch (White in presets from earlier versions loads as White when on and No Change when off); added Match Padding to Text (for Box, Circle and Hexagon per line, Kerning (Before) / (After) come from Padding (H) and the type size, with fine adjustment in the fields; on by default, including presets from earlier versions); the preview is now always on, replacing the Preview checkbox with Reset (returns to the state at opening, clearing Kerning (Before) / (After) and Tracking and turning Match Padding off); preset icons now show Delete on the left and Save / Overwrite on the right; Shape, Fill Color and Stroke Color moved below Style as rows spanning both Settings columns, with their radio buttons on one line (Custom and its swatch first); regrouped the two Settings columns into lines and per-style effects on the left (Weight, Line Type, Segments, Gap, Cap, Line Gap, Angle, Zigzag, Roughen) and placement and size on the right (Opacity, Offset, Padding, Line Length, Leading, Unit, Corner Radius, Continuity, Rotate, Dot Size); moved Text Color to the top of the Text panel, laid the Kerning radio buttons out in a row, and turned Kerning (Before), Tracking and Kerning (After) into three fields with their labels above

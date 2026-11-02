@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.DrawMarkerBehindText
 Name=文字にマーカー・アンダーライン・取り消し線を引く
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.7.2
+Version=1.7.3
 Release-Date=2026-11-01
 Description-BEGIN
 文字ツールで選んだ文字やテキストオブジェクトに、字面に合わせてマーカー・アンダーライン・取り消し線などの線や、長方形・円・六角形・傍点を描きます（文字の背面・前面を選べ、複数行は行ごと。行頭・行長・行送りの間隔もそろえられます）。
@@ -47,7 +47,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TextHighli
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "TextHighlighter";              /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.7.2";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.7.3";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-11-01";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-11-02";                   /* 更新日 / last updated */
@@ -152,8 +152,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
 
     /* ［テキストカラー］に並べる選択肢（"keepTextColor" は文字の塗りを変えない。"custom" は先頭に色見本付きで置く）と、開いたときに選んでおくもの
        Choices listed in Text Color ("keepTextColor" leaves the fill unchanged; "custom" goes first with its swatch), and the one chosen when the dialog box opens */
-    var TEXT_COLOR_CHOICES = ["keepTextColor", "white", "custom"];
-    var DEFAULT_TEXT_COLOR_CHOICE = "keepTextColor";
+    var TEXT_FILL_COLOR_CHOICES = ["keepTextColor", "white", "custom"];
+    var DEFAULT_TEXT_FILL_COLOR_CHOICE = "keepTextColor";
 
     /* ［長方形］の角丸の半径の初期値（pt。0 で角丸なし） / Initial corner radius of the boxes (pt; 0 for square corners) */
     var DEFAULT_CORNER_RADIUS = 0;
@@ -2614,7 +2614,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             kerningBefore:  { ja: "カーニング（前）", en: "Kerning (Before)" },
             kerningAfter:   { ja: "カーニング（後）", en: "Kerning (After)" },
             lineLength:     { ja: "行長", en: "Line Length" },
-            leading:        { ja: "行の高さ", en: "Line Height" },
+            lineHeight:     { ja: "行の高さ", en: "Line Height" },
             roughen:        { ja: "ラフ", en: "Roughen" },
             roughenSize:    { ja: "サイズ", en: "Size" },
             drawUnit:       { ja: "単位", en: "Unit" },
@@ -2689,10 +2689,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
                 en: "Draws Box, Circle or Hexagon per character (as tall as the line's glyphs, at least as wide as tall; Circle and Hexagon fit the longer side); skips punctuation, brackets and spaces"
             },
             swatch:    { ja: "クリックしてカラーピッカーで変更", en: "Click to change in the Color Picker" },
-            textColor: {
-                ja: "対象の先頭の文字の塗りを使います（テキストオブジェクトごと）",
-                en: "Uses the fill of the first target character (per text object)"
-            },
+            textColor: { ja: "対象の先頭の文字の塗りを使います（テキストオブジェクトごと）", en: "Uses the fill of the first target character (per text object)" },
             opacity:   { ja: "線・図形の不透明度です", en: "Opacity of the lines and shapes" },
             verticalOffset: {
                 ja: "種類ごとの位置から、線や図形を上下にずらす量です。プラスで上、マイナスで下へずれます（縦組みは左右。プラスで左）",
@@ -2706,10 +2703,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
                 ja: "線ごとの破線の線分の数です。線分の長さは、線の両端が線分で終わるように決めます。空欄なら線幅の約2倍の線分になる数にします",
                 en: "Number of dashes per line; their length makes both ends finish with a dash. Leave blank for dashes about twice the line width"
             },
-            dashGap: {
-                ja: "破線の線分のあいだ、ドットの点のあいだの長さです",
-                en: "Space between dashes or between dots"
-            },
+            dashGap: { ja: "破線の線分のあいだ、ドットの点のあいだの長さです", en: "Space between dashes or between dots" },
             dottedLine: {
                 ja: "線幅の大きさの丸い点を、点のあいだが［間隔］に近くなるように並べます。線の両端に点が来ます（線端は丸型になります）",
                 en: "Round dots as large as the line width, spaced close to Gap, with dots at both ends (the cap becomes round)"
@@ -2721,10 +2715,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
                 ja: "線や図形を描いたあと、対象の文字の塗りをこのカラーにします",
                 en: "Sets the fill of the target characters to this color after drawing"
             },
-            shapeFill: {
-                ja: "［長方形］［円］［六角形］の図形を、この行のカラーで塗ります",
-                en: "Fills Box, Circle and Hexagon shapes with the color on this row"
-            },
+            shapeFill: { ja: "［長方形］［円］［六角形］の図形を、この行のカラーで塗ります", en: "Fills Box, Circle and Hexagon shapes with the color on this row" },
             shapeStroke: {
                 ja: "［長方形］［円］［六角形］の図形に、この行のカラーで線を付けます（［線幅］［線の種類］を使います）",
                 en: "Strokes Box, Circle and Hexagon shapes with the color on this row (uses Weight and Line Type)"
@@ -2778,7 +2769,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
                 ja: "自動カーニングを切り、手動のカーニングも 0 にします。プロポーショナルメトリクスはオフにします",
                 en: "Turns auto kerning off and sets manual kerning to 0; turns Proportional Metrics off"
             },
-            opticalKerning: { ja: "プロポーショナルメトリクスはオフにします", en: "Turns Proportional Metrics off" },
+            metricsKerning: { ja: "フォントのペアカーニングの情報（メトリクス）でカーニングします", en: "Kerns with the font's pair kerning (metrics)" },
+            opticalKerning: { ja: "字形の形でカーニングします。プロポーショナルメトリクスはオフにします", en: "Kerns by the glyph shapes; turns Proportional Metrics off" },
             tracking: {
                 ja: "対象の文字のトラッキングです（1/1000 em）。空欄なら変更しません",
                 en: "Tracking of the target characters (1/1000 em); leave blank to keep it"
@@ -2859,19 +2851,34 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
      * @returns {Color} RGBColor または CMYKColor
      */
     function createDocumentColor(doc, rgbValues, cmykValues) {
-        if (doc.documentColorSpace === DocumentColorSpace.CMYK) {
-            var cmykColor = new CMYKColor();
-            cmykColor.cyan = cmykValues[0];
-            cmykColor.magenta = cmykValues[1];
-            cmykColor.yellow = cmykValues[2];
-            cmykColor.black = cmykValues[3];
-            return cmykColor;
-        }
+        return (doc.documentColorSpace === DocumentColorSpace.CMYK) ? createCmykColor(cmykValues) : createRgbColor(rgbValues);
+    }
+
+    /**
+     * RGB の色を作る
+     * @param {number[]} rgbValues - R, G, B（0〜255）
+     * @returns {RGBColor} 色
+     */
+    function createRgbColor(rgbValues) {
         var rgbColor = new RGBColor();
         rgbColor.red = rgbValues[0];
         rgbColor.green = rgbValues[1];
         rgbColor.blue = rgbValues[2];
         return rgbColor;
+    }
+
+    /**
+     * CMYK の色を作る
+     * @param {number[]} cmykValues - C, M, Y, K（0〜100）
+     * @returns {CMYKColor} 色
+     */
+    function createCmykColor(cmykValues) {
+        var cmykColor = new CMYKColor();
+        cmykColor.cyan = cmykValues[0];
+        cmykColor.magenta = cmykValues[1];
+        cmykColor.yellow = cmykValues[2];
+        cmykColor.black = cmykValues[3];
+        return cmykColor;
     }
 
     /**
@@ -3258,7 +3265,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
      * @param {number} glyphHeightPt - 線幅と余白の初期値のもとにする字面の高さ（pt）
      * @param {boolean} isTextColorUsable - ［文字色］を使えるか
      * @param {Function} onSettingChange - 設定を変えたあとに呼ぶ関数
-     * @returns {Object} コントロールと単位 { lineStyleRow, shearAngleInput, zigzagSizeInput, zigzagRidgesInput, zigzagPointsRow, boxPaddingInput, cornerRadiusInput, boxRotationInput, lineGapInput, dotSizeInput, fillColorRow, strokeColorRow, opacityInput, strokeWidthInput, verticalOffsetInput, dashStyleRow, strokeCapRow, shapeFillOption, shapeStrokeOption, kerningRow, trackingInput, kerningBeforeInput, kerningAfterInput, textColorRow, perCharOption, rulerUnit, strokeUnit, labelColumns }
+     * @returns {Object} コントロールと単位 { lineStyleRow, shearAngleInput, zigzagSizeInput, zigzagRidgesInput, zigzagPointsRow, boxPaddingInput, cornerRadiusInput, boxRotationInput, lineGapInput, dotSizeInput, fillColorRow, strokeColorRow, opacityInput, strokeWidthInput, verticalOffsetInput, dashStyleRow, strokeCapRow, shapeFillOption, shapeStrokeOption, kerningRow, trackingInput, kerningBeforeInput, kerningAfterInput, textFillColorRow, perCharOption, rulerUnit, strokeUnit, labelColumns }
      *     （labelColumns は列ごとの項目名）
      */
     function addMarkerControls(parent, doc, glyphHeightPt, isTextColorUsable, onSettingChange) {
@@ -3308,11 +3315,11 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             [
                 markerControls.opacityInput.fieldLabel, markerControls.verticalOffsetInput.fieldLabel,
                 markerControls.boxPaddingInput.fieldLabel, markerControls.boxPaddingVInput.fieldLabel,
-                markerControls.equalLineLengthsOption.label, markerControls.leadingBasedOption.label, markerControls.drawUnitRow.label,
+                markerControls.lineLengthLabel, markerControls.leadingBasedOption.label, markerControls.drawUnitRow.label,
                 markerControls.cornerRadiusInput.fieldLabel, markerControls.squareLineJoinsOption.label, markerControls.boxRotationInput.fieldLabel,
                 markerControls.dotSizeInput.fieldLabel
             ],
-            [markerControls.textColorRow.label, markerControls.kerningRow.label]
+            [markerControls.textFillColorRow.label, markerControls.kerningRow.label]
         ];
         updateStyleFieldsEnabled(markerControls);
         return markerControls;
@@ -3411,8 +3418,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             if (markerControls.equalLineLengthsOption.getValue()) markerControls.alignLineStartsOption.setValue(false);
             onSettingChange();
         });
-        markerControls.equalLineLengthsOption.label = lineLengthLabel;
-        markerControls.leadingBasedOption = addLabeledOptionCheckbox(layoutColumn, "leading", "leadingBased", DEFAULT_LEADING_BASED, onSettingChange);
+        markerControls.lineLengthLabel = lineLengthLabel;
+        markerControls.leadingBasedOption = addLabeledOptionCheckbox(layoutColumn, "lineHeight", "leadingBased", DEFAULT_LEADING_BASED, onSettingChange);
         markerControls.drawUnitRow = addRadioChoiceRow(layoutColumn, "drawUnit", ["perLine", "perChar"], DEFAULT_PER_CHAR ? "perChar" : "perLine", onStyleChange);
         markerControls.drawUnitRow.radios.perLine.helpTip = getLabel("tooltip.perLine");
         markerControls.drawUnitRow.radios.perChar.helpTip = getLabel("tooltip.perChar");
@@ -3443,11 +3450,12 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         var textFormatPanel = parent.add("panel", undefined, getLabel("panel.textFormat"));
         setupPanel(textFormatPanel);
         /* ［変更しない］は色ではないので、getColorOptions() の color は null になる / No Change is not a color, so getColorOptions() returns a null color */
-        markerControls.textColorRow = addColorChoiceRow(textFormatPanel, doc, false, onSettingChange, "textFillColor", TEXT_COLOR_CHOICES, DEFAULT_TEXT_COLOR_CHOICE);
-        markerControls.textColorRow.label.helpTip = getLabel("tooltip.textFillColor");
+        markerControls.textFillColorRow = addColorChoiceRow(textFormatPanel, doc, false, onSettingChange, "textFillColor", TEXT_FILL_COLOR_CHOICES, DEFAULT_TEXT_FILL_COLOR_CHOICE);
+        markerControls.textFillColorRow.label.helpTip = getLabel("tooltip.textFillColor");
         markerControls.kerningRow = addRadioChoiceRow(textFormatPanel, "kerning",
             ["keepKerning", "zeroKerning", "metricsKerning", "opticalKerning"], DEFAULT_KERNING_CHOICE, onSettingChange);
         markerControls.kerningRow.radios.zeroKerning.helpTip = getLabel("tooltip.zeroKerning");
+        markerControls.kerningRow.radios.metricsKerning.helpTip = getLabel("tooltip.metricsKerning");
         markerControls.kerningRow.radios.opticalKerning.helpTip = getLabel("tooltip.opticalKerning");
 
         /* 3つの欄と［余白に合わせる］は、項目名の列のぶん右から始める（空の項目名の幅は、項目名をそろえたあとで合わせる）
@@ -3931,7 +3939,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             kerningFromPadding: isKerningFromPaddingActive(markerControls),
             kerningAdjustBefore: markerControls.kerningAdjustments.before,
             kerningAdjustAfter: markerControls.kerningAdjustments.after,
-            textFillColor: markerControls.textColorRow.getColorOptions().color
+            textFillColor: markerControls.textFillColorRow.getColorOptions().color
         };
     }
 
@@ -3955,7 +3963,18 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     }
 
     /**
-     * マーカーのカラーと線端を選ぶダイアログボックスを表示する
+     * 項目名の幅を列ごとにそろえ、［文字］パネルの3つの欄の字下げを項目名の列の幅に合わせる
+     * @param {Object} markerControls - addMarkerControls() の戻り値
+     * @returns {void}
+     */
+    function alignMarkerLabels(markerControls) {
+        for (var i = 0; i < markerControls.labelColumns.length; i++) alignLabelWidths(markerControls.labelColumns[i]);
+        /* 空の statictext は幅を測れないので、そろえた項目名の幅を写す / An empty statictext cannot be measured, so copy the aligned width */
+        markerControls.textSpacingIndent.preferredSize.width = markerControls.kerningRow.label.preferredSize.width;
+    }
+
+    /**
+     * 線・図形と文字の書式を選ぶダイアログボックスを表示し、選んでいるあいだプレビューする
      * @param {Document} doc - 対象ドキュメント
      * @param {Object[]} markerTargets - collectMarkerTargets() の戻り値（線幅の初期値とプレビュー用）
      * @returns {Object|null} readMarkerOptions() の値。キャンセルなら null
@@ -3983,13 +4002,10 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         rightPanelsGroup.alignChildren = ["fill", "top"];
         rightPanelsGroup.spacing = WINDOW_SPACING;
         var markerControls = addMarkerControls(rightPanelsGroup, doc, glyphHeightPt, areTextColorsUsable(markerTargets), onSettingEdited);
-        for (var i = 0; i < markerControls.labelColumns.length; i++) alignLabelWidths(markerControls.labelColumns[i]);
-        /* 空の statictext は幅を測れないので、そろえた項目名の幅を写す / An empty statictext cannot be measured, so copy the aligned width */
-        markerControls.textSpacingIndent.preferredSize.width = markerControls.kerningRow.label.preferredSize.width;
+        alignMarkerLabels(markerControls);
         /* ［余白に合わせる］の欄の値は、先頭の対象の文字サイズで計算する / Match Padding shows values for the first target's type size */
-        var kerningReference = getTargetEdgeFontSizes(markerTargets[0].sourceFrame, markerTargets[0]);
-        kerningReference.isVertical = markerTargets[0].isVertical;
-        markerControls.kerningReference = kerningReference;
+        markerControls.kerningReference = getTargetEdgeFontSizes(markerTargets[0].sourceFrame, markerTargets[0]);
+        markerControls.kerningReference.isVertical = markerTargets[0].isVertical;
         bindPresetControls(presetControls, markerControls, refreshPreview);
         restoreDialogState(presetControls, markerControls, sessionState.settings ? sessionState : null);
         /* ［リセット］で戻す、開いたときの状態（すべての項目を控える） / The opening state Reset returns to (every field) */
@@ -4248,28 +4264,12 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
      */
     function deserializeColor(colorData) {
         if (!colorData || !(colorData.values instanceof Array)) return null;
-        var colorValues = colorData.values;
-        if (colorData.model === "rgb") {
-            var rgbColor = new RGBColor();
-            rgbColor.red = colorValues[0];
-            rgbColor.green = colorValues[1];
-            rgbColor.blue = colorValues[2];
-            return rgbColor;
-        }
-        if (colorData.model === "cmyk") {
-            var cmykColor = new CMYKColor();
-            cmykColor.cyan = colorValues[0];
-            cmykColor.magenta = colorValues[1];
-            cmykColor.yellow = colorValues[2];
-            cmykColor.black = colorValues[3];
-            return cmykColor;
-        }
-        if (colorData.model === "gray") {
-            var grayColor = new GrayColor();
-            grayColor.gray = colorValues[0];
-            return grayColor;
-        }
-        return null;
+        if (colorData.model === "rgb") return createRgbColor(colorData.values);
+        if (colorData.model === "cmyk") return createCmykColor(colorData.values);
+        if (colorData.model !== "gray") return null;
+        var grayColor = new GrayColor();
+        grayColor.gray = colorData.values[0];
+        return grayColor;
     }
 
     /**
@@ -4320,8 +4320,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             kerningAdjustBefore: markerControls.kerningAdjustments.before,
             kerningAdjustAfter: markerControls.kerningAdjustments.after,
             dashSegmentsText: markerControls.dashSegmentsInput.text,
-            textColorChoice: markerControls.textColorRow.getChoice(),
-            textCustomColor: serializeColor(markerControls.textColorRow.getCustomColor())
+            textColorChoice: markerControls.textFillColorRow.getChoice(),
+            textCustomColor: serializeColor(markerControls.textFillColorRow.getCustomColor())
         };
     }
 
@@ -4342,6 +4342,20 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
      * @returns {void}
      */
     function applyPresetData(markerControls, presetData) {
+        applyPresetLineStyle(markerControls, presetData);
+        applyPresetShapePaint(markerControls, presetData);
+        applyPresetNumberFields(markerControls, presetData);
+        applyPresetChoices(markerControls, presetData);
+        applyPresetTextFormat(markerControls, presetData);
+    }
+
+    /**
+     * プリセットの［種類］をダイアログボックスに書き込む（旧版の種類は今の種類と［1文字ずつ］に読み替える）
+     * @param {Object} markerControls - addMarkerControls() の戻り値
+     * @param {Object} presetData - プリセット
+     * @returns {void}
+     */
+    function applyPresetLineStyle(markerControls, presetData) {
         /* 旧版の種類を今の種類と［1文字ずつ］［図形］に読み替える（［直線］は［マーカー］と同じ位置、［囲み罫］は線の［長方形］）
            Map former styles to the current style, Per Character and Shape (Straight sits where Marker does; Frame is a stroked Box) */
         var formerStyles = {
@@ -4358,7 +4372,15 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         } else if (presetData.lineStyle) {
             markerControls.lineStyleRow.setChoice(presetData.lineStyle);
         }
-        applyPresetShapePaint(markerControls, presetData);
+    }
+
+    /**
+     * プリセットの数値（長さは pt から欄の単位へ換算）をダイアログボックスに書き込む
+     * @param {Object} markerControls - addMarkerControls() の戻り値
+     * @param {Object} presetData - プリセット
+     * @returns {void}
+     */
+    function applyPresetNumberFields(markerControls, presetData) {
         /* 数値の欄：[プリセットのキー, 入力欄, pt から換算する単位（null なら換算しない）]
            Number fields: [preset key, input, unit converted from pt (null for no conversion)] */
         var numberFields = [
@@ -4388,6 +4410,19 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         if (typeof presetData.opacity !== "number" && typeof presetData.textColorOpacity === "number") {
             setMarkerFieldValue(markerControls.opacityInput, presetData.colorChoice === "textColor" ? presetData.textColorOpacity : 100);
         }
+        /* v1.5.0 の［詳細］は［折り返し］にまとめた（［ギザギザ］以外で手書き風のときだけ読む） / v1.5.0 Detail merged into Ridges (read only for Hand-Drawn outside Zigzag) */
+        if (presetData.roughen === true && typeof presetData.roughenDetail === "number" && presetData.lineStyle !== "zigzag") {
+            setMarkerFieldValue(markerControls.zigzagRidgesInput, presetData.roughenDetail);
+        }
+    }
+
+    /**
+     * プリセットの選択肢・チェックボックス・連動（［塗り］のカラー・線の種類・行長・行の高さ・ラフなど）をダイアログボックスに書き込む
+     * @param {Object} markerControls - addMarkerControls() の戻り値
+     * @param {Object} presetData - プリセット
+     * @returns {void}
+     */
+    function applyPresetChoices(markerControls, presetData) {
         var customColor = deserializeColor(presetData.customColor);
         if (customColor) markerControls.fillColorRow.setCustomColor(customColor);
         if (presetData.colorChoice) markerControls.fillColorRow.setChoice(presetData.colorChoice);
@@ -4406,17 +4441,22 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         if (typeof presetData.leadingBased === "boolean") markerControls.leadingBasedOption.setValue(presetData.leadingBased);
         /* 旧版の種類［手書き風］は［マーカー］の［手書き風］オン。持っていないプリセットはオフ / The former Hand-Drawn style is Marker with Hand-Drawn on; presets without it turn it off */
         markerControls.roughenOption.setValue(presetData.roughen === true || presetData.lineStyle === "roughMarker");
-        /* v1.5.0 の［詳細］は［折り返し］にまとめた（［ギザギザ］以外で手書き風のときだけ読む） / v1.5.0 Detail merged into Ridges (read only for Hand-Drawn outside Zigzag) */
-        if (presetData.roughen === true && typeof presetData.roughenDetail === "number" && presetData.lineStyle !== "zigzag") {
-            setMarkerFieldValue(markerControls.zigzagRidgesInput, presetData.roughenDetail);
-        }
+    }
+
+    /**
+     * プリセットの［文字］の設定（テキストカラー・カーニング・トラッキング・余白に合わせる）をダイアログボックスに書き込む
+     * @param {Object} markerControls - addMarkerControls() の戻り値
+     * @param {Object} presetData - プリセット
+     * @returns {void}
+     */
+    function applyPresetTextFormat(markerControls, presetData) {
         if (presetData.kerningChoice) markerControls.kerningRow.setChoice(presetData.kerningChoice);
         /* 前の版のプリセットには無いので初期値にする / Presets from earlier versions lack it, so use the default */
         markerControls.kerningFromPaddingOption.setValue(typeof presetData.kerningFromPadding === "boolean" ? presetData.kerningFromPadding : DEFAULT_KERNING_FROM_PADDING);
         /* 微調整は文字サイズに左右されないよう、計算した値との差で持つ / Adjustments are kept as differences so they do not depend on the type size */
         markerControls.kerningAdjustments.before = (typeof presetData.kerningAdjustBefore === "number") ? presetData.kerningAdjustBefore : 0;
         markerControls.kerningAdjustments.after = (typeof presetData.kerningAdjustAfter === "number") ? presetData.kerningAdjustAfter : 0;
-        /* 空欄にできる欄は、保存した文字列をそのまま入れる / Blank-able fields take the saved text as is */
+        /* 空欄にできる欄は、保存した文字列をそのまま入れる（［分割数］もここで扱う） / Blank-able fields take the saved text as is (Segments too) */
         var textFields = [
             ["trackingText", markerControls.trackingInput],
             ["kerningBeforeText", markerControls.kerningBeforeInput],
@@ -4430,10 +4470,10 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             textFields[j][1].lastValidText = presetText;
         }
         var textCustomColor = deserializeColor(presetData.textCustomColor);
-        if (textCustomColor) markerControls.textColorRow.setCustomColor(textCustomColor);
+        if (textCustomColor) markerControls.textFillColorRow.setCustomColor(textCustomColor);
         /* 旧版の［白抜きに］は［白］か［変更しない］に読み替える / The former White checkbox maps to White or No Change */
-        if (presetData.textColorChoice) markerControls.textColorRow.setChoice(presetData.textColorChoice);
-        else if (typeof presetData.whiteText === "boolean") markerControls.textColorRow.setChoice(presetData.whiteText ? "white" : "keepTextColor");
+        if (presetData.textColorChoice) markerControls.textFillColorRow.setChoice(presetData.textColorChoice);
+        else if (typeof presetData.whiteText === "boolean") markerControls.textFillColorRow.setChoice(presetData.whiteText ? "white" : "keepTextColor");
     }
 
     /**
@@ -4555,11 +4595,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         var isExistingName = presetMap.hasOwnProperty(presetName) || presetControls.builtinPresets.map.hasOwnProperty(presetName);
         if (isExistingName && !confirm(getLabel("confirm.presetOverwrite", { name: presetName }), true)) return null;
         presetMap[presetName] = collectPresetData(markerControls);
-        if (!presetSettingsStore.save(presetMap)) {
-            alert(getLabel("alert.presetSaveFailed"));
-            return null;
-        }
-        return presetName;
+        return savePresetMap(presetMap) ? presetName : null;
     }
 
     /**
@@ -4574,11 +4610,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         if (!presetName) return null;
         var presetMap = loadPresetMap();
         presetMap[presetName] = collectPresetData(markerControls);
-        if (!presetSettingsStore.save(presetMap)) {
-            alert(getLabel("alert.presetSaveFailed"));
-            return null;
-        }
-        return presetName;
+        return savePresetMap(presetMap) ? presetName : null;
     }
 
     /**
@@ -4591,11 +4623,18 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         if (!isSavedPreset(presetName) || !confirm(getLabel("confirm.presetDelete", { name: presetName }), true)) return false;
         var presetMap = loadPresetMap();
         delete presetMap[presetName];
-        if (!presetSettingsStore.save(presetMap)) {
-            alert(getLabel("alert.presetSaveFailed"));
-            return false;
-        }
-        return true;
+        return savePresetMap(presetMap);
+    }
+
+    /**
+     * プリセットの集まりを保存する（保存できなければ知らせる）
+     * @param {Object} presetMap - プリセット名をキーにした設定の集まり
+     * @returns {boolean} 保存できたら true
+     */
+    function savePresetMap(presetMap) {
+        if (presetSettingsStore.save(presetMap)) return true;
+        alert(getLabel("alert.presetSaveFailed"));
+        return false;
     }
 
     // =========================================
@@ -5122,19 +5161,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
      * @returns {Color} 文字番号を表す色
      */
     function createCharIndexColor(charIndex, isRgbDocument) {
-        if (isRgbDocument) {
-            var rgbColor = new RGBColor();
-            rgbColor.red = charIndex % 256;
-            rgbColor.green = Math.floor(charIndex / 256) % 256;
-            rgbColor.blue = Math.floor(charIndex / 65536) % 256;
-            return rgbColor;
-        }
-        var cmykColor = new CMYKColor();
-        cmykColor.cyan = charIndex % 100;
-        cmykColor.magenta = Math.floor(charIndex / 100) % 100;
-        cmykColor.yellow = Math.floor(charIndex / 10000) % 100;
-        cmykColor.black = 0;
-        return cmykColor;
+        if (isRgbDocument) return createRgbColor([charIndex % 256, Math.floor(charIndex / 256) % 256, Math.floor(charIndex / 65536) % 256]);
+        return createCmykColor([charIndex % 100, Math.floor(charIndex / 100) % 100, Math.floor(charIndex / 10000) % 100, 0]);
     }
 
     /**
@@ -5175,14 +5203,14 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     function measureGlyphBounds(sourceFrame, spanStart, spanLength) {
         var draftFill = new GrayColor();
         draftFill.gray = 100;
-        var outline = outlineDraftGlyphs(function () {
+        var outlinedDraft = outlineDraftGlyphs(function () {
             var draftFrame = createDraftFrame(sourceFrame);
             /* 選んだ範囲だけ1つの TextRange として塗り直す / Refill only the selected span as one TextRange */
             fillCharacterSpan(draftFrame, spanStart, spanLength, draftFill);
             return draftFrame;
         });
-        var glyphBounds = getFilledGlyphsExtent(outline.glyphItems);
-        outline.group.remove();
+        var glyphBounds = getFilledGlyphsExtent(outlinedDraft.glyphItems);
+        outlinedDraft.group.remove();
         return glyphBounds;
     }
 
@@ -5198,14 +5226,14 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     function measureCharGlyphBounds(sourceFrame, spanStart, spanLength) {
         /* 色はドキュメントのカラーモードのまま読み戻せるように、同じモードで作る / Use the document color mode so the colors read back unchanged */
         var isRgbDocument = (app.activeDocument.documentColorSpace === DocumentColorSpace.RGB);
-        var outline = outlineDraftGlyphs(function () {
+        var outlinedDraft = outlineDraftGlyphs(function () {
             var draftFrame = createDraftFrame(sourceFrame);
             for (var i = 0; i < spanLength; i++) {
                 draftFrame.characters[spanStart + i].characterAttributes.fillColor = createCharIndexColor(i, isRgbDocument);
             }
             return draftFrame;
         });
-        var glyphItems = outline.glyphItems;
+        var glyphItems = outlinedDraft.glyphItems;
         var boundsByIndex = [];
         for (var j = 0; j < glyphItems.length; j++) {
             if (!hasGlyphFill(glyphItems[j])) continue;
@@ -5213,7 +5241,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             if (charIndex < 0 || charIndex >= spanLength) continue;
             boundsByIndex[charIndex] = extendGlyphExtent(boundsByIndex[charIndex] || null, glyphItems[j].geometricBounds);
         }
-        outline.group.remove();
+        outlinedDraft.group.remove();
 
         var charBoundsList = [];
         for (var k = 0; k < spanLength; k++) {
@@ -5497,11 +5525,11 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
      * @returns {Object[]} 範囲 { left, top, right, bottom }
      */
     function getShapeAreas(textLines, isPerChar, isVertical, isSkippedChar) {
-        var boxAreas = [];
+        var shapeAreas = [];
         for (var i = 0; i < textLines.length; i++) {
             var textLine = textLines[i];
             if (!isPerChar) {
-                boxAreas.push({ left: textLine.left, top: textLine.top, right: textLine.right, bottom: textLine.bottom });
+                shapeAreas.push({ left: textLine.left, top: textLine.top, right: textLine.right, bottom: textLine.bottom });
                 continue;
             }
             for (var j = 0; j < textLine.chars.length; j++) {
@@ -5510,15 +5538,15 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
                 if (isVertical) {
                     var halfHeight = Math.max(charBounds.top - charBounds.bottom, textLine.right - textLine.left) / 2;
                     var centerY = (charBounds.top + charBounds.bottom) / 2;
-                    boxAreas.push({ left: textLine.left, top: centerY + halfHeight, right: textLine.right, bottom: centerY - halfHeight });
+                    shapeAreas.push({ left: textLine.left, top: centerY + halfHeight, right: textLine.right, bottom: centerY - halfHeight });
                 } else {
                     var halfWidth = Math.max(charBounds.right - charBounds.left, textLine.top - textLine.bottom) / 2;
                     var centerX = (charBounds.left + charBounds.right) / 2;
-                    boxAreas.push({ left: centerX - halfWidth, top: textLine.top, right: centerX + halfWidth, bottom: textLine.bottom });
+                    shapeAreas.push({ left: centerX - halfWidth, top: textLine.top, right: centerX + halfWidth, bottom: textLine.bottom });
                 }
             }
         }
-        return boxAreas;
+        return shapeAreas;
     }
 
     /**
