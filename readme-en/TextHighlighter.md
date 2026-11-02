@@ -35,42 +35,44 @@ Chosen in the dropdown at the top of Settings. The dropdown's tooltip describes 
   - Box: one box around the glyphs of each line (column in vertical text).
   - Circle: an ellipse inscribed in the Box area.
   - Hexagon: the Box area with 60° points added at the left and right (top and bottom in vertical text).
-  - Unit (bottom right of the right column under Settings): Line (the default) draws one shape per line (column in vertical text); Per Character draws a shape for each character. Shapes are as tall as the line's glyphs and as wide as the glyph or as tall, whichever is larger (nearly square for kanji and kana; swapped in vertical text). Circle becomes a circle whose diameter is the longer side, and Hexagon a regular hexagon whose flat-to-flat distance is the longer side. Punctuation, brackets and spaces are skipped.
+  - Unit (right column under Settings): Line (the default) draws one shape per line (column in vertical text); Per Character draws a shape for each character. Shapes are as tall as the line's glyphs and as wide as the glyph or as tall, whichever is larger (nearly square for kanji and kana; swapped in vertical text). Circle becomes a circle whose diameter is the longer side, and Hexagon a regular hexagon whose flat-to-flat distance is the longer side. Punctuation, brackets and spaces are skipped.
 - Emphasis Dots: a round dot above each character (right of it in vertical text). Punctuation, brackets and spaces get no dot.
 
-#### Settings (left column)
+#### Settings (Shape and colors, spanning both columns)
 
 - Stacking Order (right of Style): Front or Back. Back (the default) draws behind the text; Front draws in front of it.
-- Text: with White on, sets the fill of the target characters to white.
 - Shape: turns Fill and Stroke on or off independently. Fill uses Fill Color; Stroke uses Stroke Color, Weight and Line Type.
-- Fill Color: used for Fill, Emphasis Dots and the Fill of shapes. Choose White, Text Color or Custom (Text Color by default).
-- Stroke Color: used for line styles and the Stroke of shapes. Choose Yellow (Y100), Red (M100Y100), Text Color or Custom (Yellow by default).
+- Fill Color: used for Fill, Emphasis Dots and the Fill of shapes. Choose Custom, White or Text Color (Text Color by default).
+- Stroke Color: used for line styles and the Stroke of shapes. Choose Custom, Yellow (Y100), Red (M100Y100) or Text Color (Yellow by default).
   - Text Color is the fill of the first target character; for Custom, click the swatch to choose with Illustrator's standard color picker.
   - The color not in use is dimmed.
-- Opacity: opacity of the lines and shapes (100% by default).
+
+#### Settings (left column: lines and effects)
+
 - Weight: 40% of the glyph height by default, in the Stroke unit from Preferences.
-- Offset: moves the line or shape up or down from the style's position (positive is up, negative is down; in vertical text it moves left or right, positive is left).
-- Line Length: how the lines and shapes of multi-line text are aligned.
-  - Align Starts: starts the lines and shapes where the earliest line starts (the top of the column in vertical text). The ends stay as they are.
-  - Align Both Ends: extends the lines and shapes of short lines to the length of the longest one (column length in vertical text).
-  - Only one of Align Starts and Align Both Ends can be on. They work with line styles and with shapes when Unit is Line.
-- Leading: with Even on, positions and sizes lines, shapes and dots by the leading instead of the glyph height of each line (width in vertical text). Every line gets the same height, centered on its characters, and consecutive lines are spaced exactly one leading apart (spacing restarts after paragraph space or blank lines). Works with every style; Fill becomes as thick as the leading, and Per Character as large.
-- Padding (H), Padding (V): the left/right and top/bottom space around the glyphs for shapes, or the distance from the glyphs to the dots for Emphasis Dots (Padding (V) in horizontal text, Padding (H) in vertical text; negative values pull inward). While the link icon on the right is on, the two keep the same value (on by default).
-
-#### Settings (right column)
-
 - Line Type: Solid, Dashed or Dotted.
   - Dashed: Segments dashes spaced by Gap, with the dash length fitted to the line so both ends finish with a dash. Blank Segments gives dashes about twice the line width.
   - Dotted: round dots as large as the line width, spaced close to Gap, with dots at both ends (Dotted always uses round caps).
   - Gap starts at the line width.
 - Cap: Butt or Round.
+- Line Gap: the space between the two lines of Double Strikethrough (1/5 of the glyph height by default).
 - Angle: the slant of Straight + Shear (-80 to 80°; positive slants to the upper right).
 - Size, Ridges, Points: the ridge height, the number of ridges per inch (25.4 mm) of the line, and Smooth (wavy) or Corner (zigzag) for Zigzag. Ridges is also the Roughen detail for Hand-Drawn (Zigzag and Hand-Drawn together share the number).
 - Roughen: with Hand-Drawn on, the Roughen effect (corner points) is applied to the lines and shapes so their edges wobble like hand drawing (line styles get it on the center line, before Outline Stroke). Size is a percentage of the line or shape (initially 1%); the detail uses Ridges (per inch). Works with every style except Emphasis Dots.
+
+#### Settings (right column: placement and size)
+
+- Opacity: opacity of the lines and shapes (100% by default).
+- Offset: moves the line or shape up or down from the style's position (positive is up, negative is down; in vertical text it moves left or right, positive is left).
+- Padding (H), Padding (V): the left/right and top/bottom space around the glyphs for shapes, or the distance from the glyphs to the dots for Emphasis Dots (Padding (V) in horizontal text, Padding (H) in vertical text; negative values pull inward). While the link icon on the right is on, the two keep the same value (on by default).
+- Line Length: how the lines and shapes of multi-line text are aligned.
+  - Align Starts: starts the lines and shapes where the earliest line starts (the top of the column in vertical text). The ends stay as they are.
+  - Align Both Ends: extends the lines and shapes of short lines to the length of the longest one (column length in vertical text).
+  - Only one of Align Starts and Align Both Ends can be on. They work with line styles and with shapes when Unit is Line.
+- Leading: with Even on, positions and sizes lines, shapes and dots by the leading instead of the glyph height of each line (width in vertical text). Every line gets the same height, centered on its characters, and consecutive lines are spaced exactly one leading apart (spacing restarts after paragraph space or blank lines). Works with every style; Fill becomes as thick as the leading, and Per Character as large.
 - Corner Radius: the corner radius of Box (0 for square corners).
 - Continuity: with Multi-Line on, makes a rounded Box spanning several lines look continuous. Only the left end of the first line and the right end of the last are rounded, and the line breaks keep square corners. With Stroke on, the stroke is left open on the edges where the lines continue (the left edge of every line but the first and the right edge of every line but the last; in vertical text, the top of the first column and the bottom of the last are rounded, and the top and bottom edges are left open).
 - Rotate: turns each shape about its own center (-360 to 360°; positive is counterclockwise).
-- Line Gap: the space between the two lines of Double Strikethrough (1/5 of the glyph height by default).
 - Dot Size: the diameter of the emphasis dots.
 
 Fields not in use are dimmed.
@@ -79,32 +81,35 @@ Fields not in use are dimmed.
 
 Changes the formatting of the target characters. The preview reflects it, and the lines and shapes follow the reformatted glyphs.
 
+- Text Color: sets the fill of the target characters after drawing. Choose Custom, No Change (default) or White. For Custom, click the swatch and pick a color in Illustrator's standard Color Picker.
 - Kerning: No Change, 0, Auto or Optical. 0 turns auto kerning off and sets manual kerning to 0. 0 and Optical also turn Proportional Metrics off.
-- Tracking: in 1/1000 em. Leave blank to keep it.
 - Kerning (Before) / Kerning (After): manual kerning before the first target character and after the last one (1/1000 em). Leave blank to keep it.
+- Tracking: in 1/1000 em. Leave blank to keep it.
+- Match Padding: when Box, Circle or Hexagon is drawn per line, sets Kerning (Before) / (After) to Padding (H) / type size x 1000 to make room for the shape (on by default; Padding (V) in vertical text; uses the size of the first and last target characters, and leaves the kerning unchanged when the padding is 0 or less). While on, the Kerning (Before) / (After) fields show the values computed for the first target. Editing a field keeps the difference from the computed value as a fine adjustment, which stays applied when the padding changes (clear the field to drop it). Adjustments are saved with presets.
 
 #### Presets
 
-- Click a preset in the list on the left to load it. The icons below the list are, from the left, Save (saves the current settings under a name), Overwrite (writes the current settings into the selected preset without asking for a name or confirmation) and Delete. Saved presets remain after restarting Illustrator.
+- Click a preset in the list on the left to load it. Below the list, Delete sits at the left, and Save (saves the current settings under a name) and Overwrite (writes the current settings into the selected preset without asking for a name or confirmation) at the right. Saved presets remain after restarting Illustrator.
 - Built-in presets (in Style order): Underline, Dotted Underline, Yellow Marker, Yellow Marker (Hand-Drawn), Slanted Highlighter, Wavy Line, Zigzag, Text-Color Strikethrough, Double Strikethrough, Rounded Box, Band per Line, Band per Line (Touching), Band per Line (Hand-Drawn), Frame, Frame per Line, Frame per Line (Hand-Drawn), Redaction, Box per Character, Circle per Character, Hexagon per Character and Emphasis Dots.
   - Text-Color Strikethrough and Double Strikethrough take lengths such as the weight from the glyph height of the first target; the others use fixed lengths.
-  - Rounded Box, Band per Line, Band per Line (Touching), Band per Line (Hand-Drawn), Box per Character, Circle per Character and Hexagon per Character turn on White under Text. All use Back for Stacking Order.
+  - Rounded Box, Band per Line, Band per Line (Touching), Band per Line (Hand-Drawn), Box per Character, Circle per Character and Hexagon per Character set Text Color to White. All use Back for Stacking Order.
   - Band per Line draws a box for each line with small gaps, looking continuous (Multi-Line on); Band per Line (Touching) leaves no gaps, with Multi-Line off. Both turn on Align Starts and Even (Leading).
   - Frame per Line draws Frame for each line, with Align Starts on and Multi-Line off.
   - The Hand-Drawn presets turn on Hand-Drawn under Roughen (Yellow Marker (Hand-Drawn): Size 1%, Detail 10; Band per Line (Hand-Drawn): 0.7%, 3; Frame per Line (Hand-Drawn): 0.4%, 10).
-  - The three per-character presets set Kerning to 0 and Tracking to 170 under Text; Rounded Box sets Kerning (Before) and Kerning (After) to 600.
+  - The three per-character presets set Kerning to 0 and Tracking to 170 under Text; the shape presets turn on Match Padding.
   - Every preset carries the Line Length, Leading, Roughen and Text settings, so choosing another preset switches them too.
   - Changing a setting deselects the list, so clicking the same preset again brings its settings back. After that, Overwrite still writes into the preset chosen just before (its name appears in the tooltip), and Save offers that name too.
   - Overwriting a built-in preset makes a saved preset of the same name; deleting it brings back the original settings.
   - Built-in presets cannot be deleted; a preset saved under the same name is used instead.
 
-#### Preview
+#### Preview and Reset
 
-While on, the selection is cleared so the lines and shapes are visible. Closing the dialog box restores the original selection.
+While the dialog box is open, the selection is cleared and the lines and shapes are always previewed. Closing the dialog box restores the original selection.
+Reset returns to the settings and the preset chosen when the dialog box opened, with Kerning (Before) / (After) and Tracking cleared and Match Padding off.
 
 #### Last state
 
-The settings, the chosen preset and Preview at the time the dialog box closes (OK or Cancel) come back the next time it opens. They are kept until Illustrator quits; the first time after Illustrator starts, the Yellow Marker preset is chosen.
+The settings and the chosen preset at the time the dialog box closes (OK or Cancel) come back the next time it opens. They are kept until Illustrator quits; the first time after Illustrator starts, the Yellow Marker preset is chosen.
 
 ### Usage
 
@@ -136,10 +141,11 @@ https://note.com/dtp_tranist/n/na1804afb7fe2
 
 ### Script info
 
-- Version: v1.6.0
+- Version: v1.7.0
 
 ### Update History
 
+- v1.7.0 (2026-11-02) Turned the White checkbox under Text into Text Color radio buttons (No Change, White, Custom); Custom takes its color from the Color Picker via the swatch (White in presets from earlier versions loads as White when on and No Change when off); added Match Padding to Text (for Box, Circle and Hexagon per line, Kerning (Before) / (After) come from Padding (H) and the type size, with fine adjustment in the fields; on by default, including presets from earlier versions); the preview is now always on, replacing the Preview checkbox with Reset (returns to the state at opening, clearing Kerning (Before) / (After) and Tracking and turning Match Padding off); preset icons now show Delete on the left and Save / Overwrite on the right; Shape, Fill Color and Stroke Color moved below Style as rows spanning both Settings columns, with their radio buttons on one line (Custom and its swatch first); regrouped the two Settings columns into lines and per-style effects on the left (Weight, Line Type, Segments, Gap, Cap, Line Gap, Angle, Zigzag, Roughen) and placement and size on the right (Opacity, Offset, Padding, Line Length, Leading, Unit, Corner Radius, Continuity, Rotate, Dot Size); moved Text Color to the top of the Text panel, laid the Kerning radio buttons out in a row, and turned Kerning (Before), Tracking and Kerning (After) into three fields with their labels above
 - v1.6.0 (2026-11-02) Merged the Roughen detail into Ridges, moved Roughen below the Zigzag fields in the right column and Padding (H) / Padding (V) to the bottom of the left column; turned the Per Character checkbox into Unit radio buttons (Line / Per Character); moved Stacking Order to the right of Style and Unit to the bottom right of the right column under Settings
 - v1.5.0 (2026-11-02) Added an Overwrite icon to Presets (writes the current settings into the selected preset without asking for a name or confirmation); turned the Hand-Drawn style into a Hand-Drawn option under Roughen that works with every style (with Size in % and Detail; the former Hand-Drawn style loads as Marker with Hand-Drawn on); retuned the built-in presets, added Yellow Marker (Hand-Drawn), Band per Line (Touching), Band per Line (Hand-Drawn), Frame per Line and Frame per Line (Hand-Drawn), and reordered them by Style (fixed lengths except Text-Color Strikethrough and Double Strikethrough; Redaction now uses Back; every preset carries the Line Length, Leading and Text settings); fixed clicking the chosen preset again after changing settings not loading it, so the saved Offset, Weight and so on could not be brought back (changing a setting now deselects the list)
 - v1.4.0 (2026-11-02) Added Align Starts to Line Length (for multi-line text, only the starts of the lines and shapes are aligned to the earliest line; the top of the column in vertical text); renamed Equalize to Align Both Ends and Leading-Based to Even under its own Leading row; added the Zigzag and Band per Line built-in presets (Band per Line: a box for each line, with aligned starts and even leading); Zigzag (Wavy Line) now adds points with the Roughen effect before the Zig Zag effect, and Ridges is now per inch instead of end to end (short and long lines get the same ridge pitch; initial value 12); fixed Even (Leading) sometimes shifting the shapes of kana-heavy or Latin lines slightly up or down (left or right in vertical text), leaving uneven gaps between lines
