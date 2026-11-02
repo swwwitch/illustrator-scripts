@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.SpeechBubbleMaker
 Name=テキストに吹き出しのしっぽ付きの下線・囲みを描く
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.0.2
+Version=1.1.0
 Release-Date=2026-11-02
 Description-BEGIN
 選択したテキストに、吹き出しのしっぽ（V字・斜線・すぼまり）の付いた下線・コの字・囲みを描きます。線は上下左右のどの側にも描けます。
@@ -44,10 +44,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SpeechBubb
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SpeechBubbleMaker";            /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.2";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-11-02";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-11-02";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-11-03";                   /* 更新日 / last updated */
 
 var SCRIPT_DESCRIPTION_JA = "テキストに吹き出しのしっぽ付きの下線・囲みを描く"; /* README の見出し / README title (Japanese) */
 
@@ -67,7 +67,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
     /* 初めて開いたときの選択 / Initial choices */
     var DEFAULT_CHOICES = {
         shapeKey: "notch",          /* しっぽの形状（"notch" V字 / "slash" 斜線 / "curly" すぼまり） / tail shape */
-        directionKey: "center",     /* しっぽの向き（"center" 真下 / "right" 右下 / "left" 左下） / tail direction */
+        directionKey: "center",     /* しっぽの向き（"center" まっすぐ / "right" 右へ / "left" 左へ） / tail direction */
         rootKey: "center",          /* 斜線の根元（"center" 切れ目の中央 / "edge" 切れ目の端） / slash root */
         frameKey: "underline",      /* 線の形状（"underline" 下線 / "bracket" コの字 / "box" 囲み） / frame shape */
         sideKey: "auto",            /* 線を描く側（"auto" は開くたびにテキストから決める＝横組みは下・縦組みは右 / "top" / "bottom" / "left" / "right"） / side to draw on; "auto" is resolved from the text each time */
@@ -77,6 +77,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         position: 50,               /* しっぽの位置（線の始まりから％） / tail position (% from the start) */
         slashAngle: 45,             /* 斜線の角度（線から測る。90°で真下） / slash angle from the line (90° = straight) */
         useAreaFrame: true,         /* エリア内文字は字面ではなく枠を基準にする / area type is measured by its frame, not its glyphs */
+        isCapsule: false,           /* カプセル形状（角丸の半径を最大にする） / capsule shape (the largest corner radius) */
         convertToAreaText: false,   /* 囲みのとき、テキストをエリア内文字にして中央に置く / make the text area type centered in the box */
         groupWithText: false,       /* テキストとグループ化する / group with the text */
         preview: true               /* プレビューする / preview */
@@ -93,6 +94,8 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         tickHeight: 0.3,      /* コの字の立ち上がり / bracket tick height */
         cornerRadius: 0.2,    /* 角丸の半径 / corner radius */
         shadowDistance: 0,    /* 影の間隔（0 で影なし） / shadow distance (0 = none) */
+        slashShiftX: 0,       /* 線と離した斜線の左右の調整 / horizontal nudge of a detached slash */
+        slashShiftY: 0,       /* 線と離した斜線の上下の調整 / vertical nudge of a detached slash */
         strokeWidth: 0.04     /* 線幅 / stroke weight */
     };
 
@@ -137,6 +140,13 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             ratios: { gapWidth: 0.5, tailWidth: 0.4, tailHeight: 0.4 }
         },
         {
+            /* 保存したプリセットから昇格（12pt・pt で作ったものを比率に直した） / promoted from a saved preset made at 12 pt, converted to ratios */
+            name: { ja: "下線（斜線・右下）切れ目なし", en: "Underline, slash down right, no gap" },
+            choices: { shapeKey: "slash", directionKey: "right", rootKey: "center", frameKey: "underline", capKey: "butt" },
+            position: 74,
+            ratios: { gapWidth: 0, tailWidth: 0.4, tailHeight: 0.58, offset: 0.3, extension: 0.17, tickHeight: 0.3, cornerRadius: 0.2, shadowDistance: 0, strokeWidth: 0.04 }
+        },
+        {
             name: { ja: "下線・斜線（左下）", en: "Underline, slash down left" },
             choices: { shapeKey: "slash", directionKey: "left", rootKey: "center", frameKey: "underline" },
             ratios: { gapWidth: 0.5, tailWidth: 0.4, tailHeight: 0.4 }
@@ -171,6 +181,28 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             ratios: { gapWidth: 0.6, tailWidth: 0.6, tailHeight: 0.6, offset: 0.5, extension: 0.5, cornerRadius: 0.3 }
         },
         {
+            /* 保存したプリセットから昇格（12pt・pt で作ったものを比率に直した） / promoted from a saved preset made at 12 pt, converted to ratios */
+            name: { ja: "囲み（カプセル）", en: "Capsule box" },
+            choices: { shapeKey: "slash", directionKey: "right", rootKey: "edge", frameKey: "box", capKey: "butt" },
+            position: 70,
+            isCapsule: true,
+            ratios: { gapWidth: 0.6, tailWidth: 0.6, tailHeight: 0.6, offset: 0.5, extension: 0.75, tickHeight: 0.3, cornerRadius: 0, shadowDistance: 0, strokeWidth: 0.04 }
+        },
+        {
+            /* V字の付け根の右端を囲みの右下の角に合わせ、先端を角より外へ出す / the V's base ends at the bottom-right corner and its tip reaches past it */
+            name: { ja: "囲み・右下角にしっぽ", en: "Box, tail at bottom-right corner" },
+            choices: { shapeKey: "notch", directionKey: "right", frameKey: "box", capKey: "butt" },
+            position: 100,
+            ratios: { gapWidth: 0.5, tailWidth: 0.7, tailHeight: 0.6, offset: 0.5, extension: 0.5, cornerRadius: 0 }
+        },
+        {
+            /* 左下の角に合わせた左右反転 / mirrored to the bottom-left corner */
+            name: { ja: "囲み・左下角にしっぽ", en: "Box, tail at bottom-left corner" },
+            choices: { shapeKey: "notch", directionKey: "left", frameKey: "box", capKey: "butt" },
+            position: 0,
+            ratios: { gapWidth: 0.5, tailWidth: 0.7, tailHeight: 0.6, offset: 0.5, extension: 0.5, cornerRadius: 0 }
+        },
+        {
             name: { ja: "囲み・V字（影）", en: "Box, V with shadow" },
             choices: { shapeKey: "notch", directionKey: "left", frameKey: "box" },
             position: 65,
@@ -180,7 +212,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
 
     /* プリセットに入れる選択と寸法の項目 / Choices and sizes a preset holds */
     var PRESET_CHOICE_KEYS = ["shapeKey", "directionKey", "rootKey", "frameKey", "sideKey", "capKey"];
-    var PRESET_SIZE_KEYS = ["gapWidth", "tailWidth", "tailHeight", "offset", "extension", "tickHeight", "cornerRadius", "shadowDistance", "strokeWidth"];
+    var PRESET_SIZE_KEYS = ["gapWidth", "tailWidth", "tailHeight", "offset", "extension", "tickHeight", "cornerRadius", "shadowDistance", "strokeWidth", "slashShiftX", "slashShiftY"];
 
     var MIN_SLASH_ANGLE = 5;       /* 斜線の角度の下限（度） / minimum slash angle (degrees) */
     var TAIL_MITER_LIMIT = 10;     /* V字の角をとがらせたままにする比率の上限 / miter limit that keeps the V corners pointed */
@@ -194,6 +226,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
 
     var FIELD_CHARACTERS = 7;        /* 数値欄の文字数 / characters of the numeric fields */
     var POSITION_SLIDER_RIGHT_INSET = 24; /* 位置のスライダーの右にあける余白 / room left at the right of the position slider */
+    var SLASH_SHIFT_STEP = 0.5;      /* 斜線の左右・上下の調整の∧∨の刻み（欄の単位） / stepper step of the slash nudges (field unit) */
     var POSITION_SLIDER_SHIFT_STEP = 10; /* shift を押しながら動かしたときの位置のスライダーの刻み（％） / position slider step with Shift (%) */
     var POSITION_SLIDER_WIDTH = 100; /* 位置のスライダーの最小の幅（パネルの幅まで伸びる） / minimum width of the position slider (it stretches to the panel) */
     var SIDE_GRID_CELL_WIDTH = (String($.locale || "").indexOf("ja") === 0) ? 48 : 72; /* 配置の3行3列の1マスの幅（英語は語が長い） / cell width of the 3x3 side grid (English words are longer) */
@@ -1126,12 +1159,12 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             options: { ja: "テキストに関してのオプション", en: "Text Options" }
         },
         radio: {
-            notch: { ja: "V字", en: "V" },
+            notch: { ja: "V字", en: "V shape" },
             slash: { ja: "斜線", en: "Slash" },
             curly: { ja: "すぼまり", en: "Taper" },
-            straightDown: { ja: "真下", en: "Down" },
-            downRight: { ja: "右下", en: "Down right" },
-            downLeft: { ja: "左下", en: "Down left" },
+            straightDown: { ja: "まっすぐ", en: "Straight" },
+            downRight: { ja: "右へ", en: "Right" },
+            downLeft: { ja: "左へ", en: "Left" },
             rootCenter: { ja: "中央", en: "Center" },
             rootEdge: { ja: "端", en: "Edge" },
             underline: { ja: "下線", en: "Underline" },
@@ -1152,6 +1185,8 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             shape: { ja: "形状", en: "Shape" },
             direction: { ja: "向き", en: "Direction" },
             root: { ja: "根元", en: "Root" },
+            slashShiftX: { ja: "左右の調整", en: "Nudge X" },
+            slashShiftY: { ja: "上下の調整", en: "Nudge Y" },
             position: { ja: "位置", en: "Position" },
             gapWidth: { ja: "切れ目", en: "Gap" },
             tailWidth: { ja: "幅", en: "Width" },
@@ -1170,6 +1205,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         },
         checkbox: {
             useAreaFrame: { ja: "エリア内文字は枠を基準にする", en: "Use the frame of area type" },
+            isCapsule: { ja: "カプセル形状", en: "Capsule" },
             convertToAreaText: { ja: "エリア内文字にして中央に配置", en: "Center as area type" },
             groupWithText: { ja: "テキストとグループ化", en: "Group with text" },
             preview: { ja: "プレビュー", en: "Preview" }
@@ -1195,16 +1231,16 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
                 en: "Tapers out of the line in curves to a point, like the middle of a curly bracket."
             },
             straightDown: {
-                ja: "V字・すぼまりの先端を切れ目の中央に置きます（斜線はまっすぐ下へ）。",
-                en: "Puts the tip of a V or taper at the middle of the gap (a slash goes straight down)."
+                ja: "V字・すぼまりの先端を切れ目の中央に置き、斜線は線と直角に出します（配置が下なら真下、上なら真上）。",
+                en: "Puts the tip of a V or taper at the middle of the gap; a slash leaves the line at a right angle (straight down on the bottom, straight up on the top)."
             },
             downRight: {
-                ja: "しっぽを右下へ出します。縦組みでは下寄りになります。",
-                en: "The tail points down to the right. On vertical text it leans toward the bottom."
+                ja: "しっぽを右下へ出します（配置が上なら右上、左右なら下寄り）。",
+                en: "The tail points down to the right (up to the right on the top, toward the bottom on the left or right)."
             },
             downLeft: {
-                ja: "しっぽを左下へ出します。縦組みでは上寄りになります。",
-                en: "The tail points down to the left. On vertical text it leans toward the top."
+                ja: "しっぽを左下へ出します（配置が上なら左上、左右なら上寄り）。",
+                en: "The tail points down to the left (up to the left on the top, toward the top on the left or right)."
             },
             rootCenter: {
                 ja: "斜線を切れ目の中央から出し、線とは離します。",
@@ -1213,6 +1249,14 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             rootEdge: {
                 ja: "斜線を切れ目の端から出し、線とつなげます。",
                 en: "The slash starts at the edge of the gap, joined to the line."
+            },
+            slashShiftX: {
+                ja: "線と離した斜線を、線に沿ってずらします（プラスで右、配置が左右なら下）。",
+                en: "Shifts a detached slash along the line (positive moves it right, or down on the left or right side)."
+            },
+            slashShiftY: {
+                ja: "線と離した斜線を、線と直角にずらします（プラスで外側＝しっぽの出る向き、マイナスで文字の側）。",
+                en: "Shifts a detached slash across the line (positive moves it outward, the way the tail points; negative toward the text)."
             },
             position: {
                 ja: "線の始まりを0%、終わりを100%として、しっぽの位置を指定します。",
@@ -1227,12 +1271,12 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
                 en: "How much of the line is cut away at the tail: the base of a V or taper, or the gap at a slash (0 keeps the line whole)."
             },
             tailWidth: {
-                ja: "右下・左下のV字・すぼまりの、先端の横方向のずれです。",
-                en: "How far the tip of a V or taper pointing down right or left moves sideways."
+                ja: "向きが［右へ］［左へ］のV字・すぼまりの、先端の横方向のずれです。",
+                en: "How far the tip of a V or taper moves sideways when Direction is Right or Left."
             },
             slashAngle: {
-                ja: "右下・左下の斜線の、線から測った角度です（90°で真下）。長さは［高さ］で決まります。",
-                en: "Angle of a slash pointing down right or left, measured from the line (90° is straight down). Its length follows Height."
+                ja: "向きが［右へ］［左へ］の斜線の、線から測った角度です（90°で線と直角）。長さは［高さ］で決まります。",
+                en: "Angle of a slash when Direction is Right or Left, measured from the line (90° is at a right angle to it). Its length follows Height."
             },
             tailHeight: { ja: "線から外へ伸びるしっぽの長さです。", en: "How far the tail reaches out from the line." },
             underline: { ja: "字面の下に線を引きます。", en: "Draws a line below the glyphs." },
@@ -1258,8 +1302,8 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             },
             tickHeight: { ja: "コの字の両端を立ち上げる長さです。", en: "Length of the bracket's turned-up ends." },
             cornerRadius: {
-                ja: "コの字・囲みの角の丸みです。0 で角をとがらせます。",
-                en: "Corner radius of a bracket or box. 0 keeps the corners sharp."
+                ja: "コの字・囲みの角の丸みです。0 で角をとがらせます。カプセル形状がオンのときは使いません。",
+                en: "Corner radius of a bracket or box. 0 keeps the corners sharp. Unused while Capsule is on."
             },
             shadowDistance: {
                 ja: "囲みの右と下に、この間隔で線を重ねます。0 で影なし。",
@@ -1276,6 +1320,10 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             colorSwatch: {
                 ja: "クリックすると、カラーピッカーで色を選べます。",
                 en: "Click to choose a color in the Color Picker."
+            },
+            isCapsule: {
+                ja: "角丸の半径をできるだけ大きくして、囲みの左右（コの字の両端）を半円にします。",
+                en: "Uses the largest corner radius, so the ends of a box (or bracket) become half circles."
             },
             useAreaFrame: {
                 ja: "エリア内文字は、字面ではなく枠に沿って描きます（［間隔］［左右の伸び］は 0 として扱います）。",
@@ -1320,7 +1368,10 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             },
             noDocument: { ja: "ドキュメントが開かれていません。", en: "No document is open." },
             noText: { ja: "テキストを選択してください。", en: "Select some text." },
-            skipped: { ja: "%1 個のテキストには描けませんでした。", en: "Could not draw for %1 text object(s)." },
+            skipped: {
+                ja: "%1 個のテキストには描けませんでした（ロックされたグループの中、線の長さが 0 など）。",
+                en: "Could not draw for %1 text object(s) (inside a locked group, a line of zero length, etc.)."
+            },
             areaTextFailed: {
                 ja: "エリア内文字の天地中央揃えを設定できませんでした。",
                 en: "Could not center the area type vertically."
@@ -2307,14 +2358,16 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
     /**
      * @typedef {Object} BubbleSettings
      * @property {string} shapeKey - しっぽの形状。"notch"（V字）/ "slash"（斜線）/ "curly"（すぼまり）
-     * @property {string} directionKey - しっぽの向き。"center"（真下）/ "right"（右下）/ "left"（左下）
+     * @property {string} directionKey - しっぽの向き。"center"（まっすぐ）/ "right"（右へ）/ "left"（左へ）
      * @property {string} rootKey - 斜線の根元。"center"（切れ目の中央）/ "edge"（切れ目の端）
      * @property {string} frameKey - 線の形状。"underline"（下線）/ "bracket"（コの字）/ "box"（囲み）
      * @property {string} sideKey - 線を描く側。"top" / "bottom" / "left" / "right"（"auto" は横組みは下・縦組みは右）
      * @property {number} position - しっぽの位置（線の始まりから％）
      * @property {number} slashAngle - 斜線の角度（線から測った度。90 で真下）
+     * @property {number} slashShiftX - 線と離した斜線を線に沿ってずらす量（pt、プラスで線の進む向き）
+     * @property {number} slashShiftY - 線と離した斜線を線と直角にずらす量（pt、プラスで外側）
      * @property {number} gapWidth - しっぽのところで線を切る幅（pt）
-     * @property {number} tailWidth - 右下・左下のしっぽの横方向の長さ（pt）
+     * @property {number} tailWidth - 向きが右へ・左へのV字・すぼまりの、先端の横方向のずれ（pt）
      * @property {number} tailHeight - しっぽが線から外へ伸びる長さ（pt）
      * @property {number} offset - 字面から線までの距離（pt）
      * @property {number} extension - 字面の端から線を伸ばす長さ（pt）
@@ -2326,6 +2379,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
      * @property {string} colorKey - 線のカラー。"text"（文字色）/ "custom"（カスタム）
      * @property {{model: string, values: number[]}} customColor - カスタムのカラー（"rgb" / "cmyk" / "gray" と値）
      * @property {boolean} useAreaFrame - エリア内文字は枠を基準にするか
+     * @property {boolean} isCapsule - カプセル形状（角丸の半径を、辺の長さで頭打ちになるまで大きくする）か
      * @property {boolean} convertToAreaText - 囲みのとき、テキストをエリア内文字にして中央に置くか
      * @property {boolean} groupWithText - テキストとグループ化するか
      * @property {boolean} preview - プレビューするか
@@ -2409,7 +2463,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
      * @param {number} lineY - 線の y
      * @param {BubbleSettings} bubbleSettings - 設定
      * @returns {Object} isBroken（線が切れるか）/ bottomVertices（切れないときの線の途中の頂点）/
-     *     leftVertices・rightVertices（切れるときの左右の端の頂点）/ slashVertices（線と離した斜線）/
+     *     leftVertices・rightVertices（切れるときの左右の端の頂点）/ slashVertices（線と離した斜線）/ gapLeftX・gapRightX（切れ目の両端の x）/
      *     rightEdge・leftEdge（しっぽの右と左の辺 [根元, 先端]）
      */
     function computeTailVertices(spanLeft, spanRight, lineY, bubbleSettings) {
@@ -2442,6 +2496,8 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             }
             return {
                 isBroken: false,
+                gapLeftX: gapLeft.x,
+                gapRightX: gapRight.x,
                 bottomVertices: [gapLeft, notchTip, gapRight],
                 slashVertices: null,
                 rightEdge: [gapRight, notchTip],
@@ -2456,14 +2512,20 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         var isJoined = hasGap && direction !== 0 && bubbleSettings.rootKey === "edge";
         var rootX = anchorX;
         if (isJoined) rootX = (direction > 0) ? gapLeft.x : gapRight.x;
-        var slashRoot = makeVertex(rootX, lineY);
-        var slashTip = makeVertex(rootX + direction * tailRun, tipY);
+        /* 線と離した斜線だけ、左右・上下の調整を足す（つなげた斜線は線の端から動かさない）。上下はプラスで外側（y を減らす）
+           Only a detached slash takes the nudge; a joined one stays on the line's end. Positive Y moves outward (decreasing y) */
+        var shiftX = isJoined ? 0 : bubbleSettings.slashShiftX;
+        var shiftY = isJoined ? 0 : -bubbleSettings.slashShiftY;
+        var slashRoot = makeVertex(rootX + shiftX, lineY + shiftY);
+        var slashTip = makeVertex(rootX + shiftX + direction * tailRun, tipY + shiftY);
         var slashEdge = [slashRoot, slashTip];
         if (!hasGap) {
-            return { isBroken: false, bottomVertices: [], slashVertices: slashEdge, rightEdge: slashEdge, leftEdge: slashEdge };
+            return { isBroken: false, gapLeftX: anchorX, gapRightX: anchorX, bottomVertices: [], slashVertices: slashEdge, rightEdge: slashEdge, leftEdge: slashEdge };
         }
         return {
             isBroken: true,
+            gapLeftX: gapLeft.x,
+            gapRightX: gapRight.x,
             leftVertices: (isJoined && direction > 0) ? [gapLeft, slashTip] : [gapLeft],
             rightVertices: (isJoined && direction < 0) ? [slashTip, gapRight] : [gapRight],
             slashVertices: isJoined ? null : slashEdge,
@@ -2486,7 +2548,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
 
     /**
      * 囲みの影（右と下に重ねる線）の頂点列を返す。しっぽの右の辺は平行にずらし、先端の高さで止める
-     * @param {Object} boxEdges - left / right / top / bottom / radius（囲みの位置と角丸の半径）
+     * @param {Object} boxEdges - left / right / top / bottom / radius / bottomLeftRadius / bottomRightRadius（囲みの位置と角丸の半径。しっぽのかかった下の角は 0）
      * @param {Object} tailVertices - computeTailVertices() の戻り値
      * @param {number} tipY - しっぽの先端の y
      * @param {number} shadowDistance - 影の間隔
@@ -2497,11 +2559,10 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         var shadowRight = boxEdges.right + shadowDistance;
         /* 影の両端は、囲みの角丸が始まるアンカーポイントの位置でそろえる（角が小さいときは影の間隔ぶん内側）
            Both shadow ends line up with where the box's corner rounding starts (inset by the shadow distance for small corners) */
-        var shadowEndInset = Math.max(boxEdges.radius, shadowDistance);
-        var shadowEndX = boxEdges.left + shadowEndInset;
+        var shadowEndX = boxEdges.left + Math.max(boxEdges.bottomLeftRadius, shadowDistance);
         var mainVertices = [
-            makeVertex(shadowRight, boxEdges.top - shadowEndInset),
-            makeVertex(shadowRight, shadowY, boxEdges.radius > 0 ? boxEdges.radius + shadowDistance : 0)
+            makeVertex(shadowRight, boxEdges.top - Math.max(boxEdges.radius, shadowDistance)),
+            makeVertex(shadowRight, shadowY, boxEdges.bottomRightRadius > 0 ? boxEdges.bottomRightRadius + shadowDistance : 0)
         ];
         /* しっぽが影より短いときは、下の線をそのまま通す / a tail shorter than the shadow distance does not break it */
         if (tipY >= shadowY - TAIL_TOLERANCE) {
@@ -2549,27 +2610,37 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
 
         /* 角丸の半径は辺の長さで頭打ちにする / cap the corner radius by the side lengths */
         var cornerRadius = 0;
-        if (frameKey !== "underline") cornerRadius = Math.max(0, Math.min(bubbleSettings.cornerRadius, (frameRight - frameLeft) / 2));
+        /* カプセル形状は、半径を大きく取ってから辺の長さで頭打ちにする（囲みは短い辺の半分、コの字は立ち上がり） / a capsule takes the largest radius the sides allow */
+        var requestedRadius = bubbleSettings.isCapsule ? Infinity : bubbleSettings.cornerRadius;
+        if (frameKey !== "underline") cornerRadius = Math.max(0, Math.min(requestedRadius, (frameRight - frameLeft) / 2));
         if (frameKey === "box") cornerRadius = Math.min(cornerRadius, Math.max(0, (frameTop - frameBottom) / 2));
         if (frameKey === "bracket") cornerRadius = Math.min(cornerRadius, Math.max(0, bubbleSettings.tickHeight));
         var tickTop = frameBottom + bubbleSettings.tickHeight;
+
+        /* しっぽは線の端まで置ける。しっぽが下の角の丸みにかかったら、その角だけ丸めずに角から出す。
+           カプセル形状は形を保つため、これまでどおり角丸の内側に寄せる
+           The tail may reach the ends of the line; a tail overlapping a bottom corner's rounding leaves that corner sharp.
+           A capsule keeps its shape, so its tail stays inside the rounding */
+        var tailInset = bubbleSettings.isCapsule ? cornerRadius : 0;
+        var tailVertices = computeTailVertices(frameLeft + tailInset, frameRight - tailInset, frameBottom, bubbleSettings);
+        var bottomLeftRadius = (tailVertices.gapLeftX < frameLeft + cornerRadius - TAIL_TOLERANCE) ? 0 : cornerRadius;
+        var bottomRightRadius = (tailVertices.gapRightX > frameRight - cornerRadius + TAIL_TOLERANCE) ? 0 : cornerRadius;
 
         /* 下の辺の前後の頂点。囲みは一周してつながる / vertices before and after the bottom side; a box loops around */
         var beforeBottom = [makeVertex(frameLeft, frameBottom)];
         var afterBottom = [makeVertex(frameRight, frameBottom)];
         if (frameKey === "bracket") {
-            beforeBottom = [makeVertex(frameLeft, tickTop), makeVertex(frameLeft, frameBottom, cornerRadius)];
-            afterBottom = [makeVertex(frameRight, frameBottom, cornerRadius), makeVertex(frameRight, tickTop)];
+            beforeBottom = [makeVertex(frameLeft, tickTop), makeVertex(frameLeft, frameBottom, bottomLeftRadius)];
+            afterBottom = [makeVertex(frameRight, frameBottom, bottomRightRadius), makeVertex(frameRight, tickTop)];
         } else if (frameKey === "box") {
-            beforeBottom = [makeVertex(frameLeft, frameBottom, cornerRadius)];
+            beforeBottom = [makeVertex(frameLeft, frameBottom, bottomLeftRadius)];
             afterBottom = [
-                makeVertex(frameRight, frameBottom, cornerRadius),
+                makeVertex(frameRight, frameBottom, bottomRightRadius),
                 makeVertex(frameRight, frameTop, cornerRadius),
                 makeVertex(frameLeft, frameTop, cornerRadius)
             ];
         }
 
-        var tailVertices = computeTailVertices(frameLeft + cornerRadius, frameRight - cornerRadius, frameBottom, bubbleSettings);
         var isBox = (frameKey === "box");
         var polylines = [];
         if (!tailVertices.isBroken) {
@@ -2583,7 +2654,10 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         }
         if (tailVertices.slashVertices) polylines.push({ vertices: tailVertices.slashVertices, isClosed: false });
 
-        var boxEdges = isBox ? { left: frameLeft, right: frameRight, top: frameTop, bottom: frameBottom, radius: cornerRadius } : null;
+        var boxEdges = isBox ? {
+            left: frameLeft, right: frameRight, top: frameTop, bottom: frameBottom,
+            radius: cornerRadius, bottomLeftRadius: bottomLeftRadius, bottomRightRadius: bottomRightRadius
+        } : null;
         if (isBox && bubbleSettings.shadowDistance > TAIL_TOLERANCE) {
             var shadowPolylines = computeShadowPolylines(boxEdges, tailVertices, frameBottom - bubbleSettings.tailHeight, bubbleSettings.shadowDistance);
             for (var i = 0; i < shadowPolylines.length; i++) polylines.push({ vertices: shadowPolylines[i], isClosed: false });
@@ -3617,7 +3691,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
 
     /**
      * 保存したプリセットを読む
-     * @returns {Object} プリセット名をキーにした { choices, position, slashAngle, useAreaFrame, sizes } の集まり
+     * @returns {Object} プリセット名をキーにした { choices, position, slashAngle, useAreaFrame, isCapsule, sizes } の集まり
      */
     function loadSavedPresets() {
         return presetSettingsStore.load({});
@@ -3649,7 +3723,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
 
     /**
      * プリセットを設定の値にする。寸法は保存したプリセットなら pt のまま、最初からあるものなら文字サイズから作る
-     * @param {Object} presetData - { choices, position, slashAngle, useAreaFrame, sizes（pt）か ratios（比率）}
+     * @param {Object} presetData - { choices, position, slashAngle, useAreaFrame, isCapsule, sizes（pt）か ratios（比率）}
      * @param {number} fontSize - 文字サイズ（pt）
      * @param {Object} rulerUnit - 長さの単位
      * @param {Object} strokeUnit - 線幅の単位
@@ -3666,6 +3740,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         presetSettings.position = (typeof presetData.position === "number") ? presetData.position : DEFAULT_CHOICES.position;
         presetSettings.slashAngle = (typeof presetData.slashAngle === "number") ? presetData.slashAngle : DEFAULT_CHOICES.slashAngle;
         presetSettings.useAreaFrame = (typeof presetData.useAreaFrame === "boolean") ? presetData.useAreaFrame : DEFAULT_CHOICES.useAreaFrame;
+        presetSettings.isCapsule = (typeof presetData.isCapsule === "boolean") ? presetData.isCapsule : DEFAULT_CHOICES.isCapsule;
         var scaledSizes = scaleSizeRatios(presetData.ratios || {}, fontSize, rulerUnit, strokeUnit);
         var savedSizes = presetData.sizes || {};
         for (i = 0; i < PRESET_SIZE_KEYS.length; i++) {
@@ -3735,8 +3810,11 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         var maxLabelWidth = 0;
         var i;
         for (i = 0; i < labelControls.length; i++) {
-            /* preferredSize を返さない環境では実サイズで代用する / fall back to the laid-out size */
-            var naturalWidth = labelControls[i].preferredSize.width || labelControls[i].size.width;
+            /* preferredSize を返さない環境では実サイズで代用する。空の項目名（カプセル形状の行）はレイアウト前で size も無いので 0 とみなす
+               Fall back to the laid-out size; an empty label (the capsule row) has no size before layout, so count it as 0 */
+            var naturalWidth = labelControls[i].preferredSize.width;
+            if (!naturalWidth && labelControls[i].size) naturalWidth = labelControls[i].size.width;
+            naturalWidth = naturalWidth || 0;
             if (naturalWidth > maxLabelWidth) maxLabelWidth = naturalWidth;
         }
         for (i = 0; i < labelControls.length; i++) {
@@ -3814,12 +3892,13 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
      * @param {Object} unit - 欄の単位（getUnitInfo() の戻り値）
      * @param {number|undefined} minValue - 下限（欄の単位。下限なしは undefined）
      * @param {Function} onEdit - 値を変えたときに呼ぶ関数
+     * @param {number} [step] - ∧∨・↑↓キーの増減量（省略時は 1）
      * @returns {EditText} 入力欄
      */
-    function addLengthField(parent, settingKey, valuePt, unit, minValue, onEdit) {
+    function addLengthField(parent, settingKey, valuePt, unit, minValue, onEdit, step) {
         var unitSuffix = " " + unit.label;
         return addNumberField(parent, settingKey, formatStepperNumber(ptToUnit(valuePt, unit)) + unitSuffix,
-            { step: 1, min: minValue, unit: unitSuffix }, onEdit);
+            { step: step || 1, min: minValue, unit: unitSuffix }, onEdit);
     }
 
     /**
@@ -4051,6 +4130,9 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             { step: 5, min: MIN_SLASH_ANGLE, max: 90, unit: "°" }, dialogHandlers.onEdit);
         tailControls.rootRow = addRadioRow(tailPanel, "root", initialSettings.rootKey,
             [["center", "rootCenter"], ["edge", "rootEdge"]], dialogHandlers.onChoice);
+        /* 線と離した斜線の微調整は、少しずつ動かせるよう細かい刻みにする / fine steps for nudging a detached slash */
+        tailControls.slashShiftXInput = addLengthField(tailPanel, "slashShiftX", initialSettings.slashShiftX, rulerUnit, undefined, dialogHandlers.onEdit, SLASH_SHIFT_STEP);
+        tailControls.slashShiftYInput = addLengthField(tailPanel, "slashShiftY", initialSettings.slashShiftY, rulerUnit, undefined, dialogHandlers.onEdit, SLASH_SHIFT_STEP);
 
         /* 位置の数値欄とスライダーは、どちらで変えてももう一方に写す / the position field and slider mirror each other */
         var positionInput = addNumberField(tailPanel, "position", formatStepperNumber(initialSettings.position) + "%",
@@ -4091,7 +4173,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         /* 項目名をいちばん長いものに揃えて右揃えにし、スライダーの字下げも同じ幅にする / align the labels to the widest and indent the slider likewise */
         positionSliderIndent.preferredSize.width = alignLabelWidths([
             tailControls.shapeRow.rowLabel, tailControls.directionRow.rowLabel, tailControls.slashAngleInput.fieldLabel,
-            tailControls.rootRow.rowLabel, positionInput.fieldLabel, tailControls.gapWidthInput.fieldLabel,
+            tailControls.rootRow.rowLabel, tailControls.slashShiftXInput.fieldLabel, tailControls.slashShiftYInput.fieldLabel, positionInput.fieldLabel, tailControls.gapWidthInput.fieldLabel,
             tailControls.tailWidthInput.fieldLabel, tailControls.tailHeightInput.fieldLabel
         ]);
         return tailControls;
@@ -4120,6 +4202,13 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         lineControls.extensionInput = addLengthField(linePanel, "extension", initialSettings.extension, rulerUnit, undefined, dialogHandlers.onEdit);
         lineControls.tickHeightInput = addLengthField(linePanel, "tickHeight", initialSettings.tickHeight, rulerUnit, 0, dialogHandlers.onEdit);
         lineControls.cornerRadiusInput = addLengthField(linePanel, "cornerRadius", initialSettings.cornerRadius, rulerUnit, 0, dialogHandlers.onEdit);
+        /* カプセル形状は角丸の半径の下。項目名の列は空けて、欄の左端にそろえる / the capsule checkbox sits under the corner radius, aligned with the fields */
+        var capsuleRow = linePanel.add("group");
+        setupRow(capsuleRow);
+        capsuleRow.rowLabel = capsuleRow.add("statictext", undefined, "");
+        lineControls.capsuleCheckbox = addSettingCheckbox(capsuleRow, "isCapsule", initialSettings.isCapsule);
+        lineControls.capsuleCheckbox.onClick = dialogHandlers.onChoice;
+        lineControls.capsuleRow = capsuleRow;
         lineControls.shadowDistanceInput = addLengthField(linePanel, "shadowDistance", initialSettings.shadowDistance, rulerUnit, 0, dialogHandlers.onEdit);
         lineControls.strokeWidthInput = addLengthField(linePanel, "strokeWidth", initialSettings.strokeWidth, strokeUnit, 0.1, dialogHandlers.onEdit);
 
@@ -4137,7 +4226,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
 
         alignLabelWidths([
             lineControls.frameRow.rowLabel, lineControls.sideRow.rowLabel, lineControls.offsetInput.fieldLabel,
-            lineControls.extensionInput.fieldLabel, lineControls.tickHeightInput.fieldLabel, lineControls.cornerRadiusInput.fieldLabel,
+            lineControls.extensionInput.fieldLabel, lineControls.tickHeightInput.fieldLabel, lineControls.cornerRadiusInput.fieldLabel, capsuleRow.rowLabel,
             lineControls.shadowDistanceInput.fieldLabel, lineControls.strokeWidthInput.fieldLabel, colorRow.rowLabel, lineControls.capRow.rowLabel
         ]);
         return lineControls;
@@ -4186,6 +4275,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         bubbleSettings.slashAngle = readFieldNumber(dialogControls.slashAngleInput);
         bubbleSettings.customColor = dialogControls.colorState.data;
         bubbleSettings.useAreaFrame = dialogControls.useAreaFrameCheckbox.value;
+        bubbleSettings.isCapsule = dialogControls.capsuleCheckbox.value;
         bubbleSettings.convertToAreaText = dialogControls.convertToAreaTextCheckbox.value;
         bubbleSettings.groupWithText = dialogControls.groupWithTextCheckbox.value;
         bubbleSettings.preview = dialogControls.previewCheckbox.value;
@@ -4215,6 +4305,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         dialogControls.positionSlider.value = presetSettings.position;
         writeFieldText(dialogControls.slashAngleInput, formatStepperNumber(presetSettings.slashAngle) + "°");
         dialogControls.useAreaFrameCheckbox.value = presetSettings.useAreaFrame;
+        dialogControls.capsuleCheckbox.value = presetSettings.isCapsule;
     }
 
     /**
@@ -4229,11 +4320,17 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         var frameKey = dialogControls.choiceRows.frameKey.getValue();
         var lengthFields = dialogControls.lengthFields;
         dialogControls.choiceRows.rootKey.enabled = isSlash && !isStraight;
+        /* 左右・上下の調整は、線と離した斜線（根元が中央か、真下）のときだけ / nudges apply only to a detached slash */
+        var isDetachedSlash = isSlash && (isStraight || dialogControls.choiceRows.rootKey.getValue() === "center");
+        setSteppedFieldEnabled(lengthFields.slashShiftX.input, isDetachedSlash);
+        setSteppedFieldEnabled(lengthFields.slashShiftY.input, isDetachedSlash);
         /* 斜線は横の長さを角度で決める / a slash takes its run from the angle */
         setSteppedFieldEnabled(lengthFields.tailWidth.input, !isStraight && !isSlash);
         setSteppedFieldEnabled(dialogControls.slashAngleInput, !isStraight && isSlash);
         setSteppedFieldEnabled(lengthFields.tickHeight.input, frameKey === "bracket");
-        setSteppedFieldEnabled(lengthFields.cornerRadius.input, frameKey !== "underline");
+        /* カプセル形状のときは半径を自動で決めるので、角丸の半径は使わない / a capsule decides the radius itself */
+        dialogControls.capsuleCheckbox.enabled = (frameKey !== "underline");
+        setSteppedFieldEnabled(lengthFields.cornerRadius.input, frameKey !== "underline" && !dialogControls.capsuleCheckbox.value);
         setSteppedFieldEnabled(lengthFields.shadowDistance.input, frameKey === "box");
         dialogControls.convertToAreaTextCheckbox.enabled = (frameKey === "box");
         /* すべてエリア内文字で枠を基準にするときは、間隔・左右の伸びを使わない / unused when every text is area type measured by its frame */
@@ -4245,10 +4342,10 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
     /**
      * 設定をプリセットの形にする（寸法は pt）
      * @param {BubbleSettings} bubbleSettings - 設定
-     * @returns {Object} { choices, position, slashAngle, useAreaFrame, sizes }
+     * @returns {Object} { choices, position, slashAngle, useAreaFrame, isCapsule, sizes }
      */
     function settingsToPresetData(bubbleSettings) {
-        var presetData = { choices: {}, position: bubbleSettings.position, slashAngle: bubbleSettings.slashAngle, useAreaFrame: bubbleSettings.useAreaFrame, sizes: {} };
+        var presetData = { choices: {}, position: bubbleSettings.position, slashAngle: bubbleSettings.slashAngle, useAreaFrame: bubbleSettings.useAreaFrame, isCapsule: bubbleSettings.isCapsule, sizes: {} };
         var i;
         for (i = 0; i < PRESET_CHOICE_KEYS.length; i++) presetData.choices[PRESET_CHOICE_KEYS[i]] = bubbleSettings[PRESET_CHOICE_KEYS[i]];
         for (i = 0; i < PRESET_SIZE_KEYS.length; i++) presetData.sizes[PRESET_SIZE_KEYS[i]] = bubbleSettings[PRESET_SIZE_KEYS[i]];
@@ -4430,6 +4527,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             lengthFields: {
                 gapWidth: { input: tailControls.gapWidthInput }, tailWidth: { input: tailControls.tailWidthInput },
                 tailHeight: { input: tailControls.tailHeightInput }, offset: { input: lineControls.offsetInput },
+                slashShiftX: { input: tailControls.slashShiftXInput }, slashShiftY: { input: tailControls.slashShiftYInput },
                 extension: { input: lineControls.extensionInput }, tickHeight: { input: lineControls.tickHeightInput },
                 cornerRadius: { input: lineControls.cornerRadiusInput }, shadowDistance: { input: lineControls.shadowDistanceInput },
                 strokeWidth: { input: lineControls.strokeWidthInput, isStroke: true }
@@ -4438,6 +4536,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             positionSlider: tailControls.positionSlider,
             slashAngleInput: tailControls.slashAngleInput,
             colorState: lineControls.colorState,
+            capsuleCheckbox: lineControls.capsuleCheckbox,
             useAreaFrameCheckbox: textOptionControls.useAreaFrameCheckbox,
             convertToAreaTextCheckbox: textOptionControls.convertToAreaTextCheckbox,
             groupWithTextCheckbox: textOptionControls.groupWithTextCheckbox,

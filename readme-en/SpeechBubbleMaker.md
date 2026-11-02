@@ -19,33 +19,35 @@ The dialog box has Presets centered at the top, the Tail and Text Options panels
 #### Presets
 
 - Picking a preset switches the tail and line/frame settings at once.
-- Twelve built-in presets are included (simple speech bubble, wide curly, underline with a V, a V down right, slashes down right and left; bracket with a slash; rounded bracket with a V; box with a slash; rounded box with a slash; box with a V and shadow; curly bracket). Built-in presets size themselves to the font size of the first character.
+- Sixteen built-in presets are included (simple speech bubble, wide curly, underline with a V, a V down right, slashes down right and left; a slash down right with no gap; bracket with a slash; rounded bracket with a V; box with a slash; rounded box with a slash; capsule box; box with a tail at the bottom-right or bottom-left corner; box with a V and shadow; curly bracket). Built-in presets size themselves to the font size of the first character.
 - The save icon stores the current settings under a name; the trash icon deletes the selected saved preset (built-in presets cannot be deleted, and their names cannot be reused). Saved presets keep their sizes as saved and survive quitting Illustrator.
 - Changing a setting by hand clears the preset selection.
 
 #### Tail
 
-- Shape: V bends the line into a tail (it stays a single path). Slash draws a slash out of the line. Taper narrows out of the line in curves to a point, like the middle of a curly bracket in AiCurlyBracketMaker.
-- Direction: Down, Down right or Down left.
-  - For a V or taper, Down puts the tip at the middle of the base; Down right puts it Width to the right of the base's left end; Down left puts it Width to the left of the base's right end.
-  - A slash leans to the right or left at Angle (Down keeps it straight).
-- Angle (slash pointing down right or left): measured from the line (default 45°, 5–90°; 90° is straight down). The slash's horizontal run follows Height and Angle.
-- Root (slash pointing down right or left): Center starts the slash at the middle of the gap, apart from the line; Edge starts it at the edge of the gap, joined to the line.
+- Shape: V shape bends the line into a tail (it stays a single path). Slash draws a slash out of the line. Taper narrows out of the line in curves to a point, like the middle of a curly bracket in AiCurlyBracketMaker.
+- Direction: Straight, Right or Left (on the bottom side these look straight down, down right and down left).
+  - For a V or taper, Straight puts the tip at the middle of the base; Right puts it Width to the right of the base's left end; Left puts it Width to the left of the base's right end.
+  - A slash leans to the right or left at Angle; Straight makes it leave the line at a right angle.
+- Angle (slash with Direction Right or Left): measured from the line (default 45°, 5–90°; 90° is at a right angle to it). The slash's horizontal run follows Height and Angle.
+- Root (slash with Direction Right or Left): Center starts the slash at the middle of the gap, apart from the line; Edge starts it at the edge of the gap, joined to the line.
+- Nudge X / Nudge Y (detached slash: Root is Center, or Direction is Straight): shift the slash a little (the stepper moves by 0.5). Positive X moves it along the line (right, or down on the left or right side); positive Y moves it outward, the way the tail points, and negative toward the text.
 - Position: from 0% (start of the line) to 100% (end), in the field or with the slider below it (hold Shift for 10% steps); default 50%. A tail that would run past the ends is pulled inward.
 - Gap: how much of the line is cut away at the tail; for a V or taper, the width of its base. A slash with 0 keeps the line whole.
-- Width (V or taper pointing down right or left): how far the tip moves sideways.
+- Width (V or taper with Direction Right or Left): how far the tip moves sideways.
 - Height: how far the tail reaches out from the line.
 
 #### Line/Frame
 
 - Shape: Underline draws a line below the glyphs. Bracket turns both ends of the line up toward the text. Box encloses the glyphs in a rectangle. A bracket whose Corner radius equals its Ticks gets curly-bracket ends.
 - Side: Top, Bottom, Left or Right, laid out around a cross. Each time the dialog box opens, Bottom is picked when the first text is horizontal and Right when it is vertical (the same happens when picking a preset that has no side of its own).
-  - On Top, the tail points up.
-  - On Left or Right the line starts at the top, Down right leans toward the bottom and Down left toward the top.
+  - On Top, the tail points up (Right goes up to the right, Left up to the left).
+  - On Left or Right the line starts at the top, Right leans toward the bottom and Left toward the top.
 - Distance: from the glyphs to the line; the top and bottom padding of a box.
 - Extension: how far the line runs past the glyphs (negative values shorten it); the side padding of a box.
 - Ticks (bracket): length of the turned-up ends.
-- Corner radius (bracket or box): 0 keeps the corners sharp.
+- Corner radius (bracket or box): 0 keeps the corners sharp. When the tail overlaps a bottom corner's rounding (a V pointing Left at 0%, for example), that corner stays sharp and the tail comes out of it (a capsule keeps its tail inside the rounding instead).
+- Capsule (bracket or box): uses the largest corner radius the sides allow, so the ends of a box become half circles (a bracket gets the Ticks length as its radius). Corner radius is unused while it is on. Saved in presets too.
 - Shadow (box): adds a second line this far out on the right and bottom (0 for none). Its ends line up with where the box's corner rounding starts; the tail's right edge is offset in parallel and stops at the tip's height, and the bottom line stops short of the tail's left edge.
 - Weight: stroke weight of the line and tail.
 - Color: Text (default) uses the fill of each text's first character (black when it has no fill); the other radio button (custom, shown with just a swatch) uses the swatch's color. Clicking the swatch opens Illustrator's Color Picker and switches to custom.
@@ -80,3 +82,4 @@ The dialog box has Presets centered at the top, the Tail and Text Options panels
 - v1.0.0 (2026-11-02): Initial release
 - v1.0.1 (2026-11-02): Added the built-in preset Simple speech bubble and grouped the built-in presets with separators (staple, underlines, brackets, boxes). Renamed the Options panel to Text Options and Center the text as area type to Center as area type. Moved Shadow below Corner radius and made the save icon slightly smaller. The position slider moves in 10% steps with Shift held. Fixed the Color Picker sometimes opening in grayscale
 - v1.0.2 (2026-11-02): Added the built-in preset Wide curly (an underline with a taper and round caps)
+- v1.1.0 (2026-11-03): Added Nudge X and Nudge Y for a detached slash, and Capsule below Corner radius; a tail overlapping a bottom corner's rounding now leaves that corner sharp, plus the built-in presets Capsule box, Underline, slash down right, no gap, and boxes with a tail at the bottom-right or bottom-left corner. Renamed Direction to Straight, Right and Left (V renamed V shape) and revised tooltips for the Side setting
