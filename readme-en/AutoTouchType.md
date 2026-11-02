@@ -30,6 +30,7 @@ https://note.com/dtp_tranist/n/ne6545c4717af
 
 ### Update History
 
+- v1.3.8 (2026-11-02): Each text now keeps its own ransom-note background, so running on another text no longer removes earlier ones. Fixed: characters selected with the Type tool were rejected, a scale amount of 100% or more caused an error, Cancel did not restore auto kerning, and the rotation tracking compensation overwrote the original tracking. "Japanese only" now turns on automatically only when the text contains Japanese, and Random / Reset no longer toggle it. Cancel now also undoes Reset (backgrounds are rebuilt or removed on OK). Ransom-note tracking is always added to the original value (it used to depend on the rotation compensation checkbox). Per-character font changes skip fonts missing from the system. Fixed the baseline default becoming 0 in mm or inches, where the slider now steps by 0.1. Tooltips and the no-Japanese-fonts message now match what the script does
 - v1.3.7 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.3.6 (2026-10-01): Added space below the button row to match Illustrator's own dialogs
 - v1.3.5 (2026-10-01): Unified the window and panel margins and spacing with the shared layout part

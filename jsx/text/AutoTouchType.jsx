@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.AutoTouchType
 Name=文字タッチツールの調整をランダムに付与
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.3.7
+Version=1.3.8
 Release-Date=2026-02-16
 Description-BEGIN
 選択したテキストの各文字に対して、ベースライン・比率・回転・カーニング・トラッキングをランダムに付与します。
@@ -47,10 +47,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AutoTouchT
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AutoTouchType";                /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.3.7";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.3.8";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-02-16";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-11-02";                   /* 更新日 / last updated */
 
 var SCRIPT_DESCRIPTION_JA = "文字タッチツールの調整をランダムに付与"; /* README の見出し / README title (Japanese) */
 
@@ -68,9 +68,12 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     // ユーザー設定 / User Settings
     // =========================================
 
-    /* 「犯行声明文」風の背景を置くレイヤー名とグループ名 / Layer and group that hold the ransom-note backgrounds */
+    /* 「犯行声明文」風の背景を置くレイヤー名とグループ名（グループ名の後ろにテキストごとの ID を付ける）
+       Layer and group that hold the ransom-note backgrounds (each group name ends with the text's ID) */
     var RANSOM_BG_LAYER_NAME = "__AutoTouchType_BG__";
     var RANSOM_BG_GROUP_NAME = "__BGRects__";
+    /* テキストフレームに背景グループの ID を控えるタグ名 / Tag on the text frame that holds its background group ID */
+    var RANSOM_BG_TAG_NAME = "AutoTouchTypeBG";
 
     /* 背景長方形の余白・ゆがみ量（pt）とグレー濃度（%）/ Padding, jitter (pt) and gray range (%) of the background rectangles */
     var RANSOM_RECT_PADDING_PT = 1;
@@ -95,8 +98,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     var ZOOM_MIN_PERCENT = 10;
     var ZOOM_MAX_PERCENT = 1600;
 
-    /* 画面更新の間引き（ミリ秒）/ Redraw throttling in milliseconds */
-    var PREVIEW_DELAY_MS = 120;
+    /* ズームの画面更新の間引き（ミリ秒）/ Zoom redraw throttling in milliseconds */
     var ZOOM_THROTTLE_MS = 150;
 
     /* 文字回転に対するトラッキング補正の係数 / Factors of the rotation tracking compensation */
@@ -1108,10 +1110,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
                 en: "Please select a text object or characters."
             },
             enterNumber: { ja: "数値を入力してください。", en: "Please enter a number." },
-            noJapaneseFonts: {
-                ja: "対象の和文フォント（Pr6 / Pr6N）が見つかりません。",
-                en: "No target JP fonts (Pr6 / Pr6N) were found."
-            }
+            noJapaneseFonts: { ja: "和文フォントが見つかりません。", en: "No Japanese fonts were found." }
         },
         tooltip: {
             stepUp: {
@@ -1125,19 +1124,16 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             stepUpInteger: { ja: "値を増やす（shift＋クリックで10の倍数へ）", en: "Increase (Shift-click to snap to 10s)" },
             stepDownInteger: { ja: "値を減らす（shift＋クリックで10の倍数へ）", en: "Decrease (Shift-click to snap to 10s)" },
             randomFont: { ja: "1文字ずつフォントを入れ替えます。", en: "Swaps the font of each character." },
-            japaneseOnly: {
-                ja: "入れ替え先を和文フォント（Pr6／Pr6N）だけに絞ります。",
-                en: "Limits the replacement fonts to Japanese fonts (Pr6 / Pr6N)."
-            },
+            japaneseOnly: { ja: "入れ替え先を和文フォントだけに絞ります。", en: "Limits the replacement fonts to Japanese fonts." },
             ransomEnabled: {
-                ja: "1文字ずつ大きさと書体をばらつかせ、切り貼りしたような見た目にします。",
-                en: "Varies the size and typeface of each character, like letters cut from a magazine."
+                ja: "OK時に1文字ずつグレーの背景を敷き、切り貼りしたような見た目にします。",
+                en: "On OK, puts a gray patch behind each character, like letters cut from a magazine."
             },
             ransomTracking: {
-                ja: "ばらついた文字幅に合わせて字間を詰めます。",
-                en: "Tightens the spacing to match the varied character widths."
+                ja: "字間を広げ、背景どうしが重なりにくくします。",
+                en: "Widens the letter spacing so the patches overlap less."
             },
-            ransomTrackingValue: { ja: "詰める量です。単位は1/1000em。", en: "How much to tighten, in 1/1000 em." },
+            ransomTrackingValue: { ja: "元の字間に足す量です。単位は1/1000em。", en: "Amount added to the original spacing, in 1/1000 em." },
             baselineEnabled: { ja: "ベースラインシフトをかけるかどうかです。", en: "Whether to apply a baseline shift." },
             baseline: { ja: "1文字ずつ上下にずらす最大量です。", en: "Maximum amount each character is shifted up or down." },
             scaleEnabled: { ja: "文字を長体・平体にするかどうかです。", en: "Whether to condense or extend the characters." },
@@ -1662,7 +1658,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         return percent;
     }
 
-    var docView = doc.views[0];
+    var docView = doc.activeView; /* 複数ウィンドウで開いていても今のウィンドウ / the current window even with multiple windows */
     var originalZoomFactor = docView.zoom;
     var originalCenterPoint = docView.centerPoint;
     var zoomCenterPoint = originalCenterPoint;
@@ -1707,27 +1703,71 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     }
 
     /**
+     * 背景用レイヤーを探す
+     * @returns {Layer|null} 背景用レイヤー（無ければ null）
+     */
+    function findRansomBgLayer() {
+        for (var i = 0; i < doc.layers.length; i++) {
+            if (doc.layers[i].name === RANSOM_BG_LAYER_NAME) return doc.layers[i];
+        }
+        return null;
+    }
+
+    /**
      * 背景用レイヤーを探し、無ければ作る
      * @returns {Layer} 背景用レイヤー
      */
     function ensureRansomBgLayer() {
-        for (var i = 0; i < doc.layers.length; i++) {
-            if (doc.layers[i].name === RANSOM_BG_LAYER_NAME) return doc.layers[i];
-        }
-        var bgLayer = doc.layers.add();
+        var bgLayer = findRansomBgLayer();
+        if (bgLayer) return bgLayer;
+        bgLayer = doc.layers.add();
         bgLayer.name = RANSOM_BG_LAYER_NAME;
         return bgLayer;
     }
 
     /**
-     * 背景用グループを削除する
-     * @param {Layer} bgLayer - 背景用レイヤー
+     * テキストフレームに控えた背景グループの ID を読む
+     * @param {TextFrame} textFrame - 対象のテキストフレーム
+     * @returns {string} ID（背景が無ければ ""）
+     */
+    function getRansomBgId(textFrame) {
+        /* タグを読めない種類は背景なしとみなす / Treat unreadable tags as no background */
+        try {
+            for (var i = 0; i < textFrame.tags.length; i++) {
+                if (textFrame.tags[i].name === RANSOM_BG_TAG_NAME) return String(textFrame.tags[i].value);
+            }
+        } catch (e) { }
+        return "";
+    }
+
+    /**
+     * テキストフレームに背景グループの ID を控える
+     * @param {TextFrame} textFrame - 対象のテキストフレーム
+     * @param {string} bgId - 背景グループの ID
      * @returns {void}
      */
-    function removeRansomBgGroup(bgLayer) {
-        if (!bgLayer) return;
+    function setRansomBgId(textFrame, bgId) {
+        for (var i = 0; i < textFrame.tags.length; i++) {
+            if (textFrame.tags[i].name === RANSOM_BG_TAG_NAME) {
+                textFrame.tags[i].value = bgId;
+                return;
+            }
+        }
+        var bgTag = textFrame.tags.add();
+        bgTag.name = RANSOM_BG_TAG_NAME;
+        bgTag.value = bgId;
+    }
+
+    /**
+     * 指定した ID の背景グループを削除する
+     * @param {Layer} bgLayer - 背景用レイヤー
+     * @param {string} bgId - 背景グループの ID
+     * @returns {void}
+     */
+    function removeRansomBgGroup(bgLayer, bgId) {
+        if (!bgLayer || !bgId) return;
         for (var i = bgLayer.groupItems.length - 1; i >= 0; i--) {
-            if (bgLayer.groupItems[i].name === RANSOM_BG_GROUP_NAME) bgLayer.groupItems[i].remove();
+            if (bgLayer.groupItems[i].name === RANSOM_BG_GROUP_NAME + bgId) bgLayer.groupItems[i].remove();
         }
     }
 
@@ -1846,16 +1886,15 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     }
 
     /**
-     * テキストを複製してアウトライン化し、1文字ごとの背景長方形を作る
+     * テキストを複製してアウトライン化し、1文字ごとの背景長方形を作る。
+     * 背景はテキストごとのグループに入れ、そのテキストの前の背景だけを置き換える
      * @param {TextFrame[]} textFrames - 対象のテキストフレーム
      * @returns {void}
      */
     function createRansomBgRects(textFrames) {
         if (!textFrames || textFrames.length === 0) return;
         var bgLayer = ensureRansomBgLayer();
-        removeRansomBgGroup(bgLayer);
-        var bgGroup = bgLayer.groupItems.add();
-        bgGroup.name = RANSOM_BG_GROUP_NAME;
+        var bgIdBase = String((new Date()).getTime());
 
         for (var i = 0; i < textFrames.length; i++) {
             var textFrame = textFrames[i];
@@ -1880,6 +1919,12 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
                 continue;
             }
 
+            /* このテキストの前の背景だけを作り直す / Replace only this text's previous background */
+            removeRansomBgGroup(bgLayer, getRansomBgId(textFrame));
+            var bgId = bgIdBase + "_" + i;
+            var bgGroup = bgLayer.groupItems.add();
+            bgGroup.name = RANSOM_BG_GROUP_NAME + bgId;
+
             var charItems = [];
             collectOutlinedCharItems(outlinedGroup, charItems);
             for (var j = 0; j < charItems.length; j++) {
@@ -1890,22 +1935,22 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
                 } catch (e) { }
             }
             outlinedGroup.remove();
+            setRansomBgId(textFrame, bgId);
         }
 
-        bgGroup.zOrder(ZOrderMethod.SENDTOBACK);
         bgLayer.zOrder(ZOrderMethod.SENDTOBACK);
     }
 
     /**
-     * 背景の長方形を消す（無ければ何もしない）
+     * 指定したテキストの背景の長方形を消す（無ければ何もしない）
+     * @param {TextFrame[]} textFrames - 対象のテキストフレーム
      * @returns {void}
      */
-    function clearRansomBgRects() {
-        for (var i = 0; i < doc.layers.length; i++) {
-            if (doc.layers[i].name === RANSOM_BG_LAYER_NAME) {
-                removeRansomBgGroup(doc.layers[i]);
-                return;
-            }
+    function clearRansomBgRects(textFrames) {
+        var bgLayer = findRansomBgLayer();
+        if (!bgLayer) return;
+        for (var i = 0; i < textFrames.length; i++) {
+            removeRansomBgGroup(bgLayer, getRansomBgId(textFrames[i]));
         }
     }
 
@@ -2011,10 +2056,12 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
 
     /**
      * 選択オブジェクトから TextRange を集める
-     * @param {Object[]} selectionItems - 選択オブジェクトの配列
+     * @param {Object[]|TextRange} selectionItems - 選択オブジェクトの配列（文字ツールで文字を選択中は TextRange そのもの）
      * @returns {TextRange[]} TextRange の配列
      */
     function collectTextRanges(selectionItems) {
+        /* 文字の選択中は TextRange が返り、length は文字数で [0] が無い / A character selection is a TextRange whose length counts characters */
+        if (selectionItems.typename === "TextRange") return (selectionItems.length > 0) ? [selectionItems] : [];
         var collectedRanges = [];
         for (var i = 0; i < selectionItems.length; i++) {
             var selectedItem = selectionItems[i];
@@ -2026,18 +2073,13 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     }
 
     /**
-     * 英数字以外（改行を除く）を含むか判定する
+     * ひらがな・カタカナ・漢字を含む TextRange があるか判定する
      * @param {TextRange[]} targetRanges - 判定する TextRange
      * @returns {boolean} 含むとき true
      */
-    function containsNonAlphanumeric(targetRanges) {
+    function containsJapaneseText(targetRanges) {
         for (var i = 0; i < targetRanges.length; i++) {
-            var rangeText = targetRanges[i].contents;
-            for (var j = 0; j < rangeText.length; j++) {
-                var oneChar = rangeText.charAt(j);
-                if (oneChar === "\r" || oneChar === "\n") continue;
-                if (!/[A-Za-z0-9]/.test(oneChar)) return true;
-            }
+            if (hasJapaneseCharacters(targetRanges[i].contents)) return true;
         }
         return false;
     }
@@ -2054,6 +2096,19 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             return (typeof kerningValue === "number") ? kerningValue : 0;
         } catch (e) {
             return 0;
+        }
+    }
+
+    /**
+     * カーニングの方式（自動・オプティカル・なし）を読む
+     * @param {Object} character - 対象の文字
+     * @returns {AutoKernType|null} 方式（読めなければ null）
+     */
+    function getCharacterKerningMethod(character) {
+        try {
+            return character.characterAttributes.kerningMethod;
+        } catch (e) {
+            return null;
         }
     }
 
@@ -2086,6 +2141,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
                     verticalScale: charAttributes.verticalScale,
                     rotation: charAttributes.rotation,
                     kerning: getCharacterKerning(character),
+                    kerningMethod: getCharacterKerningMethod(character),
                     tracking: (typeof charAttributes.tracking === "number") ? charAttributes.tracking : 0,
                     textFont: charAttributes.textFont
                 });
@@ -2094,12 +2150,30 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     }
 
     /**
+     * 文字属性の控えを複製する（リセットで書き換わらない控えを別に持つため）
+     * @param {Object[]} snapshots - 文字属性の控え
+     * @returns {Object[]} 複製した控え
+     */
+    function copyCharSnapshots(snapshots) {
+        var copiedSnapshots = [];
+        for (var i = 0; i < snapshots.length; i++) {
+            var copiedSnapshot = {};
+            for (var key in snapshots[i]) {
+                if (snapshots[i].hasOwnProperty(key)) copiedSnapshot[key] = snapshots[i][key];
+            }
+            copiedSnapshots.push(copiedSnapshot);
+        }
+        return copiedSnapshots;
+    }
+
+    /**
      * 控えた文字属性に戻す
+     * @param {Object[]} snapshots - 戻す控え（charSnapshots か originalCharSnapshots）
      * @returns {void}
      */
-    function restoreCharSnapshots() {
-        for (var i = 0; i < charSnapshots.length; i++) {
-            var snapshot = charSnapshots[i];
+    function restoreCharSnapshots(snapshots) {
+        for (var i = 0; i < snapshots.length; i++) {
+            var snapshot = snapshots[i];
             var charAttributes = snapshot.character.characterAttributes;
             charAttributes.baselineShift = snapshot.baselineShift;
             charAttributes.horizontalScale = snapshot.horizontalScale;
@@ -2107,8 +2181,13 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             charAttributes.rotation = snapshot.rotation;
             /* カーニング・トラッキング・フォントは書き込めない環境がある / These three are not writable everywhere */
             try {
-                charAttributes.kerningMethod = AutoKernType.NOAUTOKERN;
-                snapshot.character.kerning = snapshot.kerning;
+                /* 自動・オプティカルだった文字は方式だけ戻す（手動の値は持たない）/ Auto or optical kerning only needs the method back */
+                if (snapshot.kerningMethod !== null && snapshot.kerningMethod !== AutoKernType.NOAUTOKERN) {
+                    charAttributes.kerningMethod = snapshot.kerningMethod;
+                } else {
+                    charAttributes.kerningMethod = AutoKernType.NOAUTOKERN;
+                    snapshot.character.kerning = snapshot.kerning;
+                }
             } catch (e) { }
             try {
                 charAttributes.tracking = snapshot.tracking;
@@ -2187,9 +2266,12 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             if (Math.abs(trackingDeltas[i]) <= 0.5) continue;
             var charContent = characters[i].contents;
             if (charContent === "\r" || charContent === "\n") continue;
-            /* トラッキングを書き込めない環境がある / Tracking is not writable everywhere */
+            /* 元のトラッキング（直前に控えの値へ戻してある）に足す。書き込めない環境がある
+               Add to the original tracking, which was just restored from the snapshot; not writable everywhere */
             try {
-                characters[i].characterAttributes.tracking = trackingDeltas[i];
+                var trackingAttributes = characters[i].characterAttributes;
+                var baseTracking = (typeof trackingAttributes.tracking === "number") ? trackingAttributes.tracking : 0;
+                trackingAttributes.tracking = baseTracking + trackingDeltas[i];
             } catch (e) { }
         }
     }
@@ -2208,6 +2290,10 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     // -----------------------------------------
     // ランダム適用 / Randomization
     // -----------------------------------------
+
+    /* 水平・垂直比率として Illustrator が受け付ける範囲（%）/ Horizontal and vertical scale range Illustrator accepts (%) */
+    var CHAR_SCALE_MIN_PERCENT = 1;
+    var CHAR_SCALE_MAX_PERCENT = 10000;
 
     /**
      * seedから同じ並びを再現できる乱数生成器を作る
@@ -2229,6 +2315,37 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
      */
     function randomSigned(nextRandom) {
         return nextRandom() * 2.0 - 1.0;
+    }
+
+    /* 環境にないフォントを引いたときに引き直す回数 / How many times to redraw when a missing font comes up */
+    var FONT_PICK_ATTEMPTS = 5;
+
+    /**
+     * 環境にないフォントの仮エントリかどうかを判定する。
+     * app.textFonts には環境にないフォントも並び、その仮エントリは style が空で family が name と同じになる
+     * @param {TextFont} candidateFont - 判定するフォント
+     * @returns {boolean} 環境にないフォントなら true
+     */
+    function isMissingFontEntry(candidateFont) {
+        try {
+            return candidateFont.style === "" && candidateFont.family === candidateFont.name;
+        } catch (e) {
+            return true;
+        }
+    }
+
+    /**
+     * フォント一覧から環境にあるフォントを1つ選ぶ（環境にないものを引いたら引き直す）
+     * @param {TextFont[]} fontPool - フォントの配列（app.textFonts も可）
+     * @param {Function} nextRandom - 乱数生成器
+     * @returns {TextFont|null} 選んだフォント（引き直しても見つからなければ null）
+     */
+    function pickUsableFont(fontPool, nextRandom) {
+        for (var attempt = 0; attempt < FONT_PICK_ATTEMPTS; attempt++) {
+            var candidateFont = fontPool[Math.floor(nextRandom() * fontPool.length)];
+            if (candidateFont && !isMissingFontEntry(candidateFont)) return candidateFont;
+        }
+        return null;
     }
 
     /**
@@ -2253,11 +2370,11 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         var nextRandom = createSeededRandom(randomSeed);
         var fontPool = resolveFontPool(touchOptions);
 
-        /* 「犯行声明文」風のトラッキングは固定値で上書きする / Ransom-note tracking overrides the random spacing */
+        /* 「犯行声明文」風のトラッキングは元の値に固定値を足す（回転の補正の代わりになる）
+           Ransom-note tracking adds a fixed amount to the original value, replacing the rotation compensation */
         var ransomTrackEnabled = (touchOptions.ransomTrack !== false);
         var useFixedTracking = (touchOptions.ransom && ransomTrackEnabled) || touchOptions.previewRansomTracking;
         var fixedTracking = (typeof touchOptions.ransomTrackValue === "number") ? touchOptions.ransomTrackValue : RANSOM_TRACKING_DEFAULT;
-        var addFixedToExisting = (touchOptions.rotationTracking !== false);
 
         for (var i = 0; i < charSnapshots.length; i++) {
             var snapshot = charSnapshots[i];
@@ -2265,18 +2382,21 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             var charContent = snapshot.character.contents;
 
             if (fontPool && !(charContent === "\r" || charContent === "\n" || charContent === " ")) {
-                /* 環境にないフォントは適用できない / A font missing from the system cannot be applied */
+                var pickedFont = pickUsableFont(fontPool, nextRandom);
+                /* 書き込めないフォントがある / Some fonts cannot be applied */
                 try {
-                    charAttributes.textFont = fontPool[Math.floor(nextRandom() * fontPool.length)];
+                    if (pickedFont) charAttributes.textFont = pickedFont;
                 } catch (e) { }
             }
 
             charAttributes.baselineShift = randomSigned(nextRandom) * touchAmounts.baselinePt;
             charAttributes.rotation = snapshot.rotation + (randomSigned(nextRandom) * touchAmounts.rotationDeg);
 
+            /* 量が100%以上だと倍率が0以下になるので、Illustrator が受け付ける範囲に収める
+               An amount of 100% or more can drive the factor to zero or below, so clamp to the range Illustrator accepts */
             var scaleFactor = 1.0 + (randomSigned(nextRandom) * (touchAmounts.scalePercent / 100.0));
-            charAttributes.horizontalScale = snapshot.horizontalScale * scaleFactor;
-            charAttributes.verticalScale = snapshot.verticalScale * scaleFactor;
+            charAttributes.horizontalScale = clampToRange(snapshot.horizontalScale * scaleFactor, CHAR_SCALE_MIN_PERCENT, CHAR_SCALE_MAX_PERCENT);
+            charAttributes.verticalScale = clampToRange(snapshot.verticalScale * scaleFactor, CHAR_SCALE_MIN_PERCENT, CHAR_SCALE_MAX_PERCENT);
 
             /* カーニングとトラッキングは書き込めない環境がある / Kerning and tracking are not writable everywhere */
             try {
@@ -2284,9 +2404,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
                 snapshot.character.kerning = snapshot.kerning + (randomSigned(nextRandom) * touchAmounts.kerningEm);
             } catch (e) { }
             try {
-                if (!useFixedTracking) charAttributes.tracking = snapshot.tracking;
-                else if (addFixedToExisting) charAttributes.tracking = snapshot.tracking + fixedTracking;
-                else charAttributes.tracking = fixedTracking;
+                charAttributes.tracking = useFixedTracking ? snapshot.tracking + fixedTracking : snapshot.tracking;
             } catch (e) { }
         }
 
@@ -2309,10 +2427,10 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     }
 
     takeCharSnapshots();
+    /* リセットは charSnapshots を初期値に書き換えるので、キャンセル用に起動時の控えを別に持つ
+       Reset rewrites charSnapshots, so keep the startup state separately for Cancel */
+    var originalCharSnapshots = copyCharSnapshots(charSnapshots);
     var randomSeed = (new Date()).getTime() & 0xffffffff;
-
-    /* 前回の実行が残した背景を消してから始める / Clear any background left by a previous run */
-    clearRansomBgRects();
 
     // -----------------------------------------
     // プレビュー管理 / Preview state
@@ -2325,6 +2443,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     var closedByOK = false;
     /* リセット直後にOKされたら、もう一度ランダム化しない / OK right after Reset must not re-randomize */
     var didReset = false;
+    /* ダイアログを開いてから一度でもリセットしたか（キャンセルで起動時の状態へ戻す）/ Whether Reset was used since the dialog opened */
+    var resetUsed = false;
 
     /**
      * プレビューを適用し、キャンセル時に戻せるよう記録する
@@ -2344,7 +2464,17 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     function cancelPreview() {
         if (!previewApplied) return;
         /* 文字が消えるなどして控えが無効になっていることがある / the snapshots may have gone stale */
-        try { restoreCharSnapshots(); } catch (e) { }
+        try { restoreCharSnapshots(charSnapshots); } catch (e) { }
+        previewApplied = false;
+    }
+
+    /**
+     * プレビューとリセットをすべて取り消し、起動時の文字属性に戻す（キャンセル用）
+     * @returns {void}
+     */
+    function restoreOriginalChars() {
+        if (!previewApplied && !resetUsed) return;
+        try { restoreCharSnapshots(originalCharSnapshots); } catch (e) { }
         previewApplied = false;
     }
 
@@ -2417,7 +2547,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     ransomStepperInputGroup.margins = 0;
     var edtRansomTracking;
     var ransomTrackingStepper = addStepper(ransomStepperInputGroup, function () { return edtRansomTracking; }, {
-        onStep: function () { requestPreview(); }
+        onStep: function () { updatePreview(); }
     });
     edtRansomTracking = ransomStepperInputGroup.add("edittext", undefined, String(RANSOM_TRACKING_DEFAULT));
     edtRansomTracking.helpTip = getLabel("tooltip.ransomTrackingValue");
@@ -2455,20 +2585,25 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     updateFontOptionState();
 
     /**
-     * 英数字以外を含む選択では「和文フォントに限定」を自動でONにする
+     * 和文を含む選択では「和文フォントに限定」を自動でONにする（欧文フォントでは和文が出ないため）
      * @returns {void}
      */
     function autoEnableJapaneseOnly() {
-        if (chkJapaneseOnly.enabled && containsNonAlphanumeric(textRanges)) chkJapaneseOnly.value = true;
+        if (chkJapaneseOnly.enabled && containsJapaneseText(textRanges)) chkJapaneseOnly.value = true;
     }
 
-    /* ベースラインの単位は環境設定の「文字」の単位に従う / The baseline unit follows the "text/asianunits" preference */
+    /* ベースラインの単位は環境設定の「東アジア言語のオプション」の単位（text/asianunits）に従う
+       The baseline unit follows the East Asian type unit preference (text/asianunits) */
     var asianUnit = getUnitInfo("text/asianunits");
     var baselineUnitLabel = asianUnit.label;
+    /* 1単位がこれ（pt）より大きい単位では、ベースラインを小数で扱う / Units larger than this (pt) handle the baseline in decimals */
+    var FINE_BASELINE_UNIT_MIN_PT = 2;
 
-    /* 初期値は文字サイズの1/12、スライダーの上限は文字サイズ / The default is 1/12 of the type size; the slider tops out at the type size */
+    /* 初期値は文字サイズの1/12、スライダーの上限は文字サイズ。整数に丸めると0になる単位（mm・in など）は小数第2位まで残す
+       The default is 1/12 of the type size and the slider tops out at the type size; units that round to 0 (mm, in) keep two decimals */
     var firstCharSizePt = (charSnapshots.length > 0) ? charSnapshots[0].character.characterAttributes.size : 0;
-    var defaultBaselineValue = firstCharSizePt ? Math.round(ptToUnit(Math.round(firstCharSizePt / 12), asianUnit)) : 0;
+    var defaultBaselineUnits = firstCharSizePt ? ptToUnit(firstCharSizePt / 12, asianUnit) : 0;
+    var defaultBaselineValue = Math.round(defaultBaselineUnits) || Math.round(defaultBaselineUnits * 100) / 100;
     if (isNaN(defaultBaselineValue)) defaultBaselineValue = 0;
     var baselineSliderMax = firstCharSizePt
         ? Math.max(1, Math.round(ptToUnit(Math.max(1, Math.round(firstCharSizePt)), asianUnit)))
@@ -2504,12 +2639,12 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
 
         var valueField;
         var valueSlider;
-        /* 値を変えたらスライダーを追従させ、プレビューを予約する / keep the slider in step and schedule the preview */
+        /* 値を変えたらスライダーを追従させ、プレビューを更新する / keep the slider in step and update the preview */
         var valueStepper = addStepper(stepperInputGroup, function () { return valueField; }, {
             min: allowNegative ? undefined : 0,
             onStep: function (numberInput) {
                 syncSliderFromField(numberInput, valueSlider);
-                requestPreview();
+                updatePreview();
             }
         });
         valueField = stepperInputGroup.add("edittext", undefined, String(defaultValue));
@@ -2530,6 +2665,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     var scaleRow = addTouchRow(touchPanel, "scale", "%", DEFAULT_SCALE_PERCENT, 0, SCALE_SLIDER_MAX);
     var kerningRow = addTouchRow(touchPanel, "kerning", "em", DEFAULT_KERNING_EM, KERNING_SLIDER_MIN, KERNING_SLIDER_MAX, true);
     var rotationRow = addTouchRow(touchPanel, "rotation", "°", DEFAULT_ROTATION_DEG, 0, ROTATION_SLIDER_MAX);
+    /* 1単位が大きい単位（mm・in など）のベースラインは、スライダーを0.1刻みにする / Coarse units (mm, in) get 0.1 steps on the baseline slider */
+    baselineRow.slider.isFineSlider = unitToPt(1, asianUnit) > FINE_BASELINE_UNIT_MIN_PT;
 
     /**
      * 複数のラベルの幅を、いちばん広いものに揃える
@@ -2631,42 +2768,21 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     }
 
     /**
-     * スライダーの値を数値欄に反映する
+     * スライダーの値を数値欄に反映する（isFineSlider を立てたスライダーは小数第1位、それ以外は整数）
      * @param {Slider} valueSlider - スライダー
      * @param {EditText} valueField - 数値欄
      * @returns {void}
      */
     function syncFieldFromSlider(valueSlider, valueField) {
-        valueField.text = String(Math.round(valueSlider.value));
+        valueField.text = String(valueSlider.isFineSlider ? Math.round(valueSlider.value * 10) / 10 : Math.round(valueSlider.value));
     }
 
     // -----------------------------------------
     // プレビューの実行 / Running the preview
     // -----------------------------------------
 
-    /* 入力のたびに再描画すると重いので、少し待ってからまとめて反映する
-       Redrawing on every keystroke is heavy, so the preview is debounced */
-    var previewTaskId = null;
-
-    /* scheduleTask はグローバルに置いた関数名でしか呼べない / scheduleTask can only call a global by name */
-    $.global.__AutoTouchTypePreview = function () {
-        previewTaskId = null;
-        updatePreview();
-    };
-
-    /**
-     * プレビューの更新を予約する
-     * @returns {void}
-     */
-    function requestPreview() {
-        /* scheduleTask が使えない環境ではその場で更新する / Fall back to an immediate update */
-        try {
-            if (previewTaskId != null) app.cancelTask(previewTaskId);
-            previewTaskId = app.scheduleTask("$.global.__AutoTouchTypePreview()", PREVIEW_DELAY_MS, false);
-        } catch (e) {
-            updatePreview();
-        }
-    }
+    /* Illustrator には app.scheduleTask もタイマーも無いので、プレビューは操作のたびにその場で更新する
+       Illustrator has no app.scheduleTask or timer, so the preview updates immediately on each change */
 
     /**
      * 文字タッチ4項目の入力値を読む
@@ -2795,33 +2911,33 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         (function (touchRow) {
             touchRow.field.onChanging = function () {
                 syncSliderFromField(touchRow.field, touchRow.slider);
-                requestPreview();
+                updatePreview();
             };
             touchRow.slider.onChanging = function () {
                 syncFieldFromSlider(touchRow.slider, touchRow.field);
-                requestPreview();
+                updatePreview();
             };
             touchRow.toggle.onClick = function () {
-                requestPreview();
+                updatePreview();
                 updateRandomizeEnabled();
             };
             syncSliderFromField(touchRow.field, touchRow.slider);
         })(touchRows[rowIndex]);
     }
 
-    edtRansomTracking.onChanging = function () { requestPreview(); };
+    edtRansomTracking.onChanging = function () { updatePreview(); };
 
-    chkRotationTracking.onClick = function () { requestPreview(); };
+    chkRotationTracking.onClick = function () { updatePreview(); };
 
     chkRandomFont.onClick = function () {
         updateFontOptionState();
         autoEnableJapaneseOnly();
-        requestPreview();
+        updatePreview();
         updateRandomizeEnabled();
     };
 
     chkJapaneseOnly.onClick = function () {
-        requestPreview();
+        updatePreview();
         updateRandomizeEnabled();
     };
 
@@ -2829,12 +2945,12 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         chkRansomTracking.enabled = chkRansomEnabled.value;
         setRansomTrackingFieldEnabled(chkRansomEnabled.value && chkRansomTracking.value);
         updateRandomizeEnabled();
-        requestPreview();
+        updatePreview();
     };
 
     chkRansomTracking.onClick = function () {
         setRansomTrackingFieldEnabled(chkRansomEnabled.value && chkRansomTracking.value);
-        requestPreview();
+        updatePreview();
     };
 
     btnAllOn.onClick = function () { setAllTouchToggles(true); };
@@ -2878,6 +2994,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
                 charAttributes.kerningMethod = AutoKernType.NOAUTOKERN;
                 snapshot.character.kerning = 0;
                 snapshot.kerning = 0;
+                snapshot.kerningMethod = AutoKernType.NOAUTOKERN;
             } catch (e) { }
             try {
                 charAttributes.tracking = 0;
@@ -2909,23 +3026,21 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     btnRandomize.onClick = function () {
         didReset = false;
         randomSeed = (new Date()).getTime() & 0xffffffff;
-        requestPreview();
-        autoEnableJapaneseOnly();
+        updatePreview();
         updateRandomizeEnabled();
     };
 
     btnReset.onClick = function () {
-        /* チェックボックスの状態は変えず、文字属性だけ初期化する / Only the text attributes are reset */
+        /* チェックボックスの状態は変えず、文字属性だけ初期化する。背景はOK時に作り直すか消すので、ここでは触らない
+           Only the text attributes are reset; the backgrounds are rebuilt or removed on OK, so leave them here */
         cancelPreview();
-        clearRansomBgRects();
         resetCharAttributes();
         unifyFontToFirstChar();
         app.redraw();
 
-        updateFontOptionState();
-        autoEnableJapaneseOnly();
         updateRandomizeEnabled();
         didReset = true;
+        resetUsed = true;
     };
 
     btnOK.onClick = function () {
@@ -2953,29 +3068,28 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             try {
                 applyRandomTouch(touchAmounts, randomSeed, touchOptions);
             } catch (e) {
-                /* 選択が変わって控えが無効になったときは取り直してやり直す
-                   Re-derive the selection when the snapshots went stale */
-                textRanges = collectTextRanges(doc.selection);
-                selectedTextFrames = getSelectionTextFrames(doc.selection);
-                takeCharSnapshots();
-                applyRandomTouch(touchAmounts, randomSeed, touchOptions);
+                /* 途中まで書き換えた文字を元に戻し、ダイアログは開いたままにする
+                   Roll back the partly rewritten characters and keep the dialog open */
+                try { restoreCharSnapshots(charSnapshots); } catch (e2) { }
+                previewApplied = false;
+                app.redraw();
+                alert(e.message);
+                return;
             }
         }
 
-        /* 背景の長方形はOK時だけ作る / The background rectangles are created on OK only */
+        /* 背景の長方形はOK時だけ作る。オフなら選択したテキストの前の背景を消す
+           The backgrounds are created on OK only; when off, remove the selected text's previous ones */
         if (touchOptions.ransom) createRansomBgRects(selectedTextFrames);
-        else clearRansomBgRects();
+        else clearRansomBgRects(selectedTextFrames);
 
         closedByOK = true;
         didReset = false;
         touchDialog.close(1);
     };
 
+    /* 後始末は onClose にまとめる（Esc で閉じたときも同じ）/ Cleanup lives in onClose, which Esc also reaches */
     btnCancel.onClick = function () {
-        cancelPreview();
-        clearRansomBgRects();
-        restoreOriginalView();
-        closedByOK = false;
         touchDialog.close(0);
     };
 
@@ -2983,8 +3097,9 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         /* OKで閉じたときは確定済みなので後始末しない / A close via OK keeps the committed result */
         if (closedByOK) return true;
 
-        cancelPreview();
-        clearRansomBgRects();
+        /* リセットも含めて起動時の状態に戻す。背景はOK時にしか触らないので、ここで戻すものは無い
+           Undo the preview and any Reset; backgrounds are only touched on OK, so nothing to restore there */
+        restoreOriginalChars();
         restoreOriginalView();
         return true;
     };
