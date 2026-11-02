@@ -8,14 +8,14 @@ Script-ID=com.swwwitch.illustrator.DrawMarkerBehindText
 Name=文字にマーカー・アンダーライン・取り消し線を引く
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.7.1
+Version=1.7.2
 Release-Date=2026-11-01
 Description-BEGIN
 文字ツールで選んだ文字やテキストオブジェクトに、字面に合わせてマーカー・アンダーライン・取り消し線などの線や、長方形・円・六角形・傍点を描きます（文字の背面・前面を選べ、複数行は行ごと。行頭・行長・行送りの間隔もそろえられます）。
-種類・カラー・線幅などはダイアログボックスで選び、設定はプリセットとして保存できます。
+種類・カラー・線幅などはダイアログボックスで選び、文字のカラー・カーニング（図形の余白に合わせた前後のアキ）も一緒に変えられます。設定はプリセットとして保存できます。
 
 Draws lines such as markers, underlines and strikethroughs, or boxes, circles, hexagons and emphasis dots, on the characters selected with the Type tool or on text objects, fitted to their glyphs (behind or in front of the text, line by line, with line starts, lengths and leading optionally aligned).
-Choose the style, colors, weight and more in the dialog box, and save the settings as presets.
+Choose the style, colors, weight and more in the dialog box, and change the text color and kerning (room before and after for the shape's padding) at the same time. The settings can be saved as presets.
 Description-END
 SCRIPTMETA-END
 */
@@ -25,7 +25,7 @@ SCRIPTMETA-END
 ### 概要
 
 文字ツールで選んだ文字やテキストオブジェクトに、字面に合わせてマーカー・アンダーライン・取り消し線などの線や、長方形・円・六角形・傍点を描きます（文字の背面・前面を選べ、複数行は行ごと。行頭・行長・行送りの間隔もそろえられます）。
-種類・カラー・線幅などはダイアログボックスで選び、設定はプリセットとして保存できます。
+種類・カラー・線幅などはダイアログボックスで選び、文字のカラー・カーニング（図形の余白に合わせた前後のアキ）も一緒に変えられます。設定はプリセットとして保存できます。
 
 詳細は README を参照してください。
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TextHighlighter.md
@@ -36,7 +36,7 @@ https://note.com/dtp_tranist/n/na1804afb7fe2
 ### Overview
 
 Draws lines such as markers, underlines and strikethroughs, or boxes, circles, hexagons and emphasis dots, on the characters selected with the Type tool or on text objects, fitted to their glyphs (behind or in front of the text, line by line, with line starts, lengths and leading optionally aligned).
-Choose the style, colors, weight and more in the dialog box, and save the settings as presets.
+Choose the style, colors, weight and more in the dialog box, and change the text color and kerning (room before and after for the shape's padding) at the same time. The settings can be saved as presets.
 
 See the README for details.
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TextHighlighter.md
@@ -47,7 +47,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TextHighli
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "TextHighlighter";              /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.7.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.7.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-11-01";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-11-02";                   /* 更新日 / last updated */
@@ -82,12 +82,12 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         custom: { cmyk: [100, 0, 0, 0], rgb: [0, 160, 233] }    /* カスタムの最初の色（C100） / initial custom color (C100) */
     };
 
-    /* ［塗りのカラー］（長方形・円・六角形の塗り、塗りつぶし、傍点）と［線のカラー］に並べる選択肢（並べる順。"custom" は先頭に色見本付きで置く）
+    /* ［塗り］（長方形・円・六角形の塗り、塗りつぶし、傍点）と［線］のカラーに並べる選択肢（並べる順。"custom" は先頭に色見本付きで置く）
        Choices listed in Fill Color and Stroke Color (in order; "custom" goes first with its swatch) */
     var FILL_COLOR_CHOICES = ["textColor", "white", "custom"];
-    var STROKE_COLOR_CHOICES = ["yellow", "red", "textColor", "custom"];
+    var STROKE_COLOR_CHOICES = ["textColor", "yellow", "red", "custom"];
 
-    /* 開いたときに選んでおく［塗りのカラー］（FILL_COLOR_CHOICES のどれか） / Fill Color chosen when the dialog box opens */
+    /* 開いたときに選んでおく［塗り］のカラー（FILL_COLOR_CHOICES のどれか） / Fill Color chosen when the dialog box opens */
     var DEFAULT_FILL_COLOR_CHOICE = "textColor";
 
     /* 線・図形の不透明度の初期値（%） / Initial opacity (%) of the lines and shapes */
@@ -127,11 +127,11 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     /* ［長方形］［円］［六角形］の［1文字ずつ］の初期値 / Initial state of Per Character for Box, Circle and Hexagon */
     var DEFAULT_PER_CHAR = false;
 
-    /* ［長方形］［円］［六角形］の［塗り］［線］の初期値 / Initial Fill and Stroke of Box, Circle and Hexagon */
+    /* ［長方形］［円］［六角形］の［塗り］［線］の［描画］の初期値 / Initial Draw of Fill and Stroke for Box, Circle and Hexagon */
     var DEFAULT_SHAPE_FILL = true;
     var DEFAULT_SHAPE_STROKE = false;
 
-    /* 開いたときに選んでおく［線のカラー］（アンダーライン・マーカーなどの線と、長方形・円・六角形の線）（STROKE_COLOR_CHOICES のどれか）
+    /* 開いたときに選んでおく［線］のカラー（アンダーライン・マーカーなどの線と、長方形・円・六角形の線）（STROKE_COLOR_CHOICES のどれか）
        Stroke Color chosen when the dialog box opens (lines such as Underline and Marker, and the stroke of Box, Circle and Hexagon) */
     var DEFAULT_STROKE_COLOR_CHOICE = "yellow";
 
@@ -199,8 +199,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
        Initial state of Align Both Ends (short lines get the length of the longest one) */
     var DEFAULT_EQUAL_LINE_LENGTHS = false;
 
-    /* ［行送り］の［均等］の初期値（行ごとの図形の高さ（縦組みは幅）を、字面ではなく行送りで決める）
-       Initial state of Even under Leading (the line shapes take their height, or width in vertical text, from the leading) */
+    /* ［行の高さ］の［行送り基準］の初期値（行ごとの図形の高さ（縦組みは幅）を、字面ではなく行送りで決める）
+       Initial state of Leading-Based under Line Height (the line shapes take their height, or width in vertical text, from the leading) */
     var DEFAULT_LEADING_BASED = false;
 
     /* ［余白（横）］［余白（縦）］の連動の初期値 / Initial link state of Padding (H) and Padding (V) */
@@ -2589,8 +2589,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         fieldLabel: {
             lineStyle:      { ja: "種類", en: "Style" },
             presetName:     { ja: "プリセット名", en: "Preset Name" },
-            fillColor:      { ja: "塗りのカラー", en: "Fill Color" },
-            strokeColor:    { ja: "線のカラー", en: "Stroke Color" },
+            fillColor:      { ja: "塗り", en: "Fill" },
+            strokeColor:    { ja: "線", en: "Stroke" },
             opacity:        { ja: "不透明度", en: "Opacity" },
             strokeWidth:    { ja: "線幅", en: "Weight" },
             verticalOffset: { ja: "位置調整", en: "Offset" },
@@ -2599,7 +2599,6 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             dashGap:        { ja: "間隔", en: "Gap" },
             strokeCap:      { ja: "線端", en: "Cap" },
             stackOrder:     { ja: "重ね順", en: "Stacking Order" },
-            shapePaint:     { ja: "図形", en: "Shape" },
             shearAngle:     { ja: "角度", en: "Angle" },
             zigzagSize:     { ja: "大きさ", en: "Size" },
             zigzagRidges:   { ja: "折り返し", en: "Ridges" },
@@ -2615,7 +2614,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             kerningBefore:  { ja: "カーニング（前）", en: "Kerning (Before)" },
             kerningAfter:   { ja: "カーニング（後）", en: "Kerning (After)" },
             lineLength:     { ja: "行長", en: "Line Length" },
-            leading:        { ja: "行送り", en: "Leading" },
+            leading:        { ja: "行の高さ", en: "Line Height" },
             roughen:        { ja: "ラフ", en: "Roughen" },
             roughenSize:    { ja: "サイズ", en: "Size" },
             drawUnit:       { ja: "単位", en: "Unit" },
@@ -2623,12 +2622,12 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             lineJoins:      { ja: "連続処理", en: "Continuity" }
         },
         checkbox: {
-            shapeFill:   { ja: "塗り", en: "Fill" },
-            shapeStroke: { ja: "線", en: "Stroke" },
+            shapeFill:   { ja: "描画", en: "Draw" },
+            shapeStroke: { ja: "描画", en: "Draw" },
             squareLineJoins: { ja: "複数行", en: "Multi-Line" },
             alignLineStarts: { ja: "行頭", en: "Align Starts" },
             equalLineLengths: { ja: "行頭行末", en: "Align Both Ends" },
-            leadingBased: { ja: "均等", en: "Even" },
+            leadingBased: { ja: "行送り基準", en: "Leading-Based" },
             roughen:      { ja: "手書き風", en: "Hand-Drawn" },
             kerningFromPadding: { ja: "余白に合わせる", en: "Match Padding" }
         },
@@ -2722,10 +2721,13 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
                 ja: "線や図形を描いたあと、対象の文字の塗りをこのカラーにします",
                 en: "Sets the fill of the target characters to this color after drawing"
             },
-            shapeFill:   { ja: "図形を［塗りのカラー］で塗ります", en: "Fills the shape with Fill Color" },
+            shapeFill: {
+                ja: "［長方形］［円］［六角形］の図形を、この行のカラーで塗ります",
+                en: "Fills Box, Circle and Hexagon shapes with the color on this row"
+            },
             shapeStroke: {
-                ja: "図形に［線のカラー］で線を付けます（［線幅］［線の種類］を使います）",
-                en: "Strokes the shape with Stroke Color (uses Weight and Line Type)"
+                ja: "［長方形］［円］［六角形］の図形に、この行のカラーで線を付けます（［線幅］［線の種類］を使います）",
+                en: "Strokes Box, Circle and Hexagon shapes with the color on this row (uses Weight and Line Type)"
             },
             shearAngle: {
                 ja: "線の両端を傾ける角度です（-80〜80°）。プラスで右上がり、マイナスで左上がりになります",
@@ -2950,13 +2952,18 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
      * @param {string} labelKey - 項目名の LABELS.fieldLabel のキー
      * @param {string[]} choiceKeys - 並べるキー（"keepTextColor" / "yellow" / "red" / "white" / "textColor" / "custom"。"custom" はどこに書いても先頭に置く）
      * @param {string} defaultChoice - 最初に選んでおくキー
-     * @returns {{label: StaticText, getColorOptions: Function, getChoice: Function, setChoice: Function, getCustomColor: Function, setCustomColor: Function, setEnabled: Function}}
-     *     項目名、{ color, useTextColor } を返す getColorOptions（［変更しない］なら color は null）、選んだキーの読み書き、［カスタム］の色の読み書き、有効／無効の切り替え
+     * @param {Object} [drawOptionSpec] - 項目名とカラーのあいだに置くチェックボックス { checkboxKey, initialValue, onToggle }（addOptionCheckbox() に渡す）
+     * @returns {{label: StaticText, drawOption: Object|null, getColorOptions: Function, getChoice: Function, setChoice: Function, getCustomColor: Function, setCustomColor: Function, setEnabled: Function}}
+     *     項目名、チェックボックス（addOptionCheckbox() の戻り値。無ければ null）、{ color, useTextColor } を返す getColorOptions（［変更しない］なら color は null）、
+     *     選んだキーの読み書き、［カスタム］の色の読み書き、カラーの有効／無効の切り替え
      */
-    function addColorChoiceRow(parent, doc, isTextColorUsable, onColorChange, labelKey, choiceKeys, defaultChoice) {
+    function addColorChoiceRow(parent, doc, isTextColorUsable, onColorChange, labelKey, choiceKeys, defaultChoice, drawOptionSpec) {
         var colorRow = parent.add("group");
         setupRow(colorRow, "left", 8);
         var colorLabel = colorRow.add("statictext", undefined, labelText("fieldLabel." + labelKey));
+        var drawOption = drawOptionSpec
+            ? addOptionCheckbox(colorRow, drawOptionSpec.checkboxKey, drawOptionSpec.initialValue, drawOptionSpec.onToggle)
+            : null;
 
         var choiceGroup = colorRow.add("group");
         setupRow(choiceGroup, "left", 8);
@@ -3042,6 +3049,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
 
         return {
             label: colorLabel,
+            drawOption: drawOption,
             /* ［文字色］の色は対象ごとに違うので、線を引くときに対象から取る / Text Color differs per target, so it is read from each target when drawing */
             getColorOptions: function () {
                 if (chosenKey === "textColor") return { color: null, useTextColor: true };
@@ -3065,10 +3073,11 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
                 choiceColors.custom = newColor;
                 customSwatch.setSwatchColor(newColor);
             },
-            /* 行ごと切り替え、自作描画の色見本は描き直してディムにする / Toggle the whole row and repaint the custom-drawn swatch */
+            /* カラーの選択肢をまとめて切り替え（項目名とチェックボックスはそのまま）、自作描画の色見本は描き直してディムにする
+               Toggle the color choices (not the label or checkbox) and repaint the custom-drawn swatch */
             setEnabled: function (isEnabled) {
-                if (colorRow.enabled === isEnabled) return;
-                colorRow.enabled = isEnabled;
+                if (choiceGroup.enabled === isEnabled) return;
+                choiceGroup.enabled = isEnabled;
                 customSwatch.hide();
                 customSwatch.show();
             }
@@ -3242,14 +3251,14 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     }
 
     /**
-     * ［設定］パネルと、その下の［文字］パネルを作る。［設定］は先頭に［種類］と、2つの列にまたがる［図形］とカラーの2行、
+     * ［設定］パネルと、その下の［文字］パネルを作る。［設定］は先頭に［種類］と、2つの列にまたがる［塗り］［線］の2行、
      * その下の左の列に線と種類ごとの効果（線幅・線の種類・角度など）、右の列に配置と大きさ（位置調整・余白・単位など）を置く
      * @param {Group} parent - 追加先（パネルを縦に並べるグループ）
      * @param {Document} doc - 対象ドキュメント
      * @param {number} glyphHeightPt - 線幅と余白の初期値のもとにする字面の高さ（pt）
      * @param {boolean} isTextColorUsable - ［文字色］を使えるか
      * @param {Function} onSettingChange - 設定を変えたあとに呼ぶ関数
-     * @returns {Object} コントロールと単位 { lineStyleRow, shearAngleInput, zigzagSizeInput, zigzagRidgesInput, zigzagPointsRow, boxPaddingInput, cornerRadiusInput, boxRotationInput, lineGapInput, dotSizeInput, fillColorRow, strokeColorRow, opacityInput, strokeWidthInput, verticalOffsetInput, dashStyleRow, strokeCapRow, shapePaintRow, kerningRow, trackingInput, kerningBeforeInput, kerningAfterInput, textColorRow, perCharOption, rulerUnit, strokeUnit, labelColumns }
+     * @returns {Object} コントロールと単位 { lineStyleRow, shearAngleInput, zigzagSizeInput, zigzagRidgesInput, zigzagPointsRow, boxPaddingInput, cornerRadiusInput, boxRotationInput, lineGapInput, dotSizeInput, fillColorRow, strokeColorRow, opacityInput, strokeWidthInput, verticalOffsetInput, dashStyleRow, strokeCapRow, shapeFillOption, shapeStrokeOption, kerningRow, trackingInput, kerningBeforeInput, kerningAfterInput, textColorRow, perCharOption, rulerUnit, strokeUnit, labelColumns }
      *     （labelColumns は列ごとの項目名）
      */
     function addMarkerControls(parent, doc, glyphHeightPt, isTextColorUsable, onSettingChange) {
@@ -3271,11 +3280,14 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         markerControls.stackOrderRow.row.margins = [12, 0, 0, 0];
         markerControls.stackOrderRow.radios.stackFront.helpTip = getLabel("tooltip.stackFront");
         markerControls.stackOrderRow.radios.stackBack.helpTip = getLabel("tooltip.stackBack");
-        /* ［図形］とカラーの2行は2つの列にまたがって置く / Shape and the two color rows span both columns */
-        /* 塗り・線で使う項目が変わるので、切り替えたら使える項目も切り替える / Fill and Stroke change the usable fields */
-        markerControls.shapePaintRow = addShapePaintRow(settingsPanel, onStyleChange);
-        markerControls.fillColorRow = addColorChoiceRow(settingsPanel, doc, isTextColorUsable, onSettingChange, "fillColor", FILL_COLOR_CHOICES, DEFAULT_FILL_COLOR_CHOICE);
-        markerControls.strokeColorRow = addColorChoiceRow(settingsPanel, doc, isTextColorUsable, onSettingChange, "strokeColor", STROKE_COLOR_CHOICES, DEFAULT_STROKE_COLOR_CHOICE);
+        /* ［塗り］［線］の2行は2つの列にまたがって置く。図形の塗り・線の［描画］は各行の先頭（切り替えたら使える項目も切り替える）
+           Fill and Stroke span both columns; each row starts with Draw for shapes (toggling it updates the usable fields) */
+        markerControls.fillColorRow = addColorChoiceRow(settingsPanel, doc, isTextColorUsable, onSettingChange, "fillColor", FILL_COLOR_CHOICES, DEFAULT_FILL_COLOR_CHOICE,
+            { checkboxKey: "shapeFill", initialValue: DEFAULT_SHAPE_FILL, onToggle: onStyleChange });
+        markerControls.strokeColorRow = addColorChoiceRow(settingsPanel, doc, isTextColorUsable, onSettingChange, "strokeColor", STROKE_COLOR_CHOICES, DEFAULT_STROKE_COLOR_CHOICE,
+            { checkboxKey: "shapeStroke", initialValue: DEFAULT_SHAPE_STROKE, onToggle: onStyleChange });
+        markerControls.shapeFillOption = markerControls.fillColorRow.drawOption;
+        markerControls.shapeStrokeOption = markerControls.strokeColorRow.drawOption;
         var settingsColumnsGroup = settingsPanel.add("group");
         settingsColumnsGroup.orientation = "row";
         settingsColumnsGroup.alignChildren = ["fill", "top"];
@@ -3287,7 +3299,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         /* 項目名の幅は列ごとにそろえる（列にまたがる行は左の列とそろえる） / Label widths are aligned per column (the spanning rows with the left column) */
         markerControls.labelColumns = [
             [
-                markerControls.lineStyleRow.label, markerControls.shapePaintRow.label, markerControls.fillColorRow.label, markerControls.strokeColorRow.label,
+                markerControls.lineStyleRow.label, markerControls.fillColorRow.label, markerControls.strokeColorRow.label,
                 markerControls.strokeWidthInput.fieldLabel, markerControls.dashStyleRow.label, markerControls.dashSegmentsInput.fieldLabel,
                 markerControls.dashGapInput.fieldLabel, markerControls.strokeCapRow.label, markerControls.lineGapInput.fieldLabel,
                 markerControls.shearAngleInput.fieldLabel, markerControls.zigzagSizeInput.fieldLabel, markerControls.zigzagRidgesInput.fieldLabel,
@@ -3648,24 +3660,6 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     }
 
     /**
-     * 項目名［図形］と、［塗り］［線］のチェックボックスを横に並べた1行を作る
-     * @param {Group} parent - 追加先
-     * @param {Function} onPaintChange - オンオフを切り替えたあとに呼ぶ関数
-     * @returns {{row: Group, label: StaticText, fillOption: Object, strokeOption: Object}} 行、項目名、addOptionCheckbox() の戻り値2つ
-     */
-    function addShapePaintRow(parent, onPaintChange) {
-        var shapePaintRow = parent.add("group");
-        setupRow(shapePaintRow, "left", 8);
-        var shapePaintLabel = shapePaintRow.add("statictext", undefined, labelText("fieldLabel.shapePaint"));
-        return {
-            row: shapePaintRow,
-            label: shapePaintLabel,
-            fillOption: addOptionCheckbox(shapePaintRow, "shapeFill", DEFAULT_SHAPE_FILL, onPaintChange),
-            strokeOption: addOptionCheckbox(shapePaintRow, "shapeStroke", DEFAULT_SHAPE_STROKE, onPaintChange)
-        };
-    }
-
-    /**
      * ［設定］パネルの1列を作る
      * @param {Group} settingsColumnsGroup - 列を横に並べるグループ
      * @returns {Group} 列のグループ
@@ -3681,9 +3675,9 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
 
     /**
      * 種類に合わせて、使う項目だけを使えるようにする。
-     * ［線幅］は線を引く種類と、［線］がオンの長方形の仲間、［線の種類］はさらに［塗りつぶし］でも使い、［線端］は線を引く種類だけ（［ドット］のときは丸型に固定）。
+     * ［線幅］は線を引く種類と、［線］の［描画］がオンの長方形の仲間、［線の種類］はさらに［塗りつぶし］でも使い、［線端］は線を引く種類だけ（［ドット］のときは丸型に固定）。
      * ［余白（横）］［余白（縦）］と連動のアイコンは長方形の仲間と［傍点］、［図形］［回転］［1文字ずつ］は長方形の仲間、［角丸の半径］は［長方形］で使う。
-     * ［線のカラー］は線で引く種類（［塗りつぶし］を除く）と［線］がオンの長方形の仲間、［塗りのカラー］は［塗りつぶし］［傍点］と［塗り］がオンの長方形の仲間で使う。
+     * ［線］のカラーは線で引く種類（［塗りつぶし］を除く）と［線］の［描画］がオンの長方形の仲間、［塗り］のカラーは［塗りつぶし］［傍点］と［塗り］の［描画］がオンの長方形の仲間で使う。
      * ［余白に合わせる］は行ごとの長方形の仲間で使い、オンの間はカーニング（前・後）の欄に計算した値（微調整込み）を出す
      * @param {Object} markerControls - addMarkerControls() の戻り値
      * @returns {void}
@@ -3693,8 +3687,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         var usesShape = isShapeStyle(lineStyle);
         var isDots = (lineStyle === "emphasisDots");
         var isLineStyle = !usesShape && !isDots;
-        var isShapeFill = usesShape && markerControls.shapePaintRow.fillOption.getValue();
-        var isShapeStroke = usesShape && markerControls.shapePaintRow.strokeOption.getValue();
+        var isShapeFill = usesShape && markerControls.shapeFillOption.getValue();
+        var isShapeStroke = usesShape && markerControls.shapeStrokeOption.getValue();
         var isStrokedStyle = isLineStyle || isShapeStroke;
         setSteppedFieldEnabled(markerControls.shearAngleInput, lineStyle === "straightShear");
         setSteppedFieldEnabled(markerControls.zigzagSizeInput, lineStyle === "zigzag");
@@ -3714,12 +3708,19 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         markerControls.alignLineStartsOption.checkbox.enabled = usesEqualLineLengths;
         markerControls.equalLineLengthsOption.checkbox.enabled = usesEqualLineLengths;
 
-        markerControls.shapePaintRow.row.enabled = usesShape;
-        /* 線で引く種類は［線のカラー］、［塗りつぶし］［傍点］は［塗りのカラー］、長方形の仲間は［塗り］［線］のオンに合わせて使う
-           Line styles use Stroke Color, Fill and Emphasis Dots use Fill Color, shapes follow their Fill and Stroke */
+        /* 線で引く種類は［線］、［塗りつぶし］［傍点］は［塗り］のカラー、長方形の仲間は［塗り］［線］の［描画］のオンに合わせて使う。
+           ［描画］は長方形の仲間だけで使い、項目名は行のどこかを使う間は有効のまま
+           Line styles use the Stroke color, Fill and Emphasis Dots the Fill color, shapes follow Draw; Draw is for shapes only,
+           and the label stays enabled while any part of the row is in use */
         var isFillLine = (lineStyle === "fill");
-        markerControls.fillColorRow.setEnabled(isFillLine || isDots || isShapeFill);
-        markerControls.strokeColorRow.setEnabled((isLineStyle && !isFillLine) || isShapeStroke);
+        var usesFillColor = isFillLine || isDots || isShapeFill;
+        var usesStrokeColor = (isLineStyle && !isFillLine) || isShapeStroke;
+        markerControls.fillColorRow.setEnabled(usesFillColor);
+        markerControls.strokeColorRow.setEnabled(usesStrokeColor);
+        markerControls.shapeFillOption.checkbox.enabled = usesShape;
+        markerControls.shapeStrokeOption.checkbox.enabled = usesShape;
+        markerControls.fillColorRow.label.enabled = usesFillColor || usesShape;
+        markerControls.strokeColorRow.label.enabled = usesStrokeColor || usesShape;
         setSteppedFieldEnabled(markerControls.boxRotationInput, usesShape);
         setRadiosEnabled(markerControls.drawUnitRow, usesShape);
         setSteppedFieldEnabled(markerControls.lineGapInput, lineStyle === "doubleStrikethrough");
@@ -3919,8 +3920,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             alignLineStarts: markerControls.alignLineStartsOption.getValue(),
             equalLineLengths: markerControls.equalLineLengthsOption.getValue(),
             isLeadingBased: markerControls.leadingBasedOption.getValue(),
-            isShapeFill: markerControls.shapePaintRow.fillOption.getValue(),
-            isShapeStroke: markerControls.shapePaintRow.strokeOption.getValue(),
+            isShapeFill: markerControls.shapeFillOption.getValue(),
+            isShapeStroke: markerControls.shapeStrokeOption.getValue(),
             strokeColor: strokeColorOptions.color,
             strokeUseTextColor: strokeColorOptions.useTextColor,
             kerningChoice: markerControls.kerningRow.getChoice(),
@@ -4307,8 +4308,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             alignLineStarts: markerControls.alignLineStartsOption.getValue(),
             equalLineLengths: markerControls.equalLineLengthsOption.getValue(),
             leadingBased: markerControls.leadingBasedOption.getValue(),
-            shapeFill: markerControls.shapePaintRow.fillOption.getValue(),
-            shapeStroke: markerControls.shapePaintRow.strokeOption.getValue(),
+            shapeFill: markerControls.shapeFillOption.getValue(),
+            shapeStroke: markerControls.shapeStrokeOption.getValue(),
             strokeColorChoice: markerControls.strokeColorRow.getChoice(),
             strokeCustomColor: serializeColor(markerControls.strokeColorRow.getCustomColor()),
             kerningChoice: markerControls.kerningRow.getChoice(),
@@ -4436,9 +4437,9 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     }
 
     /**
-     * プリセットの［塗り］［線］と［線のカラー］をダイアログボックスに書き込む。
+     * プリセットの［塗り］［線］の［描画］と［線］のカラーをダイアログボックスに書き込む。
      * ［塗り］［線］の無い旧版の長方形の仲間は塗りだけ、旧版の［囲み罫］は線だけにする。
-     * ［線のカラー］の無い旧版の［囲み罫］と線で引く種類（［塗りつぶし］を除く）は、旧版の［カラー］を線のカラーに使う
+     * ［線］のカラーの無い旧版の［囲み罫］と線で引く種類（［塗りつぶし］を除く）は、旧版の［カラー］を線のカラーに使う
      * @param {Object} markerControls - addMarkerControls() の戻り値（種類は書き込み済み）
      * @param {Object} presetData - プリセット
      * @returns {void}
@@ -4446,11 +4447,10 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     function applyPresetShapePaint(markerControls, presetData) {
         var isFormerFrame = (presetData.lineStyle === "frame");
         var isShapePreset = isShapeStyle(markerControls.lineStyleRow.getChoice());
-        var shapePaintRow = markerControls.shapePaintRow;
-        if (typeof presetData.shapeFill === "boolean") shapePaintRow.fillOption.setValue(presetData.shapeFill);
-        else if (isShapePreset) shapePaintRow.fillOption.setValue(!isFormerFrame);
-        if (typeof presetData.shapeStroke === "boolean") shapePaintRow.strokeOption.setValue(presetData.shapeStroke);
-        else if (isShapePreset) shapePaintRow.strokeOption.setValue(isFormerFrame);
+        if (typeof presetData.shapeFill === "boolean") markerControls.shapeFillOption.setValue(presetData.shapeFill);
+        else if (isShapePreset) markerControls.shapeFillOption.setValue(!isFormerFrame);
+        if (typeof presetData.shapeStroke === "boolean") markerControls.shapeStrokeOption.setValue(presetData.shapeStroke);
+        else if (isShapePreset) markerControls.shapeStrokeOption.setValue(isFormerFrame);
         var lineStyle = markerControls.lineStyleRow.getChoice();
         var usesFormerColor = !presetData.strokeColorChoice
             && (isFormerFrame || (!isShapePreset && lineStyle !== "fill" && lineStyle !== "emphasisDots"));
@@ -5413,7 +5413,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             : [[lineBounds.left, linePosition], [lineBounds.right, linePosition]]);
         markerLine.filled = false;
         markerLine.stroked = true;
-        /* ［塗りつぶし］は面に見えるので［塗りのカラー］、ほかの線は［線のカラー］ / Fill looks like an area and takes Fill Color; other lines take Stroke Color */
+        /* ［塗りつぶし］は面に見えるので［塗り］のカラー、ほかの線は［線］のカラー / Fill looks like an area and takes Fill Color; other lines take Stroke Color */
         markerLine.strokeColor = (lineStyle === "fill") ? getMarkerFillColor(markerTarget, markerOptions) : getMarkerStrokeColor(markerTarget, markerOptions);
         markerLine.strokeWidth = lineWidth;
         applyLineDashes(markerLine, markerOptions);
@@ -5522,11 +5522,11 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     }
 
     /**
-     * 対象の字面を行（縦組みは列）に分けて返す。［行送り］の［均等］なら、行の高さ（縦組みは幅）を行送りにし、
+     * 対象の字面を行（縦組みは列）に分けて返す。［行の高さ］の［行送り基準］なら、行の高さ（縦組みは幅）を行送りにし、
      * 行の文字の中心の中央値を行の中心にする（括弧・g・p・句読点に引っぱられない）。続けて並ぶ行は行送りちょうどの間隔に並べ直す。行の長さの向きは字面のまま
      * @param {Object} markerTarget - collectMarkerTargets() の要素（selectTargetLayout() で選んだあと）
      * @param {boolean} isLeadingBased - 行の高さを行送りにするか
-     * @returns {Object[]} groupCharBoundsByLine() の戻り値（［行送り］の［均等］なら範囲を書き換えたもの）
+     * @returns {Object[]} groupCharBoundsByLine() の戻り値（［行の高さ］の［行送り基準］なら範囲を書き換えたもの）
      */
     function getTargetTextLines(markerTarget, isLeadingBased) {
         var isVertical = markerTarget.isVertical;
@@ -5641,7 +5641,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
 
     /**
      * ［重ね順］の位置（元のテキストの背面か前面）へ、字面を囲む図形（長方形・円・六角形）を描いてグループにする。
-     * 図形は行ごとか1文字ずつで（［行送り］の［均等］なら行ごとの高さは行送り）、まわりに［余白（横）］［余白（縦）］を足し、［位置調整］の分ずらす。［回転］が 0 でなければ1つずつその中心で回転する。
+     * 図形は行ごとか1文字ずつで（［行の高さ］の［行送り基準］なら行ごとの高さは行送り）、まわりに［余白（横）］［余白（縦）］を足し、［位置調整］の分ずらす。［回転］が 0 でなければ1つずつその中心で回転する。
      * ［塗り］も［線］もオフなら、図形は描かない
      * @param {Object} markerTarget - collectMarkerTargets() の要素（1文字ずつの範囲は初回に測って charBounds に控える）
      * @param {Object} markerOptions - readMarkerOptions() の戻り値
@@ -5724,7 +5724,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     }
 
     /**
-     * 複数行の［長方形］の1行分を、行の継ぎ目の辺を開けて描く（［連続処理］の［複数行］で［線］がオンのとき）。
+     * 複数行の［長方形］の1行分を、行の継ぎ目の辺を開けて描く（［連続処理］の［複数行］で［線］の［描画］がオンのとき）。
      * 塗りは閉じた長方形、線は開けた辺を除いたオープンパスにして、1行分をグループにまとめる
      * @param {GroupItem} shapeGroup - 追加先のグループ
      * @param {{left: number, top: number, width: number, height: number, roundedCorners: boolean[]}} shapeBounds - 図形の範囲と、
@@ -5987,7 +5987,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     }
 
     /**
-     * ［塗りのカラー］の色を返す（［文字色］なら対象の先頭の文字の塗り）
+     * ［塗り］のカラーの色を返す（［文字色］なら対象の先頭の文字の塗り）
      * @param {Object} markerTarget - collectMarkerTargets() の要素
      * @param {Object} markerOptions - readMarkerOptions() の戻り値
      * @returns {Color} 色
@@ -5997,7 +5997,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     }
 
     /**
-     * ［線のカラー］の色を返す（［文字色］なら対象の先頭の文字の塗り）
+     * ［線］のカラーの色を返す（［文字色］なら対象の先頭の文字の塗り）
      * @param {Object} markerTarget - collectMarkerTargets() の要素
      * @param {Object} markerOptions - readMarkerOptions() の戻り値
      * @returns {Color} 色
@@ -6146,7 +6146,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
 
     /**
      * ［重ね順］の位置（元のテキストの背面か前面）へ、1文字ずつ丸い点（傍点）を置いてグループにする。
-     * 横組みは行の字面（［行送り］の［均等］なら行送り）の上端から［余白（縦）］離した上、縦組みは列の右端から［余白（横）］離した右に、字面の中央にそろえて置く。
+     * 横組みは行の字面（［行の高さ］の［行送り基準］なら行送り）の上端から［余白（縦）］離した上、縦組みは列の右端から［余白（横）］離した右に、字面の中央にそろえて置く。
      * PER_CHAR_SKIP_CHARS の文字には置かない
      * @param {Object} markerTarget - collectMarkerTargets() の要素
      * @param {Object} markerOptions - readMarkerOptions() の戻り値

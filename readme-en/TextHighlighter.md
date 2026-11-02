@@ -13,6 +13,7 @@
 - Draws lines such as markers, underlines and strikethroughs, or boxes, circles, hexagons and emphasis dots, on the characters selected with the Type tool or on the selected text objects, fitted to their glyphs (the shape of the outlined characters).
 - They can go behind or in front of the text. Multi-line text is drawn line by line, and the line starts, lengths and leading can be aligned.
 - Choose the style, colors, weight and more in the dialog box and check the result in the preview. The settings can be saved as presets.
+- The color, kerning and tracking of the target characters can be changed at the same time. For shapes drawn per line, the kerning before and after can open up automatically to match the shape's padding (with manual fine-tuning).
 - The lines and shapes are paths with live effects, so they can be adjusted later in the Appearance panel.
 
 ### Main Features
@@ -38,14 +39,13 @@ Chosen in the dropdown at the top of Settings. The dropdown's tooltip describes 
   - Unit (right column under Settings): Line (the default) draws one shape per line (column in vertical text); Per Character draws a shape for each character. Shapes are as tall as the line's glyphs and as wide as the glyph or as tall, whichever is larger (nearly square for kanji and kana; swapped in vertical text). Circle becomes a circle whose diameter is the longer side, and Hexagon a regular hexagon whose flat-to-flat distance is the longer side. Punctuation, brackets and spaces are skipped.
 - Emphasis Dots: a round dot above each character (right of it in vertical text). Punctuation, brackets and spaces get no dot.
 
-#### Settings (Shape and colors, spanning both columns)
+#### Settings (Fill and Stroke, spanning both columns)
 
 - Stacking Order (right of Style): Front or Back. Back (the default) draws behind the text; Front draws in front of it.
-- Shape: turns Fill and Stroke on or off independently. Fill uses Fill Color; Stroke uses Stroke Color, Weight and Line Type.
-- Fill Color: used for Fill, Emphasis Dots and the Fill of shapes. Choose Custom, Text Color or White (Text Color by default).
-- Stroke Color: used for line styles and the Stroke of shapes. Choose Custom, Yellow (Y100), Red (M100Y100) or Text Color (Yellow by default).
+- Fill: the color for Fill, Emphasis Dots and the fill of shapes. Choose Custom, Text Color or White (Text Color by default). With Draw at the start of the row on, shapes (Box, Circle, Hexagon) are filled (on by default).
+- Stroke: the color for line styles and the stroke of shapes. Choose Custom, Text Color, Yellow (Y100) or Red (M100Y100) (Yellow by default). With Draw at the start of the row on, shapes get a stroke (using Weight and Line Type; off by default).
   - Text Color is the fill of the first target character; for Custom, click the swatch to choose with Illustrator's standard color picker.
-  - The color not in use is dimmed.
+  - The color not in use is dimmed. Draw is available for shapes only.
 
 #### Settings (left column: lines and effects)
 
@@ -69,7 +69,7 @@ Chosen in the dropdown at the top of Settings. The dropdown's tooltip describes 
   - Align Starts: starts the lines and shapes where the earliest line starts (the top of the column in vertical text). The ends stay as they are.
   - Align Both Ends: extends the lines and shapes of short lines to the length of the longest one (column length in vertical text).
   - Only one of Align Starts and Align Both Ends can be on. They work with line styles and with shapes when Unit is Line.
-- Leading: with Even on, positions and sizes lines, shapes and dots by the leading instead of the glyph height of each line (width in vertical text). Every line gets the same height, centered on its characters, and consecutive lines are spaced exactly one leading apart (spacing restarts after paragraph space or blank lines). Works with every style; Fill becomes as thick as the leading, and Per Character as large.
+- Line Height: with Leading-Based on, positions and sizes lines, shapes and dots by the leading instead of the glyph height of each line (width in vertical text). Every line gets the same height, centered on its characters, and consecutive lines are spaced exactly one leading apart (spacing restarts after paragraph space or blank lines). Works with every style; Fill becomes as thick as the leading, and Per Character as large.
 - Corner Radius: the corner radius of Box (0 for square corners).
 - Continuity: with Multi-Line on, makes a rounded Box spanning several lines look continuous. Only the left end of the first line and the right end of the last are rounded, and the line breaks keep square corners. With Stroke on, the stroke is left open on the edges where the lines continue (the left edge of every line but the first and the right edge of every line but the last; in vertical text, the top of the first column and the bottom of the last are rounded, and the top and bottom edges are left open).
 - Rotate: turns each shape about its own center (-360 to 360°; positive is counterclockwise).
@@ -93,11 +93,11 @@ Changes the formatting of the target characters. The preview reflects it, and th
 - Built-in presets (in Style order): Underline, Dotted Underline, Yellow Marker, Yellow Marker (Hand-Drawn), Slanted Highlighter, Wavy Line, Zigzag, Text-Color Strikethrough, Double Strikethrough, Rounded Box, Band per Line, Band per Line (Touching), Band per Line (Hand-Drawn), Frame, Frame per Line, Frame per Line (Hand-Drawn), Redaction, Box per Character, Circle per Character, Hexagon per Character and Emphasis Dots.
   - Text-Color Strikethrough and Double Strikethrough take lengths such as the weight from the glyph height of the first target; the others use fixed lengths.
   - Rounded Box, Band per Line, Band per Line (Touching), Band per Line (Hand-Drawn), Box per Character, Circle per Character and Hexagon per Character set Text Color to White. All use Back for Stacking Order.
-  - Band per Line draws a box for each line with small gaps, looking continuous (Multi-Line on); Band per Line (Touching) leaves no gaps, with Multi-Line off. Both turn on Align Starts and Even (Leading).
+  - Band per Line draws a box for each line with small gaps, looking continuous (Multi-Line on); Band per Line (Touching) leaves no gaps, with Multi-Line off. Both turn on Align Starts and Leading-Based.
   - Frame per Line draws Frame for each line, with Align Starts on and Multi-Line off.
   - The Hand-Drawn presets turn on Hand-Drawn under Roughen (Yellow Marker (Hand-Drawn): Size 1%, Detail 10; Band per Line (Hand-Drawn): 0.7%, 3; Frame per Line (Hand-Drawn): 0.4%, 10).
-  - The three per-character presets set Kerning to 0 and Tracking to 170 under Text; the shape presets turn on Match Padding.
-  - Every preset carries the Line Length, Leading, Roughen and Text settings, so choosing another preset switches them too.
+  - The three per-character presets set Kerning to 0 and Tracking to 170 under Text; the presets that draw shapes per line turn on Match Padding.
+  - Every preset carries the Line Length, Line Height, Roughen and Text settings, so choosing another preset switches them too.
   - Changing a setting deselects the list, so clicking the same preset again brings its settings back. After that, Overwrite still writes into the preset chosen just before (its name appears in the tooltip), and Save offers that name too.
   - Overwriting a built-in preset makes a saved preset of the same name; deleting it brings back the original settings.
   - Built-in presets cannot be deleted; a preset saved under the same name is used instead.
@@ -115,7 +115,7 @@ The settings and the chosen preset at the time the dialog box closes (OK or Canc
 
 1. Select characters with the Type tool (or select text objects)
 2. Run the script
-3. Pick a preset from the list on the left (or choose the style, colors, weight and more in Settings on the right)
+3. Pick a preset from the list on the left (or choose the style, colors, weight and more in Settings, and the text color, kerning and more in Text, on the right)
 4. Click OK
 
 ### Notes
@@ -141,10 +141,11 @@ https://note.com/dtp_tranist/n/na1804afb7fe2
 
 ### Script info
 
-- Version: v1.7.1
+- Version: v1.7.2
 
 ### Update History
 
+- v1.7.2 (2026-11-02) Merged Fill and Stroke under Shape into a Draw checkbox at the start of the Fill and Stroke rows (formerly Fill Color and Stroke Color); Stroke now lists Custom, Text Color, Yellow, then Red; renamed Even under Leading to Leading-Based under Line Height; updated the overview and README
 - v1.7.1 (2026-11-02) Fill Color now lists Custom, Text Color, then White
 - v1.7.0 (2026-11-02) Turned the White checkbox under Text into Text Color radio buttons (No Change, White, Custom); Custom takes its color from the Color Picker via the swatch (White in presets from earlier versions loads as White when on and No Change when off); added Match Padding to Text (for Box, Circle and Hexagon per line, Kerning (Before) / (After) come from Padding (H) and the type size, with fine adjustment in the fields; on by default, including presets from earlier versions); the preview is now always on, replacing the Preview checkbox with Reset (returns to the state at opening, clearing Kerning (Before) / (After) and Tracking and turning Match Padding off); preset icons now show Delete on the left and Save / Overwrite on the right; Shape, Fill Color and Stroke Color moved below Style as rows spanning both Settings columns, with their radio buttons on one line (Custom and its swatch first); regrouped the two Settings columns into lines and per-style effects on the left (Weight, Line Type, Segments, Gap, Cap, Line Gap, Angle, Zigzag, Roughen) and placement and size on the right (Opacity, Offset, Padding, Line Length, Leading, Unit, Corner Radius, Continuity, Rotate, Dot Size); moved Text Color to the top of the Text panel, laid the Kerning radio buttons out in a row, and turned Kerning (Before), Tracking and Kerning (After) into three fields with their labels above
 - v1.6.0 (2026-11-02) Merged the Roughen detail into Ridges, moved Roughen below the Zigzag fields in the right column and Padding (H) / Padding (V) to the bottom of the left column; turned the Per Character checkbox into Unit radio buttons (Line / Per Character); moved Stacking Order to the right of Style and Unit to the bottom right of the right column under Settings
