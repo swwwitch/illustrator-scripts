@@ -113,6 +113,7 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 - [全角・半角の英数字と等幅字形を色で塗り分け](readme-ja/ColorCharactersByWidth.md)
 - [文字の種類ごとに全角・半角を変換](readme-ja/CharacterWidthConverter.md)
 - [文字にマーカー・アンダーライン・取り消し線を引く](readme-ja/TextHighlighter.md)
+- [テキストに吹き出しのしっぽ付きの下線・囲みを描く](readme-ja/SpeechBubbleMaker.md)
 - [選択したテキストの体裁を段落スタイルとして登録](readme-ja/%E6%AE%B5%E8%90%BD%E3%82%B9%E3%82%BF%E3%82%A4%E3%83%AB.md)
 
 
