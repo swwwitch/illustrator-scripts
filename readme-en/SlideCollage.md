@@ -12,7 +12,7 @@
 
 Lays out the artboards (or PDF pages) of the .ai / .pdf file you choose on the active document, building a portfolio-style thumbnail sheet. The size that fits the artboard is calculated automatically.
 
-There are two layouts. Grid lines the items up in rows and columns; Spotlight puts the first item large in the center as the cover and scatters the rest in depth, dimmed.
+There are three layouts. Grid lines the items up in rows and columns; Spotlight puts the first item large in the center as the cover and scatters the rest in depth, dimmed; Contact Sheet fills each artboard with a set number of columns and rows and adds artboards for the items that do not fit.
 
 <img alt="The Slide Collage dialog (Spotlight tab)" src="../png/ss-1660-1648-144-20261013-155144-s.png" width="50%" />
 
@@ -21,6 +21,7 @@ There are two layouts. Grid lines the items up in rows and columns; Spotlight pu
 - Mode: switch with the tabs in the right column
   - Grid: lays the items out in rows and columns
   - Spotlight: the first item goes in the center on top as the cover; the rest are scattered in depth and dimmed. Cover size, far size, scatter and dimming are adjustable
+  - Contact Sheet: divides each artboard into columns and rows (1–10) and lays the items out with a margin, a flow (Z / Reverse N) and a scale (relative to the size that fits each cell). Items that do not fit go onto artboards of the same size added to the right and below. Background, mask, rotation and offsets are not used
 - Load: set the Range (for example `1-20` or `1,3,5`) and the Total; when Total is larger than the range, the range repeats
 - Items: Crop To (PDF only; Art / Crop / Trim / Bleed) and round corners
 - Spreads: landscape pages can be split into left and right halves and laid out at single-page size; the side for even pages (right / left) is set from the PDF binding direction
@@ -41,7 +42,8 @@ There are two layouts. Grid lines the items up in rows and columns; Spotlight pu
 
 - Changes to Range and Total take effect with [Load]; changing the crop box or the spread split reloads automatically
 - Round corners, the mask and round mask corners are not previewed; they are applied on [OK]
-- Number fields step with the steppers or the Up/Down keys: to the next whole number (1.5 → 2), Shift to the next multiple of ten, Option by 0.1
+- Artboards added by Contact Sheet stay on [OK] and are removed on [Cancel] or when you switch to another mode. Positions that would overlap an existing artboard are skipped
+- Number fields step with the steppers or the Up/Down keys: to the next whole number (1.5 → 2), Shift to the next multiple of ten, Option by 0.1. Shift-drag a Scale slider to snap to 10%
 - [Reset] restores the settings other than the file and range (4 columns, rotation off, Shift off; the horizontal offset is set so the grid is centered)
 - [Cancel] removes the placed items and restores the view
 - The dialog reopens where it was last closed and moves aside when it would cover the selected objects
@@ -58,10 +60,11 @@ https://note.com/dtp_tranist/n/n9f8c7370f4e5
 
 ### Script info
 
-- Version: v1.8.1
+- Version: v1.9.0
 
 ### Update History
 
+- v1.9.0 (2026-11-03) Added the Contact Sheet tab (columns and rows per artboard, margin, flow (Z / Reverse N) and scale; artboards are added for the items that do not fit; no background color or other artboard styling); a progress bar shows in the Load Artboards panel while loading; Shift-drag the Scale sliders to snap to 10%
 - v1.8.1 (2026-10-13) The right column is now tabbed (Grid / Spotlight), and the selected tab sets the mode; renamed Depth to Spotlight, Cover to Cover Size, labeled the Crop To dropdown and changed its defaults (cover 190%, far size 50%, scatter 70%, dimming 80%); switching back to Grid restores Rotate, Margin, Round Mask Corners and Background to their opening values; fixed OK not committing the Spotlight layout; Artboard Background & Mask moved below Layout
 - v1.8.0 (2026-10-13) Added Mode, with a new Depth mode that centers the cover and scatters the rest in depth (with adjustable cover size, far size, scatter and dimming; choosing it turns Rotate, Artboard Background and Round Mask Corners off and sets the mask Margin to 0). Renamed the Artboard & Mask panel to Artboard Background & Mask, moved it to the left column and put Mask, Margin and Round Mask Corners on separate rows
 - v1.7.7 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)

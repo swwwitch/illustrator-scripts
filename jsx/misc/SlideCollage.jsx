@@ -8,14 +8,16 @@ Script-ID=com.swwwitch.illustrator.SlideCollage
 Name=PDF/AIをグリッド配置してサムネイル一覧を作成
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.8.1
+Version=1.9.0
 Release-Date=2026-03-01
 Description-BEGIN
 選んだ .ai / .pdf のアートボード（PDFはページ）を並べ、ポートフォリオ用のサムネイル一覧を作成します。
-並べ方は、列と行にそろえる［グリッド］と、表紙を中央に置いてほかを奥に散らす［スポットライト］の2種類です。
+並べ方は、列と行にそろえる［グリッド］、表紙を中央に置いてほかを奥に散らす［スポットライト］、
+1アートボードあたりの列数・行数で並べて入りきらない分はアートボードを足す［コンタクトシート］の3種類です。
 
 Lays out the artboards (or PDF pages) of the .ai / .pdf file you choose to build a portfolio-style thumbnail sheet.
-Two layouts: Grid lines them up in rows and columns; Spotlight centers the cover and scatters the rest in depth.
+Three layouts: Grid lines them up in rows and columns; Spotlight centers the cover and scatters the rest in depth;
+Contact Sheet fills each artboard with a set number of columns and rows and adds artboards for the rest.
 Description-END
 SCRIPTMETA-END
 */
@@ -25,7 +27,8 @@ SCRIPTMETA-END
 ### 概要
 
 選んだ .ai / .pdf のアートボード（PDFはページ）を並べ、ポートフォリオ用のサムネイル一覧を作成します。
-並べ方は、列と行にそろえる［グリッド］と、表紙を中央に置いてほかを奥に散らす［スポットライト］の2種類です。
+並べ方は、列と行にそろえる［グリッド］、表紙を中央に置いてほかを奥に散らす［スポットライト］、
+1アートボードあたりの列数・行数で並べて入りきらない分はアートボードを足す［コンタクトシート］の3種類です。
 
 詳細は README を参照してください。
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SlideCollage.md
@@ -36,7 +39,8 @@ https://note.com/dtp_tranist/n/n9f8c7370f4e5
 ### Overview
 
 Lays out the artboards (or PDF pages) of the .ai / .pdf file you choose to build a portfolio-style thumbnail sheet.
-Two layouts: Grid lines them up in rows and columns; Spotlight centers the cover and scatters the rest in depth.
+Three layouts: Grid lines them up in rows and columns; Spotlight centers the cover and scatters the rest in depth;
+Contact Sheet fills each artboard with a set number of columns and rows and adds artboards for the rest.
 
 See the README for details.
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SlideCollage.md
@@ -47,10 +51,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SlideColla
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SlideCollage";                 /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.8.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.9.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-03-01";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-13";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-11-03";                   /* 更新日 / last updated */
 
 var SCRIPT_DESCRIPTION_JA = "PDF/AIをグリッド配置してサムネイル一覧を作成"; /* README の見出し / README title (Japanese) */
 
@@ -71,7 +75,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     /* ダイアログを開いたときの値。距離は pt、角丸の半径は定規の単位で持つ
        Values the dialog opens with. Distances in pt; corner radii in ruler units */
     var DEFAULT_SETTINGS = {
-        layoutMode: 0,             /* モード（0 グリッド / 1 スポットライト） / layout mode */
+        layoutMode: 0,             /* モード（0 グリッド / 1 スポットライト / 2 コンタクトシート） / layout mode */
         coverScale: 190,           /* スポットライトの表紙の倍率（%、ほかのスライドに対して） / spotlight cover size relative to the others */
         farScale: 50,              /* スポットライトのいちばん奥のスライドの大きさ（%、手前に対して） / size of the farthest slide relative to the nearest */
         scatter: 70,               /* スポットライトの散らばり（%、升目の大きさに対して） / offset from the cell center, relative to the cell */
@@ -94,7 +98,12 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         maskEnabled: true,         /* マスク / mask */
         marginPt: 20,              /* マージン / margin */
         maskRoundEnabled: false,   /* マスクの角丸 / round mask corners */
-        maskRoundRadius: 20        /* マスクの角丸の半径（定規の単位） / mask corner radius (ruler units) */
+        maskRoundRadius: 20,       /* マスクの角丸の半径（定規の単位） / mask corner radius (ruler units) */
+        artboardColumns: 3,        /* コンタクトシートの1アートボードあたりの列数 / columns per artboard */
+        artboardRows: 3,           /* コンタクトシートの1アートボードあたりの行数 / rows per artboard */
+        artboardMarginPt: 20,      /* コンタクトシートのマージン / margin inside each artboard */
+        artboardFlowMode: 0,       /* コンタクトシートの方向（0 Z / 1 逆N） / flow per artboard */
+        artboardScale: 90          /* コンタクトシートのスケール（%、升目に収まる大きさに対して） / scale relative to the cell */
     };
 
     /* ［リセット］で DEFAULT_SETTINGS から変える値。横方向の位置は左右の余白がそろうよう計算し直す
@@ -107,6 +116,12 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
 
     /* 列数の上限（入力欄・スライダー共通） / maximum number of columns */
     var MAX_COLUMNS = 30;
+
+    /* コンタクトシートの列数・行数の上限 / maximum columns and rows per artboard */
+    var MAX_ARTBOARD_CELLS = 10;
+
+    /* コンタクトシートで足すアートボードどうしの間隔（pt） / gap between artboards added for Contact Sheet */
+    var ADDED_ARTBOARD_GAP_PT = 20;
 
     /* 見開きとみなす横長比（幅 > 高さ × この値） / aspect ratio that marks a page as a spread (width > height x this) */
     var SPREAD_ASPECT_RATIO = 1.2;
@@ -203,6 +218,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     var UNIT_LABEL_WIDTH   = 24;               /* 単位の幅 / unit label width */
     var SLIDER_WIDTH       = 140;              /* スライダーの幅 / slider width */
     var SWATCH_SIZE        = 24;               /* 背景色の色見本の大きさ / swatch size */
+    var SCALE_SLIDER_SHIFT_STEP = 10;          /* スケールのスライダーを shift＋ドラッグしたときの刻み（%） / Shift-drag step of the scale sliders */
 
     // ローカライズ（再利用パーツ） / Localization (reusable)
 
@@ -289,6 +305,12 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             title: { ja: "Slide Collage for Illustrator", en: "Slide Collage for Illustrator" },
             chooseFile: { ja: "PDF/AIを選択してください", en: "Select a PDF or AI file" }
         },
+        progress: {
+            placing: { ja: "ページを配置中... %1 / %2", en: "Placing... %1 / %2" },
+            arranging: { ja: "並べています... %1 / %2", en: "Arranging... %1 / %2" },
+            addingArtboards: { ja: "アートボードを追加中...", en: "Adding artboards..." },
+            redrawing: { ja: "表示を更新中...", en: "Updating the view..." }
+        },
         panel: {
             source: { ja: "読み込みファイル", en: "Source File" },
             artboards: { ja: "アートボードの読み込み", en: "Load Artboards" },
@@ -308,18 +330,22 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             evenPage: { ja: "偶数ページ", en: "Even Pages" },
             direction: { ja: "方向", en: "Flow" },
             columns: { ja: "列数", en: "Columns" },
+            rows: { ja: "行数", en: "Rows" },
             spacing: { ja: "間隔", en: "Gap" },
             scale: { ja: "スケール", en: "Scale" },
             margin: { ja: "マージン", en: "Margin" }
         },
         tab: {
             grid: { ja: "グリッド", en: "Grid" },
-            spotlight: { ja: "スポットライト", en: "Spotlight" }
+            spotlight: { ja: "スポットライト", en: "Spotlight" },
+            artboards: { ja: "コンタクトシート", en: "Contact Sheet" }
         },
         radio: {
             horizontal: { ja: "横", en: "Horizontal" },
             vertical: { ja: "縦", en: "Vertical" },
             random: { ja: "ランダム", en: "Random" },
+            flowZ: { ja: "Z", en: "Z" },
+            flowReverseN: { ja: "逆N", en: "Reverse N" },
             evenPageRight: { ja: "右", en: "Right" },
             evenPageLeft: { ja: "左", en: "Left" }
         },
@@ -365,6 +391,23 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
                 en: "How far slides move from their cell centers, relative to the cell; 0 keeps them on the grid"
             },
             dim: { ja: "表紙以外に重ねる黒の不透明度。0 で暗くしない", en: "Opacity of the black layer over the slides behind the cover; 0 turns dimming off" },
+            artboardColumns: {
+                ja: "1アートボードあたりの列数。入りきらない分はアートボードを足して並べます",
+                en: "Columns per artboard. Artboards are added for the items that do not fit"
+            },
+            artboardRows: {
+                ja: "1アートボードあたりの行数。入りきらない分はアートボードを足して並べます",
+                en: "Rows per artboard. Artboards are added for the items that do not fit"
+            },
+            artboardMargin: { ja: "各アートボードの端からの余白", en: "Space kept from the edges of each artboard" },
+            artboardFlow: {
+                ja: "Z：左から右へ並べて次の行へ／逆N：上から下へ並べて次の列へ",
+                en: "Z: left to right, then the next row / Reverse N: top to bottom, then the next column"
+            },
+            artboardScale: {
+                ja: "升目に収まる大きさに対する倍率（スライダーは shift＋ドラッグで10%刻み）",
+                en: "Multiplier on the size that fits each cell (Shift-drag the slider to snap to 10%)"
+            },
             range: {
                 ja: "読み込むアートボード（PDFはページ）の番号。例：1-20、1,3,5",
                 en: "Artboard (or PDF page) numbers to load, e.g. 1-20 or 1,3,5"
@@ -403,8 +446,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             },
             evenShift: { ja: "偶数列だけを上下にずらします（＋で下へ）", en: "Moves even columns only (positive values move down)" },
             scale: {
-                ja: "アートボードに収まるよう自動で合わせた大きさに対する倍率",
-                en: "Multiplier on top of the size fitted to the artboard"
+                ja: "アートボードに収まるよう自動で合わせた大きさに対する倍率（スライダーは shift＋ドラッグで10%刻み）",
+                en: "Multiplier on top of the size fitted to the artboard (Shift-drag the slider to snap to 10%)"
             },
             rotate: {
                 ja: "配置したアイテム全体を回転し、アートボードの中央に合わせます",
@@ -1567,11 +1610,16 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     /* モード / Layout modes */
     var MODE_GRID = 0;
     var MODE_SPOTLIGHT = 1;
+    var MODE_ARTBOARDS = 2;
 
     /* 方向 / Flow modes */
     var FLOW_HORIZONTAL = 0;
     var FLOW_VERTICAL = 1;
     var FLOW_RANDOM = 2;
+
+    /* コンタクトシートの方向 / Flow modes for Contact Sheet */
+    var ARTBOARD_FLOW_Z = 0;         /* 左から右へ並べて次の行へ / left to right, then down */
+    var ARTBOARD_FLOW_REVERSE_N = 1; /* 上から下へ並べて次の列へ / top to bottom, then right */
 
     /**
      * ［＋1スロット］のときの列ごとのスロット数を返す（余りを左の列から配り、偶数列に1つ足す。合計が個数を超えた分は空きになる）
@@ -1643,6 +1691,56 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
 
         var fitPercent = Math.round(Math.min(fitParams.innerWidth / gridWidth, fitParams.innerHeight / gridHeight) * 100);
         return (fitPercent > 0) ? fitPercent : 100;
+    }
+
+    /**
+     * コンタクトシートで、アートボードの中での並び順の番号から列・行を求める
+     * @param {number} slotIndex - アートボードの中での並び順の番号
+     * @param {number} columnCount - 1アートボードあたりの列数
+     * @param {number} rowCount - 1アートボードあたりの行数
+     * @param {number} artboardFlowMode - ARTBOARD_FLOW_Z は行優先、ARTBOARD_FLOW_REVERSE_N は列優先
+     * @returns {{col: number, row: number}} 列と行（0始まり）
+     */
+    function getArtboardGridCell(slotIndex, columnCount, rowCount, artboardFlowMode) {
+        if (artboardFlowMode === ARTBOARD_FLOW_REVERSE_N) {
+            return { col: Math.floor(slotIndex / rowCount), row: slotIndex % rowCount };
+        }
+        return { col: slotIndex % columnCount, row: Math.floor(slotIndex / columnCount) };
+    }
+
+    /**
+     * コンタクトシートで、アイテムを置く枠を求める。マージンの内側を升目に分け、縦横比を保って升目の中央に置く
+     * @param {number[]} artboardRect - アートボードの [left, top, right, bottom]
+     * @param {Object} cellParams - marginPt / columnCount / rowCount / gridCell（{ col, row }）/
+     *     itemSize（{ width, height }、配置したままの大きさ）/ scalePercent（升目に収まる大きさに対する倍率）
+     * @returns {{left: number, top: number, width: number, height: number}} 枠
+     */
+    function calcArtboardCellFrame(artboardRect, cellParams) {
+        var innerRect = insetArtboardRect(artboardRect, cellParams.marginPt);
+        var cellWidth = innerRect.width / cellParams.columnCount;
+        var cellHeight = innerRect.height / cellParams.rowCount;
+        var itemSize = cellParams.itemSize;
+        var fitRatio = Math.min(cellWidth / itemSize.width, cellHeight / itemSize.height) * cellParams.scalePercent / 100;
+        return makeCenteredFrame(
+            innerRect.left + (cellParams.gridCell.col + 0.5) * cellWidth,
+            innerRect.top - (cellParams.gridCell.row + 0.5) * cellHeight,
+            itemSize.width * fitRatio, itemSize.height * fitRatio
+        );
+    }
+
+    /**
+     * コンタクトシートで足すアートボードの位置を求める。元のアートボードから右へ並べ、1段に slotsPerRow 個で折り返して下の段へ
+     * @param {number[]} baseRect - 元のアートボードの [left, top, right, bottom]
+     * @param {number} slotIndex - 位置の番号（0 が元のアートボード）
+     * @param {number} slotsPerRow - 1段に並べる数
+     * @returns {number[]} [left, top, right, bottom]（大きさは元のアートボードと同じ）
+     */
+    function calcArtboardSlotRect(baseRect, slotIndex, slotsPerRow) {
+        var width = baseRect[2] - baseRect[0];
+        var height = baseRect[1] - baseRect[3];
+        var left = baseRect[0] + (slotIndex % slotsPerRow) * (width + ADDED_ARTBOARD_GAP_PT);
+        var top = baseRect[1] - Math.floor(slotIndex / slotsPerRow) * (height + ADDED_ARTBOARD_GAP_PT);
+        return [left, top, left + width, top - height];
     }
 
     /**
@@ -1793,13 +1891,41 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
      * @returns {{left: number, top: number, width: number, height: number}} 内側の矩形（幅・高さは最低1）
      */
     function getInnerArtboardRect(doc, marginPt) {
-        var artboardRect = getActiveArtboardRect(doc);
+        return insetArtboardRect(getActiveArtboardRect(doc), marginPt);
+    }
+
+    /**
+     * アートボードの矩形から、マージンを除いた内側の矩形を返す
+     * @param {number[]} artboardRect - [left, top, right, bottom]
+     * @param {number} marginPt - マージン（pt）
+     * @returns {{left: number, top: number, width: number, height: number}} 内側の矩形（幅・高さは最低1）
+     */
+    function insetArtboardRect(artboardRect, marginPt) {
         return {
             left: artboardRect[0] + marginPt,
             top: artboardRect[1] - marginPt,
             width: Math.max(1, Math.abs(artboardRect[2] - artboardRect[0]) - marginPt * 2),
             height: Math.max(1, Math.abs(artboardRect[1] - artboardRect[3]) - marginPt * 2)
         };
+    }
+
+    /* 矩形の重なりを見るときの許容値（pt）。突き合わせた辺の浮動小数の誤差を重なりとみなさない
+       Tolerance for overlap checks so float error on touching edges does not count */
+    var RECT_OVERLAP_TOLERANCE = 0.001;
+
+    /**
+     * 矩形がドキュメントのどれかのアートボードと重なるかを返す
+     * @param {Document} doc - ドキュメント
+     * @param {number[]} rect - [left, top, right, bottom]
+     * @returns {boolean} 重なるなら true
+     */
+    function overlapsAnyArtboard(doc, rect) {
+        for (var i = 0; i < doc.artboards.length; i++) {
+            var artboardRect = doc.artboards[i].artboardRect;
+            if (rect[0] < artboardRect[2] - RECT_OVERLAP_TOLERANCE && artboardRect[0] < rect[2] - RECT_OVERLAP_TOLERANCE &&
+                rect[3] < artboardRect[1] - RECT_OVERLAP_TOLERANCE && artboardRect[3] < rect[1] - RECT_OVERLAP_TOLERANCE) return true;
+        }
+        return false;
     }
 
     /**
@@ -2181,7 +2307,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
      * 入力・∧∨・↑↓キー・スライダーの値を連動させ、値が変わったら onValueChange を呼ぶ
      * @param {Group|Panel} parent - 追加先
      * @param {Object} rowOptions - label（コロン込みの項目名）または checkboxLabel / tooltip /
-     *     characters / min / max / integer / unit / fallback（数値でないときの値）/ slider（{ min, max }）
+     *     characters / min / max / integer / unit / fallback（数値でないときの値）/
+     *     slider（{ min, max, shiftStep }。shiftStep を渡すと、shift を押しながらのドラッグでその刻みに吸着する）
      * @returns {Object} 数値行（group / leadControl / checkbox / input / slider と getValue / setValue / isChecked / setChecked / onValueChange）
      */
     function addNumberRow(parent, rowOptions) {
@@ -2295,7 +2422,11 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         };
         if (numberRow.slider) {
             numberRow.slider.onChanging = numberRow.slider.onChange = function () {
-                writeValue(numberRow.slider.value);
+                var sliderValue = numberRow.slider.value;
+                /* shift を押しながらなら shiftStep 刻みに吸着させる / snap to shiftStep while Shift is held */
+                var shiftStep = rowOptions.slider.shiftStep;
+                if (shiftStep && ScriptUI.environment.keyboardState.shiftKey) sliderValue = Math.round(sliderValue / shiftStep) * shiftStep;
+                writeValue(sliderValue);
                 notifyChange();
             };
         }
@@ -2361,6 +2492,36 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         };
         offsetRow.slider.onChanging = offsetRow.slider.onChange = notifyChange;
         return offsetRow;
+    }
+
+    /**
+     * 進み具合の文言とバー（0〜100）を追加する。別のパレットにするとモーダルのダイアログの背面に隠れることがあるので、ダイアログの中に置く。
+     * 隠しても場所は残るので、読み込み中だけ見せてもレイアウトは動かない
+     * @param {Window} dialog - 描き直しに使うダイアログ
+     * @param {Panel} parent - 追加先
+     * @returns {{window: Window, bar: Progressbar, text: StaticText}} 進み具合の表示一式（初めは隠す）
+     */
+    function addProgressControls(dialog, parent) {
+        /* 空文字で作ると高さが取られないので、1文字分の空白で1行の高さを確保する / a space reserves one line of height */
+        var progressText = parent.add("statictext", undefined, " ");
+        progressText.alignment = ["fill", "center"]; /* 幅はパネルに合わせ、カラムを広げない / follow the panel width */
+        var progressBar = parent.add("progressbar", undefined, 0, 100);
+        progressBar.alignment = ["fill", "center"];
+        progressText.visible = progressBar.visible = false;
+        return { window: dialog, bar: progressBar, text: progressText };
+    }
+
+    /**
+     * 進み具合のバーと文言を書き換えて、すぐ描き直す（処理の途中では update() しないと表示が変わらない）
+     * @param {Object} progress - addProgressControls() の戻り値
+     * @param {number} percent - バーの値（0〜100）
+     * @param {string} message - 文言
+     * @returns {void}
+     */
+    function setProgress(progress, percent, message) {
+        progress.bar.value = Math.min(100, Math.max(0, percent));
+        progress.text.text = message;
+        progress.window.update();
     }
 
     // 画面にフィット（再利用パーツ、_templates/FitViewToItems.jsx） / Fit view to items (reusable)
@@ -2768,6 +2929,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
 
         dialogControls.btnLoad = artboardsPanel.add("button", undefined, getLabel("button.load"));
         dialogControls.btnLoad.helpTip = getLabel("tooltip.load");
+        dialogControls.loadProgress = addProgressControls(dialogControls.dialog, artboardsPanel);
     }
 
     /**
@@ -2803,18 +2965,19 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     }
 
     /**
-     * モードのタブ（グリッド・スポットライト）と、それぞれの設定を追加する
+     * モードのタブ（グリッド・スポットライト・コンタクトシート）と、それぞれの設定を追加する
      * @param {Group} parent - 追加先のカラム
      * @param {Object} dialogControls - コントロールを書き込む先
      * @param {Object} rulerUnit - getUnitInfo() の戻り値
      * @returns {void}
      */
     function addModeTabs(parent, dialogControls, rulerUnit) {
-        /* モード。タブの並びは MODE_GRID / MODE_SPOTLIGHT の順 / Mode tabs, in MODE_GRID / MODE_SPOTLIGHT order */
+        /* モード。タブの並びは MODE_GRID / MODE_SPOTLIGHT / MODE_ARTBOARDS の順 / Mode tabs, in MODE_* order */
         dialogControls.modeTabs = parent.add("tabbedpanel");
         dialogControls.modeTabs.alignChildren = "fill";
         var gridPanel = dialogControls.gridPanel = addModeTab(dialogControls.modeTabs, getLabel("tab.grid"));
         dialogControls.spotlightPanel = addModeTab(dialogControls.modeTabs, getLabel("tab.spotlight"));
+        var artboardsPanel = dialogControls.artboardsPanel = addModeTab(dialogControls.modeTabs, getLabel("tab.artboards"));
 
         /* スポットライト / Spotlight */
         dialogControls.coverScaleRow = addNumberRow(dialogControls.spotlightPanel, {
@@ -2860,6 +3023,33 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             checkboxLabel: labelText("checkbox.evenShift"), tooltip: getLabel("tooltip.evenShift"),
             characters: 4, min: -200, max: 200, unit: rulerUnit.label, slider: { min: -200, max: 200 }
         });
+
+        /* コンタクトシート / Per artboard */
+        dialogControls.artboardColumnsRow = addNumberRow(artboardsPanel, {
+            label: labelText("fieldLabel.columns"), tooltip: getLabel("tooltip.artboardColumns"), characters: 4,
+            min: 1, max: MAX_ARTBOARD_CELLS, integer: true, fallback: 1, unit: "", slider: { min: 1, max: MAX_ARTBOARD_CELLS }
+        });
+        dialogControls.artboardRowsRow = addNumberRow(artboardsPanel, {
+            label: labelText("fieldLabel.rows"), tooltip: getLabel("tooltip.artboardRows"), characters: 4,
+            min: 1, max: MAX_ARTBOARD_CELLS, integer: true, fallback: 1, unit: "", slider: { min: 1, max: MAX_ARTBOARD_CELLS }
+        });
+        dialogControls.artboardMarginRow = addNumberRow(artboardsPanel, {
+            label: labelText("fieldLabel.margin"), tooltip: getLabel("tooltip.artboardMargin"), characters: 4,
+            min: 0, max: 100, unit: rulerUnit.label, slider: { min: 0, max: 100 }
+        });
+        var artboardFlowRowGroup = addRow(artboardsPanel);
+        artboardFlowRowGroup.add("statictext", undefined, labelText("fieldLabel.direction")).helpTip = getLabel("tooltip.artboardFlow");
+        dialogControls.artboardFlowRadios = [
+            artboardFlowRowGroup.add("radiobutton", undefined, getLabel("radio.flowZ")),       /* ARTBOARD_FLOW_Z */
+            artboardFlowRowGroup.add("radiobutton", undefined, getLabel("radio.flowReverseN")) /* ARTBOARD_FLOW_REVERSE_N */
+        ];
+        for (var i = 0; i < dialogControls.artboardFlowRadios.length; i++) {
+            dialogControls.artboardFlowRadios[i].helpTip = getLabel("tooltip.artboardFlow");
+        }
+        dialogControls.artboardScaleRow = addNumberRow(artboardsPanel, {
+            label: labelText("fieldLabel.scale"), tooltip: getLabel("tooltip.artboardScale"),
+            characters: 4, min: 10, max: 100, integer: true, fallback: 100, unit: "%", slider: { min: 10, max: 100, shiftStep: SCALE_SLIDER_SHIFT_STEP }
+        });
     }
 
     /**
@@ -2872,10 +3062,10 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
      */
     function addLayoutPanel(parent, dialogControls, rulerUnit, doc) {
         /* レイアウト / Layout */
-        var layoutPanel = addPanel(parent, getLabel("panel.layout"));
+        var layoutPanel = dialogControls.layoutPanel = addPanel(parent, getLabel("panel.layout"));
         dialogControls.scaleRow = addNumberRow(layoutPanel, {
             label: labelText("fieldLabel.scale"), tooltip: getLabel("tooltip.scale"),
-            characters: 4, min: 10, max: 250, integer: true, fallback: 100, unit: "%", slider: { min: 10, max: 250 }
+            characters: 4, min: 10, max: 250, integer: true, fallback: 100, unit: "%", slider: { min: 10, max: 250, shiftStep: SCALE_SLIDER_SHIFT_STEP }
         });
         dialogControls.rotateRow = addNumberRow(layoutPanel, {
             checkboxLabel: labelText("checkbox.rotate"), tooltip: getLabel("tooltip.rotate"),
@@ -2896,7 +3086,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
      */
     function addArtboardMaskPanel(parent, dialogControls, rulerUnit) {
         /* アートボード背景とマスク / Artboard background & mask */
-        var artboardMaskPanel = addPanel(parent, getLabel("panel.artboardMask"));
+        var artboardMaskPanel = dialogControls.artboardMaskPanel = addPanel(parent, getLabel("panel.artboardMask"));
         var backgroundRowGroup = addRow(artboardMaskPanel);
         dialogControls.backgroundCheckbox = backgroundRowGroup.add("checkbox", undefined, labelText("checkbox.background"));
         dialogControls.backgroundSwatch = backgroundRowGroup.add("panel");
@@ -2964,7 +3154,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         addLayoutPanel(rightColumn, dialogControls, rulerUnit, doc);
         addArtboardMaskPanel(rightColumn, dialogControls, rulerUnit);
         /* スライダーのある行は、頭の幅をそろえて入力欄の位置を合わせる / align the leads of the slider rows */
-        alignNumberRowLeads([dialogControls.coverScaleRow, dialogControls.farScaleRow, dialogControls.scatterRow, dialogControls.dimRow, dialogControls.columnsRow, dialogControls.spacingRow, dialogControls.evenShiftRow, dialogControls.scaleRow, dialogControls.rotateRow]);
+        alignNumberRowLeads([dialogControls.coverScaleRow, dialogControls.farScaleRow, dialogControls.scatterRow, dialogControls.dimRow, dialogControls.columnsRow, dialogControls.spacingRow, dialogControls.evenShiftRow, dialogControls.artboardColumnsRow, dialogControls.artboardRowsRow, dialogControls.artboardMarginRow, dialogControls.artboardScaleRow, dialogControls.scaleRow, dialogControls.rotateRow]);
         addDialogButtons(dialogControls);
         return dialogControls;
     }
@@ -2987,13 +3177,17 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         var isApplyingSettings = false;  /* 設定をまとめて反映している最中か / true while applySettings() runs */
         /* 選んでいるモード。閉じたあとはタブの selection が読めないので控えておく / the tab selection is unreadable after closing */
         var currentLayoutMode = MODE_GRID;
+        /* 読み込み中の進み具合の表示（読み込み中だけ入る） / progress controls, set only while loading */
+        var loadProgress = null;
+        /* コンタクトシートで1枚目に使うアートボード（実行時にアクティブなもの） / the artboard Contact Sheet starts on */
+        var baseArtboardIndex = doc.artboards.getActiveArtboardIndex();
 
         /* 読み込んだプレビューの状態。items は並べる前の順で、baseWidths / baseHeights は配置したままの大きさ
            Loaded preview state; items keep their load order, base sizes are as placed */
         var previewState = {
             items: [], baseWidths: [], baseHeights: [],
             group: null, background: null, rotation: 0, randomOrder: null, roundRadiusPt: 0,
-            dimRect: null, spotlightSeed: 0,
+            dimRect: null, spotlightSeed: 0, addedArtboards: [],
             cropIndex: -1, splitSpreads: false, evenPageOnRight: true
         };
 
@@ -3006,13 +3200,26 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
 
         /**
          * 選んでいるタブからモードを読み取る
-         * @returns {number|null} MODE_GRID / MODE_SPOTLIGHT。選択が読めなければ null
+         * @returns {number|null} MODE_GRID / MODE_SPOTLIGHT / MODE_ARTBOARDS。選択が読めなければ null
          */
         function readModeTab() {
             var selectedTab = dialogControls.modeTabs.selection;
             if (!selectedTab) return null;
             /* Tab に index は無いので、タブ名で比べる / Tab has no index, compare by tab title */
-            return (selectedTab.text === dialogControls.spotlightPanel.text) ? MODE_SPOTLIGHT : MODE_GRID;
+            if (selectedTab.text === dialogControls.spotlightPanel.text) return MODE_SPOTLIGHT;
+            if (selectedTab.text === dialogControls.artboardsPanel.text) return MODE_ARTBOARDS;
+            return MODE_GRID;
+        }
+
+        /**
+         * モードのタブを返す
+         * @param {number} layoutMode - MODE_GRID / MODE_SPOTLIGHT / MODE_ARTBOARDS
+         * @returns {Tab} タブ
+         */
+        function getModeTab(layoutMode) {
+            if (layoutMode === MODE_SPOTLIGHT) return dialogControls.spotlightPanel;
+            if (layoutMode === MODE_ARTBOARDS) return dialogControls.artboardsPanel;
+            return dialogControls.gridPanel;
         }
 
         /**
@@ -3024,6 +3231,14 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
                 if (dialogControls.flowRadios[i].value) return i;
             }
             return FLOW_VERTICAL;
+        }
+
+        /**
+         * コンタクトシートで選んでいる方向を返す
+         * @returns {number} ARTBOARD_FLOW_Z / ARTBOARD_FLOW_REVERSE_N
+         */
+        function getArtboardFlowMode() {
+            return dialogControls.artboardFlowRadios[ARTBOARD_FLOW_REVERSE_N].value ? ARTBOARD_FLOW_REVERSE_N : ARTBOARD_FLOW_Z;
         }
 
         /**
@@ -3187,6 +3402,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         function clearPreview() {
             if (previewState.group) previewState.group.remove(); /* 中のアイテムもまとめて消える / removes its children too */
             if (previewState.background) previewState.background.remove();
+            removeAddedArtboards();
             previewState.items = [];
             previewState.baseWidths = [];
             previewState.baseHeights = [];
@@ -3218,10 +3434,30 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             previewState.splitSpreads = dialogControls.splitSpreadsCheckbox.value;
             previewState.evenPageOnRight = dialogControls.evenPageRightRadio.value;
 
+            showLoadProgress(true);
+            try {
+                placeTargetPages(targetPages, cropToValue);
+                updateBackgroundPreview(true); /* 直後の applyLayout で再描画する / applyLayout redraws right after */
+                applyLayout(false);
+                fitViewToArtboard();
+            } finally {
+                showLoadProgress(false);
+            }
+            return true;
+        }
+
+        /**
+         * 対象のページを配置してプレビューのグループに入れ、配置したままの大きさを控える（見開きは分割する）
+         * @param {number[]} targetPages - ページ番号の並び
+         * @param {number} cropToValue - 配置範囲
+         * @returns {void}
+         */
+        function placeTargetPages(targetPages, cropToValue) {
             /* 回転・後始末をまとめて扱えるよう、1つのグループに入れる / keep everything in one group for rotation and cleanup */
             previewState.group = doc.groupItems.add();
             previewState.group.name = PREVIEW_GROUP_NAME;
             for (var i = 0; i < targetPages.length; i++) {
+                setProgress(loadProgress, i / targetPages.length * PROGRESS_PLACE_END, getLabel("progress.placing", [i + 1, targetPages.length]));
                 var placedItem = placeSourcePage(doc, sourceFile, targetPages[i], cropToValue);
                 if (!placedItem) continue;
                 var placedPieces = [placedItem];
@@ -3236,10 +3472,47 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
                     previewState.baseHeights.push(pieceBounds[1] - pieceBounds[3]);
                 }
             }
-            updateBackgroundPreview(true); /* 直後の applyLayout で再描画する / applyLayout redraws right after */
-            applyLayout(false);
-            fitViewToArtboard();
-            return true;
+        }
+
+        /* 読み込みの進み具合の割り振り（%）。配置まで・並べ終えるまで、残りは再描画。時間のほとんどは配置（1ページ約0.3秒）
+           Progress shares: placing, arranging, then redraw; placing takes nearly all the time */
+        var PROGRESS_PLACE_END = 90;
+        var PROGRESS_ARRANGE_END = 95;
+
+        /**
+         * 進み具合の表示を見せる・隠す（どちらも空の状態から）。見せているあいだだけ loadProgress に入れる
+         * @param {boolean} isVisible - 見せるなら true
+         * @returns {void}
+         */
+        function showLoadProgress(isVisible) {
+            var progressControls = dialogControls.loadProgress;
+            progressControls.bar.value = 0;
+            progressControls.text.text = "";
+            progressControls.text.visible = progressControls.bar.visible = isVisible;
+            loadProgress = isVisible ? progressControls : null;
+        }
+
+        /**
+         * 読み込み中なら、並べ終えた数を進み具合に出す
+         * @param {number} doneCount - 並べ終えた数
+         * @param {number} itemCount - 並べる数
+         * @returns {void}
+         */
+        function reportArrangeProgress(doneCount, itemCount) {
+            if (!loadProgress) return;
+            setProgress(loadProgress, PROGRESS_PLACE_END + (PROGRESS_ARRANGE_END - PROGRESS_PLACE_END) * doneCount / itemCount,
+                getLabel("progress.arranging", [doneCount, itemCount]));
+        }
+
+        /**
+         * 読み込み中なら、進み具合の文言だけを書き換える（バーは今の値のまま）
+         * @param {string} labelPath - LABELS のパス
+         * @param {number} [percent] - バーの値（省略時は今の値）
+         * @returns {void}
+         */
+        function reportProgressMessage(labelPath, percent) {
+            if (!loadProgress) return;
+            setProgress(loadProgress, (percent !== undefined) ? percent : loadProgress.bar.value, getLabel(labelPath));
         }
 
         /**
@@ -3259,7 +3532,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         }
 
         /**
-         * 今の設定でプレビューのアイテムを並べ直す（大きさ・位置・角丸・回転・位置調整。スポットライトモードは重ね順と暗くする黒も）
+         * 今の設定でプレビューのアイテムを並べ直す（大きさ・位置・角丸・回転・位置調整。スポットライトモードは重ね順と暗くする黒も。
+         * コンタクトシートはアートボードを足し引きして並べ、回転・位置調整はしない）
          * @param {boolean} withRoundCorners - 角丸もかけるなら true（OK のとき。プレビューではかけない）
          * @returns {void}
          */
@@ -3267,6 +3541,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             if (previewState.items.length === 0) return;
 
             var isSpotlightMode = (currentLayoutMode === MODE_SPOTLIGHT);
+            var isArtboardsMode = (currentLayoutMode === MODE_ARTBOARDS);
             var rotateDeg = getRotateDeg();
             var offsetXPt = dialogControls.offsetXRow.checkbox.value ? unitToPt(dialogControls.offsetXRow.slider.value, rulerUnit) : 0;
             var offsetYPt = dialogControls.offsetYRow.checkbox.value ? unitToPt(dialogControls.offsetYRow.slider.value, rulerUnit) : 0; /* ＋で下へ / positive moves down */
@@ -3280,6 +3555,16 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             if (previewState.rotation !== 0) {
                 previewState.group.rotate(-previewState.rotation);
                 previewState.rotation = 0;
+            }
+
+            /* コンタクトシートでなければ、足したアートボードを消す / other modes use only the active artboard */
+            var hasArtboardsChanged = isArtboardsMode ? layoutArtboardItems() : syncAddedArtboards(1);
+            if (isArtboardsMode) {
+                if (withRoundCorners) applyItemRoundCorners();
+                reportProgressMessage("progress.redrawing", PROGRESS_ARRANGE_END);
+                app.redraw();
+                if (hasArtboardsChanged) fitViewToArtboard();
+                return;
             }
 
             /* 回転するときは回したあとで中央に合わせてから位置調整するので、ここでは足さない
@@ -3304,7 +3589,9 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
                 if (offsetXPt !== 0 || offsetYPt !== 0) previewState.group.translate(offsetXPt, -offsetYPt);
             }
             if (isSpotlightMode && previewState.items.length > 1 && dialogControls.dimRow.getValue() > 0) addDimRectBehindCover();
+            reportProgressMessage("progress.redrawing", PROGRESS_ARRANGE_END);
             app.redraw();
+            if (hasArtboardsChanged) fitViewToArtboard();
         }
 
         /**
@@ -3331,6 +3618,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
                 var cellTop = layoutArea.top - gridCell.row * (cellHeight + gapPt);
                 if (gridCell.col % 2 === 1) cellTop -= evenShiftPt; /* 偶数列だけずらす / offset even columns */
                 fitItemToFrame(previewState.items[itemIndex], layoutArea.left + gridCell.col * (cellWidth + gapPt), cellTop, cellWidth, cellHeight);
+                reportArrangeProgress(i + 1, itemCount);
             }
             return null;
         }
@@ -3353,8 +3641,87 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             for (var j = 0; j < previewState.items.length; j++) {
                 var frame = spotlightLayout.frames[j];
                 fitItemToFrame(previewState.items[j], frame.left, frame.top, frame.width, frame.height);
+                reportArrangeProgress(j + 1, previewState.items.length);
             }
             return spotlightLayout.stackOrder;
+        }
+
+        /**
+         * コンタクトシートで並べる。1アートボードあたり列数×行数ずつ、入りきらない分は足したアートボードへ
+         * @returns {boolean} アートボードを足し引きしたら true
+         */
+        function layoutArtboardItems() {
+            var itemCount = previewState.items.length;
+            var columnCount = dialogControls.artboardColumnsRow.getValue();
+            var rowCount = dialogControls.artboardRowsRow.getValue();
+            var slotsPerArtboard = columnCount * rowCount;
+            var hasArtboardsChanged = syncAddedArtboards(Math.ceil(itemCount / slotsPerArtboard));
+            var artboardRects = getUsedArtboardRects();
+            var marginPt = unitToPt(dialogControls.artboardMarginRow.getValue(), rulerUnit);
+            var scalePercent = dialogControls.artboardScaleRow.getValue();
+            var artboardFlowMode = getArtboardFlowMode();
+
+            for (var i = 0; i < itemCount; i++) {
+                var frame = calcArtboardCellFrame(artboardRects[Math.floor(i / slotsPerArtboard)], {
+                    marginPt: marginPt, columnCount: columnCount, rowCount: rowCount,
+                    gridCell: getArtboardGridCell(i % slotsPerArtboard, columnCount, rowCount, artboardFlowMode),
+                    itemSize: getBaseItemSize(i), scalePercent: scalePercent
+                });
+                fitItemToFrame(previewState.items[i], frame.left, frame.top, frame.width, frame.height);
+                reportArrangeProgress(i + 1, itemCount);
+            }
+            return hasArtboardsChanged;
+        }
+
+        /**
+         * 並べるのに使うアートボードの数に合わせて、アートボードを足し引きする。数が変わったら足したものを作り直す。
+         * 足すアートボードは元のアートボードと同じ大きさで、右へ並べてほぼ正方形になるよう折り返し、既存のアートボードと重なる位置は飛ばす
+         * @param {number} artboardCount - 使うアートボードの数（元のアートボードを含む）
+         * @returns {boolean} 足し引きしたら true
+         */
+        function syncAddedArtboards(artboardCount) {
+            var addedArtboards = previewState.addedArtboards;
+            var neededCount = Math.max(0, artboardCount - 1);
+            if (addedArtboards.length === neededCount) return false;
+            removeAddedArtboards();
+            if (neededCount === 0) return true;
+            reportProgressMessage("progress.addingArtboards");
+
+            /* 足すとアクティブなアートボードが変わることがあり、アートボード基準の座標は原点ごと動くので、ドキュメント基準で扱う
+               Adding may change the active artboard, which moves the artboard-based origin; work in document coordinates */
+            var savedCoordinateSystem = app.coordinateSystem;
+            app.coordinateSystem = CoordinateSystem.DOCUMENTCOORDINATESYSTEM;
+            try {
+                var baseRect = doc.artboards[baseArtboardIndex].artboardRect;
+                var slotsPerRow = Math.ceil(Math.sqrt(artboardCount));
+                for (var slotIndex = 1; addedArtboards.length < neededCount; slotIndex++) {
+                    var slotRect = calcArtboardSlotRect(baseRect, slotIndex, slotsPerRow);
+                    if (overlapsAnyArtboard(doc, slotRect)) continue;
+                    addedArtboards.push(doc.artboards.add(slotRect));
+                }
+            } finally {
+                app.coordinateSystem = savedCoordinateSystem;
+                doc.artboards.setActiveArtboardIndex(baseArtboardIndex);
+            }
+            return true;
+        }
+
+        /**
+         * 足したアートボードをすべて消す（あとから足したものから順に）
+         * @returns {void}
+         */
+        function removeAddedArtboards() {
+            while (previewState.addedArtboards.length > 0) previewState.addedArtboards.pop().remove();
+        }
+
+        /**
+         * 並べるのに使うアートボードの矩形を、元のアートボード・足した順に返す
+         * @returns {number[][]} [left, top, right, bottom] の配列
+         */
+        function getUsedArtboardRects() {
+            var artboardRects = [doc.artboards[baseArtboardIndex].artboardRect];
+            for (var i = 0; i < previewState.addedArtboards.length; i++) artboardRects.push(previewState.addedArtboards[i].artboardRect);
+            return artboardRects;
         }
 
         /**
@@ -3418,14 +3785,17 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         }
 
         /**
-         * ［画面にフィット］がオンなら、アクティブなアートボードが収まるよう表示を合わせる。
+         * ［画面にフィット］がオンなら、アクティブなアートボード（コンタクトシートで足したときはそれも含めて）が収まるよう表示を合わせる。
          * 並べたアイテムはアートボードに合わせて配置され、半ページのクリップグループは隠れた部分も境界に含むため、アートボードを基準にする
          * @returns {void}
          */
         function fitViewToArtboard() {
             if (!dialogControls.fitViewControls.checkbox.value) return;
             /* fit() は geometricBounds だけを読むので、アートボードの矩形を渡す / fit() only reads geometricBounds */
-            FitViewToItems.fit([{ geometricBounds: getActiveArtboardRect(doc) }], { doc: doc, fillRatio: dialogControls.fitViewControls.getFillRatio() });
+            var artboardRects = getUsedArtboardRects();
+            var fitTargets = [];
+            for (var i = 0; i < artboardRects.length; i++) fitTargets.push({ geometricBounds: artboardRects[i] });
+            FitViewToItems.fit(fitTargets, { doc: doc, fillRatio: dialogControls.fitViewControls.getFillRatio() });
             app.redraw();
         }
 
@@ -3458,7 +3828,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
          */
         function updateBackgroundPreview(skipRedraw) {
             if (previewState.items.length === 0) return;
-            if (!dialogControls.backgroundCheckbox.value) {
+            /* コンタクトシートでは背景を敷かない / no background in Contact Sheet */
+            if (!dialogControls.backgroundCheckbox.value || currentLayoutMode === MODE_ARTBOARDS) {
                 if (previewState.background) previewState.background.remove();
                 previewState.background = null;
             } else if (!previewState.background) {
@@ -3530,11 +3901,17 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         }
 
         /**
-         * 表に出たモードのタブの ▲▼ を描き直す（隠れていたあいだは onDraw が呼ばれない）
+         * 表に出たモードのタブの ▲▼ を描き直す（隠れていたあいだは onDraw が呼ばれない）。
+         * コンタクトシートでは［レイアウト］［アートボード背景とマスク］を使わないので無効にする
          * @returns {void}
          */
         function updateModeControls() {
-            redrawSteppersIn(currentLayoutMode === MODE_SPOTLIGHT ? dialogControls.spotlightPanel : dialogControls.gridPanel);
+            redrawSteppersIn(getModeTab(currentLayoutMode));
+            var usesSingleArtboard = (currentLayoutMode !== MODE_ARTBOARDS);
+            dialogControls.layoutPanel.enabled = usesSingleArtboard;
+            dialogControls.artboardMaskPanel.enabled = usesSingleArtboard;
+            redrawSteppersIn(dialogControls.layoutPanel);
+            redrawSteppersIn(dialogControls.artboardMaskPanel);
         }
 
         /**
@@ -3558,7 +3935,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             /* selection の代入で onChange が走るので、反映し終えるまで読み込み直しを止める / assigning selection fires onChange */
             isApplyingSettings = true;
             currentLayoutMode = settings.layoutMode;
-            dialogControls.modeTabs.selection = (settings.layoutMode === MODE_SPOTLIGHT) ? dialogControls.spotlightPanel : dialogControls.gridPanel;
+            dialogControls.modeTabs.selection = getModeTab(settings.layoutMode);
             updateModeControls();
             dialogControls.coverScaleRow.setValue(settings.coverScale);
             dialogControls.farScaleRow.setValue(settings.farScale);
@@ -3576,6 +3953,12 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             dialogControls.evenPlusCheckbox.value = settings.evenPlusSlot;
             dialogControls.evenShiftRow.setChecked(settings.evenShiftEnabled);
             dialogControls.evenShiftRow.setValue(settings.evenShift);
+
+            dialogControls.artboardColumnsRow.setValue(settings.artboardColumns);
+            dialogControls.artboardRowsRow.setValue(settings.artboardRows);
+            dialogControls.artboardMarginRow.setValue(roundTo2(ptToUnit(settings.artboardMarginPt, rulerUnit)));
+            dialogControls.artboardFlowRadios[settings.artboardFlowMode].value = true;
+            dialogControls.artboardScaleRow.setValue(settings.artboardScale);
 
             dialogControls.scaleRow.setValue(settings.scale);
             dialogControls.rotateRow.setChecked(settings.rotateEnabled);
@@ -3658,7 +4041,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         // -----------------------------------------
 
         /**
-         * プレビューを確定する。角丸をかけて並べ直し、マスクがオンならマージンの内側でクリップする
+         * プレビューを確定する。角丸をかけて並べ直し、マスクがオンならマージンの内側でクリップする（コンタクトシートではクリップしない）
          * @returns {void}
          */
         function finalizePreview() {
@@ -3668,7 +4051,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             }
             applyLayout(true);
             previewState.group.name = "";
-            if (!dialogControls.maskCheckbox.value) {
+            if (!dialogControls.maskCheckbox.value || currentLayoutMode === MODE_ARTBOARDS) {
                 placeBackgroundBehind(previewState.group);
                 return;
             }
@@ -3704,7 +4087,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         };
         dialogControls.evenPageRightRadio.onClick = dialogControls.evenPageLeftRadio.onClick = reloadOrRefreshPreview;
 
-        var layoutRows = [dialogControls.coverScaleRow, dialogControls.farScaleRow, dialogControls.scatterRow, dialogControls.dimRow, dialogControls.columnsRow, dialogControls.spacingRow, dialogControls.evenShiftRow, dialogControls.scaleRow, dialogControls.rotateRow, dialogControls.marginRow, dialogControls.offsetXRow, dialogControls.offsetYRow];
+        var layoutRows = [dialogControls.coverScaleRow, dialogControls.farScaleRow, dialogControls.scatterRow, dialogControls.dimRow, dialogControls.columnsRow, dialogControls.spacingRow, dialogControls.evenShiftRow, dialogControls.scaleRow, dialogControls.rotateRow, dialogControls.marginRow, dialogControls.offsetXRow, dialogControls.offsetYRow, dialogControls.artboardColumnsRow, dialogControls.artboardRowsRow, dialogControls.artboardMarginRow, dialogControls.artboardScaleRow];
         for (var i = 0; i < layoutRows.length; i++) layoutRows[i].onValueChange = refreshPreview;
 
         /* ずらしをオンにしたら、ずらし量を自動で入れてから並べ直す / auto-fill the offset when Shift is turned on */
@@ -3723,6 +4106,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
                 refreshPreview();
             };
         }
+        for (var k = 0; k < dialogControls.artboardFlowRadios.length; k++) dialogControls.artboardFlowRadios[k].onClick = refreshPreview;
         dialogControls.evenPlusCheckbox.onClick = refreshPreview;
         dialogControls.modeTabs.onChange = function () {
             if (isApplyingSettings) return; /* applySettings() の selection 代入でも呼ばれる / also fired by applySettings() */
@@ -3733,7 +4117,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             currentLayoutMode = newLayoutMode;
             previewState.spotlightSeed = 0; /* スポットライトを選び直したら配置も引き直す / reshuffle on every switch */
             if (currentLayoutMode === MODE_SPOTLIGHT) applySpotlightValues();
-            else applyGridModeValues();
+            else if (currentLayoutMode === MODE_GRID) applyGridModeValues();
             updateBackgroundPreview(true); /* 直後の refreshPreview で再描画する / refreshPreview redraws right after */
             updateModeControls();
             refreshPreview();
