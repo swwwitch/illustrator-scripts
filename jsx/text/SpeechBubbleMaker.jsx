@@ -8,13 +8,13 @@ Script-ID=com.swwwitch.illustrator.SpeechBubbleMaker
 Name=テキストに吹き出しのしっぽ付きの下線・囲みを描く
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.1.2
+Version=1.2.0
 Release-Date=2026-11-02
 Description-BEGIN
-選択したテキストに、吹き出しのしっぽ（V字・斜線・すぼまり）の付いた下線・コの字・囲みを描きます。線は上下左右のどの側にも描けます。
+選択したテキストに、吹き出しのしっぽ（V字・斜線・すぼまり・U字・ループ・つの・思考）の付いた下線・L字・コの字・囲み・上下の線を描きます。線は上下左右のどの側にも描けます。
 設定はダイアログボックスでプレビューしながら決め、プリセットとして保存できます。
 
-Draws an underline, a bracket or a box with a speech-bubble tail (a V, a slash or a taper) around the selected text. The line can go on any side.
+Draws an underline, an L shape, a bracket, a box or top and bottom lines with a speech-bubble tail (a V, a slash, a taper, a U, a loop, a horn or a thought bubble) around the selected text. The line can go on any side.
 Settings are previewed in a dialog box and can be saved as presets.
 Description-END
 SCRIPTMETA-END
@@ -24,15 +24,18 @@ SCRIPTMETA-END
 
 ### 概要
 
-選択したテキストに、吹き出しのしっぽ（V字・斜線・すぼまり）の付いた下線・コの字・囲みを描きます。線は上下左右のどの側にも描けます。
+選択したテキストに、吹き出しのしっぽ（V字・斜線・すぼまり・U字・ループ・つの・思考）の付いた下線・L字・コの字・囲み・上下の線を描きます。線は上下左右のどの側にも描けます。
 設定はダイアログボックスでプレビューしながら決め、プリセットとして保存できます。
 
 詳細は README を参照してください。
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SpeechBubbleMaker.md
 
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n8849614c960c
+
 ### Overview
 
-Draws an underline, a bracket or a box with a speech-bubble tail (a V, a slash or a taper) around the selected text. The line can go on any side.
+Draws an underline, an L shape, a bracket, a box or top and bottom lines with a speech-bubble tail (a V, a slash, a taper, a U, a loop, a horn or a thought bubble) around the selected text. The line can go on any side.
 Settings are previewed in a dialog box and can be saved as presets.
 
 See the README for details.
@@ -44,16 +47,17 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SpeechBubb
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SpeechBubbleMaker";            /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.2";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.2.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-11-02";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-11-03";                   /* 更新日 / last updated */
 
 var SCRIPT_DESCRIPTION_JA = "テキストに吹き出しのしっぽ付きの下線・囲みを描く"; /* README の見出し / README title (Japanese) */
 
-var SCRIPT_README_JA  = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SpeechBubbleMaker.md"; /* README（日本語） */
-var SCRIPT_README_EN  = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SpeechBubbleMaker.md"; /* README (English) */
-var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/SpeechBubbleMaker.jsx"; /* 最新版のソース / latest source */
+var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SpeechBubbleMaker.md"; /* README（日本語） */
+var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SpeechBubbleMaker.md"; /* README (English) */
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8849614c960c"; /* 紹介記事 / article URL */
+var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/SpeechBubbleMaker.jsx"; /* 最新版のソース / latest source */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
@@ -66,10 +70,10 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
 
     /* 初めて開いたときの選択 / Initial choices */
     var DEFAULT_CHOICES = {
-        shapeKey: "notch",          /* しっぽの形状（"notch" V字 / "slash" 斜線 / "curly" すぼまり） / tail shape */
+        shapeKey: "notch",          /* しっぽの形状（"notch" V字 / "slash" 斜線 / "curly" すぼまり / "round" U字 / "loop" ループ / "horn" つの / "thought" 思考） / tail shape */
         directionKey: "center",     /* しっぽの向き（"center" まっすぐ / "right" 右へ / "left" 左へ） / tail direction */
         rootKey: "center",          /* 斜線の根元（"center" 切れ目の中央 / "edge" 切れ目の端） / slash root */
-        frameKey: "underline",      /* 線の形状（"underline" 下線 / "bracket" コの字 / "box" 囲み） / frame shape */
+        frameKey: "underline",      /* 線の形状（"underline" 下線 / "lShape" L字 / "bracket" コの字 / "box" 囲み / "twoLines" 上下） / frame shape */
         sideKey: "auto",            /* 線を描く側（"auto" は開くたびにテキストから決める＝横組みは下・縦組みは右 / "top" / "bottom" / "left" / "right"） / side to draw on; "auto" is resolved from the text each time */
         capKey: "butt",             /* 線端（"butt" なし / "round" 丸型） / stroke cap */
         colorKey: "text",           /* 線のカラー（"text" 文字色＝1文字目の塗り / "custom" カスタム） / line color */
@@ -78,6 +82,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         slashAngle: 45,             /* 斜線の角度（線から測る。90°で真下） / slash angle from the line (90° = straight) */
         useAreaFrame: true,         /* エリア内文字は字面ではなく枠を基準にする / area type is measured by its frame, not its glyphs */
         isCapsule: false,           /* カプセル形状（角丸の半径を最大にする） / capsule shape (the largest corner radius) */
+        tipDot: false,              /* しっぽの先端に●を置く / dot at the tip of the tail */
         convertToAreaText: false,   /* 囲みのとき、テキストをエリア内文字にして中央に置く / make the text area type centered in the box */
         groupWithText: false,       /* テキストとグループ化する / group with the text */
         preview: true               /* プレビューする / preview */
@@ -94,6 +99,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         tickHeight: 0.3,      /* コの字の立ち上がり / bracket tick height */
         cornerRadius: 0.2,    /* 角丸の半径 / corner radius */
         shadowDistance: 0,    /* 影の間隔（0 で影なし） / shadow distance (0 = none) */
+        sideGapWidth: 0,      /* 囲みの左右の辺の中央の切れ目（0 で切らない） / gaps in the middle of the box's sides (0 = none) */
         slashShiftX: 0,       /* 線と離した斜線の左右の調整 / horizontal nudge of a detached slash */
         slashShiftY: 0,       /* 線と離した斜線の上下の調整 / vertical nudge of a detached slash */
         strokeWidth: 0.04     /* 線幅 / stroke weight */
@@ -103,9 +109,9 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
     // プリセット / Presets
     // =========================================
 
-    /* 最初からあるプリセット。定番、下線、コの字、囲みの順に並べ、null の所に区切り線を入れる
+    /* 最初からあるプリセット。定番、下線、コの字・L字、囲み、上下の順に並べ、null の所に区切り線を入れる
        寸法は1文字目の文字サイズに対する比率（書かない項目は DEFAULT_SIZE_RATIOS、選択は DEFAULT_CHOICES）
-       Built-in presets: the staple first, then underlines, brackets and boxes; null draws a separator.
+       Built-in presets: the staple first, then underlines, brackets and L shapes, boxes, and top & bottom lines; null draws a separator.
        Sizes are ratios of the first character's font size; missing items fall back to the defaults */
     var BUILTIN_PRESETS = [
         {
@@ -151,6 +157,17 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             choices: { shapeKey: "slash", directionKey: "left", rootKey: "center", frameKey: "underline", capKey: "round" },
             ratios: { gapWidth: 0.5, tailWidth: 0.4, tailHeight: 0.4 }
         },
+        {
+            name: { ja: "下線・U字", en: "Underline, U" },
+            choices: { shapeKey: "round", directionKey: "center", frameKey: "underline", capKey: "round" },
+            ratios: { gapWidth: 0.5, tailHeight: 0.35 }
+        },
+        {
+            /* 広い切れ目から曲線でおりて輪を描く / sweeps down from a wide gap into a loop */
+            name: { ja: "下線・ループ", en: "Underline, loop" },
+            choices: { shapeKey: "loop", directionKey: "center", frameKey: "underline", capKey: "round" },
+            ratios: { gapWidth: 1.6, tailHeight: 0.6, extension: 0.1 }
+        },
         null, /* 区切り線 / separator */
         {
             name: { ja: "コの字・斜線（右下）", en: "Bracket, slash down right" },
@@ -168,6 +185,13 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             name: { ja: "カーリーブラケット（波括弧）", en: "Curly bracket" },
             choices: { shapeKey: "curly", directionKey: "center", frameKey: "bracket" },
             ratios: { gapWidth: 0.4, tailHeight: 0.2, extension: 0.3, tickHeight: 0.25, cornerRadius: 0.25 }
+        },
+        {
+            /* 左へ出すV字の先端を付け根の左端の真下に置き、しっぽの側だけ立ち上げる / the V's tip sits under the left of its base; only the tail's end turns up */
+            name: { ja: "L字・V字（左下）", en: "L shape, V down left" },
+            choices: { shapeKey: "notch", directionKey: "left", frameKey: "lShape", capKey: "round" },
+            position: 15,
+            ratios: { gapWidth: 0.4, tailWidth: 0.4, tailHeight: 0.5, extension: 0.4, tickHeight: 0.4, cornerRadius: 0.15 }
         },
         null, /* 区切り線 / separator */
         {
@@ -207,18 +231,63 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             choices: { shapeKey: "notch", directionKey: "left", frameKey: "box" },
             position: 65,
             ratios: { gapWidth: 0.6, tailWidth: 0.9, tailHeight: 0.8, offset: 0.5, extension: 0.5, cornerRadius: 0, shadowDistance: 0.25 }
+        },
+        {
+            name: { ja: "囲み（カプセル）・切れ目", en: "Capsule box with gaps" },
+            choices: { shapeKey: "slash", directionKey: "left", rootKey: "edge", frameKey: "box", capKey: "round" },
+            position: 20,
+            isCapsule: true,
+            ratios: { gapWidth: 0.6, tailWidth: 0.6, tailHeight: 0.6, offset: 0.5, extension: 0.6, sideGapWidth: 0.3, strokeWidth: 0.06 }
+        },
+        {
+            name: { ja: "囲み（カプセル）・斜線の先に●", en: "Capsule box, slash with a dot" },
+            choices: { shapeKey: "slash", directionKey: "right", rootKey: "center", frameKey: "box", capKey: "round" },
+            position: 85,
+            isCapsule: true,
+            tipDot: true,
+            ratios: { gapWidth: 0.5, tailHeight: 0.6, offset: 0.5, extension: 0.6, strokeWidth: 0.06 }
+        },
+        {
+            /* ふくらみの左下に円を置く / the circle sits down left of the bump */
+            name: { ja: "思考の吹き出し", en: "Thought bubble" },
+            choices: { shapeKey: "thought", directionKey: "left", frameKey: "box", capKey: "round" },
+            position: 70,
+            isCapsule: true,
+            ratios: { gapWidth: 0.85, tailWidth: 1.2, tailHeight: 1.2, offset: 1.1, extension: 1.8, strokeWidth: 0.07 }
+        },
+        {
+            name: { ja: "囲み（角丸）・つの", en: "Rounded box, horn" },
+            choices: { shapeKey: "horn", directionKey: "left", frameKey: "box", capKey: "butt" },
+            position: 60,
+            ratios: { gapWidth: 0.6, tailWidth: 0.9, tailHeight: 0.9, offset: 0.5, extension: 0.5, cornerRadius: 0.3 }
+        },
+        null, /* 区切り線 / separator */
+        {
+            /* 斜線を切れ目の右端から左下へ出す / the slash leaves the right of the gap toward the bottom left */
+            name: { ja: "上下・斜線（左下）", en: "Top & bottom, slash down left" },
+            choices: { shapeKey: "slash", directionKey: "left", rootKey: "edge", frameKey: "twoLines", capKey: "butt" },
+            position: 52,
+            ratios: { gapWidth: 0.6, tailHeight: 0.6, offset: 0.8, extension: 0.5 }
         }
     ];
 
     /* プリセットに入れる選択と寸法の項目 / Choices and sizes a preset holds */
     var PRESET_CHOICE_KEYS = ["shapeKey", "directionKey", "rootKey", "frameKey", "sideKey", "capKey"];
-    var PRESET_SIZE_KEYS = ["gapWidth", "tailWidth", "tailHeight", "offset", "extension", "tickHeight", "cornerRadius", "shadowDistance", "strokeWidth", "slashShiftX", "slashShiftY"];
+    var PRESET_SIZE_KEYS = ["gapWidth", "tailWidth", "tailHeight", "offset", "extension", "tickHeight", "cornerRadius", "shadowDistance", "sideGapWidth", "strokeWidth", "slashShiftX", "slashShiftY"];
 
     var MIN_SLASH_ANGLE = 5;       /* 斜線の角度の下限（度） / minimum slash angle (degrees) */
     var TAIL_MITER_LIMIT = 10;     /* V字の角をとがらせたままにする比率の上限 / miter limit that keeps the V corners pointed */
     var TAIL_TOLERANCE = 0.001;    /* 座標を同じと見なす許容値（pt） / tolerance for equal coordinates (pt) */
     var CORNER_HANDLE_RATIO = 0.5523; /* 角丸（4分の1円）のハンドルの長さの比率 / handle ratio of a quarter-circle corner */
     var MIN_AREA_TEXT_SIZE = 1;    /* エリア内文字の枠の最小の幅・高さ（pt） / minimum area type frame size (pt) */
+    var THOUGHT_FILLET_RATIO = 0.4;  /* 思考のふくらみの付け根の丸み（ふくらみの半径に対する比率） / fillet of the thought bump, relative to its radius */
+    var THOUGHT_CIRCLE_RATIO = 0.9;  /* 思考の円の半径（ふくらみの半径に対する比率） / radius of the thought circle, relative to the bump */
+    var LOOP_RADIUS_RATIO = 0.32;    /* ループの輪の半径（高さに対する比率） / radius of the loop, relative to the height */
+    var LOOP_CROSS_RATIO = 1.2;      /* ループの交差点の輪の中心からの高さ（輪の半径に対する比率） / height of the loop's crossing above its center, relative to its radius */
+    var HORN_ROOT_HANDLE_RATIO = 0.5; /* つのの根元から真下へ出すハンドルの長さ（高さに対する比率） / handle straight out of the horn's root, relative to the height */
+    var HORN_TIP_HANDLE_RATIO = 0.35; /* つのの先端のハンドルの長さ（根元への距離に対する比率） / handle at the horn's tip, relative to the way back to the root */
+    var TIP_DOT_RATIO = 3;           /* 先端の●の直径（線幅に対する比率） / diameter of the tip dot, relative to the weight */
+    var CUT_SAMPLE_COUNT = 32;       /* 切れ目の長さを測るときの曲線の分割数 / samples per curve when measuring the side gaps */
 
     // =========================================
     // レイアウト / Layout
@@ -230,9 +299,10 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
     var POSITION_SLIDER_SHIFT_STEP = 10; /* shift を押しながら動かしたときの位置のスライダーの刻み（％） / position slider step with Shift (%) */
     var POSITION_SLIDER_WIDTH = 100; /* 位置のスライダーの最小の幅（パネルの幅まで伸びる） / minimum width of the position slider (it stretches to the panel) */
     var SIDE_GRID_CELL_WIDTH = (String($.locale || "").indexOf("ja") === 0) ? 48 : 72; /* 配置の3行3列の1マスの幅（英語は語が長い） / cell width of the 3x3 side grid (English words are longer) */
+    var SHAPE_GRID_CELL_WIDTH = (String($.locale || "").indexOf("ja") === 0) ? 72 : 80; /* しっぽの形状の3列の1マスの幅 / cell width of the 3-column tail shape grid */
     var COLOR_SWATCH_SIZE = [36, 18]; /* 線のカラーの色見本の大きさ / size of the line color swatch */
     var STACKED_RADIO_SPACING = 4;   /* 縦に並べたラジオボタンの間隔 / spacing of stacked radio buttons */
-    var SIDE_GRID_SPACING = 2;       /* 配置の3行3列の行の間隔 / row spacing of the side grid */
+    var RADIO_GRID_SPACING = 2;      /* 表の形に並べたラジオボタンの行の間隔 / row spacing of radio button grids */
     var PRESET_SAVE_ICON_SIZE = [22, 22]; /* 保存アイコンの大きさ。横長の絵なので既定（24×22）より少し狭くして、ごみ箱と見た目をそろえる / the save icon is wide, so a little narrower than the default to match the trash icon */
     var PRESET_DROPDOWN_WIDTH = 220; /* プリセットのドロップダウンの幅 / width of the preset dropdown */
     var PRESET_ROW_SPACING = 6;      /* プリセットの行の間隔 / spacing in the preset row */
@@ -1162,14 +1232,20 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             notch: { ja: "V字", en: "V shape" },
             slash: { ja: "斜線", en: "Slash" },
             curly: { ja: "すぼまり", en: "Taper" },
+            round: { ja: "U字", en: "U shape" },
+            loop: { ja: "ループ", en: "Loop" },
+            horn: { ja: "つの", en: "Horn" },
+            thought: { ja: "思考", en: "Thought" },
             straightDown: { ja: "まっすぐ", en: "Straight" },
             downRight: { ja: "右へ", en: "Right" },
             downLeft: { ja: "左へ", en: "Left" },
             rootCenter: { ja: "中央", en: "Center" },
             rootEdge: { ja: "端", en: "Edge" },
             underline: { ja: "下線", en: "Underline" },
+            lShape: { ja: "L字", en: "L shape" },
             bracket: { ja: "コの字", en: "Bracket" },
             box: { ja: "囲み", en: "Box" },
+            twoLines: { ja: "上下", en: "Top & bottom" },
             sideTop: { ja: "上", en: "Top" },
             sideBottom: { ja: "下", en: "Bottom" },
             sideLeft: { ja: "左", en: "Left" },
@@ -1199,6 +1275,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             tickHeight: { ja: "立ち上がり", en: "Ticks" },
             cornerRadius: { ja: "角丸の半径", en: "Corner radius" },
             shadowDistance: { ja: "影", en: "Shadow" },
+            sideGapWidth: { ja: "左右の切れ目", en: "Side gaps" },
             strokeWidth: { ja: "線幅", en: "Weight" },
             cap: { ja: "線端", en: "Cap" },
             lineColor: { ja: "線のカラー", en: "Color" }
@@ -1206,6 +1283,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         checkbox: {
             useAreaFrame: { ja: "エリア内文字は枠を基準にする", en: "Use the frame of area type" },
             isCapsule: { ja: "カプセル形状", en: "Capsule" },
+            tipDot: { ja: "先端に●", en: "Dot at the tip" },
             convertToAreaText: { ja: "エリア内文字にして中央に配置", en: "Center as area type" },
             groupWithText: { ja: "テキストとグループ化", en: "Group with text" },
             preview: { ja: "プレビュー", en: "Preview" }
@@ -1229,6 +1307,19 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             curly: {
                 ja: "カーリーブラケット（波括弧）の中央のように、線から曲線ですぼまってとがらせます。",
                 en: "Tapers out of the line in curves to a point, like the middle of a curly bracket."
+            },
+            round: { ja: "線をU字に曲げてしっぽを作ります（［高さ］が深さ）。", en: "Bends the line into a U (Height is its depth)." },
+            loop: {
+                ja: "線から曲線でおりて、先で小さな輪を描きます。［高さ］は輪の下端までです。",
+                en: "Curves out of the line into a small loop. Height reaches the bottom of the loop."
+            },
+            horn: {
+                ja: "根元が太く先がとがった塗りのしっぽを、線に重ねます（線幅プロファイルのような形）。［切れ目］が根元の幅です。",
+                en: "Lays a filled tail over the line, wide at the root and pointed at the end, like a width profile. Gap is the root width."
+            },
+            thought: {
+                ja: "線に小さなふくらみを付け、その先に円を置きます（考えごとの吹き出し）。［切れ目］がふくらみの幅、［高さ］は円の下端までです。",
+                en: "Adds a small bump to the line and a circle beyond it, as in a thought bubble. Gap is the bump's width; Height reaches the bottom of the circle."
             },
             straightDown: {
                 ja: "V字・すぼまりの先端を切れ目の中央に置き、斜線は線と直角に出します（配置が下なら真下、上なら真上）。",
@@ -1271,8 +1362,8 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
                 en: "How much of the line is cut away at the tail: the base of a V or taper, or the gap at a slash (0 keeps the line whole)."
             },
             tailWidth: {
-                ja: "向きが［右へ］［左へ］のV字・すぼまりの、先端の横方向のずれです。",
-                en: "How far the tip of a V or taper moves sideways when Direction is Right or Left."
+                ja: "向きが［右へ］［左へ］のときの、先端（思考は円、ループは輪）の横方向のずれです。付け根の反対側の端から測ります。",
+                en: "How far the tip (the circle of a thought, the loop of a loop) moves sideways when Direction is Right or Left, measured from the far side of the base."
             },
             slashAngle: {
                 ja: "向きが［右へ］［左へ］の斜線の、線から測った角度です（90°で線と直角）。長さは［高さ］で決まります。",
@@ -1282,6 +1373,14 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             underline: { ja: "字面の下に線を引きます。", en: "Draws a line below the glyphs." },
             bracket: { ja: "線の両端を文字の側へ立ち上げます。", en: "Turns both ends of the line up toward the text." },
             box: { ja: "字面を長方形で囲みます。", en: "Encloses the glyphs in a rectangle." },
+            lShape: {
+                ja: "しっぽに近いほうの端だけを、文字の側へ立ち上げます（位置が50%以下なら始まり側）。",
+                en: "Turns up only the end nearer the tail toward the text (the start when Position is 50% or less)."
+            },
+            twoLines: {
+                ja: "字面の両側に線を引きます。しっぽは配置の側の線に付きます。",
+                en: "Draws lines on both sides of the glyphs; the tail sits on the line on the chosen side."
+            },
             sideTop: { ja: "テキストの上に描きます（しっぽは上へ）。", en: "Draws above the text (the tail points up)." },
             sideBottom: { ja: "テキストの下に描きます。", en: "Draws below the text." },
             sideLeft: {
@@ -1309,6 +1408,10 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
                 ja: "囲みの右と下に、この間隔で線を重ねます。0 で影なし。",
                 en: "Adds a second line this far out on the right and bottom of a box. 0 for none."
             },
+            sideGapWidth: {
+                ja: "囲みの左右の辺の中央を、この長さだけ切ります。0 で切りません。",
+                en: "Cuts this much out of the middle of the box's left and right sides. 0 for none."
+            },
             strokeWidth: { ja: "線としっぽの線幅です。", en: "Stroke weight of the line and tail." },
             buttCap: { ja: "線の端をパスの端で切ります。", en: "Ends the stroke flush with the path ends." },
             roundCap: { ja: "線の端を丸めます（角も丸くなります）。", en: "Rounds the stroke ends (and the corners)." },
@@ -1324,6 +1427,10 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             isCapsule: {
                 ja: "角丸の半径をできるだけ大きくして、囲みの左右（コの字の両端）を半円にします。",
                 en: "Uses the largest corner radius, so the ends of a box (or bracket) become half circles."
+            },
+            tipDot: {
+                ja: "しっぽの先端に●を置きます（V字・斜線・すぼまり・U字）。直径は線幅の3倍です。",
+                en: "Puts a dot at the tip of the tail (V, slash, taper, U). Its diameter is three times the weight."
             },
             useAreaFrame: {
                 ja: "エリア内文字は、字面ではなく枠に沿って描きます（［間隔］［左右の伸び］は 0 として扱います）。",
@@ -2357,10 +2464,10 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
 
     /**
      * @typedef {Object} BubbleSettings
-     * @property {string} shapeKey - しっぽの形状。"notch"（V字）/ "slash"（斜線）/ "curly"（すぼまり）
+     * @property {string} shapeKey - しっぽの形状。"notch"（V字）/ "slash"（斜線）/ "curly"（すぼまり）/ "round"（U字）/ "loop"（ループ）/ "horn"（つの）/ "thought"（思考）
      * @property {string} directionKey - しっぽの向き。"center"（まっすぐ）/ "right"（右へ）/ "left"（左へ）
      * @property {string} rootKey - 斜線の根元。"center"（切れ目の中央）/ "edge"（切れ目の端）
-     * @property {string} frameKey - 線の形状。"underline"（下線）/ "bracket"（コの字）/ "box"（囲み）
+     * @property {string} frameKey - 線の形状。"underline"（下線）/ "lShape"（L字）/ "bracket"（コの字）/ "box"（囲み）/ "twoLines"（上下）
      * @property {string} sideKey - 線を描く側。"top" / "bottom" / "left" / "right"（"auto" は横組みは下・縦組みは右）
      * @property {number} position - しっぽの位置（線の始まりから％）
      * @property {number} slashAngle - 斜線の角度（線から測った度。90 で真下）
@@ -2374,12 +2481,14 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
      * @property {number} tickHeight - コの字の立ち上がり（pt）
      * @property {number} cornerRadius - 角丸の半径（pt）
      * @property {number} shadowDistance - 影の間隔（pt、0 で影なし）
+     * @property {number} sideGapWidth - 囲みの左右の辺の中央の切れ目（pt、0 で切らない）
      * @property {number} strokeWidth - 線幅（pt）
      * @property {string} capKey - 線端。"butt"（なし）/ "round"（丸型）
      * @property {string} colorKey - 線のカラー。"text"（文字色）/ "custom"（カスタム）
      * @property {{model: string, values: number[]}} customColor - カスタムのカラー（"rgb" / "cmyk" / "gray" と値）
      * @property {boolean} useAreaFrame - エリア内文字は枠を基準にするか
      * @property {boolean} isCapsule - カプセル形状（角丸の半径を、辺の長さで頭打ちになるまで大きくする）か
+     * @property {boolean} tipDot - しっぽの先端に●を置くか
      * @property {boolean} convertToAreaText - 囲みのとき、テキストをエリア内文字にして中央に置くか
      * @property {boolean} groupWithText - テキストとグループ化するか
      * @property {boolean} preview - プレビューするか
@@ -2444,16 +2553,61 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
                 /* 入りのハンドルは前、出のハンドルは後ろから取る / incoming handle from the first, outgoing from the second */
                 lastVertex.radius = Math.max(lastVertex.radius, vertices[i].radius);
                 if (vertices[i].rightHandle) lastVertex.rightHandle = vertices[i].rightHandle;
+                if (vertices[i].isCut) lastVertex.isCut = true;
                 continue;
             }
-            uniqueVertices.push(makeVertex(vertices[i].x, vertices[i].y, vertices[i].radius, vertices[i].leftHandle, vertices[i].rightHandle));
+            var uniqueVertex = makeVertex(vertices[i].x, vertices[i].y, vertices[i].radius, vertices[i].leftHandle, vertices[i].rightHandle);
+            uniqueVertex.isCut = !!vertices[i].isCut;
+            uniqueVertices.push(uniqueVertex);
         }
         if (isClosed && uniqueVertices.length > 1 && isSameVertex(uniqueVertices[0], uniqueVertices[uniqueVertices.length - 1])) {
             var closingVertex = uniqueVertices.pop();
             uniqueVertices[0].radius = Math.max(uniqueVertices[0].radius, closingVertex.radius);
             if (closingVertex.leftHandle) uniqueVertices[0].leftHandle = closingVertex.leftHandle;
+            if (closingVertex.isCut) uniqueVertices[0].isCut = true;
         }
         return uniqueVertices;
+    }
+
+    /**
+     * 円の頂点を4つ作る（上・右・下・左の順で、ハンドルで円にする）
+     * @param {number} centerX - 中心の x
+     * @param {number} centerY - 中心の y
+     * @param {number} radius - 半径
+     * @returns {OutlineVertex[]} 頂点（閉じたパス用）
+     */
+    function makeCircleVertices(centerX, centerY, radius) {
+        var handleLength = radius * CORNER_HANDLE_RATIO;
+        return [
+            makeVertex(centerX, centerY + radius, 0, [centerX - handleLength, centerY + radius], [centerX + handleLength, centerY + radius]),
+            makeVertex(centerX + radius, centerY, 0, [centerX + radius, centerY + handleLength], [centerX + radius, centerY - handleLength]),
+            makeVertex(centerX, centerY - radius, 0, [centerX + handleLength, centerY - radius], [centerX - handleLength, centerY - radius]),
+            makeVertex(centerX - radius, centerY, 0, [centerX - radius, centerY - handleLength], [centerX - radius, centerY + handleLength])
+        ];
+    }
+
+    /**
+     * 円弧をベジェにしたときの、始点から出るハンドルと終点に入るハンドルを返す（90°以下の円弧）
+     * @param {number} centerX - 中心の x
+     * @param {number} centerY - 中心の y
+     * @param {number} radius - 半径
+     * @param {number} startAngle - 始点の角度（ラジアン）
+     * @param {number} endAngle - 終点の角度（ラジアン）
+     * @returns {{start: number[], end: number[]}} ハンドルの位置
+     */
+    function computeArcHandles(centerX, centerY, radius, startAngle, endAngle) {
+        var handleLength = radius * 4 / 3 * Math.tan(Math.abs(endAngle - startAngle) / 4);
+        var turn = (endAngle > startAngle) ? 1 : -1;
+        return {
+            start: [
+                centerX + radius * Math.cos(startAngle) - turn * handleLength * Math.sin(startAngle),
+                centerY + radius * Math.sin(startAngle) + turn * handleLength * Math.cos(startAngle)
+            ],
+            end: [
+                centerX + radius * Math.cos(endAngle) + turn * handleLength * Math.sin(endAngle),
+                centerY + radius * Math.sin(endAngle) - turn * handleLength * Math.cos(endAngle)
+            ]
+        };
     }
 
     /**
@@ -2464,7 +2618,8 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
      * @param {BubbleSettings} bubbleSettings - 設定
      * @returns {Object} isBroken（線が切れるか）/ bottomVertices（切れないときの線の途中の頂点）/
      *     leftVertices・rightVertices（切れるときの左右の端の頂点）/ slashVertices（線と離した斜線）/ gapLeftX・gapRightX（切れ目の両端の x）/
-     *     rightEdge・leftEdge（しっぽの右と左の辺 [根元, 先端]）
+     *     rightEdge・leftEdge（しっぽの右と左の辺 [根元, 先端]）/ tipPoint（●を置ける先端。無ければ null）/
+     *     extraPolylines（線と別に描く頂点列。思考の円・つの）/ shadowTipY（影を止める y。省くと先端の y）
      */
     function computeTailVertices(spanLeft, spanRight, lineY, bubbleSettings) {
         var spanLength = Math.max(spanRight - spanLeft, 0);
@@ -2478,14 +2633,19 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         if (bubbleSettings.directionKey === "right") direction = 1;
         if (bubbleSettings.directionKey === "left") direction = -1;
         var tailRun = bubbleSettings.tailWidth;
+        var shapeKey = bubbleSettings.shapeKey;
 
-        if (bubbleSettings.shapeKey === "notch" || bubbleSettings.shapeKey === "curly") {
+        if (shapeKey !== "slash") {
             /* 右下は付け根の左端から、左下は右端から横に tailRun 離れた所が先端 / the tip sits tailRun from the far side of the base */
             var tipX = anchorX;
             if (direction > 0) tipX = gapLeft.x + tailRun;
             if (direction < 0) tipX = gapRight.x - tailRun;
+            if (shapeKey === "round") return computeRoundTailVertices(gapLeft, gapRight, tipX, tipY);
+            if (shapeKey === "loop") return computeLoopTailVertices(gapLeft, gapRight, tipX, tipY);
+            if (shapeKey === "horn") return computeHornTailVertices(gapLeft, gapRight, tipX, tipY, bubbleSettings.strokeWidth);
+            if (shapeKey === "thought") return computeThoughtTailVertices(gapLeft, gapRight, tipX, tipY);
             var notchTip = makeVertex(tipX, tipY);
-            if (bubbleSettings.shapeKey === "curly") {
+            if (shapeKey === "curly") {
                 /* カーリーブラケット（波括弧）の中央と同じく、付け根では線に沿って、先端では線と直角に入る曲線でとがらせる
                    Like the middle of a curly bracket: curves leave along the line and meet at the tip at right angles to it */
                 var tipHandleY = tipY + (lineY - tipY) * CORNER_HANDLE_RATIO;
@@ -2501,7 +2661,8 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
                 bottomVertices: [gapLeft, notchTip, gapRight],
                 slashVertices: null,
                 rightEdge: [gapRight, notchTip],
-                leftEdge: [gapLeft, notchTip]
+                leftEdge: [gapLeft, notchTip],
+                tipPoint: notchTip
             };
         }
 
@@ -2520,7 +2681,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         var slashTip = makeVertex(rootX + shiftX + direction * tailRun, tipY + shiftY);
         var slashEdge = [slashRoot, slashTip];
         if (!hasGap) {
-            return { isBroken: false, gapLeftX: anchorX, gapRightX: anchorX, bottomVertices: [], slashVertices: slashEdge, rightEdge: slashEdge, leftEdge: slashEdge };
+            return { isBroken: false, gapLeftX: anchorX, gapRightX: anchorX, bottomVertices: [], slashVertices: slashEdge, rightEdge: slashEdge, leftEdge: slashEdge, tipPoint: slashTip };
         }
         return {
             isBroken: true,
@@ -2530,8 +2691,152 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             rightVertices: (isJoined && direction < 0) ? [slashTip, gapRight] : [gapRight],
             slashVertices: isJoined ? null : slashEdge,
             rightEdge: slashEdge,
-            leftEdge: slashEdge
+            leftEdge: slashEdge,
+            tipPoint: slashTip
         };
+    }
+
+    /**
+     * U字のしっぽ：付け根から線と直角におりて、先端で線と平行になる曲線
+     * @param {OutlineVertex} gapLeft - 付け根の左端
+     * @param {OutlineVertex} gapRight - 付け根の右端
+     * @param {number} tipX - 底の x
+     * @param {number} tipY - 底の y
+     * @returns {Object} computeTailVertices() と同じ形
+     */
+    function computeRoundTailVertices(gapLeft, gapRight, tipX, tipY) {
+        var lineY = gapLeft.y;
+        var sideHandleY = lineY - (lineY - tipY) * CORNER_HANDLE_RATIO;
+        var roundBottom = makeVertex(tipX, tipY, 0,
+            [tipX - (tipX - gapLeft.x) * CORNER_HANDLE_RATIO, tipY],
+            [tipX + (gapRight.x - tipX) * CORNER_HANDLE_RATIO, tipY]);
+        gapLeft.rightHandle = [gapLeft.x, sideHandleY];
+        gapRight.leftHandle = [gapRight.x, sideHandleY];
+        return {
+            isBroken: false,
+            gapLeftX: gapLeft.x,
+            gapRightX: gapRight.x,
+            bottomVertices: [gapLeft, roundBottom, gapRight],
+            slashVertices: null,
+            rightEdge: [gapRight, roundBottom],
+            leftEdge: [gapLeft, roundBottom],
+            tipPoint: roundBottom
+        };
+    }
+
+    /**
+     * ループのしっぽ：付け根から線に沿って出た曲線が交差点でおり、先端で輪を描いて同じ交差点から戻る
+     * @param {OutlineVertex} gapLeft - 付け根の左端
+     * @param {OutlineVertex} gapRight - 付け根の右端
+     * @param {number} tipX - 輪の中心の x
+     * @param {number} tipY - 輪の下端の y
+     * @returns {Object} computeTailVertices() と同じ形
+     */
+    function computeLoopTailVertices(gapLeft, gapRight, tipX, tipY) {
+        var lineY = gapLeft.y;
+        var loopRadius = (lineY - tipY) * LOOP_RADIUS_RATIO;
+        var loopCenterY = tipY + loopRadius;
+        var crossY = loopCenterY + loopRadius * LOOP_CROSS_RATIO;
+        var handleLength = loopRadius * CORNER_HANDLE_RATIO;
+        /* 交差点は斜め45°で通る（入りは右下へ、出は右上へ） / the path crosses at 45° (down-right in, up-right out) */
+        var crossHandle = loopRadius * 0.5;
+        gapLeft.rightHandle = [gapLeft.x + (tipX - gapLeft.x) * CORNER_HANDLE_RATIO, lineY];
+        gapRight.leftHandle = [gapRight.x + (tipX - gapRight.x) * CORNER_HANDLE_RATIO, lineY];
+        var crossIn = makeVertex(tipX, crossY, 0, [tipX - crossHandle, crossY + crossHandle], [tipX + crossHandle, crossY - crossHandle]);
+        var loopRight = makeVertex(tipX + loopRadius, loopCenterY, 0, [tipX + loopRadius, loopCenterY + handleLength], [tipX + loopRadius, loopCenterY - handleLength]);
+        var loopBottom = makeVertex(tipX, tipY, 0, [tipX + handleLength, tipY], [tipX - handleLength, tipY]);
+        var loopLeft = makeVertex(tipX - loopRadius, loopCenterY, 0, [tipX - loopRadius, loopCenterY - handleLength], [tipX - loopRadius, loopCenterY + handleLength]);
+        var crossOut = makeVertex(tipX, crossY, 0, [tipX - crossHandle, crossY - crossHandle], [tipX + crossHandle, crossY + crossHandle]);
+        return {
+            isBroken: false,
+            gapLeftX: gapLeft.x,
+            gapRightX: gapRight.x,
+            bottomVertices: [gapLeft, crossIn, loopRight, loopBottom, loopLeft, crossOut, gapRight],
+            slashVertices: null,
+            rightEdge: [gapRight, loopBottom],
+            leftEdge: [gapLeft, loopBottom],
+            tipPoint: null
+        };
+    }
+
+    /**
+     * つののしっぽ：線の内側の縁を根元に、真下へ出てから先端へ曲がる、塗りの形
+     * @param {OutlineVertex} gapLeft - 根元の左端
+     * @param {OutlineVertex} gapRight - 根元の右端
+     * @param {number} tipX - 先端の x
+     * @param {number} tipY - 先端の y
+     * @param {number} strokeWidth - 線幅（根元を線の内側の縁まで上げる）
+     * @returns {Object} computeTailVertices() と同じ形
+     */
+    function computeHornTailVertices(gapLeft, gapRight, tipX, tipY, strokeWidth) {
+        var lineY = gapLeft.y;
+        var rootY = lineY + strokeWidth / 2;
+        var hornHeight = rootY - tipY;
+        var rootHandleY = rootY - hornHeight * HORN_ROOT_HANDLE_RATIO;
+        var anchorX = (gapLeft.x + gapRight.x) / 2;
+        var tipHandle = [tipX + (anchorX - tipX) * HORN_TIP_HANDLE_RATIO, tipY + hornHeight * HORN_TIP_HANDLE_RATIO];
+        var rootLeft = makeVertex(gapLeft.x, rootY, 0, null, [gapLeft.x, rootHandleY]);
+        var hornTip = makeVertex(tipX, tipY, 0, tipHandle, tipHandle);
+        var rootRight = makeVertex(gapRight.x, rootY, 0, [gapRight.x, rootHandleY], null);
+        return {
+            isBroken: false,
+            gapLeftX: gapLeft.x,
+            gapRightX: gapRight.x,
+            bottomVertices: [],
+            slashVertices: null,
+            rightEdge: [gapRight, hornTip],
+            leftEdge: [gapLeft, hornTip],
+            tipPoint: null,
+            extraPolylines: [{ vertices: [rootLeft, hornTip, rootRight], isClosed: true, isFilled: true }]
+        };
+    }
+
+    /**
+     * 思考のしっぽ：線に、付け根を丸めた半円のふくらみを付け、その先に円を置く
+     * @param {OutlineVertex} gapLeft - ふくらみの左端
+     * @param {OutlineVertex} gapRight - ふくらみの右端
+     * @param {number} tipX - 円の中心の x
+     * @param {number} tipY - 円の下端の y
+     * @returns {Object} computeTailVertices() と同じ形
+     */
+    function computeThoughtTailVertices(gapLeft, gapRight, tipX, tipY) {
+        var lineY = gapLeft.y;
+        var anchorX = (gapLeft.x + gapRight.x) / 2;
+        var halfGap = (gapRight.x - gapLeft.x) / 2;
+        /* ふくらみ（半径 R、中心は線上）と付け根の丸み（半径 f）が接するよう、半分の幅 = √(R² + 2Rf) から R を決める
+           The bump (radius R, centered on the line) and its fillets (radius f) meet tangentially: half the gap = √(R² + 2Rf) */
+        var bumpRadius = halfGap / Math.sqrt(1 + 2 * THOUGHT_FILLET_RATIO);
+        var circleRadius = bumpRadius * THOUGHT_CIRCLE_RATIO;
+        var tailResult = {
+            isBroken: false,
+            gapLeftX: gapLeft.x,
+            gapRightX: gapRight.x,
+            bottomVertices: [],
+            slashVertices: null,
+            rightEdge: [makeVertex(anchorX + bumpRadius, lineY), makeVertex(anchorX + bumpRadius, lineY - bumpRadius)],
+            leftEdge: [makeVertex(anchorX - bumpRadius, lineY), makeVertex(anchorX - bumpRadius, lineY - bumpRadius)],
+            tipPoint: null,
+            extraPolylines: [],
+            shadowTipY: lineY - bumpRadius
+        };
+        if (bumpRadius <= TAIL_TOLERANCE) return tailResult;
+
+        var filletRadius = bumpRadius * THOUGHT_FILLET_RATIO;
+        /* 付け根の丸みの中心から、ふくらみの中心を見た角度 / angle from a fillet's center toward the bump's center */
+        var filletAngle = Math.atan2(filletRadius, halfGap);
+        var leftFillet = computeArcHandles(anchorX - halfGap, lineY - filletRadius, filletRadius, Math.PI / 2, filletAngle);
+        var leftBump = computeArcHandles(anchorX, lineY, bumpRadius, filletAngle - Math.PI, -Math.PI / 2);
+        var rightBump = computeArcHandles(anchorX, lineY, bumpRadius, -Math.PI / 2, -filletAngle);
+        var rightFillet = computeArcHandles(anchorX + halfGap, lineY - filletRadius, filletRadius, Math.PI - filletAngle, Math.PI / 2);
+        gapLeft.rightHandle = leftFillet.start;
+        gapRight.leftHandle = rightFillet.end;
+        var touchRatio = bumpRadius / (bumpRadius + filletRadius);
+        var touchLeft = makeVertex(anchorX - halfGap * touchRatio, lineY - filletRadius * touchRatio, 0, leftFillet.end, leftBump.start);
+        var bumpBottom = makeVertex(anchorX, lineY - bumpRadius, 0, leftBump.end, rightBump.start);
+        var touchRight = makeVertex(anchorX + halfGap * touchRatio, lineY - filletRadius * touchRatio, 0, rightBump.end, rightFillet.start);
+        tailResult.bottomVertices = [gapLeft, touchLeft, bumpBottom, touchRight, gapRight];
+        tailResult.extraPolylines.push({ vertices: makeCircleVertices(tipX, tipY + circleRadius, circleRadius), isClosed: true });
+        return tailResult;
     }
 
     /**
@@ -2598,7 +2903,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
      * 線としっぽの頂点列を求める（座標は、線が字面の下に来る向きにそろえた「ローカル座標」。y は上が正）
      * @param {Object} inkEdges - 字面の範囲 left / right / top / bottom（ローカル座標）
      * @param {BubbleSettings} bubbleSettings - 設定
-     * @returns {{polylines: Array, boxEdges: Object|null}} polylines は { vertices, isClosed } の配列、boxEdges は囲みの範囲（囲みのとき）
+     * @returns {{polylines: Array, boxEdges: Object|null}} polylines は { vertices, isClosed, isFilled } の配列、boxEdges は囲みの範囲（囲みのとき）
      */
     function computeBubblePolylines(inkEdges, bubbleSettings) {
         var frameLeft = inkEdges.left - bubbleSettings.extension;
@@ -2610,12 +2915,16 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
 
         /* 角丸の半径は辺の長さで頭打ちにする / cap the corner radius by the side lengths */
         var cornerRadius = 0;
-        /* カプセル形状は、半径を大きく取ってから辺の長さで頭打ちにする（囲みは短い辺の半分、コの字は立ち上がり） / a capsule takes the largest radius the sides allow */
+        var hasTicks = (frameKey === "bracket" || frameKey === "lShape");
+        /* カプセル形状は、半径を大きく取ってから辺の長さで頭打ちにする（囲みは短い辺の半分、コの字・L字は立ち上がり） / a capsule takes the largest radius the sides allow */
         var requestedRadius = bubbleSettings.isCapsule ? Infinity : bubbleSettings.cornerRadius;
-        if (frameKey !== "underline") cornerRadius = Math.max(0, Math.min(requestedRadius, (frameRight - frameLeft) / 2));
+        if (hasTicks || frameKey === "box") cornerRadius = Math.max(0, Math.min(requestedRadius, (frameRight - frameLeft) / 2));
         if (frameKey === "box") cornerRadius = Math.min(cornerRadius, Math.max(0, (frameTop - frameBottom) / 2));
-        if (frameKey === "bracket") cornerRadius = Math.min(cornerRadius, Math.max(0, bubbleSettings.tickHeight));
+        if (hasTicks) cornerRadius = Math.min(cornerRadius, Math.max(0, bubbleSettings.tickHeight));
         var tickTop = frameBottom + bubbleSettings.tickHeight;
+        /* L字は、しっぽに近いほうの端だけ立ち上げる / an L shape turns up only the end nearer the tail */
+        var hasLeftTick = (frameKey === "bracket") || (frameKey === "lShape" && bubbleSettings.position <= 50);
+        var hasRightTick = (frameKey === "bracket") || (frameKey === "lShape" && bubbleSettings.position > 50);
 
         /* しっぽは線の端まで置ける。しっぽが下の角の丸みにかかったら、その角だけ丸めずに角から出す。
            カプセル形状は形を保つため、これまでどおり角丸の内側に寄せる
@@ -2629,16 +2938,25 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         /* 下の辺の前後の頂点。囲みは一周してつながる / vertices before and after the bottom side; a box loops around */
         var beforeBottom = [makeVertex(frameLeft, frameBottom)];
         var afterBottom = [makeVertex(frameRight, frameBottom)];
-        if (frameKey === "bracket") {
-            beforeBottom = [makeVertex(frameLeft, tickTop), makeVertex(frameLeft, frameBottom, bottomLeftRadius)];
-            afterBottom = [makeVertex(frameRight, frameBottom, bottomRightRadius), makeVertex(frameRight, tickTop)];
-        } else if (frameKey === "box") {
+        if (hasLeftTick) beforeBottom = [makeVertex(frameLeft, tickTop), makeVertex(frameLeft, frameBottom, bottomLeftRadius)];
+        if (hasRightTick) afterBottom = [makeVertex(frameRight, frameBottom, bottomRightRadius), makeVertex(frameRight, tickTop)];
+        if (frameKey === "box") {
             beforeBottom = [makeVertex(frameLeft, frameBottom, bottomLeftRadius)];
             afterBottom = [
                 makeVertex(frameRight, frameBottom, bottomRightRadius),
                 makeVertex(frameRight, frameTop, cornerRadius),
                 makeVertex(frameLeft, frameTop, cornerRadius)
             ];
+            if (bubbleSettings.sideGapWidth > TAIL_TOLERANCE) {
+                /* 左右の辺の中央に切れ目の印を入れる（直線上の点なので形は変わらない） / mark the middle of the sides for the gaps; the points sit on the sides, so the shape is unchanged */
+                var sideMiddleY = (frameTop + frameBottom) / 2;
+                var rightMiddle = makeVertex(frameRight, sideMiddleY);
+                var leftMiddle = makeVertex(frameLeft, sideMiddleY);
+                rightMiddle.isCut = true;
+                leftMiddle.isCut = true;
+                afterBottom.splice(1, 0, rightMiddle);
+                afterBottom.push(leftMiddle);
+            }
         }
 
         var isBox = (frameKey === "box");
@@ -2652,14 +2970,23 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             polylines.push({ vertices: beforeBottom.concat(tailVertices.leftVertices), isClosed: false });
             polylines.push({ vertices: tailVertices.rightVertices.concat(afterBottom), isClosed: false });
         }
+        if (frameKey === "twoLines") polylines.push({ vertices: [makeVertex(frameLeft, frameTop), makeVertex(frameRight, frameTop)], isClosed: false });
         if (tailVertices.slashVertices) polylines.push({ vertices: tailVertices.slashVertices, isClosed: false });
+        var extraPolylines = tailVertices.extraPolylines || [];
+        for (var k = 0; k < extraPolylines.length; k++) polylines.push(extraPolylines[k]);
+        if (bubbleSettings.tipDot && tailVertices.tipPoint) {
+            var tipDotRadius = bubbleSettings.strokeWidth * TIP_DOT_RATIO / 2;
+            polylines.push({ vertices: makeCircleVertices(tailVertices.tipPoint.x, tailVertices.tipPoint.y, tipDotRadius), isClosed: true, isFilled: true });
+        }
 
         var boxEdges = isBox ? {
             left: frameLeft, right: frameRight, top: frameTop, bottom: frameBottom,
             radius: cornerRadius, bottomLeftRadius: bottomLeftRadius, bottomRightRadius: bottomRightRadius
         } : null;
         if (isBox && bubbleSettings.shadowDistance > TAIL_TOLERANCE) {
-            var shadowPolylines = computeShadowPolylines(boxEdges, tailVertices, frameBottom - bubbleSettings.tailHeight, bubbleSettings.shadowDistance);
+            /* 思考は円ではなくふくらみの先で止める / a thought stops at its bump, not at the circle */
+            var shadowTipY = (typeof tailVertices.shadowTipY === "number") ? tailVertices.shadowTipY : frameBottom - bubbleSettings.tailHeight;
+            var shadowPolylines = computeShadowPolylines(boxEdges, tailVertices, shadowTipY, bubbleSettings.shadowDistance);
             for (var i = 0; i < shadowPolylines.length; i++) polylines.push({ vertices: shadowPolylines[i], isClosed: false });
         }
 
@@ -2667,7 +2994,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         var drawablePolylines = [];
         for (var j = 0; j < polylines.length; j++) {
             var uniqueVertices = removeDuplicateVertices(polylines[j].vertices, polylines[j].isClosed);
-            if (uniqueVertices.length >= 2) drawablePolylines.push({ vertices: uniqueVertices, isClosed: polylines[j].isClosed });
+            if (uniqueVertices.length >= 2) drawablePolylines.push({ vertices: uniqueVertices, isClosed: polylines[j].isClosed, isFilled: !!polylines[j].isFilled });
         }
         return { polylines: drawablePolylines, boxEdges: boxEdges };
     }
@@ -2676,7 +3003,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
      * 頂点列を、角丸をベジェのハンドルにしたパスの点の列にする
      * @param {OutlineVertex[]} vertices - 頂点
      * @param {boolean} isClosed - 閉じたパスなら true
-     * @returns {Array<{anchor: number[], left: number[], right: number[]}>} パスの点（座標とハンドル）
+     * @returns {Array<{anchor: number[], left: number[], right: number[], isCut: boolean}>} パスの点（座標とハンドル。isCut は左右の切れ目の印）
      */
     function buildBezierPoints(vertices, isClosed) {
         var pathPoints = [];
@@ -2686,10 +3013,11 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
          * ハンドルのない点を足す
          * @param {number} x - x 座標
          * @param {number} y - y 座標
+         * @param {boolean} [isCut] - 左右の切れ目の印なら true
          * @returns {void}
          */
-        function pushCornerPoint(x, y) {
-            pathPoints.push({ anchor: [x, y], left: [x, y], right: [x, y] });
+        function pushCornerPoint(x, y, isCut) {
+            pathPoints.push({ anchor: [x, y], left: [x, y], right: [x, y], isCut: !!isCut });
         }
 
         for (var i = 0; i < vertexCount; i++) {
@@ -2705,7 +3033,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             }
             var hasNeighbors = isClosed || (i > 0 && i < vertexCount - 1);
             if (vertex.radius <= TAIL_TOLERANCE || !hasNeighbors) {
-                pushCornerPoint(vertex.x, vertex.y);
+                pushCornerPoint(vertex.x, vertex.y, vertex.isCut);
                 continue;
             }
             var prevVertex = vertices[(i - 1 + vertexCount) % vertexCount];
@@ -2763,14 +3091,175 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             var lastPoint = mergedPoints[mergedPoints.length - 1];
             if (lastPoint && isSameAnchor(lastPoint, pathPoints[i])) {
                 lastPoint.right = pathPoints[i].right;
+                if (pathPoints[i].isCut) lastPoint.isCut = true;
                 continue;
             }
             mergedPoints.push(pathPoints[i]);
         }
         if (isClosed && mergedPoints.length > 1 && isSameAnchor(mergedPoints[0], mergedPoints[mergedPoints.length - 1])) {
-            mergedPoints[0].left = mergedPoints.pop().left;
+            var closingPoint = mergedPoints.pop();
+            mergedPoints[0].left = closingPoint.left;
+            if (closingPoint.isCut) mergedPoints[0].isCut = true;
         }
         return mergedPoints;
+    }
+
+    // =========================================
+    // 左右の切れ目 / Side gaps
+    // =========================================
+
+    /**
+     * 2点を t で内分する
+     * @param {number[]} pointA - 点A [x, y]
+     * @param {number[]} pointB - 点B [x, y]
+     * @param {number} t - 割合（0〜1）
+     * @returns {number[]} 内分点 [x, y]
+     */
+    function lerpPoint(pointA, pointB, t) {
+        return [pointA[0] + (pointB[0] - pointA[0]) * t, pointA[1] + (pointB[1] - pointA[1]) * t];
+    }
+
+    /**
+     * 3次ベジェの区間を t で2つに分ける
+     * @param {Array<number[]>} segment - [始点, 始点のハンドル, 終点のハンドル, 終点]
+     * @param {number} t - 分ける位置（0〜1）
+     * @returns {Array<Array<number[]>>} 前と後ろの区間
+     */
+    function splitSegment(segment, t) {
+        var p01 = lerpPoint(segment[0], segment[1], t);
+        var p12 = lerpPoint(segment[1], segment[2], t);
+        var p23 = lerpPoint(segment[2], segment[3], t);
+        var p012 = lerpPoint(p01, p12, t);
+        var p123 = lerpPoint(p12, p23, t);
+        var splitPoint = lerpPoint(p012, p123, t);
+        return [[segment[0], p01, p012, splitPoint], [splitPoint, p123, p23, segment[3]]];
+    }
+
+    /**
+     * 区間の始点から、曲線に沿って測った長さの累計を、CUT_SAMPLE_COUNT 等分の点ごとに返す
+     * @param {Array<number[]>} segment - [始点, 始点のハンドル, 終点のハンドル, 終点]
+     * @returns {number[]} 長さの累計（先頭は 0、末尾は区間の長さ）
+     */
+    function measureSegmentLengths(segment) {
+        var lengths = [0];
+        var previousPoint = segment[0];
+        for (var i = 1; i <= CUT_SAMPLE_COUNT; i++) {
+            var t = i / CUT_SAMPLE_COUNT;
+            var u = 1 - t;
+            var samplePoint = [
+                u * u * u * segment[0][0] + 3 * u * u * t * segment[1][0] + 3 * u * t * t * segment[2][0] + t * t * t * segment[3][0],
+                u * u * u * segment[0][1] + 3 * u * u * t * segment[1][1] + 3 * u * t * t * segment[2][1] + t * t * t * segment[3][1]
+            ];
+            lengths.push(lengths[i - 1] + Math.sqrt(Math.pow(samplePoint[0] - previousPoint[0], 2) + Math.pow(samplePoint[1] - previousPoint[1], 2)));
+            previousPoint = samplePoint;
+        }
+        return lengths;
+    }
+
+    /**
+     * 区間の始点から曲線に沿って targetLength の位置の t を返す
+     * @param {number[]} lengths - measureSegmentLengths() の戻り値
+     * @param {number} targetLength - 始点からの長さ
+     * @returns {number} t（0〜1）
+     */
+    function findSegmentT(lengths, targetLength) {
+        for (var i = 1; i < lengths.length; i++) {
+            if (lengths[i] < targetLength) continue;
+            var stepLength = lengths[i] - lengths[i - 1];
+            var stepRatio = (stepLength > 0) ? (targetLength - lengths[i - 1]) / stepLength : 0;
+            return (i - 1 + stepRatio) / CUT_SAMPLE_COUNT;
+        }
+        return 1;
+    }
+
+    /**
+     * 区間の並びの始まりと終わりを、曲線に沿って指定の長さだけ削る（短い区間は丸ごと落とす）
+     * @param {Array<Array<number[]>>} segments - 区間の配列
+     * @param {number} startTrim - 始まりから削る長さ
+     * @param {number} endTrim - 終わりから削る長さ
+     * @returns {Array<Array<number[]>>} 削った区間の配列
+     */
+    function trimSegments(segments, startTrim, endTrim) {
+        var trimmedSegments = segments.slice(0);
+        var lengths;
+        while (startTrim > TAIL_TOLERANCE && trimmedSegments.length) {
+            lengths = measureSegmentLengths(trimmedSegments[0]);
+            if (lengths[lengths.length - 1] <= startTrim) {
+                startTrim -= lengths[lengths.length - 1];
+                trimmedSegments.shift();
+                continue;
+            }
+            trimmedSegments[0] = splitSegment(trimmedSegments[0], findSegmentT(lengths, startTrim))[1];
+            startTrim = 0;
+        }
+        while (endTrim > TAIL_TOLERANCE && trimmedSegments.length) {
+            var lastIndex = trimmedSegments.length - 1;
+            lengths = measureSegmentLengths(trimmedSegments[lastIndex]);
+            var segmentLength = lengths[lengths.length - 1];
+            if (segmentLength <= endTrim) {
+                endTrim -= segmentLength;
+                trimmedSegments.pop();
+                continue;
+            }
+            trimmedSegments[lastIndex] = splitSegment(trimmedSegments[lastIndex], findSegmentT(lengths, segmentLength - endTrim))[0];
+            endTrim = 0;
+        }
+        return trimmedSegments;
+    }
+
+    /**
+     * パスの点を、切れ目の印のところで切り、印の前後を halfCutLength ずつ削った開いたパスに分ける
+     * @param {Array<{anchor: number[], left: number[], right: number[], isCut: boolean}>} pathPoints - buildBezierPoints() の戻り値
+     * @param {boolean} isClosed - 閉じたパスなら true
+     * @param {number} halfCutLength - 切れ目の長さの半分
+     * @returns {Array<{points: Array, isClosed: boolean}>} 分けたパス（印が無ければ元のパス1つ）
+     */
+    function splitPathAtCuts(pathPoints, isClosed, halfCutLength) {
+        var firstCutIndex = -1;
+        var i;
+        for (i = 0; i < pathPoints.length; i++) {
+            if (pathPoints[i].isCut) {
+                firstCutIndex = i;
+                break;
+            }
+        }
+        if (firstCutIndex < 0 || halfCutLength <= TAIL_TOLERANCE) return [{ points: pathPoints, isClosed: isClosed }];
+
+        /* 閉じたパスは、最初の印から一周して同じ印に戻る開いたパスにする / a closed path becomes an open one from the first mark around to itself */
+        var openPoints = pathPoints;
+        if (isClosed) {
+            openPoints = [];
+            for (i = 0; i <= pathPoints.length; i++) openPoints.push(pathPoints[(firstCutIndex + i) % pathPoints.length]);
+        }
+        var segments = [];
+        for (i = 0; i < openPoints.length - 1; i++) {
+            segments.push([openPoints[i].anchor, openPoints[i].right, openPoints[i + 1].left, openPoints[i + 1].anchor]);
+        }
+
+        var pathPieces = [];
+        var pieceStart = 0;
+        for (i = 1; i < openPoints.length; i++) {
+            if (!openPoints[i].isCut && i < openPoints.length - 1) continue;
+            var pieceSegments = trimSegments(segments.slice(pieceStart, i),
+                openPoints[pieceStart].isCut ? halfCutLength : 0, openPoints[i].isCut ? halfCutLength : 0);
+            if (pieceSegments.length) pathPieces.push({ points: segmentsToPathPoints(pieceSegments), isClosed: false });
+            pieceStart = i;
+        }
+        return pathPieces;
+    }
+
+    /**
+     * 区間の並びを、開いたパスの点の配列に戻す
+     * @param {Array<Array<number[]>>} segments - 区間の配列（1つ以上）
+     * @returns {Array<{anchor: number[], left: number[], right: number[]}>} パスの点
+     */
+    function segmentsToPathPoints(segments) {
+        var pathPoints = [{ anchor: segments[0][0], left: segments[0][0], right: segments[0][1] }];
+        for (var i = 0; i < segments.length; i++) {
+            var nextSegment = segments[i + 1];
+            pathPoints.push({ anchor: segments[i][3], left: segments[i][2], right: nextSegment ? nextSegment[1] : segments[i][3] });
+        }
+        return pathPoints;
     }
 
     // =========================================
@@ -2975,20 +3464,32 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
     }
 
     /**
-     * ローカル座標の頂点列からパスを作る（ページの座標に戻し、角丸のハンドルを付ける）
+     * パスに塗りの設定を入れる（線なし。つの・●用）
+     * @param {PathItem} tailPath - 対象のパス
+     * @param {Color} fillColor - 塗りのカラー
+     * @returns {void}
+     */
+    function applyTailFill(tailPath, fillColor) {
+        tailPath.stroked = false;
+        tailPath.filled = true;
+        tailPath.fillColor = fillColor;
+    }
+
+    /**
+     * ローカル座標のパスの点からパスを作る（ページの座標に戻す）
      * @param {GroupItem} parentGroup - 追加先
-     * @param {{vertices: OutlineVertex[], isClosed: boolean}} polyline - 頂点列
+     * @param {Array<{anchor: number[], left: number[], right: number[]}>} bezierPoints - パスの点（ローカル座標）
+     * @param {boolean} isClosed - 閉じたパスなら true
      * @param {string} sideKey - 線を描く側
      * @returns {PathItem} 作ったパス
      */
-    function addPolylinePath(parentGroup, polyline, sideKey) {
-        var bezierPoints = buildBezierPoints(polyline.vertices, polyline.isClosed);
+    function addBezierPath(parentGroup, bezierPoints, isClosed, sideKey) {
         var anchors = [];
         var i;
         for (i = 0; i < bezierPoints.length; i++) anchors.push(localToPage(bezierPoints[i].anchor, sideKey));
         var polylinePath = parentGroup.pathItems.add();
         polylinePath.setEntirePath(anchors);
-        polylinePath.closed = polyline.isClosed;
+        polylinePath.closed = isClosed;
         for (i = 0; i < bezierPoints.length; i++) {
             var pathPoint = polylinePath.pathPoints[i];
             pathPoint.leftDirection = localToPage(bezierPoints[i].left, sideKey);
@@ -3046,8 +3547,14 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         tailGroup.move(textFrame, ElementPlacement.PLACEBEFORE);
         tailGroup.name = getLabel(LABELS.fallbackName.tailGroup);
         for (var i = 0; i < bubbleShape.polylines.length; i++) {
-            var polylinePath = addPolylinePath(tailGroup, bubbleShape.polylines[i], sideKey);
-            applyTailStroke(polylinePath, lineColor, bubbleSettings.strokeWidth, bubbleSettings.capKey);
+            var polyline = bubbleShape.polylines[i];
+            /* 角丸のハンドルを付けてから、左右の切れ目の印で切り分ける / add the corner handles, then cut at the side gap marks */
+            var pathPieces = splitPathAtCuts(buildBezierPoints(polyline.vertices, polyline.isClosed), polyline.isClosed, bubbleSettings.sideGapWidth / 2);
+            for (var j = 0; j < pathPieces.length; j++) {
+                var piecePath = addBezierPath(tailGroup, pathPieces[j].points, pathPieces[j].isClosed, sideKey);
+                if (polyline.isFilled) applyTailFill(piecePath, lineColor);
+                else applyTailStroke(piecePath, lineColor, bubbleSettings.strokeWidth, bubbleSettings.capKey);
+            }
         }
         return {
             group: tailGroup,
@@ -3703,7 +4210,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
 
     /**
      * 保存したプリセットを読む
-     * @returns {Object} プリセット名をキーにした { choices, position, slashAngle, useAreaFrame, isCapsule, sizes } の集まり
+     * @returns {Object} プリセット名をキーにした { choices, position, slashAngle, useAreaFrame, isCapsule, tipDot, sizes } の集まり
      */
     function loadSavedPresets() {
         return presetSettingsStore.load({});
@@ -3735,7 +4242,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
 
     /**
      * プリセットを設定の値にする。寸法は保存したプリセットなら pt のまま、最初からあるものなら文字サイズから作る
-     * @param {Object} presetData - { choices, position, slashAngle, useAreaFrame, isCapsule, sizes（pt）か ratios（比率）}
+     * @param {Object} presetData - { choices, position, slashAngle, useAreaFrame, isCapsule, tipDot, sizes（pt）か ratios（比率）}
      * @param {number} fontSize - 文字サイズ（pt）
      * @param {Object} rulerUnit - 長さの単位
      * @param {Object} strokeUnit - 線幅の単位
@@ -3753,6 +4260,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         presetSettings.slashAngle = (typeof presetData.slashAngle === "number") ? presetData.slashAngle : DEFAULT_CHOICES.slashAngle;
         presetSettings.useAreaFrame = (typeof presetData.useAreaFrame === "boolean") ? presetData.useAreaFrame : DEFAULT_CHOICES.useAreaFrame;
         presetSettings.isCapsule = (typeof presetData.isCapsule === "boolean") ? presetData.isCapsule : DEFAULT_CHOICES.isCapsule;
+        presetSettings.tipDot = (typeof presetData.tipDot === "boolean") ? presetData.tipDot : DEFAULT_CHOICES.tipDot;
         var scaledSizes = scaleSizeRatios(presetData.ratios || {}, fontSize, rulerUnit, strokeUnit);
         var savedSizes = presetData.sizes || {};
         for (i = 0; i < PRESET_SIZE_KEYS.length; i++) {
@@ -3990,58 +4498,57 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
     }
 
     /**
-     * 配置のラジオボタンを、上下左右の位置に合わせて3行3列に並べる（項目名は真ん中の行の高さ）。
-     * 行ごとに別のグループに入るので、排他はクリックで手で保つ
+     * ラジオボタンを表の形に並べる（項目名は真ん中の行の高さ）。行ごとに別のグループに入るので、排他はクリックで手で保つ
      * @param {Panel} parent - 追加先
-     * @param {string} selectedValue - 選んでおく側（"top" / "bottom" / "left" / "right"）
+     * @param {string} labelKey - LABELS.fieldLabel のキー
+     * @param {string} selectedValue - 選んでおく設定の値
+     * @param {Array<Array<string[]|null>>} gridLayout - 行ごとの [設定の値, LABELS.radio・LABELS.tooltip のキー]（null は空きのマス）
+     * @param {number} cellWidth - 1マスの幅
      * @param {Function} onChoice - 選び直したときに呼ぶ関数
      * @returns {Group} 行（addRadioRow() と同じ形）
      */
-    function addSideGrid(parent, selectedValue, onChoice) {
-        var sideRow = addLabeledRow(parent, "side");
-        var gridColumn = sideRow.add("group");
+    function addRadioGrid(parent, labelKey, selectedValue, gridLayout, cellWidth, onChoice) {
+        var gridRow = addLabeledRow(parent, labelKey);
+        var gridColumn = gridRow.add("group");
         gridColumn.orientation = "column";
         gridColumn.alignChildren = ["left", "center"];
-        gridColumn.spacing = SIDE_GRID_SPACING;
-        /* 空きのマスは null / null marks an empty cell */
-        var gridLayout = [[null, "top", null], ["left", null, "right"], [null, "bottom", null]];
-        var radioLabelKeys = { top: "sideTop", bottom: "sideBottom", left: "sideLeft", right: "sideRight" };
-        sideRow.radios = [];
+        gridColumn.spacing = RADIO_GRID_SPACING;
+        gridRow.radios = [];
 
         /**
          * クリックしたラジオボタンだけを選び、ほかを外す
          * @param {RadioButton} clickedRadio - クリックしたラジオボタン
          * @returns {Function} onClick に入れる関数
          */
-        function makeSideClickHandler(clickedRadio) {
+        function makeGridClickHandler(clickedRadio) {
             return function () {
-                for (var k = 0; k < sideRow.radios.length; k++) sideRow.radios[k].value = (sideRow.radios[k] === clickedRadio);
+                for (var k = 0; k < gridRow.radios.length; k++) gridRow.radios[k].value = (gridRow.radios[k] === clickedRadio);
                 onChoice();
             };
         }
 
         for (var rowIndex = 0; rowIndex < gridLayout.length; rowIndex++) {
-            var gridRow = gridColumn.add("group");
-            gridRow.orientation = "row";
-            gridRow.alignChildren = ["left", "center"];
-            gridRow.spacing = 0;
-            gridRow.margins = 0;
+            var cellRow = gridColumn.add("group");
+            cellRow.orientation = "row";
+            cellRow.alignChildren = ["left", "center"];
+            cellRow.spacing = 0;
+            cellRow.margins = 0;
             for (var columnIndex = 0; columnIndex < gridLayout[rowIndex].length; columnIndex++) {
-                var cellSideKey = gridLayout[rowIndex][columnIndex];
-                if (!cellSideKey) {
-                    gridRow.add("group").preferredSize = [SIDE_GRID_CELL_WIDTH, 1];
+                var cellChoice = gridLayout[rowIndex][columnIndex];
+                if (!cellChoice) {
+                    cellRow.add("group").preferredSize = [cellWidth, 1];
                     continue;
                 }
-                var sideRadio = gridRow.add("radiobutton", undefined, getLabel(LABELS.radio[radioLabelKeys[cellSideKey]]));
-                sideRadio.preferredSize.width = SIDE_GRID_CELL_WIDTH;
-                sideRadio.helpTip = getLabel(LABELS.tooltip[radioLabelKeys[cellSideKey]]);
-                sideRadio.settingValue = cellSideKey;
-                sideRadio.onClick = makeSideClickHandler(sideRadio);
-                sideRow.radios.push(sideRadio);
+                var cellRadio = cellRow.add("radiobutton", undefined, getLabel(LABELS.radio[cellChoice[1]]));
+                cellRadio.preferredSize.width = cellWidth;
+                cellRadio.helpTip = getLabel(LABELS.tooltip[cellChoice[1]]);
+                cellRadio.settingValue = cellChoice[0];
+                cellRadio.onClick = makeGridClickHandler(cellRadio);
+                gridRow.radios.push(cellRadio);
             }
         }
-        attachRadioValueAccessors(sideRow, selectedValue);
-        return sideRow;
+        attachRadioValueAccessors(gridRow, selectedValue);
+        return gridRow;
     }
 
     /**
@@ -4140,8 +4647,13 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         setupPanel(tailPanel);
         tailPanel.alignment = ["fill", "top"];
         var tailControls = { panel: tailPanel };
-        tailControls.shapeRow = addRadioRow(tailPanel, "shape", initialSettings.shapeKey,
-            [["notch", "notch"], ["slash", "slash"], ["curly", "curly"]], dialogHandlers.onTailChoice);
+        tailControls.shapeRow = addRadioGrid(tailPanel, "shape", initialSettings.shapeKey, [
+            [["notch", "notch"], ["slash", "slash"], ["curly", "curly"]],
+            [["round", "round"], ["loop", "loop"], ["horn", "horn"]],
+            [["thought", "thought"], null, null]
+        ], SHAPE_GRID_CELL_WIDTH, dialogHandlers.onTailChoice);
+        /* 形状は行が多いので、項目名を1行目の高さに置く / the shape grid is tall, so its label sits on the first row */
+        tailControls.shapeRow.alignChildren = ["left", "top"];
         tailControls.directionRow = addRadioRow(tailPanel, "direction", initialSettings.directionKey,
             [["center", "straightDown"], ["right", "downRight"], ["left", "downLeft"]], dialogHandlers.onTailChoice);
         tailControls.slashAngleInput = addNumberField(tailPanel, "slashAngle", formatStepperNumber(initialSettings.slashAngle) + "°",
@@ -4187,12 +4699,18 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         tailControls.gapWidthInput = addLengthField(tailPanel, "gapWidth", initialSettings.gapWidth, rulerUnit, 0, dialogHandlers.onEdit);
         tailControls.tailWidthInput = addLengthField(tailPanel, "tailWidth", initialSettings.tailWidth, rulerUnit, 0, dialogHandlers.onEdit);
         tailControls.tailHeightInput = addLengthField(tailPanel, "tailHeight", initialSettings.tailHeight, rulerUnit, 0, dialogHandlers.onEdit);
+        /* 先端の●は高さの下。項目名の列は空けて、欄の左端にそろえる / the tip dot checkbox sits under the height, aligned with the fields */
+        var tipDotRow = tailPanel.add("group");
+        setupRow(tipDotRow);
+        tipDotRow.rowLabel = tipDotRow.add("statictext", undefined, "");
+        tailControls.tipDotCheckbox = addSettingCheckbox(tipDotRow, "tipDot", initialSettings.tipDot);
+        tailControls.tipDotCheckbox.onClick = dialogHandlers.onEdit;
 
         /* 項目名をいちばん長いものに揃えて右揃えにし、スライダーの字下げも同じ幅にする / align the labels to the widest and indent the slider likewise */
         positionSliderIndent.preferredSize.width = alignLabelWidths([
             tailControls.shapeRow.rowLabel, tailControls.directionRow.rowLabel, tailControls.slashAngleInput.fieldLabel,
             tailControls.rootRow.rowLabel, tailControls.slashShiftXInput.fieldLabel, tailControls.slashShiftYInput.fieldLabel, positionInput.fieldLabel, tailControls.gapWidthInput.fieldLabel,
-            tailControls.tailWidthInput.fieldLabel, tailControls.tailHeightInput.fieldLabel
+            tailControls.tailWidthInput.fieldLabel, tailControls.tailHeightInput.fieldLabel, tipDotRow.rowLabel
         ]);
         return tailControls;
     }
@@ -4214,8 +4732,13 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         linePanel.alignment = ["fill", "top"];
         var lineControls = { panel: linePanel, colorState: { data: initialSettings.customColor } };
         lineControls.frameRow = addRadioRow(linePanel, "frame", initialSettings.frameKey,
-            [["underline", "underline"], ["bracket", "bracket"], ["box", "box"]], dialogHandlers.onChoice, true);
-        lineControls.sideRow = addSideGrid(linePanel, initialSideKey, dialogHandlers.onChoice);
+            [["underline", "underline"], ["lShape", "lShape"], ["bracket", "bracket"], ["box", "box"], ["twoLines", "twoLines"]], dialogHandlers.onChoice, true);
+        /* 配置は上下左右の位置に合わせて3行3列に並べる / the sides sit where they draw, in a 3x3 grid */
+        lineControls.sideRow = addRadioGrid(linePanel, "side", initialSideKey, [
+            [null, ["top", "sideTop"], null],
+            [["left", "sideLeft"], null, ["right", "sideRight"]],
+            [null, ["bottom", "sideBottom"], null]
+        ], SIDE_GRID_CELL_WIDTH, dialogHandlers.onChoice);
         lineControls.offsetInput = addLengthField(linePanel, "offset", initialSettings.offset, rulerUnit, undefined, dialogHandlers.onEdit);
         lineControls.extensionInput = addLengthField(linePanel, "extension", initialSettings.extension, rulerUnit, undefined, dialogHandlers.onEdit);
         lineControls.tickHeightInput = addLengthField(linePanel, "tickHeight", initialSettings.tickHeight, rulerUnit, 0, dialogHandlers.onEdit);
@@ -4228,6 +4751,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         lineControls.capsuleCheckbox.onClick = dialogHandlers.onChoice;
         lineControls.capsuleRow = capsuleRow;
         lineControls.shadowDistanceInput = addLengthField(linePanel, "shadowDistance", initialSettings.shadowDistance, rulerUnit, 0, dialogHandlers.onEdit);
+        lineControls.sideGapWidthInput = addLengthField(linePanel, "sideGapWidth", initialSettings.sideGapWidth, rulerUnit, 0, dialogHandlers.onEdit);
         lineControls.strokeWidthInput = addLengthField(linePanel, "strokeWidth", initialSettings.strokeWidth, strokeUnit, 0.1, dialogHandlers.onEdit);
 
         var colorRow = addRadioRow(linePanel, "lineColor", initialSettings.colorKey,
@@ -4245,7 +4769,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         alignLabelWidths([
             lineControls.frameRow.rowLabel, lineControls.sideRow.rowLabel, lineControls.offsetInput.fieldLabel,
             lineControls.extensionInput.fieldLabel, lineControls.tickHeightInput.fieldLabel, lineControls.cornerRadiusInput.fieldLabel, capsuleRow.rowLabel,
-            lineControls.shadowDistanceInput.fieldLabel, lineControls.strokeWidthInput.fieldLabel, colorRow.rowLabel, lineControls.capRow.rowLabel
+            lineControls.shadowDistanceInput.fieldLabel, lineControls.sideGapWidthInput.fieldLabel, lineControls.strokeWidthInput.fieldLabel, colorRow.rowLabel, lineControls.capRow.rowLabel
         ]);
         return lineControls;
     }
@@ -4294,6 +4818,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         bubbleSettings.customColor = dialogControls.colorState.data;
         bubbleSettings.useAreaFrame = dialogControls.useAreaFrameCheckbox.value;
         bubbleSettings.isCapsule = dialogControls.capsuleCheckbox.value;
+        bubbleSettings.tipDot = dialogControls.tipDotCheckbox.value;
         bubbleSettings.convertToAreaText = dialogControls.convertToAreaTextCheckbox.value;
         bubbleSettings.groupWithText = dialogControls.groupWithTextCheckbox.value;
         bubbleSettings.preview = dialogControls.previewCheckbox.value;
@@ -4324,6 +4849,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         writeFieldText(dialogControls.slashAngleInput, formatStepperNumber(presetSettings.slashAngle) + "°");
         dialogControls.useAreaFrameCheckbox.value = presetSettings.useAreaFrame;
         dialogControls.capsuleCheckbox.value = presetSettings.isCapsule;
+        dialogControls.tipDotCheckbox.value = presetSettings.tipDot;
     }
 
     /**
@@ -4333,7 +4859,8 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
      * @returns {void}
      */
     function updateControlsEnabled(dialogControls, isAllAreaText) {
-        var isSlash = (dialogControls.choiceRows.shapeKey.getValue() === "slash");
+        var shapeKey = dialogControls.choiceRows.shapeKey.getValue();
+        var isSlash = (shapeKey === "slash");
         var isStraight = (dialogControls.choiceRows.directionKey.getValue() === "center");
         var frameKey = dialogControls.choiceRows.frameKey.getValue();
         var lengthFields = dialogControls.lengthFields;
@@ -4345,11 +4872,15 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         /* 斜線は横の長さを角度で決める / a slash takes its run from the angle */
         setSteppedFieldEnabled(lengthFields.tailWidth.input, !isStraight && !isSlash);
         setSteppedFieldEnabled(dialogControls.slashAngleInput, !isStraight && isSlash);
-        setSteppedFieldEnabled(lengthFields.tickHeight.input, frameKey === "bracket");
+        /* ●は先端が1点に決まるしっぽだけ / the dot needs a tail with a single tip */
+        dialogControls.tipDotCheckbox.enabled = (shapeKey === "notch" || isSlash || shapeKey === "curly" || shapeKey === "round");
+        var hasTicks = (frameKey === "bracket" || frameKey === "lShape");
+        setSteppedFieldEnabled(lengthFields.tickHeight.input, hasTicks);
         /* カプセル形状のときは半径を自動で決めるので、角丸の半径は使わない / a capsule decides the radius itself */
-        dialogControls.capsuleCheckbox.enabled = (frameKey !== "underline");
-        setSteppedFieldEnabled(lengthFields.cornerRadius.input, frameKey !== "underline" && !dialogControls.capsuleCheckbox.value);
+        dialogControls.capsuleCheckbox.enabled = (hasTicks || frameKey === "box");
+        setSteppedFieldEnabled(lengthFields.cornerRadius.input, (hasTicks || frameKey === "box") && !dialogControls.capsuleCheckbox.value);
         setSteppedFieldEnabled(lengthFields.shadowDistance.input, frameKey === "box");
+        setSteppedFieldEnabled(lengthFields.sideGapWidth.input, frameKey === "box");
         dialogControls.convertToAreaTextCheckbox.enabled = (frameKey === "box");
         /* すべてエリア内文字で枠を基準にするときは、間隔・左右の伸びを使わない / unused when every text is area type measured by its frame */
         var isLengthFromGlyphs = !(dialogControls.useAreaFrameCheckbox.value && isAllAreaText);
@@ -4360,10 +4891,13 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
     /**
      * 設定をプリセットの形にする（寸法は pt）
      * @param {BubbleSettings} bubbleSettings - 設定
-     * @returns {Object} { choices, position, slashAngle, useAreaFrame, isCapsule, sizes }
+     * @returns {Object} { choices, position, slashAngle, useAreaFrame, isCapsule, tipDot, sizes }
      */
     function settingsToPresetData(bubbleSettings) {
-        var presetData = { choices: {}, position: bubbleSettings.position, slashAngle: bubbleSettings.slashAngle, useAreaFrame: bubbleSettings.useAreaFrame, isCapsule: bubbleSettings.isCapsule, sizes: {} };
+        var presetData = {
+            choices: {}, position: bubbleSettings.position, slashAngle: bubbleSettings.slashAngle, useAreaFrame: bubbleSettings.useAreaFrame,
+            isCapsule: bubbleSettings.isCapsule, tipDot: bubbleSettings.tipDot, sizes: {}
+        };
         var i;
         for (i = 0; i < PRESET_CHOICE_KEYS.length; i++) presetData.choices[PRESET_CHOICE_KEYS[i]] = bubbleSettings[PRESET_CHOICE_KEYS[i]];
         for (i = 0; i < PRESET_SIZE_KEYS.length; i++) presetData.sizes[PRESET_SIZE_KEYS[i]] = bubbleSettings[PRESET_SIZE_KEYS[i]];
@@ -4557,6 +5091,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
                 slashShiftX: { input: tailControls.slashShiftXInput }, slashShiftY: { input: tailControls.slashShiftYInput },
                 extension: { input: lineControls.extensionInput }, tickHeight: { input: lineControls.tickHeightInput },
                 cornerRadius: { input: lineControls.cornerRadiusInput }, shadowDistance: { input: lineControls.shadowDistanceInput },
+                sideGapWidth: { input: lineControls.sideGapWidthInput },
                 strokeWidth: { input: lineControls.strokeWidthInput, isStroke: true }
             },
             positionInput: tailControls.positionInput,
@@ -4564,6 +5099,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             slashAngleInput: tailControls.slashAngleInput,
             colorState: lineControls.colorState,
             capsuleCheckbox: lineControls.capsuleCheckbox,
+            tipDotCheckbox: tailControls.tipDotCheckbox,
             useAreaFrameCheckbox: textOptionControls.useAreaFrameCheckbox,
             convertToAreaTextCheckbox: textOptionControls.convertToAreaTextCheckbox,
             groupWithTextCheckbox: textOptionControls.groupWithTextCheckbox,

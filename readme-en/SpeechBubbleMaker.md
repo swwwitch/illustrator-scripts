@@ -10,7 +10,7 @@
 
 ### Overview
 
-Draws an underline, a bracket or a box with a speech-bubble tail (a V, a slash or a taper) around the selected text. The line can go on any side, with color, cap, rounded corners and a shadow. Settings are previewed in a dialog box and can be saved as presets.
+Draws an underline, an L shape, a bracket, a box or top and bottom lines with a speech-bubble tail (a V, a slash, a taper, a U, a loop, a horn or a thought bubble) around the selected text. The line can go on any side, with color, cap, rounded corners and a shadow. Settings are previewed in a dialog box and can be saved as presets.
 
 ### Features
 
@@ -19,36 +19,42 @@ The dialog box has Presets centered at the top, the Tail and Text Options panels
 #### Presets
 
 - Picking a preset switches the tail and line/frame settings at once.
-- Sixteen built-in presets are included (simple speech bubble, wide curly, underline with a V, a V down right, slashes down right and left; a slash down right with no gap; bracket with a slash; rounded bracket with a V; box with a slash; rounded box with a slash; capsule box; box with a tail at the bottom-right or bottom-left corner; box with a V and shadow; curly bracket). Built-in presets size themselves to the font size of the first character.
+- Twenty-four built-in presets are included (simple speech bubble, wide curly, underline with a V, a V down right, slashes down right and left; a slash down right with no gap; a U; a loop; bracket with a slash; rounded bracket with a V; curly bracket; L shape with a V down left; box with a slash; rounded box with a slash; capsule box; box with a tail at the bottom-right or bottom-left corner; box with a V and shadow; capsule box with gaps; capsule box with a dotted slash; thought bubble; rounded box with a horn; top and bottom lines with a slash down left). Built-in presets size themselves to the font size of the first character.
 - The save icon stores the current settings under a name; the trash icon deletes the selected saved preset (built-in presets cannot be deleted, and their names cannot be reused). Saved presets keep their sizes as saved and survive quitting Illustrator.
 - Changing a setting by hand clears the preset selection.
 
 #### Tail
 
-- Shape: V shape bends the line into a tail (it stays a single path). Slash draws a slash out of the line. Taper narrows out of the line in curves to a point, like the middle of a curly bracket in AiCurlyBracketMaker.
+- Shape: seven choices laid out in three columns.
+  - V shape bends the line into a tail (it stays a single path). Slash draws a slash out of the line. Taper narrows out of the line in curves to a point, like the middle of a curly bracket in AiCurlyBracketMaker.
+  - U shape bends the line into a U (Height is its depth). Loop curves out of the line into a small loop (Height reaches the bottom of the loop; a wide Gap makes the line sweep like a wave).
+  - Horn lays a filled tail over the line, wide at the root and pointed at the end, like a stroke width profile (the line is not cut). Gap is the root width.
+  - Thought adds a small bump with rounded joins to the line and puts a circle beyond it, as in a thought bubble. Gap is the bump's width and Height reaches the bottom of the circle; the circle is sized to the bump.
 - Direction: Straight, Right or Left (on the bottom side these look straight down, down right and down left).
-  - For a V or taper, Straight puts the tip at the middle of the base; Right puts it Width to the right of the base's left end; Left puts it Width to the left of the base's right end.
+  - For every shape but a slash, Straight puts the tip (the circle of a thought, the loop of a loop) at the middle of the base; Right puts it Width to the right of the base's left end; Left puts it Width to the left of the base's right end.
   - A slash leans to the right or left at Angle; Straight makes it leave the line at a right angle.
 - Angle (slash with Direction Right or Left): measured from the line (default 45°, 5–90°; 90° is at a right angle to it). The slash's horizontal run follows Height and Angle.
 - Root (slash with Direction Right or Left): Center starts the slash at the middle of the gap, apart from the line; Edge starts it at the edge of the gap, joined to the line.
 - Nudge X / Nudge Y (detached slash: Root is Center, or Direction is Straight): shift the slash a little (the stepper moves by 0.5). Positive X moves it along the line (right, or down on the left or right side); positive Y moves it outward, the way the tail points, and negative toward the text.
 - Position: from 0% (start of the line) to 100% (end), in the field or with the slider below it (hold Shift for 10% steps); default 50%. A tail that would run past the ends is pulled inward.
 - Gap: how much of the line is cut away at the tail; for a V or taper, the width of its base. A slash with 0 keeps the line whole.
-- Width (V or taper with Direction Right or Left): how far the tip moves sideways.
+- Width (any shape but a slash, with Direction Right or Left): how far the tip moves sideways.
 - Height: how far the tail reaches out from the line.
+- Dot at the tip (V, slash, taper or U): puts a filled dot three times the weight across at the tip of the tail. Saved in presets too.
 
 #### Line/Frame
 
-- Shape: Underline draws a line below the glyphs. Bracket turns both ends of the line up toward the text. Box encloses the glyphs in a rectangle. A bracket whose Corner radius equals its Ticks gets curly-bracket ends.
+- Shape: Underline draws a line below the glyphs. L shape turns up only the end nearer the tail toward the text (the start when Position is 50% or less). Bracket turns both ends of the line up toward the text. Box encloses the glyphs in a rectangle. Top & bottom draws lines on both sides of the glyphs, with the tail on the line on the chosen side. A bracket whose Corner radius equals its Ticks gets curly-bracket ends.
 - Side: Top, Bottom, Left or Right, laid out around a cross. Each time the dialog box opens, Bottom is picked when the first text is horizontal and Right when it is vertical (the same happens when picking a preset that has no side of its own).
   - On Top, the tail points up (Right goes up to the right, Left up to the left).
   - On Left or Right the line starts at the top, Right leans toward the bottom and Left toward the top.
 - Distance: from the glyphs to the line; the top and bottom padding of a box.
 - Extension: how far the line runs past the glyphs (negative values shorten it); the side padding of a box.
-- Ticks (bracket): length of the turned-up ends.
-- Corner radius (bracket or box): 0 keeps the corners sharp. When the tail overlaps a bottom corner's rounding (a V pointing Left at 0%, for example), that corner stays sharp and the tail comes out of it (a capsule keeps its tail inside the rounding instead).
-- Capsule (bracket or box): uses the largest corner radius the sides allow, so the ends of a box become half circles (a bracket gets the Ticks length as its radius). Corner radius is unused while it is on. Saved in presets too.
+- Ticks (L shape or bracket): length of the turned-up ends.
+- Corner radius (L shape, bracket or box): 0 keeps the corners sharp. When the tail overlaps a bottom corner's rounding (a V pointing Left at 0%, for example), that corner stays sharp and the tail comes out of it (a capsule keeps its tail inside the rounding instead).
+- Capsule (L shape, bracket or box): uses the largest corner radius the sides allow, so the ends of a box become half circles (a bracket gets the Ticks length as its radius). Corner radius is unused while it is on. Saved in presets too.
 - Shadow (box): adds a second line this far out on the right and bottom (0 for none). Its ends line up with where the box's corner rounding starts; the tail's right edge is offset in parallel and stops at the tip's height, and the bottom line stops short of the tail's left edge.
+- Side gaps (box): cuts this much out of the middle of the box's left and right sides (0 for none). On a capsule the half circles are cut at their middle.
 - Weight: stroke weight of the line and tail.
 - Color: Text (default) uses the fill of each text's first character (black when it has no fill); the other radio button (custom, shown with just a swatch) uses the swatch's color. Clicking the swatch opens Illustrator's Color Picker and switches to custom.
 - Cap: Butt (default) or Round. Butt keeps the corners pointed; Round rounds the corners too.
@@ -77,6 +83,10 @@ The dialog box has Presets centered at the top, the Tail and Text Options panels
 - The area type conversion and vertical centering run after OK, so the preview does not show them.
 - Locked or hidden text, and text containing only spaces, is skipped.
 
+### Article
+
+[Draw underlines and boxes with a speech-bubble tail on text with an Illustrator script (Japanese)](https://note.com/dtp_tranist/n/n8849614c960c)
+
 ### Update History
 
 - v1.0.0 (2026-11-02): Initial release
@@ -85,3 +95,4 @@ The dialog box has Presets centered at the top, the Tail and Text Options panels
 - v1.1.0 (2026-11-03): Added Nudge X and Nudge Y for a detached slash, and Capsule below Corner radius; a tail overlapping a bottom corner's rounding now leaves that corner sharp, plus the built-in presets Capsule box, Underline, slash down right, no gap, and boxes with a tail at the bottom-right or bottom-left corner. Renamed Direction to Straight, Right and Left (V renamed V shape) and revised tooltips for the Side setting
 - v1.1.1 (2026-11-03): Picking Direction (or Shape) for a slash now sets Nudge X to minus half the weight for Right and plus half for Left; built-in presets without a Nudge X do the same
 - v1.1.2 (2026-11-03): The built-in presets Underline, slash down right and Underline, slash down left now use Round cap
+- v1.2.0 (2026-11-03): Added the tail shapes U shape, Loop, Horn and Thought, and the line shapes L shape and Top & bottom (the tail shapes now sit in three columns). Added Dot at the tip for the tail and Side gaps for a box, plus the built-in presets Underline, U; Underline, loop; L shape, V down left; Capsule box with gaps; Capsule box, slash with a dot; Thought bubble; Rounded box, horn; and Top & bottom, slash down left
