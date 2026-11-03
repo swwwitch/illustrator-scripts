@@ -297,6 +297,7 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 - [マスク編集モードへの切り替えとクリッピングマスク作成](readme-ja/ClipEditMask.md)
 - [クリップ形状を正方形・正円・六角形に置き換え](readme-ja/ClipMaskShapeChanger.md)
 - [複数の図形と画像をまとめてクリッピングマスク化](readme-ja/ImgFitMaskMultiple.md)
+- [画像をパスごとに切り分け](readme-ja/ClipImageWithEachPath.md)
 - [クリッピングマスクの作成と解除を切り替える](readme-ja/MakeClippingMask.md)
 
 

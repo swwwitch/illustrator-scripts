@@ -293,6 +293,7 @@ After release, we continue to fix bugs and make adjustments through daily use.
 - [Toggle mask-edit mode or create a clipping mask](readme-en/ClipEditMask.md)
 - [Replace the clipping shape with a square, circle or h…](readme-en/ClipMaskShapeChanger.md)
 - [Fit and clip several images to their shapes](readme-en/ImgFitMaskMultiple.md)
+- [Cut an image into pieces with paths](readme-en/ClipImageWithEachPath.md)
 - [Create or release a clipping mask](readme-en/MakeClippingMask.md)
 - [Build a blur, a spotlight, a loupe or a detail callou…](readme-en/MaskSpotlight.md)
 - [Trim an image with break lines](readme-en/TrimWithBreakLine.md)
