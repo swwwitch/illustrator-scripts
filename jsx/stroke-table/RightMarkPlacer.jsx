@@ -8,13 +8,13 @@ Script-ID=com.swwwitch.illustrator.RightMarkPlacer
 Name=隣り合うオブジェクトのアキの中央に記号を配置
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.6.1
+Version=1.7.0
 Release-Date=2026-03-28
 Description-BEGIN
-選択した複数オブジェクトを左から順に見て、隣り合うオブジェクト同士のアキの中央に記号を配置します。
+選択した複数オブジェクトを左から（縦に並んでいるときは上から）順に見て、隣り合うオブジェクト同士のアキの中央に記号を配置します。
 記号は9種類から選べ、高さ・幅・線幅・位置をダイアログで調整できます。
 
-Scans the selected objects from left to right and places a mark in the middle of the gap between each adjacent pair.
+Scans the selected objects from left to right (top to bottom when they are stacked vertically) and places a mark in the middle of the gap between each adjacent pair.
 Nine marks are available, with height, width, stroke weight and position set from the dialog.
 Description-END
 SCRIPTMETA-END
@@ -24,7 +24,7 @@ SCRIPTMETA-END
 
 ### 概要
 
-選択した複数オブジェクトを左から順に見て、隣り合うオブジェクト同士のアキの中央に記号を配置します。
+選択した複数オブジェクトを左から（縦に並んでいるときは上から）順に見て、隣り合うオブジェクト同士のアキの中央に記号を配置します。
 記号は9種類から選べ、高さ・幅・線幅・位置をダイアログで調整できます。
 
 詳細は README を参照してください。
@@ -35,7 +35,7 @@ https://note.com/dtp_tranist/n/nebac730ec187
 
 ### Overview
 
-Scans the selected objects from left to right and places a mark in the middle of the gap between each adjacent pair.
+Scans the selected objects from left to right (top to bottom when they are stacked vertically) and places a mark in the middle of the gap between each adjacent pair.
 Nine marks are available, with height, width, stroke weight and position set from the dialog.
 
 See the README for details.
@@ -47,10 +47,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RightMarkP
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "RightMarkPlacer";              /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.6.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.7.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-03-28";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-18";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-11-03";                   /* 更新日 / last updated */
 
 var SCRIPT_DESCRIPTION_JA = "隣り合うオブジェクトのアキの中央に記号を配置"; /* README の見出し / README title (Japanese) */
 
@@ -1688,9 +1688,16 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
                 round: { ja: "ラウンド", en: "Round" }
             }
         },
+        /* 縦の並びでは記号を下向きに回すので、向きに関わる文言は並びごとに持つ / Marks are turned downward in a vertical stack, so direction-dependent wording exists per arrangement */
         checkbox: {
-            mirrorHorizontal: { ja: "左右逆", en: "Mirror horizontally" },
-            flatChevron: { ja: "天地を水平に", en: "Keep top and bottom edges horizontal" },
+            mirror: {
+                horizontal: { ja: "左右逆", en: "Mirror horizontally" },
+                vertical: { ja: "上下逆", en: "Mirror vertically" }
+            },
+            flatChevron: {
+                horizontal: { ja: "天地を水平に", en: "Keep top and bottom edges horizontal" },
+                vertical: { ja: "左右を垂直に", en: "Keep left and right edges vertical" }
+            },
             roundCorners: { ja: "角丸", en: "Rounded corners" },
             whiteEdge: { ja: "白フチ", en: "White Outline" }
         },
@@ -1710,26 +1717,47 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         tooltip: {
             solidArrow: { ja: "矢じりの天地は線幅の%1倍になります。", en: "The arrowhead is %1× the stroke width tall." },
             height: {
-                ja: "隣り合う2つのオブジェクト全体の高さに対する割合（%1%まで）",
-                en: "Percentage of the overall height of the two adjacent objects (up to %1%)"
+                horizontal: {
+                    ja: "隣り合う2つのオブジェクト全体の高さに対する割合（%1%まで）",
+                    en: "Percentage of the overall height of the two adjacent objects (up to %1%)"
+                },
+                vertical: {
+                    ja: "隣り合う2つのオブジェクト全体の幅とアキの、小さい方に対する割合（%1%まで）",
+                    en: "Percentage of the overall width of the two adjacent objects or of the gap, whichever is smaller (up to %1%)"
+                }
             },
             width: { ja: "空欄にすると自動計算に戻ります", en: "Clear to calculate automatically again" },
-            inset: { ja: "幅の%1%が上限です", en: "Max %1% of width" },
+            inset: {
+                horizontal: { ja: "幅の%1%が上限です", en: "Max %1% of width" },
+                vertical: { ja: "高さの%1%が上限です", en: "Max %1% of height" }
+            },
             gap: {
                 ja: ">> の2つの山形の間隔。負の値で重なります",
                 en: "Space between the two chevrons of >>. Negative values overlap them"
             },
             angle: { ja: "＿\\ の斜線の角度（%1°まで）", en: "Slash angle of ─\\ (up to %1°)" },
             flatChevron: {
-                ja: "> と >> を、天地が水平な塗りの形状で作成します",
-                en: "Draws > and >> as filled shapes with horizontal top and bottom edges"
+                horizontal: {
+                    ja: "> と >> を、天地が水平な塗りの形状で作成します",
+                    en: "Draws > and >> as filled shapes with horizontal top and bottom edges"
+                },
+                vertical: {
+                    ja: "> と >> を、左右が垂直な塗りの形状で作成します",
+                    en: "Draws > and >> as filled shapes with vertical left and right edges"
+                }
             },
             roundCorners: {
                 ja: "▶ の角を丸くします。半径は記号の大きさから自動で決まります",
                 en: "Rounds the corners of ▶. The radius is set automatically from the mark size"
             },
-            offsetX: { ja: "記号を左右にずらします。正の値で右へ移動します", en: "Shifts the marks horizontally. Positive values move them right" },
-            offsetY: { ja: "記号を上下にずらします。正の値で上へ移動します", en: "Shifts the marks vertically. Positive values move them up" },
+            offsetX: {
+                ja: "記号を左右にずらします。正の値で右へ移動します",
+                en: "Shifts the marks horizontally. Positive values move them right"
+            },
+            offsetY: {
+                ja: "記号を上下にずらします。正の値で上へ移動します",
+                en: "Shifts the marks vertically. Positive values move them up"
+            },
             whiteEdge: {
                 ja: "記号の背面に白い複製を置き、［パスのアウトライン］と［パスのオフセット］効果で白いフチにします。",
                 en: "Places a white copy behind each mark and turns it into a white outline with the Outline Stroke and Offset Path effects."
@@ -1774,7 +1802,10 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
                 ja: "線幅は %1 %2 以上の値を入力してください。",
                 en: "Please enter a stroke width of %1 %2 or greater."
             },
-            widthPositive: { ja: "幅は 0 以上の値を入力してください。", en: "Please enter a width value of 0 or greater." },
+            widthPositive: {
+                horizontal: { ja: "幅は 0 以上の値を入力してください。", en: "Please enter a width value of 0 or greater." },
+                vertical: { ja: "高さは 0 以上の値を入力してください。", en: "Please enter a height value of 0 or greater." }
+            },
             invalidValue: { ja: "入力値を確認してください。", en: "Please check the input values." }
         },
         log: {
@@ -1927,14 +1958,36 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     }
 
     /**
-     * アイテムの中心の X 座標を求めます。
+     * アイテムの中心の座標を求めます。
      *
      * @param {PageItem} pageItem - 対象のアイテム。
-     * @returns {number} 中心の X 座標。
+     * @returns {number[]} 中心の [X, Y] 座標。
      */
-    function getItemCenterX(pageItem) {
+    function getItemCenter(pageItem) {
         var itemBounds = getItemMeasurementBounds(pageItem);
-        return (itemBounds[0] + itemBounds[2]) / 2;
+        return [(itemBounds[0] + itemBounds[2]) / 2, (itemBounds[1] + itemBounds[3]) / 2];
+    }
+
+    /**
+     * アイテムが縦に並んでいるかを判定します。
+     * 中心の散らばりが左右より上下に大きければ縦の並びとみなします（同じなら横の並び）。
+     *
+     * @param {PageItem[]} pageItems - 対象のアイテムの配列。
+     * @returns {boolean} 縦の並びなら true。
+     */
+    function isVerticalArrangement(pageItems) {
+        var minX = Infinity;
+        var maxX = -Infinity;
+        var minY = Infinity;
+        var maxY = -Infinity;
+        for (var i = 0; i < pageItems.length; i++) {
+            var itemCenter = getItemCenter(pageItems[i]);
+            if (itemCenter[0] < minX) minX = itemCenter[0];
+            if (itemCenter[0] > maxX) maxX = itemCenter[0];
+            if (itemCenter[1] < minY) minY = itemCenter[1];
+            if (itemCenter[1] > maxY) maxY = itemCenter[1];
+        }
+        return (maxY - minY) > (maxX - minX);
     }
 
     /* 並べ替えキーの桁 / Sort key layout */
@@ -1955,17 +2008,21 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     }
 
     /**
-     * アイテムの配列を、中心の X 座標で左から右の順に並べ替えます（配列そのものを並べ替えます）。
+     * アイテムの配列を、横の並びなら中心の X 座標で左から右、縦の並びなら中心の Y 座標で上から下の順に並べ替えます（配列そのものを並べ替えます）。
      * ExtendScript の比較関数つき sort() は並びが狂うことがあるため、文字列キーを引数なしの sort() で並べます。
      *
      * @param {PageItem[]} pageItems - 対象のアイテムの配列。
+     * @param {boolean} isVertical - 縦の並びなら true。
      * @returns {PageItem[]} 並べ替えた配列。
      */
-    function sortItemsLeftToRight(pageItems) {
+    function sortItemsAlongArrangement(pageItems, isVertical) {
         var sortKeys = [];
         var i;
         for (i = 0; i < pageItems.length; i++) {
-            var coordinateKey = padZero((getItemCenterX(pageItems[i]) + SORT_KEY_OFFSET).toFixed(4), SORT_KEY_WIDTH);
+            var itemCenter = getItemCenter(pageItems[i]);
+            /* Y は上ほど大きいので、符号を反転して上から並べる / Y grows upward, so negate it to sort from the top */
+            var sortCoordinate = isVertical ? -itemCenter[1] : itemCenter[0];
+            var coordinateKey = padZero((sortCoordinate + SORT_KEY_OFFSET).toFixed(4), SORT_KEY_WIDTH);
             sortKeys.push(coordinateKey + "\u0001" + padZero(String(i), SORT_KEY_INDEX_WIDTH));
         }
         sortKeys.sort();
@@ -1979,58 +2036,76 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
 
     /**
      * 隣り合う2つのオブジェクトから、記号を置く位置とサイズを求めます。
+     * 縦の並びでは、アキは上下方向、記号の高さの基準は2つの合計の幅とアキの小さい方になります（記号は右向きに作ってから下向きに回します）。
      *
-     * @param {PageItem} leftItem - 左側のアイテム。
-     * @param {PageItem} rightItem - 右側のアイテム。
-     * @param {number} heightPercent - 高さ（％）。null なら合計高さをそのまま使います。
+     * @param {PageItem} firstItem - 1つ目のアイテム。
+     * @param {PageItem} secondItem - 2つ目のアイテム。
+     * @param {boolean} isVertical - 縦の並びなら true。
+     * @param {number} heightPercent - 高さ（％）。null なら合計高さ（縦の並びでは合計の幅とアキの小さい方）をそのまま使います。
      * @param {number} widthPt - 幅（pt）。
      * @param {number} offsetX - 左右の位置調整（pt）。
      * @param {number} offsetY - 上下の位置調整（pt）。
      * @returns {object} 配置情報。アキがない場合は null。
      */
-    function computePlacementBetweenItems(leftItem, rightItem, heightPercent, widthPt, offsetX, offsetY) {
-        var firstBounds = getItemMeasurementBounds(leftItem);
-        var secondBounds = getItemMeasurementBounds(rightItem);
+    function computePlacementBetweenItems(firstItem, secondItem, isVertical, heightPercent, widthPt, offsetX, offsetY) {
+        var firstBounds = getItemMeasurementBounds(firstItem);
+        var secondBounds = getItemMeasurementBounds(secondItem);
+        var gapSize, gapCenter, crossSize, crossCenter;
 
-        var leftBounds = (firstBounds[0] < secondBounds[0]) ? firstBounds : secondBounds;
-        var rightBounds = (firstBounds[0] < secondBounds[0]) ? secondBounds : firstBounds;
+        if (isVertical) {
+            /* 上のアイテムの下辺から、下のアイテムの上辺まで / from the upper item's bottom edge to the lower item's top edge */
+            var upperBounds = (firstBounds[1] > secondBounds[1]) ? firstBounds : secondBounds;
+            var lowerBounds = (firstBounds[1] > secondBounds[1]) ? secondBounds : firstBounds;
+            gapSize = upperBounds[3] - lowerBounds[1];
+            gapCenter = (upperBounds[3] + lowerBounds[1]) / 2;
+            var spanLeft = Math.min(firstBounds[0], secondBounds[0]);
+            var spanRight = Math.max(firstBounds[2], secondBounds[2]);
+            crossSize = spanRight - spanLeft;
+            crossCenter = (spanLeft + spanRight) / 2;
+        } else {
+            var leftBounds = (firstBounds[0] < secondBounds[0]) ? firstBounds : secondBounds;
+            var rightBounds = (firstBounds[0] < secondBounds[0]) ? secondBounds : firstBounds;
+            gapSize = rightBounds[0] - leftBounds[2];
+            gapCenter = (leftBounds[2] + rightBounds[0]) / 2;
+            var spanTop = Math.max(firstBounds[1], secondBounds[1]);
+            var spanBottom = Math.min(firstBounds[3], secondBounds[3]);
+            crossSize = spanTop - spanBottom;
+            crossCenter = (spanTop + spanBottom) / 2;
+        }
+        if (gapSize <= 0) return null;
 
-        var gapLeft = leftBounds[2];
-        var gapRight = rightBounds[0];
-        if (gapRight - gapLeft <= 0) return null;
-
-        var top = Math.max(firstBounds[1], secondBounds[1]);
-        var bottom = Math.min(firstBounds[3], secondBounds[3]);
-        var totalHeight = top - bottom;
+        /* 縦に積むオブジェクトは横幅がアキよりずっと広いことが多く、合計の幅だけを基準にすると記号がアキからはみ出すので、アキで頭打ちにする
+           Stacked objects are often far wider than the gap, so the total width alone makes marks overflow it; cap the basis at the gap */
+        var sizeBasis = isVertical ? Math.min(crossSize, gapSize) : crossSize;
         var usesFullHeight = (heightPercent === null || typeof heightPercent === "undefined");
-        var markHeight = usesFullHeight ? totalHeight : (totalHeight * (heightPercent / 100));
+        var markHeight = usesFullHeight ? sizeBasis : (sizeBasis * (heightPercent / 100));
 
         return {
-            gapLeft: gapLeft,
-            gapRight: gapRight,
-            centerX: (gapLeft + gapRight) / 2 + (offsetX || 0),
-            centerY: (top + bottom) / 2 + (offsetY || 0),
-            totalHeight: totalHeight,
+            gapSize: gapSize,
+            centerX: (isVertical ? crossCenter : gapCenter) + (offsetX || 0),
+            centerY: (isVertical ? gapCenter : crossCenter) + (offsetY || 0),
+            totalHeight: sizeBasis, /* 記号の高さの基準（縦の並びでは合計の幅とアキの小さい方）/ basis of the mark height (the smaller of the total width and the gap when stacked) */
             height: markHeight,
             width: widthPt
         };
     }
 
     /**
-     * 隣り合う組を走査し、最も狭いアキと最も低い合計高さを求めます。
+     * 隣り合う組を走査し、最も狭いアキと最も低い合計高さ（縦の並びでは、合計の幅とアキの小さい方の最小値）を求めます。
      *
-     * @param {PageItem[]} sortedItems - 左から右の順に並べたアイテム。
+     * @param {PageItem[]} sortedItems - 並びの順に並べたアイテム。
+     * @param {boolean} isVertical - 縦の並びなら true。
      * @returns {object} minGapWidth / minTotalHeight を持つオブジェクト。アキのある組がなければ null。
      */
-    function measureNarrowestGap(sortedItems) {
+    function measureNarrowestGap(sortedItems, isVertical) {
         var minGapWidth = null;
         var minTotalHeight = null;
 
         for (var i = 0; i < sortedItems.length - 1; i++) {
-            var placement = computePlacementBetweenItems(sortedItems[i], sortedItems[i + 1], null, 0, 0, 0);
+            var placement = computePlacementBetweenItems(sortedItems[i], sortedItems[i + 1], isVertical, null, 0, 0, 0);
             if (!placement) continue;
 
-            var gapWidth = placement.gapRight - placement.gapLeft;
+            var gapWidth = placement.gapSize;
             if (minGapWidth === null || gapWidth < minGapWidth) {
                 minGapWidth = gapWidth;
             }
@@ -2767,22 +2842,65 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     // =========================================
 
     /**
-     * 隣り合う2つのオブジェクトの間に記号を1つ作成し、［左右逆］がONなら反転し、［白フチ］がONなら白フチを付けます。
+     * 点を、中心のまわりに時計回りに90°回した位置を返します。
      *
-     * @param {PageItem} leftItem - 左側のアイテム。
-     * @param {PageItem} rightItem - 右側のアイテム。
+     * @param {number[]} point - 元の点 [X, Y]。
+     * @param {number} centerX - 回転の中心の X 座標。
+     * @param {number} centerY - 回転の中心の Y 座標。
+     * @returns {number[]} 回した点 [X, Y]。
+     */
+    function rotatePointClockwise(point, centerX, centerY) {
+        return [centerX + (point[1] - centerY), centerY - (point[0] - centerX)];
+    }
+
+    /**
+     * 記号を、配置の中心のまわりに時計回りに90°回します（右向きの記号が下向きになります）。
+     * rotate() の中心はバウンズの中心で、＿\ のように記号の中心とずれる形状があるため、アンカーポイントとハンドルを直接書き換えます。
+     *
+     * @param {PageItem} markItem - 対象の記号。
+     * @param {number} centerX - 回転の中心の X 座標。
+     * @param {number} centerY - 回転の中心の Y 座標。
+     * @returns {void}
+     */
+    function turnMarkClockwise(markItem, centerX, centerY) {
+        var markPaths = collectPathItems(markItem, []);
+        for (var i = 0; i < markPaths.length; i++) {
+            var pathPoints = markPaths[i].pathPoints;
+            for (var j = 0; j < pathPoints.length; j++) {
+                var pathPoint = pathPoints[j];
+                /* 3つとも読んでから書く / read all three before writing */
+                var anchor = pathPoint.anchor;
+                var leftDirection = pathPoint.leftDirection;
+                var rightDirection = pathPoint.rightDirection;
+                pathPoint.anchor = rotatePointClockwise(anchor, centerX, centerY);
+                pathPoint.leftDirection = rotatePointClockwise(leftDirection, centerX, centerY);
+                pathPoint.rightDirection = rotatePointClockwise(rightDirection, centerX, centerY);
+            }
+        }
+    }
+
+    /**
+     * 隣り合う2つのオブジェクトの間に記号を1つ作成し、［左右逆］がONなら反転し、［白フチ］がONなら白フチを付けます。
+     * 縦の並びでは、右向きに作った記号を下向きに回します（［左右逆］なら上向き）。
+     *
+     * @param {PageItem} firstItem - 1つ目のアイテム。
+     * @param {PageItem} secondItem - 2つ目のアイテム。
+     * @param {boolean} isVertical - 縦の並びなら true。
      * @param {object} markSettings - 検証済みの入力値。
      * @returns {PageItem} 作成したアイテム。アキがない場合は null。
      */
-    function createMarkBetweenItems(leftItem, rightItem, markSettings) {
-        var placement = computePlacementBetweenItems(leftItem, rightItem, markSettings.heightPercent, markSettings.widthPt, markSettings.offsetX, markSettings.offsetY);
+    function createMarkBetweenItems(firstItem, secondItem, isVertical, markSettings) {
+        var placement = computePlacementBetweenItems(firstItem, secondItem, isVertical, markSettings.heightPercent, markSettings.widthPt, markSettings.offsetX, markSettings.offsetY);
         if (!placement) return null;
 
         var markItem = markSettings.shapeConfig.createMark(placement, markSettings);
         if (markSettings.mirror) {
             markItem.resize(-100, 100, true, true, true, true, 100, Transformation.CENTER);
         }
-        /* 反転したあとの記号から複製する / copy the mark after mirroring */
+        if (isVertical) {
+            turnMarkClockwise(markItem, placement.centerX, placement.centerY);
+        }
+        /* 反転・回転したあとの記号から複製する / copy the mark after mirroring and turning */
         if (markSettings.whiteEdge) {
             markItem = addWhiteEdgeBehind(markItem, markSettings.whiteEdgeStyle);
         }
@@ -2792,11 +2910,12 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     /**
      * 隣り合うすべての組に記号を作成します。
      *
-     * @param {PageItem[]} sortedItems - 左から右の順に並べたアイテム。
+     * @param {PageItem[]} sortedItems - 並びの順に並べたアイテム。
+     * @param {boolean} isVertical - 縦の並びなら true。
      * @param {object} markSettings - 検証済みの入力値。
      * @returns {PageItem[]} 作成したアイテムの配列。
      */
-    function createMarks(sortedItems, markSettings) {
+    function createMarks(sortedItems, isVertical, markSettings) {
         var createdItems = [];
 
         /* ➡ と白フチは選択状態を使うメニューコマンドを呼ぶため、ここで1回だけ退避・復元する / The solid arrow and the white outline drive menu commands, so save and restore the selection once */
@@ -2806,7 +2925,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
 
         try {
             for (var i = 0; i < sortedItems.length - 1; i++) {
-                var markItem = createMarkBetweenItems(sortedItems[i], sortedItems[i + 1], markSettings);
+                var markItem = createMarkBetweenItems(sortedItems[i], sortedItems[i + 1], isVertical, markSettings);
                 if (markItem) createdItems.push(markItem);
             }
         } finally {
@@ -2898,9 +3017,9 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
      * @returns {void}
      */
     function commitLabeledField(inputField) {
-        var value = evaluateArithmetic(inputField.text, inputField.unitText);
-        if (!isNaN(value) && value !== parseFloat(inputField.text)) {
-            inputField.text = String(roundDisplayValueForUnit(value, inputField.unitInfo));
+        var evaluatedValue = evaluateArithmetic(inputField.text, inputField.unitText);
+        if (!isNaN(evaluatedValue) && evaluatedValue !== parseFloat(inputField.text)) {
+            inputField.text = String(roundDisplayValueForUnit(evaluatedValue, inputField.unitInfo));
         }
         if (inputField.onChanging) inputField.onChanging();
     }
@@ -2910,9 +3029,10 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
      *
      * @param {Group} parentColumn - 追加先のカラム。
      * @param {object} dialogControls - コントロールを登録するオブジェクト。
+     * @param {string} arrangementKey - 並びの向き（"horizontal" / "vertical"）。向きに関わる文言を選びます。
      * @returns {void}
      */
-    function buildShapePanel(parentColumn, dialogControls) {
+    function buildShapePanel(parentColumn, dialogControls, arrangementKey) {
         var shapePanel = parentColumn.add("panel", undefined, getLabel("panel.shape"));
         setupPanel(shapePanel, RADIO_SPACING);
 
@@ -2929,7 +3049,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         setupRow(mirrorGroup, "left");
         mirrorGroup.margins = [0, MIRROR_ROW_TOP_MARGIN, 0, 0];
 
-        dialogControls.mirrorCheckbox = mirrorGroup.add("checkbox", undefined, getLabel("checkbox.mirrorHorizontal"));
+        dialogControls.mirrorCheckbox = mirrorGroup.add("checkbox", undefined, getLabel("checkbox.mirror." + arrangementKey));
     }
 
     /**
@@ -2955,21 +3075,25 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
      *
      * @param {Group} parentColumn - 追加先のカラム。
      * @param {object} dialogControls - コントロールを登録するオブジェクト。
+     * @param {string} arrangementKey - 並びの向き（"horizontal" / "vertical"）。向きに関わる文言を選びます。
      * @returns {void}
      */
-    function buildOptionsPanel(parentColumn, dialogControls) {
+    function buildOptionsPanel(parentColumn, dialogControls, arrangementKey) {
         var optionsPanel = parentColumn.add("panel", undefined, getLabel("panel.options"));
         setupPanel(optionsPanel, 6);
 
-        dialogControls.heightField = addLabeledField(optionsPanel, "fieldLabel.height", "%", null);
-        dialogControls.heightField.helpTip = getLabel("tooltip.height", [MAX_HEIGHT_PERCENT]);
+        /* 縦の並びでは記号を下向きに回すので、高さ（％）の欄は画面上の幅、幅の欄は高さになる
+           Marks are turned downward in a vertical stack, so the height (%) field sets the on-screen width and the width field the height */
+        var isVerticalLabels = (arrangementKey === "vertical");
+        dialogControls.heightField = addLabeledField(optionsPanel, isVerticalLabels ? "fieldLabel.width" : "fieldLabel.height", "%", null);
+        dialogControls.heightField.helpTip = getLabel("tooltip.height." + arrangementKey, [MAX_HEIGHT_PERCENT]);
         dialogControls.heightField.active = true;
 
-        dialogControls.widthField = addLabeledField(optionsPanel, "fieldLabel.width", rulerUnit.label, rulerUnit);
+        dialogControls.widthField = addLabeledField(optionsPanel, isVerticalLabels ? "fieldLabel.height" : "fieldLabel.width", rulerUnit.label, rulerUnit);
         dialogControls.widthField.helpTip = getLabel("tooltip.width");
 
         dialogControls.insetField = addLabeledField(optionsPanel, "fieldLabel.inset", rulerUnit.label, rulerUnit);
-        dialogControls.insetField.helpTip = getLabel("tooltip.inset", [roundDisplayValue(MAX_INSET_RATIO * 100)]);
+        dialogControls.insetField.helpTip = getLabel("tooltip.inset." + arrangementKey, [roundDisplayValue(MAX_INSET_RATIO * 100)]);
 
         dialogControls.gapField = addLabeledField(optionsPanel, "fieldLabel.gap", rulerUnit.label, rulerUnit);
         dialogControls.gapField.helpTip = getLabel("tooltip.gap");
@@ -2985,8 +3109,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         optionCheckboxGroup.spacing = FIELD_ROW_SPACING;
         optionCheckboxGroup.margins = [OPTION_CHECKBOX_INDENT, OPTION_CHECKBOX_TOP_MARGIN, 0, 0];
 
-        dialogControls.flatChevronCheckbox = optionCheckboxGroup.add("checkbox", undefined, getLabel("checkbox.flatChevron"));
-        dialogControls.flatChevronCheckbox.helpTip = getLabel("tooltip.flatChevron");
+        dialogControls.flatChevronCheckbox = optionCheckboxGroup.add("checkbox", undefined, getLabel("checkbox.flatChevron." + arrangementKey));
+        dialogControls.flatChevronCheckbox.helpTip = getLabel("tooltip.flatChevron." + arrangementKey);
 
         dialogControls.roundCornersCheckbox = optionCheckboxGroup.add("checkbox", undefined, getLabel("checkbox.roundCorners"));
         dialogControls.roundCornersCheckbox.helpTip = getLabel("tooltip.roundCorners");
@@ -3060,9 +3184,11 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
      * ダイアログの中身を組み立て、コントロールをまとめて返します。
      *
      * @param {Window} markDialog - 対象のダイアログ。
+     * @param {boolean} isVertical - 縦の並びなら true。
      * @returns {object} すべてのコントロールを持つオブジェクト。
      */
-    function buildDialogControls(markDialog) {
+    function buildDialogControls(markDialog, isVertical) {
+        var arrangementKey = isVertical ? "vertical" : "horizontal";
         var columnsGroup = markDialog.add("group");
         setupRow(columnsGroup, "fill", COLUMN_SPACING);
         columnsGroup.alignChildren = ["fill", "top"];
@@ -3073,10 +3199,11 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         var rightColumn = columnsGroup.add("group");
         setupColumn(rightColumn, COLUMN_PANEL_SPACING);
 
-        var dialogControls = {};
-        buildShapePanel(leftColumn, dialogControls);
+        /* 向きに関わる警告の文言を readMarkSettings() で選べるよう控える / kept so readMarkSettings() can pick direction-dependent alerts */
+        var dialogControls = { arrangementKey: arrangementKey };
+        buildShapePanel(leftColumn, dialogControls, arrangementKey);
         buildCapStylePanel(leftColumn, dialogControls);
-        buildOptionsPanel(rightColumn, dialogControls);
+        buildOptionsPanel(rightColumn, dialogControls, arrangementKey);
         buildPositionPanel(rightColumn, dialogControls);
         buildWhiteEdgePanel(rightColumn, dialogControls);
         fitLabelColumn();
@@ -3265,13 +3392,13 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         }
 
         if (isNaN(widthPt)) {
-            return reportInvalidValue(dialogControls.widthField, "alert.widthPositive", showAlert);
+            return reportInvalidValue(dialogControls.widthField, "alert.widthPositive." + dialogControls.arrangementKey, showAlert);
         }
         /* 空欄・0 は自動計算の幅 / Empty or zero uses the automatic width */
         if (widthPt === 0) {
             widthPt = dialogControls.computeAutoWidthPt ? dialogControls.computeAutoWidthPt() : null;
             if (!(widthPt > 0)) {
-                return reportInvalidValue(dialogControls.widthField, "alert.widthPositive", showAlert);
+                return reportInvalidValue(dialogControls.widthField, "alert.widthPositive." + dialogControls.arrangementKey, showAlert);
             }
         }
 
@@ -3347,8 +3474,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         if (!allowNegative) stepOptions.min = 0;
         if (typeof maxValue === "number") stepOptions.max = maxValue;
         stepOptions.onStep = function (steppedField) {
-            var value = parseFloat(steppedField.text);
-            if (!isNaN(value)) steppedField.text = String(roundDisplayValueForUnit(value, unitInfo));
+            var steppedValue = parseFloat(steppedField.text);
+            if (!isNaN(steppedValue)) steppedField.text = String(roundDisplayValueForUnit(steppedValue, unitInfo));
             if (steppedField.onChanging) steppedField.onChanging();
         };
     }
@@ -3384,31 +3511,42 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             alert(getLabel("alert.selectTwoObjects"));
             return;
         }
-        sortItemsLeftToRight(sortedItems);
+        /* 縦に並んでいれば上から下、そうでなければ左から右に見る / top to bottom when stacked, otherwise left to right */
+        var isVertical = isVerticalArrangement(sortedItems);
+        sortItemsAlongArrangement(sortedItems, isVertical);
+        var narrowestGap = measureNarrowestGap(sortedItems, isVertical);
+
+        /* 判定した向きにアキが無ければ、もう一方の向きで見直す（高さの大きく異なる横並びなどは、中心の散らばりだけでは縦と判定される）
+           With no gap in the detected direction, try the other one (a row of items with very different heights can look vertical by center spread alone) */
+        if (!narrowestGap) {
+            isVertical = !isVertical;
+            sortItemsAlongArrangement(sortedItems, isVertical);
+            narrowestGap = measureNarrowestGap(sortedItems, isVertical);
+        }
 
         /* どの組にもアキがなければ記号を作成できないので、ダイアログを出す前に知らせる / Fail early when no pair has a usable gap */
-        var narrowestGap = measureNarrowestGap(sortedItems);
         if (!narrowestGap) {
             alert(getLabel("alert.noGap"));
             return;
         }
 
-        showMarkDialog(activeDoc, sortedItems, narrowestGap);
+        showMarkDialog(activeDoc, sortedItems, isVertical, narrowestGap);
     }
 
     /**
      * ダイアログを表示し、プレビューと［OK］で記号を作成します。
      *
      * @param {Document} activeDoc - 対象のドキュメント。
-     * @param {PageItem[]} sortedItems - 左から右の順に並べたアイテム。
+     * @param {PageItem[]} sortedItems - 並びの順に並べたアイテム。
+     * @param {boolean} isVertical - 縦の並びなら true。
      * @param {object} narrowestGap - measureNarrowestGap() の戻り値（幅の自動計算に使います）。
      * @returns {void}
      */
-    function showMarkDialog(activeDoc, sortedItems, narrowestGap) {
+    function showMarkDialog(activeDoc, sortedItems, isVertical, narrowestGap) {
         var markDialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
         setupWindow(markDialog);
 
-        var dialogControls = buildDialogControls(markDialog);
+        var dialogControls = buildDialogControls(markDialog, isVertical);
 
         /* 幅を手入力したかどうか（手入力後は自動計算しない）/ Whether the width was typed in (auto-calculation stops once it is) */
         var widthManuallySet = false;
@@ -3585,7 +3723,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             var markSettings = readMarkSettings(dialogControls, false);
             if (!markSettings) return;
 
-            previewItems = createMarks(sortedItems, markSettings);
+            previewItems = createMarks(sortedItems, isVertical, markSettings);
             fitViewToPreview();
             app.redraw();
         }
@@ -3635,7 +3773,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             markDialog.close(1);
 
             if (createdItems.length === 0) {
-                createdItems = createMarks(sortedItems, markSettings);
+                createdItems = createMarks(sortedItems, isVertical, markSettings);
                 if (createdItems.length === 0) {
                     alert(getLabel("alert.noGap"));
                     return;
@@ -3736,7 +3874,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         }
 
         /**
-         * キーボードショートカット（F：先端なし、R：丸型、V：左右逆）を登録し、ツールチップにキーを表示します。
+         * キーボードショートカット（F：先端なし、R：丸型、V：左右逆／上下逆）を登録し、ツールチップにキーを表示します。
          * クリックと同じく選択してから onClick（updatePreview）を呼びます。無効なコントロールは押しません。
          *
          * @returns {void}

@@ -10,7 +10,7 @@
 
 ## Overview
 
-This script scans the selected objects from left to right and places a mark in the middle of the gap between each adjacent pair.
+This script scans the selected objects from left to right (top to bottom when they are stacked vertically) and places a mark in the middle of the gap between each adjacent pair.
 
 Use it to show the flow or the relationship between elements in a layout.
 
@@ -20,6 +20,7 @@ Use it to show the flow or the relationship between elements in a layout.
 
 - Nine marks to choose from (`▶` / `>` / `>>` / `─` / `→` / `➡` / `─\` / `＋` / `×`)
 - Places the same mark between every adjacent pair in the selection
+- Works with vertical stacks too (detected from the arrangement; the marks point down)
 - The width is calculated automatically (from the height for `▶` / `>` / `>>`, from the narrowest gap for the rest; it can also be typed in)
 - A width you type is the drawn size of the mark
 - Height (%), stroke width and position (horizontal / vertical) are adjustable
@@ -56,7 +57,7 @@ Use it to show the flow or the relationship between elements in a layout.
 | `＋` | Cross. |
 | `×` | Diagonal cross (the cross rotated 45°). |
 
-- Mirror horizontally flips the generated mark (disabled for `─` / `＋` / `×`).
+- Mirror horizontally flips the generated mark (disabled for `─` / `＋` / `×`). In a vertical stack it is labeled Mirror vertically and flips the mark upside down so it points up.
 - For `>>`, Width is the width of a single chevron; the pair spans width × 2 + gap.
 - For `×` alone, Width is the arm length shared with `＋`, so the drawn width is about 0.707 × the value.
 
@@ -119,7 +120,7 @@ Places a white copy behind each mark and turns it into an outline with the Outli
 | --- | --- |
 | `F` | Set the end style to None |
 | `R` | Set the end style to Round |
-| `V` | Toggle Mirror horizontally |
+| `V` | Toggle Mirror horizontally (Mirror vertically in a vertical stack) |
 | `↑` / `↓` | Step the focused field by one step |
 | `Shift` + `↑` / `↓` | Step while snapping to multiples of ten steps |
 | `Option` (`Alt`) + `↑` / `↓` | Step by a tenth of a step |
@@ -151,7 +152,8 @@ These can be changed in the User settings section at the top of the script.
 - The script alerts and exits when no document is open or fewer than two objects are selected.
 - It also alerts and exits when the active layer is locked or hidden.
 - **No mark is created for a pair whose objects overlap or leave no gap.** When no pair could be filled, the alert appears before the dialog opens.
-- The script assumes a left-to-right arrangement; objects are sorted by the X coordinate of their center.
+- The direction is detected from how the object centers are spread out. When they spread more vertically than horizontally, the objects are treated as a vertical stack and sorted top to bottom by the Y coordinate of their center; otherwise they are sorted left to right by the X coordinate. When no pair has a gap in the detected direction, the other direction is tried.
+- In a vertical stack, each mark is drawn pointing right and then turned 90° clockwise so it points down. The Height and Width labels in Options swap: Width (%) is a percentage of the combined width of the two adjacent objects or of the gap, whichever is smaller (stacked objects are often much wider than the gap, so the width alone would make the marks overflow it), and Height is the vertical length of the mark (Inset is capped at 80% of the height). Keep top and bottom edges horizontal becomes Keep left and right edges vertical. The Horizontal / Vertical offsets keep their on-screen directions.
 - Text is measured from its outlined bounds (the measurement copy is removed automatically). The measurements are kept until the dialog closes, so text is not re-outlined on every preview refresh.
 - Marks are created on the current layer and left selected.
 - Clicking OK keeps the previewed objects as the result.
@@ -164,6 +166,7 @@ These can be changed in the User settings section at the top of the script.
 
 ## Update history
 
+- v1.7.0 (2026-11-03): Added support for vertical stacks (detected from the arrangement; marks pointing down are placed in the middle of each gap, top to bottom). In a vertical stack the dialog shows Mirror vertically and Keep left and right edges vertical, and swaps the Height and Width labels. When no pair has a gap in the detected direction, the other direction is tried. In a vertical stack the mark size is based on the smaller of the combined width and the gap
 - v1.6.1 (2026-10-18): Fixed the Offset label in White Outline being cut off (the label column now fits the measured labels). Fixed the white outline sticking out square at the tip of → and of > with Keep top and bottom edges horizontal (the parts are now united before the offset). The stroke width now carries over when switching shapes (`➡` keeps its own)
 - v1.6.0 (2026-10-18): Added White Outline (a white copy behind each mark, turned into an outline with the Outline Stroke and Offset Path effects, with Offset and Joins (Miter/Round) settings). Fixed the preview and the OK result keeping the old value after an expression was committed. Fixed an error when run with characters selected by the Type tool. Left-to-right sorting is now stable. Values with units (such as "1in") are converted to the field's unit. Clearing the width field now fills in the automatic value on commit instead of immediately, so it can be retyped (0 also means automatic). Fixed Rounded corners staying off after switching shapes, invalid Gap values silently becoming 0, and the steppers not moving in ft, yd and m. Added steppers to the Fit to Window percentage. Shortcut tooltips now read "(F)"
 - v1.5.1 (2026-10-16): Right-only button rows are now centered when the dialog's inner width is up to 240 px (was 200 px) (shared part update)
