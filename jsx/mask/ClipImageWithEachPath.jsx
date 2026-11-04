@@ -7,16 +7,16 @@ Script-ID=com.swwwitch.illustrator.ClipImageWithEachPath
 Name=画像をパスごとに切り分け
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.1.0
+Version=1.2.0
 Release-Date=2026-11-03
 Description-BEGIN
 選択した画像を、一緒に選択したパスの数だけ複製し、それぞれのパスでクリッピングマスクを作ります。
 1枚の画像に描き並べたイラストを、パスで囲んで別々のオブジェクトに切り分けるときに使います。
-選択に線（オープンパス）が含まれていると、画像の範囲をパスで区切り、区切られた領域ごとにマスクを作ります。
+選択に画像を横切る線（始点と終点が離れたオープンパス）が含まれていると、画像の範囲をパスで区切り、区切られた領域ごとにマスクを作ります。
 
 Duplicates the selected image once for each selected path and clips each copy with its own path.
 Use it to cut several illustrations drawn on one image into separate objects.
-When the selection includes lines (open paths), the image area is divided by the paths and each resulting region becomes a mask.
+When the selection includes lines across the image (open paths whose ends are far apart), the image area is divided by the paths and each resulting region becomes a mask.
 Description-END
 SCRIPTMETA-END
 */
@@ -27,16 +27,19 @@ SCRIPTMETA-END
 
 選択した画像を、一緒に選択したパスの数だけ複製し、それぞれのパスでクリッピングマスクを作ります。
 1枚の画像に描き並べたイラストを、パスで囲んで別々のオブジェクトに切り分けるときに使います。
-選択に線（オープンパス）が含まれていると、画像の範囲をパスで区切り、区切られた領域ごとにマスクを作ります。
+選択に画像を横切る線（始点と終点が離れたオープンパス）が含まれていると、画像の範囲をパスで区切り、区切られた領域ごとにマスクを作ります。
 
 詳細は README を参照してください。
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ClipImageWithEachPath.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n6b28a104130d
 
 ### Overview
 
 Duplicates the selected image once for each selected path and clips each copy with its own path.
 Use it to cut several illustrations drawn on one image into separate objects.
-When the selection includes lines (open paths), the image area is divided by the paths and each resulting region becomes a mask.
+When the selection includes lines across the image (open paths whose ends are far apart), the image area is divided by the paths and each resulting region becomes a mask.
 
 See the README for details.
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ClipImageWithEachPath.md
@@ -47,21 +50,38 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ClipImageW
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ClipImageWithEachPath";        /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.2.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-11-03";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-11-04";                   /* 更新日 / last updated */
 
 var SCRIPT_DESCRIPTION_JA = "画像をパスごとに切り分け"; /* README の見出し / README title (Japanese) */
 
-var SCRIPT_README_JA  = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ClipImageWithEachPath.md"; /* README（日本語） */
-var SCRIPT_README_EN  = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ClipImageWithEachPath.md"; /* README (English) */
-var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/mask/ClipImageWithEachPath.jsx"; /* 最新版のソース / latest source */
+var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ClipImageWithEachPath.md"; /* README（日本語） */
+var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ClipImageWithEachPath.md"; /* README (English) */
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6b28a104130d"; /* 紹介記事 / article URL */
+var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/mask/ClipImageWithEachPath.jsx"; /* 最新版のソース / latest source */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
 
 (function () {
+
+    // =========================================
+    // ユーザー設定 / User Settings
+    // =========================================
+
+    /* 区切り線の両端を延ばす長さ（pt）。画像の縁の手前で止まった線も縁まで届かせる / Length (pt) to extend both ends of a dividing line so lines that stop short of the edge still reach it */
+    var DIVIDER_EXTEND_LENGTH = 3;
+
+    /* 始点と終点の距離が、パスの縦横の長いほうのこの割合より大きいオープンパスを区切り線とみなす / An open path is a dividing line when its ends are farther apart than this share of its longer side */
+    var DIVIDER_ENDPOINT_GAP_RATIO = 0.5;
+
+    /* これより小さい領域（面積 pt²）はマスクにしない / Regions smaller than this area (pt²) are not clipped */
+    var REGION_MIN_AREA = 1;
+
+    /* 平均の幅（面積÷長いほうの辺、pt）がこれより細い領域はマスクにしない / Regions thinner than this average width (area / longer side, pt) are not clipped */
+    var REGION_MIN_WIDTH = 0.5;
 
     // =========================================
     // ローカライズ / Localization
@@ -182,12 +202,39 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
     }
 
     /**
-     * 区切り線として使う線（閉じていないパス）か
+     * 選択から画像とパスを集める。グループ（クリップグループを除く）は中まで見る
+     * @param {Array} items - 調べるアイテム
+     * @param {Array} images - 見つけた画像を入れる配列
+     * @param {Array} paths - 見つけたパスを入れる配列
+     * @returns {void}
+     */
+    function collectImagesAndPaths(items, images, paths) {
+        for (var i = 0; i < items.length; i++) {
+            var item = items[i];
+            /* グループの中のロック・非表示のアイテムは動かせないので使わない / Locked or hidden items inside groups cannot be moved */
+            if (item.locked || item.hidden) continue;
+            if (isImageItem(item)) images.push(item);
+            else if (isMaskPath(item)) paths.push(item);
+            else if (item.typename === "GroupItem" && !item.clipped) collectImagesAndPaths(item.pageItems, images, paths);
+        }
+    }
+
+    /**
+     * 区切り線として使う線か（閉じていないパスで、始点と終点が離れている）
+     * 鉛筆ツールなどで囲んで閉じていないパスは、始点と終点がほぼ重なるので囲みとして扱う
      * @param {PathItem|CompoundPathItem} item - 判定するパス
-     * @returns {boolean} オープンパスなら true
+     * @returns {boolean} 区切り線なら true
      */
     function isDividerLine(item) {
-        return item.typename === "PathItem" && !item.closed;
+        if (item.typename !== "PathItem" || item.closed || item.pathPoints.length < 2) return false;
+        var points = item.pathPoints;
+        var firstAnchor = points[0].anchor;
+        var lastAnchor = points[points.length - 1].anchor;
+        var bounds = item.geometricBounds;
+        var longerSide = Math.max(bounds[2] - bounds[0], bounds[1] - bounds[3]);
+        var dx = lastAnchor[0] - firstAnchor[0];
+        var dy = lastAnchor[1] - firstAnchor[1];
+        return Math.sqrt(dx * dx + dy * dy) > longerSide * DIVIDER_ENDPOINT_GAP_RATIO;
     }
 
     /**
@@ -230,6 +277,91 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
     /* 領域が画像の範囲に収まっているかの許容値（pt） / Tolerance (pt) for the inside-the-image check */
     var REGION_BOUNDS_TOLERANCE = 0.01;
 
+    /* 方向線が付いていないとみなす距離（pt） / Distance (pt) under which a direction handle counts as absent */
+    var HANDLE_EPSILON = 0.001;
+
+    /**
+     * 2点が（ほぼ）同じ位置か
+     * @param {number[]} pointA - 1つめの点 [x, y]
+     * @param {number[]} pointB - 2つめの点 [x, y]
+     * @returns {boolean} 同じ位置なら true
+     */
+    function isSamePoint(pointA, pointB) {
+        return Math.abs(pointA[0] - pointB[0]) < HANDLE_EPSILON && Math.abs(pointA[1] - pointB[1]) < HANDLE_EPSILON;
+    }
+
+    /**
+     * 線の端点から、線の外へ向かう単位ベクトルを返す（端の方向線、なければ隣のアンカーの方向から求める）
+     * @param {PathPoint} endPoint - 端のアンカーポイント
+     * @param {number[]} endHandle - 端点の、線の内側へ向かう方向線
+     * @param {PathPoint} neighborPoint - 隣のアンカーポイント
+     * @param {number[]} neighborHandle - 隣のアンカーの、端点へ向かう方向線
+     * @returns {number[]|null} 単位ベクトル [x, y]（求められなければ null）
+     */
+    function getOutwardDirection(endPoint, endHandle, neighborPoint, neighborHandle) {
+        var endAnchor = endPoint.anchor;
+        var innerPoint = neighborPoint.anchor;
+        if (!isSamePoint(endHandle, endAnchor)) innerPoint = endHandle;
+        else if (!isSamePoint(neighborHandle, endAnchor)) innerPoint = neighborHandle;
+        var dx = endAnchor[0] - innerPoint[0];
+        var dy = endAnchor[1] - innerPoint[1];
+        var length = Math.sqrt(dx * dx + dy * dy);
+        if (length < HANDLE_EPSILON) return null;
+        return [dx / length, dy / length];
+    }
+
+    /**
+     * パスの末尾にアンカーポイントを足す
+     * @param {PathItem} pathItem - 足す先のパス
+     * @param {number[]} anchor - アンカーの位置
+     * @param {number[]} leftDirection - 前側の方向線
+     * @param {number[]} rightDirection - 後ろ側の方向線
+     * @param {PointType} pointType - ポイントの種類
+     * @returns {void}
+     */
+    function appendPathPoint(pathItem, anchor, leftDirection, rightDirection, pointType) {
+        var newPoint = pathItem.pathPoints.add();
+        newPoint.pointType = pointType;
+        newPoint.anchor = anchor;
+        newPoint.leftDirection = leftDirection;
+        newPoint.rightDirection = rightDirection;
+    }
+
+    /**
+     * 区切り線を、両端を DIVIDER_EXTEND_LENGTH だけ延ばした形で container に描き直す
+     * @param {PathItem} linePath - 区切り線
+     * @param {GroupItem} container - 描く先のグループ
+     * @returns {PathItem} 延ばした線
+     */
+    function addExtendedLineCopy(linePath, container) {
+        var sourcePoints = linePath.pathPoints;
+        var lastIndex = sourcePoints.length - 1;
+        var firstPoint = sourcePoints[0];
+        var lastPoint = sourcePoints[lastIndex];
+        var startDirection = getOutwardDirection(firstPoint, firstPoint.rightDirection, sourcePoints[1], sourcePoints[1].leftDirection);
+        var endDirection = getOutwardDirection(lastPoint, lastPoint.leftDirection, sourcePoints[lastIndex - 1], sourcePoints[lastIndex - 1].rightDirection);
+
+        var extendedLine = container.pathItems.add();
+        if (startDirection) {
+            var startTip = [firstPoint.anchor[0] + startDirection[0] * DIVIDER_EXTEND_LENGTH,
+                firstPoint.anchor[1] + startDirection[1] * DIVIDER_EXTEND_LENGTH];
+            appendPathPoint(extendedLine, startTip, startTip, startTip, PointType.CORNER);
+        }
+        for (var i = 0; i <= lastIndex; i++) {
+            var sourcePoint = sourcePoints[i];
+            appendPathPoint(extendedLine, sourcePoint.anchor, sourcePoint.leftDirection, sourcePoint.rightDirection, sourcePoint.pointType);
+        }
+        if (endDirection) {
+            var endTip = [lastPoint.anchor[0] + endDirection[0] * DIVIDER_EXTEND_LENGTH,
+                lastPoint.anchor[1] + endDirection[1] * DIVIDER_EXTEND_LENGTH];
+            appendPathPoint(extendedLine, endTip, endTip, endTip, PointType.CORNER);
+        }
+        extendedLine.closed = false;
+        extendedLine.filled = false;
+        extendedLine.stroked = true;
+        return extendedLine;
+    }
+
     /**
      * 境界 innerBounds が outerBounds の中に収まっているか
      * @param {number[]} innerBounds - 内側の境界 [左, 上, 右, 下]
@@ -240,6 +372,33 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         var tolerance = REGION_BOUNDS_TOLERANCE;
         return innerBounds[0] >= outerBounds[0] - tolerance && innerBounds[1] <= outerBounds[1] + tolerance &&
             innerBounds[2] <= outerBounds[2] + tolerance && innerBounds[3] >= outerBounds[3] - tolerance;
+    }
+
+    /**
+     * 領域の面積を返す（複合パスはいちばん大きいサブパスの面積）
+     * @param {PathItem|CompoundPathItem} region - 領域
+     * @returns {number} 面積（pt²）
+     */
+    function getRegionArea(region) {
+        if (region.typename === "PathItem") return Math.abs(region.area);
+        var largestArea = 0;
+        for (var i = 0; i < region.pathItems.length; i++) {
+            largestArea = Math.max(largestArea, Math.abs(region.pathItems[i].area));
+        }
+        return largestArea;
+    }
+
+    /**
+     * 線どうしのわずかな交差などでできた、小さすぎる・細すぎる領域か
+     * @param {PathItem|CompoundPathItem} region - 領域
+     * @returns {boolean} マスクにしないなら true
+     */
+    function isTooSmallRegion(region) {
+        var area = getRegionArea(region);
+        if (area < REGION_MIN_AREA) return true;
+        var bounds = region.geometricBounds;
+        var longerSide = Math.max(bounds[2] - bounds[0], bounds[1] - bounds[3]);
+        return longerSide > 0 && area / longerSide < REGION_MIN_WIDTH;
     }
 
     /**
@@ -254,10 +413,10 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             for (var i = 0; i < item.pageItems.length; i++) collectRegions(item.pageItems[i], imageBounds, regions);
             return;
         }
-        var isRegion = item.typename === "CompoundPathItem" ||
-            (item.typename === "PathItem" && item.closed && Math.abs(item.area) > 0);
+        var isRegion = item.typename === "CompoundPathItem" || (item.typename === "PathItem" && item.closed);
+        if (!isRegion || isTooSmallRegion(item)) return;
         /* 画像の外にはみ出た領域は、区切り線の外側の切れ端なので除く / Pieces sticking out of the image come from outside the image area */
-        if (isRegion && boundsInside(item.geometricBounds, imageBounds)) regions.push(item);
+        if (boundsInside(item.geometricBounds, imageBounds)) regions.push(item);
     }
 
     /**
@@ -272,6 +431,10 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         /* 効果は入れ子のグループだと外側に付くので、レイヤー直下で作業する / Effects land on the outermost group, so work at layer level */
         var workGroup = sourceImage.layer.groupItems.add();
         for (var i = 0; i < cutterPaths.length; i++) {
+            if (isDividerLine(cutterPaths[i])) {
+                addExtendedLineCopy(cutterPaths[i], workGroup);
+                continue;
+            }
             var cutterCopy = cutterPaths[i].duplicate(workGroup, ElementPlacement.PLACEATEND);
             if (!cutterCopy.filled && !cutterCopy.stroked) cutterCopy.stroked = true;
         }
@@ -300,6 +463,46 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         return { workItem: workItem, regions: regions };
     }
 
+    /* 同じ列の領域の上端がそろっているとみなす差（pt） / Difference (pt) under which tops in one column count as level */
+    var SORT_LEVEL_TOLERANCE = 0.5;
+
+    /**
+     * 領域 A を領域 B より先に並べるか（左から右、同じ列なら上から下）
+     * @param {number[]} boundsA - 領域 A の境界
+     * @param {number[]} boundsB - 領域 B の境界
+     * @returns {boolean} A が先なら true
+     */
+    function comesBefore(boundsA, boundsB) {
+        var centerA = (boundsA[0] + boundsA[2]) / 2;
+        var centerB = (boundsB[0] + boundsB[2]) / 2;
+        /* どちらかの中心がもう一方の左右の範囲に入っていれば同じ列 / Same column when either center falls within the other's width */
+        var sameColumn = (centerA > boundsB[0] && centerA < boundsB[2]) || (centerB > boundsA[0] && centerB < boundsA[2]);
+        if (sameColumn && Math.abs(boundsA[1] - boundsB[1]) > SORT_LEVEL_TOLERANCE) return boundsA[1] > boundsB[1];
+        return centerA < centerB;
+    }
+
+    /**
+     * 領域を左から右（同じ列なら上から下）に並べ替える（比較関数つき sort() は遅く並びも狂うので挿入ソート）
+     * @param {Array} regions - 領域
+     * @returns {Array} 並べ替えた領域
+     */
+    function sortRegionsLeftToRight(regions) {
+        var entries = [];
+        for (var i = 0; i < regions.length; i++) entries.push({ item: regions[i], bounds: regions[i].geometricBounds });
+        for (var j = 1; j < entries.length; j++) {
+            var current = entries[j];
+            var k = j - 1;
+            while (k >= 0 && comesBefore(current.bounds, entries[k].bounds)) {
+                entries[k + 1] = entries[k];
+                k--;
+            }
+            entries[k + 1] = current;
+        }
+        var sorted = [];
+        for (var m = 0; m < entries.length; m++) sorted.push(entries[m].item);
+        return sorted;
+    }
+
     /**
      * 画像の範囲をパスで区切り、区切られた領域ごとにマスクする
      * @param {PlacedItem|RasterItem} sourceImage - 元の画像
@@ -308,13 +511,54 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
      */
     function clipImageByDividedRegions(sourceImage, cutterPaths) {
         var divided = divideImageArea(sourceImage, cutterPaths);
+        var regions = sortRegionsLeftToRight(divided.regions);
         var clipGroups = [];
-        /* 領域はまとめて元の画像のすぐ前面に置く / Every region goes right in front of the original image */
-        for (var i = 0; i < divided.regions.length; i++) {
-            clipGroups.push(clipImageWithPath(sourceImage, divided.regions[i], sourceImage));
+        /* 元の画像のすぐ前面に順に置くと、先に作ったものほど上に並ぶ / Placing each right in front of the image keeps earlier ones on top */
+        for (var i = 0; i < regions.length; i++) {
+            clipGroups.push(clipImageWithPath(sourceImage, regions[i], sourceImage));
         }
         divided.workItem.remove();
         return clipGroups;
+    }
+
+    /**
+     * 配列にアイテムが入っているか（DOM の参照は === で同一判定できる）
+     * @param {Array} items - 配列
+     * @param {PageItem} target - 探すアイテム
+     * @returns {boolean} 入っていれば true
+     */
+    function containsItem(items, target) {
+        for (var i = 0; i < items.length; i++) {
+            if (items[i] === target) return true;
+        }
+        return false;
+    }
+
+    /**
+     * パスを削除し、それで空になったグループも消す
+     * @param {Array} paths - 削除するパス
+     * @returns {void}
+     */
+    function removePathsAndEmptyGroups(paths) {
+        var parentGroups = [];
+        for (var i = 0; i < paths.length; i++) {
+            var parentItem = paths[i].parent;
+            if (parentItem.typename === "GroupItem" && !containsItem(parentGroups, parentItem)) parentGroups.push(parentItem);
+            paths[i].remove();
+        }
+        /* 内側のグループが空になって消えると外側も空になることがあるので、親へさかのぼる / Removing an empty inner group can empty its parent, so walk upward */
+        for (var j = 0; j < parentGroups.length; j++) {
+            var group = parentGroups[j];
+            while (group.typename === "GroupItem" && group.pageItems.length === 0) {
+                var outerItem = group.parent;
+                group.remove();
+                group = outerItem;
+                /* ほかの子の親として控えたグループを二度消さない / Do not remove a group recorded for another path twice */
+                for (var k = j + 1; k < parentGroups.length; k++) {
+                    if (parentGroups[k] === group) parentGroups.splice(k, 1);
+                }
+            }
+        }
     }
 
     // =========================================
@@ -341,10 +585,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
 
         var selectedImages = [];
         var maskPaths = [];
-        for (var i = 0; i < selectedItems.length; i++) {
-            if (isImageItem(selectedItems[i])) selectedImages.push(selectedItems[i]);
-            else if (isMaskPath(selectedItems[i])) maskPaths.push(selectedItems[i]);
-        }
+        collectImagesAndPaths(selectedItems, selectedImages, maskPaths);
         if (selectedImages.length !== 1) {
             alert(getLabel(LABELS.alert.needOneImage));
             return;
@@ -374,14 +615,14 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         doc.selection = null;
         var clipGroups = [];
         if (hasDividerLine) {
-            /* 線があれば、すべてのパスで画像の範囲を区切る / With a line in the selection, every path divides the image area */
+            /* 区切り線があれば、すべてのパスで画像の範囲を区切る / With a dividing line in the selection, every path divides the image area */
             clipGroups = clipImageByDividedRegions(sourceImage, overlappingPaths);
             if (clipGroups.length === 0) {
                 doc.selection = selectedItems;
                 alert(getLabel(LABELS.alert.noRegions));
                 return;
             }
-            for (var n = 0; n < overlappingPaths.length; n++) overlappingPaths[n].remove();
+            removePathsAndEmptyGroups(overlappingPaths);
         } else {
             for (var k = 0; k < overlappingPaths.length; k++) {
                 clipGroups.push(clipImageWithPath(sourceImage, overlappingPaths[k]));
