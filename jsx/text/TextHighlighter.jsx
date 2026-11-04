@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.DrawMarkerBehindText
 Name=文字にマーカー・アンダーライン・取り消し線を引く
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.7.4
+Version=1.7.5
 Release-Date=2026-11-01
 Description-BEGIN
 文字ツールで選んだ文字やテキストオブジェクトに、字面に合わせてマーカー・アンダーライン・取り消し線などの線や、長方形・円・六角形・傍点を描きます（文字の背面・前面を選べ、複数行は行ごと。行頭・行長・行送りの間隔もそろえられます）。
@@ -47,7 +47,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TextHighli
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "TextHighlighter";              /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.7.4";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.7.5";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-11-01";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-11-02";                   /* 更新日 / last updated */
@@ -336,6 +336,15 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             settings: {
                 lineStyle: "box", stackOrder: "stackBack", shapeFill: false, shapeStroke: true, isPerChar: false, boxRotation: 0, strokeColorChoice: "textColor",
                 strokeWidthPt: 0.45, dashStyle: "solidLine", boxPaddingPt: 3.402, boxPaddingVPt: -2.551, boxPaddingLinked: false, cornerRadiusPt: 0,
+                squareLineJoins: true, opacity: 100, verticalOffsetPt: 0, roughen: false, alignLineStarts: false, equalLineLengths: false, leadingBased: true,
+                kerningChoice: "keepKerning", trackingText: "", kerningBeforeText: "", kerningAfterText: "", textColorChoice: "keepTextColor"
+            }
+        },
+        {
+            name: { ja: "囲み罫（角丸）", en: "Rounded Frame" },
+            settings: {
+                lineStyle: "box", stackOrder: "stackBack", shapeFill: false, shapeStroke: true, isPerChar: false, boxRotation: 0, strokeColorChoice: "textColor",
+                strokeWidthPt: 0.45, dashStyle: "solidLine", boxPaddingPt: 3.402, boxPaddingVPt: -2.551, boxPaddingLinked: false, cornerRadiusPt: 2.835,
                 squareLineJoins: true, opacity: 100, verticalOffsetPt: 0, roughen: false, alignLineStarts: false, equalLineLengths: false, leadingBased: true,
                 kerningChoice: "keepKerning", trackingText: "", kerningBeforeText: "", kerningAfterText: "", textColorChoice: "keepTextColor"
             }

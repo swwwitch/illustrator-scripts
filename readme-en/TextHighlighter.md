@@ -90,10 +90,11 @@ Changes the formatting of the target characters. The preview reflects it, and th
 #### Presets
 
 - Click a preset in the list on the left to load it. Below the list, Delete sits at the left, and Save (saves the current settings under a name) and Overwrite (writes the current settings into the selected preset without asking for a name or confirmation) at the right. Saved presets remain after restarting Illustrator.
-- Built-in presets (in Style order): Underline, Dotted Underline, Yellow Marker, Yellow Marker (Hand-Drawn), Slanted Highlighter, Wavy Line, Zigzag, Text-Color Strikethrough, Double Strikethrough, Rounded Box, Band per Line, Band per Line (Touching), Band per Line (Hand-Drawn), Frame, Frame per Line, Frame per Line (Hand-Drawn), Redaction, Box per Character, Circle per Character, Hexagon per Character and Emphasis Dots.
+- Built-in presets (in Style order): Underline, Dotted Underline, Yellow Marker, Yellow Marker (Hand-Drawn), Slanted Highlighter, Wavy Line, Zigzag, Text-Color Strikethrough, Double Strikethrough, Rounded Box, Band per Line, Band per Line (Touching), Band per Line (Hand-Drawn), Frame, Rounded Frame, Frame per Line, Frame per Line (Hand-Drawn), Redaction, Box per Character, Circle per Character, Hexagon per Character and Emphasis Dots.
   - Text-Color Strikethrough and Double Strikethrough take lengths such as the weight from the glyph height of the first target; the others use fixed lengths.
   - Rounded Box, Band per Line, Band per Line (Touching), Band per Line (Hand-Drawn), Box per Character, Circle per Character and Hexagon per Character set Text Color to White. All use Back for Stacking Order.
   - Band per Line draws a box for each line with small gaps, looking continuous (Multi-Line on); Band per Line (Touching) leaves no gaps, with Multi-Line off. Both turn on Align Starts and Leading-Based.
+  - Rounded Frame is Frame with Corner Radius set to 1 mm.
   - Frame per Line draws Frame for each line, with Align Starts on and Multi-Line off.
   - The Hand-Drawn presets turn on Hand-Drawn under Roughen (Yellow Marker (Hand-Drawn): Size 1%, Detail 10; Band per Line (Hand-Drawn): 0.7%, 3; Frame per Line (Hand-Drawn): 0.4%, 10).
   - The three per-character presets set Kerning to 0 and Tracking to 170 under Text; the presets that draw shapes per line turn on Auto-Adjust Kerning to Padding.
@@ -141,10 +142,11 @@ https://note.com/dtp_tranist/n/na1804afb7fe2
 
 ### Script info
 
-- Version: v1.7.4
+- Version: v1.7.5
 
 ### Update History
 
+- v1.7.5 (2026-11-02) Added the built-in preset Rounded Frame (after Frame)
 - v1.7.4 (2026-11-02) Renamed Match Padding to Auto-Adjust Kerning to Padding
 - v1.7.3 (2026-11-02) Added a tooltip to Auto under Kerning and expanded the Optical tooltip; internal cleanup (clearer names, shared duplicate code, split long functions)
 - v1.7.2 (2026-11-02) Merged Fill and Stroke under Shape into a Draw checkbox at the start of the Fill and Stroke rows (formerly Fill Color and Stroke Color); Stroke now lists Custom, Text Color, Yellow, then Red; renamed Even under Leading to Leading-Based under Line Height; updated the overview and README

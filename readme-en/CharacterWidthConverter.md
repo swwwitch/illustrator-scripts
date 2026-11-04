@@ -32,7 +32,7 @@ The InDesign version ([IdCharacterWidthConverter](https://github.com/swwwitch/in
 - Scope: Selection or Document
 - Vertical Text (Vertical tab): numbers of 3+ digits to full-width (2026 → ２０２６); half-width forms for 2-digit numbers and third-width forms for 3-digit numbers (fixed-width forms for tate-chu-yoko); "," in numbers to "、" (1,000 → 1、000); "." in numbers to "・" (12.5 → 12・5); all-capital words of up to 3 letters to full-width (PDF → ＰＤＦ); units after digits to squares (5kg → 5㌕, 10m2 → 10㎡)
 - Check Coloring fills converted characters with red (removed spaces are not marked)
-- Presets switch all the settings at once. Six are built in: "Standard", "Letters, digits & symbols to half-width", "Letters, digits & symbols to full-width", "Katakana to full-width only", "For vertical typesetting" and "For Western typesetting". Presets apply to the open tab, except that "For vertical typesetting" switches to the Vertical tab and "For Western typesetting" to the Horizontal tab. "Save..." stores the current settings under a name, and "Delete" removes your own presets (choosing a saved preset switches to the tab it was saved from; "Custom" is shown when no preset matches)
+- Presets switch all the settings at once. Seven are built in: "Standard", "Keep all", "Letters, digits & symbols to half-width", "Letters, digits & symbols to full-width", "Katakana to full-width only", "For vertical typesetting" and "For Western typesetting". Presets apply to the open tab, except that "For vertical typesetting" switches to the Vertical tab and "For Western typesetting" to the Horizontal tab. "Save..." stores the current settings under a name, and "Delete" removes your own presets (choosing a saved preset switches to the tab it was saved from; "Custom" is shown when no preset matches)
 - Option-click a radio button to set every row in that panel to the same option
 - "Restore Defaults" brings back the initial settings of the open tab (katakana to full-width, letters and digits to half-width, Japanese punctuation and corner brackets to full-width, everything else kept)
 - Shows how many places were converted per row
@@ -69,7 +69,8 @@ The InDesign version ([IdCharacterWidthConverter](https://github.com/swwwitch/in
 - With the asterisk form set to "※ (reference mark)", * and ※ are converted into each other (full-width turns * into ※, half-width turns ※ into *).
 - Converting hyphens, tildes, asterisks or quotes to half-width only affects the chosen form (with "〜" chosen, "～" is not converted).
 - The Japanese punctuation row converts "。"/"｡" and "、"/"､"; the corner bracket rows convert "「"/"｢" and "」"/"｣".
-- The built-in presets other than "For vertical typesetting" and "For Western typesetting" convert katakana, Japanese punctuation and corner brackets to full-width and keep spaces. The two "Letters, digits & symbols" presets convert ASCII punctuation, quotes, brackets and the yen sign the same way.
+- "Keep all" sets every row to Keep and turns every option off, as a starting point for picking only the rows you need.
+- The built-in presets other than "Keep all", "For vertical typesetting" and "For Western typesetting" convert katakana, Japanese punctuation and corner brackets to full-width and keep spaces. The two "Letters, digits & symbols" presets convert ASCII punctuation, quotes, brackets and the yen sign the same way.
 - "For vertical typesetting" sets digits to "one digit full-width, two or more half-width" (for tate-chu-yoko), makes "!?" and runs of "!" half-width, spaces between Japanese characters full-width and tildes wave dashes (〜), and converts katakana, punctuation, brackets and symbols to full-width. The letter, comma, period and quote rows are kept so English words stay intact, while "," and "." in numbers become "、" and "・" (1,000 → 1、000, 12.5 → 12・5). Spaces between Japanese and Western text are removed, and ・・・, ... and 。。。 become …. It does not apply tate-chu-yoko.
 - "For Western typesetting" converts full-width letters, digits, symbols, ASCII punctuation, brackets, ideographic spaces (U+3000) and the yen sign to half-width, and keeps katakana, Japanese punctuation and corner brackets. It turns ... into … and adds a space after , . : in Western text.
 - Presets are saved to `~/Library/Application Support/illustrator-scripts/CharacterWidthConverter.json` (under Folder.userData).
@@ -80,10 +81,11 @@ https://note.com/dtp_tranist/n/nf9d7245b0653
 
 ### Script info
 
-- Version: v1.4.0
+- Version: v1.5.0
 
 ### Update History
 
+- v1.5.0 (2026-11-03) Added the built-in preset "Keep all" (every row Keep, every option off)
 - v1.4.0 (2026-11-01) Added "Half-width forms for 2-digit numbers" and "Third-width forms for 3-digit numbers" (applies fixed-width glyph forms to two or three half-width digits; numbers with separators and digits next to letters are skipped) and "Units after digits to squares" (5kg → 5㌕, 10m2 → 10㎡) to Vertical Text. Added Dashes to Punctuation (unifies — ― ─ to the chosen form)
 - v1.3.0 (2026-11-01) Split the settings into Horizontal and Vertical tabs, each with its own settings; the open tab's settings are used. Vertical Text is on the Vertical tab only, "Add a space after , . : in Western text" on the Horizontal tab only. Added "Numbers of 3+ digits to full-width" and "All-capital words of up to 3 letters to full-width" to Vertical Text. Moved Check Coloring next to Scope. Presets apply to the open tab; choosing "For vertical typesetting" switches to the Vertical tab and "For Western typesetting" to the Horizontal tab. Choosing a saved preset switches to the tab it was saved from
 - v1.2.0 (2026-10-31) Added "Remove spaces between Japanese and Western text" (第 3 章 → 第3章) and "Add a space after , . : in Western text" (1,000, example.com and 10:30 are left alone) to Character Types. Added "Convert to ..." (・・・, ..., 。。。) to Punctuation: three middle dots, periods or Japanese full stops in a row, half- or full-width, become an ellipsis (…). The "For vertical typesetting" preset now removes spaces between Japanese and Western text and converts to ellipses; "For Western typesetting" turns ... into … and adds spaces after , . :. Renamed the dialog to "Convert Width & Clean Up Text"

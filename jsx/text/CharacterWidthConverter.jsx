@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.CharacterWidthConverter
 Name=文字の種類ごとに全角・半角を変換
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.4.0
+Version=1.5.0
 Release-Date=2026-10-30
 Description-BEGIN
 カタカナ・英数字・スペース・句読点・括弧・記号を、文字の種類ごとに「そのまま／半角／全角」を選んで変換します。
@@ -47,10 +47,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CharacterW
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "CharacterWidthConverter";      /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.4.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.5.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-30";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-11-01";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-11-03";                   /* 更新日 / last updated */
 
 var SCRIPT_DESCRIPTION_JA = "文字の種類ごとに全角・半角を変換"; /* README の見出し / README title (Japanese) */
 
@@ -875,6 +875,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         },
         preset: {
             standard: { ja: "標準", en: "Standard" },
+            allKeep: { ja: "すべてそのまま", en: "Keep all" },
             asciiHalf: { ja: "英数字・記号を半角", en: "Letters, digits & symbols to half-width" },
             asciiFull: { ja: "英数字・記号を全角", en: "Letters, digits & symbols to full-width" },
             katakanaOnly: { ja: "カタカナだけ全角", en: "Katakana to full-width only" },
@@ -1435,6 +1436,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     /* 組み込みのプリセット（削除・上書きはできない）。tab があるものは、選ぶとそのタブに切り替えて反映する / Built-in presets (cannot be deleted or overwritten); choosing one with a tab switches to that tab */
     var BUILTIN_PRESETS = [
         { name: getLabel(LABELS.preset.standard), builtIn: true, rowOptions: getDefaultRowOptions() },
+        /* すべての行を「そのまま」、オプションはすべてオフ。必要な行だけ選ぶときの起点 / Every row kept and every option off; a starting point for picking only the rows you need */
+        { name: getLabel(LABELS.preset.allKeep), builtIn: true, rowOptions: rowOptionsWith(OPTION_KEEP) },
         {
             name: getLabel(LABELS.preset.asciiHalf), builtIn: true,
             rowOptions: rowOptionsWith(OPTION_KEEP, presetOverrides(OPTION_HALF, OPTION_HALF))
