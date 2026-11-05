@@ -1,0 +1,40 @@
+# 並んだオブジェクトの間隔をだんだん広くする
+
+[![Direct](https://img.shields.io/badge/Direct%20Link-ProgressiveSpacing.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/ProgressiveSpacing.jsx)
+
+[![English](https://img.shields.io/badge/README-English-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ProgressiveSpacing.md)
+
+[![Direct](https://img.shields.io/badge/Back%20to%20home-All%20scripts-cccccc.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/README.md)
+
+---
+
+### 概要
+
+並んだ線やオブジェクトの両端を動かさずに、間隔が一定の比率でだんだん広くなるように並べ直します。比率はスライダーで調整し、結果をプレビューで確認できます。
+
+### 主な機能
+
+- 最初と最後のオブジェクトは動かさず、そのあいだのオブジェクトを並びの方向にだけ動かします。
+- 比率は「1つ前の間隔に対する、次の間隔の大きさ」です。130%なら、間隔が1つ進むごとに1.3倍になります。100%で等間隔です。
+- 比率はスライダー、入力欄、∧∨ボタン、↑↓キーで変えられます（100〜300%）。
+- 広げる向きは、下へ・上へ・右へ・左へから選びます。ダイアログボックスを開いたときは、上下の並びなら［下へ］、左右の並びなら［右へ］になります。
+- 大きさの異なるオブジェクトでも、オブジェクトどうしのアキが比率どおりになります。
+- 確定後は1回の取り消しで元に戻せます。
+
+### 使い方
+
+1. 並んだ線やオブジェクトを3つ以上選択します。
+2. スクリプトを実行します。
+3. ［広げる向き］を選び、スライダーで比率を調整します。
+4. ［OK］で確定します。［キャンセル］で元の位置に戻ります。
+
+### 注意点
+
+- グループは1つのオブジェクトとして動かします。
+- 境界は環境設定の［プレビュー境界を使用］に従います。
+- オブジェクトが重なっていて、両端のあいだにアキを取れないときは、各オブジェクトの手前の辺どうしの距離を比率で配分します。
+- オブジェクトが左右（または上下）にそろっていて散らばりがない向きは選べません。
+
+### 更新履歴
+
+- v1.0.0 (2026-11-06) : 初版
