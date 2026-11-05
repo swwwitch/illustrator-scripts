@@ -397,3 +397,6 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 - [グラフィックスタイル「temp_style」を適用](readme-ja/apply-temp-style-or-last.md)
 - [選択を表として解釈して罫線と塗りを生成](readme-ja/tabularize.md)
 
+## クレジット
+
+- ダイアログボックス・パレットの下端に表示するスクリプト名・バージョン・「DTP Transit」の文字は、Rasmus Andersson 氏の [Sigi pixel font](https://github.com/rsms/sigi-pixel-font)（Sigi 7px Regular、CC0）の字形を使っています（共通部品 VersionFooter）。Sigi に無い小文字は、同じ大きさで描き足したものです

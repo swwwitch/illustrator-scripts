@@ -397,3 +397,6 @@ After release, we continue to fix bugs and make adjustments through daily use.
 - [Apply the graphic style named "temp_style"](readme-en/apply-temp-style-or-last.md)
 - [Read the selection as a table and generate fills and …](readme-en/tabularize.md)
 
+## Credits
+
+- The script name, version and "DTP Transit" shown at the bottom of dialogs and palettes use glyphs from [Sigi pixel font](https://github.com/rsms/sigi-pixel-font) by Rasmus Andersson (Sigi 7px Regular, CC0), in the shared VersionFooter part. Lowercase letters, which Sigi does not have, were drawn to match

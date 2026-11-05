@@ -293,7 +293,7 @@ function findUnitByLabel(label) {
   event, so it works even when sizes are set after the call. A row with left-side buttons keeps the split layout
 - Do not put `SCRIPT_VERSION` in a window title. Show it with the VersionFooter part (`jsx/_templates/VersionFooter.jsx`):
   call `addVersionFooter(window)` after every control is added, right before `show()` (before `prepareDialogWindow()`).
-  It draws the version small and gray at the bottom left (dot glyphs in `onDraw`; needs the UITheme part for `isDarkUI()`) and takes over the button row's bottom margin.
+  It draws the script name and version (left) and "DTP Transit" (right) small and gray at the bottom left (dot glyphs in `onDraw`; needs the UITheme part for `isDarkUI()`) and takes over the button row's bottom margin.
   Progress, confirm and other small sub-windows get no footer
 - A 3×3 anchor / alignment picker is a custom widget drawn in a `button`'s `onDraw`, never nine radio buttons.
   Reference implementation: `addAnchorWidget()` / `drawAnchorWidget()` / `drawAnchorCell()` in
