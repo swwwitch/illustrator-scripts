@@ -19,6 +19,10 @@ Lists the panels of the Window menu in a single list, including those in the Typ
   - Separate words with spaces to match all of them
   - Case-insensitive. Japanese hiragana is matched as katakana, and kanji names also match their reading
   - The (×) button next to the field clears the search
+- Set buttons show a fixed group of panels at once (regardless of the search or selection; the dialog closes and the panels open)
+  - **Text**: Character, Paragraph, Character Styles, Paragraph Styles, Glyphs
+  - **Appearance**: Appearance, Graphic Styles
+  - **Color**: Color, Swatches, Color Guide, Gradient
 - Switch the sort order with radio buttons
   - **Default**: the order of the Window menu (Type items stay where the Type submenu is)
   - **Alphabetical**: by panel name
@@ -44,6 +48,7 @@ Press Down in the search field to move to the list. Cmd (Ctrl) / Shift-click to 
 - The Blend panel (30.7 and later) is not listed because its menu command ID is unknown.
 - Showing a panel is the same as choosing its Window menu item (`app.executeMenuCommand()`). Illustrator's menu items toggle the panel and scripts cannot read whether it is open, so picking an open panel may close it.
 - Panels are shown after the dialog closes.
+- Set buttons also choose each menu item in turn, so a panel in the set that is already open may close. Edit PANEL_SETS in the script to change the groups.
 - In the English UI the Window menu is alphabetical, so Default gives the same order as Alphabetical.
 - The script uses `#targetengine` because it is meant to be run often. Assigning a keyboard shortcut is handy.
 - Esc closes the dialog.
@@ -53,14 +58,15 @@ Press Down in the search field to move to the list. Cmd (Ctrl) / Shift-click to 
 | Item | Value |
 | --- | --- |
 | File | `jsx/misc/AiPanelLauncher.jsx` |
-| Version | v1.0.0 |
+| Version | v1.1.0 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-11-05 |
-| Last updated | 2026-11-05 |
+| Last updated | 2026-11-06 |
 | Tested with | Illustrator 2026 (30.8) / macOS |
 
 ### Update History
 
+- v1.1.0 (2026-11-06): Added set buttons that show a fixed group of panels at once (Text, Appearance, Color)
 - v1.0.0 (2026-11-05): Initial release
 
 ### License

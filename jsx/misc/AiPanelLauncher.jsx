@@ -7,7 +7,7 @@ Script-ID=com.swwwitch.illustrator.AiPanelLauncher
 Name=パネルを検索して表示
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.0.0
+Version=1.1.0
 Release-Date=2026-11-05
 Description-BEGIN
 ［ウィンドウ］メニューのパネルを、サブメニュー（［書式］）の中まで展開して1つのリストに並べます。
@@ -43,10 +43,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiPanelLau
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AiPanelLauncher";              /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-11-05";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-11-05";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-11-06";                   /* 更新日 / last updated */
 
 var SCRIPT_DESCRIPTION_JA = "パネルを検索して表示"; /* README の見出し / README title (Japanese) */
 
@@ -116,6 +116,23 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         ["線", "Stroke", "", "Adobe Stroke Palette", 0],
         ["自動選択", "Magic Wand", "", "AI Magic Wand", 0],
         ["透明", "Transparency", "", "Adobe Transparency Palette Menu Item", 0]
+    ];
+
+    /* まとめて表示するパネルのセット（ボタンの順）。panels は PANEL_TABLE の日本語名で、上から順に表示する
+       / Panel sets shown together (button order). panels are the Japanese names in PANEL_TABLE, shown top to bottom */
+    var PANEL_SETS = [
+        {
+            label: { ja: "テキスト", en: "Text" },
+            panels: ["文字", "段落", "文字スタイル", "段落スタイル", "字形"]
+        },
+        {
+            label: { ja: "アピアランス", en: "Appearance" },
+            panels: ["アピアランス", "グラフィックスタイル"]
+        },
+        {
+            label: { ja: "カラー", en: "Color" },
+            panels: ["カラー", "スウォッチ", "カラーガイド", "グラデーション"]
+        }
     ];
 
     /* CC ライブラリのメニューコマンド ID は、末尾がメニュー名（UI の言語）になる
@@ -222,7 +239,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
 
     var LIST_SIZE     = [440, 460];        /* リストの寸法 [幅,高さ] / list size */
     var COLUMN_WIDTHS = [250, 170];        /* 列幅（名前・分類）/ column widths (name, category) */
-    var ROW_LABEL_WIDTH = 60;              /* 行ラベル（検索・並び順）の幅 / width of the row labels (search, sort) */
+    var ROW_LABEL_WIDTH = 60;              /* 行ラベル（検索・並び順・セット）の幅 / width of the row labels (search, sort, sets) */
 
     /* 検索欄のクリアボタン（自前描画、AiScriptLauncher と同じ）/ Clear button next to the search field (custom drawn, same as AiScriptLauncher) */
     var CLEAR_BUTTON_SIZE  = 20;           /* クリアボタンの一辺 / clear button size */
@@ -843,7 +860,8 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         },
         fieldLabel: {
             search:    { ja: "検索", en: "Search" },
-            sortOrder: { ja: "並び順", en: "Sort by" }
+            sortOrder: { ja: "並び順", en: "Sort by" },
+            panelSet:  { ja: "セット", en: "Sets" }
         },
         sort: {
             menu: { ja: "デフォルト", en: "Default" },
@@ -863,6 +881,10 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
                 en: "Changes the order of the list. In the English UI both orders are alphabetical, like the Window menu."
             },
             clearSearch: { ja: "検索をクリア", en: "Clear search" },
+            panelSet: {
+                ja: "%1 をまとめて表示します。開いているパネルは閉じることがあります。",
+                en: "Shows %1 together. Panels that are already open may close."
+            },
             list: {
                 ja: "ダブルクリックか Enter で表示します。⌘（Ctrl）／Shift＋クリックで複数選べます。",
                 en: "Double-click or press Enter to show. Cmd (Ctrl) / Shift-click to pick more than one."
@@ -890,6 +912,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
      * @property {string} category - 親のサブメニュー名（「書式」。直下の項目は空文字）
      * @property {string} commandId - executeMenuCommand に渡すメニューコマンド ID
      * @property {number} menuIndex - メニューの並び順（0 始まり。並び順の同順位もこれで決める）
+     * @property {string} tableName - PANEL_TABLE の日本語名（PANEL_SETS から探す鍵）
      */
 
     /**
@@ -925,10 +948,45 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
                 name: (uiLang === "ja") ? panelRow[0] : panelRow[1],
                 category: (panelRow[2] === "") ? "" : getLabel(LABELS.category[panelRow[2]]),
                 commandId: getPanelCommandId(panelRow),
-                menuIndex: entries.length
+                menuIndex: entries.length,
+                tableName: panelRow[0]
             });
         }
         return entries;
+    }
+
+    /**
+     * セットのパネルを、セットに書いた順で探す（この Illustrator で使えないパネルは飛ばす）
+     * @param {PanelEntry[]} entries - すべてのパネル
+     * @param {Object} panelSet - PANEL_SETS の1件
+     * @returns {PanelEntry[]} 見つかったパネル
+     */
+    function findPanelSetEntries(entries, panelSet) {
+        var found = [];
+        for (var i = 0; i < panelSet.panels.length; i++) {
+            for (var j = 0; j < entries.length; j++) {
+                if (entries[j].tableName === panelSet.panels[i]) {
+                    found.push(entries[j]);
+                    break;
+                }
+            }
+        }
+        return found;
+    }
+
+    /**
+     * セットのパネル名を、UI の言語で区切ってつなぐ（ツールチップ用）
+     * @param {PanelEntry[]} entries - すべてのパネル
+     * @param {Object} panelSet - PANEL_SETS の1件
+     * @returns {string} 「文字・段落・…」のような文字列
+     */
+    function joinPanelSetNames(entries, panelSet) {
+        var setEntries = findPanelSetEntries(entries, panelSet);
+        var panelNames = [];
+        for (var i = 0; i < setEntries.length; i++) {
+            panelNames.push(setEntries[i].name);
+        }
+        return panelNames.join(uiLang === "ja" ? "・" : ", ");
     }
 
     /**
@@ -1137,6 +1195,23 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
     }
 
     /**
+     * セットのボタンの行を作る
+     * @param {Window} parent - 追加先
+     * @param {PanelEntry[]} allEntries - すべてのパネル（ツールチップのパネル名に使う）
+     * @returns {Button[]} PANEL_SETS と同じ順のボタン
+     */
+    function buildPanelSetRow(parent, allEntries) {
+        var setRow = addFieldRow(parent, LABELS.fieldLabel.panelSet);
+        var setButtons = [];
+        for (var i = 0; i < PANEL_SETS.length; i++) {
+            var setButton = setRow.add("button", undefined, getLabel(PANEL_SETS[i].label));
+            setButton.helpTip = getLabel(LABELS.tooltip.panelSet, [joinPanelSetNames(allEntries, PANEL_SETS[i])]);
+            setButtons.push(setButton);
+        }
+        return setButtons;
+    }
+
+    /**
      * 検索欄の行（検索欄とクリアボタン）を作る
      * @param {Window} parent - 追加先
      * @returns {{input: EditText, clearButton: Button}} 検索欄とクリアボタン
@@ -1178,6 +1253,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         var searchInput = searchUI.input;
         var clearButton = searchUI.clearButton;
         var sortRadios = buildSortRow(mainDialog, currentSortKey);
+        var setButtons = buildPanelSetRow(mainDialog, allEntries);
         var panelList = buildPanelList(mainDialog);
 
         var buttonRow = addButtonRow(mainDialog);
@@ -1264,6 +1340,16 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             mainDialog.close(1);
         }
 
+        /**
+         * セットのパネルを控えてダイアログを閉じる（検索・選択に関係なく、セットに書いたパネル）
+         * @param {Object} panelSet - PANEL_SETS の1件
+         * @returns {void}
+         */
+        function pickSetAndClose(panelSet) {
+            pickedEntries = findPanelSetEntries(allEntries, panelSet);
+            mainDialog.close(1);
+        }
+
         searchInput.onChanging = applySearchText;
         searchInput.onChange = applySearchText;
         for (var i = 0; i < sortRadios.length; i++) {
@@ -1271,6 +1357,11 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             sortRadios[i].onClick = (function (sortKey) {
                 return function () { applySortKey(sortKey); };
             }(SORT_KEYS[i]));
+        }
+        for (var p = 0; p < setButtons.length; p++) {
+            setButtons[p].onClick = (function (panelSet) {
+                return function () { pickSetAndClose(panelSet); };
+            }(PANEL_SETS[p]));
         }
         searchInput.addEventListener("keydown", function (keyEvent) {
             if (keyEvent.keyName === "Down" && panelList.items.length > 0) {
