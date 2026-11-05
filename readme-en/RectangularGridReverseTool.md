@@ -57,6 +57,7 @@ Evenly respaces the rules inside the outer rectangle, within that rectangle. The
 
 ### Update History
 
+- v1.4.1 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)
 - v1.4.0 (2026-10-20) Added Simple / Advanced modes. Simple mode brings in AverageRulesInRectangle.jsx (evenly respaces the rules inside the outer rectangle, optionally keeping their lengths). The dialog resizes to fit the mode. Fixed the whole table shrinking when the outer rectangle has a fill (the fill stays as a background). Rectangles with extra anchor points (on an edge or overlapping where the path closes) or slightly off coordinates now also count as the frame, so the table no longer shrinks
 - v1.3.9 (2026-10-20) Fixed the preview not updating when only lines are selected (Split outer frame is dimmed when there is no rectangle). Fixed Center point text vertically using the rows from before alignment, and a possible stop on locked or hidden text. Splitting a rectangle and cancelling now keep its stacking order and attributes. The Specified stroke width now starts at 0.01
 - v1.3.8 (2026-10-20) Fixed the Distribution Mode and Stroke Width choices sometimes being read incorrectly. The stroke width field now accepts arithmetic and unit values and reverts non-numbers. Renamed the "Line (post-process)" panel to "Lines" and noted the Option-click on Vertical/Horizontal lines in the tooltips

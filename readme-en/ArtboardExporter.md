@@ -67,6 +67,7 @@ Clicking Export remembers each artboard's settings plus the file name, destinati
 
 ### Update History
 
+- v1.1.4 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)
 - v1.1.3 (2026-10-29) Rewrote a nested ternary as if/else so the background swatch (black, white, transparent) shows the right color
 - v1.1.2 (2026-10-06) Confirmation dialogs for deleting or overwriting now default to No (Enter cancels)
 - v1.1.1 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)

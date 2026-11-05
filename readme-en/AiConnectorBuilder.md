@@ -122,6 +122,7 @@ Egor Chistyakov https://x.com/tchegr
 
 ### Update History
 
+- v1.1.11 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)
 - v1.1.10 (2026-10-06) Confirmation dialogs for deleting or overwriting now default to No (Enter cancels)
 - v1.0.0 (20260905): Initial release
 - v1.0.1 (20260906): Added the Center start point

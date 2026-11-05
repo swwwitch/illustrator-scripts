@@ -66,6 +66,7 @@ promotes remaining non-empty sublayers to the top level, and recursively deletes
 Locked / hidden layers and objects can be excluded independently, and dialog items with no matching targets
 are dimmed automatically. Guides can be handled in one of three modes: integrate, keep in the current layer,
 or move to another layer.
+- v1.7.14（2026-11-05）バージョンをタイトルバーから外し、ダイアログボックスの左下に小さく薄く表示（共通部品の追加）
 
 ### スクリプト情報
 

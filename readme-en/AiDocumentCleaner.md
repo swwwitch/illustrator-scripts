@@ -109,6 +109,7 @@ Option/alt-clicking a checkbox sets every checkbox in that panel to the clicked 
 
 ### Update History
 
+- v1.1.11 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)
 - v1.1.10 (2026-10-06) Confirmation dialogs for deleting or overwriting now default to No (Enter cancels)
 - v1.1.9 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.1.8 (2026-10-01): Added space below the button row to match Illustrator's own dialogs

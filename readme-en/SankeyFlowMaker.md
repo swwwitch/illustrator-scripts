@@ -145,6 +145,7 @@ Colors given as K tints become grays of the same darkness in RGB documents.
 
 ### Update History
 
+- v1.1.4 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)
 - v1.1.3 (2026-10-09) Branches with a junction caption now center their band on the caption, so the junction circle/rectangle and the band split line up
 - v1.1.2 (2026-10-09) Draw Bands as Strokes is now on by default
 - v1.1.1 (2026-10-08) Revised UI wording (Width Scale, junction panel names, etc.); captions enclosed by a circle or rectangle are now center-justified

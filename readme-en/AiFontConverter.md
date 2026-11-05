@@ -40,6 +40,7 @@ https://sttk3.com/blog/tips/illustrator/unify-character-set.html
 - v1.1.6 (2026-10-01) Unified the window and panel margins and spacing with the shared layout part
 - v1.1.7 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.1.8 (2026-10-24) Fixed an error when running with characters selected by the Type tool. Fixed locked objects inside a locked layer not being changed. Fixed missing fonts being treated as installed conversion targets. "Also update paragraph/character styles" is now available only when the target is the whole document (it used to change text outside the scope). The confirmation dialog now scrolls when there are many items. Fonts are read only once, for speed. The button row now uses the shared part
+- v1.1.9 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)
 
 ### Article
 

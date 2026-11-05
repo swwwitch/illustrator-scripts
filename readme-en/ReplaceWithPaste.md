@@ -93,3 +93,5 @@ To run from a keyboard shortcut without the dialog, set `SHOW_SIZE_DIALOG` to `f
 - v1.0.0 (20260727): Introduced the version variable, removed the ineffective `doc.undoGroup` assignment, consolidated the duplicated selection-restore and clipboard-read logic, and added a message for when no document is open
 - v2.0.10 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v2.0.11 (2026-10-16) Right-only button rows are now centered when the dialog's inner width is up to 240 px (was 200 px) (shared part update)
+- v2.0.12 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)
+

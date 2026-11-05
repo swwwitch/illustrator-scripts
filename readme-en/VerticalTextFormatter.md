@@ -126,6 +126,7 @@ https://note.com/dtp_tranist/n/ndb55c5516fd6
 
 ### Update History
 
+- v1.28.1 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)
 - v1.28.0 (2026-11-01) Added "Numbers of 3+ digits to full-width" and "Capitals of up to 3 letters to full-width" (Simple and Detailed modes)
 - v1.27.0 (2026-10-29) Added "Do not tighten 一" to Character and Paragraph in the Detailed mode: removes proportional metrics and tsume from 一 (on by default; always applied in the Simple mode and the wizard too)
 - v1.26.1 (2026-10-23) The built-in presets Standard, "Arabic, TCY for 2 digits only" and "Arabic, TCY for 2–3 digits (magazines, ads)" now turn on "Kanji numerals to Arabic digits"

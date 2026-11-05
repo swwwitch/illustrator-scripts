@@ -38,6 +38,7 @@ with a live preview that updates as you change the settings.
 
 ### Update History
 
+- v1.4.9 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)
 - v1.4.8 (2026-10-29) With the ruler unit set to Ha (H), unit labels now read "H" instead of "Q" (unit handling unified)
 - v1.4.7 (2026-10-16) Right-only button rows are now centered when the dialog's inner width is up to 240 px (was 200 px) (shared part update)
 - v1.4.6 (2026-10-10) Fixed the palette operating on another Illustrator version when several versions are running

@@ -70,3 +70,5 @@
 - v1.1.8 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.2.0 (2026-10-20) Runs with three or more objects selected; modes that cannot run are now dimmed; the "Convert" panel is renamed "Swap Fill and Stroke" and "Swap Between 2 Objects" moved to a new "Options" panel
 - v1.2.1 (2026-10-20) The "Swap Between 2 Objects" tooltip now says it is available when exactly two objects are selected; running with characters selected by the Type tool now shows an alert asking you to select objects
+- v1.2.2 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)
+

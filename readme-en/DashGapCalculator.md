@@ -145,6 +145,7 @@ The length and the results shown in the dialog belong to the **first** path, but
 - v2.1.6 (2026-10-01) Added space below the button row to match Illustrator's own dialogs
 - v2.1.7 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v2.2.0 (2026-10-06) Length fields now hold their unit ("10 mm"); values typed in another unit (such as "1in") and arithmetic are converted to the field's unit
+- v2.2.1 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)
 
 ### Script info
 

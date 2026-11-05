@@ -36,3 +36,5 @@
 - v1.0.5 (20260930) : Fixed an error when running with characters selected by the Type tool
 - v1.0.6 (2026-10-01) Unified the window and panel margins and spacing with the shared layout part
 - v1.0.7 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
+- v1.0.8 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)
+

@@ -235,6 +235,7 @@ The two lists on each tab (Font only / Details) are stacked at the same position
 
 ### Update History
 
+- v1.5.1 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)
 - v1.5.0 (2026-10-16) The Mojikumi popup now lists the document's custom mojikumi sets (and reflects a custom set used by the selected text)
 - v1.4.5 (2026-10-10) Fixed the palette operating on another Illustrator version when several versions are running
 - v1.4.4 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)

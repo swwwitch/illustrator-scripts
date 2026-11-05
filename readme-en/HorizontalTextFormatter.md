@@ -60,6 +60,7 @@
 
 ### Update History
 
+- v1.2.1 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)
 - v1.2.0 (2026-10-23) "Kanji numerals to Arabic" now also converts a single kanji numeral before 月 日 時 分 秒 (2019年四月30日 → 2019年4月30日), and leaves approximate numbers such as 数十万 and 何百
 - v1.1.0 (2026-10-16) "Unit squares to letters" now also covers ㌥㍑ ㌔㍑ ㌍ ㌔㌍ ㏄ and ㎟ ㎠ ㎡ ㎢ ㎣ ㎤ ㎥ ㎦ (to match VerticalTextFormatter v1.22.0)
 - v1.0.0 (2026-10-16) Initial release

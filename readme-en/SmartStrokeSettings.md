@@ -105,6 +105,7 @@ https://note.com/dtp_tranist/n/n1726fc0f8dc9
 
 ### Update History
 
+- v1.3.2 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)
 - v1.3.1 (2026-10-18) Fixed clipping masks breaking when a clipping path got a white outline. Re-running with White Outline off now removes an existing outline. Fixed the cap icons resetting the white outline joins. Fixed a doubled outline in the preview when only the stroke inside a white outline group is selected. Fixed half-built outlines being left behind when the preview fails
 - v1.3.0 (2026-10-18) Added White Outline (ported from RectangleToArrow; set the offset and joins, also saved in presets)
 - v1.2.3 (2026-10-06) Confirmation dialogs for deleting or overwriting now default to No (Enter cancels)

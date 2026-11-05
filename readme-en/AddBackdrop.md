@@ -87,6 +87,7 @@ https://note.com/dtp_tranist/n/na8af4a7016ad
 
 ### Update History
 
+- v1.7.11 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)
 - v1.7.10 (2026-10-23): Fixed text and other objects on the canvas sometimes disappearing while the dialog was open (the preview no longer rolls back with Undo). Margins, corner radius, offset and stroke weight now use the unit shown in the field (such as mm); they were treated as points before. Added an opacity slider (Shift-drag in steps of 10%). Arranged the CMYK fields in two rows of two to narrow the dialog. Committed expressions and out-of-range values now update the preview too, and non-numeric input reverts to the previous value. Labels and tooltips adjusted
 - v1.7.9 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.7.8 (2026-10-03): Units now appear inside the number fields; removed the unit from the panel title and beside the fields

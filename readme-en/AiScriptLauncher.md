@@ -135,6 +135,7 @@ ExtendScript has no way to reveal a file with selection, so the path is handed t
 
 ### Update History
 
+- v1.6.2 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)
 - v1.6.1 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.6.0 (2026-10-01): With the helper app OpenInFileViewer.app, files are revealed and folders opened in Path Finder while it is running
 - v1.5.4 (2026-10-01): Fixed palette scripts run from the launcher closing right away instead of staying open

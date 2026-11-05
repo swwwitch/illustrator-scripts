@@ -25,6 +25,7 @@ The original text path shape is duplicated, and stroke attributes (1pt black, or
 
 ### Update History
 
+- v1.0.18 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)
 - v1.0.17 (2026-10-16) Right-only button rows are now centered when the dialog's inner width is up to 240 px (was 200 px) (shared part update)
 - v1.0.16 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.0.15 (2026-10-01) Added space below the button row to match Illustrator's own dialogs

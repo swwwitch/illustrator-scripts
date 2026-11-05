@@ -40,6 +40,7 @@ https://note.com/dtp_tranist/n/n95a285784495 (Japanese)
 
 ### Update History
 
+- v1.5.8 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)
 - v1.5.7 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.5.6 (2026-10-01) Added space below the button row to match Illustrator's own dialogs
 - v1.5.5 (2026-10-01) Unified the window and panel margins and spacing with the shared layout part

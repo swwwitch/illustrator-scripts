@@ -82,6 +82,7 @@ Bullet and numbered lists made with Illustrator's Bullets and Numbering are turn
 
 ### Update History
 
+- v1.4.11 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)
 - v1.4.10 (2026-10-22) Moved the marker/number and delimiter colors in Marker Format below the baseline shift, side by side. Moved "Body" below "Marker" in Position (Tab Stops). Renamed "Align wrapped lines" to "Align wrapped lines (hanging indent)". Removed the "abc" number style (lowercase lines are detected as ABC)
 - v1.4.9 (2026-10-22) Added *Space Before* to the paragraph settings. Space before/after now start from the selection's current values, so opening the dialog no longer resets them to 0. The "Reset" description now lists the start number and space before/after
 - v1.4.8 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)

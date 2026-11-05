@@ -45,3 +45,5 @@ The preferences you toggle most often live in [AiQuickPrefsPalette](AiQuickPrefs
 - v1.0.0 (2026-10-03) Split off from the View panel of AiQuickPrefsPalette
 - v1.0.1 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.0.2 (2026-10-10) Fixed the palette operating on another Illustrator version when several versions are running
+- v1.0.3 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)
+

@@ -30,6 +30,7 @@ DOM work (selection, move, duplicate, flip, rotate) is delegated to the main eng
 - v1.4.4 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.4.5 (2026-10-10) Fixed the palette operating on another Illustrator version when several versions are running
 - v1.4.6 (2026-10-29) With the ruler unit set to Ha (H), unit labels now read "H" instead of "Q" (unit handling unified)
+- v1.4.7 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)
 
 ### Script info
 

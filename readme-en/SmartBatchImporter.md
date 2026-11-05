@@ -46,6 +46,7 @@ Imports open documents or Illustrator files (.ai / .svg / .eps) from a folder in
 
 ### Update History
 
+- v1.5.4 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)
 - v1.5.3 (2026-10-16) Right-only button rows are now centered when the dialog's inner width is up to 240 px (was 200 px) (shared part update)
 - v1.5.2 (2026-10-06) Confirmation dialogs for deleting or overwriting now default to No (Enter cancels)
 - v1.0.0 (20250529): Initial version

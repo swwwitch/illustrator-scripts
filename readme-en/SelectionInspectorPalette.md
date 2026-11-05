@@ -119,6 +119,7 @@ Enter is deliberately unassigned, because it conflicts with editing notes.
 
 ## Changelog
 
+- v1.7.10 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)
 - v1.7.9 (2026-10-10) Fixed the palette operating on another Illustrator version when several versions are running
 - v1.7.8 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.7.7 (2026-10-04) Faster counting in documents with many paths. Fixed the whole-document totals counting the contents of groups and compound paths more than once. Shows a progress bar when counting takes a while

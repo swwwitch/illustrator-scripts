@@ -87,3 +87,5 @@ A line can carry the font name alone, or the name followed by a size and a leadi
 - v1.3.12 (2026-10-01) Added space below the button row to match Illustrator's own dialogs
 - v1.3.11 (2026-10-01) Unified the window and panel margins and spacing with the shared layout part
 - v1.3.13 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
+- v1.3.14 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)
+

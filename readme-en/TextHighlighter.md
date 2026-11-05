@@ -146,6 +146,7 @@ https://note.com/dtp_tranist/n/na1804afb7fe2
 
 ### Update History
 
+- v1.7.6 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)
 - v1.7.5 (2026-11-02) Added the built-in preset Rounded Frame (after Frame)
 - v1.7.4 (2026-11-02) Renamed Match Padding to Auto-Adjust Kerning to Padding
 - v1.7.3 (2026-11-02) Added a tooltip to Auto under Kerning and expanded the Optical tooltip; internal cleanup (clearer names, shared duplicate code, split long functions)

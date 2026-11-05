@@ -42,6 +42,7 @@ https://note.com/dtp_tranist/n/n7e8c9ce0173e
 
 ### Update History
 
+- v1.0.10 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)
 - v1.0.9 (2026-10-20) Fixed "Match rule lengths" having no effect (the checkbox now controls it). Fixed the preview result remaining when the dialog was closed with Esc. The dialog now opens with the rule directions found and "Match rule lengths" turned on
 - v1.0.8 (2026-10-16) Right-only button rows are now centered when the dialog's inner width is up to 240 px (was 200 px) (shared part update)
 - v1.0.7 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)

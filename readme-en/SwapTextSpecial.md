@@ -28,6 +28,7 @@ A dialog lets you choose what to swap (string / format / position).
 
 ### Update history
 
+- v1.1.2 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)
 - v1.1.1 (2026-10-09) The button row is now always centered
 - v1.1.0 (2026-10-09) Position can now swap by the top-left corner or by the anchor point. Fixed again an error when running with characters selected by the Type tool. Swapping the format no longer adds a stroke to text without one
 - v1.0.10 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)

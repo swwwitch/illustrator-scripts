@@ -35,6 +35,7 @@
 
 ### Update History
 
+- v1.8.1 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)
 - v1.8.0 (2026-11-01) Option-clicking Choose File... or the file name now reveals the source file in Finder. Fixed the source file being closed without saving when it was already open. Fixed pasted content staying in the document when Paste Remembers Layers is on. Fixed the selection being lost after a cancel, which also kept the dialog from moving off the selection. Running with characters selected by the Type tool now shows a warning instead of doing nothing. Revised the dialog wording (Apply Graphic Style, Source File, Choose File...) and show the full path in the file name tooltip
 - v1.7.11 (2026-10-16) Right-only button rows are now centered when the dialog's inner width is up to 240 px (was 200 px) (shared part update)
 - v1.7.10 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)

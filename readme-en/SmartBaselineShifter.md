@@ -51,6 +51,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartBasel
 - v2.3.4 (20260930): Dropped the script's own rightward shift of the dialog on first open
 - v2.3.5 (2026-10-01): Moved the buttons from a right-hand column to the standard bottom row (Reset on the left, Cancel/Adjust on the right). Unified the window and panel margins and spacing with the shared layout part
 - v2.3.6 (2026-10-01): Added space below the button row to match Illustrator's own dialogs
+- v2.3.8 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)
 
 ### Update History
 

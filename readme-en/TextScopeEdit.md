@@ -57,6 +57,7 @@ https://note.com/dtp_tranist/n/nb845889dd553
 
 ### Update History
 
+- v1.6.2 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)
 - v1.6.1 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.6.0 (2026-10-01)Added Paragraph Break and Forced Line Break buttons above the right of the Edit Text field to insert them at the cursor
 - v1.5.6 (2026-10-01) The button row, previously always centered, is now centered in dialogs up to 200 px wide (inside the margins) and right-aligned in wider ones. Unified the window and panel margins and spacing with the shared layout part

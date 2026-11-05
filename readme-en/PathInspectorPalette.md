@@ -38,6 +38,7 @@
 
 ### Update History
 
+- v1.0.8 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)
 - v1.0.7 (2026-10-10) Fixed the palette operating on another Illustrator version when several versions are running
 - v1.0.6 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.0.5 (2026-10-03) Moved to the shared persistent engine `SwwwitchPalettes` so CloseAllPalettes can close it

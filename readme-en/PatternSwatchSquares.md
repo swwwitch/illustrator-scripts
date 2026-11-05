@@ -73,6 +73,7 @@ Several libraries can be chosen; one block per library is stacked vertically.
 
 ### Update History
 
+- v1.1.3 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)
 - v1.1.2 (2026-10-27) Fixed a "Target layer cannot be modified" error that could occur on OK (a swatch already in the document with the same name is reused; the others are imported through a temporary layer). The swatch names read for the preview are kept until Illustrator quits, so libraries are not opened again on later runs
 - v1.1.1 (2026-10-27) Option-click in the library list checks only that library (again to check all). The checkboxes of kinds not shown are now remembered too. The text uses Metrics kerning with proportional metrics on, and the Tsume-gumi mojikumi set in Japanese versions. Fixed an MRAP error that could occur on OK. Renamed Margin to Spacing and Library Name to Library Name (Document Name)
 - v1.1.0 (2026-10-27) Added a dialog box. Several of Illustrator's bundled swatch libraries (patterns and gradients, each with its classic set) can be checked in the list in the right column (one block per library, stacked vertically). Document swatches can be limited to Selected Swatches or All Swatches and are used regardless of kind. Added Width, Height (linked) and Spacing for the rectangles, Weight and Color for the stroke, Add Text (Library Name (Document Name), Swatch Name) and Preview (Rectangles Only). Fixed the position when the rulers use artboard coordinates

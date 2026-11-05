@@ -261,6 +261,7 @@ Split and merge results are left ungrouped (Option-click a split button to group
 
 ### Update History
 
+- v1.11.1 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)
 - v1.11.0 (2026-10-27) Renamed *Split by Character* to *Split by Character / Word* and added *Split by Word* (spaces between words are removed)
 - v1.10.3 (2026-10-10) Fixed the palette operating on another Illustrator version when several versions are running
 - v1.10.2 (2026-10-06) Confirmation dialogs for deleting or overwriting now default to No (Enter cancels)

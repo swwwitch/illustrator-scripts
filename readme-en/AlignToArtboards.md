@@ -68,3 +68,5 @@
 - v1.2.8 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.2.9 (2026-10-16) Right-only button rows are now centered when the dialog's inner width is up to 240 px (was 200 px) (shared part update)
 - v1.2.10 (2026-10-29) Fixed margins being read as points when the ruler unit is H; unit conversion now uses the shared unit table (Feet & Inches converts one foot per unit)
+- v1.2.11 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)
+

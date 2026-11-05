@@ -116,6 +116,7 @@ It can also round the frame corners, fill the cells with random gray tints, and 
 
 ### Update History
 
+- v1.10.1 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)
 - v1.10.0 (2026-10-30) Added the Options panel below the Cells panel, with "Grayscale" (black strokes and text, grayscale path and cell fills)
 - v1.9.0 (2026-10-30) Added "Text color" to the Text panel (applies the color picked in the Color Picker to the fill of the selected texts)
 - v1.8.0 (2026-10-27) Added "Capsule shape" to the Frame panel (applies the Round Corners effect with half the shorter side of the frame as the radius, making both ends semicircles). Fixed cell fills not being rounded by more than half their shorter side (a cell rounded only at a frame corner can now be rounded across its full side)

@@ -65,6 +65,7 @@
 - v1.2.4 (2026-10-01) Fixed Esc not closing the palette while the preview was shown
 - v1.2.5 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.2.6 (2026-10-10) Fixed the palette operating on another Illustrator version when several versions are running
+- v1.2.7 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)
 
 ### Script info
 

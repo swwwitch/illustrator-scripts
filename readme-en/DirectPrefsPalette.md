@@ -20,6 +20,7 @@ See the README for details.
 
 ### Update History
 
+- v1.1.7 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)
 - v1.1.6 (2026-10-29) Fixed the keyboard-increment presets not following the ruler unit (mm 1, 5, 10; pt 1, 6, 12; px 0.1, 1, 8). With the ruler unit set to Ha (H), the unit now reads "H" instead of "Q"
 - v1.1.5 (2026-10-10) Fixed the palette operating on another Illustrator version when several versions are running
 - v1.1.4 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)

@@ -41,6 +41,7 @@
 - v1.2.6 (20260930) : Fixed an error when running with characters selected by the Type tool
 - v1.2.7 (20261001) : The button row, previously always centered, is now centered in dialogs up to 200 px wide (inside the margins) and right-aligned in wider ones. Unified the window and panel margins and spacing with the shared layout part
 - v1.2.8 (20261001) : Added space below the button row to match Illustrator's own dialogs
+- v1.2.11 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)
 
 ### Update History
 

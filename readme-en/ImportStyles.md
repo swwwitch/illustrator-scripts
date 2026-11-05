@@ -66,3 +66,5 @@
 - v1.5.9 (2026-10-01): Added space below the button row to match Illustrator's own dialogs
 - v1.5.10 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.5.11 (2026-10-29): Fixed closing an already-open library file without saving its changes (the import stops when the file is the destination itself). [Add] now asks before replacing a same-named file and copies nothing when the name dialog is cancelled. The selection is cleared before pasting so selected text is not replaced. [Add] also clears the search query so the new item shows in the list
+- v1.5.12 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)
+

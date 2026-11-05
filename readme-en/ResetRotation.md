@@ -60,3 +60,5 @@
 - v1.4.7 (2026-10-03): The number field now shows its unit inside; removed the unit from the label
 - v1.4.8 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.4.9 (2026-10-16) Right-only button rows are now centered when the dialog's inner width is up to 240 px (was 200 px) (shared part update)
+- v1.4.10 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)
+
