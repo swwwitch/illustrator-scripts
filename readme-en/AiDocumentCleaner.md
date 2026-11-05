@@ -109,6 +109,7 @@ Option/alt-clicking a checkbox sets every checkbox in that panel to the clicked 
 
 ### Update History
 
+- v1.1.12 (2026-11-06) The folder scope now skips files that are already open instead of saving over or discarding their unsaved edits. An error in one item no longer stops the rest; the summary reports it. Fixed guides snapped to an artboard edge sometimes being removed by "Outside the active artboard". "Hidden objects" no longer removes hidden clipping paths and guides (removing a mask left a clip group with no mask, so the clip could never be restored). Faster sorting of the files in the folder. Lowercase letters in the version footer are one dot taller
 - v1.1.11 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)
 - v1.1.10 (2026-10-06) Confirmation dialogs for deleting or overwriting now default to No (Enter cancels)
 - v1.1.9 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)

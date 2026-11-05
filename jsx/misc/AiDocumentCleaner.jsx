@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.AiDocumentCleaner
 Name=ドキュメントの不要な要素をまとめて削除
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.1.11
+Version=1.1.12
 Release-Date=2026-06-27
 Description-BEGIN
 ドキュメント内の不要な要素（未使用のパネル項目、孤立点や空のテキスト、空のグループ・レイヤー、ガイド、アートボード外のオブジェクト、属性パネルのメモなど）をまとめて削除します。
@@ -47,10 +47,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiDocument
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AiDocumentCleaner";            /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.11";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.12";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-06-27";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-11-05";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-11-06";                   /* 更新日 / last updated */
 
 var SCRIPT_DESCRIPTION_JA = "ドキュメントの不要な要素をまとめて削除"; /* README の見出し / README title (Japanese) */
 
@@ -455,32 +455,32 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         "X": ["#...#", "#...#", ".#.#.", "..#..", ".#.#.", "#...#", "#...#", ".....", "....."],
         "Y": ["#...#", "#...#", ".#.#.", "..#..", "..#..", "..#..", "..#..", ".....", "....."],
         "Z": ["#####", "....#", "...#.", "..#..", ".#...", "#....", "#####", ".....", "....."],
-        "a": ["....", "....", "....", ".###", "#..#", "#..#", ".###", "....", "...."],
-        "b": ["#...", "#...", "#...", "###.", "#..#", "#..#", "###.", "....", "...."],
-        "c": ["....", "....", "....", ".###", "#...", "#...", ".###", "....", "...."],
-        "d": ["...#", "...#", "...#", ".###", "#..#", "#..#", ".###", "....", "...."],
-        "e": ["....", "....", "....", ".##.", "####", "#...", ".###", "....", "...."],
-        "f": ["..#", ".#.", ".#.", "###", ".#.", ".#.", ".#.", "...", "..."],
-        "g": ["....", "....", "....", ".###", "#..#", "#..#", ".###", "...#", "###."],
-        "h": ["#...", "#...", "#...", "###.", "#..#", "#..#", "#..#", "....", "...."],
-        "i": [".", "#", ".", "#", "#", "#", "#", ".", "."],
-        "j": ["..", ".#", "..", ".#", ".#", ".#", ".#", ".#", "#."],
-        "k": ["#...", "#...", "#...", "#..#", "#.#.", "###.", "#..#", "....", "...."],
+        "a": ["....", "....", ".##.", "...#", ".###", "#..#", ".###", "....", "...."],
+        "b": ["#...", "#...", "###.", "#..#", "#..#", "#..#", "###.", "....", "...."],
+        "c": ["....", "....", ".###", "#...", "#...", "#...", ".###", "....", "...."],
+        "d": ["...#", "...#", ".###", "#..#", "#..#", "#..#", ".###", "....", "...."],
+        "e": ["....", "....", ".##.", "#..#", "####", "#...", ".###", "....", "...."],
+        "f": ["..#", ".#.", "###", ".#.", ".#.", ".#.", ".#.", "...", "..."],
+        "g": ["....", "....", ".###", "#..#", "#..#", "#..#", ".###", "...#", "###."],
+        "h": ["#...", "#...", "###.", "#..#", "#..#", "#..#", "#..#", "....", "...."],
+        "i": ["#", ".", "#", "#", "#", "#", "#", ".", "."],
+        "j": [".#", "..", ".#", ".#", ".#", ".#", ".#", ".#", "#."],
+        "k": ["#...", "#...", "#..#", "#.#.", "##..", "#.#.", "#..#", "....", "...."],
         "l": ["#.", "#.", "#.", "#.", "#.", "#.", ".#", "..", ".."],
-        "m": [".....", ".....", ".....", "####.", "#.#.#", "#.#.#", "#.#.#", ".....", "....."],
-        "n": ["....", "....", "....", "###.", "#..#", "#..#", "#..#", "....", "...."],
-        "o": ["....", "....", "....", ".##.", "#..#", "#..#", ".##.", "....", "...."],
-        "p": ["....", "....", "....", "###.", "#..#", "#..#", "###.", "#...", "#..."],
-        "q": ["....", "....", "....", ".###", "#..#", "#..#", ".###", "...#", "...#"],
-        "r": ["....", "....", "....", "#.##", "##..", "#...", "#...", "....", "...."],
-        "s": ["....", "....", "....", ".###", "##..", "..##", "###.", "....", "...."],
-        "t": ["...", ".#.", ".#.", "###", ".#.", ".#.", ".##", "...", "..."],
-        "u": ["....", "....", "....", "#..#", "#..#", "#..#", ".###", "....", "...."],
-        "v": [".....", ".....", ".....", "#...#", "#...#", ".#.#.", "..#..", ".....", "....."],
-        "w": [".....", ".....", ".....", "#...#", "#.#.#", "#.#.#", ".#.#.", ".....", "....."],
-        "x": ["....", "....", "....", "#..#", ".##.", ".##.", "#..#", "....", "...."],
-        "y": ["....", "....", "....", "#..#", "#..#", "#..#", ".###", "...#", "###."],
-        "z": ["....", "....", "....", "####", "..#.", ".#..", "####", "....", "...."],
+        "m": [".....", ".....", "####.", "#.#.#", "#.#.#", "#.#.#", "#.#.#", ".....", "....."],
+        "n": ["....", "....", "###.", "#..#", "#..#", "#..#", "#..#", "....", "...."],
+        "o": ["....", "....", ".##.", "#..#", "#..#", "#..#", ".##.", "....", "...."],
+        "p": ["....", "....", "###.", "#..#", "#..#", "#..#", "###.", "#...", "#..."],
+        "q": ["....", "....", ".###", "#..#", "#..#", "#..#", ".###", "...#", "...#"],
+        "r": ["....", "....", "#.##", "##..", "#...", "#...", "#...", "....", "...."],
+        "s": ["....", "....", ".###", "#...", ".##.", "...#", "###.", "....", "...."],
+        "t": ["...", ".#.", "###", ".#.", ".#.", ".#.", ".##", "...", "..."],
+        "u": ["....", "....", "#..#", "#..#", "#..#", "#..#", ".###", "....", "...."],
+        "v": [".....", ".....", "#...#", "#...#", "#...#", ".#.#.", "..#..", ".....", "....."],
+        "w": [".....", ".....", "#...#", "#...#", "#.#.#", "#.#.#", ".#.#.", ".....", "....."],
+        "x": ["....", "....", "#..#", "#..#", ".##.", "#..#", "#..#", "....", "...."],
+        "y": ["....", "....", "#..#", "#..#", "#..#", "#..#", ".###", "...#", "###."],
+        "z": ["....", "....", "####", "...#", ".##.", "#...", "####", "....", "...."],
         "0": [".###.", "#...#", "#...#", "#...#", "#...#", "#...#", ".###.", ".....", "....."],
         "1": [".#", "##", ".#", ".#", ".#", ".#", ".#", "..", ".."],
         "2": [".###.", "#...#", "....#", "...#.", "..#..", ".#...", "#####", ".....", "....."],
@@ -1474,7 +1474,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             zeroOpacity: { ja: "不透明度0%のオブジェクト", en: "Objects at 0% opacity" },
             hiddenObjects: { ja: "非表示オブジェクト", en: "Hidden objects" },
             brokenLink: { ja: "リンク切れの配置画像", en: "Broken-link placed images" },
-            notes: { ja: "メモ", en: "Notes" },
+            notes: { ja: "メモ（属性パネル）", en: "Notes" },
             outsideAllArtboards: { ja: "アートボード外のオブジェクト", en: "Objects outside all artboards" },
             outsideActiveArtboard: { ja: "アクティブなアートボード外のオブジェクト", en: "Objects outside the active artboard" },
             emptyGroup: { ja: "空のグループ", en: "Empty groups" },
@@ -1513,7 +1513,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             zeroOpacity: { ja: "不透明度0%のオブジェクト", en: "Objects at 0% opacity" },
             hiddenObjects: { ja: "非表示オブジェクト", en: "Hidden objects" },
             brokenLink: { ja: "リンク切れの配置画像", en: "Broken-link placed images" },
-            notes: { ja: "メモ", en: "Notes" },
+            notes: { ja: "メモ（属性パネル）", en: "Notes" },
             outsideAllArtboards: { ja: "アートボード外のオブジェクト", en: "Objects outside all artboards" },
             outsideActiveArtboard: { ja: "アクティブなアートボード外のオブジェクト", en: "Objects outside the active artboard" },
             emptyGroup: { ja: "空のグループ", en: "Empty groups" },
@@ -1551,6 +1551,14 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             batchFailed: {
                 ja: "次のファイル／ドキュメントは処理できませんでした：",
                 en: "The following files/documents could not be processed:"
+            },
+            batchSkippedOpen: {
+                ja: "次のファイルは開いていたため、処理せずにスキップしました（編集中の内容を保護するため）：",
+                en: "The following files were skipped because they were already open (to protect unsaved edits):"
+            },
+            handlerFailed: {
+                ja: "次の項目は処理中にエラーが発生したため、一部しか削除できていない可能性があります：",
+                en: "The following items hit an error while running and may be only partly cleaned up:"
             }
         },
         prompt: {
@@ -1654,7 +1662,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             },
             clearGuides: {
                 ja: "メニュー「ガイドを消去」を実行します。ロックされたレイヤー上のガイドは残ることがあります（その場合は「すべてのガイド（ロックも解除）」を使用）。",
-                en: "Runs the Clear Guides menu command. Guides on locked layers may remain (use \"All guides (force)\" for those)."
+                en: "Runs the Clear Guides menu command. Guides on locked layers may remain (use \"All guides (unlocks everything)\" for those)."
             },
             guides: {
                 ja: "ドキュメント内のすべてのガイドを削除します（ロックされたレイヤー・サブレイヤー・ガイドも一時的に解除）。",
@@ -1729,6 +1737,10 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         var TARGET_FRONTMOST = "frontmost";
         var TARGET_ALL_OPEN = "allOpen";
         var TARGET_FOLDER = "folder";
+
+        /* 矩形の重なり判定で「接している」とみなす許容値（pt）。辺に吸着させたガイドやオブジェクトは 1e-12 ほどずれるため
+           Tolerance (pt) within which rectangles count as touching; guides and objects snapped to an edge drift by about 1e-12 */
+        var RECT_TOUCH_TOLERANCE = 0.001;
 
         /* ダイアログの構成（トップパネル → サブパネル/チェックボックス）。force はパネル項目パネルの末尾に置く / Dialog layout; the force option sits at the bottom of the panel-items panel */
         var DIALOG_LAYOUT = [{
@@ -1828,6 +1840,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
 
         /* アクションの再生に失敗した種類キー。完了メッセージで「未使用0件」と区別して警告する / Type keys whose action failed to play; warned in the summary so they aren't mistaken for a genuine zero */
         var actionFailureKeys = [];
+        /* 処理中に例外が出た種類キー。残りの種類は続けて実行し、完了メッセージで警告する / Type keys whose handler threw; the remaining types still run and the summary warns about these */
+        var handlerFailureKeys = [];
 
         /* 対象の指定方法に応じて実行 / Run according to the chosen target */
         if (dialogChoices.targetMode === TARGET_FOLDER) {
@@ -1875,11 +1889,33 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             var deletedCounts = {};
             for (var i = 0; i < EXECUTION_KEYS.length; i++) {
                 var optionKey = EXECUTION_KEYS[i];
-                if (choices[optionKey]) {
+                if (!choices[optionKey]) {
+                    continue;
+                }
+                /* 1種類が例外を出しても残りの種類は続ける / One type throwing must not stop the remaining types */
+                try {
                     deletedCounts[optionKey] = TARGET_RUNNERS[optionKey](targetDoc, choices.force);
+                } catch (e) {
+                    $.writeln("runCleanup(" + optionKey + "): " + e);
+                    addUniqueKey(handlerFailureKeys, optionKey);
                 }
             }
             return deletedCounts;
+        }
+
+        /**
+         * 配列にまだ無ければキーを足す（一括処理でファイルごとに同じ失敗が起きても1回だけ控える）
+         * @param {string[]} keyList - キーの配列（書き換える）
+         * @param {string} optionKey - 足すキー
+         * @returns {void}
+         */
+        function addUniqueKey(keyList, optionKey) {
+            for (var i = 0; i < keyList.length; i++) {
+                if (keyList[i] === optionKey) {
+                    return;
+                }
+            }
+            keyList.push(optionKey);
         }
 
         /**
@@ -1937,7 +1973,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             app.redraw();
 
             alert(getLabel('alert.batchDoneDocuments', [processedCount]) + "\n\n" +
-                buildBatchResultMessage(deletedTotals, choices, failedNames));
+                buildBatchResultMessage(deletedTotals, choices, failedNames, []));
         }
 
         /**
@@ -1967,11 +2003,24 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             var deletedTotals = {};
             var processedCount = 0;
             var failedNames = [];
+            var alreadyOpenNames = [];
             try {
                 for (var i = 0; i < aiFiles.length; i++) {
                     var openedDoc = null;
                     try {
-                        openedDoc = app.open(aiFiles[i]);
+                        /* すでに開いているファイルは app.open() で手前に来るだけで、ドキュメントの数が増えない。
+                           編集中の内容を上書き保存したり、失敗時に破棄したりしないよう、閉じずにスキップする
+                           (パス文字列の比較は日本語パスの NFD/NFC 違いで外れるので使わない)
+                           An already-open file only comes to the front, so the document count stays the same. Skip it without
+                           closing, so the user's unsaved edits are neither saved over the file nor discarded on failure
+                           (path comparison is avoided because NFD/NFC differences in Japanese paths make it miss) */
+                        var documentCountBefore = app.documents.length;
+                        var fileDoc = app.open(aiFiles[i]);
+                        if (app.documents.length === documentCountBefore) {
+                            alreadyOpenNames.push(getEntryName(aiFiles[i]));
+                            continue;
+                        }
+                        openedDoc = fileDoc;
                         /* 保存に失敗した変更は破棄されるので、集計への加算は上書き保存が終わってから
                            Changes are discarded when the save fails, so only fold the counts in once the file is safely saved */
                         var fileCounts = runCleanup(openedDoc, choices);
@@ -1997,7 +2046,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             }
 
             alert(getLabel('alert.batchDoneFiles', [processedCount]) + "\n\n" +
-                buildBatchResultMessage(deletedTotals, choices, failedNames));
+                buildBatchResultMessage(deletedTotals, choices, failedNames, alreadyOpenNames));
         }
 
         /**
@@ -2016,7 +2065,10 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
          */
         function collectAiFiles(targetFolder) {
             var folderEntries = targetFolder.getFiles();
-            var aiFiles = [];
+            var foundFiles = [];
+            /* 並べ替えは「名前＋\u0001＋元の添字」のキーを引数なしの sort() で並べる。比較関数つきの sort() は ExtendScript では遅く、並びが狂うこともある
+               Sort "name + \u0001 + original index" keys with an argument-less sort(); a comparator sort() is slow in ExtendScript and can misorder */
+            var sortKeys = [];
             for (var i = 0; i < folderEntries.length; i++) {
                 var entry = folderEntries[i];
                 /* サブフォルダーを除く（File 判定ではなく Folder 判定にして、取りこぼしを防ぐ）/ Exclude subfolders; testing for Folder rather than File avoids dropping everything if the check misbehaves */
@@ -2029,17 +2081,15 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
                     continue;
                 }
                 if (entryName.length > 3 && entryName.substring(entryName.length - 3).toLowerCase() === ".ai") {
-                    aiFiles.push(entry);
+                    sortKeys.push(entryName + "\u0001" + foundFiles.length);
+                    foundFiles.push(entry);
                 }
             }
-            aiFiles.sort(function(entryA, entryB) {
-                var nameA = getEntryName(entryA);
-                var nameB = getEntryName(entryB);
-                if (nameA === nameB) {
-                    return 0;
-                }
-                return (nameA < nameB) ? -1 : 1;
-            });
+            sortKeys.sort();
+            var aiFiles = [];
+            for (var j = 0; j < sortKeys.length; j++) {
+                aiFiles.push(foundFiles[Number(sortKeys[j].substring(sortKeys[j].lastIndexOf("\u0001") + 1))]);
+            }
             return aiFiles;
         }
 
@@ -2124,11 +2174,21 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
          * @returns {string} 一覧のテキスト。該当なしなら空文字
          */
         function buildActionFailureLines() {
-            var failedTypeNames = [];
-            for (var i = 0; i < actionFailureKeys.length; i++) {
-                failedTypeNames.push(getLabel('result.' + actionFailureKeys[i]));
+            return buildNoticeLines('alert.actionFailed', getResultLabels(actionFailureKeys)) +
+                buildNoticeLines('alert.handlerFailed', getResultLabels(handlerFailureKeys));
+        }
+
+        /**
+         * 種類キーを結果表示用の種類名にする
+         * @param {string[]} optionKeys - 種類キーの配列
+         * @returns {string[]} 種類名の配列
+         */
+        function getResultLabels(optionKeys) {
+            var typeNames = [];
+            for (var i = 0; i < optionKeys.length; i++) {
+                typeNames.push(getLabel('result.' + optionKeys[i]));
             }
-            return buildNoticeLines('alert.actionFailed', failedTypeNames);
+            return typeNames;
         }
 
         /**
@@ -2145,16 +2205,18 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         }
 
         /**
-         * 一括処理用の完了メッセージを組み立てる（合計件数と失敗したファイル名）
+         * 一括処理用の完了メッセージを組み立てる（合計件数と、処理できなかった・スキップしたファイル名）
          * @param {Object} deletedTotals - 種類キーごとの合計
          * @param {Object} choices - ダイアログの選択結果
          * @param {string[]} failedNames - 処理できなかったファイル／ドキュメント名
+         * @param {string[]} alreadyOpenNames - 開いていたためスキップしたファイル名
          * @returns {string} 完了メッセージ
          */
-        function buildBatchResultMessage(deletedTotals, choices, failedNames) {
+        function buildBatchResultMessage(deletedTotals, choices, failedNames, alreadyOpenNames) {
             var countLines = buildCountLines(deletedTotals, choices);
             var message = (countLines === "") ? getLabel('alert.noTarget') : countLines;
-            return message + buildActionFailureLines() + buildNoticeLines('alert.batchFailed', failedNames);
+            return message + buildActionFailureLines() + buildNoticeLines('alert.batchFailed', failedNames) +
+                buildNoticeLines('alert.batchSkippedOpen', alreadyOpenNames);
         }
 
         // ==================================================
@@ -2972,17 +3034,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             var countBefore = collection.length;
             var actionSource = buildActionSource(ACTION_SET_NAME, ACTION_NAME, pruneSpec);
             if (!runTemporaryAction(actionSource, ACTION_SET_NAME, ACTION_NAME)) {
-                /* 一括処理ではファイルごとに同じ失敗が起きるため、種類は1回だけ控える / A batch run hits the same failure per file, so record each type only once */
-                var alreadyRecorded = false;
-                for (var i = 0; i < actionFailureKeys.length; i++) {
-                    if (actionFailureKeys[i] === resultKey) {
-                        alreadyRecorded = true;
-                        break;
-                    }
-                }
-                if (!alreadyRecorded) {
-                    actionFailureKeys.push(resultKey);
-                }
+                addUniqueKey(actionFailureKeys, resultKey);
                 return 0;
             }
             return Math.max(0, countBefore - collection.length);
@@ -3015,17 +3067,19 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         }
 
         /**
-         * 2つの矩形 [left, top, right, bottom] が重なるか判定する（Illustrator は上が大きいY）
+         * 2つの矩形 [left, top, right, bottom] が重なるか判定する（Illustrator は上が大きいY）。
+         * RECT_TOUCH_TOLERANCE 以内の隙間は接しているとみなし、重なる側に倒す（削除しない側に寄せる）
          * @param {number[]} rectA - 矩形A
          * @param {number[]} rectB - 矩形B
          * @returns {boolean} 重なれば true
          */
         function rectsIntersect(rectA, rectB) {
+            var tolerance = RECT_TOUCH_TOLERANCE;
             return !(
-                rectB[2] < rectA[0] || /* B 右端が A 左端より左 / B right is left of A left */
-                rectB[0] > rectA[2] || /* B 左端が A 右端より右 / B left is right of A right */
-                rectB[3] > rectA[1] || /* B 下端が A 上端より上 / B bottom is above A top */
-                rectB[1] < rectA[3]    /* B 上端が A 下端より下 / B top is below A bottom */
+                rectB[2] < rectA[0] - tolerance || /* B 右端が A 左端より左 / B right is left of A left */
+                rectB[0] > rectA[2] + tolerance || /* B 左端が A 右端より右 / B left is right of A right */
+                rectB[3] > rectA[1] + tolerance || /* B 下端が A 上端より上 / B bottom is above A top */
+                rectB[1] < rectA[3] - tolerance    /* B 上端が A 下端より下 / B top is below A bottom */
             );
         }
 
@@ -3211,9 +3265,19 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             var pageItems = doc.pageItems;
             for (var i = 0; i < pageItems.length; i++) {
                 try {
-                    if (pageItems[i].hidden) {
-                        hiddenItems.push(pageItems[i]);
+                    if (!pageItems[i].hidden) {
+                        continue;
                     }
+                    /* 非表示のガイドとクリッピングパスも hidden が true で集まる（実測）。ガイドはガイドのセクションで扱う。
+                       非表示のマスクは切り抜きが効いていないが、消すとマスクの無いクリップグループ（clipped は true のまま）が残り、
+                       表示し直して切り抜きを戻すこともできなくなるので、ほかの削除と同じく除外する
+                       Hidden guides and clipping paths also report hidden = true (measured). Guides belong to the guide section.
+                       A hidden mask no longer clips, but removing it leaves a clip group with no mask (still clipped = true)
+                       and the clip can never be restored by showing it again, so exclude them as the other deletions do */
+                    if (pageItems[i].typename === "PathItem" && isStructuralPath(pageItems[i])) {
+                        continue;
+                    }
+                    hiddenItems.push(pageItems[i]);
                 } catch (e) {
                     /* 判定不可はスキップ / Skip items we can't test */
                 }
