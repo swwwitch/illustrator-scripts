@@ -366,6 +366,7 @@ After release, we continue to fix bugs and make adjustments through daily use.
 - [Create samples of pattern and gradient swatches](readme-en/PatternSwatchSquares.md)
 - [Draw connectors from the key object to each object](readme-en/AiConnectorBuilder.md)
 - [Filter scripts by keyword and run them](readme-en/AiScriptLauncher.md)
+- [Search and show panels](readme-en/AiPanelLauncher.md)
 - [Apply saved text attributes to the selection](readme-en/ApplyTextAttributesFromClipboard.md)
 - [Tidy up a ruled table and center texts in its cells](readme-en/ArrangeLikeTableCells.md)
 - [Redistribute rules evenly inside a frame](readme-en/AverageRulesInRectangle.md)

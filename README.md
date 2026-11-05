@@ -369,6 +369,7 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 - [パターン・グラデーションのスウォッチの見本を作成](readme-ja/PatternSwatchSquares.md)
 - [キーオブジェクトから各図形へコネクターを引く](readme-ja/AiConnectorBuilder.md)
 - [スクリプトをキーワードで絞り込んで実行](readme-ja/AiScriptLauncher.md)
+- [パネルを検索して表示](readme-ja/AiPanelLauncher.md)
 - [保存した文字属性をテキストに適用](readme-ja/ApplyTextAttributesFromClipboard.md)
 - [罫線で区切った表を整え、テキストをセルの中央に配置](readme-ja/ArrangeLikeTableCells.md)
 - [外枠の中で罫線を均等に再配置](readme-ja/AverageRulesInRectangle.md)
