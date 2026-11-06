@@ -8,14 +8,14 @@ Script-ID=com.swwwitch.illustrator.MasonryLayout
 Name=オブジェクトをメイソンリーレイアウトで並べる
 Author=David DeSandro
 Target-App=Illustrator
-Version=1.1.0
+Version=1.2.0
 Release-Date=2026-11-07
 Description-BEGIN
 選択したオブジェクトを、いちばん短い列へ順に詰めていくメイソンリーレイアウトで並べ直します。
-基準は選択オブジェクトか現在のアートボードで、アートボードのときは余白の内側に収まるように列数と大きさを決めます。幅を列にそろえたり、順序をランダムにしたりもできます。
+基準は選択オブジェクトかアートボードで、アートボードのときは余白の内側に収まるように列数と大きさを決めます。幅を列にそろえたり、順序をランダムにしたりもできます。
 
 Rearranges the selected objects in a masonry layout, placing each one in the shortest column.
-The reference is the selected objects or the current artboard; for the artboard, the column count and size are chosen to fit inside the margin. You can also match widths to the column and randomize the order.
+The reference is the selected objects or an artboard; for the artboard, the column count and size are chosen to fit inside the margin. You can also match widths to the column and randomize the order.
 Description-END
 SCRIPTMETA-END
 */
@@ -25,7 +25,7 @@ SCRIPTMETA-END
 ### 概要
 
 選択したオブジェクトを、いちばん短い列へ順に詰めていくメイソンリーレイアウトで並べ直します。
-基準は選択オブジェクトか現在のアートボードで、アートボードのときは余白の内側に収まるように列数と大きさを決めます。幅を列にそろえたり、順序をランダムにしたりもできます。
+基準は選択オブジェクトかアートボードで、アートボードのときは余白の内側に収まるように列数と大きさを決めます。幅を列にそろえたり、順序をランダムにしたりもできます。
 
 詳細は README を参照してください。
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/MasonryLayout.md
@@ -33,7 +33,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/MasonryLay
 ### Overview
 
 Rearranges the selected objects in a masonry layout, placing each one in the shortest column.
-The reference is the selected objects or the current artboard; for the artboard, the column count and size are chosen to fit inside the margin. You can also match widths to the column and randomize the order.
+The reference is the selected objects or an artboard; for the artboard, the column count and size are chosen to fit inside the margin. You can also match widths to the column and randomize the order.
 
 See the README for details.
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/MasonryLayout.md
@@ -44,7 +44,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/MasonryLay
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "MasonryLayout";                /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.2.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "David DeSandro";               /* 作者 / author */
 var SCRIPT_MODIFIED = "Masahiro Takano (@swwwitch)";  /* 改変 / modified by */
 var SCRIPT_RELEASED = "2026-11-07";                   /* 最初のリリース日 / first release date */
@@ -94,6 +94,11 @@ THE SOFTWARE.
     // =========================================
     // ユーザー設定 / User Settings
     // =========================================
+    var DEFAULT_REFERENCE_KEY = "artboard"; /* 開いたときの基準（"selection" / "artboard"） / reference when the dialog opens */
+    var DEFAULT_FIT_ARTBOARD = true;        /* 開いたときの［アートボードにフィット］ / Fit to Artboard when the dialog opens */
+    var DEFAULT_ORIGIN_X = "centerX";       /* 開いたときの［横］（"left" / "centerX" / "right"） / horizontal start when the dialog opens */
+    var DEFAULT_ORIGIN_Y = "centerY";       /* 開いたときの［縦］（"top" / "centerY" / "bottom"） / vertical start when the dialog opens */
+    var DEFAULT_ORDER_KEY = "random";       /* 開いたときの［順序］（"position" / "stacking" / "random"） / order when the dialog opens */
     var MIN_ITEM_COUNT = 2;      /* 必要な数 / items needed */
     var MAX_COLUMN_COUNT = 50;   /* 列数の上限 / highest column count */
     var DEFAULT_GAP = 0;         /* 間隔の初期値（定規の単位）。Masonry の gutter の既定値と同じ / initial gap in ruler units, as Masonry's default gutter */
@@ -2166,7 +2171,7 @@ THE SOFTWARE.
         },
         radio: {
             selection: { ja: "選択オブジェクト", en: "Selected Objects" },
-            artboard: { ja: "現在のアートボード", en: "Current Artboard" },
+            artboard: { ja: "アートボード", en: "Artboard" },
             left: { ja: "左から", en: "From Left" },
             centerX: { ja: "中央から", en: "From Center" },
             right: { ja: "右から", en: "From Right" },
@@ -2179,7 +2184,8 @@ THE SOFTWARE.
         },
         checkbox: {
             fitArtboard: { ja: "アートボードにフィット", en: "Fit to Artboard" },
-            matchWidth: { ja: "幅を列にそろえる", en: "Match Width to Column" }
+            matchWidth: { ja: "幅を列にそろえる", en: "Match Width to Column" },
+            rotateToFit: { ja: "列に入らないものを90°回転", en: "Rotate 90° to Fit Column" }
         },
         fieldLabel: {
             margin: { ja: "余白", en: "Margin" },
@@ -2201,8 +2207,8 @@ THE SOFTWARE.
             rowGap: { ja: "列の中のオブジェクトどうしの間隔", en: "Gap between objects in a column" },
             selection: { ja: "選択オブジェクト全体の範囲を基準に並べる", en: "Use the area of all the selected objects" },
             artboard: {
-                ja: "現在のアートボードに収まるように列数を決める。収まらなければ縮小する",
-                en: "Choose the column count to fit the current artboard, scaling down if needed"
+                ja: "選択オブジェクトのあるアートボードに収まるように列数を決める。収まらなければ縮小する",
+                en: "Choose the column count to fit the artboard holding the selected objects, scaling down if needed"
             },
             fitArtboard: {
                 ja: "拡大もして、アートボードいっぱいに並べる",
@@ -2212,6 +2218,10 @@ THE SOFTWARE.
             matchWidth: {
                 ja: "縦横比を保ったまま、すべてのオブジェクトの幅を列の幅にする",
                 en: "Scale every object to the column width, keeping its proportions"
+            },
+            rotateToFit: {
+                ja: "列の幅より広く、90°回転すれば列に入るオブジェクトだけを回転する",
+                en: "Rotates an object by 90° only when it is wider than the column and fits once rotated"
             },
             linkGaps: { ja: "左右と上下の間隔を連動する", en: "Link the horizontal and vertical gaps" },
             left: { ja: "基準の左端から右へ列を並べる", en: "Lay out columns rightward from the left edge of the reference" },
@@ -2242,7 +2252,11 @@ THE SOFTWARE.
         },
         alert: {
             noDocument: { ja: "ドキュメントを開いてください。", en: "Open a document first." },
-            needItems: { ja: "オブジェクトを{count}つ以上選択してください。", en: "Select at least {count} objects." }
+            needItems: { ja: "オブジェクトを{count}つ以上選択してください。", en: "Select at least {count} objects." },
+            applyFailed: {
+                ja: "オブジェクトを配置できなかったので、元に戻しました。\n{message}",
+                en: "The objects could not be arranged, so they were restored.\n{message}"
+            }
         }
     };
 
@@ -2322,16 +2336,18 @@ THE SOFTWARE.
     }
 
     /**
-     * オブジェクトがまたがる列の数を求める。余りが1pt未満なら誤差とみなして四捨五入する
+     * オブジェクトがまたがる列の数を求める。余りが丸めの幅未満なら誤差とみなして四捨五入する
      * @param {number} itemWidth - オブジェクトの幅（pt）
      * @param {number} columnPitch - 列の幅＋列の間隔（pt）
      * @param {number} columnCount - 列数
+     * @param {number} [spanRoundingLimit] - 丸めの幅（pt。省略時は Masonry と同じ1pt）
      * @returns {number} またがる列の数（列数が上限）
      */
-    function getColumnSpan(itemWidth, columnPitch, columnCount) {
+    function getColumnSpan(itemWidth, columnPitch, columnCount, spanRoundingLimit) {
+        var roundingLimit = (typeof spanRoundingLimit === "number") ? spanRoundingLimit : 1;
         var remainder = itemWidth % columnPitch;
         var spanRatio = itemWidth / columnPitch;
-        var columnSpan = (remainder && remainder < 1) ? Math.round(spanRatio) : Math.ceil(spanRatio);
+        var columnSpan = (remainder && remainder < roundingLimit) ? Math.round(spanRatio) : Math.ceil(spanRatio);
         return Math.min(columnSpan, columnCount);
     }
 
@@ -2354,7 +2370,8 @@ THE SOFTWARE.
     /**
      * 順に、いちばん短い列へオブジェクトを置いていく（_getItemLayoutPosition）
      * @param {Array<{width: number, height: number}>} itemSizes - 置く順に並べた大きさ（pt）
-     * @param {{columnCount: number, columnWidth: number, columnGap: number, rowGap: number}} layoutSettings - 列と間隔（pt）
+     * @param {{columnCount: number, columnWidth: number, columnGap: number, rowGap: number, spanRoundingLimit: number}} layoutSettings -
+     *     列と間隔（pt）。spanRoundingLimit は getColumnSpan() の丸めの幅（省略可）
      * @returns {Array<{x: number, y: number}>} itemSizes と同じ順の位置
      */
     function computeMasonryPositions(itemSizes, layoutSettings) {
@@ -2366,7 +2383,7 @@ THE SOFTWARE.
 
         var positions = [];
         for (var i = 0; i < itemSizes.length; i++) {
-            var columnSpan = getColumnSpan(itemSizes[i].width, columnPitch, layoutSettings.columnCount);
+            var columnSpan = getColumnSpan(itemSizes[i].width, columnPitch, layoutSettings.columnCount, layoutSettings.spanRoundingLimit);
             var groupBottoms = getColumnGroupBottoms(columnBottoms, columnSpan);
             var shortestBottom = getMinValue(groupBottoms);
             var shortestIndex = findValueIndex(groupBottoms, shortestBottom);
@@ -2407,7 +2424,10 @@ THE SOFTWARE.
             columnCount: columnCount,
             columnWidth: layoutSettings.columnWidth * scale,
             columnGap: layoutSettings.columnGap,
-            rowGap: layoutSettings.rowGap
+            rowGap: layoutSettings.rowGap,
+            /* 丸めの1ptは原寸での幅。倍率を掛けないと、小さく縮めたときに複数列のものが1列に潰れる
+               The 1pt rounding is at actual size; unscaled, it collapses multi-column objects at small scales */
+            spanRoundingLimit: scale
         });
         return { columnCount: columnCount, scale: scale, sizes: scaledSizes, positions: positions };
     }
@@ -2631,13 +2651,14 @@ THE SOFTWARE.
      * 選択したオブジェクトと、動かす前の境界を控える
      * @param {PageItem[]} items - 対象のオブジェクト
      * @param {boolean} usePreviewBounds - true で visibleBounds、false で geometricBounds
-     * @returns {Array<{item: PageItem, bounds: number[]}>} 測れたオブジェクトと境界 [左, 上, 右, 下]
+     * @returns {Array<{item: PageItem, bounds: number[], appliedRotation: number, rotatedAspect: number}>} 測れたオブジェクト、
+     *     境界 [左, 上, 右, 下]、直前のプレビューで掛けた回転（度）、回転直後の縦横比
      */
     function captureItemStates(items, usePreviewBounds) {
         var itemStates = [];
         for (var i = 0; i < items.length; i++) {
             var itemBounds = getClipAwareBounds(items[i], usePreviewBounds);
-            if (itemBounds) itemStates.push({ item: items[i], bounds: itemBounds });
+            if (itemBounds) itemStates.push({ item: items[i], bounds: itemBounds, appliedRotation: 0, rotatedAspect: 0 });
         }
         return itemStates;
     }
@@ -2660,6 +2681,24 @@ THE SOFTWARE.
         return itemBounds[1] - itemBounds[3];
     }
 
+    /* 列に入らないものを回す角度（度） / Angle for rotating objects to fit a column, in degrees */
+    var ROTATE_TO_FIT_ANGLE = 90;
+
+    /**
+     * そのままでは複数の列にまたがり、90°回転すれば1列に入るオブジェクトか判定する。
+     * 配置と同じ getColumnSpan() で測るので、1列に入るものは回さない。原寸で測るので、基準に収めるときの倍率には左右されない
+     * @param {number} itemWidth - オブジェクトの幅（pt）
+     * @param {number} itemHeight - オブジェクトの高さ（pt）
+     * @param {{rotatesToFitColumn: boolean, matchesColumnWidth: boolean, columnWidth: number, columnGap: number}} layoutSettings - 列の設定
+     * @returns {boolean} 回転するなら true
+     */
+    function shouldRotateToFit(itemWidth, itemHeight, layoutSettings) {
+        /* 幅を列にそろえるときは、どれも列に入るので回さない / Matched widths always fit, so nothing rotates */
+        if (!layoutSettings.rotatesToFitColumn || layoutSettings.matchesColumnWidth) return false;
+        var columnPitch = layoutSettings.columnWidth + layoutSettings.columnGap;
+        return getColumnSpan(itemWidth, columnPitch, Infinity) > 1 && getColumnSpan(itemHeight, columnPitch, Infinity) <= 1;
+    }
+
     /**
      * 境界を内側へ縮める
      * @param {number[]} outerBounds - 境界 [左, 上, 右, 下]
@@ -2671,15 +2710,55 @@ THE SOFTWARE.
     }
 
     /**
+     * 中心が範囲に入っているオブジェクトを数える（線のように面積が無くても数えられる）
+     * @param {Array<{bounds: number[]}>} itemStates - captureItemStates() の戻り値
+     * @param {number[]} rangeBounds - 範囲 [左, 上, 右, 下]
+     * @returns {number} オブジェクトの数
+     */
+    function countItemCentersInBounds(itemStates, rangeBounds) {
+        var itemCount = 0;
+        for (var i = 0; i < itemStates.length; i++) {
+            var itemBounds = itemStates[i].bounds;
+            var centerX = (itemBounds[0] + itemBounds[2]) / 2;
+            var centerY = (itemBounds[1] + itemBounds[3]) / 2;
+            if (centerX >= rangeBounds[0] && centerX <= rangeBounds[2] && centerY <= rangeBounds[1] && centerY >= rangeBounds[3]) itemCount++;
+        }
+        return itemCount;
+    }
+
+    /**
+     * 選択オブジェクトがいちばん多くあるアートボードの範囲を返す。
+     * 同数なら作業中のアートボードを優先し、どれにも無ければ作業中のアートボードを返す
+     * @param {Document} activeDoc - 対象のドキュメント
+     * @param {Array<{bounds: number[]}>} itemStates - captureItemStates() の戻り値
+     * @returns {number[]} アートボードの範囲 [左, 上, 右, 下]
+     */
+    function findSelectionArtboardBounds(activeDoc, itemStates) {
+        var artboards = activeDoc.artboards;
+        var bestBounds = artboards[artboards.getActiveArtboardIndex()].artboardRect;
+        var bestCount = countItemCentersInBounds(itemStates, bestBounds);
+        for (var i = 0; i < artboards.length; i++) {
+            var artboardBounds = artboards[i].artboardRect;
+            var itemCount = countItemCentersInBounds(itemStates, artboardBounds);
+            if (itemCount > bestCount) {
+                bestBounds = artboardBounds;
+                bestCount = itemCount;
+            }
+        }
+        return bestBounds;
+    }
+
+    /**
      * 並べた結果にするための動かし方を求める。
      * 起点は基準の角に固定し、右・下から並べるときは左右・上下を折り返す（Masonry の isOriginLeft / isOriginTop）。
      * 中央からのときは左上から並べた全体を、余りの半分だけずらす。
      * fitsReference のときは列数の設定を使わず、基準に収まる列数と倍率を決める。
-     * matchesColumnWidth のときは先に各オブジェクトの幅を列の幅にしてから配置を求める（幅の無い線はそのまま）
+     * matchesColumnWidth のときは先に各オブジェクトの幅を列の幅にしてから配置を求める（幅の無い線はそのまま）。
+     * rotatesToFitColumn のときは、回転するものの幅と高さを入れ替えて配置を求める。順序は動かす前の境界で決める
      * @param {Array<{bounds: number[]}>} itemStates - captureItemStates() の戻り値
-     * @param {Object} layoutSettings - referenceBounds（基準の [左, 上, 右, 下]）/ fitsReference / scalesUp / matchesColumnWidth / columnCount /
+     * @param {Object} layoutSettings - referenceBounds（基準の [左, 上, 右, 下]）/ fitsReference / scalesUp / matchesColumnWidth / rotatesToFitColumn / columnCount /
      *     columnWidth / columnGap / rowGap（pt）/ originX / originY / orderKey / randomOrder
-     * @returns {{columnCount: number, moves: Array}} 列数と動かし方。moves の各要素は stateIndex / scale /
+     * @returns {{columnCount: number, moves: Array}} 列数と動かし方。moves の各要素は stateIndex / rotates / scale /
      *     targetX / targetY（合わせる座標）/ edgeX / edgeY（座標を合わせる辺の、境界の中の番号）
      */
     function computeLayoutPlan(itemStates, layoutSettings) {
@@ -2687,12 +2766,19 @@ THE SOFTWARE.
 
         var itemSizes = [];
         var itemScales = [];
+        var itemRotations = [];
         for (var i = 0; i < placementOrder.length; i++) {
             var orderedBounds = itemStates[placementOrder[i]].bounds;
             var itemWidth = getBoundsWidth(orderedBounds);
+            var itemHeight = getBoundsHeight(orderedBounds);
+            var rotatesItem = shouldRotateToFit(itemWidth, itemHeight, layoutSettings);
             var itemScale = (layoutSettings.matchesColumnWidth && itemWidth > 0) ? layoutSettings.columnWidth / itemWidth : 1;
             itemScales.push(itemScale);
-            itemSizes.push({ width: itemWidth * itemScale, height: getBoundsHeight(orderedBounds) * itemScale });
+            itemRotations.push(rotatesItem);
+            itemSizes.push({
+                width: (rotatesItem ? itemHeight : itemWidth) * itemScale,
+                height: (rotatesItem ? itemWidth : itemHeight) * itemScale
+            });
         }
 
         var referenceBounds = layoutSettings.referenceBounds;
@@ -2715,6 +2801,7 @@ THE SOFTWARE.
         for (var j = 0; j < placementOrder.length; j++) {
             layoutMoves.push({
                 stateIndex: placementOrder[j],
+                rotates: itemRotations[j],
                 scale: itemScales[j] * layoutFit.scale,
                 /* Illustrator の Y は上が正 / Illustrator's Y grows upward */
                 targetX: isFromRight ? referenceBounds[2] - positions[j].x : referenceBounds[0] + centerOffsetX + positions[j].x,
@@ -2738,7 +2825,41 @@ THE SOFTWARE.
     }
 
     /**
-     * 求めたとおりにオブジェクトを拡大・縮小して動かす。線や効果で大きさが倍率どおりにならないので、変えたあとに測り直して合わせる
+     * オブジェクトを中心で回転する
+     * @param {PageItem} item - 対象のオブジェクト
+     * @param {number} rotationAngle - 角度（度）
+     * @returns {void}
+     */
+    function rotateItem(item, rotationAngle) {
+        item.rotate(rotationAngle, true, true, true, true, Transformation.CENTER);
+    }
+
+    /**
+     * 境界の縦横の比を、大きさに左右されない0〜1の値で返す（線のように高さが0でも測れる）
+     * @param {number[]} itemBounds - 境界 [左, 上, 右, 下]
+     * @returns {number} 幅 ÷（幅＋高さ）
+     */
+    function getBoundsAspect(itemBounds) {
+        var sideTotal = getBoundsWidth(itemBounds) + getBoundsHeight(itemBounds);
+        return (sideTotal > 0) ? getBoundsWidth(itemBounds) / sideTotal : 0.5;
+    }
+
+    /**
+     * 掛けた回転がまだ残っているか調べる。効果があると回転しても長辺の向きが変わらないことがあるので、
+     * 回転前と回転直後のどちらの縦横比に近いかで判定する
+     * @param {{bounds: number[], rotatedAspect: number}} itemState - captureItemStates() の要素
+     * @param {number[]} currentBounds - 今の境界 [左, 上, 右, 下]
+     * @returns {boolean} 回転が残っていれば true
+     */
+    function isRotationLeft(itemState, currentBounds) {
+        var currentAspect = getBoundsAspect(currentBounds);
+        return Math.abs(currentAspect - itemState.rotatedAspect) < Math.abs(currentAspect - getBoundsAspect(itemState.bounds));
+    }
+
+    /**
+     * 求めたとおりにオブジェクトを回転・拡大・縮小して動かす。
+     * 線や効果で大きさが計算どおりにならないので、変えたあとに測り直して合わせる。
+     * PageItem に matrix は無いので、掛けた回転は itemState.appliedRotation に控えて、戻すときに打ち消す
      * @param {Array<{item: PageItem, bounds: number[]}>} itemStates - captureItemStates() の戻り値
      * @param {Array} layoutMoves - computeLayoutPlan() の moves
      * @param {boolean} usePreviewBounds - 控えたときと同じ境界の種類
@@ -2750,8 +2871,14 @@ THE SOFTWARE.
             var layoutMove = layoutMoves[i];
             var itemState = itemStates[layoutMove.stateIndex];
             var itemBounds = itemState.bounds;
-            if (!isNearlySameCoordinate(layoutMove.scale, 1, SCALE_TOLERANCE)) {
-                resizeItem(itemState.item, layoutMove.scale);
+            var needsResize = !isNearlySameCoordinate(layoutMove.scale, 1, SCALE_TOLERANCE);
+            if (layoutMove.rotates) {
+                rotateItem(itemState.item, ROTATE_TO_FIT_ANGLE);
+                itemState.appliedRotation = ROTATE_TO_FIT_ANGLE;
+                itemState.rotatedAspect = getBoundsAspect(getClipAwareBounds(itemState.item, usePreviewBounds) || itemBounds);
+            }
+            if (needsResize) resizeItem(itemState.item, layoutMove.scale);
+            if (layoutMove.rotates || needsResize) {
                 itemBounds = getClipAwareBounds(itemState.item, usePreviewBounds) || itemBounds;
                 hasMoved = true;
             }
@@ -2765,7 +2892,8 @@ THE SOFTWARE.
     }
 
     /**
-     * 控えた大きさと位置からずれているオブジェクトだけを戻す（app.undo() で戻りきらなかった分の保険）
+     * 控えた向き・大きさ・位置からずれているオブジェクトだけを戻す（app.undo() で戻りきらなかった分の保険）。
+     * 90°回転しても長辺の長さは同じなので、向きは縦横比で判定し、大きさより先に戻す
      * @param {Array<{item: PageItem, bounds: number[]}>} itemStates - captureItemStates() の戻り値
      * @param {boolean} usePreviewBounds - 控えたときと同じ境界の種類
      * @returns {void}
@@ -2775,6 +2903,14 @@ THE SOFTWARE.
             var itemState = itemStates[i];
             var currentBounds = getClipAwareBounds(itemState.item, usePreviewBounds);
             if (!currentBounds) continue;
+
+            if (itemState.appliedRotation) {
+                if (isRotationLeft(itemState, currentBounds)) {
+                    rotateItem(itemState.item, -itemState.appliedRotation);
+                    currentBounds = getClipAwareBounds(itemState.item, usePreviewBounds) || currentBounds;
+                }
+                itemState.appliedRotation = 0;
+            }
 
             /* 線のように幅か高さが0のものがあるので、長いほうで比べる / Compare the longer side, as lines can have no width or height */
             var originalSpan = Math.max(getBoundsWidth(itemState.bounds), getBoundsHeight(itemState.bounds));
@@ -2789,6 +2925,25 @@ THE SOFTWARE.
             /* undo が効いていれば差は0。ここで動かすと履歴が伸びる / Zero after a full undo; moving would add history */
             if (isNearlySameCoordinate(dx, 0) && isNearlySameCoordinate(dy, 0)) continue;
             itemState.item.translate(dx, dy);
+        }
+    }
+
+    /**
+     * オブジェクトを動かす。途中で失敗したら、そこまでの変更を戻して知らせる
+     * @param {Array<{item: PageItem, bounds: number[]}>} itemStates - captureItemStates() の戻り値
+     * @param {Array} layoutMoves - computeLayoutPlan() の moves
+     * @param {boolean} usePreviewBounds - 控えたときと同じ境界の種類
+     * @returns {boolean} 取り消しの対象が残ったら true（失敗して戻したときは false）
+     */
+    function applyLayoutMovesSafely(itemStates, layoutMoves, usePreviewBounds) {
+        try {
+            return applyLayoutMoves(itemStates, layoutMoves, usePreviewBounds);
+        } catch (e) {
+            /* どこまで履歴に積まれたか分からず、app.undo() はユーザーの操作を取り消しかねないので、座標で戻す
+               History depth is unknown and app.undo() could revert the user's own step, so restore by coordinates */
+            restoreItemStates(itemStates, usePreviewBounds);
+            alert(getLabel(LABELS.alert.applyFailed, { message: e.message }));
+            return false;
         }
     }
 
@@ -2821,7 +2976,7 @@ THE SOFTWARE.
         function updatePreview(layoutSettings) {
             clearPreview();
             var layoutPlan = computeLayoutPlan(itemStates, layoutSettings);
-            hasUncommittedPreview = applyLayoutMoves(itemStates, layoutPlan.moves, usePreviewBounds);
+            hasUncommittedPreview = applyLayoutMovesSafely(itemStates, layoutPlan.moves, usePreviewBounds);
             app.redraw();
             return layoutPlan;
         }
@@ -2887,10 +3042,11 @@ THE SOFTWARE.
      * @param {Panel} parentPanel - 追加先
      * @param {Object} fieldLabelRef - 項目名の LABELS
      * @param {string[]} choiceKeys - 選択肢のキー（LABELS.radio と LABELS.tooltip の名前）
+     * @param {string} initialKey - 最初に選んでおくキー
      * @param {function(string): void} onChoose - 選んだときの処理（キーを受け取る）
      * @returns {Object} キーごとのラジオボタン
      */
-    function addChoiceRow(parentPanel, fieldLabelRef, choiceKeys, onChoose) {
+    function addChoiceRow(parentPanel, fieldLabelRef, choiceKeys, initialKey, onChoose) {
         var choiceRow = parentPanel.add("group");
         setupRow(choiceRow, "left");
         var choiceLabel = choiceRow.add("statictext", undefined, labelText(fieldLabelRef));
@@ -2899,7 +3055,7 @@ THE SOFTWARE.
 
         var choiceRadios = {};
         for (var i = 0; i < choiceKeys.length; i++) {
-            choiceRadios[choiceKeys[i]] = addChoiceRadio(choiceRow, choiceKeys[i], i === 0, onChoose);
+            choiceRadios[choiceKeys[i]] = addChoiceRadio(choiceRow, choiceKeys[i], choiceKeys[i] === initialKey, onChoose);
         }
         return choiceRadios;
     }
@@ -2926,12 +3082,13 @@ THE SOFTWARE.
 
         /* 表示前のラジオの value は読み戻せないので、選んでいる値は変数で持つ
            A radio's value cannot be read back before show(), so the choices live in variables */
-        var selectedReferenceKey = "selection";
-        var isFitArtboardOn = false;
+        var selectedReferenceKey = DEFAULT_REFERENCE_KEY;
+        var isFitArtboardOn = DEFAULT_FIT_ARTBOARD;
         var isMatchWidthOn = false;
-        var selectedOriginX = "left";
-        var selectedOriginY = "top";
-        var selectedOrderKey = "position";
+        var isRotateToFitOn = false;
+        var selectedOriginX = DEFAULT_ORIGIN_X;
+        var selectedOriginY = DEFAULT_ORIGIN_Y;
+        var selectedOrderKey = DEFAULT_ORDER_KEY;
         /* ほかの値を変えても並びが変わらないよう、順は［シャッフル］まで持ち続ける
            Kept until Shuffle is clicked, so changing other values does not reorder the objects */
         var randomOrder = buildRandomOrder(itemStates.length);
@@ -2943,11 +3100,11 @@ THE SOFTWARE.
 
         var referencePanel = layoutDialog.add("panel", undefined, getLabel(LABELS.panel.reference));
         setupPanel(referencePanel, 6);
-        addChoiceRadio(referencePanel, "selection", true, applyReference);
-        addChoiceRadio(referencePanel, "artboard", false, applyReference);
+        addChoiceRadio(referencePanel, "selection", selectedReferenceKey === "selection", applyReference);
+        addChoiceRadio(referencePanel, "artboard", selectedReferenceKey === "artboard", applyReference);
         var fitArtboardCheckbox = referencePanel.add("checkbox", undefined, getLabel(LABELS.checkbox.fitArtboard));
         fitArtboardCheckbox.helpTip = getLabel(LABELS.tooltip.fitArtboard);
-        fitArtboardCheckbox.enabled = false;
+        fitArtboardCheckbox.value = isFitArtboardOn;
         fitArtboardCheckbox.onClick = function () {
             isFitArtboardOn = fitArtboardCheckbox.value;
             refreshPreview();
@@ -2965,7 +3122,6 @@ THE SOFTWARE.
             onStep: refreshPreview
         };
         var marginField = addPreviewField(referencePanel, marginOptions, getLabel(LABELS.tooltip.margin));
-        setSteppedFieldEnabled(marginField, false);
 
         var columnsPanel = layoutDialog.add("panel", undefined, getLabel(LABELS.panel.columns));
         setupPanel(columnsPanel);
@@ -2997,6 +3153,14 @@ THE SOFTWARE.
         matchWidthCheckbox.helpTip = getLabel(LABELS.tooltip.matchWidth);
         matchWidthCheckbox.onClick = function () {
             isMatchWidthOn = matchWidthCheckbox.value;
+            /* 幅をそろえるとどれも列に入るので、回転は効かない / Matched widths always fit, so rotating has no effect */
+            rotateToFitCheckbox.enabled = !isMatchWidthOn;
+            refreshPreview();
+        };
+        var rotateToFitCheckbox = columnsPanel.add("checkbox", undefined, getLabel(LABELS.checkbox.rotateToFit));
+        rotateToFitCheckbox.helpTip = getLabel(LABELS.tooltip.rotateToFit);
+        rotateToFitCheckbox.onClick = function () {
+            isRotateToFitOn = rotateToFitCheckbox.value;
             refreshPreview();
         };
 
@@ -3071,18 +3235,15 @@ THE SOFTWARE.
 
         var arrangementPanel = layoutDialog.add("panel", undefined, getLabel(LABELS.panel.arrangement));
         setupPanel(arrangementPanel, 6);
-        var originXRadios = addChoiceRow(arrangementPanel, LABELS.fieldLabel.horizontalStart, ["left", "centerX", "right"], function (choiceKey) {
+        var originXRadios = addChoiceRow(arrangementPanel, LABELS.fieldLabel.horizontalStart, ["left", "centerX", "right"], selectedOriginX, function (choiceKey) {
             selectedOriginX = choiceKey;
             refreshPreview();
         });
-        var originYRadios = addChoiceRow(arrangementPanel, LABELS.fieldLabel.verticalStart, ["top", "centerY", "bottom"], function (choiceKey) {
+        var originYRadios = addChoiceRow(arrangementPanel, LABELS.fieldLabel.verticalStart, ["top", "centerY", "bottom"], selectedOriginY, function (choiceKey) {
             selectedOriginY = choiceKey;
             refreshPreview();
         });
-        /* ［中央から］はアートボードが基準のときだけ / From Center is only for the artboard */
-        originXRadios.centerX.enabled = false;
-        originYRadios.centerY.enabled = false;
-        addChoiceRow(arrangementPanel, LABELS.fieldLabel.order, ["position", "stacking", "random"], function (choiceKey) {
+        addChoiceRow(arrangementPanel, LABELS.fieldLabel.order, ["position", "stacking", "random"], selectedOrderKey, function (choiceKey) {
             selectedOrderKey = choiceKey;
             btnShuffle.enabled = (choiceKey === "random");
             refreshPreview();
@@ -3091,7 +3252,7 @@ THE SOFTWARE.
         var buttonRow = addButtonRow(layoutDialog);
         var btnShuffle = buttonRow.leftGroup.add("button", undefined, getLabel(LABELS.button.shuffle));
         btnShuffle.helpTip = getLabel(LABELS.tooltip.shuffle);
-        btnShuffle.enabled = false;
+        btnShuffle.enabled = (selectedOrderKey === "random");
         buttonRow.rightGroup.add("button", undefined, getLabel(LABELS.button.cancel), { name: "cancel" });
         var btnOK = buttonRow.rightGroup.add("button", undefined, getLabel(LABELS.button.ok), { name: "ok" });
         alignRightOnlyButtonRow(buttonRow);
@@ -3124,6 +3285,7 @@ THE SOFTWARE.
                 fitsReference: (selectedReferenceKey === "artboard"),
                 scalesUp: isFitArtboardOn,
                 matchesColumnWidth: isMatchWidthOn,
+                rotatesToFitColumn: isRotateToFitOn,
                 columnCount: readFieldValue(columnCountField, columnCountOptions),
                 columnWidth: readColumnWidth(),
                 columnGap: unitToPt(readFieldValue(columnGapField, columnGapOptions), rulerUnit),
@@ -3145,31 +3307,41 @@ THE SOFTWARE.
         }
 
         /**
-         * 基準を切り替える。アートボードでは収まりを優先して列の設定を止め、選択オブジェクトでは幅に入る列数に戻す
-         * @param {string} referenceKey - "selection" または "artboard"
+         * 基準に合わせて欄の有効・無効を切り替える。
+         * アートボードでは収まりを優先して列数は自動で決める。列の幅は原寸での基準として、どちらの基準でも使える。
+         * 余白・フィット・［中央から］はアートボードのときだけ使える
          * @returns {void}
          */
-        function applyReference(referenceKey) {
-            selectedReferenceKey = referenceKey;
-            var usesColumnSettings = (referenceKey === "selection");
+        function syncReferenceControls() {
+            var usesColumnSettings = (selectedReferenceKey === "selection");
             fitArtboardCheckbox.enabled = !usesColumnSettings;
             setSteppedFieldEnabled(marginField, !usesColumnSettings);
             originXRadios.centerX.enabled = !usesColumnSettings;
             originYRadios.centerY.enabled = !usesColumnSettings;
             setSteppedFieldEnabled(columnCountField, usesColumnSettings);
-            setSteppedFieldEnabled(columnWidthField, usesColumnSettings);
-            if (usesColumnSettings) {
-                /* 使えなくなる［中央から］は、左・上に戻す / From Center becomes unavailable, so fall back to left and top */
-                if (selectedOriginX === "centerX") {
-                    selectedOriginX = "left";
-                    originXRadios.centerX.value = false;
-                    originXRadios.left.value = true;
-                }
-                if (selectedOriginY === "centerY") {
-                    selectedOriginY = "top";
-                    originYRadios.centerY.value = false;
-                    originYRadios.top.value = true;
-                }
+            if (!usesColumnSettings) return;
+            /* 使えなくなる［中央から］は、左・上に戻す / From Center becomes unavailable, so fall back to left and top */
+            if (selectedOriginX === "centerX") {
+                selectedOriginX = "left";
+                originXRadios.centerX.value = false;
+                originXRadios.left.value = true;
+            }
+            if (selectedOriginY === "centerY") {
+                selectedOriginY = "top";
+                originYRadios.centerY.value = false;
+                originYRadios.top.value = true;
+            }
+        }
+
+        /**
+         * 基準を切り替える。選択オブジェクトに戻すときは、幅に入る列数にする
+         * @param {string} referenceKey - "selection" または "artboard"
+         * @returns {void}
+         */
+        function applyReference(referenceKey) {
+            selectedReferenceKey = referenceKey;
+            syncReferenceControls();
+            if (referenceKey === "selection") {
                 var columnGap = unitToPt(readFieldValue(columnGapField, columnGapOptions), rulerUnit);
                 var fittedCount = fitColumnCount(selectionWidth, readColumnWidth(), columnGap, itemStates.length);
                 writeSteppedValue(columnCountField, fittedCount, columnCountOptions);
@@ -3187,6 +3359,7 @@ THE SOFTWARE.
             layoutDialog.close(1);
         };
 
+        syncReferenceControls();
         addVersionFooter(layoutDialog);
         prepareDialogWindow(layoutDialog, SCRIPT_NAME);
         refreshPreview();
@@ -3196,7 +3369,7 @@ THE SOFTWARE.
            Drop the preview, then run once for real so a single undo reverts it */
         layoutPreview.clear();
         if (committedSettings !== null) {
-            applyLayoutMoves(itemStates, computeLayoutPlan(itemStates, committedSettings).moves, usePreviewBounds);
+            applyLayoutMovesSafely(itemStates, computeLayoutPlan(itemStates, committedSettings).moves, usePreviewBounds);
         }
         app.redraw();
     }
@@ -3209,17 +3382,13 @@ THE SOFTWARE.
      * 選択を確かめてダイアログを開く
      * @returns {void}
      */
-    function main() {
-        if (app.documents.length === 0) {
-            alert(getLabel(LABELS.alert.noDocument));
-            return;
-        }
-
+    function runMasonryLayout() {
         var activeDoc = app.activeDocument;
         var selectedItems = collectSelectionItems(activeDoc.selection, {
             accept: function () { return true; }, /* グループは中へ入らず1つとして扱う / keep groups whole */
             skipLocked: true,
-            skipHidden: true
+            skipHidden: true,
+            skipGuides: true
         });
         var usePreviewBounds = readUsePreviewBoundsPreference();
         var itemStates = captureItemStates(selectedItems, usePreviewBounds);
@@ -3229,9 +3398,29 @@ THE SOFTWARE.
         }
         var referenceBoundsByKey = {
             selection: getClipAwareUnionBounds(selectedItems, usePreviewBounds),
-            artboard: activeDoc.artboards[activeDoc.artboards.getActiveArtboardIndex()].artboardRect
+            artboard: findSelectionArtboardBounds(activeDoc, itemStates)
         };
         showLayoutDialog(itemStates, referenceBoundsByKey, usePreviewBounds);
+    }
+
+    /**
+     * 座標系をドキュメント基準にして実行する。
+     * アートボード基準のままだと原点が作業中のアートボードに付いて動き、アートボードをまたいで比べられない
+     * @returns {void}
+     */
+    function main() {
+        if (app.documents.length === 0) {
+            alert(getLabel(LABELS.alert.noDocument));
+            return;
+        }
+
+        var savedCoordinateSystem = app.coordinateSystem;
+        app.coordinateSystem = CoordinateSystem.DOCUMENTCOORDINATESYSTEM;
+        try {
+            runMasonryLayout();
+        } finally {
+            app.coordinateSystem = savedCoordinateSystem;
+        }
     }
 
     main();
