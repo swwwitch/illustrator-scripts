@@ -8,14 +8,14 @@ Script-ID=com.swwwitch.illustrator.MasonryLayout
 Name=オブジェクトをメイソンリーレイアウトで並べる
 Author=David DeSandro
 Target-App=Illustrator
-Version=1.0.0
+Version=1.1.0
 Release-Date=2026-11-07
 Description-BEGIN
 選択したオブジェクトを、いちばん短い列へ順に詰めていくメイソンリーレイアウトで並べ直します。
-基準は選択オブジェクトか現在のアートボードで、アートボードのときは収まるように列数を決め、必要なら縮小します。
+基準は選択オブジェクトか現在のアートボードで、アートボードのときは余白の内側に収まるように列数と大きさを決めます。幅を列にそろえたり、順序をランダムにしたりもできます。
 
 Rearranges the selected objects in a masonry layout, placing each one in the shortest column.
-The reference is the selected objects or the current artboard; for the artboard, the column count is chosen to fit, scaling down if needed.
+The reference is the selected objects or the current artboard; for the artboard, the column count and size are chosen to fit inside the margin. You can also match widths to the column and randomize the order.
 Description-END
 SCRIPTMETA-END
 */
@@ -25,7 +25,7 @@ SCRIPTMETA-END
 ### 概要
 
 選択したオブジェクトを、いちばん短い列へ順に詰めていくメイソンリーレイアウトで並べ直します。
-基準は選択オブジェクトか現在のアートボードで、アートボードのときは収まるように列数を決め、必要なら縮小します。
+基準は選択オブジェクトか現在のアートボードで、アートボードのときは余白の内側に収まるように列数と大きさを決めます。幅を列にそろえたり、順序をランダムにしたりもできます。
 
 詳細は README を参照してください。
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/MasonryLayout.md
@@ -33,7 +33,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/MasonryLay
 ### Overview
 
 Rearranges the selected objects in a masonry layout, placing each one in the shortest column.
-The reference is the selected objects or the current artboard; for the artboard, the column count is chosen to fit, scaling down if needed.
+The reference is the selected objects or the current artboard; for the artboard, the column count and size are chosen to fit inside the margin. You can also match widths to the column and randomize the order.
 
 See the README for details.
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/MasonryLayout.md
@@ -44,7 +44,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/MasonryLay
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "MasonryLayout";                /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "David DeSandro";               /* 作者 / author */
 var SCRIPT_MODIFIED = "Masahiro Takano (@swwwitch)";  /* 改変 / modified by */
 var SCRIPT_RELEASED = "2026-11-07";                   /* 最初のリリース日 / first release date */
@@ -98,6 +98,8 @@ THE SOFTWARE.
     var MAX_COLUMN_COUNT = 50;   /* 列数の上限 / highest column count */
     var DEFAULT_GAP = 0;         /* 間隔の初期値（定規の単位）。Masonry の gutter の既定値と同じ / initial gap in ruler units, as Masonry's default gutter */
     var DEFAULT_LINK_GAPS = true; /* 左右と上下の間隔を連動して開く / open with the two gaps linked */
+    var DEFAULT_MARGIN = 0;      /* アートボードの余白の初期値（定規の単位） / initial artboard margin in ruler units */
+    var MAX_MARGIN_RATIO = 0.45; /* 余白の上限（アートボードの短辺に対する比率） / highest margin, as a ratio of the artboard's short side */
     var GAP_STEP = 1;            /* 間隔・列の幅の∧∨・↑↓の増減量 / stepper increment for gaps and column width */
     var MIN_COLUMN_WIDTH = 0.01; /* 列の幅の下限（定規の単位） / lowest column width in ruler units */
 
@@ -2154,7 +2156,7 @@ THE SOFTWARE.
 
     var LABELS = {
         dialog: {
-            title: { ja: "メイソンリーレイアウト", en: "Masonry Layout" }
+            title: { ja: "列に詰めて並べる", en: "Pack into Columns" }
         },
         panel: {
             reference: { ja: "基準", en: "Reference" },
@@ -2166,14 +2168,21 @@ THE SOFTWARE.
             selection: { ja: "選択オブジェクト", en: "Selected Objects" },
             artboard: { ja: "現在のアートボード", en: "Current Artboard" },
             left: { ja: "左から", en: "From Left" },
+            centerX: { ja: "中央から", en: "From Center" },
             right: { ja: "右から", en: "From Right" },
             top: { ja: "上から", en: "From Top" },
+            centerY: { ja: "中央から", en: "From Center" },
             bottom: { ja: "下から", en: "From Bottom" },
             position: { ja: "位置", en: "Position" },
             stacking: { ja: "重ね順", en: "Stacking" },
             random: { ja: "ランダム", en: "Random" }
         },
+        checkbox: {
+            fitArtboard: { ja: "アートボードにフィット", en: "Fit to Artboard" },
+            matchWidth: { ja: "幅を列にそろえる", en: "Match Width to Column" }
+        },
         fieldLabel: {
+            margin: { ja: "余白", en: "Margin" },
             columnCount: { ja: "列数", en: "Columns" },
             columnWidth: { ja: "列の幅", en: "Column Width" },
             columnGap: { ja: "左右", en: "Horizontal" },
@@ -2195,10 +2204,21 @@ THE SOFTWARE.
                 ja: "現在のアートボードに収まるように列数を決める。収まらなければ縮小する",
                 en: "Choose the column count to fit the current artboard, scaling down if needed"
             },
+            fitArtboard: {
+                ja: "拡大もして、アートボードいっぱいに並べる",
+                en: "Scale up as well, to fill the artboard"
+            },
+            margin: { ja: "アートボードの端から内側に取る余白", en: "Space kept inside the artboard edges" },
+            matchWidth: {
+                ja: "縦横比を保ったまま、すべてのオブジェクトの幅を列の幅にする",
+                en: "Scale every object to the column width, keeping its proportions"
+            },
             linkGaps: { ja: "左右と上下の間隔を連動する", en: "Link the horizontal and vertical gaps" },
             left: { ja: "基準の左端から右へ列を並べる", en: "Lay out columns rightward from the left edge of the reference" },
+            centerX: { ja: "全体をアートボードの左右中央に置く", en: "Center the whole layout horizontally on the artboard" },
             right: { ja: "基準の右端から左へ列を並べる", en: "Lay out columns leftward from the right edge of the reference" },
             top: { ja: "基準の上端から下へ積む", en: "Stack downward from the top edge of the reference" },
+            centerY: { ja: "全体をアートボードの上下中央に置く", en: "Center the whole layout vertically on the artboard" },
             bottom: { ja: "基準の下端から上へ積む", en: "Stack upward from the bottom edge of the reference" },
             position: { ja: "今の位置の上の行から順に、行の中は左から置く", en: "Place by current position: rows from the top, left to right in each row" },
             stacking: { ja: "前面のオブジェクトから順に置く", en: "Place from the frontmost object backward" },
@@ -2366,7 +2386,9 @@ THE SOFTWARE.
     // =========================================
 
     var MIN_FIT_SCALE = 0.01;  /* 縮小の下限（1 が原寸） / lowest scale (1 is actual size) */
-    var FIT_SEARCH_STEPS = 12; /* 倍率を二分探索する回数 / bisection steps for the scale */
+    var FIT_SEARCH_STEPS = 16; /* 倍率を二分探索する上限の回数 / most bisection steps for the scale */
+    var FIT_SCALE_PRECISION = 0.0005; /* 倍率の探索を止める幅 / the scale search stops at this range */
+    var SCALE_TOLERANCE = 0.00001;    /* 原寸と見なす倍率の差 / scale differences treated as actual size */
 
     /**
      * 倍率を掛けた大きさで配置を求める。間隔は倍率を掛けない
@@ -2391,25 +2413,36 @@ THE SOFTWARE.
     }
 
     /**
+     * 配置全体の大きさを測る
+     * @param {{sizes: Array, positions: Array}} scaledLayout - buildScaledLayout() の戻り値
+     * @returns {{width: number, height: number}} 全体の幅と高さ（pt）
+     */
+    function measureLayoutExtent(scaledLayout) {
+        var layoutWidth = 0;
+        var layoutHeight = 0;
+        for (var i = 0; i < scaledLayout.sizes.length; i++) {
+            layoutWidth = Math.max(layoutWidth, scaledLayout.positions[i].x + scaledLayout.sizes[i].width);
+            layoutHeight = Math.max(layoutHeight, scaledLayout.positions[i].y + scaledLayout.sizes[i].height);
+        }
+        return { width: layoutWidth, height: layoutHeight };
+    }
+
+    /**
      * 配置が基準の大きさに収まるか調べる
      * @param {{sizes: Array, positions: Array}} scaledLayout - buildScaledLayout() の戻り値
      * @param {{width: number, height: number}} referenceSize - 基準の大きさ（pt）
      * @returns {boolean} 収まれば true
      */
     function doesLayoutFit(scaledLayout, referenceSize) {
-        for (var i = 0; i < scaledLayout.sizes.length; i++) {
-            var itemRight = scaledLayout.positions[i].x + scaledLayout.sizes[i].width;
-            var itemBottom = scaledLayout.positions[i].y + scaledLayout.sizes[i].height;
-            if (itemRight > referenceSize.width + SELECTION_ITEMS_TOLERANCE) return false;
-            if (itemBottom > referenceSize.height + SELECTION_ITEMS_TOLERANCE) return false;
-        }
-        return true;
+        var layoutExtent = measureLayoutExtent(scaledLayout);
+        return layoutExtent.width <= referenceSize.width + SELECTION_ITEMS_TOLERANCE &&
+            layoutExtent.height <= referenceSize.height + SELECTION_ITEMS_TOLERANCE;
     }
 
     /**
-     * 指定の列数で基準に収まる最大の倍率を探す（原寸より大きくはしない）
+     * 指定の列数で基準に収まる最大の倍率を探す（scalesUp でなければ原寸より大きくしない）
      * @param {Array<{width: number, height: number}>} itemSizes - 置く順に並べた原寸の大きさ（pt）
-     * @param {Object} layoutSettings - columnWidth / columnGap / rowGap（pt）
+     * @param {Object} layoutSettings - columnWidth / columnGap / rowGap（pt）/ scalesUp
      * @param {number} columnCount - 列数
      * @param {{width: number, height: number}} referenceSize - 基準の大きさ（pt）
      * @param {number} lowestScale - これまでの最良の倍率。これを超えられなければ探さない
@@ -2418,7 +2451,8 @@ THE SOFTWARE.
     function findFitScale(itemSizes, layoutSettings, columnCount, referenceSize, lowestScale) {
         /* 列の並びが基準の幅に入る倍率が上限 / The columns must fit the reference width */
         var columnsWidth = referenceSize.width - (columnCount - 1) * layoutSettings.columnGap;
-        var highScale = Math.min(columnsWidth / (columnCount * layoutSettings.columnWidth), 1);
+        var highScale = columnsWidth / (columnCount * layoutSettings.columnWidth);
+        if (!layoutSettings.scalesUp) highScale = Math.min(highScale, 1);
         var lowScale = Math.max(lowestScale, MIN_FIT_SCALE);
         if (highScale <= lowScale) return 0;
 
@@ -2433,7 +2467,7 @@ THE SOFTWARE.
 
         if (fitsAt(highScale)) return highScale;
         if (!fitsAt(lowScale)) return 0;
-        for (var i = 0; i < FIT_SEARCH_STEPS; i++) {
+        for (var i = 0; i < FIT_SEARCH_STEPS && highScale - lowScale > FIT_SCALE_PRECISION; i++) {
             var middleScale = (lowScale + highScale) / 2;
             if (fitsAt(middleScale)) {
                 lowScale = middleScale;
@@ -2447,7 +2481,7 @@ THE SOFTWARE.
     /**
      * 基準に収まる列数と倍率を決める。倍率が最も大きくなる列数を選び、同じなら列の多いほうを取る
      * @param {Array<{width: number, height: number}>} itemSizes - 置く順に並べた原寸の大きさ（pt）
-     * @param {Object} layoutSettings - columnWidth / columnGap / rowGap（pt）
+     * @param {Object} layoutSettings - columnWidth / columnGap / rowGap（pt）/ scalesUp
      * @param {{width: number, height: number}} referenceSize - 基準の大きさ（pt）
      * @returns {{columnCount: number, scale: number}} 列数と倍率
      */
@@ -2456,7 +2490,8 @@ THE SOFTWARE.
         for (var columnCount = Math.min(itemSizes.length, MAX_COLUMN_COUNT); columnCount >= 1; columnCount--) {
             var fitScale = findFitScale(itemSizes, layoutSettings, columnCount, referenceSize, bestFit.scale);
             if (fitScale > bestFit.scale) bestFit = { columnCount: columnCount, scale: fitScale };
-            if (bestFit.scale >= 1) break;
+            /* 原寸が上限なら、原寸で収まった時点で探し終わる / With actual size as the limit, stop once it fits */
+            if (!layoutSettings.scalesUp && bestFit.scale >= 1) break;
         }
         /* 間隔だけで基準を超えるときは下限まで縮める / When the gaps alone overflow, shrink to the lower limit */
         if (bestFit.scale === 0) bestFit.scale = MIN_FIT_SCALE;
@@ -2626,11 +2661,23 @@ THE SOFTWARE.
     }
 
     /**
+     * 境界を内側へ縮める
+     * @param {number[]} outerBounds - 境界 [左, 上, 右, 下]
+     * @param {number} insetAmount - 縮める量（pt）
+     * @returns {number[]} 縮めた境界 [左, 上, 右, 下]
+     */
+    function getInsetBounds(outerBounds, insetAmount) {
+        return [outerBounds[0] + insetAmount, outerBounds[1] - insetAmount, outerBounds[2] - insetAmount, outerBounds[3] + insetAmount];
+    }
+
+    /**
      * 並べた結果にするための動かし方を求める。
      * 起点は基準の角に固定し、右・下から並べるときは左右・上下を折り返す（Masonry の isOriginLeft / isOriginTop）。
-     * fitsReference のときは列数の設定を使わず、基準に収まる列数と倍率を決める
+     * 中央からのときは左上から並べた全体を、余りの半分だけずらす。
+     * fitsReference のときは列数の設定を使わず、基準に収まる列数と倍率を決める。
+     * matchesColumnWidth のときは先に各オブジェクトの幅を列の幅にしてから配置を求める（幅の無い線はそのまま）
      * @param {Array<{bounds: number[]}>} itemStates - captureItemStates() の戻り値
-     * @param {Object} layoutSettings - referenceBounds（基準の [左, 上, 右, 下]）/ fitsReference / columnCount /
+     * @param {Object} layoutSettings - referenceBounds（基準の [左, 上, 右, 下]）/ fitsReference / scalesUp / matchesColumnWidth / columnCount /
      *     columnWidth / columnGap / rowGap（pt）/ originX / originY / orderKey / randomOrder
      * @returns {{columnCount: number, moves: Array}} 列数と動かし方。moves の各要素は stateIndex / scale /
      *     targetX / targetY（合わせる座標）/ edgeX / edgeY（座標を合わせる辺の、境界の中の番号）
@@ -2639,9 +2686,13 @@ THE SOFTWARE.
         var placementOrder = getPlacementOrder(itemStates, layoutSettings);
 
         var itemSizes = [];
+        var itemScales = [];
         for (var i = 0; i < placementOrder.length; i++) {
             var orderedBounds = itemStates[placementOrder[i]].bounds;
-            itemSizes.push({ width: getBoundsWidth(orderedBounds), height: getBoundsHeight(orderedBounds) });
+            var itemWidth = getBoundsWidth(orderedBounds);
+            var itemScale = (layoutSettings.matchesColumnWidth && itemWidth > 0) ? layoutSettings.columnWidth / itemWidth : 1;
+            itemScales.push(itemScale);
+            itemSizes.push({ width: itemWidth * itemScale, height: getBoundsHeight(orderedBounds) * itemScale });
         }
 
         var referenceBounds = layoutSettings.referenceBounds;
@@ -2652,18 +2703,22 @@ THE SOFTWARE.
                 height: getBoundsHeight(referenceBounds)
             });
         }
-        var positions = buildScaledLayout(itemSizes, layoutSettings, layoutFit.columnCount, layoutFit.scale).positions;
+        var scaledLayout = buildScaledLayout(itemSizes, layoutSettings, layoutFit.columnCount, layoutFit.scale);
+        var positions = scaledLayout.positions;
+        var layoutExtent = measureLayoutExtent(scaledLayout);
 
         var isFromRight = (layoutSettings.originX === "right");
         var isFromBottom = (layoutSettings.originY === "bottom");
+        var centerOffsetX = (layoutSettings.originX === "centerX") ? (getBoundsWidth(referenceBounds) - layoutExtent.width) / 2 : 0;
+        var centerOffsetY = (layoutSettings.originY === "centerY") ? (getBoundsHeight(referenceBounds) - layoutExtent.height) / 2 : 0;
         var layoutMoves = [];
         for (var j = 0; j < placementOrder.length; j++) {
             layoutMoves.push({
                 stateIndex: placementOrder[j],
-                scale: layoutFit.scale,
+                scale: itemScales[j] * layoutFit.scale,
                 /* Illustrator の Y は上が正 / Illustrator's Y grows upward */
-                targetX: isFromRight ? referenceBounds[2] - positions[j].x : referenceBounds[0] + positions[j].x,
-                targetY: isFromBottom ? referenceBounds[3] + positions[j].y : referenceBounds[1] - positions[j].y,
+                targetX: isFromRight ? referenceBounds[2] - positions[j].x : referenceBounds[0] + centerOffsetX + positions[j].x,
+                targetY: isFromBottom ? referenceBounds[3] + positions[j].y : referenceBounds[1] - centerOffsetY - positions[j].y,
                 edgeX: isFromRight ? 2 : 0,
                 edgeY: isFromBottom ? 3 : 1
             });
@@ -2683,7 +2738,7 @@ THE SOFTWARE.
     }
 
     /**
-     * 求めたとおりにオブジェクトを縮小して動かす。線や効果で大きさが倍率どおりにならないので、縮小後に測り直して合わせる
+     * 求めたとおりにオブジェクトを拡大・縮小して動かす。線や効果で大きさが倍率どおりにならないので、変えたあとに測り直して合わせる
      * @param {Array<{item: PageItem, bounds: number[]}>} itemStates - captureItemStates() の戻り値
      * @param {Array} layoutMoves - computeLayoutPlan() の moves
      * @param {boolean} usePreviewBounds - 控えたときと同じ境界の種類
@@ -2695,7 +2750,7 @@ THE SOFTWARE.
             var layoutMove = layoutMoves[i];
             var itemState = itemStates[layoutMove.stateIndex];
             var itemBounds = itemState.bounds;
-            if (layoutMove.scale < 1) {
+            if (!isNearlySameCoordinate(layoutMove.scale, 1, SCALE_TOLERANCE)) {
                 resizeItem(itemState.item, layoutMove.scale);
                 itemBounds = getClipAwareBounds(itemState.item, usePreviewBounds) || itemBounds;
                 hasMoved = true;
@@ -2815,7 +2870,7 @@ THE SOFTWARE.
      * @param {string} choiceKey - 選択肢のキー（LABELS.radio と LABELS.tooltip の名前）
      * @param {boolean} isInitial - 最初に選んでおくなら true
      * @param {function(string): void} onChoose - 選んだときの処理（キーを受け取る）
-     * @returns {void}
+     * @returns {RadioButton} 足したラジオボタン
      */
     function addChoiceRadio(parentGroup, choiceKey, isInitial, onChoose) {
         var choiceRadio = parentGroup.add("radiobutton", undefined, getLabel(LABELS.radio[choiceKey]));
@@ -2824,6 +2879,7 @@ THE SOFTWARE.
         choiceRadio.onClick = function () {
             onChoose(choiceKey);
         };
+        return choiceRadio;
     }
 
     /**
@@ -2832,7 +2888,7 @@ THE SOFTWARE.
      * @param {Object} fieldLabelRef - 項目名の LABELS
      * @param {string[]} choiceKeys - 選択肢のキー（LABELS.radio と LABELS.tooltip の名前）
      * @param {function(string): void} onChoose - 選んだときの処理（キーを受け取る）
-     * @returns {void}
+     * @returns {Object} キーごとのラジオボタン
      */
     function addChoiceRow(parentPanel, fieldLabelRef, choiceKeys, onChoose) {
         var choiceRow = parentPanel.add("group");
@@ -2841,9 +2897,11 @@ THE SOFTWARE.
         choiceLabel.preferredSize.width = FIELD_LABEL_WIDTHS[uiLang];
         choiceLabel.justify = "right";
 
+        var choiceRadios = {};
         for (var i = 0; i < choiceKeys.length; i++) {
-            addChoiceRadio(choiceRow, choiceKeys[i], i === 0, onChoose);
+            choiceRadios[choiceKeys[i]] = addChoiceRadio(choiceRow, choiceKeys[i], i === 0, onChoose);
         }
+        return choiceRadios;
     }
 
     /**
@@ -2869,6 +2927,8 @@ THE SOFTWARE.
         /* 表示前のラジオの value は読み戻せないので、選んでいる値は変数で持つ
            A radio's value cannot be read back before show(), so the choices live in variables */
         var selectedReferenceKey = "selection";
+        var isFitArtboardOn = false;
+        var isMatchWidthOn = false;
         var selectedOriginX = "left";
         var selectedOriginY = "top";
         var selectedOrderKey = "position";
@@ -2885,6 +2945,27 @@ THE SOFTWARE.
         setupPanel(referencePanel, 6);
         addChoiceRadio(referencePanel, "selection", true, applyReference);
         addChoiceRadio(referencePanel, "artboard", false, applyReference);
+        var fitArtboardCheckbox = referencePanel.add("checkbox", undefined, getLabel(LABELS.checkbox.fitArtboard));
+        fitArtboardCheckbox.helpTip = getLabel(LABELS.tooltip.fitArtboard);
+        fitArtboardCheckbox.enabled = false;
+        fitArtboardCheckbox.onClick = function () {
+            isFitArtboardOn = fitArtboardCheckbox.value;
+            refreshPreview();
+        };
+        var artboardBounds = referenceBoundsByKey.artboard;
+        var marginOptions = {
+            label: labelText(LABELS.fieldLabel.margin),
+            labelWidth: labelWidth,
+            text: DEFAULT_MARGIN + unitSuffix,
+            characters: 8,
+            step: GAP_STEP,
+            min: 0,
+            max: ptToUnit(Math.min(getBoundsWidth(artboardBounds), getBoundsHeight(artboardBounds)) * MAX_MARGIN_RATIO, rulerUnit),
+            unit: unitSuffix,
+            onStep: refreshPreview
+        };
+        var marginField = addPreviewField(referencePanel, marginOptions, getLabel(LABELS.tooltip.margin));
+        setSteppedFieldEnabled(marginField, false);
 
         var columnsPanel = layoutDialog.add("panel", undefined, getLabel(LABELS.panel.columns));
         setupPanel(columnsPanel);
@@ -2912,6 +2993,12 @@ THE SOFTWARE.
         columnWidthOptions.text = formatSteppedValue(ptToUnit(defaultColumnWidth, rulerUnit), columnWidthOptions);
         var columnWidthField = addPreviewField(columnsPanel, columnWidthOptions, getLabel(LABELS.tooltip.columnWidth));
         var defaultColumnWidthText = columnWidthField.text;
+        var matchWidthCheckbox = columnsPanel.add("checkbox", undefined, getLabel(LABELS.checkbox.matchWidth));
+        matchWidthCheckbox.helpTip = getLabel(LABELS.tooltip.matchWidth);
+        matchWidthCheckbox.onClick = function () {
+            isMatchWidthOn = matchWidthCheckbox.value;
+            refreshPreview();
+        };
 
         var gapPanel = layoutDialog.add("panel", undefined, getLabel(LABELS.panel.gap));
         setupPanel(gapPanel);
@@ -2984,14 +3071,17 @@ THE SOFTWARE.
 
         var arrangementPanel = layoutDialog.add("panel", undefined, getLabel(LABELS.panel.arrangement));
         setupPanel(arrangementPanel, 6);
-        addChoiceRow(arrangementPanel, LABELS.fieldLabel.horizontalStart, ["left", "right"], function (choiceKey) {
+        var originXRadios = addChoiceRow(arrangementPanel, LABELS.fieldLabel.horizontalStart, ["left", "centerX", "right"], function (choiceKey) {
             selectedOriginX = choiceKey;
             refreshPreview();
         });
-        addChoiceRow(arrangementPanel, LABELS.fieldLabel.verticalStart, ["top", "bottom"], function (choiceKey) {
+        var originYRadios = addChoiceRow(arrangementPanel, LABELS.fieldLabel.verticalStart, ["top", "centerY", "bottom"], function (choiceKey) {
             selectedOriginY = choiceKey;
             refreshPreview();
         });
+        /* ［中央から］はアートボードが基準のときだけ / From Center is only for the artboard */
+        originXRadios.centerX.enabled = false;
+        originYRadios.centerY.enabled = false;
         addChoiceRow(arrangementPanel, LABELS.fieldLabel.order, ["position", "stacking", "random"], function (choiceKey) {
             selectedOrderKey = choiceKey;
             btnShuffle.enabled = (choiceKey === "random");
@@ -3016,13 +3106,24 @@ THE SOFTWARE.
         }
 
         /**
+         * 基準の境界を読む。アートボードなら余白のぶん内側にする
+         * @returns {number[]} 基準の境界 [左, 上, 右, 下]
+         */
+        function readReferenceBounds() {
+            if (selectedReferenceKey === "selection") return referenceBoundsByKey.selection;
+            return getInsetBounds(artboardBounds, unitToPt(readFieldValue(marginField, marginOptions), rulerUnit));
+        }
+
+        /**
          * 今の設定を集める
          * @returns {Object} computeLayoutPlan() の設定
          */
         function readLayoutSettings() {
             return {
-                referenceBounds: referenceBoundsByKey[selectedReferenceKey],
+                referenceBounds: readReferenceBounds(),
                 fitsReference: (selectedReferenceKey === "artboard"),
+                scalesUp: isFitArtboardOn,
+                matchesColumnWidth: isMatchWidthOn,
                 columnCount: readFieldValue(columnCountField, columnCountOptions),
                 columnWidth: readColumnWidth(),
                 columnGap: unitToPt(readFieldValue(columnGapField, columnGapOptions), rulerUnit),
@@ -3051,9 +3152,24 @@ THE SOFTWARE.
         function applyReference(referenceKey) {
             selectedReferenceKey = referenceKey;
             var usesColumnSettings = (referenceKey === "selection");
+            fitArtboardCheckbox.enabled = !usesColumnSettings;
+            setSteppedFieldEnabled(marginField, !usesColumnSettings);
+            originXRadios.centerX.enabled = !usesColumnSettings;
+            originYRadios.centerY.enabled = !usesColumnSettings;
             setSteppedFieldEnabled(columnCountField, usesColumnSettings);
             setSteppedFieldEnabled(columnWidthField, usesColumnSettings);
             if (usesColumnSettings) {
+                /* 使えなくなる［中央から］は、左・上に戻す / From Center becomes unavailable, so fall back to left and top */
+                if (selectedOriginX === "centerX") {
+                    selectedOriginX = "left";
+                    originXRadios.centerX.value = false;
+                    originXRadios.left.value = true;
+                }
+                if (selectedOriginY === "centerY") {
+                    selectedOriginY = "top";
+                    originYRadios.centerY.value = false;
+                    originYRadios.top.value = true;
+                }
                 var columnGap = unitToPt(readFieldValue(columnGapField, columnGapOptions), rulerUnit);
                 var fittedCount = fitColumnCount(selectionWidth, readColumnWidth(), columnGap, itemStates.length);
                 writeSteppedValue(columnCountField, fittedCount, columnCountOptions);
