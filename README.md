@@ -127,6 +127,7 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 - [隣り合うオブジェクトのアキの中央に記号を配置](readme-ja/RightMarkPlacer.md)
 - [選択した2つのオブジェクトの上下の間隔を、指定した値にそろえる常駐パレットです](readme-ja/AiAdjustVerticalGapPalette.md)
 - [並んだオブジェクトの間隔をだんだん広くする](readme-ja/ProgressiveSpacing.md)
+- [オブジェクトをメイソンリーレイアウトで並べる](readme-ja/MasonryLayout.md)
 - [選択したオブジェクトを、アートボードを対象に整列する常駐パレットです](readme-ja/AiAlignToArtboardPalette.md)
 - [選択内容に応じて、行送りと配置を次の順で判定して調整します](readme-ja/DistributeDownFromTop.md)
 - [選択内容に応じて、行送りと配置を次の順で判定して調整します](readme-ja/DistributeUpFromTop.md)
