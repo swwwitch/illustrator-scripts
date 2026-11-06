@@ -137,7 +137,7 @@ After release, we continue to fix bugs and make adjustments through daily use.
 - [Adds to a group, releases from groups, or groups each object, chosen in a dialog](readme-en/GroupMembership.md)
 - [Displays and rescales the scale percentage (%) of sele…](readme-en/ImageScaler.md)
 - [A persistent palette that moves/duplicates and flips/r…](readme-en/QuickTransformPalette.md)
-- [Randomly moves, scales, rotates and changes the opacit…](readme-en/RandomizeObjects.md)
+- [Randomize position, scale, rotation, opacity, color and font](readme-en/RandomizeObjects.md)
 - [Assumes the selected objects are roughly arranged in a…](readme-en/RegridObjects.md)
 - [Release everything releasable, such as groups, compound paths, blends, and repeats, nested ones included](readme-en/ReleaseEverything.md)
 - [Resets the transform applied to the selected objects a…](readme-en/ResetTransform.md)
