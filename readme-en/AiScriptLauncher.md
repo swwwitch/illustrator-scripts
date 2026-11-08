@@ -18,6 +18,7 @@ Folders and file names are shown in two side-by-side lists, so you reach the scr
 
 - Incremental search that narrows the candidates as you type
 - Two lists: folders on the left, file names on the right. Picking a folder fills the right list with its contents
+- The column next to each file name shows the script's description (`SCRIPT_DESCRIPTION_JA`), and the keyword search covers it too. Drag the header divider to resize the columns
 - AND search with space-separated terms
 - A clear (×) button next to the keyword field empties it in one click, and is dimmed while the field is empty
 - Words that appear often in the filtered results become one-click buttons, so you can drill down step by step
@@ -111,7 +112,9 @@ Changing the folder and pressing OK rebuilds the list against the new folder.
 - Option double-click reveals the file with the Automator app at `/Applications/RevealInFinder.app` when it is installed. Without it, or outside macOS, it just opens the enclosing folder
 - With the helper app `/Applications/OpenInFileViewer.app` installed, files and folders are shown in Path Finder when it is running, and in Finder otherwise (both Option double-click and double-clicking a folder). It takes priority over RevealInFinder.app. Build it from [helpers/OpenInFileViewer.applescript](https://github.com/swwwitch/illustrator-scripts/blob/master/helpers/OpenInFileViewer.applescript) with `osacompile -o /Applications/OpenInFileViewer.app helpers/OpenInFileViewer.applescript`. Revealing a file in Path Finder asks for Automation permission the first time
 - If this launcher itself lives inside the target folder, it is left out of the list
-- File names written only in Japanese produce no keyword buttons, since the extractor looks for ASCII words
+- File names written only in Japanese produce no buttons on the first row, since the extractor looks for ASCII words
+- The second row takes runs of katakana and runs of kanji (two characters or more) from the descriptions as words, skipping a few generic ones (`スクリプト`, `選択`, `指定`, `複数`). Each row shows only the buttons that fit the dialog width
+- Descriptions are read from the `var SCRIPT_DESCRIPTION_JA = "…";` line near the top of each script. Scripts without that line and `.jsxbin` files show an empty column. Long file names are cut short with "..." (the search still uses the full name)
 - The target folder and keyword settings are stored in `Folder.userData/illustrator-scripts/AiScriptLauncher.json` (the former Illustrator preferences `AiScriptLauncher.*` are read once). The only other file the script writes is the session file described in the next bullet
 - While **Remember the search** is on, the keyword, the “Include subdirectories” and “Full path” states and the list selections carry over until Illustrator quits. They are stored in `AiScriptLauncher.session.txt` in the temp folder, tagged with the creation time of the session lock file Illustrator writes at launch, so a restart changes that time and brings back the defaults (macOS only)
 - On launch the script turns `ShowExternalJSXWarning` off, so running scripts from outside the Scripts folder does not raise a warning every time. This preference applies to Illustrator as a whole
@@ -135,6 +138,7 @@ ExtendScript has no way to reveal a file with selection, so the path is handed t
 
 ### Update History
 
+- v1.7.0 (2026-11-09) Split the file name list into two columns; the right column shows each script's description (`SCRIPT_DESCRIPTION_JA`), which the keyword search now covers. Drag the header divider to resize the columns. Keyword buttons now take two rows: English words from the file names on the first, and up to eight frequent Japanese words from the descriptions on the second
 - v1.6.2 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)
 - v1.6.1 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.6.0 (2026-10-01): With the helper app OpenInFileViewer.app, files are revealed and folders opened in Path Finder while it is running

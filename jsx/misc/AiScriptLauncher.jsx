@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.AiScriptLauncher
 Name=スクリプトをキーワードで絞り込んで実行
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.6.2
+Version=1.7.0
 Release-Date=2025-11-13
 Description-BEGIN
 指定したフォルダー内の .jsx / .js / .jsxbin をキーワードで絞り込み、選んだスクリプトをその場で実行するランチャーです。
@@ -47,10 +47,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiScriptLa
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AiScriptLauncher";             /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.6.2";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.7.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-11-13";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-11-05";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-11-09";                   /* 更新日 / last updated */
 
 var SCRIPT_DESCRIPTION_JA = "スクリプトをキーワードで絞り込んで実行"; /* README の見出し / README title (Japanese) */
 
@@ -78,15 +78,26 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     /* 一覧に載せる拡張子 / Script file extensions to list */
     var SCRIPT_EXT_RE = /\.(jsx|js|jsxbin)$/i;
 
+    /* 右の列に出す説明。各スクリプトの基本情報ブロックから読む / Description shown in the second column */
+    var SCRIPT_DESCRIPTION_RE  = /SCRIPT_DESCRIPTION_JA\s*=\s*"([^"\r\n]*)"/;
+    var DESCRIPTION_READ_CHARS = 16000; /* 先頭から読む文字数。基本情報ブロックは5,000バイト以内にある / characters read from the top */
+    var DESCRIPTION_CACHE_KEY  = "__AiScriptLauncherDescriptionCache"; /* 常駐エンジンで持ち越す読み取り結果 / cache kept on $.global */
+
     /* スクリプト名から自動で作るキーワードボタンの条件 / Rules for the auto keyword buttons */
     var KEYWORD_MIN_WORD_LENGTH    = 3;      /* ボタンにする語の最小文字数 / minimum word length */
     var KEYWORD_PRESET_MIN_COUNT   = 4;      /* ボタンにする最小出現ファイル数 / minimum number of files */
     var KEYWORD_PRESET_MAX_BUTTONS = 10;     /* ボタンの最大個数 / maximum number of buttons */
     var KEYWORD_PRESET_LIMIT       = 40;     /* 環境設定で指定できる上限 / ceiling for the preferences dialog */
-    var KEYWORD_PRESETS_PER_ROW    = 5;      /* 1行に並べる個数 / buttons per row */
+
+    /* 説明（SCRIPT_DESCRIPTION_JA）から作る日本語のキーワードボタン。英語の行の下に1行で並べる / Japanese buttons from the descriptions */
+    var KEYWORD_JA_MIN_WORD_LENGTH = 2;      /* ボタンにする語の最小文字数 / minimum word length */
+    var KEYWORD_JA_MAX_BUTTONS     = 8;      /* ボタンの最大個数 / maximum number of buttons */
 
     /* ボタンにしない語。件数は多いが検索の役に立たない接続語 / Words never turned into buttons */
     var KEYWORD_STOP_WORDS = ["and", "the", "for", "with", "from", "into", "その他"];
+
+    /* 説明から取り出してもボタンにしない語。「内文字」は「エリア内文字」の後半だけが切り出されたもの / Japanese words never turned into buttons */
+    var KEYWORD_STOP_WORDS_JA = ["スクリプト", "選択", "指定", "複数", "内文字"];
 
     /* 出現数に関係なく先頭に並べる語（小文字）。該当するファイルが1件もなければ出さない / Words always shown first */
     var KEYWORD_PINNED_WORDS = ["palette"];
@@ -1037,8 +1048,10 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     var LIST_LABEL_SPACING = 4;              /* 見出しとリストの間隔 / gap under a list caption */
 
     /* リストと入力欄の寸法 / List and field sizes */
-    var FOLDER_LIST_SIZE  = [165, 360];      /* フォルダーリストの寸法 [幅,高さ] / folder list size */
-    var SCRIPT_LIST_SIZE  = [280, 360];      /* ファイル名リストの寸法 [幅,高さ]。ダイアログ幅＝キーワード欄の長さを決める / script list size */
+    var FOLDER_LIST_SIZE          = [140, 360]; /* フォルダーリストの寸法 [幅,高さ] / folder list size */
+    var SCRIPT_LIST_SIZE          = [480, 360]; /* ファイル名リストの寸法 [幅,高さ]。ダイアログ幅＝キーワード欄の長さを決める / script list size */
+    var SCRIPT_LIST_COLUMN_WIDTHS = [200, 260]; /* ファイル名・説明の列幅 / column widths (file name, description) */
+    var FILE_NAME_COLUMN_CHARS    = 28;         /* 1列目に出すファイル名の最大文字数。Macでは長い1列目が列幅を無視して広がる / max file name length */
 
     /* ボタンの寸法と余白 / Button sizes and margins */
     var BUTTON_HEIGHT           = 28;        /* ボタンの高さ / button height */
@@ -1054,9 +1067,14 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     var REMEMBER_ROW_TOP_MARGIN = 5;         /* 「検索条件を記憶」の上余白 / top margin above the remember checkbox */
 
     /* キーワードボタンは小ぶりにする / Keyword preset buttons are smaller */
-    var PRESET_BUTTON_HEIGHT  = 22;          /* キーワードボタンの高さ / preset button height */
-    var PRESET_BUTTON_PADDING = 16;          /* 文字幅に足す左右の余白 / horizontal padding */
-    var PRESET_CHAR_WIDTH     = 7;           /* 実測できない環境用の1文字概算幅 / fallback char width */
+    var PRESET_BUTTON_HEIGHT   = 22;         /* キーワードボタンの高さ / preset button height */
+    var PRESET_BUTTON_PADDING  = 16;         /* 文字幅に足す左右の余白 / horizontal padding */
+    var PRESET_CHAR_WIDTH      = 7;          /* 実測できない環境用の1文字概算幅 / fallback char width */
+    var PRESET_WIDE_CHAR_WIDTH = 13;         /* 同じく全角文字の概算幅 / fallback width of a full-width char */
+    var PRESET_ROW_COUNT       = 2;          /* 1行目に英語、2行目に日本語 / English row, then Japanese row */
+
+    /* キーワードボタン1行に使える幅。リスト2本と間隔の合計からパネルの左右余白を引く / Width available to one row of buttons */
+    var PRESET_ROW_WIDTH = FOLDER_LIST_SIZE[0] + COLUMN_SPACING + SCRIPT_LIST_SIZE[0] - PANEL_MARGINS[0] - PANEL_MARGINS[2];
 
     /* キーワード欄のクリアボタン（自前描画） / Clear button next to the keyword field (custom drawn) */
     var CLEAR_BUTTON_SIZE    = 20;           /* クリアボタンの一辺 / clear button size */
@@ -1093,11 +1111,15 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     /**
      * キーワードボタンの寸法を文字幅に合わせて詰める
      * @param {Button} presetButton - 対象ボタン
-     * @returns {void}
+     * @returns {number} 決めたボタンの幅
      */
     function applyPresetButtonSize(presetButton) {
-        /* 実測できればそれを使い、駄目なら文字数から概算する / Measure if possible, else estimate */
-        var textWidth = String(presetButton.text).length * PRESET_CHAR_WIDTH;
+        /* 実測できればそれを使い、駄目なら文字数から概算する。全角は半角の倍近く取る / Measure if possible, else estimate */
+        var buttonText = String(presetButton.text);
+        var textWidth = 0;
+        for (var i = 0; i < buttonText.length; i++) {
+            textWidth += (buttonText.charCodeAt(i) > 0xFF) ? PRESET_WIDE_CHAR_WIDTH : PRESET_CHAR_WIDTH;
+        }
         try {
             var measuredSize = presetButton.graphics.measureString(presetButton.text);
             var measuredWidth = (measuredSize.width !== undefined) ? measuredSize.width : measuredSize[0];
@@ -1108,6 +1130,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         var buttonWidth = Math.ceil(textWidth) + PRESET_BUTTON_PADDING;
         presetButton.preferredSize = [buttonWidth, PRESET_BUTTON_HEIGHT];
         presetButton.minimumSize = [buttonWidth, PRESET_BUTTON_HEIGHT];
+        return buttonWidth;
     }
 
     /**
@@ -1873,6 +1896,10 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             folder: { ja: "フォルダー", en: "Folder" },
             fileName: { ja: "ファイル名", en: "File Name" }
         },
+        listColumn: {
+            fileName: { ja: "ファイル名", en: "File Name" },
+            description: { ja: "説明", en: "Description" }
+        },
         listItem: {
             allFolders: { ja: "（すべて）", en: "(All)" },
             rootFolder: { ja: "（ルート）", en: "(Root)" }
@@ -1965,11 +1992,13 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
      * @property {string} fileName - デコード済みのファイル名
      * @property {string} localizedFileName - OSの表示名
      * @property {string} relativePath - 対象フォルダーからの相対パス
+     * @property {string} description - SCRIPT_DESCRIPTION_JA の値。無ければ空文字
      * @property {string} folderPath - 相対パスのフォルダー部分
      * @property {number} folderDepth - 対象フォルダーからの階層の深さ
      * @property {string} searchText - 検索対象を連結した文字列
      * @property {string} normalizedSearchText - 正規化済みの検索キー
-     * @property {Array<string>} nameWords - ファイル名から取り出した語（キーワードボタン用）
+     * @property {Array<string>} nameWords - ファイル名から取り出した語（英語のキーワードボタン用）
+     * @property {Array<string>} descriptionWords - 説明から取り出した語（日本語のキーワードボタン用）
      */
 
     /**
@@ -2122,6 +2151,51 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     }
 
     /**
+     * スクリプトの先頭から SCRIPT_DESCRIPTION_JA の値を読む
+     * 読み取り結果は更新日時と一緒に $.global へ控え、変わっていないファイルは読み直さない
+     * @param {File} scriptFile - 読むスクリプト
+     * @returns {string} 説明。jsxbin・該当行が無いファイルは空文字
+     */
+    function readScriptDescription(scriptFile) {
+        if (/\.jsxbin$/i.test(scriptFile.name)) return "";
+
+        var descriptionCache = $.global[DESCRIPTION_CACHE_KEY];
+        if (!descriptionCache) descriptionCache = $.global[DESCRIPTION_CACHE_KEY] = {};
+
+        /* ハッシュのキー衝突を避けるため接頭辞を付ける / Prefix the key to avoid collisions */
+        var cacheKey = "#" + scriptFile.fsName;
+        var modifiedTime = scriptFile.modified ? scriptFile.modified.getTime() : 0;
+        var cachedEntry = descriptionCache[cacheKey];
+        if (cachedEntry && cachedEntry.modified === modifiedTime) return cachedEntry.description;
+
+        var description = "";
+        try {
+            scriptFile.encoding = "UTF-8";
+            if (scriptFile.open("r")) {
+                var descriptionMatch = scriptFile.read(DESCRIPTION_READ_CHARS).match(SCRIPT_DESCRIPTION_RE);
+                if (descriptionMatch) description = trimWhitespace(descriptionMatch[1]);
+            }
+        } catch (e) {
+            description = "";
+        } finally {
+            try { scriptFile.close(); } catch (e) {}
+        }
+
+        descriptionCache[cacheKey] = { modified: modifiedTime, description: description };
+        return description;
+    }
+
+    /**
+     * 1列目に収まるようにファイル名を切り詰める
+     * @param {string} fileName - ファイル名
+     * @returns {string} FILE_NAME_COLUMN_CHARS を超える分を「...」にしたファイル名
+     */
+    function truncateFileName(fileName) {
+        if (fileName.length <= FILE_NAME_COLUMN_CHARS) return fileName;
+        return fileName.substring(0, FILE_NAME_COLUMN_CHARS - 3) + "...";
+    }
+
+    /**
      * フォルダーを再帰的にたどってスクリプトを集める
      * @param {Folder} targetFolder - 走査するフォルダー
      * @param {Array<ScriptEntry>} collectedEntries - 収集結果の追加先
@@ -2170,14 +2244,17 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             /* 対象フォルダーからの階層の深さ。直下は0、artboard/backup は2 / Depth below the root folder */
             var folderDepth = (decodedFolderPath === "") ? 0 : decodedFolderPath.split(/[\\\/]/).length;
 
+            var scriptDescription = readScriptDescription(folderItem);
+
             collectedEntries.push({
                 file: folderItem,
                 fileName: decodedFileName,
                 localizedFileName: localizedFileName,
                 relativePath: decodedRelativePath,
+                description: scriptDescription,
                 folderPath: decodedFolderPath,
                 folderDepth: folderDepth,
-                searchText: decodedRelativePath + " " + localizedFileName
+                searchText: decodedRelativePath + " " + localizedFileName + " " + scriptDescription
             });
         }
     }
@@ -2215,10 +2292,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
      * @returns {boolean} 除外語なら true
      */
     function isStopWord(word) {
-        for (var i = 0; i < KEYWORD_STOP_WORDS.length; i++) {
-            if (KEYWORD_STOP_WORDS[i] === word) return true;
-        }
-        return false;
+        return isListedWord(word, KEYWORD_STOP_WORDS);
     }
 
     /**
@@ -2248,30 +2322,67 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     }
 
     /**
+     * 説明（SCRIPT_DESCRIPTION_JA）から語を取り出す
+     * 形態素解析はできないので、カタカナの並びと漢字の並びをそれぞれ1語とみなす
+     * @param {string} description - 説明
+     * @returns {Array<string>} 取り出した語の配列
+     */
+    function extractDescriptionWords(description) {
+        var descriptionWords = [];
+        var wordMatches = String(description).match(/[ァ-ヺー]+|[一-鿿々]+/g);
+        if (!wordMatches) return descriptionWords;
+
+        for (var i = 0; i < wordMatches.length; i++) {
+            var word = wordMatches[i];
+            if (word.length < KEYWORD_JA_MIN_WORD_LENGTH) continue;
+            if (isListedWord(word, KEYWORD_STOP_WORDS_JA)) continue;
+            descriptionWords.push(word);
+        }
+        return descriptionWords;
+    }
+
+    /**
+     * 語が一覧に含まれるかどうかを判定する
+     * @param {string} word - 判定する語
+     * @param {Array<string>} wordList - 語の一覧
+     * @returns {boolean} 含まれるなら true
+     */
+    function isListedWord(word, wordList) {
+        for (var i = 0; i < wordList.length; i++) {
+            if (wordList[i] === word) return true;
+        }
+        return false;
+    }
+
+    /**
      * すでに入力済みの検索語で覆われている語かどうかを判定する
      * @param {string} word - 判定する語
      * @param {Array<string>} searchTerms - 正規化済みの検索語
      * @returns {boolean} いずれかの検索語を含むなら true
      */
     function isCoveredByTerms(word, searchTerms) {
+        /* 日本語の語は検索語と同じく正規化してから比べる（濁点・ひらがなの違いを無視） / Normalize like the search terms */
+        var normalizedWord = normalizeSearchKey(word);
         for (var i = 0; i < searchTerms.length; i++) {
-            if (word.indexOf(searchTerms[i]) !== -1) return true;
+            if (normalizedWord.indexOf(searchTerms[i]) !== -1) return true;
         }
         return false;
     }
 
     /**
-     * スクリプト名によく出てくる語を求める
+     * スクリプトによく出てくる語を求める
      * @param {Array<ScriptEntry>} scriptEntries - 集計対象のスクリプト
+     * @param {string} wordListKey - 集計する語の配列のプロパティ名（"nameWords" / "descriptionWords"）
+     * @param {Array<string>} pinnedWords - 出現数に関係なく先頭に並べる語
      * @param {number} minCount - ボタンにする最小出現ファイル数
      * @param {number} maxButtons - 返す語の最大個数
      * @param {Array<string>} searchTerms - 入力済みの検索語。これを含む語は除く
      * @returns {Array<string>} 固定の語に続けて、出現ファイル数の多い順に並べた語
      */
-    function collectFrequentWords(scriptEntries, minCount, maxButtons, searchTerms) {
+    function collectFrequentWords(scriptEntries, wordListKey, pinnedWords, minCount, maxButtons, searchTerms) {
         var wordCounts = {};
         for (var i = 0; i < scriptEntries.length; i++) {
-            var nameWords = scriptEntries[i].nameWords;
+            var nameWords = scriptEntries[i][wordListKey];
 
             /* 同じ語が1つのファイル名に複数あっても1件と数える / Count each file once per word */
             var seenWords = {};
@@ -2285,8 +2396,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
 
         var presetWords = [];
         var pinnedKeys = {};
-        for (var p = 0; p < KEYWORD_PINNED_WORDS.length; p++) {
-            var pinnedWord = KEYWORD_PINNED_WORDS[p];
+        for (var p = 0; p < pinnedWords.length; p++) {
+            var pinnedWord = pinnedWords[p];
             pinnedKeys["#" + pinnedWord] = true;
             if (presetWords.length >= maxButtons) break;
             if (!wordCounts["#" + pinnedWord]) continue;
@@ -2790,12 +2901,10 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     /**
      * キーワードボタン置き場の高さを固定する（絞り込みのたびにダイアログが伸縮しないようにする）
      * @param {Group} presetContainer - ボタン行を入れるグループ
-     * @param {number} maxButtons - 並べうるボタンの最大個数
      * @returns {void}
      */
-    function reserveKeywordPresetHeight(presetContainer, maxButtons) {
-        var rowCount = Math.ceil(maxButtons / KEYWORD_PRESETS_PER_ROW);
-        var reservedHeight = rowCount * PRESET_BUTTON_HEIGHT + (rowCount - 1) * DENSE_SPACING;
+    function reserveKeywordPresetHeight(presetContainer) {
+        var reservedHeight = PRESET_ROW_COUNT * PRESET_BUTTON_HEIGHT + (PRESET_ROW_COUNT - 1) * DENSE_SPACING;
         presetContainer.preferredSize.height = reservedHeight;
         presetContainer.minimumSize.height = reservedHeight;
     }
@@ -2892,6 +3001,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         for (var i = 0; i < scriptEntries.length; i++) {
             scriptEntries[i].normalizedSearchText = normalizeSearchKey(scriptEntries[i].searchText);
             scriptEntries[i].nameWords = extractNameWords(scriptEntries[i].fileName);
+            scriptEntries[i].descriptionWords = extractDescriptionWords(scriptEntries[i].description);
         }
         return scriptEntries;
     }
@@ -3014,7 +3124,14 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         subfoldersCheckbox.helpTip = getLabel(LABELS.tooltip.includeSubfolders);
 
         var scriptColumn = addListColumn(listRow, getLabel(LABELS.listCaption.fileName));
-        var scriptListBox = scriptColumn.add("listbox", undefined, [], { multiselect: false });
+        /* 1列目にファイル名、2列目に説明（SCRIPT_DESCRIPTION_JA）。見出しの区切り線をドラッグすると列幅を変えられる / Drag the header divider to resize the columns */
+        var scriptListBox = scriptColumn.add("listbox", undefined, [], {
+            multiselect: false,
+            numberOfColumns: 2,
+            showHeaders: true,
+            columnTitles: [getLabel(LABELS.listColumn.fileName), getLabel(LABELS.listColumn.description)],
+            columnWidths: SCRIPT_LIST_COLUMN_WIDTHS
+        });
         scriptListBox.preferredSize = SCRIPT_LIST_SIZE;
         scriptListBox.helpTip = getLabel(LABELS.tooltip.scriptList);
 
@@ -3102,7 +3219,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         var keywordPresetRows = [];
         var currentPresetWords = null;
         var isDialogShown = false;
-        reserveKeywordPresetHeight(keywordPresetContainer, presetMaxButtons);
+        reserveKeywordPresetHeight(keywordPresetContainer);
 
         var listParts = buildListColumns(launcherDialog, sessionState.includeSubfolders);
         var folderListBox = listParts.folderListBox;
@@ -3140,10 +3257,12 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
          * @returns {void}
          */
         function refreshKeywordPresetButtons(filteredEntries, searchTerms) {
-            var presetWords = collectFrequentWords(filteredEntries, presetMinCount, presetMaxButtons, searchTerms);
+            /* 1行目はファイル名の英語、2行目は説明の日本語 / English from file names, then Japanese from descriptions */
+            var englishWords = collectFrequentWords(filteredEntries, "nameWords", KEYWORD_PINNED_WORDS, presetMinCount, presetMaxButtons, searchTerms);
+            var japaneseWords = collectFrequentWords(filteredEntries, "descriptionWords", [], presetMinCount, KEYWORD_JA_MAX_BUTTONS, searchTerms);
 
             /* 顔ぶれが変わらないなら作り直さない。1打鍵ごとの再構築を避ける / Skip the rebuild when nothing changed */
-            var presetWordsKey = presetWords.join(" ");
+            var presetWordsKey = englishWords.join(" ") + "|" + japaneseWords.join(" ");
             if (presetWordsKey === currentPresetWords) return;
             currentPresetWords = presetWordsKey;
 
@@ -3152,21 +3271,41 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             }
             keywordPresetRows = [];
 
-            var presetRow = null;
-            for (var j = 0; j < presetWords.length; j++) {
-                if (j % KEYWORD_PRESETS_PER_ROW === 0) {
-                    presetRow = keywordPresetContainer.add("group");
-                    setupRow(presetRow, "left", DENSE_SPACING);
-                    keywordPresetRows.push(presetRow);
-                }
-                var presetButton = presetRow.add("button", undefined, capitalizeWord(presetWords[j]));
-                applyPresetButtonSize(presetButton);
-                presetButton.helpTip = getLabel(LABELS.tooltip.keywordPreset);
-                presetButton.onClick = makeKeywordPresetHandler(presetWords[j]);
-            }
+            addKeywordPresetRow(englishWords, true);
+            addKeywordPresetRow(japaneseWords, false);
 
             /* 置き場の高さは固定してあるので、ここだけ組み直せばダイアログは動かない / Fixed height keeps the dialog still */
             if (isDialogShown) keywordPresetContainer.layout.layout(true);
+        }
+
+        /**
+         * キーワードボタンを1行並べる。行の幅に収まらない分は出さない
+         * @param {Array<string>} presetWords - 並べる語（多い順）
+         * @param {boolean} capitalizes - true で先頭を大文字にして表示する（英語）
+         * @returns {void}
+         */
+        function addKeywordPresetRow(presetWords, capitalizes) {
+            /* 語が無くても行は作る。日本語が2行目に来る位置を保つ / Keep the row even when empty */
+            var presetRow = keywordPresetContainer.add("group");
+            setupRow(presetRow, "left", DENSE_SPACING);
+            presetRow.minimumSize.height = PRESET_BUTTON_HEIGHT;
+            keywordPresetRows.push(presetRow);
+
+            var usedWidth = 0;
+            for (var j = 0; j < presetWords.length; j++) {
+                var presetButton = presetRow.add("button", undefined, capitalizes ? capitalizeWord(presetWords[j]) : presetWords[j]);
+                var buttonWidth = applyPresetButtonSize(presetButton);
+                var nextWidth = usedWidth + (j > 0 ? DENSE_SPACING : 0) + buttonWidth;
+
+                /* はみ出すとダイアログが広がるので、そこで打ち切る / Stop before the row widens the dialog */
+                if (nextWidth > PRESET_ROW_WIDTH) {
+                    presetRow.remove(presetButton);
+                    break;
+                }
+                usedWidth = nextWidth;
+                presetButton.helpTip = getLabel(LABELS.tooltip.keywordPreset);
+                presetButton.onClick = makeKeywordPresetHandler(presetWords[j]);
+            }
         }
 
         /**
@@ -3263,8 +3402,9 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
          */
         function findScriptIndex(fileName) {
             if (!fileName) return 0;
-            for (var i = 0; i < scriptListBox.items.length; i++) {
-                if (scriptListBox.items[i].text === fileName) return i;
+            /* 1列目は切り詰めることがあるので、表示ではなく控えたファイル名で探す / Compare the full name, not the shown text */
+            for (var i = 0; i < listedScripts.length; i++) {
+                if (listedScripts[i].fileName === fileName) return i;
             }
             return 0;
         }
@@ -3281,7 +3421,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             for (var i = 0; i < filteredScripts.length; i++) {
                 if (folderPath !== null && filteredScripts[i].folderPath !== folderPath) continue;
                 listedScripts.push(filteredScripts[i]);
-                var scriptItem = scriptListBox.add("item", filteredScripts[i].fileName);
+                var scriptItem = scriptListBox.add("item", truncateFileName(filteredScripts[i].fileName));
+                scriptItem.subItems[0].text = filteredScripts[i].description;
                 scriptItem.scriptIndex = listedScripts.length - 1;
             }
 
@@ -3454,8 +3595,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
                 return;
             }
 
-            /* 置き場の高さが変わるので、ダイアログ全体を組み直す / The reserved height changes, so re-layout the dialog */
-            reserveKeywordPresetHeight(keywordPresetContainer, presetMaxButtons);
+            /* 条件が変わったのでボタンを作り直す / Rebuild the buttons with the new rules */
             currentPresetWords = null;
             refreshFolderList();
             launcherDialog.layout.layout(true);
