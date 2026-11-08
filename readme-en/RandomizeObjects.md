@@ -75,3 +75,4 @@ https://note.com/dtp_tranist/n/nba8235fe91b2
 - v2.3.8 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v2.4.0 (2026-11-07): Added "Change per object" and "Japanese only" to apply a random font to each text object. The version moved from the title bar to small, dimmed text at the bottom left of the dialog (shared part added)
 - v2.5.0 (2026-11-08): Added "CMYK Random" to Color. It fills each object at random with C, M or Y alone or two of them mixed (30-80% each), or K alone (20-80%). "Reset" and "Cancel" now restore the fill colors. The "Full Shuffle" tooltip now describes what it actually does (generates random colors)
+- v2.5.1 (2026-11-08): Japanese font detection no longer counts fonts whose names start with HG

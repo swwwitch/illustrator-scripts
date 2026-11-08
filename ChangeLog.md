@@ -12,6 +12,9 @@
 
 - [文字タッチツールの調整をランダムに付与](readme-ja/AutoTouchType.md) v1.3.10：和文フォントの判定で、フォントワークスの中国語版・韓国語版、FWArabic などの和文以外の書体、BM Dohyeon・배달의민족 도현 などの韓国語フォント、フォントワークス絵文字、漢字を持たないかなフォント、中国語のフォント（PingFang・儷黑・Hiragino Sans GB など）、靜呉竹、Tsukimi、名前に Thai・體 を含むフォントを和文として扱わないようにした
 - [オブジェクトごとにフォントをランダムに適用](readme-ja/RandomFontPerObject.md) v1.0.1：和文フォントの判定で、フォントワークスの中国語版・韓国語版、FWArabic などの和文以外の書体、BM Dohyeon・배달의민족 도현 などの韓国語フォント、フォントワークス絵文字、漢字を持たないかなフォント、中国語のフォント（PingFang・儷黑・Hiragino Sans GB など）、靜呉竹、Tsukimi、名前に Thai・體 を含むフォントを和文として扱わないようにした
+- [位置・スケール・回転・不透明度・カラー・フォントをランダムに変化](readme-ja/RandomizeObjects.md) v2.5.1：和文フォントの判定で、HGで始まるフォントを和文として扱わないようにした
+- [文字タッチツールの調整をランダムに付与](readme-ja/AutoTouchType.md) v1.3.11：和文フォントの判定で、HGで始まるフォントを和文として扱わないようにした
+- [オブジェクトごとにフォントをランダムに適用](readme-ja/RandomFontPerObject.md) v1.0.2：和文フォントの判定で、HGで始まるフォントを和文として扱わないようにした
 - [カテゴリ別ウェイト順にフォントを一覧表示し、フォント見本を一瞬で作成する](readme-ja/TypefaceSampler.md) v1.4.13：ウェイトの判定を強化。BoldItalic・LtIt のような続き書き、Hv・Dm・Rg・SemiLight・UltraBold・ExtraHeavy などの略語・語句、中国語・韓国語のスタイル名（苹方・Apple SD 산돌고딕 Neo など）、全角の「Ｗ３」を読めるようにした。YoOne・YoOrganic（Bk・Ut・Ft）、FOT-芯・鉛筆（H〜2B）、MLチョコレート（SemiMelt・Melt）、Othoro Pro（Book）はファミリー独自の順に並べる
 - ウェイトの判定を TypefaceSampler v1.4.13 にそろえた（4本）：[似ているフォントのウェイトを見本で見比べて適用](readme-ja/FontWeightPicker.md)（v1.0.11）、[選択テキストのフォントを一つ上／下のウェイトに切り替え](readme-ja/FontWeightUp.md)（FontWeightUp v1.0.3・FontWeightDown v1.0.2）、[よく使うフォントだけを一覧から選んで適用](readme-ja/FavoriteFontPickerPalette.md)（v1.2.7）
 

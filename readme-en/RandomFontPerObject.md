@@ -35,3 +35,4 @@ Applies a random font to each selected text object. All the text in an object ge
 
 - v1.0.0 (2026-11-07): Initial release
 - v1.0.1 (2026-11-08): Japanese font detection no longer counts Fontworks Chinese and Korean fonts, Fontworks non-Japanese scripts such as FWArabic, Korean fonts such as BM Dohyeon (배달의민족 도현), Fontworks emoji, kana-only fonts without kanji, Chinese fonts such as PingFang, LiHei and Hiragino Sans GB, Shizuka Gothic (靜呉竹), Tsukimi, or fonts whose names contain Thai or 體
+- v1.0.2 (2026-11-08): Japanese font detection no longer counts fonts whose names start with HG
