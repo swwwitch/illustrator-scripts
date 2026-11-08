@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.LongShadowMaker
 Name=距離・角度・スケールを指定してロングシャドウを生成
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.5.0
+Version=1.6.0
 Release-Date=2026-02-25
 Description-BEGIN
 距離・角度・スケールを指定して、選択したオブジェクトからロングシャドウを生成します。
@@ -47,7 +47,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/LongShadow
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "LongShadowMaker";              /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.5.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.6.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-02-25";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-11-09";                   /* 更新日 / last updated */
@@ -117,6 +117,10 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     var ANGLE_MAX = 180;
     var SCALE_MIN = 1;
     var SCALE_MAX = 300;
+
+    /* shiftキーを押しながらスライダーを動かしたときの刻み / Slider step while the Shift key is held */
+    var ANGLE_SHIFT_STEP = 15;
+    var SCALE_SHIFT_STEP = 10;
 
     // =========================================
     // レイアウト / Layout
@@ -2862,9 +2866,9 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             distanceInput = addSliderRow(settingsPanel, 'fieldLabel.distance', 'tooltip.distance',
                 String(defaultDistancePt), "pt", 0, maxDistancePt, defaultDistancePt, false);
             angleInput = addSliderRow(settingsPanel, 'fieldLabel.angle', 'tooltip.angle',
-                "45", "°", ANGLE_MIN, ANGLE_MAX, 45, true);
+                "45", "°", ANGLE_MIN, ANGLE_MAX, 45, true, ANGLE_SHIFT_STEP);
             scaleInput = addSliderRow(settingsPanel, 'fieldLabel.scale', 'tooltip.scale',
-                "100", "%", SCALE_MIN, SCALE_MAX, 100, false);
+                "100", "%", SCALE_MIN, SCALE_MAX, 100, false, SCALE_SHIFT_STEP);
 
             var simplifyGroup = addLayoutGroup(settingsPanel, "row", ["center", "center"]);
             simplifyGroup.alignment = "center";
@@ -2942,9 +2946,10 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
          * @param {number} maxValue - スライダーの最大値
          * @param {number} initialValue - スライダーの初期値
          * @param {boolean} allowNegative - 負の値を許可するか
+         * @param {number} [shiftStep] - shiftキーを押しながらスライダーを動かしたときの刻み（省略時は刻まない）
          * @returns {EditText} 作成した数値欄
          */
-        function addSliderRow(parentPanel, labelPath, tooltipPath, initialText, unitText, minValue, maxValue, initialValue, allowNegative) {
+        function addSliderRow(parentPanel, labelPath, tooltipPath, initialText, unitText, minValue, maxValue, initialValue, allowNegative, shiftStep) {
             var rowGroup = parentPanel.add("group");
             addRowLabel(rowGroup, labelPath);
 
@@ -2975,7 +2980,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             rowSlider.preferredSize.width = SLIDER_WIDTH;
             rowSlider.helpTip = getLabel(tooltipPath);
 
-            bindSliderToInput(numberInput, rowSlider, minValue, maxValue);
+            bindSliderToInput(numberInput, rowSlider, minValue, maxValue, shiftStep);
 
             return numberInput;
         }
@@ -3031,9 +3036,10 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
          * @param {Slider} rowSlider - スライダー
          * @param {number} minValue - 最小値
          * @param {number} maxValue - 最大値
+         * @param {number} [shiftStep] - shiftキーを押しながら動かしたときの刻み（省略時は刻まない）
          * @returns {void}
          */
-        function bindSliderToInput(editText, rowSlider, minValue, maxValue) {
+        function bindSliderToInput(editText, rowSlider, minValue, maxValue, shiftStep) {
             var isSyncing = false;
 
             /**
@@ -3043,7 +3049,14 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             function setInputFromSlider() {
                 if (isSyncing) return;
                 isSyncing = true;
-                editText.text = String(Math.round(rowSlider.value));
+                var sliderValue = Math.round(rowSlider.value);
+                /* shiftキーを押していたら刻みの倍数に寄せ、つまみも合わせる
+                   With Shift held, snap to a multiple of the step and move the thumb there too */
+                if (shiftStep && ScriptUI.environment.keyboardState.shiftKey) {
+                    sliderValue = clamp(Math.round(sliderValue / shiftStep) * shiftStep, minValue, maxValue);
+                    rowSlider.value = sliderValue;
+                }
+                editText.text = String(sliderValue);
                 isSyncing = false;
                 refreshPreviewIfEnabled();
             }
