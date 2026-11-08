@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.LongShadowMaker
 Name=距離・角度・スケールを指定してロングシャドウを生成
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.3.8
+Version=1.3.9
 Release-Date=2026-02-25
 Description-BEGIN
 距離・角度・スケールを指定して、選択したオブジェクトからロングシャドウを生成します。
@@ -47,7 +47,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/LongShadow
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "LongShadowMaker";              /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.3.8";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.3.9";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-02-25";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-11-05";                   /* 更新日 / last updated */
@@ -2559,7 +2559,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         var offsetCheckbox, offsetInput, offsetUnitLabel;
         var joinRowGroup, joinMiterRadio, joinRoundRadio, joinBevelRadio;
         var distanceInput, angleInput, scaleInput, simplifyCheckbox;
-        var previewCheckbox, btnCancel, btnOK;
+        var previewCheckbox, btnCancel, btnOK, buttonRow;
 
         /**
          * 並びの向きと子要素の揃えを指定したグループを追加する
@@ -2702,7 +2702,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             addSettingsControls(settingsPanel);
 
             /* ボタン行（左：プレビュー／右：キャンセル・OK）/ Button row: preview on the left, Cancel/OK on the right */
-            var buttonRow = addButtonRow(shadowDialog);
+            buttonRow = addButtonRow(shadowDialog);
             previewCheckbox = buttonRow.leftGroup.add("checkbox", undefined, getLabel('checkbox.preview'));
             previewCheckbox.helpTip = getLabel('tooltip.preview');
             previewCheckbox.value = true;

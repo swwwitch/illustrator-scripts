@@ -58,6 +58,7 @@ The shadow is built by bridging the original shape and a moved, scaled copy of i
 
 ### Update History
 
+- v1.3.9 (2026-11-09) Fixed the dialog failing to open with the error "buttonRow is undefined"
 - v1.3.8 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)
 - v1.3.7 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.3.6 (2026-10-01): Added space below the button row to match Illustrator's own dialogs

@@ -9,7 +9,7 @@ Script-ID=com.swwwitch.illustrator.SmartShapeMaker
 Name=円・正多角形・スター・スーパー楕円・ルーローを作成
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=2.4.9
+Version=2.4.10
 Release-Date=2025-05-02
 Description-BEGIN
 1つのダイアログから、正円・多角形・星形・スーパー楕円・ルーローの三角形などのカスタム形状を作成します。
@@ -48,7 +48,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartShape
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SmartShapeMaker";              /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v2.4.9";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v2.4.10";                      /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-05-02";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-11-05";                   /* 更新日 / last updated */
@@ -3249,7 +3249,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         /* オプション / Options */
         var liveShapeCheck, reuleauxCheck, reuleauxAmountInput, reuleauxAmountSlider;
         /* ボタン / Buttons */
-        var btnPreview, btnCancel, btnOK;
+        var btnPreview, btnCancel, btnOK, buttonRow;
 
         // -----------------------------------------
         // 現在の入力の読み取り / Reading the current input
@@ -4540,7 +4540,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             buildOptionsPanel(rightColumn);
 
             /* ボタン行（左：プレビュー、右：キャンセル・OK） / Button row (left: Preview, right: Cancel and OK) */
-            var buttonRow = addButtonRow(shapeDialog);
+            buttonRow = addButtonRow(shapeDialog);
             btnPreview = buttonRow.leftGroup.add("button", undefined, getLabel(LABELS.button.preview));
             btnPreview.helpTip = getLabel(LABELS.tooltip.preview);
             btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel(LABELS.button.cancel), { name: "cancel" });
