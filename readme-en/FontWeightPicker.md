@@ -23,6 +23,7 @@
   - Choosing a radio button previews it on the selected text right away
 - Related fonts: families sharing the first word (Bebas Neue and Bebas Kai for Bebas Neue Pro) or containing the core name (Shin Go ProN, UD Shin Go, etc. for A-OTF Shin Go Pr6N)
 - Weight samples: a black sample of each weight in a column to the right of the selected text, with the weight name beside it (the current weight level with the text, lighter above, heavier below)
+  - Closing with OK and Keep Samples leaves the samples and weight names as the group "weight-samples"
 - Cover background in white: a translucent white rectangle behind the samples fades other objects; a black copy of the selected text sits on top
 - Fit to window: zooms so the selected text and the samples fit
 - Weights are judged the same way as [TypefaceSampler](TypefaceSampler.md)
@@ -32,6 +33,7 @@
 1. Select text frames or groups (or select characters with the Type tool)
 2. Run the script
 3. Choose a font on the left and a weight on the right, then click OK (Cancel restores the original fonts and view)
+   - OK and Keep Samples applies the font and also keeps the samples and weight names as a group at the top of the selected text's layer (available only while samples are shown)
 
 ### Options
 
@@ -46,7 +48,7 @@
 ### Notes
 
 - The list is based on the font of the first character; the chosen font is applied to every selected character
-- Samples and the white rectangle are created on the temporary layer "// weight-preview" and removed when the dialog closes
+- Samples and the white rectangle are created on the temporary layer "// weight-preview" and removed when the dialog closes (closing with OK and Keep Samples leaves the samples and weight names)
 - Composite fonts are not listed
 
 ### Article
@@ -68,6 +70,7 @@
 - v1.0.9 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.0.10 (2026-10-16) Right-only button rows are now centered when the dialog's inner width is up to 240 px (was 200 px) (shared part update)
 - v1.0.11 (2026-11-08) Weight detection now matches TypefaceSampler v1.4.13 (run-together styles such as BoldItalic and LtIt, abbreviations and terms such as Hv, Dm, SemiLight and UltraBold, Chinese and Korean style names and full-width "Ｗ３" are recognized; YoOne, FOT-芯・鉛筆, MLチョコレート and Othoro Pro follow their own family order)
+- v1.1.0 (2026-11-08) Added the OK and Keep Samples button: applies the font and keeps the weight samples and weight names as a group on the selected text's layer
 
 ### Script info
 

@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.FontWeightPicker
 Name=似ているフォントのウェイトを見本で見比べて適用
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.0.11
+Version=1.1.0
 Release-Date=2026-09-28
 Description-BEGIN
 選択しているテキストのフォントと、名前が似ているファミリー（新ゴなら UD新ゴ など）のウェイトを一覧表示し、見本を見比べながら選んだフォントを適用します。
@@ -51,7 +51,7 @@ The list is based on the font of the first character. Weights are judged the sam
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "FontWeightPicker";             /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.11";                      /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-09-28";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-11-08";                   /* 更新日 / last updated */
@@ -94,6 +94,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     var LABEL_MIN_SIZE          = 6;                   /* ウェイト名の最小の文字サイズ（pt）/ minimum size of the weight names, in pt */
     var LABEL_GAP_RATIO         = 0.5;                 /* 見本とウェイト名の間隔 / gap between the samples and the weight names */
     var PREVIEW_LAYER_NAME      = "// weight-preview"; /* 見本などを置く一時レイヤー名 / temporary layer for the previews */
+    var SAMPLE_GROUP_NAME       = "weight-samples";    /* ［見本を残してOK］で残すグループ名 / name of the group kept by the keep-samples button */
 
     /* 背景を白で覆う / Cover the background in white */
     var COVER_BACKGROUND_DEFAULT = true;      /* ［背景を白で覆う］の初期値 / default of the white cover checkbox */
@@ -2122,11 +2123,13 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             coverOpacity:   { ja: "白い長方形の不透明度（100%で完全に隠す）", en: "Opacity of the white rectangle; 100% hides everything behind it" },
             coverBackground: { ja: "見本の後ろに半透明の白い長方形を敷き、ほかのオブジェクトを薄くします。選択中のテキストは黒の複製を上に重ねます。閉じると消えます。", en: "Places a translucent white rectangle behind the samples to fade other objects; a black copy of the selected text sits on top. Removed when the dialog closes." },
             weightSamples:  { ja: "選択中のテキストの右に、ウェイトごとの見本を黒で縦に並べます。今のウェイトを横に並べ、細いものを上、太いものを下に置きます。閉じると消えます。", en: "Lists a sample of each weight in black to the right of the selected text: the current weight level with it, lighter ones above and heavier ones below. They are removed when the dialog closes." },
+            keepSamples:    { ja: "選んだフォントを適用し、並べた見本とウェイト名を消さずに、選択中のテキストと同じレイヤーにグループとして残して閉じます。", en: "Applies the chosen font and closes, keeping the samples and weight names as a group on the selected text's layer." },
             fontList:      { ja: "選択中のフォントと先頭の語が同じファミリーと、「新ゴ」のような中心の名前を含むファミリーです。", en: "Families that share the first word with the selected font or contain its core name (such as Shin Go)." },
             currentWeight: { ja: "選択中のテキストで使われているウェイトです。", en: "This weight is used in the selected text." }
         },
         button: {
             cancel: { ja: "キャンセル", en: "Cancel" },
+            keepSamples: { ja: "見本を残してOK", en: "OK and Keep Samples" },
             ok:     { ja: "OK", en: "OK" }
         },
         alert: {
@@ -2336,6 +2339,22 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         var characterAttributes = textFrame.textRange.characterAttributes;
         characterAttributes.fillColor = createNeutralColor(app.activeDocument, 100);
         characterAttributes.strokeColor = new NoColor();
+    }
+
+    /**
+     * 並べた見本とウェイト名を、基準のテキストと同じレイヤーの最前面にグループとして移す（一時レイヤーを消す前に呼ぶ）
+     * @param {PageItem[]} sampleItems - buildWeightSamples() で作った見本とウェイト名
+     * @param {TextFrame} baseFrame - 基準のテキストフレーム
+     * @returns {GroupItem|null} 作ったグループ（見本が無ければ null）
+     */
+    function keepWeightSamples(sampleItems, baseFrame) {
+        if (!sampleItems.length) return null;
+        var sampleGroup = baseFrame.layer.groupItems.add();
+        sampleGroup.name = SAMPLE_GROUP_NAME;
+        for (var i = 0; i < sampleItems.length; i++) {
+            sampleItems[i].move(sampleGroup, ElementPlacement.PLACEATEND);
+        }
+        return sampleGroup;
     }
 
     // =========================================
@@ -2690,7 +2709,10 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         weightSamplesCheckbox.helpTip = getLabel(LABELS.tooltip.weightSamples);
         weightSamplesCheckbox.value = WEIGHT_SAMPLES_DEFAULT;
         weightSamplesCheckbox.enabled = !!baseFrame;
-        weightSamplesCheckbox.onClick = refreshWeightSamples;
+        weightSamplesCheckbox.onClick = function () {
+            updateKeepSamplesEnabled();
+            refreshWeightSamples();
+        };
 
         /* ［背景を白で覆う］と不透明度 / Cover the background with its opacity field */
         var coverBackgroundRow = addPercentOptionRow(previewPanel, {
@@ -2738,6 +2760,24 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         }
 
         var buttonRow = addButtonRow(weightDialog);
+        /* 左：見本を残して閉じる（見本を並べているときだけ使える）/ Left: close keeping the samples, only while they are shown */
+        var keepSamplesOnClose = false;
+        var btnKeepSamples = buttonRow.leftGroup.add("button", undefined, getLabel(LABELS.button.keepSamples));
+        btnKeepSamples.helpTip = getLabel(LABELS.tooltip.keepSamples);
+        btnKeepSamples.onClick = function () {
+            keepSamplesOnClose = true;
+            weightDialog.close(1);
+        };
+
+        /**
+         * ［見本を残してOK］の使用可否を［ウェイトの見本を右に並べる］に合わせる
+         * @returns {void}
+         */
+        function updateKeepSamplesEnabled() {
+            btnKeepSamples.enabled = weightSamplesCheckbox.enabled && weightSamplesCheckbox.value;
+        }
+        updateKeepSamplesEnabled();
+
         var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel(LABELS.button.cancel), { name: "cancel" });
         var btnOK = buttonRow.rightGroup.add("button", undefined, getLabel(LABELS.button.ok), { name: "ok" });
 
@@ -2747,6 +2787,10 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         alignRightOnlyButtonRow(buttonRow);
         prepareDialogWindow(weightDialog, SCRIPT_NAME);
         var isConfirmed = (weightDialog.show() === 1);
+        /* ［見本を残してOK］なら、一時レイヤーを消す前に見本を移す / Move the samples out before the layer goes */
+        if (isConfirmed && keepSamplesOnClose && baseFrame) {
+            keepWeightSamples(sampleItems, baseFrame);
+        }
         removePreviewLayer(doc);
         if (!isConfirmed) {
             restoreOriginalFonts(characterEntries);
