@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.AutoTouchType
 Name=文字タッチツールの調整をランダムに付与
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.3.9
+Version=1.3.10
 Release-Date=2026-02-16
 Description-BEGIN
 選択したテキストの各文字に対して、ベースライン・比率・回転・カーニング・トラッキングをランダムに付与します。
@@ -47,10 +47,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AutoTouchT
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AutoTouchType";                /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.3.9";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.3.10";                      /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-02-16";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-11-05";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-11-08";                   /* 更新日 / last updated */
 
 var SCRIPT_DESCRIPTION_JA = "文字タッチツールの調整をランダムに付与"; /* README の見出し / README title (Japanese) */
 
@@ -2187,7 +2187,15 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         "Apple LiGothic",
         "RyoGothicStd",
         "-KO", "-KL", "LogoArl",
-        "Kana"
+        "Kana", "YoOne", "Yoon", "Thai", "體",
+        "FOTC-", "FOTK-", "FTTK-",                    /* フォントワークスの中国語版・韓国語版 / Fontworks Chinese and Korean */
+        "FWArabic", "FWHebrew", "FWHindi", "FWThai",  /* フォントワークスの和文以外の書体 / Fontworks non-Japanese scripts */
+        "BM ", "배달의민족",                          /* 韓国語（BM Dohyeon・배달의민족 도현 など）/ Korean, such as BM Dohyeon */
+        "FONTWORKS_emoji",                            /* 絵文字（"emoji" だと HGひげ文字に当たる）/ Emoji ("emoji" alone would hit HG Higemoji) */
+        "ML Chocolate", "ML Tokatsuki", "TB Komachi", /* 漢字を持たないかなフォント / Kana-only fonts without kanji */
+        "简", "簡", "繁", "儷", "苹", "蘋",           /* 中国語の名前（苹方-简・兰亭黑-繁・儷黑 など）/ Chinese names such as PingFang and LiHei */
+        "Hiragino Sans GB",                           /* ヒラギノの簡体字中国語版（"Hiragino" で和文に判定されるため）/ Simplified Chinese Hiragino */
+        "靜", "Tsukimi"                               /* 靜呉竹・Tsukimi / Shizuka Gothic and Tsukimi */
     ];
 
     /* 和文フォントとみなす語（和文ファミリー名とベンダー名）/ Keywords that mark a font as Japanese */
