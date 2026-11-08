@@ -30,6 +30,8 @@ https://note.com/dtp_tranist/n/ne6545c4717af
 
 ### Update History
 
+- v1.4.0 (2026-11-08): Added "Exclude kana fonts" (on by default), which leaves out kana-only fonts without kanji (such as ML Chocolate, ML Tokatsuki Kana, Seiren Mincho Kana, Hommaru Kana and Seimei Kana). Fonts that were left out only because their names contain Kana, such as FOT-Kanae Reisho, now count as Japanese
+- v1.3.12 (2026-11-08): Japanese font detection no longer counts the kana-only fonts SDUdai, SDTenga and SDSeimu
 - v1.3.11 (2026-11-08): Japanese font detection no longer counts fonts whose names start with HG
 - v1.3.10 (2026-11-08): Japanese font detection no longer counts Fontworks Chinese and Korean fonts, Fontworks non-Japanese scripts such as FWArabic, Korean fonts such as BM Dohyeon (배달의민족 도현), Fontworks emoji, kana-only fonts without kanji, Chinese fonts such as PingFang, LiHei and Hiragino Sans GB, Shizuka Gothic (靜呉竹), Tsukimi, or fonts whose names contain Thai or 體
 - v1.3.9 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)

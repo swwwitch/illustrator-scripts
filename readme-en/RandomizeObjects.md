@@ -21,8 +21,8 @@ Randomizes the position, scale, rotation, opacity, fill color, and font of the s
 - Move distance set separately for the horizontal and vertical axes, or kept identical with the link icon (values are in pt)
 - Scale (width and height) in %, also with the link icon
 - Rotation (0-180 deg) and opacity (0-100%) set with a slider or by typing
-- Fill color "Shuffle" (swap the colors within the selection), "Full Shuffle" (generate random colors), and "CMYK Random" (C, M or Y alone or in pairs at 30-80% each, or K alone at 20-80%)
-- "Change per object" applies a random font to each text object ("Japanese only" limits the candidates to Japanese fonts)
+- Fill color "Shuffle" (swap the colors within the selection), "Full Shuffle" (generate random colors), and "CMYK Random" (C, M, Y or K alone at 40-100%, or any two at 20-100% each and 60-200% in total)
+- "Change per object" applies a random font to each text object ("Japanese only" limits the candidates to Japanese fonts, and "Exclude kana fonts" leaves out kana-only fonts without kanji)
 - "Gather to Center" collects the selected objects at the center of their combined bounds
 - "Avoid Overlap" repositions the objects, widening the move range until nothing overlaps
 - The stepper buttons and Up/Down keys step the values (to the next whole number; Shift to the next multiple of ten; Option by 0.1)
@@ -43,7 +43,7 @@ Randomizes the position, scale, rotation, opacity, fill color, and font of the s
 - Every amount means "plus or minus": a move distance of 20 pt moves each object somewhere between -20 and 20 pt.
 - Rotation is capped at 180 degrees and opacity at 100%; larger values entered in the fields are pinned to those maximums.
 - Turning a checkbox on fills its field with 20 (the vertical distance is the one exception and stays at 0).
-- Colors are applied only when "Random" is pressed. "Shuffle" swaps the fill colors within the selection, while "Full Shuffle" generates colors that match the document color mode (K stays within 0-30 in CMYK so nothing turns too dark). "CMYK Random" fills a CMYK color whatever the document color mode. It picks one of seven ink combinations with equal odds (C, M, Y or K alone, or C+M, C+Y or M+Y) and sets only those inks, C, M and Y to 30-80% and K to 20-80%; it never mixes all three of C, M and Y, or K with anything.
+- Colors are applied only when "Random" is pressed. "Shuffle" swaps the fill colors within the selection, while "Full Shuffle" generates colors that match the document color mode (K stays within 0-30 in CMYK so nothing turns too dark). "CMYK Random" fills a CMYK color whatever the document color mode. It picks one of ten ink combinations with equal odds (C, M, Y or K alone, or any two of them) and sets only those inks: a single ink at 40-100%, or two inks at 20-100% each with a total of 60-200%; it never mixes three or more inks.
 - "Shuffle" needs two or more objects; "Full Shuffle" and "CMYK Random" need at least one.
 - "Reset" and "Cancel" restore the fill colors too. Paths that had no fill go back to no fill, and text with mixed colors gets each character's original color back.
 - Fill colors are read from and written to paths, compound paths, text frames, and groups (the first eligible object inside).
@@ -76,3 +76,6 @@ https://note.com/dtp_tranist/n/nba8235fe91b2
 - v2.4.0 (2026-11-07): Added "Change per object" and "Japanese only" to apply a random font to each text object. The version moved from the title bar to small, dimmed text at the bottom left of the dialog (shared part added)
 - v2.5.0 (2026-11-08): Added "CMYK Random" to Color. It fills each object at random with C, M or Y alone or two of them mixed (30-80% each), or K alone (20-80%). "Reset" and "Cancel" now restore the fill colors. The "Full Shuffle" tooltip now describes what it actually does (generates random colors)
 - v2.5.1 (2026-11-08): Japanese font detection no longer counts fonts whose names start with HG
+- v2.5.2 (2026-11-08): Changed the ranges of "CMYK Random": a single ink is 40-100%, two mixed inks are 20-100% each and 60-200% in total, and K now also mixes with another ink
+- v2.5.3 (2026-11-08): Japanese font detection no longer counts the kana-only fonts SDUdai, SDTenga and SDSeimu
+- v2.6.0 (2026-11-08): Added "Exclude kana fonts" (on by default), which leaves out kana-only fonts without kanji (such as ML Chocolate, ML Tokatsuki Kana, Seiren Mincho Kana, Hommaru Kana and Seimei Kana). Fonts that were left out only because their names contain Kana, such as FOT-Kanae Reisho, now count as Japanese

@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.RandomFontPerObject
 Name=オブジェクトごとにフォントをランダムに適用
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.0.2
+Version=1.1.0
 Release-Date=2026-11-07
 Description-BEGIN
 選択したテキストオブジェクトごとに、フォントをランダムに適用します。
@@ -44,7 +44,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RandomFont
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "RandomFontPerObject";          /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.2";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-11-07";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-11-08";                   /* 更新日 / last updated */
@@ -72,16 +72,26 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         "Apple LiGothic",
         "RyoGothicStd",
         "-KO", "-KL", "LogoArl",
-        "Kana", "YoOne", "Yoon", "Thai", "體",
+        "YoOne", "Yoon", "Thai", "體",
         "FOTC-", "FOTK-", "FTTK-",                    /* フォントワークスの中国語版・韓国語版 / Fontworks Chinese and Korean */
         "FWArabic", "FWHebrew", "FWHindi", "FWThai",  /* フォントワークスの和文以外の書体 / Fontworks non-Japanese scripts */
         "BM ", "배달의민족",                          /* 韓国語（BM Dohyeon・배달의민족 도현 など）/ Korean, such as BM Dohyeon */
         "FONTWORKS_emoji",                            /* 絵文字（"emoji" だと HGひげ文字に当たる）/ Emoji ("emoji" alone would hit HG Higemoji) */
-        "ML Chocolate", "ML Tokatsuki", "TB Komachi", /* 漢字を持たないかなフォント / Kana-only fonts without kanji */
         "简", "簡", "繁", "儷", "苹", "蘋",           /* 中国語の名前（苹方-简・兰亭黑-繁・儷黑 など）/ Chinese names such as PingFang and LiHei */
         "Hiragino Sans GB",                           /* ヒラギノの簡体字中国語版（"Hiragino" で和文に判定されるため）/ Simplified Chinese Hiragino */
         "靜", "Tsukimi",                              /* 靜呉竹・Tsukimi / Shizuka Gothic and Tsukimi */
         "HG"                                          /* HGで始まるフォント（HGゴシックE など。名前の途中に HG を含むフォントは無い）/ Fonts starting with HG */
+    ];
+
+    /* 漢字を持たないかなフォント（PostScript 名の頭）。［かなフォントを除く］で選ばないようにする
+       「かな」「Kana」など名前の語では決めない（游明朝体+36ポかな・FOT-DNP 秀英四号かな・A-SK 大蘭明朝かな・FOT-鼎隷書 は漢字を持つ）
+       Kana-only fonts without kanji (PostScript name prefixes), skipped by "Exclude kana fonts". Words like Kana in a name are not enough */
+    var KANA_ONLY_FONT_MARKERS = [
+        "MLChocolate", "MLTokatsukiKn", "TB Komachi",                 /* MLチョコレート・MLトカツキ かな・TBこまち */
+        "SDUdai", "SDTenga", "SDSeimu",                               /* ＳＤウダイ・ＳＤテンガ・ＳＤセイム */
+        "SeiminKana", "SeigoKana", "SeimeiKana", "SeiryuKana",        /* 勢蓮明朝仮名・勢蓮呉竹仮名・清明かな（角_清明かな）・清流かな */
+        "HommaruKana", "HappiKana", "Hongyo2Kana", "YoinKana",        /* ほんまるかな・はっぴ かな・奔行2かな・余韻かな */
+        "MatsubaKana", "ShizukaMinchoKana", "Kana-Takacourse"         /* 松葉かな・靜明朝大かな／小かな・仮名タカコース */
     ];
 
     /* 和文フォントとみなす語（和文ファミリー名とベンダー名）/ Keywords that mark a font as Japanese */
@@ -108,6 +118,9 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
     // =========================================
     // レイアウト / Layout
     // =========================================
+
+    /* ［和文フォントに限定］［かなフォントを除く］の間隔 / Gap between the two font options */
+    var FONT_OPTION_SPACING = 6;
 
     // UIレイアウト（再利用パーツ） / UI layout (reusable)
 
@@ -717,7 +730,8 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             title: { ja: "フォントをランダムに適用", en: "Random Font per Object" }
         },
         checkbox: {
-            japaneseOnly: { ja: "和文フォントに限定", en: "Japanese only" }
+            japaneseOnly: { ja: "和文フォントに限定", en: "Japanese only" },
+            excludeKana: { ja: "かなフォントを除く", en: "Exclude kana fonts" }
         },
         button: {
             randomize: { ja: "ランダム", en: "Random" },
@@ -734,6 +748,10 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         },
         tooltip: {
             japaneseOnly: { ja: "入れ替え先を和文フォントだけに絞ります。", en: "Limits the replacement fonts to Japanese fonts." },
+            excludeKana: {
+                ja: "漢字を持たないかなフォント（MLチョコレート・ほんまるかな など）を入れ替え先から外します。",
+                en: "Leaves out kana-only fonts without kanji (such as ML Chocolate and Hommaru Kana)."
+            },
             randomize: { ja: "同じ設定のまま、乱数だけ振り直します。", en: "Re-rolls the randomness while keeping the same settings." }
         }
     };
@@ -1163,54 +1181,82 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
     }
 
     /**
-     * 和文フォントかどうかを名前から判定する
-     * @param {TextFont} candidateFont - 判定するフォント
-     * @returns {boolean} 和文とみなせるとき true
+     * フォントの名前（name・family・fullName・postScriptName）を取る
+     * @param {TextFont} candidateFont - 対象のフォント
+     * @returns {string[]|null} 名前の配列（取れないときは null）
      */
-    function isJapaneseFont(candidateFont) {
-        if (!candidateFont) return false;
-        var fontNames = [];
+    function getFontNames(candidateFont) {
+        if (!candidateFont) return null;
         /* 環境にないフォントは名前を取れないことがある / A font missing from the system may not expose its names */
         try {
-            fontNames = [String(candidateFont.name || ""), String(candidateFont.family || ""), String(candidateFont.fullName || ""), String(candidateFont.postScriptName || "")];
+            return [String(candidateFont.name || ""), String(candidateFont.family || ""), String(candidateFont.fullName || ""), String(candidateFont.postScriptName || "")];
         } catch (e) {
-            return false;
+            return null;
         }
+    }
 
-        var i, j;
-        for (i = 0; i < NON_JAPANESE_FONT_MARKERS.length; i++) {
-            for (j = 0; j < fontNames.length; j++) {
-                if (fontNames[j].indexOf(NON_JAPANESE_FONT_MARKERS[i]) !== -1) return false;
-            }
-        }
-
-        /* 名前そのものが和文表記ならそれで判定できる / A Japanese name settles it */
-        for (j = 0; j < 3; j++) {
-            if (hasJapaneseCharacters(fontNames[j])) return true;
-        }
-
-        for (i = 0; i < JAPANESE_FONT_KEYWORDS.length; i++) {
-            for (j = 0; j < fontNames.length; j++) {
-                if (fontNames[j].indexOf(JAPANESE_FONT_KEYWORDS[i]) !== -1) return true;
+    /**
+     * 名前のどれかが目印のどれかを含むか判定する
+     * @param {string[]} fontNames - getFontNames() の戻り値
+     * @param {string[]} markers - 目印の配列
+     * @returns {boolean} 含むとき true
+     */
+    function fontNamesContain(fontNames, markers) {
+        for (var i = 0; i < markers.length; i++) {
+            for (var j = 0; j < fontNames.length; j++) {
+                if (fontNames[j].indexOf(markers[i]) !== -1) return true;
             }
         }
         return false;
     }
 
-    /* 和文フォントの一覧は作るのが重いので使い回す / Building the list is heavy, so cache it */
-    var japaneseFontsCache = null;
+    /**
+     * 漢字を持たないかなフォントかどうかを名前から判定する
+     * @param {TextFont} candidateFont - 判定するフォント
+     * @returns {boolean} かなフォントとみなせるとき true
+     */
+    function isKanaOnlyFont(candidateFont) {
+        var fontNames = getFontNames(candidateFont);
+        return fontNames ? fontNamesContain(fontNames, KANA_ONLY_FONT_MARKERS) : false;
+    }
 
     /**
-     * 環境にある和文フォントの一覧を返す
-     * @returns {TextFont[]} 和文フォントの配列
+     * 和文フォントかどうかを名前から判定する
+     * @param {TextFont} candidateFont - 判定するフォント
+     * @returns {boolean} 和文とみなせるとき true
      */
-    function getJapaneseFonts() {
-        if (japaneseFontsCache) return japaneseFontsCache;
-        japaneseFontsCache = [];
-        for (var i = 0; i < allFonts.length; i++) {
-            if (isJapaneseFont(allFonts[i])) japaneseFontsCache.push(allFonts[i]);
+    function isJapaneseFont(candidateFont) {
+        var fontNames = getFontNames(candidateFont);
+        if (!fontNames || fontNamesContain(fontNames, NON_JAPANESE_FONT_MARKERS)) return false;
+
+        /* 名前そのものが和文表記ならそれで判定できる / A Japanese name settles it */
+        for (var j = 0; j < 3; j++) {
+            if (hasJapaneseCharacters(fontNames[j])) return true;
         }
-        return japaneseFontsCache;
+        return fontNamesContain(fontNames, JAPANESE_FONT_KEYWORDS);
+    }
+
+    /* フォントの一覧は作るのが重いので、条件ごとに使い回す / Building a list is heavy, so keep one per condition */
+    var fontPoolCache = {};
+
+    /**
+     * 入れ替え先のフォント一覧を返す
+     * @param {boolean} japaneseOnly - 和文フォントに限るなら true
+     * @param {boolean} excludeKana - かなフォントを除くなら true
+     * @returns {TextFont[]|TextFonts} フォントの一覧（どちらも false なら app.textFonts そのもの）
+     */
+    function getFontPool(japaneseOnly, excludeKana) {
+        if (!japaneseOnly && !excludeKana) return allFonts;
+        var cacheKey = (japaneseOnly ? "japanese" : "all") + (excludeKana ? "-noKana" : "");
+        if (fontPoolCache[cacheKey]) return fontPoolCache[cacheKey];
+        var fontPool = [];
+        for (var i = 0; i < allFonts.length; i++) {
+            if (japaneseOnly && !isJapaneseFont(allFonts[i])) continue;
+            if (excludeKana && isKanaOnlyFont(allFonts[i])) continue;
+            fontPool.push(allFonts[i]);
+        }
+        fontPoolCache[cacheKey] = fontPool;
+        return fontPool;
     }
 
     /**
@@ -1341,7 +1387,8 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
        チェックボックスは表示前に読み戻せないので、状態は変数で持つ
        On by default when the selection has Japanese text (Latin fonts cannot show it).
        A checkbox cannot be read back before show(), so the state lives in a variable */
-    var isJapaneseOnly = containsJapaneseText(targetRanges) && getJapaneseFonts().length > 0;
+    var isKanaExcluded = true;
+    var isJapaneseOnly = containsJapaneseText(targetRanges) && getFontPool(true, isKanaExcluded).length > 0;
 
     /**
      * 今の設定と乱数の種で、対象ごとに1つずつフォントを適用する
@@ -1349,7 +1396,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
      */
     function applyRandomFonts() {
         var nextRandom = createSeededRandom(randomSeed);
-        var fontPool = isJapaneseOnly ? getJapaneseFonts() : allFonts;
+        var fontPool = getFontPool(isJapaneseOnly, isKanaExcluded);
         for (var i = 0; i < targetRanges.length; i++) {
             applyRandomFontToRange(targetRanges[i], fontPool, nextRandom);
         }
@@ -1363,9 +1410,17 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
     var fontDialog = new Window("dialog", getLabel("dialog.title"));
     setupWindow(fontDialog);
 
-    var chkJapaneseOnly = fontDialog.add("checkbox", undefined, getLabel("checkbox.japaneseOnly"));
+    var fontOptionGroup = fontDialog.add("group");
+    fontOptionGroup.orientation = "column";
+    fontOptionGroup.alignChildren = ["left", "top"];
+    fontOptionGroup.spacing = FONT_OPTION_SPACING;
+
+    var chkJapaneseOnly = fontOptionGroup.add("checkbox", undefined, getLabel("checkbox.japaneseOnly"));
     chkJapaneseOnly.helpTip = getLabel("tooltip.japaneseOnly");
     chkJapaneseOnly.value = isJapaneseOnly;
+    var chkExcludeKana = fontOptionGroup.add("checkbox", undefined, getLabel("checkbox.excludeKana"));
+    chkExcludeKana.helpTip = getLabel("tooltip.excludeKana");
+    chkExcludeKana.value = isKanaExcluded;
 
     /* ボタンエリア / Button row */
     var buttonRow = addButtonRow(fontDialog);
@@ -1377,12 +1432,22 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
     buttonRow.rightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
 
     chkJapaneseOnly.onClick = function () {
-        if (this.value && getJapaneseFonts().length === 0) {
+        if (getFontPool(this.value, isKanaExcluded).length === 0) {
             alert(getLabel("alert.noJapaneseFonts"));
             this.value = false;
             return;
         }
         isJapaneseOnly = this.value;
+        applyRandomFonts();
+    };
+
+    chkExcludeKana.onClick = function () {
+        if (getFontPool(isJapaneseOnly, this.value).length === 0) {
+            alert(getLabel("alert.noJapaneseFonts"));
+            this.value = false;
+            return;
+        }
+        isKanaExcluded = this.value;
         applyRandomFonts();
     };
 

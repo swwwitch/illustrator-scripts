@@ -16,13 +16,14 @@ Applies a random font to each selected text object. All the text in an object ge
 
 - Picks one font per object. Text inside groups is included.
 - **Japanese only** limits the candidates to Japanese fonts. It starts on when the selected text contains Japanese.
+- **Exclude kana fonts** leaves out kana-only fonts without kanji (such as ML Chocolate and Hommaru Kana). It starts on.
 - **Random** draws different fonts with the same settings.
 
 ### Usage
 
 1. Select text objects.
 2. Run the script. The fonts change as soon as the dialog opens.
-3. Adjust with **Random** and **Japanese only**.
+3. Adjust with **Random**, **Japanese only** and **Exclude kana fonts**.
 4. Click **OK** to confirm, or **Cancel** to restore the original fonts.
 
 ### Notes
@@ -36,3 +37,5 @@ Applies a random font to each selected text object. All the text in an object ge
 - v1.0.0 (2026-11-07): Initial release
 - v1.0.1 (2026-11-08): Japanese font detection no longer counts Fontworks Chinese and Korean fonts, Fontworks non-Japanese scripts such as FWArabic, Korean fonts such as BM Dohyeon (배달의민족 도현), Fontworks emoji, kana-only fonts without kanji, Chinese fonts such as PingFang, LiHei and Hiragino Sans GB, Shizuka Gothic (靜呉竹), Tsukimi, or fonts whose names contain Thai or 體
 - v1.0.2 (2026-11-08): Japanese font detection no longer counts fonts whose names start with HG
+- v1.0.3 (2026-11-08): Japanese font detection no longer counts the kana-only fonts SDUdai, SDTenga and SDSeimu
+- v1.1.0 (2026-11-08): Added "Exclude kana fonts" (on by default), which leaves out kana-only fonts without kanji (such as ML Chocolate, ML Tokatsuki Kana, Seiren Mincho Kana, Hommaru Kana and Seimei Kana). Fonts that were left out only because their names contain Kana, such as FOT-Kanae Reisho, now count as Japanese
