@@ -12,11 +12,13 @@
 
 With two or more objects selected, duplicates the smaller ones inside the shape of the largest one.
 Copies that stick out of the shape are removed (or kept under a mask), and the originals are left in place.
+The fill area can also be the backmost object or the active artboard.
 
 <img alt="The Tile Inside Shape dialog" src="../png/ss-724-1090-144-20261027-130407-s.png" width="35%" />
 
 ### Features
 
+- In the Target panel, choose the fill area from Largest Object, Backmost Object and Active Artboard (default: Largest Object). With Active Artboard, every selected object is tiled inside the artboard (works with a single object; the Fill Area panel is not used). Original objects over the fill area are hidden so they do not double up with the copies (they stay hidden after tiling; Cancel brings them back)
 - Only copies that fit inside the path are kept. Works with curves, concave shapes and holes in compound paths. Groups use the shape of each object in the group (a clipping group uses its clipping path). Text uses the shapes of its outlined glyphs (a duplicate is outlined for measuring and then deleted, so the text itself is unchanged). Other objects such as placed images use their bounding box
 - With Keep Overflow and Mask, tiles that stick out of the shape are kept and masked with the fill area's shape (masks for groups and text are compound paths of flattened outlines)
 - Choose the layout from Grid, Brick (Horizontal), Brick (Vertical), Hexagonal, Random (In Order) and Random (Random Order) (Brick (Horizontal) by default). Hexagonal closes up the rows to pack round tiles tightly. The two Random layouts place tiles without overlapping, keeping the spacing, and Density sets how many to keep. Reshuffle draws a new arrangement, jitter and order
@@ -37,7 +39,7 @@ Copies that stick out of the shape are removed (or kept under a mask), and the o
 
 ### Usage
 
-1. Select the fill area and one or more objects to tile. The largest object becomes the fill area.
+1. Select the fill area and one or more objects to tile. Under Target, choose whether the largest object, the backmost object or the active artboard becomes the fill area (for the artboard, select only the objects to tile).
 2. Run the script.
 3. Set the scale, spacing and other options, then run it.
 
@@ -47,6 +49,7 @@ Copies that stick out of the shape are removed (or kept under a mask), and the o
 
 ### Update History
 
+- v2.2.0 (2026-11-08) Added the Target panel to choose the fill area from Largest Object, Backmost Object and Active Artboard. Active Artboard tiles every selected object and runs with a single object selected (the Fill Area panel is dimmed). Original objects over the fill area are hidden from the preview on and stay hidden after tiling (Cancel shows and reselects them again). The chosen target is remembered until Illustrator quits, like the other settings
 - v2.1.1 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)
 - v2.1.0 (2026-10-31) The preview is now always shown, and the Preview checkbox was removed. The preview now appears at full opacity instead of 60%. Added Reset to the left of the buttons in its place (restores every setting to the script's defaults; the random arrangement is kept)
 - v2.0.1 (2026-10-31) When an object to tile is text (or a group containing text), its size, spacing and fit now use the glyphs rather than the text box, and the glyphs are centered on each spot (point text used to be measured by its advance and line height, and area text by its frame, which widened the spacing and shifted the positions). Turned the Tiles panel into the Rotate Each panel (Rotate, Flip Every Other 180°) and removed the Jitter checkbox, so the Rotation and Size jitter can always be set (0 means none); merged Order into the Layout choices Random (In Order) and Random (Random Order) (Grid, Brick and Hexagonal use the objects in turn from the frontmost); moved the Rotation and Size jitter, now with sliders, below Angle and the Tiles count, without its label, to the right of the Scale slider; laid out more compactly so the dialog is narrower (the Rotate Each checkbox renamed to Rotate, and Flip Every Other 180° no longer indented). Shortened the sliders. The Scale slider now goes up to 300% (was 200%). Moved Symbolize to the right column, under the Fill Area panel. Density now has a slider and moved from the Layout panel to below Size

@@ -8,14 +8,16 @@ Script-ID=com.swwwitch.illustrator.PatternFill
 Name=大きいオブジェクトの形の内側に小さいオブジェクトを敷き詰める
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=2.1.1
+Version=2.2.0
 Release-Date=2025-10-26
 Description-BEGIN
 オブジェクトを2つ以上選択し、いちばん大きいものの形の内側に、ほかのオブジェクトを複製して敷き詰めます。
 形からはみ出すものは残さず（マスクして残すこともできます）、元のオブジェクトはそのまま残します。
+敷き詰め先は、最背面のオブジェクトや選択しているアートボードにもできます。
 
 With two or more objects selected, duplicates the smaller ones inside the shape of the largest one.
 Copies that stick out of the shape are removed (or kept under a mask), and the originals are left in place.
+The fill area can also be the backmost object or the active artboard.
 Description-END
 SCRIPTMETA-END
 */
@@ -26,6 +28,7 @@ SCRIPTMETA-END
 
 オブジェクトを2つ以上選択し、いちばん大きいものの形の内側に、ほかのオブジェクトを複製して敷き詰めます。
 形からはみ出すものは残さず（マスクして残すこともできます）、元のオブジェクトはそのまま残します。
+敷き詰め先は、最背面のオブジェクトや選択しているアートボードにもできます。
 
 詳細は README を参照してください。
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TileInsideShape.md
@@ -37,6 +40,7 @@ https://note.com/dtp_tranist/n/ne393f59cbb77
 
 With two or more objects selected, duplicates the smaller ones inside the shape of the largest one.
 Copies that stick out of the shape are removed (or kept under a mask), and the originals are left in place.
+The fill area can also be the backmost object or the active artboard.
 
 See the README for details.
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TileInsideShape.md
@@ -47,10 +51,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TileInside
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "TileInsideShape";              /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v2.1.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v2.2.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-10-26";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-11-05";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-11-08";                   /* 更新日 / last updated */
 
 var SCRIPT_DESCRIPTION_JA = "大きいオブジェクトの形の内側に小さいオブジェクトを敷き詰める"; /* README の見出し / README title (Japanese) */
 
@@ -85,6 +89,10 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
        Initial choice for the larger object: "opacity", "remove" or "guide" */
     var DEFAULT_CONTAINER_ACTION = "opacity";
 
+    /* ［対象］の初期値（"largest" 最大のオブジェクト / "backmost" 最背面のオブジェクト / "artboard" 選択しているアートボード）
+       Initial choice for the target: "largest", "backmost" or "artboard" */
+    var DEFAULT_CONTAINER_SOURCE = "largest";
+
     /* スライダーの範囲（スケールは%、間隔・オフセットはタイルの幅に掛ける比率。入力欄には範囲外の値も入れられる）
        Slider ranges: scale in %, spacing and offset as ratios of the tile width; the fields accept values outside them */
     var SCALE_SLIDER_MIN = 10;
@@ -102,6 +110,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     /* 敷き詰めたタイルを入れるグループ名（プレビューは名前で探して消す）/ Group names; previews are found and removed by name */
     var GRID_GROUP_NAME = 'TiledGrid';
     var PREVIEW_GROUP_NAME = 'TiledGrid_preview';
+    /* ［選択しているアートボード］のときに一時的に置く長方形の名前（終わると削除する）/ Temporary rectangle for the Active Artboard target, removed at the end */
+    var ARTBOARD_AREA_NAME = 'TiledGrid_artboardArea';
 
     // =========================================
     // セッション記憶 / Session memory
@@ -1620,7 +1630,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         panel: {
             layout: { ja: "並べ方", en: "Layout" },
             tileRotation: { ja: "個別に回転", en: "Rotate Each" },
-            containerAction: { ja: "敷き詰め先", en: "Fill Area" }
+            containerAction: { ja: "敷き詰め先", en: "Fill Area" },
+            containerSource: { ja: "対象", en: "Target" }
         },
         radio: {
             grid: { ja: "グリッド", en: "Grid" },
@@ -1631,7 +1642,10 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             randomShuffle: { ja: "ランダム（ランダム）", en: "Random (Random Order)" },
             opacityContainer: { ja: "不透明度", en: "Opacity" },
             removeContainer: { ja: "削除", en: "Delete" },
-            guideContainer: { ja: "ガイド化", en: "Make Guides" }
+            guideContainer: { ja: "ガイド化", en: "Make Guides" },
+            largestSource: { ja: "最大のオブジェクト", en: "Largest Object" },
+            backmostSource: { ja: "最背面のオブジェクト", en: "Backmost Object" },
+            artboardSource: { ja: "選択しているアートボード", en: "Active Artboard" }
         },
         checkbox: {
             centerAlign: { ja: "中央にそろえる", en: "Center" },
@@ -1734,6 +1748,18 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
                 ja: "敷き詰めたあと、敷き詰め先をガイドに変換します。",
                 en: "Converts the fill area into guides after tiling."
             },
+            largestSource: {
+                ja: "選択したうち、面積がいちばん大きいオブジェクトの内側に、ほかのオブジェクトを敷き詰めます。",
+                en: "Tiles the other selected objects inside the largest one by area."
+            },
+            backmostSource: {
+                ja: "選択したうち、最背面のオブジェクトの内側に、ほかのオブジェクトを敷き詰めます。",
+                en: "Tiles the other selected objects inside the backmost one."
+            },
+            artboardSource: {
+                ja: "選択しているアートボードの内側に、選択したオブジェクトをすべて敷き詰めます。［敷き詰め先］パネルは使いません。",
+                en: "Tiles every selected object inside the active artboard. The Fill Area panel is not used."
+            },
             stepUp: {
                 ja: "値を増やす（shift＋クリックで10の倍数へ、option＋クリックで0.1ずつ）",
                 en: "Increase (Shift-click to snap to 10s, Option-click by 0.1)"
@@ -1747,9 +1773,9 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         },
         alert: {
             noDocument: { ja: "ドキュメントが開いていません。", en: "No document is open." },
-            selectTwo: {
-                ja: "敷き詰め先と、敷き詰めるオブジェクトを1つ以上選択してください。いちばん大きいものが敷き詰め先になります。",
-                en: "Select the fill area and at least one object to tile. The largest object becomes the fill area."
+            selectObjects: {
+                ja: "敷き詰めるオブジェクトを1つ以上選択してください。敷き詰め先は、選択したうち最大か最背面のオブジェクト、または選択しているアートボードです（［対象］で選びます）。",
+                en: "Select at least one object to tile. The fill area is the largest or backmost selected object, or the active artboard (chosen under Target)."
             },
             emptyTile: { ja: "敷き詰めるオブジェクトの幅か高さが0です。", en: "An object to tile has no width or height." }
         },
@@ -3014,7 +3040,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
      * ラジオ・チェックボックスの状態を、前回の設定（無ければ初期値）から作る。
      * 表示前の value は読み戻せないので、状態はこのオブジェクトに控えて読む
      * @param {Object|null} lastSettings - loadLastSettings() の結果
-     * @returns {Object} ダイアログの状態（layoutType / tileOrder / layoutChoice / centerAlign / clipOverflow / tileRotationOn / alternateFlip / symbolize / containerAction / randomSeed）
+     * @returns {Object} ダイアログの状態（layoutType / tileOrder / layoutChoice / centerAlign / clipOverflow / tileRotationOn / alternateFlip / symbolize / containerAction / containerSource / randomSeed）
      */
     function createDialogState(lastSettings) {
         var layoutType = getSavedSetting(lastSettings, 'layoutType', null);
@@ -3024,6 +3050,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         var containerAction = getSavedSetting(lastSettings, 'containerAction', DEFAULT_CONTAINER_ACTION);
         /* 以前の「何もしない」（keep）などは初期値に戻す / Fall back for choices that no longer exist, such as the old "keep" */
         if (!/^(opacity|remove|guide)$/.test(containerAction)) containerAction = DEFAULT_CONTAINER_ACTION;
+        var containerSource = getSavedSetting(lastSettings, 'containerSource', DEFAULT_CONTAINER_SOURCE);
+        if (!/^(largest|backmost|artboard)$/.test(containerSource)) containerSource = 'largest';
         /* タイルをランダムに選ぶのは［ランダム（ランダム）］だけ / Only Random (Random Order) picks the tiles at random */
         var tileOrder = (layoutType === 'random' && getSavedSetting(lastSettings, 'tileOrder', 'sequence') === 'random') ? 'random' : 'sequence';
         return {
@@ -3039,10 +3067,26 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             alternateFlip: getSavedSetting(lastSettings, 'alternateFlip', false),
             symbolize: getSavedSetting(lastSettings, 'symbolize', DEFAULT_SYMBOLIZE),
             containerAction: containerAction,
+            containerSource: containerSource,
             /* ランダムな並び・ばらつきはダイアログを開くたびに変え、開いている間は［再配置］まで固定する（プレビューと実行をそろえる）
                New random arrangement and jitter per dialog, kept until Reshuffle so the preview matches the result */
             randomSeed: createRandomSeed()
         };
+    }
+
+    /**
+     * ［対象］を選べるものに収める（選べなければ、最大・最背面・アートボードの順で選べる最初のもの）
+     * @param {string} containerSource - 選びたい対象（"largest" / "backmost" / "artboard"）
+     * @param {Object} containerSources - showFillDialog() に渡す［対象］の切り替え
+     * @returns {string} 使う対象
+     */
+    function resolveContainerSource(containerSource, containerSources) {
+        if (containerSources.isAvailable(containerSource)) return containerSource;
+        var fallbackSources = ['largest', 'backmost', 'artboard'];
+        for (var i = 0; i < fallbackSources.length; i++) {
+            if (containerSources.isAvailable(fallbackSources[i])) return fallbackSources[i];
+        }
+        return containerSource;
     }
 
     /**
@@ -3188,9 +3232,10 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
      * 敷き詰め設定のダイアログを表示する
      * @param {Object} fillTarget - 容器・タイルの参照。間隔の初期値とスライダーの範囲、送りの計算に使う
      * @param {Function} onPreview - 入力が変わるたびに設定（pt 換算済み）を受け取り、置くタイルの数を返す関数
+     * @param {Object} containerSources - ［対象］の切り替え（isAvailable(名前) で選べるか、select(名前) で fillTarget の容器とタイルを差し替える）
      * @returns {Object|null} 設定（readFillSettings() の形。スケールは%、長さは pt、角度は度）。キャンセル時は null
      */
-    function showFillDialog(fillTarget, onPreview) {
+    function showFillDialog(fillTarget, onPreview, containerSources) {
         /* ダイアログのタイトルはラベル＋バージョン / Dialog title = label + version */
         var fillDialog = new Window('dialog', getLabel('dialog.title'));
         setupWindow(fillDialog);
@@ -3199,6 +3244,15 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         /* 長さの欄の中に付ける単位（「10 mm」の形）/ Unit shown inside the length fields */
         var lengthUnit = ' ' + rulerUnit.label;
 
+        /* 前回の設定があれば初期値にする（長さは今の単位に換算）/ Start from the last settings if any (lengths converted to the current unit) */
+        var lastSettings = loadLastSettings();
+        var dialogState = createDialogState(lastSettings);
+
+        /* ［対象］を決めて容器とタイルをそろえる（選べないものは選べる最初のものに替える）
+           Settle the target, then the container and tiles; an unavailable choice falls back to the first available one */
+        dialogState.containerSource = resolveContainerSource(dialogState.containerSource, containerSources);
+        containerSources.select(dialogState.containerSource);
+
         /* いちばん幅の広いタイル（今の単位）から、間隔の初期値とスライダーの範囲を決める
            The widest tile, in the current unit, sets the initial spacing and the slider ranges */
         var maxTileWidthInUnit = 0;
@@ -3206,9 +3260,6 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             maxTileWidthInUnit = Math.max(maxTileWidthInUnit, ptToUnit(fillTarget.tiles[i].info.width, rulerUnit));
         }
 
-        /* 前回の設定があれば初期値にする（長さは今の単位に換算）/ Start from the last settings if any (lengths converted to the current unit) */
-        var lastSettings = loadLastSettings();
-        var dialogState = createDialogState(lastSettings);
         /* 欄がすべてそろうまでプレビューを描かない / No preview until every field exists */
         var isDialogReady = false;
         /* ［リセット］で戻す欄の文字列（設定の名前ごと）/ Field texts restored by Reset, by setting name */
@@ -3310,19 +3361,14 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
            Layout; the radios follow one another in one panel, so exclusivity is automatic. Random comes twice, paired with the order */
         var layoutPanel = panelColumns.columns[0].add('panel', undefined, getLabel('panel.layout'));
         setupPanel(layoutPanel, 6);
-        /* 敷き詰めるオブジェクトが1つなら選び方は関係ないので［ランダム（ランダム）］は使えない / With a single object to tile the order does not matter, so Random (Random Order) is unavailable */
-        var hasSeveralTiles = (fillTarget.tiles.length > 1);
-        if (!hasSeveralTiles && dialogState.layoutChoice === 'randomShuffle') {
-            dialogState.layoutChoice = 'random';
-            dialogState.tileOrder = 'sequence';
-        }
+        fitLayoutChoiceToTiles();
         addStateRadio(layoutPanel, 'radio.grid', 'tooltip.grid', dialogState, 'layoutChoice', 'grid', onLayoutChange);
         addStateRadio(layoutPanel, 'radio.brick', 'tooltip.brick', dialogState, 'layoutChoice', 'brick', onLayoutChange);
         addStateRadio(layoutPanel, 'radio.brickVertical', 'tooltip.brickVertical', dialogState, 'layoutChoice', 'brickVertical', onLayoutChange);
         addStateRadio(layoutPanel, 'radio.hexagon', 'tooltip.hexagon', dialogState, 'layoutChoice', 'hexagon', onLayoutChange);
         addStateRadio(layoutPanel, 'radio.random', 'tooltip.random', dialogState, 'layoutChoice', 'random', onLayoutChange);
         var randomShuffleRadio = addStateRadio(layoutPanel, 'radio.randomShuffle', 'tooltip.randomShuffle', dialogState, 'layoutChoice', 'randomShuffle', onLayoutChange);
-        randomShuffleRadio.enabled = hasSeveralTiles;
+        randomShuffleRadio.enabled = (fillTarget.tiles.length > 1);
 
         var centerAlignCheckbox = addStateCheckbox(layoutPanel, 'checkbox.centerAlign', 'tooltip.centerAlign', dialogState, 'centerAlign', updatePreviewFromFields);
         addStateCheckbox(layoutPanel, 'checkbox.clipOverflow', 'tooltip.clipOverflow', dialogState, 'clipOverflow', updateEnabledStatesAndPreview);
@@ -3335,6 +3381,18 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             dialogState.randomSeed = createRandomSeed();
             updatePreviewFromFields();
         };
+
+        /* ［対象］パネル（右の列のいちばん上）。オブジェクトが1つだけなら、オブジェクトを敷き詰め先にする2つは選べない
+           Target panel, at the top of the right column. With a single object selected, the two object targets are unavailable */
+        var containerSourcePanel = panelColumns.columns[1].add('panel', undefined, getLabel('panel.containerSource'));
+        setupPanel(containerSourcePanel, 6);
+        var containerSourceNames = ['largest', 'backmost', 'artboard'];
+        for (var sourceIndex = 0; sourceIndex < containerSourceNames.length; sourceIndex++) {
+            var sourceName = containerSourceNames[sourceIndex];
+            var sourceRadio = addStateRadio(containerSourcePanel, 'radio.' + sourceName + 'Source', 'tooltip.' + sourceName + 'Source',
+                dialogState, 'containerSource', sourceName, onContainerSourceChange);
+            sourceRadio.enabled = containerSources.isAvailable(sourceName);
+        }
 
         /* ［個別に回転］パネル：回転・1つおきに180°回転 / Rotate Each panel: Rotate and Flip Every Other */
         var tileRotationPanel = panelColumns.columns[1].add('panel', undefined, getLabel('panel.tileRotation'));
@@ -3423,13 +3481,46 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         }
 
         /**
-         * すべての項目をスクリプトの初期値に戻し、プレビューを描き直す（ランダムな並びの種はそのまま）
+         * 敷き詰めるオブジェクトが1つなら選び方は関係ないので、［ランダム（ランダム）］を［ランダム（順番）］に替える
+         * @returns {void}
+         */
+        function fitLayoutChoiceToTiles() {
+            if (fillTarget.tiles.length > 1 || dialogState.layoutChoice !== 'randomShuffle') return;
+            dialogState.layoutChoice = 'random';
+            dialogState.tileOrder = 'sequence';
+        }
+
+        /**
+         * 今の［対象］で容器とタイルを差し替え、タイルの数で決まる並べ方の選択肢をそろえる（プレビューは描き直さない）
+         * @returns {void}
+         */
+        function applyContainerSource() {
+            containerSources.select(dialogState.containerSource);
+            fitLayoutChoiceToTiles();
+            randomShuffleRadio.enabled = (fillTarget.tiles.length > 1);
+            syncStateControls(layoutPanel, dialogState);
+        }
+
+        /**
+         * ［対象］を選んだら、容器とタイルを差し替えて、ディム表示と周期・プレビューを更新する
+         * @returns {void}
+         */
+        function onContainerSourceChange() {
+            applyContainerSource();
+            updateEnabledStates();
+            updatePeriodAndPreview();
+        }
+
+        /**
+         * すべての項目をスクリプトの初期値に戻し、プレビューを描き直す（ランダムな並びの種はそのまま。［対象］は選べるものに収める）
          * @returns {void}
          */
         function resetToDefaults() {
             var defaultState = createDialogState(null);
             defaultState.randomSeed = dialogState.randomSeed;
+            defaultState.containerSource = resolveContainerSource(defaultState.containerSource, containerSources);
             for (var stateName in defaultState) dialogState[stateName] = defaultState[stateName];
+            applyContainerSource();
             syncStateControls(fillDialog, dialogState);
             setLinkToggleValue(spacingLinkToggle, true);
 
@@ -3497,6 +3588,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
                 tileOrder: dialogState.tileOrder,
                 symbolize: dialogState.symbolize,
                 containerAction: dialogState.containerAction,
+                containerSource: dialogState.containerSource,
                 containerOpacity: readFieldNumber(opacityField, 100, 0, 100)
             };
         }
@@ -3513,11 +3605,12 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         /**
          * 選択に合わせて、使わない項目をディム表示にする
          * （ランダムは調整X・Y・並びの角度・中央そろえを使わず、密度はランダムだけ。マスクはオフセットを使わない。
-         * 個別に回転の角度は［個別に回転］、不透明度の値は［不透明度］がオンのときだけ）
+         * 個別に回転の角度は［個別に回転］、不透明度の値は［不透明度］がオンのときだけ。アートボードが対象なら［敷き詰め先］は使わない）
          * @returns {void}
          */
         function updateEnabledStates() {
             var isRandom = (dialogState.layoutType === 'random');
+            setGroupEnabled(containerActionPanel, dialogState.containerSource !== 'artboard');
             setGroupEnabled(shiftXControls.row, !isRandom);
             setGroupEnabled(shiftYControls.row, !isRandom);
             setGroupEnabled(layoutAngleControls.row, !isRandom);
@@ -3550,7 +3643,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     // =========================================
 
     /**
-     * 選択したオブジェクトを容器（いちばん大きいもの）とタイル（残り）に振り分け、ダイアログで設定して敷き詰める
+     * 選択したオブジェクトを容器（［対象］で選んだもの）とタイル（残り）に振り分け、ダイアログで設定して敷き詰める
      * @returns {void}
      */
     function main() {
@@ -3561,50 +3654,180 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             return;
         }
 
-        if (!doc.selection || doc.selection.length < 2) {
-            alert(getLabel('alert.selectTwo'));
+        if (!doc.selection || doc.selection.length < 1) {
+            alert(getLabel('alert.selectObjects'));
             return;
         }
 
-        /* 面積がいちばん大きいものを容器、残りをタイルにする（タイルは選択の順＝前面から）
-           The largest by area is the container; the rest are tiles, in selection order (front first) */
+        /* 選択の順（前面から）に、容器としての境界とタイルとしての境界を測る（タイルのテキストは字形の範囲）
+           Measure each selected item, front first, as a container and as a tile (text tiles by their glyphs) */
         var selectedItems = [];
-        var containerIndex = 0;
         for (var i = 0; i < doc.selection.length; i++) {
-            selectedItems.push({ item: doc.selection[i], info: getBoundsInfo(doc.selection[i]) });
-            if (selectedItems[i].info.area > selectedItems[containerIndex].info.area) containerIndex = i;
+            selectedItems.push({ item: doc.selection[i], info: getBoundsInfo(doc.selection[i]), tileInfo: getTileInfo(doc.selection[i]) });
         }
-        /* タイルのテキストは字形の範囲で測り直す / Text tiles are measured again by their glyphs */
-        var tiles = [];
-        for (var j = 0; j < selectedItems.length; j++) {
-            if (j === containerIndex) continue;
-            var tileEntry = { item: selectedItems[j].item, info: getTileInfo(selectedItems[j].item) };
-            if (tileEntry.info.width <= 0 || tileEntry.info.height <= 0) {
-                alert(getLabel('alert.emptyTile'));
+
+        var fillTarget = { container: null, containerInfo: null, tiles: [], previewGroup: null, containerSource: null };
+        /* ［選択しているアートボード］用の一時的な長方形（使ったときだけ作る）/ Temporary rectangle for the Active Artboard target, made on first use */
+        var artboardArea = null;
+        var containerSources = {
+            isAvailable: function (containerSource) {
+                if (containerSource !== 'artboard' && selectedItems.length < 2) return false;
+                return collectTiles(selectedItems, findContainerIndex(selectedItems, containerSource)) !== null;
+            },
+            select: function (containerSource) {
+                if (fillTarget.containerSource === containerSource) return;
+                if (fillTarget.container) clearPreview(fillTarget);
+                var containerIndex = findContainerIndex(selectedItems, containerSource);
+                if (containerIndex < 0) {
+                    if (!artboardArea) artboardArea = createArtboardArea(doc, selectedItems[0].item.layer);
+                    fillTarget.container = artboardArea;
+                    fillTarget.containerInfo = getBoundsInfo(artboardArea);
+                } else {
+                    fillTarget.container = selectedItems[containerIndex].item;
+                    fillTarget.containerInfo = selectedItems[containerIndex].info;
+                }
+                /* 前の対象で隠した元を表示し直してから、新しい対象で敷き詰め先に重なる元を隠す / Show the originals hidden for the previous target, then hide those over the new fill area */
+                showOriginalTiles(fillTarget.tiles);
+                fillTarget.tiles = collectTiles(selectedItems, containerIndex) || [];
+                fillTarget.containerSource = containerSource;
+                hideOriginalTilesOverFillArea(fillTarget);
+            }
+        };
+        /* どの対象でも敷き詰めるオブジェクトに幅か高さが0のものがある / Every target leaves an object to tile with no width or height */
+        if (!containerSources.isAvailable(resolveContainerSource('largest', containerSources))) {
+            alert(getLabel('alert.emptyTile'));
+            return;
+        }
+
+        /* 一時的な長方形は、キャンセル・エラーでも消す。隠した元は、敷き詰めたとき以外は表示し直して選択も戻す
+           The temporary rectangle is removed even on cancel or error; unless the tiling went through, hidden originals are shown again and reselected */
+        var isTiled = false;
+        try {
+            var fillSettings = showFillDialog(fillTarget, function(previewSettings) {
+                var placements = computePlacements(fillTarget, previewSettings);
+                renderPreview(fillTarget, previewSettings, placements);
+                return placements.length;
+            }, containerSources);
+            clearPreview(fillTarget);
+            if (!fillSettings) {
+                app.userInteractionLevel = UserInteractionLevel.DISPLAYALERTS;
                 return;
             }
-            tiles.push(tileEntry);
-        }
-        var fillTarget = {
-            container: selectedItems[containerIndex].item,
-            containerInfo: selectedItems[containerIndex].info,
-            tiles: tiles,
-            previewGroup: null
-        };
 
-        var fillSettings = showFillDialog(fillTarget, function(previewSettings) {
-            var placements = computePlacements(fillTarget, previewSettings);
-            renderPreview(fillTarget, previewSettings, placements);
-            return placements.length;
-        });
-        clearPreview(fillTarget);
-        if (!fillSettings) {
-            app.userInteractionLevel = UserInteractionLevel.DISPLAYALERTS;
-            return;
+            placeTiles(doc, fillTarget, fillSettings);
+            isTiled = true;
+            /* アートボードは敷き詰め先の扱いを使わない / The fill area options do not apply to the artboard */
+            if (fillSettings.containerSource !== 'artboard') applyContainerAction(doc, fillTarget.container, fillSettings);
+        } finally {
+            if (artboardArea) artboardArea.remove();
+            if (!isTiled && showOriginalTiles(fillTarget.tiles)) {
+                var originalSelection = [];
+                for (var k = 0; k < selectedItems.length; k++) originalSelection.push(selectedItems[k].item);
+                doc.selection = originalSelection;
+            }
         }
+    }
 
-        placeTiles(doc, fillTarget, fillSettings);
-        applyContainerAction(doc, fillTarget.container, fillSettings);
+    /**
+     * 敷き詰め先の外接矩形に重なる元のタイルを隠す（元と並べた複製が二重に見えないように。敷き詰めたあとも隠したまま残す）
+     * @param {Object} fillTarget - 容器・タイルの参照（隠したタイルには isHiddenOriginal を付ける）
+     * @returns {void}
+     */
+    function hideOriginalTilesOverFillArea(fillTarget) {
+        var areaInfo = fillTarget.containerInfo;
+        for (var i = 0; i < fillTarget.tiles.length; i++) {
+            var tileEntry = fillTarget.tiles[i];
+            var tileInfo = tileEntry.info;
+            var isOverArea = tileInfo.left < areaInfo.right && tileInfo.right > areaInfo.left &&
+                tileInfo.bottom < areaInfo.top && tileInfo.top > areaInfo.bottom;
+            if (!isOverArea) continue;
+            tileEntry.item.hidden = true;
+            tileEntry.isHiddenOriginal = true;
+        }
+    }
+
+    /**
+     * hideOriginalTilesOverFillArea() で隠した元のタイルを表示し直す
+     * @param {Object[]} tiles - タイル（fillTarget.tiles）
+     * @returns {boolean} 表示し直したものがあれば true
+     */
+    function showOriginalTiles(tiles) {
+        var hasShown = false;
+        for (var i = 0; i < tiles.length; i++) {
+            if (!tiles[i].isHiddenOriginal) continue;
+            tiles[i].item.hidden = false;
+            tiles[i].isHiddenOriginal = false;
+            hasShown = true;
+        }
+        return hasShown;
+    }
+
+    /**
+     * 元のタイルを複製する（隠した元の複製は hidden を引き継ぐので表示に戻す）
+     * @param {Object} tileEntry - タイル（fillTarget.tiles の要素）
+     * @param {Object} [targetContainer] - 複製先（省略時は元と同じ場所）
+     * @returns {PageItem} 複製
+     */
+    function duplicateTileItem(tileEntry, targetContainer) {
+        var tileCopy = targetContainer ? tileEntry.item.duplicate(targetContainer, ElementPlacement.PLACEATBEGINNING) : tileEntry.item.duplicate();
+        if (tileEntry.isHiddenOriginal) tileCopy.hidden = false;
+        return tileCopy;
+    }
+
+    /**
+     * ［対象］から、容器にする選択の番号を返す（面積がいちばん大きいもの・最背面のもの。アートボードなら -1）
+     * @param {Object[]} selectedItems - 選択したオブジェクト（選択の順＝前面から。info は getBoundsInfo() の結果）
+     * @param {string} containerSource - "largest" / "backmost" / "artboard"
+     * @returns {number} 容器の番号（アートボードなら -1）
+     */
+    function findContainerIndex(selectedItems, containerSource) {
+        if (containerSource === 'artboard') return -1;
+        /* 選択は前面から並ぶので、最背面は最後 / The selection runs front to back, so the backmost is last */
+        if (containerSource === 'backmost') return selectedItems.length - 1;
+        var containerIndex = 0;
+        for (var i = 1; i < selectedItems.length; i++) {
+            if (selectedItems[i].info.area > selectedItems[containerIndex].info.area) containerIndex = i;
+        }
+        return containerIndex;
+    }
+
+    /**
+     * 容器以外の選択をタイルにする（選択の順＝前面から）
+     * @param {Object[]} selectedItems - 選択したオブジェクト（tileInfo は getTileInfo() の結果）
+     * @param {number} containerIndex - 容器の番号（アートボードなら -1 で、すべてタイル）
+     * @returns {Object[]|null} タイル（item / info）。タイルが無いか、幅か高さが0のものがあれば null
+     */
+    function collectTiles(selectedItems, containerIndex) {
+        var tiles = [];
+        for (var i = 0; i < selectedItems.length; i++) {
+            if (i === containerIndex) continue;
+            var tileInfo = selectedItems[i].tileInfo;
+            if (tileInfo.width <= 0 || tileInfo.height <= 0) return null;
+            tiles.push({ item: selectedItems[i].item, info: tileInfo });
+        }
+        return tiles.length ? tiles : null;
+    }
+
+    /**
+     * 選択しているアートボードと同じ大きさの、塗り・線なしの長方形を作る（容器の代わり。終わったら削除する）
+     * @param {Document} doc - 対象ドキュメント
+     * @param {Layer} targetLayer - 長方形を置くレイヤー（敷き詰めたグループもここに入る）
+     * @returns {PathItem} 長方形
+     */
+    function createArtboardArea(doc, targetLayer) {
+        /* artboardRect と長方形の位置をドキュメント座標でそろえる / Read artboardRect and place the rectangle in document coordinates */
+        var savedCoordinateSystem = app.coordinateSystem;
+        app.coordinateSystem = CoordinateSystem.DOCUMENTCOORDINATESYSTEM;
+        try {
+            var artboardRect = doc.artboards[doc.artboards.getActiveArtboardIndex()].artboardRect; /* [left, top, right, bottom] */
+            var areaRect = targetLayer.pathItems.rectangle(artboardRect[1], artboardRect[0], artboardRect[2] - artboardRect[0], artboardRect[1] - artboardRect[3]);
+        } finally {
+            app.coordinateSystem = savedCoordinateSystem;
+        }
+        areaRect.filled = false;
+        areaRect.stroked = false;
+        areaRect.name = ARTBOARD_AREA_NAME;
+        return areaRect;
     }
 
     /**
@@ -3696,7 +3919,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
 
         for (var i = 0; i < placements.length; i++) {
             var tileEntry = fillTarget.tiles[placements[i].tileIndex];
-            placeTileCopy(tileEntry.item.duplicate(previewGroup, ElementPlacement.PLACEATBEGINNING), placements[i], tileEntry.info, false);
+            placeTileCopy(duplicateTileItem(tileEntry, previewGroup), placements[i], tileEntry.info, false);
         }
         if (previewSettings.clipOverflow && placements.length) addClipPath(fillTarget.container, previewGroup);
 
@@ -3763,7 +3986,9 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
      */
     function addClipPath(container, targetGroup) {
         if (container.typename === 'PathItem' || container.typename === 'CompoundPathItem') {
-            container.duplicate(targetGroup, ElementPlacement.PLACEATBEGINNING);
+            var clipPath = container.duplicate(targetGroup, ElementPlacement.PLACEATBEGINNING);
+            /* アートボードの一時的な長方形の名前は引き継がない / Do not carry over the temporary artboard rectangle's name */
+            if (clipPath.name === ARTBOARD_AREA_NAME) clipPath.name = '';
         } else {
             var clipCompound = targetGroup.compoundPathItems.add();
             var containerOutlines = getContainerOutlines(container);
@@ -3781,13 +4006,13 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     /**
      * タイルをシンボルとして登録する
      * @param {Document} doc - 対象ドキュメント
-     * @param {PageItem} tile - タイル
+     * @param {Object} tileEntry - タイル（fillTarget.tiles の要素）
      * @returns {Symbol|null} 登録したシンボル。失敗時は null（通常の複製に切り替える）
      */
-    function createTileSymbol(doc, tile) {
+    function createTileSymbol(doc, tileEntry) {
         /* シンボルにできないオブジェクトがある / Some items cannot become symbols */
         try {
-            var symbolSource = tile.duplicate();
+            var symbolSource = duplicateTileItem(tileEntry);
             var symbolDefinition = doc.symbols.add(symbolSource);
             try { symbolSource.remove(); } catch (e) {}
             return symbolDefinition;
@@ -3809,7 +4034,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         /* 必要ならタイルごとにシンボルを作る / Make a symbol per tile if needed */
         var symbolDefinitions = [];
         for (var i = 0; i < fillTarget.tiles.length; i++) {
-            symbolDefinitions.push(fillSettings.symbolize ? createTileSymbol(doc, fillTarget.tiles[i].item) : null);
+            symbolDefinitions.push(fillSettings.symbolize ? createTileSymbol(doc, fillTarget.tiles[i]) : null);
         }
 
         app.userInteractionLevel = UserInteractionLevel.DONTDISPLAYALERTS;
@@ -3826,7 +4051,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
          */
         function addTileCopy(tileIndex) {
             var symbolDefinition = symbolDefinitions[tileIndex];
-            if (!symbolDefinition) return fillTarget.tiles[tileIndex].item.duplicate(gridGroup, ElementPlacement.PLACEATBEGINNING);
+            if (!symbolDefinition) return duplicateTileItem(fillTarget.tiles[tileIndex], gridGroup);
             var symbolCopy = doc.symbolItems.add(symbolDefinition);
             symbolCopy.move(gridGroup, ElementPlacement.PLACEATBEGINNING);
             return symbolCopy;
@@ -3835,8 +4060,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         var placedCount = 0;
         for (var j = 0; j < placements.length; j++) {
             var tileEntry = fillTarget.tiles[placements[j].tileIndex];
-            /* 元のタイルと同じ場所はスキップ / Skip the original tile's own spot */
-            if (isOriginalTileSpot(placements[j], tileEntry.info)) continue;
+            /* 元のタイルと同じ場所はスキップ（隠した元の場所には置く）/ Skip the original tile's own spot, unless the original is hidden */
+            if (!tileEntry.isHiddenOriginal && isOriginalTileSpot(placements[j], tileEntry.info)) continue;
             /* シンボルのインスタンスは置いた位置が決まっていないので測る / Symbol instances land anywhere, so measure them */
             placeTileCopy(addTileCopy(placements[j].tileIndex), placements[j], tileEntry.info, !!symbolDefinitions[placements[j].tileIndex]);
             placedCount++;
