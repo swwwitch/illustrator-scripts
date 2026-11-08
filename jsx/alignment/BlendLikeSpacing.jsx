@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.BlendLikeSpacing
 Name=並んだオブジェクトの間隔をだんだん広くする
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.2.0
+Version=1.6.0
 Release-Date=2026-11-06
 Description-BEGIN
 並んだ線やオブジェクトの両端を動かさずに、間隔が一定の比率でだんだん広くなるように並べ直します。
@@ -30,6 +30,9 @@ SCRIPTMETA-END
 詳細は README を参照してください。
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/BlendLikeSpacing.md
 
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n67c10b92e5fd
+
 ### Overview
 
 Rearranges a row of lines or objects so the gaps widen by a constant ratio, keeping both ends in place.
@@ -44,16 +47,17 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/BlendLikeS
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "BlendLikeSpacing";             /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.2.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.6.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-11-06";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-11-09";                   /* 更新日 / last updated */
 
 var SCRIPT_DESCRIPTION_JA = "並んだオブジェクトの間隔をだんだん広くする"; /* README の見出し / README title (Japanese) */
 
-var SCRIPT_README_JA  = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/BlendLikeSpacing.md"; /* README（日本語） */
-var SCRIPT_README_EN  = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/BlendLikeSpacing.md"; /* README (English) */
-var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/BlendLikeSpacing.jsx"; /* 最新版のソース / latest source */
+var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/BlendLikeSpacing.md"; /* README（日本語） */
+var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/BlendLikeSpacing.md"; /* README (English) */
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n67c10b92e5fd"; /* 紹介記事 / article URL */
+var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/BlendLikeSpacing.jsx"; /* 最新版のソース / latest source */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
@@ -67,14 +71,14 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
     var RATIO_MIN = 100;      /* 比率の下限（%）。100%で等間隔 / lowest ratio (%); 100% means even spacing */
     var RATIO_MAX = 300;      /* 比率の上限（%） / highest ratio (%) */
     var RATIO_STEP = 1;       /* ∧∨・↑↓の増減量（%） / stepper increment (%) */
-    var MIN_ITEM_COUNT = 2;   /* 必要な数。2つでも［数］を増やせば並べられる / items needed; two work once the count is raised */
-    var MIN_SPACED_COUNT = 3; /* 開いたときの［数］の下限。2つだけ選んだときは1つ足して始める / initial count floor; two items start with one copy */
-    var MAX_ITEM_COUNT = 200; /* ［数］の上限 / highest count */
+    var MIN_ITEM_COUNT = 2;   /* 必要な数。2つでも［個数］で増やせば並べられる / items needed; two work once copies are added */
+    var DEFAULT_ADD_COUNT = 0; /* ［個数］（増やす数）の初期値 / initial number of copies to add */
+    var MAX_ADD_COUNT = 64;   /* ［個数］（増やす数）の上限 / most copies that can be added */
 
     // =========================================
     // レイアウト / Layout
     // =========================================
-    var RATIO_SLIDER_WIDTH = 220; /* スライダーの幅（px） / slider width (px) */
+    var SLIDER_WIDTH = 220;       /* ［比率］［個数］のスライダーの幅（px） / slider width for Ratio and Count (px) */
     var AXIS_LABEL_PADDING = 2;   /* ［上下］［左右］の項目名の幅に足す余白（px） / extra width for the axis labels (px) */
 
     // UIレイアウト（再利用パーツ） / UI layout (reusable)
@@ -1676,7 +1680,8 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         panel: {
             direction: { ja: "広げる向き", en: "Direction" },
             spacing: { ja: "間隔の広がり", en: "Spacing Growth" },
-            objects: { ja: "オブジェクト", en: "Objects" }
+            objects: { ja: "オブジェクトの数", en: "Number of Objects" },
+            color: { ja: "カラーのブレンド", en: "Color Blend" }
         },
         radio: {
             down: { ja: "下へ", en: "Down" },
@@ -1690,11 +1695,17 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             endsX: { ja: "両端へ", en: "Ends" },
             randomX: { ja: "ランダム", en: "Random" }
         },
+        checkbox: {
+            fill: { ja: "塗り", en: "Fill" },
+            stroke: { ja: "線", en: "Stroke" },
+            reverse: { ja: "反転", en: "Reverse" }
+        },
         fieldLabel: {
             y: { ja: "上下", en: "Vertical" },
             x: { ja: "左右", en: "Horizontal" },
             ratio: { ja: "比率", en: "Ratio" },
-            count: { ja: "数", en: "Count" }
+            count: { ja: "個数", en: "Add" },
+            total: { ja: "総数", en: "Total" }
         },
         tooltip: {
             down: { ja: "下へ行くほど間隔を広げる", en: "Gaps widen toward the bottom" },
@@ -1712,8 +1723,24 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
                 en: "Each gap as a percentage of the previous one (100% means even spacing). With Random, the widest gap over the narrowest"
             },
             count: {
-                ja: "並べるオブジェクトの数。選択より多くすると、上端（左右の並びでは左端）のオブジェクトを複製して足す",
-                en: "Number of objects in the row. Raising it adds copies of the top object (the leftmost in a horizontal row)"
+                ja: "増やすオブジェクトの個数。上端（左右の並びでは左端）のオブジェクトを複製して足す",
+                en: "How many objects to add, as copies of the top object (the leftmost in a horizontal row)"
+            },
+            total: {
+                ja: "選択したオブジェクトと増やす分を合わせた数",
+                en: "Selected objects plus the ones to add"
+            },
+            fill: {
+                ja: "両端のオブジェクトの塗りをもとに、あいだのオブジェクトの塗りを段階的に変える（どちらかの端が塗りなし・グラデーション・パターンのときは変えない）",
+                en: "Blend the fills of the objects between the two ends (left as is when either end has no fill, a gradient, or a pattern)"
+            },
+            stroke: {
+                ja: "両端のオブジェクトの線をもとに、あいだのオブジェクトの線のカラーを段階的に変える（どちらかの端が線なし・グラデーション・パターンのときは変えない）",
+                en: "Blend the stroke colors of the objects between the two ends (left as is when either end has no stroke, a gradient, or a pattern)"
+            },
+            reverse: {
+                ja: "広い側と狭い側を入れ替える（［下へ］と［上へ］、［右へ］と［左へ］、［中央へ］と［両端へ］）。［ランダム］では使わない",
+                en: "Swap the wide and narrow sides (Down and Up, Right and Left, Center and Ends). Not used with Random"
             },
             shuffle: { ja: "ランダムな間隔を作り直す", en: "Generate new random gaps" },
             stepUp: {
@@ -1723,7 +1750,9 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             stepDown: {
                 ja: "値を減らす（shift＋クリックで10の倍数へ、option＋クリックで0.1ずつ）",
                 en: "Decrease (Shift-click to snap to 10s, Option-click by 0.1)"
-            }
+            },
+            stepUpInteger: { ja: "値を増やす（shift＋クリックで10の倍数へ）", en: "Increase (Shift-click to snap to 10s)" },
+            stepDownInteger: { ja: "値を減らす（shift＋クリックで10の倍数へ）", en: "Decrease (Shift-click to snap to 10s)" }
         },
         button: {
             cancel: { ja: "キャンセル", en: "Cancel" },
@@ -2042,6 +2071,310 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         }
     }
 
+    // =========================================
+    // カラーのブレンド / Color blending
+    // =========================================
+
+    /* カラーの種類ごとの値の上限（下限はどれも0。Lab の a・b は -128〜127）
+       Upper bound of each value per color space (lower bound 0; Lab a and b run -128 to 127) */
+    var COLOR_SPACE_RANGES = {
+        rgb:  { min: [0, 0, 0], max: [255, 255, 255] },
+        cmyk: { min: [0, 0, 0, 0], max: [100, 100, 100, 100] },
+        gray: { min: [0], max: [100] },
+        lab:  { min: [0, -128, -128], max: [100, 127, 127] }
+    };
+
+    /**
+     * カラーを塗り替える対象（パスと文字）を前面から順に集める。グループは中へたどり、クリッピングマスクとガイドは除く。
+     * 複合パスは先頭のパスに入れると全体に効く
+     * @param {PageItem} item - 対象のオブジェクト
+     * @param {Array<{kind: string, target: Object}>} [colorTargets] - 追加先（省略時は新しい配列）
+     * @returns {Array<{kind: string, target: Object}>} kind は "path" か "text"。target は PathItem か TextRange
+     */
+    function collectColorTargets(item, colorTargets) {
+        if (!colorTargets) colorTargets = [];
+        if (isClipMaskItem(item)) return colorTargets;
+        var typeName = item.typename;
+        if (typeName === "PathItem") {
+            if (!item.guides) colorTargets.push({ kind: "path", target: item });
+        } else if (typeName === "CompoundPathItem") {
+            if (item.pathItems.length > 0) colorTargets.push({ kind: "path", target: item.pathItems[0] });
+        } else if (typeName === "TextFrame") {
+            colorTargets.push({ kind: "text", target: item.textRange });
+        } else if (typeName === "GroupItem") {
+            for (var i = 0; i < item.pageItems.length; i++) collectColorTargets(item.pageItems[i], colorTargets);
+        }
+        return colorTargets;
+    }
+
+    /**
+     * 塗りか線のカラーを読む。塗り・線なしなら null
+     * @param {{kind: string, target: Object}} colorTarget - collectColorTargets() の要素
+     * @param {string} attribute - "fill" または "stroke"
+     * @returns {Color|null} カラー
+     */
+    function readTargetColor(colorTarget, attribute) {
+        try {
+            if (colorTarget.kind === "text") {
+                var textAttributes = colorTarget.target.characterAttributes;
+                return (attribute === "fill") ? textAttributes.fillColor : textAttributes.strokeColor;
+            }
+            var pathItem = colorTarget.target;
+            if (attribute === "fill") return pathItem.filled ? pathItem.fillColor : null;
+            return pathItem.stroked ? pathItem.strokeColor : null;
+        } catch (e) {
+            return null;
+        }
+    }
+
+    /**
+     * 塗りか線にカラーを入れる。パスは塗り・線なしでも入れたほうを有効にする
+     * @param {{kind: string, target: Object}} colorTarget - collectColorTargets() の要素
+     * @param {string} attribute - "fill" または "stroke"
+     * @param {Color} color - 入れるカラー
+     * @returns {boolean} 入れられたら true（ロックされた子などは false）
+     */
+    function writeTargetColor(colorTarget, attribute, color) {
+        try {
+            var colorHolder = (colorTarget.kind === "text") ? colorTarget.target.characterAttributes : colorTarget.target;
+            if (attribute === "fill") {
+                if (colorTarget.kind === "path") colorHolder.filled = true;
+                colorHolder.fillColor = color;
+            } else {
+                if (colorTarget.kind === "path") colorHolder.stroked = true;
+                colorHolder.strokeColor = color;
+            }
+            return true;
+        } catch (e) {
+            return false;
+        }
+    }
+
+    /**
+     * カラーを、混ぜられる形（カラーの種類と値）にする。なし・グラデーション・パターンは null
+     * @param {Color|null} color - 元のカラー
+     * @returns {{space: string, values: number[]}|{space: string, spot: Spot, tint: number}|null} 混ぜられる形
+     */
+    function toColorModel(color) {
+        if (!color) return null;
+        switch (color.typename) {
+            case "RGBColor": return { space: "rgb", values: [color.red, color.green, color.blue] };
+            case "CMYKColor": return { space: "cmyk", values: [color.cyan, color.magenta, color.yellow, color.black] };
+            case "GrayColor": return { space: "gray", values: [color.gray] };
+            case "LabColor": return { space: "lab", values: [color.l, color.a, color.b] };
+            case "SpotColor": return { space: "spot", spot: color.spot, tint: color.tint };
+        }
+        return null;
+    }
+
+    /**
+     * 濃度100%の値に濃度を掛ける（紙の白へ近づける）
+     * @param {number[]} colorValues - 濃度100%の値
+     * @param {string} space - "rgb" / "cmyk" / "gray" / "lab"
+     * @param {number} tint - 濃度（%）
+     * @returns {number[]} 濃度を掛けた値
+     */
+    function applyTintToValues(colorValues, space, tint) {
+        var tintRate = tint / 100;
+        var tinted = [];
+        for (var i = 0; i < colorValues.length; i++) {
+            if (space === "rgb") tinted.push(255 - (255 - colorValues[i]) * tintRate);
+            else if (space === "lab") tinted.push((i === 0) ? 100 - (100 - colorValues[i]) * tintRate : colorValues[i] * tintRate);
+            else tinted.push(colorValues[i] * tintRate);
+        }
+        return tinted;
+    }
+
+    /**
+     * 混ぜられる形のカラーを、指定の種類の値にする。スポットカラーは元のカラーに濃度を掛ける
+     * @param {Object} colorModel - toColorModel() の戻り値
+     * @param {string} space - "rgb" / "cmyk" / "gray" / "lab"
+     * @returns {number[]|null} 値（換算できなければ null）
+     */
+    function convertColorModel(colorModel, space) {
+        if (colorModel.space === "spot") {
+            var baseModel = toColorModel(colorModel.spot.color);
+            if (!baseModel || baseModel.space === "spot") return null;
+            var baseValues = convertColorModel(baseModel, space);
+            return baseValues ? applyTintToValues(baseValues, space, colorModel.tint) : null;
+        }
+        if (colorModel.space === space) return colorModel.values.slice(0);
+        if (colorModel.space === "gray") {
+            var grayLevel = colorModel.values[0];
+            if (space === "cmyk") return [0, 0, 0, grayLevel];
+            var rgbLevel = 255 * (1 - grayLevel / 100);
+            if (space === "rgb") return [rgbLevel, rgbLevel, rgbLevel];
+            colorModel = { space: "rgb", values: [rgbLevel, rgbLevel, rgbLevel] };
+        }
+        var imageSpaces = { rgb: ImageColorSpace.RGB, cmyk: ImageColorSpace.CMYK, lab: ImageColorSpace.LAB };
+        if (!imageSpaces[colorModel.space] || !imageSpaces[space]) return null;
+        try {
+            return app.convertSampleColor(imageSpaces[colorModel.space], colorModel.values, imageSpaces[space], ColorConvertPurpose.defaultpurpose);
+        } catch (e) {
+            return null;
+        }
+    }
+
+    /**
+     * 値からカラーを作る（範囲の外は端で止める）
+     * @param {string} space - "rgb" / "cmyk" / "gray" / "lab"
+     * @param {number[]} colorValues - 値
+     * @returns {Color} カラー
+     */
+    function createColor(space, colorValues) {
+        var spaceRange = COLOR_SPACE_RANGES[space];
+        var v = [];
+        for (var i = 0; i < spaceRange.max.length; i++) {
+            v.push(Math.min(spaceRange.max[i], Math.max(spaceRange.min[i], colorValues[i])));
+        }
+        var color;
+        if (space === "rgb") {
+            color = new RGBColor();
+            color.red = v[0]; color.green = v[1]; color.blue = v[2];
+        } else if (space === "cmyk") {
+            color = new CMYKColor();
+            color.cyan = v[0]; color.magenta = v[1]; color.yellow = v[2]; color.black = v[3];
+        } else if (space === "gray") {
+            color = new GrayColor();
+            color.gray = v[0];
+        } else {
+            color = new LabColor();
+            color.l = v[0]; color.a = v[1]; color.b = v[2];
+        }
+        return color;
+    }
+
+    /**
+     * 2つのカラーを、指定の割合で混ぜる。
+     * 同じスポットカラーどうしは濃度を、同じ種類どうしはその種類のまま、それ以外はドキュメントのカラーモードで混ぜる
+     * @param {Object|null} startModel - 手前の端のカラー（toColorModel() の戻り値）
+     * @param {Object|null} endModel - 奥の端のカラー
+     * @param {number} mixRate - 奥の端の割合（0〜1）
+     * @param {string} documentSpace - "rgb" または "cmyk"
+     * @returns {Color|null} 混ぜたカラー（どちらかが混ぜられなければ null）
+     */
+    function blendColorModels(startModel, endModel, mixRate, documentSpace) {
+        if (!startModel || !endModel) return null;
+        if (startModel.space === "spot" && endModel.space === "spot" && startModel.spot.name === endModel.spot.name) {
+            var spotColor = new SpotColor();
+            spotColor.spot = startModel.spot;
+            spotColor.tint = startModel.tint + (endModel.tint - startModel.tint) * mixRate;
+            return spotColor;
+        }
+        var space = (startModel.space === endModel.space && startModel.space !== "spot") ? startModel.space : documentSpace;
+        var startValues = convertColorModel(startModel, space);
+        var endValues = convertColorModel(endModel, space);
+        if (!startValues || !endValues) return null;
+        var mixedValues = [];
+        for (var i = 0; i < startValues.length; i++) {
+            mixedValues.push(startValues[i] + (endValues[i] - startValues[i]) * mixRate);
+        }
+        return createColor(space, mixedValues);
+    }
+
+    /**
+     * 両端のオブジェクトの塗り・線から、あいだのオブジェクトのカラーを段階的に決める。
+     * グループなどの中身は前面から順に対応させ、数が足りない側は最後のものを使う
+     * @param {Array<{item: PageItem}>} itemStates - addItemCopies() の戻り値
+     * @param {Array<{stateIndex: number}>} orderedSpans - buildOrderedSpans() の戻り値
+     * @param {{fill: boolean, stroke: boolean}} colorOptions - ブレンドする属性
+     * @returns {boolean} 1つでも塗り替えたら true
+     */
+    function applyColorBlend(itemStates, orderedSpans, colorOptions) {
+        var lastIndex = orderedSpans.length - 1;
+        var attributes = [];
+        if (colorOptions.fill) attributes.push("fill");
+        if (colorOptions.stroke) attributes.push("stroke");
+        if (lastIndex < 2 || attributes.length === 0) return false;
+
+        var startTargets = collectColorTargets(itemStates[orderedSpans[0].stateIndex].item);
+        var endTargets = collectColorTargets(itemStates[orderedSpans[lastIndex].stateIndex].item);
+        if (startTargets.length === 0 || endTargets.length === 0) return false;
+        var endModels = {};
+        for (var a = 0; a < attributes.length; a++) {
+            endModels[attributes[a]] = { start: [], end: [] };
+            for (var s = 0; s < startTargets.length; s++) endModels[attributes[a]].start.push(toColorModel(readTargetColor(startTargets[s], attributes[a])));
+            for (var e = 0; e < endTargets.length; e++) endModels[attributes[a]].end.push(toColorModel(readTargetColor(endTargets[e], attributes[a])));
+        }
+        var documentSpace = (app.activeDocument.documentColorSpace === DocumentColorSpace.CMYK) ? "cmyk" : "rgb";
+
+        var hasChanged = false;
+        for (var j = 1; j < lastIndex; j++) {
+            var middleTargets = collectColorTargets(itemStates[orderedSpans[j].stateIndex].item);
+            for (var k = 0; k < middleTargets.length; k++) {
+                for (var b = 0; b < attributes.length; b++) {
+                    var attributeModels = endModels[attributes[b]];
+                    var mixedColor = blendColorModels(
+                        attributeModels.start[Math.min(k, attributeModels.start.length - 1)],
+                        attributeModels.end[Math.min(k, attributeModels.end.length - 1)],
+                        j / lastIndex,
+                        documentSpace
+                    );
+                    if (mixedColor && writeTargetColor(middleTargets[k], attributes[b], mixedColor)) hasChanged = true;
+                }
+            }
+        }
+        return hasChanged;
+    }
+
+    /**
+     * カラーを比べるための文字列にする（なしは "none"）
+     * @param {Color|null} color - カラー
+     * @returns {string} 比較用の文字列
+     */
+    function describeColor(color) {
+        var colorModel = toColorModel(color);
+        if (!color) return "none";
+        if (!colorModel) return color.typename;
+        if (colorModel.space === "spot") return "spot:" + colorModel.spot.name + ":" + formatStepperNumber(colorModel.tint);
+        var parts = [];
+        for (var i = 0; i < colorModel.values.length; i++) parts.push(formatStepperNumber(colorModel.values[i]));
+        return colorModel.space + ":" + parts.join(",");
+    }
+
+    /**
+     * 元のオブジェクトの塗り・線を控える
+     * @param {Array<{item: PageItem}>} itemStates - captureItemStates() の戻り値
+     * @returns {Array<{colorTarget: Object, fill: Color|null, stroke: Color|null}>} 控え
+     */
+    function captureColorStates(itemStates) {
+        var colorStates = [];
+        for (var i = 0; i < itemStates.length; i++) {
+            var colorTargets = collectColorTargets(itemStates[i].item);
+            for (var k = 0; k < colorTargets.length; k++) {
+                colorStates.push({
+                    colorTarget: colorTargets[k],
+                    fill: readTargetColor(colorTargets[k], "fill"),
+                    stroke: readTargetColor(colorTargets[k], "stroke")
+                });
+            }
+        }
+        return colorStates;
+    }
+
+    /**
+     * 控えた塗り・線から変わっているものだけを戻す（app.undo() で戻りきらなかった分の保険）
+     * @param {Array<{colorTarget: Object, fill: Color|null, stroke: Color|null}>} colorStates - captureColorStates() の戻り値
+     * @returns {void}
+     */
+    function restoreItemColors(colorStates) {
+        var attributes = ["fill", "stroke"];
+        for (var i = 0; i < colorStates.length; i++) {
+            for (var a = 0; a < attributes.length; a++) {
+                var savedColor = colorStates[i][attributes[a]];
+                var colorTarget = colorStates[i].colorTarget;
+                if (describeColor(readTargetColor(colorTarget, attributes[a])) === describeColor(savedColor)) continue;
+                try {
+                    if (savedColor) writeTargetColor(colorTarget, attributes[a], savedColor);
+                    else if (colorTarget.kind === "path") colorTarget.target[(attributes[a] === "fill") ? "filled" : "stroked"] = false;
+                    else writeTargetColor(colorTarget, attributes[a], new NoColor());
+                } catch (e) {
+                    /* 消えた対象は戻せない / a removed target cannot be restored */
+                }
+            }
+        }
+    }
+
     /**
      * プレビューの描き直しと取り消し、本番の適用をまとめる
      * @param {Array<{item: PageItem, bounds: number[]}>} itemStates - captureItemStates() の戻り値
@@ -2054,9 +2387,14 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         var hasUncommittedPreview = false;
         /** @type {Array<{item: PageItem}>} プレビューで足した複製 */
         var previewCopyStates = [];
+        /** @type {Array|null} 元の塗り・線の控え（初めてカラーをブレンドするときに取る） */
+        var originalColorStates = null;
+        /* プレビューでカラーを塗り替えたら true / true while the preview has blended colors */
+        var hasColorPreview = false;
 
         /**
-         * プレビューを取り除き、元の位置へ戻す。app.undo() で履歴ごと取り除き、残った複製は消し、戻りきらなかった分は座標で戻す
+         * プレビューを取り除き、元の位置とカラーへ戻す。app.undo() で履歴ごと取り除き、残った複製は消し、
+         * 戻りきらなかった分は座標と控えたカラーで戻す
          * @returns {void}
          */
         function clearPreview() {
@@ -2065,24 +2403,31 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             removeItemCopies(previewCopyStates);
             previewCopyStates = [];
             restoreItemPositions(itemStates, usePreviewBounds);
+            if (hasColorPreview) restoreItemColors(originalColorStates);
+            hasColorPreview = false;
         }
 
         /**
-         * 設定どおりに複製を足して並べる
-         * @param {{direction: Object, ratio: number, count: number, randomPool: number[]}} spacingSettings - 今の設定
+         * 設定どおりに複製を足して並べ、選んでいればカラーをブレンドする
+         * @param {{direction: Object, ratio: number, count: number, randomPool: number[], colorBlend: Object}} spacingSettings - 今の設定
          * @returns {boolean} 何か変えたら true
          */
         function applySettings(spacingSettings) {
+            var colorBlend = spacingSettings.colorBlend;
+            var blendsColor = colorBlend.fill || colorBlend.stroke;
+            if (blendsColor && originalColorStates === null) originalColorStates = captureColorStates(itemStates);
+
             var allStates = addItemCopies(itemStates, spacingSettings.count - itemStates.length, spacingSettings.direction.axis);
             previewCopyStates = allStates.slice(itemStates.length);
             var spacingMoves = computeSpacingMoves(allStates, spacingSettings.direction, spacingSettings.ratio, spacingSettings.randomPool);
             var hasMoved = applySpacingMoves(allStates, spacingMoves);
-            return hasMoved || previewCopyStates.length > 0;
+            if (blendsColor) hasColorPreview = applyColorBlend(allStates, buildOrderedSpans(allStates, spacingSettings.direction), colorBlend);
+            return hasMoved || previewCopyStates.length > 0 || hasColorPreview;
         }
 
         /**
          * 指定の設定でプレビューを描き直す
-         * @param {{direction: Object, ratio: number, count: number, randomPool: number[]}} spacingSettings - 今の設定
+         * @param {{direction: Object, ratio: number, count: number, randomPool: number[], colorBlend: Object}} spacingSettings - 今の設定
          * @returns {void}
          */
         function updatePreview(spacingSettings) {
@@ -2093,13 +2438,14 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
 
         /**
          * プレビューを消してから本番を1回だけ流す（取り消しが1回で済む）。複製は残す
-         * @param {{direction: Object, ratio: number, count: number, randomPool: number[]}} spacingSettings - 確定した設定
+         * @param {{direction: Object, ratio: number, count: number, randomPool: number[], colorBlend: Object}} spacingSettings - 確定した設定
          * @returns {void}
          */
         function commitSettings(spacingSettings) {
             clearPreview();
             applySettings(spacingSettings);
             previewCopyStates = [];
+            hasColorPreview = false;
         }
 
         return { update: updatePreview, clear: clearPreview, commit: commitSettings };
@@ -2109,77 +2455,137 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
     // ダイアログ / Dialog
     // =========================================
 
+    /* ［広げる向き］のラジオボタン。reversed は［反転］をオンにしたときの向き（null は反転しない）
+       Direction radios; reversed is the direction used while Reverse is on (null means it does not reverse) */
+    var DIRECTION_CHOICES = [
+        { axis: "y", normal: "down",    reversed: "up" },
+        { axis: "y", normal: "centerY", reversed: "endsY" },
+        { axis: "y", normal: "randomY", reversed: null },
+        { axis: "x", normal: "right",   reversed: "left" },
+        { axis: "x", normal: "centerX", reversed: "endsX" },
+        { axis: "x", normal: "randomX", reversed: null }
+    ];
+
     /**
-     * ［広げる向き］のパネルを足す。［上下］［左右］の2行に分け、それぞれ一方へ・中央へ・両端へを並べる。
+     * ［広げる向き］のパネルを足す。［上下］［左右］の2行にそれぞれ一方へ・中央へ・ランダムを並べ、
+     * 下に［反転］を置く。［反転］をオンにすると、ラジオボタンの文言も反転後の向きに入れ替える。
      * 上下の並びなら［下へ］、左右の並びなら［右へ］を選んでおく
      * @param {Window} spacingDialog - 追加先のダイアログ
      * @param {{x: number, y: number}} axisSpreads - 軸ごとの中心の散らばり
-     * @param {function(Object): void} onDirectionChange - 向きを選んだときの処理
+     * @param {function(Object): void} onDirectionChange - 向きを変えたときの処理（反転を反映した向きを渡す）
      * @returns {{key: string, axis: string, sign: number, spread: string}} 最初に選んだ向き
      */
     function addDirectionPanel(spacingDialog, axisSpreads, onDirectionChange) {
         var directionPanel = spacingDialog.add("panel", undefined, getLabel(LABELS.panel.direction));
         setupPanel(directionPanel);
 
-        var initialKey = (axisSpreads.y >= axisSpreads.x) ? "down" : "right";
-        var initialDirection = null;
+        var directionsByKey = {};
+        for (var d = 0; d < SPACING_DIRECTIONS.length; d++) directionsByKey[SPACING_DIRECTIONS[d].key] = SPACING_DIRECTIONS[d];
+
+        /* 表示前のラジオ・チェックボックスの value は読み戻せないので、選んでいるものは変数で持つ
+           Values cannot be read back before show(), so the choice and Reverse live in variables */
+        var selectedChoice = DIRECTION_CHOICES[(axisSpreads.y >= axisSpreads.x) ? 0 : 3];
+        var isReversed = false;
         /* ラジオは同じ親の中でしか排他にならないので、行をまたいだ解除は自分でする
            Radios are exclusive only within one parent, so clear the other row by hand */
         var directionRadios = [];
-        var axisLabels = [];
+        var rowLabels = [];
         var axisRows = {};
 
         /**
-         * 軸の行（項目名とラジオを並べる行）を返す。無ければ作る
+         * ラジオボタンの選択と［反転］から、使う向きを返す
+         * @param {{normal: string, reversed: string|null}} directionChoice - DIRECTION_CHOICES の要素
+         * @returns {{key: string, axis: string, sign: number, spread: string}} 広げる向き
+         */
+        function resolveDirection(directionChoice) {
+            var directionKey = (isReversed && directionChoice.reversed) ? directionChoice.reversed : directionChoice.normal;
+            return directionsByKey[directionKey];
+        }
+
+        /**
+         * 項目名つきの行を足す。項目名は2行目以降と幅をそろえる
+         * @param {string} labelString - 項目名（空なら字下げだけ）
+         * @param {boolean} isEnabled - 項目名を有効にするなら true
+         * @returns {Group} 行
+         */
+        function addLabeledRow(labelString, isEnabled) {
+            var labeledRow = directionPanel.add("group");
+            setupRow(labeledRow, "left");
+            var rowLabel = labeledRow.add("statictext", undefined, labelString);
+            rowLabel.justify = "right";
+            rowLabel.enabled = isEnabled;
+            rowLabels.push(rowLabel);
+            return labeledRow;
+        }
+
+        /**
+         * 軸の行を返す。無ければ作る
          * @param {string} axis - "x" または "y"
          * @returns {Group} 行
          */
         function getAxisRow(axis) {
-            if (axisRows[axis]) return axisRows[axis];
-            var axisRow = directionPanel.add("group");
-            setupRow(axisRow, "left");
-            var axisLabel = axisRow.add("statictext", undefined, labelText(LABELS.fieldLabel[axis]));
-            axisLabel.justify = "right";
-            axisLabel.enabled = !isNearlySameCoordinate(axisSpreads[axis], 0);
-            axisLabels.push(axisLabel);
-            axisRows[axis] = axisRow;
-            return axisRow;
+            if (!axisRows[axis]) axisRows[axis] = addLabeledRow(labelText(LABELS.fieldLabel[axis]), !isNearlySameCoordinate(axisSpreads[axis], 0));
+            return axisRows[axis];
+        }
+
+        /**
+         * ラジオボタンの文言とツールチップを、今の［反転］に合わせる
+         * @param {RadioButton} directionRadio - 対象のラジオボタン
+         * @returns {void}
+         */
+        function updateRadioLabel(directionRadio) {
+            var directionKey = resolveDirection(directionRadio.directionChoice).key;
+            directionRadio.text = getLabel(LABELS.radio[directionKey]);
+            directionRadio.helpTip = getLabel(LABELS.tooltip[directionKey]);
         }
 
         /**
          * 向きのラジオボタンを1つ足す
-         * @param {{key: string, axis: string, sign: number, spread: string}} spacingDirection - 広げる向き
+         * @param {{axis: string, normal: string, reversed: string|null}} directionChoice - DIRECTION_CHOICES の要素
          * @returns {void}
          */
-        function addDirectionRadio(spacingDirection) {
-            var directionRadio = getAxisRow(spacingDirection.axis).add("radiobutton", undefined, getLabel(LABELS.radio[spacingDirection.key]));
-            directionRadio.helpTip = getLabel(LABELS.tooltip[spacingDirection.key]);
+        function addDirectionRadio(directionChoice) {
+            var directionRadio = getAxisRow(directionChoice.axis).add("radiobutton", undefined, "");
+            directionRadio.directionChoice = directionChoice;
+            updateRadioLabel(directionRadio);
             /* 散らばりのない軸では動かせない / An axis with no spread has nothing to move */
-            directionRadio.enabled = !isNearlySameCoordinate(axisSpreads[spacingDirection.axis], 0);
-            directionRadio.value = (spacingDirection.key === initialKey);
-            if (directionRadio.value) initialDirection = spacingDirection;
+            directionRadio.enabled = !isNearlySameCoordinate(axisSpreads[directionChoice.axis], 0);
+            directionRadio.value = (directionChoice === selectedChoice);
             directionRadio.onClick = function () {
                 for (var r = 0; r < directionRadios.length; r++) {
                     if (directionRadios[r] !== directionRadio) directionRadios[r].value = false;
                 }
-                onDirectionChange(spacingDirection);
+                selectedChoice = directionChoice;
+                reverseCheckbox.enabled = (selectedChoice.reversed !== null);
+                onDirectionChange(resolveDirection(selectedChoice));
             };
             directionRadios.push(directionRadio);
         }
 
-        for (var i = 0; i < SPACING_DIRECTIONS.length; i++) {
-            addDirectionRadio(SPACING_DIRECTIONS[i]);
+        for (var i = 0; i < DIRECTION_CHOICES.length; i++) {
+            addDirectionRadio(DIRECTION_CHOICES[i]);
         }
 
-        /* 2行の項目名を広いほうの幅にそろえ、ラジオの頭をそろえる / match the label widths so the radios line up */
+        /* ［反転］はラジオの頭にそろえる。［ランダム］では使わない / align Reverse with the radios; unused with Random */
+        var reverseCheckbox = addLabeledRow("", true).add("checkbox", undefined, getLabel(LABELS.checkbox.reverse));
+        reverseCheckbox.helpTip = getLabel(LABELS.tooltip.reverse);
+        reverseCheckbox.value = isReversed;
+        reverseCheckbox.enabled = (selectedChoice.reversed !== null);
+        reverseCheckbox.onClick = function () {
+            isReversed = reverseCheckbox.value;
+            for (var r = 0; r < directionRadios.length; r++) updateRadioLabel(directionRadios[r]);
+            onDirectionChange(resolveDirection(selectedChoice));
+        };
+
+        /* 項目名を最も広い幅にそろえ、ラジオとチェックボックスの頭をそろえる / match the label widths so the controls line up */
         var labelWidth = 0;
-        for (var k = 0; k < axisLabels.length; k++) {
-            labelWidth = Math.max(labelWidth, axisLabels[k].graphics.measureString(axisLabels[k].text)[0]);
+        for (var k = 0; k < rowLabels.length; k++) {
+            labelWidth = Math.max(labelWidth, rowLabels[k].graphics.measureString(rowLabels[k].text)[0]);
         }
-        for (var m = 0; m < axisLabels.length; m++) {
-            axisLabels[m].preferredSize.width = Math.ceil(labelWidth) + AXIS_LABEL_PADDING;
+        for (var m = 0; m < rowLabels.length; m++) {
+            rowLabels[m].preferredSize.width = Math.ceil(labelWidth) + AXIS_LABEL_PADDING;
         }
-        return initialDirection;
+        return resolveDirection(selectedChoice);
     }
 
     /**
@@ -2206,7 +2612,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         ratioField.helpTip = getLabel(LABELS.tooltip.ratio);
 
         var ratioSlider = spacingPanel.add("slider", undefined, DEFAULT_RATIO, RATIO_MIN, RATIO_MAX);
-        ratioSlider.preferredSize.width = RATIO_SLIDER_WIDTH;
+        ratioSlider.preferredSize.width = SLIDER_WIDTH;
         ratioSlider.helpTip = getLabel(LABELS.tooltip.ratio);
 
         /**
@@ -2247,44 +2653,128 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
     }
 
     /**
-     * ［オブジェクト］のパネルを足す。［数］は選択した数より減らせない
+     * ［オブジェクトの数］のパネルを足す。［個数］は増やす数で、入力欄とスライダーを連動させる。
+     * 右に、選択と合わせた総数を表示する（編集不可）
      * @param {Window} spacingDialog - 追加先のダイアログ
      * @param {number} selectedCount - 選択したオブジェクトの数
-     * @param {function(): void} onCountChange - 数を変えたときの処理
-     * @returns {function(): number} 数を読む関数（確定前の入力もそのまま読む）
+     * @param {function(): void} onCountChange - 個数を変えたときの処理
+     * @returns {function(): number} 総数を読む関数（確定前の入力もそのまま読む）
      */
     function addCountPanel(spacingDialog, selectedCount, onCountChange) {
         var objectsPanel = spacingDialog.add("panel", undefined, getLabel(LABELS.panel.objects));
         setupPanel(objectsPanel);
 
-        var initialCount = Math.max(selectedCount, MIN_SPACED_COUNT);
+        var maxAddCount = MAX_ADD_COUNT;
+        var initialAddCount = Math.min(DEFAULT_ADD_COUNT, maxAddCount);
         var countFieldOptions = {
             label: labelText(LABELS.fieldLabel.count),
-            text: String(initialCount),
+            text: String(initialAddCount),
             characters: 6,
             step: 1,
-            min: selectedCount,
-            max: Math.max(MAX_ITEM_COUNT, selectedCount),
+            min: 0,
+            max: maxAddCount,
             integer: true,
-            onStep: onCountChange
+            onStep: applyFieldCount
         };
         var countField = addSteppedField(objectsPanel, countFieldOptions);
         countField.helpTip = getLabel(LABELS.tooltip.count);
 
+        /* 入力欄の行の右に総数を出す。幅は最も大きい総数に合わせ、数が変わっても行が動かないようにする
+           Show the total right of the field, sized for the largest total so the row never shifts */
+        var totalText = countField.parent.parent.add("statictext", undefined, labelValueText(LABELS.fieldLabel.total, selectedCount + maxAddCount));
+        totalText.preferredSize.width = Math.ceil(totalText.graphics.measureString(totalText.text)[0]) + AXIS_LABEL_PADDING;
+        totalText.helpTip = getLabel(LABELS.tooltip.total);
+
+        var countSlider = objectsPanel.add("slider", undefined, initialAddCount, 0, maxAddCount);
+        countSlider.preferredSize.width = SLIDER_WIDTH;
+        countSlider.helpTip = getLabel(LABELS.tooltip.count);
+
+        /**
+         * 入力欄の増やす数を読む
+         * @returns {number} 増やす数
+         */
+        function readAddCount() {
+            var addCount = parseInt(countField.text, 10);
+            if (isNaN(addCount)) addCount = initialAddCount;
+            return Math.round(clampSteppedValue(addCount, countFieldOptions));
+        }
+
+        /**
+         * 総数の表示を今の値にする
+         * @returns {void}
+         */
+        function updateTotalText() {
+            totalText.text = labelValueText(LABELS.fieldLabel.total, selectedCount + readAddCount());
+        }
+
+        /**
+         * 入力欄の値をスライダーと総数へ写して知らせる
+         * @returns {void}
+         */
+        function applyFieldCount() {
+            countSlider.value = readAddCount();
+            updateTotalText();
+            onCountChange();
+        }
+
+        /* 値が同じなら何もしない。スライダーへの代入で呼ばれたときもここで止まる
+           Nothing to do at the same value; this also stops calls caused by assigning to the slider */
+        countSlider.onChanging = function () {
+            var sliderCount = Math.round(countSlider.value);
+            if (sliderCount === readAddCount()) return;
+            writeSteppedValue(countField, sliderCount, countFieldOptions);
+            updateTotalText();
+            onCountChange();
+        };
+        countSlider.onChange = countSlider.onChanging;
+
         var normalizeCountField = countField.onChange;
         countField.onChange = function () {
             normalizeCountField();
-            onCountChange();
+            applyFieldCount();
         };
+        updateTotalText();
+
+        return function readTotalCount() {
+            return selectedCount + readAddCount();
+        };
+    }
+
+    /**
+     * ［カラーのブレンド］のパネルを足す。塗りと線を別々に選べる
+     * @param {Window} spacingDialog - 追加先のダイアログ
+     * @param {function(): void} onColorChange - 選択を変えたときの処理
+     * @returns {function(): {fill: boolean, stroke: boolean}} ブレンドする属性を読む関数
+     */
+    function addColorPanel(spacingDialog, onColorChange) {
+        var colorPanel = spacingDialog.add("panel", undefined, getLabel(LABELS.panel.color));
+        setupPanel(colorPanel);
+        var checkboxRow = colorPanel.add("group");
+        setupRow(checkboxRow, "left");
+
+        /* 表示前の checkbox の value は読み戻せないので、変数で持つ
+           A checkbox's value cannot be read back before show(), so keep it in a variable */
+        var colorOptions = { fill: false, stroke: false };
 
         /**
-         * 入力欄の数を読む
-         * @returns {number} 数
+         * 属性のチェックボックスを1つ足す
+         * @param {string} attribute - "fill" または "stroke"
+         * @returns {void}
          */
-        return function readCount() {
-            var countValue = parseInt(countField.text, 10);
-            if (isNaN(countValue)) countValue = initialCount;
-            return Math.round(clampSteppedValue(countValue, countFieldOptions));
+        function addAttributeCheckbox(attribute) {
+            var attributeCheckbox = checkboxRow.add("checkbox", undefined, getLabel(LABELS.checkbox[attribute]));
+            attributeCheckbox.helpTip = getLabel(LABELS.tooltip[attribute]);
+            attributeCheckbox.value = colorOptions[attribute];
+            attributeCheckbox.onClick = function () {
+                colorOptions[attribute] = attributeCheckbox.value;
+                onColorChange();
+            };
+        }
+        addAttributeCheckbox("fill");
+        addAttributeCheckbox("stroke");
+
+        return function readColorOptions() {
+            return { fill: colorOptions.fill, stroke: colorOptions.stroke };
         };
     }
 
@@ -2314,7 +2804,8 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             refreshPreview();
         });
         var readRatio = addRatioPanel(spacingDialog, refreshPreview);
-        var readCount = addCountPanel(spacingDialog, itemStates.length, refreshPreview);
+        var readTotalCount = addCountPanel(spacingDialog, itemStates.length, refreshPreview);
+        var readColorOptions = addColorPanel(spacingDialog, refreshPreview);
 
         var buttonRow = addButtonRow(spacingDialog);
         var btnShuffle = buttonRow.leftGroup.add("button", undefined, getLabel(LABELS.button.shuffle));
@@ -2330,10 +2821,16 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
 
         /**
          * 今の設定を読む
-         * @returns {{direction: Object, ratio: number, count: number, randomPool: number[]}} 今の設定
+         * @returns {{direction: Object, ratio: number, count: number, randomPool: number[], colorBlend: Object}} 今の設定
          */
         function readSettings() {
-            return { direction: selectedDirection, ratio: readRatio(), count: readCount(), randomPool: randomPool };
+            return {
+                direction: selectedDirection,
+                ratio: readRatio(),
+                count: readTotalCount(),
+                randomPool: randomPool,
+                colorBlend: readColorOptions()
+            };
         }
 
         /**
