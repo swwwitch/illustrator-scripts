@@ -20,6 +20,7 @@ The shadow is built by bridging the original shape and a moved, scaled copy of i
 - Eight presets that set the scale and the angle in one go
 - An offset that grows the shadow (miter, round or bevel corners)
 - A Simplify pass that reduces the number of anchor points
+- Handles left on straight segments (lying at the same angle as the path) are removed automatically
 - A preview built from stacked translucent copies
 - Japanese and English UI
 
@@ -58,6 +59,7 @@ The shadow is built by bridging the original shape and a moved, scaled copy of i
 
 ### Update History
 
+- v1.4.0 (2026-11-09) Handles lying at the same angle as the path (left on straight segments) are now removed from the generated shadow; the look does not change
 - v1.3.9 (2026-11-09) Fixed the dialog failing to open with the error "buttonRow is undefined"
 - v1.3.8 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)
 - v1.3.7 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)

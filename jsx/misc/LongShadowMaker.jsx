@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.LongShadowMaker
 Name=距離・角度・スケールを指定してロングシャドウを生成
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.3.9
+Version=1.4.0
 Release-Date=2026-02-25
 Description-BEGIN
 距離・角度・スケールを指定して、選択したオブジェクトからロングシャドウを生成します。
@@ -47,7 +47,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/LongShadow
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "LongShadowMaker";              /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.3.9";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.4.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-02-25";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-11-05";                   /* 更新日 / last updated */
@@ -75,6 +75,12 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
 
     /* 影の面を作るときに1セグメントを何点でサンプリングするか / Samples taken per curve segment */
     var CURVE_SAMPLE_COUNT = 8;
+
+    /* パスと同じ角度のハンドルとみなす、直線からの距離（pt）/ Max distance (pt) from the straight line for a handle to count as on it */
+    var TOL_HANDLE_COLLINEAR = 0.01;
+
+    /* ハンドルがアンカーと重なっているとみなす距離（pt）/ Distance (pt) at which a handle counts as sitting on its anchor */
+    var TOL_SAMEPOINT = 0.02;
 
     /* 影の塗りの彩度（1=元のまま、0=無彩色）/ Saturation of the shadow fill (1 = as-is, 0 = gray) */
     var SHADOW_SATURATION_FACTOR = 0.7;
@@ -2518,6 +2524,111 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         }
 
         // -----------------------------------------
+        // パスと同じ角度のハンドルを削除 / Remove handles lying along straight segments
+        // -----------------------------------------
+
+        /**
+         * 2点がほぼ同じ位置かを判定する（マンハッタン距離）
+         * @param {number[]} pointA - 点A [x, y]
+         * @param {number[]} pointB - 点B [x, y]
+         * @returns {boolean} 同じ位置とみなせれば true
+         */
+        function isSamePoint(pointA, pointB) {
+            return (Math.abs(pointA[0] - pointB[0]) + Math.abs(pointA[1] - pointB[1])) < TOL_SAMEPOINT;
+        }
+
+        /**
+         * 点が2点を通る直線上にあるかを、直線までの垂直距離で判定する
+         * @param {number[]} lineStart - 直線の始点 [x, y]
+         * @param {number[]} lineEnd - 直線の終点 [x, y]
+         * @param {number[]} testPoint - 判定する点 [x, y]
+         * @returns {boolean} 直線上とみなせれば true
+         */
+        function isPointOnLine(lineStart, lineEnd, testPoint) {
+            var lineX = lineEnd[0] - lineStart[0];
+            var lineY = lineEnd[1] - lineStart[1];
+            var lineLength = Math.sqrt(lineX * lineX + lineY * lineY);
+            /* 両端が重なる区間は方向が決まらない / a zero-length segment has no direction */
+            if (lineLength < 1e-9) return isSamePoint(lineStart, testPoint);
+
+            var crossProduct = lineX * (testPoint[1] - lineStart[1]) - lineY * (testPoint[0] - lineStart[0]);
+            return Math.abs(crossProduct) / lineLength <= TOL_HANDLE_COLLINEAR;
+        }
+
+        /**
+         * 直線になっている区間のハンドルをアンカーに戻す（見た目は変わらない）
+         * 区間の両端を結ぶ直線上に、始点の右ハンドルと終点の左ハンドルがどちらも乗っていれば直線とみなす
+         * @param {PathItem} pathItem - 対象のパス
+         * @returns {number} アンカーに戻したハンドルの数
+         */
+        function removeCollinearHandlesInPath(pathItem) {
+            var pathPoints = pathItem.pathPoints;
+            var pointCount = pathPoints.length;
+            if (pointCount < 2) return 0;
+
+            /* 先に全点を読んでから判定する（書き換えながら読むと次の区間の判定がずれる）
+               Read every point first so writes do not affect the next segment's check */
+            var pointModels = [];
+            for (var i = 0; i < pointCount; i++) {
+                var pathPoint = pathPoints[i];
+                pointModels.push({
+                    anchor: pathPoint.anchor,
+                    left: pathPoint.leftDirection,
+                    right: pathPoint.rightDirection,
+                    isChanged: false
+                });
+            }
+
+            var isClosed = pathItem.closed;
+            var segmentCount = isClosed ? pointCount : (pointCount - 1);
+            var removedCount = 0;
+
+            for (var s = 0; s < segmentCount; s++) {
+                var startModel = pointModels[s];
+                var endModel = pointModels[(s + 1) % pointCount];
+                if (!isPointOnLine(startModel.anchor, endModel.anchor, startModel.right)) continue;
+                if (!isPointOnLine(startModel.anchor, endModel.anchor, endModel.left)) continue;
+
+                /* 区間の内側のハンドルだけを戻す（オープンパスの両端の外側は対象外）/ only the inner handles of the segment are reset */
+                if (!isSamePoint(startModel.right, startModel.anchor)) {
+                    startModel.right = startModel.anchor;
+                    startModel.isChanged = true;
+                    removedCount++;
+                }
+                if (!isSamePoint(endModel.left, endModel.anchor)) {
+                    endModel.left = endModel.anchor;
+                    endModel.isChanged = true;
+                    removedCount++;
+                }
+            }
+
+            for (var j = 0; j < pointCount; j++) {
+                if (!pointModels[j].isChanged) continue;
+                var targetPoint = pathPoints[j];
+                /* 片側だけハンドルが無い点はスムーズのままだとハンドルを戻されることがある
+                   A smooth point with one handle removed may get it restored, so make it a corner */
+                targetPoint.pointType = PointType.CORNER;
+                targetPoint.leftDirection = pointModels[j].left;
+                targetPoint.rightDirection = pointModels[j].right;
+            }
+            return removedCount;
+        }
+
+        /**
+         * アイテム内のすべてのパス（複合パスの中も含む）から、パスと同じ角度のハンドルを削除する
+         * @param {PageItem} pageItem - 対象のアイテム
+         * @returns {void}
+         */
+        function removeCollinearHandlesInItem(pageItem) {
+            if (!pageItem) return;
+            var pathItems = collectSelectionPathItems(pageItem, { unique: false });
+            for (var i = 0; i < pathItems.length; i++) {
+                /* ロックされたパスなどは書き換えられない / locked paths cannot be edited */
+                try { removeCollinearHandlesInPath(pathItems[i]); } catch (e) { }
+            }
+        }
+
+        // -----------------------------------------
         // パスの単純化 / Simplify paths
         // -----------------------------------------
 
@@ -3062,6 +3173,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             }
 
             simplifyPathsInItem(shadowResultGroup);
+            /* 合体・単純化で直線区間に残ったハンドルを外す / drop handles left on straight segments by merging and simplifying */
+            removeCollinearHandlesInItem(shadowResultGroup);
             applyOffsetEffect(shadowResultGroup, isFinalRun);
             return shadowResultGroup;
         }
