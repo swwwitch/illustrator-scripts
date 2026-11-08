@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.LongShadowMaker
 Name=距離・角度・スケールを指定してロングシャドウを生成
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.6.1
+Version=1.7.0
 Release-Date=2026-02-25
 Description-BEGIN
 距離・角度・スケールを指定して、選択したオブジェクトからロングシャドウを生成します。
@@ -47,7 +47,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/LongShadow
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "LongShadowMaker";              /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.6.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.7.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-02-25";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-11-09";                   /* 更新日 / last updated */
@@ -890,6 +890,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         },
         checkbox: {
             simplify: { ja: "パスの単純化", en: "Simplify" },
+            averageEdge: { ja: "エッジの平均化", en: "Average Edge" },
             preview: { ja: "プレビュー", en: "Preview" }
         },
         button: {
@@ -919,6 +920,10 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             simplify: {
                 ja: "影のアンカーポイントを減らして、軽いパスにします。",
                 en: "Reduces the number of anchor points in the shadow."
+            },
+            averageEdge: {
+                ja: "影の先端の凸凹を、水平または垂直の直線で切りそろえます（プレビューには反映されません）。",
+                en: "Trims the uneven far end of the shadow along a horizontal or vertical line (not shown in the preview)."
             },
             preview: {
                 ja: "結果を画面で確認します。キャンセルすると元に戻ります。",
@@ -2735,6 +2740,131 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         }
 
         // -----------------------------------------
+        // エッジの平均化 / Average the far edge
+        // -----------------------------------------
+
+        /**
+         * 影の先端を切りそろえる直線を求める
+         * 影の両側の辺を作る点（影の向きと直交する方向の両端）を先端側へ写し、元の形に近いほうの位置で切る。
+         * 影が縦向き寄りなら水平線、横向き寄りなら垂直線で切る
+         * @param {PageItem} baseItem - 影の元になる形
+         * @param {number} dx - 水平方向の移動量（pt）
+         * @param {number} dy - 垂直方向の移動量（pt）
+         * @param {number} scalePercent - 先端の拡大率（100=等倍）
+         * @returns {{isHorizontal: boolean, position: number, keepsGreater: boolean}|null} 切る直線（求められなければ null）
+         */
+        function computeEdgeCutLine(baseItem, dx, dy, scalePercent) {
+            var distance = Math.sqrt(dx * dx + dy * dy);
+            if (!baseItem || distance < 1e-6) return null;
+
+            /* 影の向きと直交する単位ベクトル / unit vector perpendicular to the shadow */
+            var normalX = -dy / distance;
+            var normalY = dx / distance;
+
+            var sideStart = null, sideEnd = null;
+            var minProjection = Infinity, maxProjection = -Infinity;
+            var closedPaths = collectClosedPaths(baseItem);
+            for (var i = 0; i < closedPaths.length; i++) {
+                var sampledPoints = samplePathToPoints(closedPaths[i], CURVE_SAMPLE_COUNT);
+                for (var j = 0; j < sampledPoints.length; j++) {
+                    var projection = sampledPoints[j][0] * normalX + sampledPoints[j][1] * normalY;
+                    if (projection < minProjection) { minProjection = projection; sideStart = sampledPoints[j]; }
+                    if (projection > maxProjection) { maxProjection = projection; sideEnd = sampledPoints[j]; }
+                }
+            }
+            if (!sideStart || !sideEnd) return null;
+
+            /* 先端の形は中心を基準に拡大縮小してから移動したもの / the far shape is scaled about the center, then moved */
+            var baseBounds = baseItem.geometricBounds; /* [left, top, right, bottom] */
+            var centerX = (baseBounds[0] + baseBounds[2]) / 2;
+            var centerY = (baseBounds[1] + baseBounds[3]) / 2;
+            var scaleRatio = scalePercent / 100;
+
+            /**
+             * 元の形の点を、影の先端の形の点へ写す
+             * @param {number[]} point - 元の形の点 [x, y]
+             * @returns {number[]} 先端の形の点 [x, y]
+             */
+            function toFarPoint(point) {
+                return [
+                    centerX + (point[0] - centerX) * scaleRatio + dx,
+                    centerY + (point[1] - centerY) * scaleRatio + dy
+                ];
+            }
+
+            var farStart = toFarPoint(sideStart);
+            var farEnd = toFarPoint(sideEnd);
+
+            /* 縦向き寄りなら y、横向き寄りなら x で切る。45°は cos と sin の丸め誤差で揺れるので水平に寄せる
+               Cut on y for a mostly vertical shadow, on x otherwise; 45° goes horizontal despite rounding in cos/sin */
+            var isHorizontal = Math.abs(dy) >= Math.abs(dx) - 1e-6;
+            var axisIndex = isHorizontal ? 1 : 0;
+            var towardFar = isHorizontal ? dy : dx;
+            /* 元の形に近いほう（影の進む向きに対して手前）で切る / cut at whichever end is nearer the source */
+            var position = (towardFar < 0)
+                ? Math.max(farStart[axisIndex], farEnd[axisIndex])
+                : Math.min(farStart[axisIndex], farEnd[axisIndex]);
+
+            return { isHorizontal: isHorizontal, position: position, keepsGreater: towardFar < 0 };
+        }
+
+        /**
+         * 影を直線で切り、先端側を取り除く（長方形との交差）
+         * @param {GroupItem} shadowResultGroup - 合体済みの影のグループ
+         * @param {{isHorizontal: boolean, position: number, keepsGreater: boolean}} cutLine - computeEdgeCutLine() の戻り値
+         * @returns {GroupItem} 切りそろえた影のグループ
+         */
+        function trimShadowAtCutLine(shadowResultGroup, cutLine) {
+            if (!shadowResultGroup || !cutLine) return shadowResultGroup;
+
+            var shadowBounds = shadowResultGroup.geometricBounds; /* [left, top, right, bottom] */
+            var margin = 10;
+            var keepLeft = shadowBounds[0] - margin, keepRight = shadowBounds[2] + margin;
+            var keepTop = shadowBounds[1] + margin, keepBottom = shadowBounds[3] - margin;
+
+            if (cutLine.isHorizontal) {
+                if (cutLine.keepsGreater) keepBottom = cutLine.position; else keepTop = cutLine.position;
+            } else {
+                if (cutLine.keepsGreater) keepLeft = cutLine.position; else keepRight = cutLine.position;
+            }
+            /* 切る位置が影の外なら何もしない / nothing to trim when the line misses the shadow */
+            if (keepRight - keepLeft <= 0 || keepTop - keepBottom <= 0) return shadowResultGroup;
+
+            var shadowFill = null;
+            try { shadowFill = collectSelectionPathItems(shadowResultGroup, { unique: false })[0].fillColor; } catch (e) { shadowFill = null; }
+
+            /* 交差は3つ以上だと全部の共通部分になるので、影を1つの複合パスにまとめる
+               Intersect keeps only what every shape shares, so make the shadow one compound path first */
+            if (shadowResultGroup.pageItems.length > 1) {
+                doc.selection = null;
+                for (var i = 0; i < shadowResultGroup.pageItems.length; i++) setPropertySafely(shadowResultGroup.pageItems[i], "selected", true);
+                try { app.executeMenuCommand('compoundPath'); } catch (e) { }
+                doc.selection = null;
+            }
+
+            var keepRect = shadowResultGroup.pathItems.rectangle(keepTop, keepLeft, keepRight - keepLeft, keepTop - keepBottom);
+            keepRect.stroked = false;
+            keepRect.filled = true;
+            if (shadowFill) keepRect.fillColor = shadowFill;
+            /* 長方形を背面へ回し、結果に影の塗りが残るようにする / send the rectangle back so the shadow paint wins */
+            try { keepRect.move(shadowResultGroup, ElementPlacement.PLACEATEND); } catch (e) { }
+
+            try {
+                doc.selection = null;
+                shadowResultGroup.selected = true;
+                app.executeMenuCommand('Live Pathfinder Intersect');
+                app.executeMenuCommand('expandStyle');
+            } catch (e) { }
+
+            var trimmedItems = doc.selection;
+            doc.selection = null;
+            if (trimmedItems && trimmedItems.length) {
+                try { return createGroupFrom(trimmedItems); } catch (e) { }
+            }
+            return shadowResultGroup;
+        }
+
+        // -----------------------------------------
         // パスの単純化 / Simplify paths
         // -----------------------------------------
 
@@ -2775,7 +2905,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         var shadowDialog, presetDropdown;
         var offsetCheckbox, offsetInput, offsetUnitLabel;
         var joinRowGroup, joinMiterRadio, joinRoundRadio, joinBevelRadio;
-        var distanceInput, angleInput, scaleInput, simplifyCheckbox;
+        var distanceInput, angleInput, scaleInput, simplifyCheckbox, averageEdgeCheckbox;
         var previewCheckbox, btnCancel, btnOK, buttonRow;
 
         /**
@@ -2893,6 +3023,11 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             simplifyCheckbox.helpTip = getLabel('tooltip.simplify');
             simplifyCheckbox.value = true;
             simplifyCheckbox.alignment = "center";
+
+            averageEdgeCheckbox = simplifyGroup.add("checkbox", undefined, getLabel('checkbox.averageEdge'));
+            averageEdgeCheckbox.helpTip = getLabel('tooltip.averageEdge');
+            averageEdgeCheckbox.value = false;
+            averageEdgeCheckbox.alignment = "center";
         }
 
         /**
@@ -3265,9 +3400,10 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
          * 影の面を合体させ、オフセットと単純化を適用したグループを返す
          * @param {GroupItem} shadowGroup - 面を集めたグループ
          * @param {boolean} isFinalRun - 本実行なら true
+         * @param {{isHorizontal: boolean, position: number, keepsGreater: boolean}|null} edgeCutLine - エッジの平均化で切る直線（しないときは null）
          * @returns {GroupItem} 仕上げた影のグループ
          */
-        function finishShadowGroup(shadowGroup, isFinalRun) {
+        function finishShadowGroup(shadowGroup, isFinalRun, edgeCutLine) {
             /* パスの穴を潰すため、Merge → Add → Expand の順で実行 / merge, add, then expand */
             try {
                 doc.selection = null;
@@ -3287,6 +3423,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
                 try { shadowResultGroup = createGroupFrom(mergedShadowItems); } catch (e) { }
             }
 
+            if (edgeCutLine) shadowResultGroup = trimShadowAtCutLine(shadowResultGroup, edgeCutLine);
             simplifyPathsInItem(shadowResultGroup);
             /* 合体・単純化で残った、パスと同じ角度のハンドルと直線上のアンカーポイントを削除
                Drop handles along straight segments, then collinear anchors left by merging and simplifying */
@@ -3352,7 +3489,11 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
                 return;
             }
 
-            var shadowResultGroup = finishShadowGroup(shadowGroup, isFinalRun);
+            /* 先端を切る直線は、一時ベースを消す前に元の形から求める / measure the cut line on the base before it is cleaned up */
+            var edgeCutLine = averageEdgeCheckbox.value
+                ? computeEdgeCutLine(shadowBase.item, shadowParams.dx, shadowParams.dy, shadowParams.scalePercent)
+                : null;
+            var shadowResultGroup = finishShadowGroup(shadowGroup, isFinalRun, edgeCutLine);
             placeShadowBehindOriginal(shadowResultGroup, sourceItem);
             cleanupTempBase();
 

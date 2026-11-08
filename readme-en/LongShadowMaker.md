@@ -20,6 +20,7 @@ The shadow is built by bridging the original shape and a moved, scaled copy of i
 - Eight presets that set the scale and the angle in one go
 - An offset that grows the shadow (miter, round or bevel corners)
 - A Simplify pass that reduces the number of anchor points
+- Average Edge, which trims the uneven far end of the shadow along a straight line
 - Handles left on straight segments (lying at the same angle as the path) and collinear anchor points are removed automatically
 - A preview built from stacked translucent copies
 - Japanese and English UI
@@ -29,7 +30,7 @@ The shadow is built by bridging the original shape and a moved, scaled copy of i
 1. Select a single object.
 2. Run `LongShadowMaker.jsx`.
 3. Set the distance, angle and scale. Picking a preset sets the scale and the angle together; the distance is left as it is.
-4. Turn on Offset and Simplify if you need them.
+4. Turn on Offset, Simplify and Average Edge if you need them.
 5. Check the preview and click OK.
 
 ### Settings
@@ -42,12 +43,14 @@ The shadow is built by bridging the original shape and a moved, scaled copy of i
 | Offset | How much the generated shadow is grown, in points | Off (average of width and height divided by 20) |
 | Join | Corner treatment used when growing the shadow | Round |
 | Simplify | Reduces the anchor points in the shadow | On |
+| Average Edge | Trims the uneven far end of the shadow along a horizontal or vertical line | Off |
 
 ### Notes
 
 - Works on a closed PathItem, a CompoundPathItem, a GroupItem made only of closed paths, or a TextFrame.
 - Groups and text are merged or outlined into a temporary shape first; the original object is left untouched.
 - The offset is not shown in the preview. It is applied when you click OK.
+- Average Edge is not shown in the preview either. A mostly vertical shadow (45° included) is cut along a horizontal line, a mostly horizontal one along a vertical line, at whichever end of the two side edges is nearer the original object.
 - The `1% / 90°` preset actually runs at 0.01%, so that the shadow narrows to a point.
 - Turning Simplify on opens Illustrator's Simplify dialog; that is an Illustrator limitation.
 - The preview relies on Illustrator's undo. Mixing it with other operations can leave the history in an unexpected state.
@@ -59,6 +62,7 @@ The shadow is built by bridging the original shape and a moved, scaled copy of i
 
 ### Update History
 
+- v1.7.0 (2026-11-09) Added Average Edge, which trims the uneven far end of the shadow along a horizontal or vertical line
 - v1.6.1 (2026-11-09) Fixed the temporary outline (merged shape) used to build the shadow being left in the document for text and groups
 - v1.6.0 (2026-11-09) Holding Shift while dragging a slider now steps the angle by 15° and the scale by 10%
 - v1.5.0 (2026-11-09) After the handles along straight segments are removed, collinear anchor points are removed too; the look does not change
