@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.LongShadowMaker
 Name=距離・角度・スケールを指定してロングシャドウを生成
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.6.0
+Version=1.6.1
 Release-Date=2026-02-25
 Description-BEGIN
 距離・角度・スケールを指定して、選択したオブジェクトからロングシャドウを生成します。
@@ -47,7 +47,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/LongShadow
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "LongShadowMaker";              /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.6.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.6.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-02-25";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-11-09";                   /* 更新日 / last updated */
@@ -1939,12 +1939,27 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         }
 
         /**
+         * アイテムがまだドキュメントにあるかを判定する
+         * Illustrator の PageItem に isValid は無く（読むと undefined）、削除済みの参照はプロパティを読むと例外になる
+         * @param {PageItem} pageItem - 判定するアイテム
+         * @returns {boolean} 存在すれば true
+         */
+        function isItemAlive(pageItem) {
+            if (!pageItem) return false;
+            try {
+                return !!pageItem.typename;
+            } catch (e) {
+                return false;
+            }
+        }
+
+        /**
          * ロックや非表示を解除したうえでアイテムを確実に削除する
          * @param {PageItem} pageItem - 削除するアイテム
          * @returns {void}
          */
         function forceRemoveItem(pageItem) {
-            try { if (!pageItem || !pageItem.isValid) return; } catch (e) { return; }
+            if (!isItemAlive(pageItem)) return;
 
             unlockItemAndAncestors(pageItem);
 
@@ -1959,7 +1974,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             } catch (e) { }
             doc.selection = null;
 
-            try { if (pageItem && pageItem.isValid) pageItem.remove(); } catch (e) { }
+            try { if (isItemAlive(pageItem)) pageItem.remove(); } catch (e) { }
         }
 
         /**
@@ -1987,7 +2002,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
          */
         function readItemName(pageItem) {
             try {
-                if (!pageItem || !pageItem.isValid) return '';
+                if (!isItemAlive(pageItem)) return '';
                 return pageItem.name;
             } catch (e) {
                 return '';
@@ -2014,7 +2029,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
                     doc.selection = null;
                     for (var i = temporaryItems.length - 1; i >= 0; i--) {
                         try {
-                            if (temporaryItems[i] && temporaryItems[i].isValid) temporaryItems[i].remove();
+                            if (isItemAlive(temporaryItems[i])) temporaryItems[i].remove();
                         } catch (e) { }
                     }
                 }
@@ -2425,7 +2440,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
                     if (faceFill) facePath.fillColor = faceFill;
                     createdFaces.push(facePath);
                 } catch (e) {
-                    try { if (facePath && facePath.isValid) facePath.remove(); } catch (err) { }
+                    try { if (isItemAlive(facePath)) facePath.remove(); } catch (err) { }
                 }
             }
             return createdFaces;
@@ -3345,7 +3360,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
                Select the generated shadow when the source was a single path */
             doc.selection = null;
             try {
-                if (sourceItem.typename === "PathItem" && shadowResultGroup.isValid) {
+                if (sourceItem.typename === "PathItem" && isItemAlive(shadowResultGroup)) {
                     doc.selection = [shadowResultGroup];
                 }
             } catch (e) { }

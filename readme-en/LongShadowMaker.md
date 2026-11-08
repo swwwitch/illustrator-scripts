@@ -59,6 +59,7 @@ The shadow is built by bridging the original shape and a moved, scaled copy of i
 
 ### Update History
 
+- v1.6.1 (2026-11-09) Fixed the temporary outline (merged shape) used to build the shadow being left in the document for text and groups
 - v1.6.0 (2026-11-09) Holding Shift while dragging a slider now steps the angle by 15° and the scale by 10%
 - v1.5.0 (2026-11-09) After the handles along straight segments are removed, collinear anchor points are removed too; the look does not change
 - v1.4.0 (2026-11-09) Handles lying at the same angle as the path (left on straight segments) are now removed from the generated shadow; the look does not change
