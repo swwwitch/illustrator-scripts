@@ -45,6 +45,7 @@
 - v1.0.1 (20260928) : sw-L / sw-R / sw-B / sw-H を一つのファミリーとして扱うように
 - FontWeightDown v1.0.0 (20260928) : 一つ下のウェイトに切り替える FontWeightDown を追加
 - v1.0.2（2026-10-04）項目名のコロンを「 :」（半角スペース＋半角コロン）に変更（共通部品の更新）
+- v1.0.3 / FontWeightDown v1.0.2（2026-11-08）ウェイトの判定を TypefaceSampler v1.4.13 にそろえた（BoldItalic・LtIt などの続き書き、Hv・Dm・SemiLight・UltraBold などの略語・語句、中国語・韓国語のスタイル名、全角の「Ｗ３」を読めるように。YoOne・FOT-芯・鉛筆・MLチョコレート・Othoro Pro はファミリー独自の順）
 
 ### スクリプト情報
 

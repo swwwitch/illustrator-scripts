@@ -67,6 +67,7 @@
 - v1.0.8 (2026-10-01): Added space below the button row to match Illustrator's own dialogs
 - v1.0.9 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.0.10 (2026-10-16) Right-only button rows are now centered when the dialog's inner width is up to 240 px (was 200 px) (shared part update)
+- v1.0.11 (2026-11-08) Weight detection now matches TypefaceSampler v1.4.13 (run-together styles such as BoldItalic and LtIt, abbreviations and terms such as Hv, Dm, SemiLight and UltraBold, Chinese and Korean style names and full-width "Ｗ３" are recognized; YoOne, FOT-芯・鉛筆, MLチョコレート and Othoro Pro follow their own family order)
 
 ### Script info
 

@@ -124,3 +124,4 @@ If nothing is checked in a group, that filter is ignored. When both groups have 
 - v1.4.10 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.4.11 (2026-10-16) Right-only button rows are now centered when the dialog's inner width is up to 240 px (was 200 px) (shared part update)
 - v1.4.12 (2026-10-29) Rewrote a nested ternary as if/else so fonts within a family sort correctly
+- v1.4.13 (2026-11-08) Improved weight detection: run-together styles such as BoldItalic and LtIt, abbreviations and terms such as Hv, Dm, Rg, SemiLight, UltraBold and ExtraHeavy, Chinese and Korean style names (PingFang, Apple SD Gothic Neo, etc.) and full-width "Ｗ３" are now recognized. YoOne and YoOrganic (Bk, Ut, Ft), FOT-芯・鉛筆 (H to 2B), MLチョコレート (SemiMelt, Melt) and Othoro Pro (Book) follow their own family order

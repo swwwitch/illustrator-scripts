@@ -125,6 +125,7 @@ Custom names match by prefix ("DIN" matches "DIN 2014" and "DINPro"). Document f
 
 ### Update History
 
+- v1.2.7 (2026-11-08) Order of styles within a family: Weight detection now matches TypefaceSampler v1.4.13 (run-together styles such as BoldItalic and LtIt, abbreviations and terms such as Hv, Dm, SemiLight and UltraBold, Chinese and Korean style names and full-width "Ｗ３" are recognized; YoOne, FOT-芯・鉛筆, MLチョコレート and Othoro Pro follow their own family order)
 - v1.2.6 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)
 - v1.2.5 (2026-10-10) Fixed the palette operating on another Illustrator version when several versions are running
 - v1.2.4 (2026-10-06) Confirmation dialogs for deleting or overwriting now default to No (Enter cancels)

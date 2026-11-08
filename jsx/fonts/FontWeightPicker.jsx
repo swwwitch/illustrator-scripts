@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.FontWeightPicker
 Name=似ているフォントのウェイトを見本で見比べて適用
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.0.10
+Version=1.0.11
 Release-Date=2026-09-28
 Description-BEGIN
 選択しているテキストのフォントと、名前が似ているファミリー（新ゴなら UD新ゴ など）のウェイトを一覧表示し、見本を見比べながら選んだフォントを適用します。
@@ -51,10 +51,10 @@ The list is based on the font of the first character. Weights are judged the sam
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "FontWeightPicker";             /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.10";                      /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.11";                      /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-09-28";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-16";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-11-08";                   /* 更新日 / last updated */
 
 var SCRIPT_DESCRIPTION_JA = "似ているフォントのウェイトを見本で見比べて適用"; /* README の見出し / README title (Japanese) */
 
@@ -417,27 +417,27 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     var WEIGHT_GROUPS = [
         ["hairline", "hair"], // +0
         ["ultra thin", "ultrathin", "ut"], // +1
-        ["thin", "th"], // +2
+        ["thin", "th", "极细体", "極細體", "얇은체"], // +2
         ["default"], // +3
         ["ultralight", "ultra light", "ultlt", "ul"], // +4
-        ["extralight", "extra light", "el", "xlight", "xl"], // +5
+        ["extralight", "extra light", "el", "xlight", "xl", "xlig", "纤细体", "纖細體", "纤黑", "纖黑", "아주옅은체"], // +5
         ["lightsemi"], // +6
-        ["light", "lt", "lite", "l"], // +7
-        ["lb"], // +8
+        ["light", "lt", "lite", "l", "细体", "細體", "옅은체"], // +7
+        ["lb", "semilight", "semi light", "demilight", "demi light"], // +8
         ["book", "bk"], // +9
         ["n", "normal"], // +10
         ["middle"], // +11
-        ["regular", "roman", "レギュラー", "r"], // +12
+        ["regular", "roman", "レギュラー", "r", "rg", "常规体", "標準體", "标准", "標準", "中等", "일반체", "רגיל"], // +12
         ["rb"], // +13
-        ["medium", "md", "ミディアム", "m"], // +14
-        ["semibold", "semi bold", "sb"], // +15
-        ["demibold", "demi bold", "db", "デミボールド", "demi", "d", "demixtra"], // +16
-        ["bold", "bd", "ボールド", "b"], // +17
-        ["extrabold", "extra bold", "xbold", "エクストラボールド", "e", "eb", "xb"], // +18
-        ["heavy", "h"], // +19
-        ["black"], // +20
+        ["medium", "md", "ミディアム", "m", "med", "中黑体", "中黑體", "中黑", "중간체"], // +14
+        ["semibold", "semi bold", "sb", "semi", "中粗体", "中粗體", "세미볼드체"], // +15
+        ["demibold", "demi bold", "db", "デミボールド", "demi", "d", "demixtra", "dm"], // +16
+        ["bold", "bd", "ボールド", "b", "粗体", "粗體", "볼드체", "עבה"], // +17
+        ["extrabold", "extra bold", "xbold", "エクストラボールド", "e", "eb", "xb", "강한볼드체"], // +18
+        ["heavy", "h", "hv", "特黑"], // +19
+        ["black", "extraheavy", "extra heavy", "eh", "黑体", "무거운"], // +20
         ["xblack", "extra black", "extrablack"], // +21
-        ["ultra", "u", "ub", "ultra black", "ultrablack"] // +22
+        ["ultra", "u", "ub", "ultra black", "ultrablack", "ultrabold", "ultra bold", "ultraheavy", "ultra heavy", "uh"] // +22
     ];
 
     /* 単独で使われたら Regular 扱いする装飾語句 / Decoration-only styles treated as Regular */
@@ -450,7 +450,24 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
 
     /* 幅を表す複合語（Ultra Condensed など）。ultra / extra をウェイト語と取り違えないよう照合前に除く
        Width compounds such as "ultra condensed"; removed first so "ultra" is not read as a weight */
-    var WIDTH_COMPOUND_PATTERN = /(^|\s)(ultra|extra|semi)\s+(condensed|cond|compressed|comp|expanded|extended)(?=\s|$)/g;
+    var WIDTH_COMPOUND_PATTERN = /(^|\s)(ultra|extra|semi)\s+(condensed|cond|compressed|comp|expanded|extended|wide)(?=\s|$)/g;
+
+    /* 大文字の続き書きで、語に分けない幅の複合語（ExtraCondensed は従来どおり1語として扱う）
+       Width compounds kept as one word when splitting camel case */
+    var WIDTH_CAMEL_COMPOUND_PATTERN = /(Ultra|Extra|Semi)(Condensed|Expanded|Extended|Compressed|Wide)/g;
+
+    /* ファミリー独自の呼び方の上書き（スタイル名から斜体の語を除いた全体で照合し、WEIGHT_GROUPS の語に読み替える）
+       Family-specific style names, matched against the whole style without italic words and mapped to a WEIGHT_GROUPS term */
+    var FAMILY_TERM_OVERRIDES = [
+        /* YoOne・YoOrganic：Ut は Heavy と Black の間、Bk は Black、Ft はさらに太い / Ut sits between Heavy and Black, Bk is Black, Ft is heavier */
+        { familyPattern: /^(fot-)?yo(one|organic)/, terms: { "ut": "black", "bk": "xblack", "ft": "ultra" } },
+        /* 芯・鉛筆：鉛筆の濃さ H＜F＜HB＜B＜2B / Pencil grades */
+        { familyPattern: /芯・鉛筆/, terms: { "h": "light", "f": "regular", "hb": "medium", "b": "bold", "2b": "extrabold" } },
+        /* MLチョコレート：Regular＜SemiMelt＜Melt / Melt is the heaviest */
+        { familyPattern: /^(ml|moolong)\s*チョコレート/, terms: { "semi melt": "bold", "melt": "black" } },
+        /* Othoro Pro：Book は Regular より太い / Book is heavier than Regular */
+        { familyPattern: /^othoro/, terms: { "book": "rb" } }
+    ];
 
     /* WEIGHT_GROUPS における Regular のインデックス / Index of "regular" in WEIGHT_GROUPS */
     var REGULAR_GROUP_INDEX = (function() {
@@ -485,11 +502,42 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
 
     /**
      * スタイル文字列を照合用に正規化する
+     * 全角英数字を半角にし、BoldItalic・LtIt のような大文字の続き書きを語に分ける
      * @param {string} rawStyle - font.style の値
      * @returns {string} 小文字化し、区切り記号を空白に置き換えた文字列
      */
     function normalizeStyle(rawStyle) {
-        return (rawStyle || "").toLowerCase().replace(/[_\-]+/g, " ").replace(/^\s+|\s+$/g, "");
+        var styleText = (rawStyle || "").replace(/[\uFF01-\uFF5E]/g, function(fullWidthChar) {
+            return String.fromCharCode(fullWidthChar.charCodeAt(0) - 0xFEE0);
+        }).replace(/\u3000/g, " ");
+        /* 幅の複合語に目印を挟んで分割から守る / Protect width compounds with a marker */
+        styleText = styleText.replace(WIDTH_CAMEL_COMPOUND_PATTERN, "$1\u0001$2");
+        styleText = styleText.replace(/([a-z])([A-Z])/g, "$1 $2").replace(/([A-Z]{2,})([A-Z][a-z])/g, "$1 $2");
+        styleText = styleText.replace(/\u0001/g, "");
+        return styleText.toLowerCase().replace(/[_\-]+/g, " ").replace(/^\s+|\s+$/g, "");
+    }
+
+    /**
+     * ファミリー独自の呼び方に当たるとき、その WEIGHT_GROUPS のインデックスを返す
+     * @param {string} normalizedStyle - 正規化済みのスタイル文字列
+     * @param {string} familyName - 小文字化したファミリー名
+     * @returns {number} 一致したインデックス。上書きの対象でなければ -1
+     */
+    function getFamilyOverrideGroupIndex(normalizedStyle, familyName) {
+        var weightStyle = normalizedStyle.replace(/(^|\s)(it|italic|oblique)(?=\s|$)/g, " ").replace(/\s+/g, " ").replace(/^\s+|\s+$/g, "");
+        for (var i = 0; i < FAMILY_TERM_OVERRIDES.length; i++) {
+            var familyOverride = FAMILY_TERM_OVERRIDES[i];
+            if (!familyOverride.familyPattern.test(familyName)) continue;
+            if (!familyOverride.terms.hasOwnProperty(weightStyle)) return -1;
+            var targetTerm = familyOverride.terms[weightStyle];
+            for (var j = 0; j < WEIGHT_GROUPS.length; j++) {
+                for (var k = 0; k < WEIGHT_GROUPS[j].length; k++) {
+                    if (WEIGHT_GROUPS[j][k] === targetTerm) return j;
+                }
+            }
+            return -1;
+        }
+        return -1;
     }
 
     /**
@@ -524,6 +572,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     function getNumericWeight(normalizedStyle) {
         var numericMatch = normalizedStyle.match(/^w?(\d{1,3})(?=\D|$)/);
         if (!numericMatch) return null;
+        /* 09 のような0始まりの2桁以上は通し番号として扱う / Leading-zero numbers are serials, not weights */
+        if (numericMatch[1].length > 1 && numericMatch[1].charAt(0) === "0") return null;
         return { value: parseInt(numericMatch[1], 10), digitCount: numericMatch[1].length };
     }
 
@@ -544,7 +594,11 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         var styleWords = normalizedStyle.split(/\s+/);
         var i;
 
-        var applyFrutigerCorrection = (/frutiger/i.test(familyName) && /ultralight/.test(normalizedStyle));
+        /* ファミリー独自の呼び方を最優先 / Family-specific names come first */
+        var overrideGroupIndex = getFamilyOverrideGroupIndex(normalizedStyle, familyName);
+        if (overrideGroupIndex !== -1) return 1000 + overrideGroupIndex;
+
+        var applyFrutigerCorrection = (/frutiger/i.test(familyName) && /ultra ?light/.test(normalizedStyle));
 
         /* W0〜W9、W000〜W999、先頭数値（例：25 Ultra Light）/ Numeric styles */
         var numericWeight = getNumericWeight(normalizedStyle);

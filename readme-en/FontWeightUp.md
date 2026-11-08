@@ -45,6 +45,7 @@
 - v1.0.1 (20260928): sw-L / sw-R / sw-B / sw-H are treated as one family
 - FontWeightDown v1.0.0 (20260928): Added FontWeightDown, which switches to the next lighter weight
 - v1.0.2 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
+- v1.0.3 / FontWeightDown v1.0.2 (2026-11-08) Weight detection now matches TypefaceSampler v1.4.13 (run-together styles such as BoldItalic and LtIt, abbreviations and terms such as Hv, Dm, SemiLight and UltraBold, Chinese and Korean style names and full-width "Ｗ３" are recognized; YoOne, FOT-芯・鉛筆, MLチョコレート and Othoro Pro follow their own family order)
 
 ### Script info
 
