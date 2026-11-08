@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.LongShadowMaker
 Name=距離・角度・スケールを指定してロングシャドウを生成
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.4.0
+Version=1.5.0
 Release-Date=2026-02-25
 Description-BEGIN
 距離・角度・スケールを指定して、選択したオブジェクトからロングシャドウを生成します。
@@ -47,10 +47,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/LongShadow
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "LongShadowMaker";              /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.4.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.5.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-02-25";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-11-05";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-11-09";                   /* 更新日 / last updated */
 
 var SCRIPT_DESCRIPTION_JA = "距離・角度・スケールを指定してロングシャドウを生成"; /* README の見出し / README title (Japanese) */
 
@@ -78,6 +78,9 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
 
     /* パスと同じ角度のハンドルとみなす、直線からの距離（pt）/ Max distance (pt) from the straight line for a handle to count as on it */
     var TOL_HANDLE_COLLINEAR = 0.01;
+
+    /* 直線上のアンカーポイントとみなす、前後のアンカーを結ぶ直線からの距離（pt）/ Max distance (pt) from the line through its neighbors for an anchor to count as collinear */
+    var TOL_ANCHOR_COLLINEAR = 0.02;
 
     /* ハンドルがアンカーと重なっているとみなす距離（pt）/ Distance (pt) at which a handle counts as sitting on its anchor */
     var TOL_SAMEPOINT = 0.02;
@@ -2524,7 +2527,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         }
 
         // -----------------------------------------
-        // パスと同じ角度のハンドルを削除 / Remove handles lying along straight segments
+        // 余分なハンドル・アンカーポイントの削除 / Remove redundant handles and anchor points
         // -----------------------------------------
 
         /**
@@ -2542,9 +2545,10 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
          * @param {number[]} lineStart - 直線の始点 [x, y]
          * @param {number[]} lineEnd - 直線の終点 [x, y]
          * @param {number[]} testPoint - 判定する点 [x, y]
+         * @param {number} tolerance - 直線からの距離の許容誤差（pt）
          * @returns {boolean} 直線上とみなせれば true
          */
-        function isPointOnLine(lineStart, lineEnd, testPoint) {
+        function isPointOnLine(lineStart, lineEnd, testPoint, tolerance) {
             var lineX = lineEnd[0] - lineStart[0];
             var lineY = lineEnd[1] - lineStart[1];
             var lineLength = Math.sqrt(lineX * lineX + lineY * lineY);
@@ -2552,79 +2556,162 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             if (lineLength < 1e-9) return isSamePoint(lineStart, testPoint);
 
             var crossProduct = lineX * (testPoint[1] - lineStart[1]) - lineY * (testPoint[0] - lineStart[0]);
-            return Math.abs(crossProduct) / lineLength <= TOL_HANDLE_COLLINEAR;
+            return Math.abs(crossProduct) / lineLength <= tolerance;
         }
 
         /**
-         * 直線になっている区間のハンドルをアンカーに戻す（見た目は変わらない）
+         * 区間が見た目として直線かを判定する
          * 区間の両端を結ぶ直線上に、始点の右ハンドルと終点の左ハンドルがどちらも乗っていれば直線とみなす
-         * @param {PathItem} pathItem - 対象のパス
-         * @returns {number} アンカーに戻したハンドルの数
+         * @param {Object} startModel - 始点（anchor / left / right）
+         * @param {Object} endModel - 終点（anchor / left / right）
+         * @param {number} tolerance - 直線からの距離の許容誤差（pt）
+         * @returns {boolean} 直線とみなせれば true
          */
-        function removeCollinearHandlesInPath(pathItem) {
-            var pathPoints = pathItem.pathPoints;
-            var pointCount = pathPoints.length;
-            if (pointCount < 2) return 0;
+        function isStraightSegment(startModel, endModel, tolerance) {
+            return isPointOnLine(startModel.anchor, endModel.anchor, startModel.right, tolerance) &&
+                isPointOnLine(startModel.anchor, endModel.anchor, endModel.left, tolerance);
+        }
 
-            /* 先に全点を読んでから判定する（書き換えながら読むと次の区間の判定がずれる）
-               Read every point first so writes do not affect the next segment's check */
+        /**
+         * パスの点を、書き換えできる点の配列として読み込む
+         * @param {PathItem} pathItem - 読み込むパス
+         * @returns {Object[]} 点の配列（anchor / left / right / pointType）
+         */
+        function readPathPointModels(pathItem) {
+            var pathPoints = pathItem.pathPoints;
             var pointModels = [];
-            for (var i = 0; i < pointCount; i++) {
+            for (var i = 0; i < pathPoints.length; i++) {
                 var pathPoint = pathPoints[i];
                 pointModels.push({
                     anchor: pathPoint.anchor,
                     left: pathPoint.leftDirection,
                     right: pathPoint.rightDirection,
-                    isChanged: false
+                    pointType: pathPoint.pointType
                 });
             }
+            return pointModels;
+        }
 
-            var isClosed = pathItem.closed;
+        /**
+         * 直線になっている区間のハンドルをアンカーに戻す（パスと同じ角度のハンドルの削除）
+         * @param {Object[]} pointModels - 点の配列（破壊的に更新）
+         * @param {boolean} isClosed - クローズパスなら true
+         * @returns {number} アンカーに戻したハンドルの数
+         */
+        function removeCollinearHandles(pointModels, isClosed) {
+            var pointCount = pointModels.length;
+            if (pointCount < 2) return 0;
+
             var segmentCount = isClosed ? pointCount : (pointCount - 1);
             var removedCount = 0;
 
             for (var s = 0; s < segmentCount; s++) {
                 var startModel = pointModels[s];
                 var endModel = pointModels[(s + 1) % pointCount];
-                if (!isPointOnLine(startModel.anchor, endModel.anchor, startModel.right)) continue;
-                if (!isPointOnLine(startModel.anchor, endModel.anchor, endModel.left)) continue;
+                if (!isStraightSegment(startModel, endModel, TOL_HANDLE_COLLINEAR)) continue;
 
-                /* 区間の内側のハンドルだけを戻す（オープンパスの両端の外側は対象外）/ only the inner handles of the segment are reset */
+                /* 片側だけハンドルが無い点はスムーズのままだとハンドルを戻されることがあるのでコーナーにする
+                   A smooth point with one handle removed may get it restored, so make it a corner */
                 if (!isSamePoint(startModel.right, startModel.anchor)) {
                     startModel.right = startModel.anchor;
-                    startModel.isChanged = true;
+                    startModel.pointType = PointType.CORNER;
                     removedCount++;
                 }
                 if (!isSamePoint(endModel.left, endModel.anchor)) {
                     endModel.left = endModel.anchor;
-                    endModel.isChanged = true;
+                    endModel.pointType = PointType.CORNER;
                     removedCount++;
                 }
-            }
-
-            for (var j = 0; j < pointCount; j++) {
-                if (!pointModels[j].isChanged) continue;
-                var targetPoint = pathPoints[j];
-                /* 片側だけハンドルが無い点はスムーズのままだとハンドルを戻されることがある
-                   A smooth point with one handle removed may get it restored, so make it a corner */
-                targetPoint.pointType = PointType.CORNER;
-                targetPoint.leftDirection = pointModels[j].left;
-                targetPoint.rightDirection = pointModels[j].right;
             }
             return removedCount;
         }
 
         /**
-         * アイテム内のすべてのパス（複合パスの中も含む）から、パスと同じ角度のハンドルを削除する
+         * 前後のアンカーと一直線上にある、余分なアンカーポイントを削除する
+         * 対象は「その点にハンドルが無い」「前後の区間がどちらも直線」「前後のアンカーと一直線上」をすべて満たす点。
+         * オープンパスの両端は削除しない
+         * @param {Object[]} pointModels - 点の配列（破壊的に更新）
+         * @param {boolean} isClosed - クローズパスなら true
+         * @returns {number} 削除したアンカーポイントの数
+         */
+        function removeCollinearAnchors(pointModels, isClosed) {
+            var removedCount = 0;
+            /* 削除で番号がずれないよう後ろから調べる / scan backwards so removals do not shift the indexes */
+            var startIndex = isClosed ? (pointModels.length - 1) : (pointModels.length - 2);
+            var endIndex = isClosed ? 0 : 1;
+
+            for (var i = startIndex; i >= endIndex; i--) {
+                var pointCount = pointModels.length;
+                /* 面を保つため3点は残す / keep at least three points */
+                if (pointCount <= 3) break;
+                if (i > pointCount - 1) i = pointCount - 1;
+
+                var prevModel = pointModels[(i - 1 + pointCount) % pointCount];
+                var currentModel = pointModels[i];
+                var nextModel = pointModels[(i + 1) % pointCount];
+
+                if (!isSamePoint(currentModel.left, currentModel.anchor)) continue;
+                if (!isSamePoint(currentModel.right, currentModel.anchor)) continue;
+                if (!isStraightSegment(prevModel, currentModel, TOL_ANCHOR_COLLINEAR)) continue;
+                if (!isStraightSegment(currentModel, nextModel, TOL_ANCHOR_COLLINEAR)) continue;
+                if (!isPointOnLine(prevModel.anchor, nextModel.anchor, currentModel.anchor, TOL_ANCHOR_COLLINEAR)) continue;
+
+                pointModels.splice(i, 1);
+                removedCount++;
+            }
+            return removedCount;
+        }
+
+        /**
+         * 点の配列の内容をパスへ書き戻す（余った点は末尾から削除。パスは作り直さない）
+         * @param {PathItem} pathItem - 書き戻し先のパス
+         * @param {Object[]} pointModels - 書き戻す点の配列
+         * @returns {void}
+         */
+        function writePathPointModels(pathItem, pointModels) {
+            var pathPoints = pathItem.pathPoints;
+            while (pathPoints.length > pointModels.length) {
+                pathPoints[pathPoints.length - 1].remove();
+            }
+            for (var i = 0; i < pointModels.length; i++) {
+                var targetPoint = pathPoints[i];
+                targetPoint.anchor = pointModels[i].anchor;
+                targetPoint.pointType = pointModels[i].pointType;
+                targetPoint.leftDirection = pointModels[i].left;
+                targetPoint.rightDirection = pointModels[i].right;
+            }
+        }
+
+        /**
+         * パスから、パスと同じ角度のハンドルを削除し、続けて直線上のアンカーポイントを削除する
+         * ハンドルを先に外すと、ハンドルが残っていたために消せなかったアンカーも対象になる
+         * @param {PathItem} pathItem - 対象のパス
+         * @returns {boolean} 書き換えたら true
+         */
+        function removeRedundantPointsInPath(pathItem) {
+            var pointModels = readPathPointModels(pathItem);
+            if (pointModels.length < 2) return false;
+
+            var isClosed = pathItem.closed;
+            var changedCount = removeCollinearHandles(pointModels, isClosed);
+            changedCount += removeCollinearAnchors(pointModels, isClosed);
+            if (changedCount === 0) return false;
+
+            writePathPointModels(pathItem, pointModels);
+            return true;
+        }
+
+        /**
+         * アイテム内のすべてのパス（複合パスの中も含む）から、余分なハンドルとアンカーポイントを削除する
          * @param {PageItem} pageItem - 対象のアイテム
          * @returns {void}
          */
-        function removeCollinearHandlesInItem(pageItem) {
+        function removeRedundantPointsInItem(pageItem) {
             if (!pageItem) return;
             var pathItems = collectSelectionPathItems(pageItem, { unique: false });
             for (var i = 0; i < pathItems.length; i++) {
                 /* ロックされたパスなどは書き換えられない / locked paths cannot be edited */
-                try { removeCollinearHandlesInPath(pathItems[i]); } catch (e) { }
+                try { removeRedundantPointsInPath(pathItems[i]); } catch (e) { }
             }
         }
 
@@ -3173,8 +3260,9 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             }
 
             simplifyPathsInItem(shadowResultGroup);
-            /* 合体・単純化で直線区間に残ったハンドルを外す / drop handles left on straight segments by merging and simplifying */
-            removeCollinearHandlesInItem(shadowResultGroup);
+            /* 合体・単純化で残った、パスと同じ角度のハンドルと直線上のアンカーポイントを削除
+               Drop handles along straight segments, then collinear anchors left by merging and simplifying */
+            removeRedundantPointsInItem(shadowResultGroup);
             applyOffsetEffect(shadowResultGroup, isFinalRun);
             return shadowResultGroup;
         }
