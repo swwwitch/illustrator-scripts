@@ -1,8 +1,8 @@
 # 並んだオブジェクトの間隔をだんだん広くする
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-ProgressiveSpacing.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/ProgressiveSpacing.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-BlendLikeSpacing.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/BlendLikeSpacing.jsx)
 
-[![English](https://img.shields.io/badge/README-English-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ProgressiveSpacing.md)
+[![English](https://img.shields.io/badge/README-English-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/BlendLikeSpacing.md)
 
 [![Direct](https://img.shields.io/badge/Back%20to%20home-All%20scripts-cccccc.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/README.md)
 
@@ -17,13 +17,19 @@
 - 最初と最後のオブジェクトは動かさず、そのあいだのオブジェクトを並びの方向にだけ動かします。
 - 比率は「1つ前の間隔に対する、次の間隔の大きさ」です。130%なら、間隔が1つ進むごとに1.3倍になります。100%で等間隔です。
 - 比率はスライダー、入力欄、∧∨ボタン、↑↓キーで変えられます（100〜300%）。
-- 広げる向きは、下へ・上へ・右へ・左へから選びます。ダイアログボックスを開いたときは、上下の並びなら［下へ］、左右の並びなら［右へ］になります。
+- 広げる向きは、［上下］［左右］の行ごとに選びます。
+  - ［下へ］［上へ］［右へ］［左へ］：その向きへ行くほど間隔が広がります。
+  - ［中央へ］：両端の間隔が最も狭く、中央へ行くほど広がります。
+  - ［両端へ］：中央の間隔が最も狭く、両端へ行くほど広がります。
+  - ［ランダム］：間隔をランダムにします。比率は「最も広い間隔と最も狭い間隔の比」になります。［シャッフル］で並びを作り直せます。
+- ［オブジェクト］の［数］を選択より多くすると、上端（左右の並びでは左端）のオブジェクトを複製して足します（最大200）。2つだけ選んだときは、3つにして始めます。
+- ダイアログボックスを開いたときは、上下の並びなら［下へ］、左右の並びなら［右へ］になります。
 - 大きさの異なるオブジェクトでも、オブジェクトどうしのアキが比率どおりになります。
 - 確定後は1回の取り消しで元に戻せます。
 
 ### 使い方
 
-1. 並んだ線やオブジェクトを3つ以上選択します。
+1. 並んだ線やオブジェクトを2つ以上選択します。
 2. スクリプトを実行します。
 3. ［広げる向き］を選び、スライダーで比率を調整します。
 4. ［OK］で確定します。［キャンセル］で元の位置に戻ります。
@@ -37,4 +43,6 @@
 
 ### 更新履歴
 
+- v1.2.0 (2026-11-09) : 広げる向きに［ランダム］、［オブジェクト］の［数］を追加
+- v1.1.0 (2026-11-09) : 広げる向きに［中央へ］［両端へ］を追加
 - v1.0.0 (2026-11-06) : 初版

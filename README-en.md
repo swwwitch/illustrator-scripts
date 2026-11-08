@@ -127,7 +127,7 @@ After release, we continue to fix bugs and make adjustments through daily use.
 - [Resize objects](readme-en/SmartObjectResizer.md)
 - [Place a mark at the center of the gap between adjacent objects](readme-en/RightMarkPlacer.md)
 - [A docking palette that sets the vertical gap between t…](readme-en/AiAdjustVerticalGapPalette.md)
-- [Gradually widen the spacing of a row of objects](readme-en/ProgressiveSpacing.md)
+- [Gradually widen the spacing of a row of objects](readme-en/BlendLikeSpacing.md)
 - [Arrange objects in a masonry layout](readme-en/MasonryLayout.md)
 - [Pack objects onto artboards](readme-en/PackItemsOnArtboards.md)
 - [A persistent palette that aligns the selection to the…](readme-en/AiAlignToArtboardPalette.md)

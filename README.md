@@ -126,7 +126,7 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 - [オブジェクトのリサイズ](readme-ja/SmartObjectResizer.md)
 - [隣り合うオブジェクトのアキの中央に記号を配置](readme-ja/RightMarkPlacer.md)
 - [選択した2つのオブジェクトの上下の間隔を、指定した値にそろえる常駐パレットです](readme-ja/AiAdjustVerticalGapPalette.md)
-- [並んだオブジェクトの間隔をだんだん広くする](readme-ja/ProgressiveSpacing.md)
+- [並んだオブジェクトの間隔をだんだん広くする](readme-ja/BlendLikeSpacing.md)
 - [オブジェクトをメイソンリーレイアウトで並べる](readme-ja/MasonryLayout.md)
 - [オブジェクトをアートボードに詰めて配置](readme-ja/PackItemsOnArtboards.md)
 - [選択したオブジェクトを、アートボードを対象に整列する常駐パレットです](readme-ja/AiAlignToArtboardPalette.md)

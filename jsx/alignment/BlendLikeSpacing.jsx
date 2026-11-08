@@ -1,14 +1,14 @@
 #target illustrator
-#targetengine "ProgressiveSpacingEngine"
+#targetengine "BlendLikeSpacingEngine"
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
 SCRIPTMETA-BEGIN
-Script-ID=com.swwwitch.illustrator.ProgressiveSpacing
+Script-ID=com.swwwitch.illustrator.BlendLikeSpacing
 Name=並んだオブジェクトの間隔をだんだん広くする
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.0.0
+Version=1.2.0
 Release-Date=2026-11-06
 Description-BEGIN
 並んだ線やオブジェクトの両端を動かさずに、間隔が一定の比率でだんだん広くなるように並べ直します。
@@ -28,7 +28,7 @@ SCRIPTMETA-END
 比率はスライダーで調整し、結果をプレビューで確認できます。
 
 詳細は README を参照してください。
-https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ProgressiveSpacing.md
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/BlendLikeSpacing.md
 
 ### Overview
 
@@ -36,24 +36,24 @@ Rearranges a row of lines or objects so the gaps widen by a constant ratio, keep
 Adjust the ratio with a slider and check the result in the live preview.
 
 See the README for details.
-https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ProgressiveSpacing.md
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/BlendLikeSpacing.md
 
 */
 
 // =========================================
 // 基本情報 / Basic info
 // =========================================
-var SCRIPT_NAME     = "ProgressiveSpacing";           /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_NAME     = "BlendLikeSpacing";             /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.2.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-11-06";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-11-06";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-11-09";                   /* 更新日 / last updated */
 
 var SCRIPT_DESCRIPTION_JA = "並んだオブジェクトの間隔をだんだん広くする"; /* README の見出し / README title (Japanese) */
 
-var SCRIPT_README_JA  = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ProgressiveSpacing.md"; /* README（日本語） */
-var SCRIPT_README_EN  = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ProgressiveSpacing.md"; /* README (English) */
-var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/ProgressiveSpacing.jsx"; /* 最新版のソース / latest source */
+var SCRIPT_README_JA  = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/BlendLikeSpacing.md"; /* README（日本語） */
+var SCRIPT_README_EN  = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/BlendLikeSpacing.md"; /* README (English) */
+var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/BlendLikeSpacing.jsx"; /* 最新版のソース / latest source */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
@@ -67,12 +67,15 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
     var RATIO_MIN = 100;      /* 比率の下限（%）。100%で等間隔 / lowest ratio (%); 100% means even spacing */
     var RATIO_MAX = 300;      /* 比率の上限（%） / highest ratio (%) */
     var RATIO_STEP = 1;       /* ∧∨・↑↓の増減量（%） / stepper increment (%) */
-    var MIN_ITEM_COUNT = 3;   /* 必要な数。両端は動かないので2つでは何も変わらない / items needed; both ends stay, so two would change nothing */
+    var MIN_ITEM_COUNT = 2;   /* 必要な数。2つでも［数］を増やせば並べられる / items needed; two work once the count is raised */
+    var MIN_SPACED_COUNT = 3; /* 開いたときの［数］の下限。2つだけ選んだときは1つ足して始める / initial count floor; two items start with one copy */
+    var MAX_ITEM_COUNT = 200; /* ［数］の上限 / highest count */
 
     // =========================================
     // レイアウト / Layout
     // =========================================
     var RATIO_SLIDER_WIDTH = 220; /* スライダーの幅（px） / slider width (px) */
+    var AXIS_LABEL_PADDING = 2;   /* ［上下］［左右］の項目名の幅に足す余白（px） / extra width for the axis labels (px) */
 
     // UIレイアウト（再利用パーツ） / UI layout (reusable)
 
@@ -1672,26 +1675,47 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         },
         panel: {
             direction: { ja: "広げる向き", en: "Direction" },
-            spacing: { ja: "間隔の広がり", en: "Spacing Growth" }
+            spacing: { ja: "間隔の広がり", en: "Spacing Growth" },
+            objects: { ja: "オブジェクト", en: "Objects" }
         },
         radio: {
             down: { ja: "下へ", en: "Down" },
             up: { ja: "上へ", en: "Up" },
+            centerY: { ja: "中央へ", en: "Center" },
+            endsY: { ja: "両端へ", en: "Ends" },
+            randomY: { ja: "ランダム", en: "Random" },
             right: { ja: "右へ", en: "Right" },
-            left: { ja: "左へ", en: "Left" }
+            left: { ja: "左へ", en: "Left" },
+            centerX: { ja: "中央へ", en: "Center" },
+            endsX: { ja: "両端へ", en: "Ends" },
+            randomX: { ja: "ランダム", en: "Random" }
         },
         fieldLabel: {
-            ratio: { ja: "比率", en: "Ratio" }
+            y: { ja: "上下", en: "Vertical" },
+            x: { ja: "左右", en: "Horizontal" },
+            ratio: { ja: "比率", en: "Ratio" },
+            count: { ja: "数", en: "Count" }
         },
         tooltip: {
             down: { ja: "下へ行くほど間隔を広げる", en: "Gaps widen toward the bottom" },
             up: { ja: "上へ行くほど間隔を広げる", en: "Gaps widen toward the top" },
+            centerY: { ja: "上下の中央へ行くほど間隔を広げる", en: "Gaps widen toward the vertical center" },
+            endsY: { ja: "上下の両端へ行くほど間隔を広げる（中央が最も狭い）", en: "Gaps widen toward the top and bottom (narrowest in the middle)" },
+            randomY: { ja: "上下の間隔をランダムにする（比率は最も広い間隔と最も狭い間隔の比）", en: "Random vertical gaps (the ratio is the widest gap over the narrowest)" },
             right: { ja: "右へ行くほど間隔を広げる", en: "Gaps widen toward the right" },
             left: { ja: "左へ行くほど間隔を広げる", en: "Gaps widen toward the left" },
+            centerX: { ja: "左右の中央へ行くほど間隔を広げる", en: "Gaps widen toward the horizontal center" },
+            endsX: { ja: "左右の両端へ行くほど間隔を広げる（中央が最も狭い）", en: "Gaps widen toward the left and right (narrowest in the middle)" },
+            randomX: { ja: "左右の間隔をランダムにする（比率は最も広い間隔と最も狭い間隔の比）", en: "Random horizontal gaps (the ratio is the widest gap over the narrowest)" },
             ratio: {
-                ja: "1つ前の間隔に対する、次の間隔の比率（100%で等間隔）",
-                en: "Each gap as a percentage of the previous one (100% means even spacing)"
+                ja: "1つ前の間隔に対する、次の間隔の比率（100%で等間隔）。［ランダム］では最も広い間隔と最も狭い間隔の比",
+                en: "Each gap as a percentage of the previous one (100% means even spacing). With Random, the widest gap over the narrowest"
             },
+            count: {
+                ja: "並べるオブジェクトの数。選択より多くすると、上端（左右の並びでは左端）のオブジェクトを複製して足す",
+                en: "Number of objects in the row. Raising it adds copies of the top object (the leftmost in a horizontal row)"
+            },
+            shuffle: { ja: "ランダムな間隔を作り直す", en: "Generate new random gaps" },
             stepUp: {
                 ja: "値を増やす（shift＋クリックで10の倍数へ、option＋クリックで0.1ずつ）",
                 en: "Increase (Shift-click to snap to 10s, Option-click by 0.1)"
@@ -1703,7 +1727,8 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         },
         button: {
             cancel: { ja: "キャンセル", en: "Cancel" },
-            ok: { ja: "OK", en: "OK" }
+            ok: { ja: "OK", en: "OK" },
+            shuffle: { ja: "シャッフル", en: "Shuffle" }
         },
         alert: {
             noDocument: { ja: "ドキュメントを開いてください。", en: "Open a document first." },
@@ -1719,13 +1744,23 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
     // 間隔の計算 / Spacing calculation
     // =========================================
 
-    /* 広げる向き。sign は間隔が広がっていく向きの座標の符号（Illustrator の Y は上が正）
-       Directions; sign is the coordinate sign the gaps widen toward (Illustrator's Y grows upward) */
+    /* 広げる向き。sign は間隔が広がっていく向きの座標の符号（Illustrator の Y は上が正）。
+       spread は広がり方で、"oneWay" は一方へ、"center" は両端から中央へ、"ends" は中央から両端へ広げ、"random" はランダム
+       （"oneWay" 以外は sign が並べる順を決めるだけ）
+       Directions; sign is the coordinate sign the gaps widen toward (Illustrator's Y grows upward).
+       spread: "oneWay" widens one way, "center" toward the middle, "ends" toward both ends, "random" at random
+       (for all but "oneWay", sign only sets the order) */
     var SPACING_DIRECTIONS = [
-        { key: "down",  axis: "y", sign: -1 },
-        { key: "up",    axis: "y", sign: 1 },
-        { key: "right", axis: "x", sign: 1 },
-        { key: "left",  axis: "x", sign: -1 }
+        { key: "down",    axis: "y", sign: -1, spread: "oneWay" },
+        { key: "up",      axis: "y", sign: 1,  spread: "oneWay" },
+        { key: "centerY", axis: "y", sign: -1, spread: "center" },
+        { key: "endsY",   axis: "y", sign: -1, spread: "ends" },
+        { key: "randomY", axis: "y", sign: -1, spread: "random" },
+        { key: "right",   axis: "x", sign: 1,  spread: "oneWay" },
+        { key: "left",    axis: "x", sign: -1, spread: "oneWay" },
+        { key: "centerX", axis: "x", sign: 1,  spread: "center" },
+        { key: "endsX",   axis: "x", sign: 1,  spread: "ends" },
+        { key: "randomX", axis: "x", sign: 1,  spread: "random" }
     ];
 
     /* 並べ替えのキーに足す値（pt）。千倍したキーがどの座標でも10桁にそろい、文字列のまま比べられる
@@ -1778,15 +1813,21 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
 
     /**
      * 広げる向きに進む順でオブジェクトを並べる。
-     * 座標は向きの符号を掛け、どの向きでも「値が増える方へ進む」形に読み替える
-     * @param {Array<{bounds: number[]}>} itemStates - captureItemStates() の戻り値
+     * 座標は向きの符号を掛け、どの向きでも「値が増える方へ進む」形に読み替える。
+     * 複製（sourceIndex を持つもの）は位置で並べず、複製元の端のすぐ内側に入れる
+     * @param {Array<{bounds: number[], sourceIndex: number}>} itemStates - addItemCopies() の戻り値
      * @param {{axis: string, sign: number}} spacingDirection - 広げる向き
      * @returns {Array<{stateIndex: number, start: number, end: number}>} 進む順に並べた、手前の辺と奥の辺
      */
     function buildOrderedSpans(itemStates, spacingDirection) {
         var itemSpans = [];
         var sortKeys = [];
+        var copyStateIndexes = [];
         for (var i = 0; i < itemStates.length; i++) {
+            if (itemStates[i].sourceIndex != null) {
+                copyStateIndexes.push(i);
+                continue;
+            }
             var axisRange = getAxisRange(itemStates[i].bounds, spacingDirection.axis);
             var spanStart = (spacingDirection.sign > 0) ? axisRange.low : -axisRange.high;
             var spanEnd = (spacingDirection.sign > 0) ? axisRange.high : -axisRange.low;
@@ -1800,7 +1841,60 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         for (var k = 0; k < sortKeys.length; k++) {
             orderedSpans.push(itemSpans[parseInt(sortKeys[k].split("\u0001")[1], 10)]);
         }
+        if (copyStateIndexes.length === 0) return orderedSpans;
+
+        /* 複製元は端にある。端のすぐ内側に、複製元と同じ辺で入れる / the source is at an end; insert the copies just inside it */
+        var sourceIndex = itemStates[copyStateIndexes[0]].sourceIndex;
+        var sourcePosition = 0;
+        for (var s = 0; s < orderedSpans.length; s++) {
+            if (orderedSpans[s].stateIndex === sourceIndex) sourcePosition = s;
+        }
+        var sourceSpan = orderedSpans[sourcePosition];
+        var insertAt = (sourcePosition === 0) ? 1 : sourcePosition;
+        for (var c = 0; c < copyStateIndexes.length; c++) {
+            orderedSpans.splice(insertAt, 0, { stateIndex: copyStateIndexes[c], start: sourceSpan.start, end: sourceSpan.end });
+        }
         return orderedSpans;
+    }
+
+    /**
+     * 間隔1つ分の重み（比率の何乗か）を返す。
+     * 一方へ広げるときは手前から順に、中央へ広げるときは両端から中央へ、両端へ広げるときは中央から両端へ1段ずつ比率を掛ける
+     * @param {number} gapIndex - 手前から数えた間隔の番号（0始まり）
+     * @param {number} gapCount - 間隔の数
+     * @param {number} growthRate - 1段ごとに掛ける比率（1.3 など）
+     * @param {string} spread - "oneWay" / "center" / "ends" / "random"
+     * @param {number[]} [randomExponents] - "random" のときの間隔ごとの指数（0〜1）
+     * @returns {number} 重み
+     */
+    function getGapWeight(gapIndex, gapCount, growthRate, spread, randomExponents) {
+        if (spread === "oneWay") return Math.pow(growthRate, gapIndex);
+        if (spread === "random") return Math.pow(growthRate, randomExponents[gapIndex]);
+        var stepsFromEnd = Math.min(gapIndex, gapCount - 1 - gapIndex);
+        if (spread === "center") return Math.pow(growthRate, stepsFromEnd);
+        return Math.pow(growthRate, Math.floor((gapCount - 1) / 2) - stepsFromEnd);
+    }
+
+    /**
+     * ランダムの元になる値を、間隔ごとの指数（最も狭い間隔が0、最も広い間隔が1）にする。
+     * 元の値は足りない分だけ足し、プレビューを描き直しても並びが変わらないようにする
+     * @param {number[]} randomPool - 0〜1の乱数の控え（足りなければ足す）
+     * @param {number} gapCount - 間隔の数
+     * @returns {number[]} 間隔ごとの指数
+     */
+    function getRandomExponents(randomPool, gapCount) {
+        while (randomPool.length < gapCount) randomPool.push(Math.random());
+        var lowest = Infinity;
+        var highest = -Infinity;
+        for (var i = 0; i < gapCount; i++) {
+            lowest = Math.min(lowest, randomPool[i]);
+            highest = Math.max(highest, randomPool[i]);
+        }
+        var randomExponents = [];
+        for (var j = 0; j < gapCount; j++) {
+            randomExponents.push((highest > lowest) ? (randomPool[j] - lowest) / (highest - lowest) : 0);
+        }
+        return randomExponents;
     }
 
     /**
@@ -1808,11 +1902,12 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
      * オブジェクトどうしのアキを比率で配分する。両端のあいだに収まらないほど重なっているときは、
      * 手前の辺どうしの距離を配分する（大きさのそろった線ならどちらも同じ結果）
      * @param {Array<{bounds: number[]}>} itemStates - captureItemStates() の戻り値
-     * @param {{axis: string, sign: number}} spacingDirection - 広げる向き
+     * @param {{axis: string, sign: number, spread: string}} spacingDirection - 広げる向き
      * @param {number} ratioPercent - 1つ前の間隔に対する比率（%）
+     * @param {number[]} randomPool - ランダムの元になる値（getRandomExponents() に渡す）
      * @returns {Array<{stateIndex: number, dx: number, dy: number}>} 動かす量（両端は含まない）
      */
-    function computeSpacingMoves(itemStates, spacingDirection, ratioPercent) {
+    function computeSpacingMoves(itemStates, spacingDirection, ratioPercent, randomPool) {
         var orderedSpans = buildOrderedSpans(itemStates, spacingDirection);
         var lastIndex = orderedSpans.length - 1;
         var firstSpan = orderedSpans[0];
@@ -1828,16 +1923,18 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
 
         /* 比率の重みの合計 / Sum of the gap weights */
         var growthRate = ratioPercent / 100;
+        var spread = spacingDirection.spread;
+        var randomExponents = (spread === "random") ? getRandomExponents(randomPool, lastIndex) : null;
         var weightTotal = 0;
         for (var gapIndex = 0; gapIndex < lastIndex; gapIndex++) {
-            weightTotal += Math.pow(growthRate, gapIndex);
+            weightTotal += getGapWeight(gapIndex, lastIndex, growthRate, spread, randomExponents);
         }
 
         var spacingMoves = [];
         var nextEdge = usesItemSizes ? firstSpan.end : firstSpan.start;
         for (var j = 1; j < lastIndex; j++) {
             var movingSpan = orderedSpans[j];
-            nextEdge += freeSpace * Math.pow(growthRate, j - 1) / weightTotal;
+            nextEdge += freeSpace * getGapWeight(j - 1, lastIndex, growthRate, spread, randomExponents) / weightTotal;
             var moveAmount = (nextEdge - movingSpan.start) * spacingDirection.sign;
             spacingMoves.push({
                 stateIndex: movingSpan.stateIndex,
@@ -1852,6 +1949,63 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
     // =========================================
     // 移動と復元 / Moving and restoring
     // =========================================
+
+    /**
+     * 複製元にする端のオブジェクトを選ぶ。上下の並びなら上端、左右の並びなら左端
+     * @param {Array<{bounds: number[]}>} itemStates - captureItemStates() の戻り値
+     * @param {string} axis - "x" または "y"
+     * @returns {number} itemStates の番号
+     */
+    function findCopySourceIndex(itemStates, axis) {
+        var sourceIndex = 0;
+        var sourceKey = -Infinity;
+        for (var i = 0; i < itemStates.length; i++) {
+            var axisRange = getAxisRange(itemStates[i].bounds, axis);
+            var centerKey = (axisRange.low + axisRange.high) / 2 * ((axis === "y") ? 1 : -1);
+            if (centerKey > sourceKey) {
+                sourceKey = centerKey;
+                sourceIndex = i;
+            }
+        }
+        return sourceIndex;
+    }
+
+    /**
+     * 端のオブジェクトを複製して数を増やす。複製は元のすぐ背面に、同じ位置で作る
+     * @param {Array<{item: PageItem, bounds: number[]}>} itemStates - captureItemStates() の戻り値
+     * @param {number} copyCount - 足す数
+     * @param {string} axis - 並びの軸（"x" または "y"）
+     * @returns {Array<{item: PageItem, bounds: number[], sourceIndex: number}>} 元のあとに複製を続けた配列（複製は sourceIndex を持つ）
+     */
+    function addItemCopies(itemStates, copyCount, axis) {
+        var allStates = itemStates.slice(0);
+        if (copyCount <= 0) return allStates;
+        var sourceIndex = findCopySourceIndex(itemStates, axis);
+        var sourceItem = itemStates[sourceIndex].item;
+        for (var i = 0; i < copyCount; i++) {
+            allStates.push({
+                item: sourceItem.duplicate(sourceItem, ElementPlacement.PLACEAFTER),
+                bounds: itemStates[sourceIndex].bounds,
+                sourceIndex: sourceIndex
+            });
+        }
+        return allStates;
+    }
+
+    /**
+     * 複製を削除する。app.undo() で消えていれば参照が切れているので何もしない
+     * @param {Array<{item: PageItem}>} copyStates - 複製の一覧
+     * @returns {void}
+     */
+    function removeItemCopies(copyStates) {
+        for (var i = 0; i < copyStates.length; i++) {
+            try {
+                if (copyStates[i].item.typename) copyStates[i].item.remove();
+            } catch (e) {
+                /* 取り消しで消えた複製は読めない / copies removed by the undo can no longer be read */
+            }
+        }
+    }
 
     /**
      * 求めた量だけオブジェクトを動かす
@@ -1889,39 +2043,66 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
     }
 
     /**
-     * プレビューの描き直しと取り消しをまとめる
+     * プレビューの描き直しと取り消し、本番の適用をまとめる
      * @param {Array<{item: PageItem, bounds: number[]}>} itemStates - captureItemStates() の戻り値
      * @param {boolean} usePreviewBounds - 控えたときと同じ境界の種類
-     * @returns {{update: function(Object, number): void, clear: function(): void}} 描き直しと取り消し
+     * @returns {{update: function(Object): void, clear: function(): void, commit: function(Object): void}} 描き直し・取り消し・本番
      */
     function createSpacingPreview(itemStates, usePreviewBounds) {
-        /* 1つも動かなかったときは false のまま。app.undo() がユーザーの操作を取り消さないようにする
-           Stays false when nothing moved, so app.undo() never reverts the user's own step */
+        /* 何も変えなかったときは false のまま。app.undo() がユーザーの操作を取り消さないようにする
+           Stays false when nothing changed, so app.undo() never reverts the user's own step */
         var hasUncommittedPreview = false;
+        /** @type {Array<{item: PageItem}>} プレビューで足した複製 */
+        var previewCopyStates = [];
 
         /**
-         * プレビューを取り除き、元の位置へ戻す。app.undo() で履歴ごと取り除き、戻りきらなかった分は座標で戻す
+         * プレビューを取り除き、元の位置へ戻す。app.undo() で履歴ごと取り除き、残った複製は消し、戻りきらなかった分は座標で戻す
          * @returns {void}
          */
         function clearPreview() {
             if (hasUncommittedPreview) app.undo();
             hasUncommittedPreview = false;
+            removeItemCopies(previewCopyStates);
+            previewCopyStates = [];
             restoreItemPositions(itemStates, usePreviewBounds);
         }
 
         /**
+         * 設定どおりに複製を足して並べる
+         * @param {{direction: Object, ratio: number, count: number, randomPool: number[]}} spacingSettings - 今の設定
+         * @returns {boolean} 何か変えたら true
+         */
+        function applySettings(spacingSettings) {
+            var allStates = addItemCopies(itemStates, spacingSettings.count - itemStates.length, spacingSettings.direction.axis);
+            previewCopyStates = allStates.slice(itemStates.length);
+            var spacingMoves = computeSpacingMoves(allStates, spacingSettings.direction, spacingSettings.ratio, spacingSettings.randomPool);
+            var hasMoved = applySpacingMoves(allStates, spacingMoves);
+            return hasMoved || previewCopyStates.length > 0;
+        }
+
+        /**
          * 指定の設定でプレビューを描き直す
-         * @param {{axis: string, sign: number}} spacingDirection - 広げる向き
-         * @param {number} ratioPercent - 比率（%）
+         * @param {{direction: Object, ratio: number, count: number, randomPool: number[]}} spacingSettings - 今の設定
          * @returns {void}
          */
-        function updatePreview(spacingDirection, ratioPercent) {
+        function updatePreview(spacingSettings) {
             clearPreview();
-            hasUncommittedPreview = applySpacingMoves(itemStates, computeSpacingMoves(itemStates, spacingDirection, ratioPercent));
+            hasUncommittedPreview = applySettings(spacingSettings);
             app.redraw();
         }
 
-        return { update: updatePreview, clear: clearPreview };
+        /**
+         * プレビューを消してから本番を1回だけ流す（取り消しが1回で済む）。複製は残す
+         * @param {{direction: Object, ratio: number, count: number, randomPool: number[]}} spacingSettings - 確定した設定
+         * @returns {void}
+         */
+        function commitSettings(spacingSettings) {
+            clearPreview();
+            applySettings(spacingSettings);
+            previewCopyStates = [];
+        }
+
+        return { update: updatePreview, clear: clearPreview, commit: commitSettings };
     }
 
     // =========================================
@@ -1929,38 +2110,74 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
     // =========================================
 
     /**
-     * ［広げる向き］のパネルを足す。上下の並びなら［下へ］、左右の並びなら［右へ］を選んでおく
+     * ［広げる向き］のパネルを足す。［上下］［左右］の2行に分け、それぞれ一方へ・中央へ・両端へを並べる。
+     * 上下の並びなら［下へ］、左右の並びなら［右へ］を選んでおく
      * @param {Window} spacingDialog - 追加先のダイアログ
      * @param {{x: number, y: number}} axisSpreads - 軸ごとの中心の散らばり
      * @param {function(Object): void} onDirectionChange - 向きを選んだときの処理
-     * @returns {{key: string, axis: string, sign: number}} 最初に選んだ向き
+     * @returns {{key: string, axis: string, sign: number, spread: string}} 最初に選んだ向き
      */
     function addDirectionPanel(spacingDialog, axisSpreads, onDirectionChange) {
         var directionPanel = spacingDialog.add("panel", undefined, getLabel(LABELS.panel.direction));
         setupPanel(directionPanel);
-        var directionRow = directionPanel.add("group");
-        setupRow(directionRow, "left");
 
-        var initialDirection = SPACING_DIRECTIONS[(axisSpreads.y >= axisSpreads.x) ? 0 : 2];
+        var initialKey = (axisSpreads.y >= axisSpreads.x) ? "down" : "right";
+        var initialDirection = null;
+        /* ラジオは同じ親の中でしか排他にならないので、行をまたいだ解除は自分でする
+           Radios are exclusive only within one parent, so clear the other row by hand */
+        var directionRadios = [];
+        var axisLabels = [];
+        var axisRows = {};
+
+        /**
+         * 軸の行（項目名とラジオを並べる行）を返す。無ければ作る
+         * @param {string} axis - "x" または "y"
+         * @returns {Group} 行
+         */
+        function getAxisRow(axis) {
+            if (axisRows[axis]) return axisRows[axis];
+            var axisRow = directionPanel.add("group");
+            setupRow(axisRow, "left");
+            var axisLabel = axisRow.add("statictext", undefined, labelText(LABELS.fieldLabel[axis]));
+            axisLabel.justify = "right";
+            axisLabel.enabled = !isNearlySameCoordinate(axisSpreads[axis], 0);
+            axisLabels.push(axisLabel);
+            axisRows[axis] = axisRow;
+            return axisRow;
+        }
 
         /**
          * 向きのラジオボタンを1つ足す
-         * @param {{key: string, axis: string, sign: number}} spacingDirection - 広げる向き
+         * @param {{key: string, axis: string, sign: number, spread: string}} spacingDirection - 広げる向き
          * @returns {void}
          */
         function addDirectionRadio(spacingDirection) {
-            var directionRadio = directionRow.add("radiobutton", undefined, getLabel(LABELS.radio[spacingDirection.key]));
+            var directionRadio = getAxisRow(spacingDirection.axis).add("radiobutton", undefined, getLabel(LABELS.radio[spacingDirection.key]));
             directionRadio.helpTip = getLabel(LABELS.tooltip[spacingDirection.key]);
             /* 散らばりのない軸では動かせない / An axis with no spread has nothing to move */
             directionRadio.enabled = !isNearlySameCoordinate(axisSpreads[spacingDirection.axis], 0);
-            directionRadio.value = (spacingDirection === initialDirection);
+            directionRadio.value = (spacingDirection.key === initialKey);
+            if (directionRadio.value) initialDirection = spacingDirection;
             directionRadio.onClick = function () {
+                for (var r = 0; r < directionRadios.length; r++) {
+                    if (directionRadios[r] !== directionRadio) directionRadios[r].value = false;
+                }
                 onDirectionChange(spacingDirection);
             };
+            directionRadios.push(directionRadio);
         }
 
         for (var i = 0; i < SPACING_DIRECTIONS.length; i++) {
             addDirectionRadio(SPACING_DIRECTIONS[i]);
+        }
+
+        /* 2行の項目名を広いほうの幅にそろえ、ラジオの頭をそろえる / match the label widths so the radios line up */
+        var labelWidth = 0;
+        for (var k = 0; k < axisLabels.length; k++) {
+            labelWidth = Math.max(labelWidth, axisLabels[k].graphics.measureString(axisLabels[k].text)[0]);
+        }
+        for (var m = 0; m < axisLabels.length; m++) {
+            axisLabels[m].preferredSize.width = Math.ceil(labelWidth) + AXIS_LABEL_PADDING;
         }
         return initialDirection;
     }
@@ -2030,6 +2247,48 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
     }
 
     /**
+     * ［オブジェクト］のパネルを足す。［数］は選択した数より減らせない
+     * @param {Window} spacingDialog - 追加先のダイアログ
+     * @param {number} selectedCount - 選択したオブジェクトの数
+     * @param {function(): void} onCountChange - 数を変えたときの処理
+     * @returns {function(): number} 数を読む関数（確定前の入力もそのまま読む）
+     */
+    function addCountPanel(spacingDialog, selectedCount, onCountChange) {
+        var objectsPanel = spacingDialog.add("panel", undefined, getLabel(LABELS.panel.objects));
+        setupPanel(objectsPanel);
+
+        var initialCount = Math.max(selectedCount, MIN_SPACED_COUNT);
+        var countFieldOptions = {
+            label: labelText(LABELS.fieldLabel.count),
+            text: String(initialCount),
+            characters: 6,
+            step: 1,
+            min: selectedCount,
+            max: Math.max(MAX_ITEM_COUNT, selectedCount),
+            integer: true,
+            onStep: onCountChange
+        };
+        var countField = addSteppedField(objectsPanel, countFieldOptions);
+        countField.helpTip = getLabel(LABELS.tooltip.count);
+
+        var normalizeCountField = countField.onChange;
+        countField.onChange = function () {
+            normalizeCountField();
+            onCountChange();
+        };
+
+        /**
+         * 入力欄の数を読む
+         * @returns {number} 数
+         */
+        return function readCount() {
+            var countValue = parseInt(countField.text, 10);
+            if (isNaN(countValue)) countValue = initialCount;
+            return Math.round(clampSteppedValue(countValue, countFieldOptions));
+        };
+    }
+
+    /**
      * ダイアログを開き、OK なら間隔を確定する。キャンセルなら元の位置に戻す
      * @param {Array<{item: PageItem, bounds: number[]}>} itemStates - captureItemStates() の戻り値
      * @param {boolean} usePreviewBounds - 境界の種類
@@ -2038,8 +2297,11 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
      */
     function showSpacingDialog(itemStates, usePreviewBounds, axisSpreads) {
         var spacingPreview = createSpacingPreview(itemStates, usePreviewBounds);
-        /** @type {number|null} OK を押したときの比率（キャンセルなら null） */
-        var committedRatio = null;
+        /** @type {Object|null} OK を押したときの設定（キャンセルなら null） */
+        var committedSettings = null;
+        /* ランダムの元になる値。シャッフルするまで同じ値を使い、比率や数を変えても並びを保つ
+           Random source values; kept until Shuffle so changing the ratio or count keeps the pattern */
+        var randomPool = [];
 
         var spacingDialog = new Window("dialog", getLabel(LABELS.dialog.title));
         setupWindow(spacingDialog);
@@ -2048,25 +2310,42 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
            A radio's value cannot be read back before show(), so the chosen direction lives in a variable */
         var selectedDirection = addDirectionPanel(spacingDialog, axisSpreads, function (spacingDirection) {
             selectedDirection = spacingDirection;
+            btnShuffle.enabled = (selectedDirection.spread === "random");
             refreshPreview();
         });
         var readRatio = addRatioPanel(spacingDialog, refreshPreview);
+        var readCount = addCountPanel(spacingDialog, itemStates.length, refreshPreview);
 
         var buttonRow = addButtonRow(spacingDialog);
+        var btnShuffle = buttonRow.leftGroup.add("button", undefined, getLabel(LABELS.button.shuffle));
+        btnShuffle.helpTip = getLabel(LABELS.tooltip.shuffle);
+        btnShuffle.enabled = (selectedDirection.spread === "random");
+        btnShuffle.onClick = function () {
+            randomPool.length = 0;
+            refreshPreview();
+        };
         buttonRow.rightGroup.add("button", undefined, getLabel(LABELS.button.cancel), { name: "cancel" });
         var btnOK = buttonRow.rightGroup.add("button", undefined, getLabel(LABELS.button.ok), { name: "ok" });
         alignRightOnlyButtonRow(buttonRow);
+
+        /**
+         * 今の設定を読む
+         * @returns {{direction: Object, ratio: number, count: number, randomPool: number[]}} 今の設定
+         */
+        function readSettings() {
+            return { direction: selectedDirection, ratio: readRatio(), count: readCount(), randomPool: randomPool };
+        }
 
         /**
          * 今の設定でプレビューを描き直す
          * @returns {void}
          */
         function refreshPreview() {
-            spacingPreview.update(selectedDirection, readRatio());
+            spacingPreview.update(readSettings());
         }
 
         btnOK.onClick = function () {
-            committedRatio = readRatio();
+            committedSettings = readSettings();
             spacingDialog.close(1);
         };
 
@@ -2077,10 +2356,8 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
 
         /* プレビューを消してから本番を1回だけ流す（取り消しが1回で済む）
            Drop the preview, then run once for real so a single undo reverts it */
-        spacingPreview.clear();
-        if (committedRatio !== null) {
-            applySpacingMoves(itemStates, computeSpacingMoves(itemStates, selectedDirection, committedRatio));
-        }
+        if (committedSettings !== null) spacingPreview.commit(committedSettings);
+        else spacingPreview.clear();
         app.redraw();
     }
 
