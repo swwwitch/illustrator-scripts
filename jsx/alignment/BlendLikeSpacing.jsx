@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.BlendLikeSpacing
 Name=並んだオブジェクトの間隔をだんだん広くする
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.6.0
+Version=1.6.1
 Release-Date=2026-11-06
 Description-BEGIN
 並んだ線やオブジェクトの両端を動かさずに、間隔が一定の比率でだんだん広くなるように並べ直します。
@@ -47,7 +47,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/BlendLikeS
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "BlendLikeSpacing";             /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.6.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.6.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-11-06";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-11-09";                   /* 更新日 / last updated */
@@ -1675,7 +1675,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
 
     var LABELS = {
         dialog: {
-            title: { ja: "間隔をだんだん広く", en: "Gradually Widen Spacing" }
+            title: { ja: "ブレンド風に並べる", en: "Blend-Like Spacing" }
         },
         panel: {
             direction: { ja: "広げる向き", en: "Direction" },

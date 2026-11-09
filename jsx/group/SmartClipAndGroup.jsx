@@ -8,13 +8,13 @@ Script-ID=com.swwwitch.illustrator.SmartClipAndGroup
 Name=オブジェクトのまとまりごとにグループ化したり、マスクする
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.0.16
+Version=1.1.0
 Release-Date=2024-06-05
 Description-BEGIN
-選択オブジェクトを重なりや距離、縦の列・横の行でまとまりに分け、まとまりごとにグループ化するか、クリッピングマスクを作成します（配置画像を1つずつクリップすることもできます）。
+選択オブジェクトを重なりや距離、縦の列・横の行、塗りと線（アピアランス）でまとまりに分け、まとまりごとにグループ化するか、クリッピングマスクを作成します（配置画像を1つずつクリップすることもできます）。
 ［OK］の前に、できるグループの数と範囲を件数表示とプレビューの枠で確認できます。
 
-Splits the selection into clusters by overlap, distance, column or row, and groups or clips each cluster (placed images can also be clipped one by one).
+Splits the selection into clusters by overlap, distance, column, row or matching fill and stroke (appearance), and groups or clips each cluster (placed images can also be clipped one by one).
 Before you click OK, a count and preview frames show the groups to be created.
 Description-END
 SCRIPTMETA-END
@@ -24,7 +24,7 @@ SCRIPTMETA-END
 
 ### 概要
 
-選択オブジェクトを重なりや距離、縦の列・横の行でまとまりに分け、まとまりごとにグループ化するか、クリッピングマスクを作成します（配置画像を1つずつクリップすることもできます）。
+選択オブジェクトを重なりや距離、縦の列・横の行、塗りと線（アピアランス）でまとまりに分け、まとまりごとにグループ化するか、クリッピングマスクを作成します（配置画像を1つずつクリップすることもできます）。
 ［OK］の前に、できるグループの数と範囲を件数表示とプレビューの枠で確認できます。
 
 詳細は README を参照してください。
@@ -35,7 +35,7 @@ https://note.com/dtp_tranist/n/nb23985473f80
 
 ### Overview
 
-Splits the selection into clusters by overlap, distance, column or row, and groups or clips each cluster (placed images can also be clipped one by one).
+Splits the selection into clusters by overlap, distance, column, row or matching fill and stroke (appearance), and groups or clips each cluster (placed images can also be clipped one by one).
 Before you click OK, a count and preview frames show the groups to be created.
 
 See the README for details.
@@ -47,10 +47,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartClipA
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SmartClipAndGroup";            /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.16";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.0";                        /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2024-06-05";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-11-05";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-11-09";                   /* 更新日 / last updated */
 
 var SCRIPT_DESCRIPTION_JA = "オブジェクトのまとまりごとにグループ化したり、マスクする"; /* README の見出し / README title (Japanese) */
 
@@ -584,7 +584,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             groupOverlap: { ja: "重なり", en: "Overlap" },
             groupProximity: { ja: "近接度", en: "Proximity" },
             groupVertical: { ja: "上下方向", en: "Vertical" },
-            groupHorizontal: { ja: "左右方向", en: "Horizontal" }
+            groupHorizontal: { ja: "左右方向", en: "Horizontal" },
+            groupAppearance: { ja: "アピアランス", en: "Appearance" }
         },
         fieldLabel: {
             threshold: { ja: "しきい値", en: "Threshold" },
@@ -626,6 +627,10 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
                 ja: "左右に並んでいるオブジェクトを、横の行ごとにグループにします。上下のすき間がしきい値以内なら同じ行とみなします。",
                 en: "Groups objects that line up horizontally, row by row. Objects whose vertical gap is within the threshold count as the same row."
             },
+            groupAppearance: {
+                ja: "塗りと線（色・線幅）が同じオブジェクトを、位置を問わずグループにします。グループや画像など塗りと線を持たないものはグループにしません。",
+                en: "Groups objects with the same fill and stroke (colors and stroke weight), wherever they are. Groups, images and other items without a fill and stroke are left as they are."
+            },
             threshold: {
                 ja: "同じグループとみなす距離です。大きくするとまとまりが粗くなります。",
                 en: "How close objects must be to land in the same group. Larger values group more loosely."
@@ -660,7 +665,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     /* パネルごとのモードの並び（キーは LABELS.radio / LABELS.tooltip と共通）
        Mode order per panel; keys are shared with LABELS.radio and LABELS.tooltip */
     var CLIP_MODES  = ["clipWithFront", "clipWithBack", "clipPlacedOnly"];
-    var GROUP_MODES = ["groupOverlap", "groupProximity", "groupVertical", "groupHorizontal"];
+    var GROUP_MODES = ["groupOverlap", "groupProximity", "groupVertical", "groupHorizontal", "groupAppearance"];
     var ALL_MODES   = CLIP_MODES.concat(GROUP_MODES);
 
     /* グループ化のモードごとに使う設定（クリップ系はどれも使わない）
@@ -669,7 +674,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         groupOverlap: { perArtboard: true },
         groupProximity: { threshold: true, perArtboard: true },
         groupVertical: { threshold: true, splitAtGaps: true, perArtboard: true },
-        groupHorizontal: { threshold: true, splitAtGaps: true, perArtboard: true }
+        groupHorizontal: { threshold: true, splitAtGaps: true, perArtboard: true },
+        groupAppearance: { perArtboard: true }
     };
 
     /* まとまりをクリップするモードと、型にするパスの側 / Cluster-clipping modes and which side supplies the mask */
@@ -736,7 +742,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
 
     /**
      * @typedef {Object} ClusterRule まとまりのつなぎ方
-     * @property {number} maxGap - つなぐ最大のすき間（pt）。OVERLAP_ONLY なら重なりだけでつなぐ
+     * @property {number} [maxGap] - つなぐ最大のすき間（pt）。OVERLAP_ONLY なら重なりだけでつなぐ
+     * @property {boolean} [byAppearance] - 位置ではなく、塗りと線が同じものをまとめる
      * @property {string} [direction] - "vertical" なら縦の列、"horizontal" なら横の行で判定
      * @property {boolean} [splitAtGaps] - 列・行の途中で、すき間がしきい値より空いたところで分ける（揃っているものだけをつなぐ）
      * @property {boolean} [perArtboard] - 別のアートボードにあるものはつながない
@@ -869,6 +876,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
                 return { maxGap: TOUCH_TOLERANCE, perArtboard: perArtboard };
             case "groupProximity":
                 return { maxGap: groupingOptions.threshold, perArtboard: perArtboard };
+            case "groupAppearance":
+                return { byAppearance: true, perArtboard: perArtboard };
             case "groupVertical":
             case "groupHorizontal":
                 return {
@@ -879,6 +888,132 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
                 };
         }
         return null;
+    }
+
+    // =========================================
+    // アピアランス / Appearance
+    // =========================================
+
+    /**
+     * 色を、同じ色なら同じになる文字列にする
+     * @param {Color} targetColor - 塗りまたは線の色
+     * @returns {string} 色のキー
+     */
+    function getColorKey(targetColor) {
+        if (!targetColor) return "none";
+        switch (targetColor.typename) {
+            case "RGBColor":
+                return ["rgb", roundForKey(targetColor.red), roundForKey(targetColor.green), roundForKey(targetColor.blue)].join(",");
+            case "CMYKColor":
+                return ["cmyk", roundForKey(targetColor.cyan), roundForKey(targetColor.magenta), roundForKey(targetColor.yellow), roundForKey(targetColor.black)].join(",");
+            case "GrayColor":
+                return "gray," + roundForKey(targetColor.gray);
+            case "LabColor":
+                return ["lab", roundForKey(targetColor.l), roundForKey(targetColor.a), roundForKey(targetColor.b)].join(",");
+            case "SpotColor":
+                return "spot," + targetColor.spot.name + "," + roundForKey(targetColor.tint);
+            case "PatternColor":
+                return "pattern," + targetColor.pattern.name;
+            case "GradientColor":
+                return "gradient," + targetColor.gradient.name;
+            case "NoColor":
+                return "none";
+        }
+        return String(targetColor.typename);
+    }
+
+    /**
+     * 数値をキー用に丸める（計算の誤差で別の色・線幅と判定しないように）
+     * @param {number} value - 色の値や線幅
+     * @returns {string} 小数第3位までに丸めた文字列
+     */
+    function roundForKey(value) {
+        return String(Math.round(value * 1000) / 1000);
+    }
+
+    /**
+     * 塗りと線の組み合わせのキーを作る
+     * @param {boolean} isFilled - 塗りがあるか
+     * @param {Color} fillColor - 塗りの色
+     * @param {boolean} isStroked - 線があるか
+     * @param {Color} strokeColor - 線の色
+     * @param {number} strokeWeight - 線幅（pt）
+     * @returns {string} アピアランスのキー
+     */
+    function buildAppearanceKey(isFilled, fillColor, isStroked, strokeColor, strokeWeight) {
+        var fillKey = isFilled ? getColorKey(fillColor) : "none";
+        var strokeKey = isStroked ? getColorKey(strokeColor) : "none";
+        if (strokeKey !== "none") strokeKey += "/" + roundForKey(strokeWeight);
+        return "fill:" + fillKey + "|stroke:" + strokeKey;
+    }
+
+    /**
+     * オブジェクトの塗りと線のキーを返す。複合パスは中の先頭のパス、テキストは先頭の文字の塗りと線で見る
+     * @param {PageItem} targetItem - 対象のオブジェクト
+     * @returns {string|null} アピアランスのキー（グループ・画像など塗りと線を持たないもの、読めないものは null）
+     */
+    function getAppearanceKey(targetItem) {
+        try {
+            var pathItem = targetItem;
+            if (targetItem.typename === "CompoundPathItem") {
+                if (!targetItem.pathItems.length) return null;
+                pathItem = targetItem.pathItems[0];
+            }
+            if (pathItem.typename === "PathItem") {
+                return buildAppearanceKey(pathItem.filled, pathItem.fillColor, pathItem.stroked, pathItem.strokeColor, pathItem.strokeWidth);
+            }
+            if (targetItem.typename === "TextFrame") {
+                if (!targetItem.characters.length) return null;
+                var charAttributes = targetItem.characters[0].characterAttributes;
+                var textFill = charAttributes.fillColor;
+                var textStroke = charAttributes.strokeColor;
+                return buildAppearanceKey(textFill.typename !== "NoColor", textFill, textStroke.typename !== "NoColor", textStroke, charAttributes.strokeWeight);
+            }
+        } catch (e) {
+            /* 読めないものはまとめない / Leave unreadable items ungrouped */
+        }
+        return null;
+    }
+
+    /**
+     * 選択の各オブジェクトのアピアランスのキーを返す（初めて使うときに読み、選択の情報に控える）
+     * @param {SelectionInfo} selectionInfo - 選択の情報
+     * @returns {Array<string|null>} キー（選択と同じ並び）
+     */
+    function getAppearanceKeys(selectionInfo) {
+        if (!selectionInfo.appearanceKeys) {
+            var appearanceKeys = [];
+            for (var i = 0; i < selectionInfo.items.length; i++) {
+                appearanceKeys.push(getAppearanceKey(selectionInfo.items[i]));
+            }
+            selectionInfo.appearanceKeys = appearanceKeys;
+        }
+        return selectionInfo.appearanceKeys;
+    }
+
+    /**
+     * キーが同じものを1つのまとまりにする（キーが null のものは1つずつ別のまとまり）
+     * @param {Array<string|null>} itemKeys - 各オブジェクトのキー
+     * @param {number[]|null} artboardIndexes - 各オブジェクトのアートボード番号（アートボードごとに分けないときは null）
+     * @returns {Array<number[]>} まとまりごとの番号の配列（各まとまりは昇順）
+     */
+    function collectKeyClusters(itemKeys, artboardIndexes) {
+        var clusterIndexes = [];
+        var clusterByKey = {};
+        for (var i = 0; i < itemKeys.length; i++) {
+            if (itemKeys[i] === null) {
+                clusterIndexes.push([i]);
+                continue;
+            }
+            /* 接頭辞を付け、Object の既存のプロパティ名とぶつからないようにする / Prefix so keys never collide with built-in property names */
+            var clusterKey = "k:" + (artboardIndexes ? artboardIndexes[i] + "#" : "") + itemKeys[i];
+            if (!clusterByKey.hasOwnProperty(clusterKey)) {
+                clusterByKey[clusterKey] = [];
+                clusterIndexes.push(clusterByKey[clusterKey]);
+            }
+            clusterByKey[clusterKey].push(i);
+        }
+        return clusterIndexes;
     }
 
     // =========================================
@@ -1351,6 +1486,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
      * @property {Array<number[]>} imageBoundsList - 「配置画像のみをクリップ」の対象になる画像の visibleBounds
      * @property {number[]} artboardIndexes - 各オブジェクトのアートボード番号
      * @property {boolean} hasMultipleArtboards - ドキュメントにアートボードが2つ以上あるか
+     * @property {Array<string|null>|null} appearanceKeys - 各オブジェクトの塗りと線のキー（「アピアランス」を初めて選んだときに読む）
      */
 
     /**
@@ -1366,7 +1502,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             isPath: [],
             imageBoundsList: [],
             artboardIndexes: [],
-            hasMultipleArtboards: false
+            hasMultipleArtboards: false,
+            appearanceKeys: null
         };
         if (!selectedItems) return selectionInfo;
 
@@ -1401,6 +1538,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
      */
     function collectSelectionClusters(selectionInfo, clusterRule) {
         var artboardIndexes = clusterRule.perArtboard ? selectionInfo.artboardIndexes : null;
+        if (clusterRule.byAppearance) return collectKeyClusters(getAppearanceKeys(selectionInfo), artboardIndexes);
         return collectClusterIndexes(selectionInfo.boundsList, clusterRule, artboardIndexes);
     }
 

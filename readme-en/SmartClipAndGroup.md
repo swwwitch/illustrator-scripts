@@ -10,18 +10,15 @@
 
 ### Overview
 
-Finds clusters in the selection by overlap, distance, column or row, and groups or clips each cluster. Before you click OK, the dialog shows how many groups will be created, and red frames show where they will be while Show preview is on.
+Finds clusters in the selection by overlap, distance, column, row or matching fill and stroke (appearance), and groups or clips each cluster. Before you click OK, the dialog shows how many groups will be created, and red frames show where they will be while Show preview is on.
 
 The features of the former SmartAutoGroup.jsx and SmartAutoGroup-yoko.jsx are merged into this script (v1.0.7).
-<<<<<<< HEAD
 
 <img alt="The Clip and Group dialog" src="../png/ss-492-1078-144-20260922-010658.png" width="40%" />
-=======
->>>>>>> 8c770881034697d309a19e73b044fdda335c3ad2
 
 ### Main Features
 
-- Grouping by four rules: Overlap, Proximity, Vertical (columns) and Horizontal (rows)
+- Grouping by five rules: Overlap, Proximity, Vertical (columns), Horizontal (rows) and Appearance (fill and stroke)
 - Clipping each cluster of overlapping objects with its frontmost or backmost path
 - Clipping each placed image with a rectangle of the same size
 - A count and preview frames that show the result before you run it
@@ -60,8 +57,11 @@ The preview frames disappear when the dialog closes. The new groups are left sel
 | Proximity | The gap between them is within the Threshold, in any direction |
 | Vertical | They sit in the same column: the horizontal offset is within the Threshold, however far apart they are vertically |
 | Horizontal | They sit in the same row: the vertical offset is within the Threshold, however far apart they are horizontally |
+| Appearance | They have the same fill and stroke (colors and stroke weight), wherever they are |
 
 Vertical and Horizontal never consider the distance along the line. In Horizontal, objects at opposite edges of the artboard still form one row as long as they line up vertically. At a Threshold of 0, only objects that actually overlap across the line are grouped.
+
+Appearance groups objects whose fill color, stroke color and stroke weight all match. Compound paths are judged by the path inside, and text by the fill and stroke of its first character. Groups, images, symbols and other items without a fill and stroke are not grouped. Threshold and Split at gaps are not used.
 
 **Threshold**
 
@@ -77,7 +77,7 @@ When off, the Threshold is how far an object may be offset across the line and s
 
 **Within each artboard**
 
-Used by the four grouping modes. When on, objects on different artboards end up in separate groups even if they meet the rule. An object belongs to whichever artboard rectangle contains its center point. The initial state depends on the situation: dimmed and off when there is only one artboard, on when the selection spans several artboards, and off otherwise. Objects whose center is on no artboard are ignored when checking whether the selection spans artboards.
+Used by the five grouping modes. When on, objects on different artboards end up in separate groups even if they meet the rule. An object belongs to whichever artboard rectangle contains its center point. The initial state depends on the situation: dimmed and off when there is only one artboard, on when the selection spans several artboards, and off otherwise. Objects whose center is on no artboard are ignored when checking whether the selection spans artboards.
 
 **Show preview**
 
@@ -87,7 +87,7 @@ When on, red frames (no fill, 10 pt stroke, 50% opacity) show where the groups w
 
 - Clusters are built by walking from neighbour to neighbour. If A and B meet the rule and B and C meet the rule, A and C end up in one group even when they do not meet it themselves. Lower the Threshold if objects chain together unexpectedly.
 - A cluster with only one member is not grouped.
-- The tests use `geometricBounds`, which exclude stroke width. Overlap and distance are measured on bounding boxes, not on the actual shapes.
+- The position-based tests use `geometricBounds`, which exclude stroke width. Overlap and distance are measured on bounding boxes, not on the actual shapes.
 - Each group is created where the frontmost object of its cluster was, on the same layer and at the same stacking position. The stacking order inside the group is kept.
 - The preview frames are drawn on a temporary layer named "SmartClipAndGroup Preview", created at the very top of the layer stack, so they appear in front of every object. Drawing them also adds steps to the undo history.
 - With more than 300 selected objects, the count and preview update when you release the slider rather than while you drag it.
@@ -122,4 +122,5 @@ When on, red frames (no fill, 10 pt stroke, 50% opacity) show where the groups w
 - v1.0.14 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.0.15 (2026-10-16) Right-only button rows are now centered when the dialog's inner width is up to 240 px (was 200 px) (shared part update)
 - v1.0.16 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)
+- v1.1.0 (2026-11-09) Added Appearance to Grouping: objects with the same fill and stroke (colors and stroke weight) are grouped wherever they are
 

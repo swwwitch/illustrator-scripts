@@ -92,7 +92,7 @@ root/
 
 The checkbox under the keyword buttons. When on, the keyword, the **Include subdirectories** state, the **Full path** state in Preferences and both list selections carry over to the next time you open the launcher (on by default). The list selections are dropped when the target folder changes.
 
-They carry over only until Illustrator quits. When off, nothing is kept and the launcher always opens in its initial state.
+They carry over only until Illustrator quits. When you close it with the box off, nothing is kept and the launcher opens in its initial state next time, with **Remember the search** turned back on.
 
 **Preferences dialog**
 
@@ -114,6 +114,7 @@ Changing the folder and pressing OK rebuilds the list against the new folder.
 - If this launcher itself lives inside the target folder, it is left out of the list
 - File names written only in Japanese produce no buttons on the first row, since the extractor looks for ASCII words
 - The second row takes runs of katakana and runs of kanji (two characters or more) from the descriptions as words, skipping a few generic ones (`スクリプト`, `選択`, `指定`, `複数`). Each row shows only the buttons that fit the dialog width
+- When no script in the folder has a description, the launcher opens with a single file-name column and up to two rows of English keyword buttons. Set `SHOW_DESCRIPTION_COLUMN` at the top of the script to `false` to always use this layout and skip reading the descriptions
 - Descriptions are read from the `var SCRIPT_DESCRIPTION_JA = "…";` line near the top of each script. Scripts without that line and `.jsxbin` files show an empty column. Long file names are cut short with "..." (the search still uses the full name)
 - The target folder and keyword settings are stored in `Folder.userData/illustrator-scripts/AiScriptLauncher.json` (the former Illustrator preferences `AiScriptLauncher.*` are read once). The only other file the script writes is the session file described in the next bullet
 - While **Remember the search** is on, the keyword, the “Include subdirectories” and “Full path” states and the list selections carry over until Illustrator quits. They are stored in `AiScriptLauncher.session.txt` in the temp folder, tagged with the creation time of the session lock file Illustrator writes at launch, so a restart changes that time and brings back the defaults (macOS only)
@@ -138,6 +139,8 @@ ExtendScript has no way to reveal a file with selection, so the path is handed t
 
 ### Update History
 
+- v1.7.2 (2026-11-09) After closing with **Remember the search** off, the checkbox is back on the next time you open the launcher. It used to stay off until Illustrator quit, which made it easy to miss that nothing was being remembered
+- v1.7.1 (2026-11-09) When no script in the folder has a description (`SCRIPT_DESCRIPTION_JA`), the launcher opens without the description column (a single file-name column, with up to two rows of English keyword buttons). Set `SHOW_DESCRIPTION_COLUMN` at the top of the script to `false` to always use this layout
 - v1.7.0 (2026-11-09) Split the file name list into two columns; the right column shows each script's description (`SCRIPT_DESCRIPTION_JA`), which the keyword search now covers. Drag the header divider to resize the columns. Keyword buttons now take two rows: English words from the file names on the first, and up to eight frequent Japanese words from the descriptions on the second
 - v1.6.2 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)
 - v1.6.1 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)

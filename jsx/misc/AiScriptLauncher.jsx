@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.AiScriptLauncher
 Name=スクリプトをキーワードで絞り込んで実行
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.7.0
+Version=1.7.2
 Release-Date=2025-11-13
 Description-BEGIN
 指定したフォルダー内の .jsx / .js / .jsxbin をキーワードで絞り込み、選んだスクリプトをその場で実行するランチャーです。
@@ -47,7 +47,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiScriptLa
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AiScriptLauncher";             /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.7.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.7.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-11-13";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-11-09";                   /* 更新日 / last updated */
@@ -77,6 +77,10 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
 
     /* 一覧に載せる拡張子 / Script file extensions to list */
     var SCRIPT_EXT_RE = /\.(jsx|js|jsxbin)$/i;
+
+    /* 説明の列を出すかどうか。false でファイル名だけの1列（説明なし版）。true でも説明が1つも無いフォルダーでは説明なし版になる
+       Show the description column. false gives the plain file-name list; folders without any description fall back to it too */
+    var SHOW_DESCRIPTION_COLUMN = true;
 
     /* 右の列に出す説明。各スクリプトの基本情報ブロックから読む / Description shown in the second column */
     var SCRIPT_DESCRIPTION_RE  = /SCRIPT_DESCRIPTION_JA\s*=\s*"([^"\r\n]*)"/;
@@ -1050,6 +1054,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     /* リストと入力欄の寸法 / List and field sizes */
     var FOLDER_LIST_SIZE          = [140, 360]; /* フォルダーリストの寸法 [幅,高さ] / folder list size */
     var SCRIPT_LIST_SIZE          = [480, 360]; /* ファイル名リストの寸法 [幅,高さ]。ダイアログ幅＝キーワード欄の長さを決める / script list size */
+    var PLAIN_SCRIPT_LIST_SIZE    = [280, 360]; /* 説明なし版のファイル名リストの寸法 / script list size without descriptions */
     var SCRIPT_LIST_COLUMN_WIDTHS = [200, 260]; /* ファイル名・説明の列幅 / column widths (file name, description) */
     var FILE_NAME_COLUMN_CHARS    = 28;         /* 1列目に出すファイル名の最大文字数。Macでは長い1列目が列幅を無視して広がる / max file name length */
 
@@ -1071,10 +1076,17 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     var PRESET_BUTTON_PADDING  = 16;         /* 文字幅に足す左右の余白 / horizontal padding */
     var PRESET_CHAR_WIDTH      = 7;          /* 実測できない環境用の1文字概算幅 / fallback char width */
     var PRESET_WIDE_CHAR_WIDTH = 13;         /* 同じく全角文字の概算幅 / fallback width of a full-width char */
-    var PRESET_ROW_COUNT       = 2;          /* 1行目に英語、2行目に日本語 / English row, then Japanese row */
+    var PRESET_ROW_COUNT       = 2;          /* 1行目に英語、2行目に日本語。説明なし版は英語で2行 / English row, then Japanese row */
 
-    /* キーワードボタン1行に使える幅。リスト2本と間隔の合計からパネルの左右余白を引く / Width available to one row of buttons */
-    var PRESET_ROW_WIDTH = FOLDER_LIST_SIZE[0] + COLUMN_SPACING + SCRIPT_LIST_SIZE[0] - PANEL_MARGINS[0] - PANEL_MARGINS[2];
+    /**
+     * キーワードボタン1行に使える幅を返す。リスト2本と間隔の合計からパネルの左右余白を引く
+     * @param {boolean} showsDescription - 説明の列を出しているなら true
+     * @returns {number} 1行の幅
+     */
+    function getPresetRowWidth(showsDescription) {
+        var scriptListWidth = showsDescription ? SCRIPT_LIST_SIZE[0] : PLAIN_SCRIPT_LIST_SIZE[0];
+        return FOLDER_LIST_SIZE[0] + COLUMN_SPACING + scriptListWidth - PANEL_MARGINS[0] - PANEL_MARGINS[2];
+    }
 
     /* キーワード欄のクリアボタン（自前描画） / Clear button next to the keyword field (custom drawn) */
     var CLEAR_BUTTON_SIZE    = 20;           /* クリアボタンの一辺 / clear button size */
@@ -2186,6 +2198,18 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     }
 
     /**
+     * 説明を持つスクリプトが1つでもあるかどうかを判定する
+     * @param {Array<ScriptEntry>} scriptEntries - 判定するスクリプト
+     * @returns {boolean} 1つでもあれば true
+     */
+    function hasAnyDescription(scriptEntries) {
+        for (var i = 0; i < scriptEntries.length; i++) {
+            if (scriptEntries[i].description !== "") return true;
+        }
+        return false;
+    }
+
+    /**
      * 1列目に収まるようにファイル名を切り詰める
      * @param {string} fileName - ファイル名
      * @returns {string} FILE_NAME_COLUMN_CHARS を超える分を「...」にしたファイル名
@@ -2244,7 +2268,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             /* 対象フォルダーからの階層の深さ。直下は0、artboard/backup は2 / Depth below the root folder */
             var folderDepth = (decodedFolderPath === "") ? 0 : decodedFolderPath.split(/[\\\/]/).length;
 
-            var scriptDescription = readScriptDescription(folderItem);
+            /* 説明なし版ではファイルを開かない / Skip reading files when descriptions are off */
+            var scriptDescription = SHOW_DESCRIPTION_COLUMN ? readScriptDescription(folderItem) : "";
 
             collectedEntries.push({
                 file: folderItem,
@@ -3103,9 +3128,10 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
      * 左右2本のリストを組み立てる
      * @param {Window} parentWindow - 追加先のウィンドウ
      * @param {boolean} includeSubfolders - 「サブディレクトリを含む」の初期状態
+     * @param {boolean} showsDescription - true で右のリストを「ファイル名｜説明」の2列にする
      * @returns {{folderListBox: ListBox, subfoldersCheckbox: Checkbox, scriptListBox: ListBox}} リスト部品
      */
-    function buildListColumns(parentWindow, includeSubfolders) {
+    function buildListColumns(parentWindow, includeSubfolders, showsDescription) {
         /* 左でフォルダーを選び、右にそのフォルダー内のファイル名だけを並べる / Folder on the left, file names on the right */
         var listRow = parentWindow.add("group");
         setupRow(listRow, "fill", COLUMN_SPACING);
@@ -3124,15 +3150,21 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         subfoldersCheckbox.helpTip = getLabel(LABELS.tooltip.includeSubfolders);
 
         var scriptColumn = addListColumn(listRow, getLabel(LABELS.listCaption.fileName));
-        /* 1列目にファイル名、2列目に説明（SCRIPT_DESCRIPTION_JA）。見出しの区切り線をドラッグすると列幅を変えられる / Drag the header divider to resize the columns */
-        var scriptListBox = scriptColumn.add("listbox", undefined, [], {
-            multiselect: false,
-            numberOfColumns: 2,
-            showHeaders: true,
-            columnTitles: [getLabel(LABELS.listColumn.fileName), getLabel(LABELS.listColumn.description)],
-            columnWidths: SCRIPT_LIST_COLUMN_WIDTHS
-        });
-        scriptListBox.preferredSize = SCRIPT_LIST_SIZE;
+        var scriptListBox;
+        if (showsDescription) {
+            /* 1列目にファイル名、2列目に説明（SCRIPT_DESCRIPTION_JA）。見出しの区切り線をドラッグすると列幅を変えられる / Drag the header divider to resize the columns */
+            scriptListBox = scriptColumn.add("listbox", undefined, [], {
+                multiselect: false,
+                numberOfColumns: 2,
+                showHeaders: true,
+                columnTitles: [getLabel(LABELS.listColumn.fileName), getLabel(LABELS.listColumn.description)],
+                columnWidths: SCRIPT_LIST_COLUMN_WIDTHS
+            });
+            scriptListBox.preferredSize = SCRIPT_LIST_SIZE;
+        } else {
+            scriptListBox = scriptColumn.add("listbox", undefined, [], { multiselect: false });
+            scriptListBox.preferredSize = PLAIN_SCRIPT_LIST_SIZE;
+        }
         scriptListBox.helpTip = getLabel(LABELS.tooltip.scriptList);
 
         return { folderListBox: folderListBox, subfoldersCheckbox: subfoldersCheckbox, scriptListBox: scriptListBox };
@@ -3191,6 +3223,9 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             return { action: "changeFolder", file: null, folder: null };
         }
 
+        /* 説明が1つも無いフォルダーでは説明なし版にする / Fall back to the plain list when no script has a description */
+        var showsDescription = SHOW_DESCRIPTION_COLUMN && hasAnyDescription(scriptEntries);
+
         /* 同じセッション中に開き直したときは、前回の絞り込みから再開する / Resume the previous search within the session */
         var sessionState = readSessionState();
 
@@ -3221,7 +3256,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         var isDialogShown = false;
         reserveKeywordPresetHeight(keywordPresetContainer);
 
-        var listParts = buildListColumns(launcherDialog, sessionState.includeSubfolders);
+        var listParts = buildListColumns(launcherDialog, sessionState.includeSubfolders, showsDescription);
         var folderListBox = listParts.folderListBox;
         var includeSubfoldersCheckbox = listParts.subfoldersCheckbox;
         var scriptListBox = listParts.scriptListBox;
@@ -3271,40 +3306,53 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             }
             keywordPresetRows = [];
 
-            addKeywordPresetRow(englishWords, true);
-            addKeywordPresetRow(japaneseWords, false);
+            /* 説明なし版は日本語の行が無いので、英語を2行まで並べる / Without descriptions, English takes both rows */
+            if (showsDescription) {
+                addKeywordPresetRows(englishWords, true, 1);
+                addKeywordPresetRows(japaneseWords, false, 1);
+            } else {
+                addKeywordPresetRows(englishWords, true, PRESET_ROW_COUNT);
+            }
 
             /* 置き場の高さは固定してあるので、ここだけ組み直せばダイアログは動かない / Fixed height keeps the dialog still */
             if (isDialogShown) keywordPresetContainer.layout.layout(true);
         }
 
         /**
-         * キーワードボタンを1行並べる。行の幅に収まらない分は出さない
+         * キーワードボタンを行の幅で折り返して並べる。指定の行数に収まらない分は出さない
          * @param {Array<string>} presetWords - 並べる語（多い順）
          * @param {boolean} capitalizes - true で先頭を大文字にして表示する（英語）
+         * @param {number} rowCount - 使う行数
          * @returns {void}
          */
-        function addKeywordPresetRow(presetWords, capitalizes) {
-            /* 語が無くても行は作る。日本語が2行目に来る位置を保つ / Keep the row even when empty */
-            var presetRow = keywordPresetContainer.add("group");
-            setupRow(presetRow, "left", DENSE_SPACING);
-            presetRow.minimumSize.height = PRESET_BUTTON_HEIGHT;
-            keywordPresetRows.push(presetRow);
+        function addKeywordPresetRows(presetWords, capitalizes, rowCount) {
+            var rowWidth = getPresetRowWidth(showsDescription);
+            var wordIndex = 0;
 
-            var usedWidth = 0;
-            for (var j = 0; j < presetWords.length; j++) {
-                var presetButton = presetRow.add("button", undefined, capitalizes ? capitalizeWord(presetWords[j]) : presetWords[j]);
-                var buttonWidth = applyPresetButtonSize(presetButton);
-                var nextWidth = usedWidth + (j > 0 ? DENSE_SPACING : 0) + buttonWidth;
+            for (var r = 0; r < rowCount; r++) {
+                /* 語が無くても行は作る。日本語が2行目に来る位置を保つ / Keep the row even when empty */
+                var presetRow = keywordPresetContainer.add("group");
+                setupRow(presetRow, "left", DENSE_SPACING);
+                presetRow.minimumSize.height = PRESET_BUTTON_HEIGHT;
+                keywordPresetRows.push(presetRow);
 
-                /* はみ出すとダイアログが広がるので、そこで打ち切る / Stop before the row widens the dialog */
-                if (nextWidth > PRESET_ROW_WIDTH) {
-                    presetRow.remove(presetButton);
-                    break;
+                var usedWidth = 0;
+                while (wordIndex < presetWords.length) {
+                    var presetWord = presetWords[wordIndex];
+                    var presetButton = presetRow.add("button", undefined, capitalizes ? capitalizeWord(presetWord) : presetWord);
+                    var buttonWidth = applyPresetButtonSize(presetButton);
+                    var nextWidth = usedWidth + (usedWidth > 0 ? DENSE_SPACING : 0) + buttonWidth;
+
+                    /* はみ出すとダイアログが広がるので、次の行へ回す / Wrap before the row widens the dialog */
+                    if (nextWidth > rowWidth) {
+                        presetRow.remove(presetButton);
+                        break;
+                    }
+                    usedWidth = nextWidth;
+                    presetButton.helpTip = getLabel(LABELS.tooltip.keywordPreset);
+                    presetButton.onClick = makeKeywordPresetHandler(presetWord);
+                    wordIndex++;
                 }
-                usedWidth = nextWidth;
-                presetButton.helpTip = getLabel(LABELS.tooltip.keywordPreset);
-                presetButton.onClick = makeKeywordPresetHandler(presetWords[j]);
             }
         }
 
@@ -3421,8 +3469,13 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             for (var i = 0; i < filteredScripts.length; i++) {
                 if (folderPath !== null && filteredScripts[i].folderPath !== folderPath) continue;
                 listedScripts.push(filteredScripts[i]);
-                var scriptItem = scriptListBox.add("item", truncateFileName(filteredScripts[i].fileName));
-                scriptItem.subItems[0].text = filteredScripts[i].description;
+                var scriptItem;
+                if (showsDescription) {
+                    scriptItem = scriptListBox.add("item", truncateFileName(filteredScripts[i].fileName));
+                    scriptItem.subItems[0].text = filteredScripts[i].description;
+                } else {
+                    scriptItem = scriptListBox.add("item", filteredScripts[i].fileName);
+                }
                 scriptItem.scriptIndex = listedScripts.length - 1;
             }
 
@@ -3461,7 +3514,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             if (isSessionSaved) return;
             isSessionSaved = true;
 
-            var savedState = { remember: rememberCheckbox.value };
+            var savedState = { remember: true };
             if (rememberCheckbox.value) {
                 var chosenScript = selectedScriptEntry();
 
@@ -3473,7 +3526,9 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
                 savedState.folderPath = selectedFolderPath();
                 savedState.fileName = chosenScript ? chosenScript.fileName : null;
             } else {
-                /* OFFのときは初期値を書き、次に開いたときは何も引き継がない / Store the defaults instead */
+                /* OFFのときは初期値を書き、次に開いたときは何も引き継がない。チェック自体も初期値（ON）に戻す
+                   / Store the defaults instead, including the checkbox itself */
+                savedState.remember = REMEMBER_SETTINGS_DEFAULT;
                 savedState.targetFolder = null;
                 savedState.keyword = "";
                 savedState.includeSubfolders = INCLUDE_SUBFOLDERS_DEFAULT;
