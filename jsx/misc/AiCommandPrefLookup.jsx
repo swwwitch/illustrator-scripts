@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.AiCommandPrefLookup
 Name=メニューコマンド・ツール・環境設定のコードを引く
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.2.0
+Version=1.2.1
 Release-Date=2026-09-27
 Description-BEGIN
 内蔵の一覧を種類・言語・カテゴリ・キーワードで絞り込んで項目を選び、app.executeMenuCommand() / app.selectTool() / app.preferences の get・set のコードを出力します。
@@ -43,7 +43,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiCommandP
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AiCommandPrefLookup";          /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.2.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.2.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-09-27";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-09";                   /* 更新日 / last updated */
@@ -2277,6 +2277,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             "編集 > 環境設定 > ユーザーインターフェイス...\tUIPref\tAi 30 のショートカットファイルでは userInterfacePref（旧 ID が動くかは未確認）",
             "編集 > 環境設定 > パフォーマンス...\tGPUPerformancePref",
             "編集 > 環境設定 > ブラックのアピアランス...\tBlackPref",
+            "編集 > 環境設定 > MCPおよびツール...\tAIToolsPref\tAi 31 から（Ai 31.0.0 で確認）",
             "Illustrator > 環境設定 > 一般...\tpreference",
             "Illustrator > 環境設定 > 選択範囲・アンカー表示...\tselectPref\tAi 30 のショートカットファイルでは selectionPref（旧 ID が動くかは未確認）",
             "Illustrator > 環境設定 > テキスト...\tkeyboardPref",
@@ -2291,6 +2292,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             "Illustrator > 環境設定 > ファイル管理...\tFilePref",
             "Illustrator > 環境設定 > クリップボード...\tClipboardPref",
             "Illustrator > 環境設定 > ブラックのアピアランス...\tBlackPref",
+            "Illustrator > 環境設定 > MCPおよびツール...\tAIToolsPref\tAi 31 から（Ai 31.0.0 で確認）",
             "オブジェクト > 変形 > 変形の繰り返し\ttransformagain",
             "オブジェクト > 変形 > 移動...\ttransformmove",
             "オブジェクト > 変形 > 回転...\ttransformrotate",
@@ -2679,6 +2681,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             "ウィンドウ > パスファインダー\tAdobe PathfinderUI",
             "ウィンドウ > パターンオプション\tAdobe Pattern Panel Toggle",
             "ウィンドウ > ブラシ\tAdobe BrushManager Menu Item",
+            "ウィンドウ > ブレンド\tAdobe Blend Palette\tAi 31 から（Ai 31.0.0 で確認）",
             "ウィンドウ > プロパティ\tAdobe Property Palette",
             "ウィンドウ > リンク\tAdobe LinkPalette Menu Item",
             "ウィンドウ > レイヤー\tAdobeLayerPalette1",
@@ -2833,6 +2836,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             "クロスと重なりを選択ツール\tAdobe Intertwine Zone Marker Tool",
             "寸法ツール\tAdobe Dimension Tool",
             "パス上オブジェクトツール\tAdobe Constraints Tool",
+            "Objects on Path Tool\tAdobe Constraints Tool",
             "Object > Objects on Path > Attach\tAttach Objects on Path\t廃止：Ai 29.1 まで（Ai 29 から）",
             "Object > Objects on Path > Options\tOptions Objects on Path",
             "Object > Objects on Path > Expand\tExpand Objects on Path",
@@ -2868,6 +2872,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             "ファイル管理\tFilePref",
             "クリップボードの処理\tClipboardPref",
             "ブラックのアピアランス\tBlackPref",
+            "MCPおよびツール\tAIToolsPref\tAi 31 から（Ai 31.0.0 で確認）",
             "デバイス\tDevicesPref",
             "General\tpreference",
             "Selection & Anchor Display\tselectPref\tAi 30 のショートカットファイルでは selectionPref（旧 ID が動くかは未確認）",
@@ -2883,6 +2888,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             "File Handling\tFilePref",
             "Clipboard Handling\tClipboardPref",
             "Appearance of Black\tBlackPref",
+            "MCP and Tools\tAIToolsPref\tAi 31 から（Ai 31.0.0 で確認、英語名は未確認）",
             "Devices\tDevicesPref",
             "Window > Libraries\tAdobe CSXS Extension com.adobe.DesignLibraries.angularLibraries",
             "Window > History\tAdobe History Panel Menu Item",
@@ -2932,7 +2938,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             "オブジェクト > 生成 > ターンテーブル (20 クレジット)\tGenAIConsolidatedTurntable\t廃止：Ai 30.4 まで（Ai 30.3 から）",
             "ウィンドウ > コンセプトからベクター生成\tSketchToVectorUnified",
             "書式 > 書き直し...\tGenerateTextTypeMenu\t廃止：Ai 30.5 まで（Ai 30.5 から）",
-            "書式 > Retype\tReTypeTypeMenu",
+            "書式 > Retype\tReTypeTypeMenu\tAi 31 の初期設定のショートカットファイルには無いが、Ai 31.0.0 でも動く（Retype パネルが開く）",
             "オブジェクト > 生成 > コンセプトからベクター生成\tGenAIConsolidatedTrace",
             "オブジェクト > 整列 > 水平・垂直方向中央に整列\tHorizontal && Vertical Align Center",
             "編集 > プロンプトで編集\tEditGeneratedObjectEditMenu",
@@ -3020,7 +3026,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             "Object > Generative > Turntable (20 credits)\tGenAIConsolidatedTurntable\t廃止：Ai 30.4 まで（Ai 30.3 から）",
             "Window > Concept to Vector\tSketchToVectorUnified",
             "Type > Rewrite...\tGenerateTextTypeMenu\t廃止：Ai 30.5 まで（Ai 30.5 から）",
-            "Type > Retype\tReTypeTypeMenu",
+            "Type > Retype\tReTypeTypeMenu\tAi 31 の初期設定のショートカットファイルには無いが、Ai 31.0.0 でも動く（Retype パネルが開く）",
             "Object > Generative > Concept to Vector\tGenAIConsolidatedTrace",
             "Object > Align > Horizontal & Vertical Align Center\tHorizontal && Vertical Align Center",
             "Edit > Prompt to edit\tEditGeneratedObjectEditMenu",
@@ -3404,10 +3410,10 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             "File Handling > File Save Options > Automatically Save Recovery Data Every «Folder»\tCrashRecovery/RecoveryFolderLocation\tString\t\t値：\\n/Users/«username»/Library/Preferences/Adobe Illustrator 26 Settings/ja_JP/DataRecovery",
             "ファイル管理 > ファイル保存オプション > 複雑なドキュメントではデータの復元を無効にする\tCrashRecovery/TurnOffForComplexDocument\tBoolean\t1",
             "File Handling > File Save Options > Turn off Data Recovery for complex documents\tCrashRecovery/TurnOffForComplexDocument\tBoolean\t1",
-            "ファイル管理 > ファイル保存オプション > バックグラウンドで保存\tenableBackgroundSave\tInteger\t0\t動作しない?",
-            "File Handling > File Save Options > Save in Background\tenableBackgroundSave\tInteger\t0\t動作しない?",
-            "ファイル管理 > ファイル保存オプション > バックグラウンドで書き出し\tenableBackgroundExport\tInteger\t0\t動作しない?",
-            "File Handling > File Save Options > Export in Background\tenableBackgroundExport\tInteger\t0\t動作しない?",
+            "ファイル管理 > ファイル保存オプション > バックグラウンドで保存\tenableBackgroundSave\tInteger\t0\t値は「Adobe Illustrator Cloud Prefs」にある（0：オフ、1：オン）。app.preferences の get は常に 1 を返し読めない。set の効果は未確認",
+            "File Handling > File Save Options > Save in Background\tenableBackgroundSave\tInteger\t0\t値は「Adobe Illustrator Cloud Prefs」にある（0：オフ、1：オン）。app.preferences の get は常に 1 を返し読めない。set の効果は未確認",
+            "ファイル管理 > ファイル保存オプション > バックグラウンドで書き出し\tenableBackgroundExport\tInteger\t0\t値は「Adobe Illustrator Cloud Prefs」にある（0：オフ、1：オン）。app.preferences の get は常に 1 を返し読めない。set の効果は未確認",
+            "File Handling > File Save Options > Export in Background\tenableBackgroundExport\tInteger\t0\t値は「Adobe Illustrator Cloud Prefs」にある（0：オフ、1：オン）。app.preferences の get は常に 1 を返し読めない。set の効果は未確認",
             "ファイル管理 > ファイル保存オプション > クラウドドキュメントを次の間隔で自動保存 «真偽値»\tcloudAIEnableAutoSave\tInteger\t0\t動作しない?",
             "File Handling > File Save Options > Automatically Save Cloud Documents Every «Checked»\tcloudAIEnableAutoSave\tInteger\t0\t動作しない?",
             "ファイル管理 > ファイル保存オプション > クラウドドキュメントを次の間隔で自動保存 «時間»\tcloudAIAutoSaveTimerInterval\tInteger\t300\t動作しない?",
@@ -4871,10 +4877,10 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             "Other Misc > Superscript (Secondary)\t~superScript2",
             "\tAdobe Presentation Mode",
             "\tAdobeAlignHorizVertCenterToArtboardOther",
-            "\tApply Last Filter",
+            "\tApply Last Filter\tAi 31 の初期設定のショートカットファイルには無い。Ai 31.0.0 では直前の効果が無い状態で実行するとエラー（yeKB）",
             "\tExportSettings",
             "\tImportSettings",
-            "\tLast Filter",
+            "\tLast Filter\tAi 31 の初期設定のショートカットファイルには無い。Ai 31.0.0 では直前の効果が無い状態で実行するとエラー（yeKB）",
             "\tOpenGLCompositorPreview",
             "\tRotateView120",
             "\tRotateView135",
@@ -4968,7 +4974,11 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             "オブジェクト > 裁ち落としを印刷...\tGen Bleed Object Menu\t廃止：Ai 29.8 まで（Ai 29.6 から）",
             "Object > Print Bleed...\tGen Bleed Object Menu\t廃止：Ai 29.8 まで（Ai 29.6 から）",
             "ファイル > ベクターを生成\tGenerate Modal File Menu \t廃止：Ai 29.8 まで（Ai 29.5 から）",
-            "File > Generate Vectors\tGenerate Modal File Menu \t廃止：Ai 29.8 まで（Ai 29.5 から）"
+            "File > Generate Vectors\tGenerate Modal File Menu \t廃止：Ai 29.8 まで（Ai 29.5 から）",
+            "\tinternal palettes posing as plug-in menus-aiassistant\tAi 31 の初期設定のショートカットファイルにある。Ai 31.0.0 で実行しても何も起きなかった",
+            "MCPおよびツール > アプリケーションヘッダーに MCP およびツールのステータスを表示\tplugin/AIMCPServer/ShowConnectionStatusOnHeader\tInteger\t0\tAi 31 から。0：オフ、1：オン（Ai 31.0.0 で GUI と一致を確認）",
+            "\tAllowVSCodeDebuggerConnections\tInteger\t0\tAi 31 から。名前・値の意味は未確認（get は存在しないキーと異なる値を返す）",
+            "MCPおよびツール > MCP サーバーを有効にする\tplugin/AIMCPServer/ServerEnabled\tInteger\t1\tAi 31 から。0：オフ、1：オン（Ai 31.0.0 で GUI と一致を確認）。getRealPreference で読むとオフになる"
         ];
     }
 

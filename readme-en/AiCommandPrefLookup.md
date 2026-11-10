@@ -80,3 +80,4 @@ https://note.com/dtp_tranist/n/n0cf4826bf4a7
 - v1.1.1 (2026-10-03) Fixed a typo in the Japanese menu command name for Show/Hide Rulers
 - v1.1.2 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.2.0 (2026-10-09) Kind and Language are now checkboxes instead of radio buttons, so several can be shown at once. Option-click (Alt-click) turns all on; option-click again keeps only the clicked one
+- v1.2.1 (2026-11-11) Updated the notes for Save/Export in Background (enableBackgroundSave / enableBackgroundExport): the value lives in Cloud Prefs and cannot be read with get. Added the English name row for the Objects on Path tool. Added Illustrator 31 menu commands (Window > Blend, Preferences > MCP and Tools) and preference keys (Enable MCP Server, show MCP and Tools status in the application header, and others)
