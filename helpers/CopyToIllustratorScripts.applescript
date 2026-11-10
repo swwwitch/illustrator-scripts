@@ -17,6 +17,9 @@
 -- The Scripts folders are owned by root, so copying asks for an administrator password when needed.
 -- Files are staged in /private/tmp first because root processes cannot read ~/Downloads etc. (TCC).
 -- All Illustrator versions share one bundle ID, so running instances are matched by app path.
+--
+-- Released under the MIT license
+-- http://opensource.org/licenses/mit-license.php
 
 use AppleScript version "2.4"
 use scripting additions
