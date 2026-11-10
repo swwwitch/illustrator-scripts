@@ -1,4 +1,4 @@
--- Copy to Illustrator Scripts.app
+-- CopyToIllustratorScripts.app
 -- アイコンにドロップしたファイル（フォルダー可）を、Illustrator の Presets.localized/ja_JP/スクリプト に複製する。
 -- Illustrator が複数入っているときは、複製先のバージョンをリストから選ぶ（既定は年付きで最も新しいもの）。
 -- ダブルクリックで起動したときは、ファイルを選ぶダイアログボックスを出す。
@@ -9,7 +9,7 @@
 -- If a target Illustrator is running, offers to relaunch it so the Scripts menu picks up the new files.
 --
 -- 作り方 / Build:
---   osacompile -o ~/Applications/"Copy to Illustrator Scripts.app" helpers/CopyToIllustratorScripts.applescript
+--   osacompile -o helpers/CopyToIllustratorScripts.app helpers/CopyToIllustratorScripts.applescript
 --
 -- 複製先は root の持ち物なので、書き込めないときは管理者の権限でコピーする。
 -- root のプロセスは ~/Downloads などを読めない（TCC）ため、いったん /private/tmp に写してから運ぶ。
