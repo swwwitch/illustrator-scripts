@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.SmartStrokeSettings
 Name=よく使う矢印と線の設定をまとめて適用
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.3.2
+Version=1.3.3
 Release-Date=2026-10-03
 Description-BEGIN
 選択したパスに、よく使う矢印と線の設定（線幅・線端・角の形状・カラー・破線・白フチ）をまとめて適用します。
@@ -47,10 +47,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartStrok
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SmartStrokeSettings";          /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.3.2";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.3.3";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-03";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-11-05";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-11-12";                   /* 更新日 / last updated */
 
 var SCRIPT_DESCRIPTION_JA = "よく使う矢印と線の設定をまとめて適用"; /* README の見出し / README title (Japanese) */
 
@@ -3005,20 +3005,44 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     function applyStrokeSettings(strokePaths, strokeSettings) {
         /* 元の色はアクションの前に控える（線の無いパスはアクションで線が付き、色が変わるため）/ note the colors before the action adds strokes */
         var originalColors = collectOriginalColors(strokePaths);
+        addMissingStrokes(strokePaths, originalColors);
         playStrokeAction(strokeSettings);
         applyDashStyle(strokePaths, strokeSettings.dashCalc);
         applyStrokeColor(strokePaths, strokeSettings.strokeColor, originalColors);
     }
 
     /**
-     * パスごとの元の色を控える（線があれば線の色、線が無ければ塗りの色）
+     * パスごとの元の色を控える（線があれば線の色、線が無ければ塗りの色、どちらも無ければ黒）
      * @param {PathItem[]} strokePaths - collectStrokePaths() で集めたパス
-     * @returns {Array} 色の並び（色が無ければ null）
+     * @returns {Color[]} 色の並び
      */
     function collectOriginalColors(strokePaths) {
         var originalColors = [];
-        for (var i = 0; i < strokePaths.length; i++) originalColors.push(getPathColor(strokePaths[i]));
+        for (var i = 0; i < strokePaths.length; i++) originalColors.push(getPathColor(strokePaths[i]) || createBlackColor());
         return originalColors;
+    }
+
+    /**
+     * 線のカラーが無いパスに線を付ける（カラーが無いと線幅を指定しても線が見えないため）
+     * @param {PathItem[]} strokePaths - collectStrokePaths() で集めたパス
+     * @param {Color[]} originalColors - collectOriginalColors() の戻り値
+     * @returns {void}
+     */
+    function addMissingStrokes(strokePaths, originalColors) {
+        for (var i = 0; i < strokePaths.length; i++) {
+            if (hasStrokeColor(strokePaths[i])) continue;
+            strokePaths[i].stroked = true;
+            strokePaths[i].strokeColor = originalColors[i];
+        }
+    }
+
+    /**
+     * 線にカラーが付いているかを返す
+     * @param {PathItem} strokePath - パス
+     * @returns {boolean} 線があり、カラーが「なし」でなければ true
+     */
+    function hasStrokeColor(strokePath) {
+        return strokePath.stroked && strokePath.strokeColor.typename !== "NoColor";
     }
 
     /**
@@ -3027,7 +3051,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
      * @returns {Color|null} 色。線も塗りも無ければ null
      */
     function getPathColor(strokePath) {
-        if (strokePath.stroked) return strokePath.strokeColor;
+        if (hasStrokeColor(strokePath)) return strokePath.strokeColor;
         if (strokePath.filled) return strokePath.fillColor;
         return null;
     }
@@ -3312,6 +3336,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         /* 白フチのグループの中のパスだけを選んでいるときは、元の白フチもプレビューの間だけ隠す
            when only the path inside a white outline group is selected, hide its old outline during the preview too */
         siblingWhiteEdges = collectSiblingWhiteEdges(sourceItems);
+        var originalColors = collectOriginalColors(strokePaths);
         for (i = 0; i < strokePaths.length; i++) {
             var strokePath = strokePaths[i];
             originalStates.push({
@@ -3363,10 +3388,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             previewStrokeWidth: function (strokeWidth) {
                 clearActionPreview();
                 if (isNaN(strokeWidth) || strokeWidth < 0) return;
-                for (var i = 0; i < strokePaths.length; i++) {
-                    strokePaths[i].stroked = true;
-                    strokePaths[i].strokeWidth = strokeWidth;
-                }
+                addMissingStrokes(strokePaths, originalColors);
+                for (var i = 0; i < strokePaths.length; i++) strokePaths[i].strokeWidth = strokeWidth;
                 app.redraw();
             },
 
