@@ -30,6 +30,9 @@ SCRIPTMETA-END
 詳細は README を参照してください。
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartAlignDistribute.md
 
+note記事も参照してください。
+https://note.com/dtp_tranist/n/na3c45cea09b7
+
 ### Overview
 
 Lines the selected objects up vertically or horizontally and distributes them at the spacing you specify.
@@ -51,9 +54,10 @@ var SCRIPT_UPDATED  = "2026-11-05";                   /* 更新日 / last update
 
 var SCRIPT_DESCRIPTION_JA = "縦横を自動判定して指定間隔で分布"; /* README の見出し / README title (Japanese) */
 
-var SCRIPT_README_JA  = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartAlignDistribute.md"; /* README（日本語） */
-var SCRIPT_README_EN  = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartAlignDistribute.md"; /* README (English) */
-var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/SmartAlignDistribute.jsx"; /* 最新版のソース / latest source */
+var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartAlignDistribute.md"; /* README（日本語） */
+var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartAlignDistribute.md"; /* README (English) */
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na3c45cea09b7"; /* 紹介記事 / article URL */
+var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/SmartAlignDistribute.jsx"; /* 最新版のソース / latest source */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php

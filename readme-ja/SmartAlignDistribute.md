@@ -22,6 +22,10 @@ https://github.com/johnwun/js4ai/blob/master/distributeStackedObjects.jsx
 Gorolib Design
 https://gorolib.blog.jp/archives/77282974.html
 
+### 紹介記事
+
+https://note.com/dtp_tranist/n/na3c45cea09b7
+
 ### スクリプト情報
 
 - バージョン: v1.3.10

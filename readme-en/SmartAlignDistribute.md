@@ -24,6 +24,10 @@ Gorolib Design
 
 https://gorolib.blog.jp/archives/77282974.html
 
+### Article
+
+https://note.com/dtp_tranist/n/na3c45cea09b7 (Japanese)
+
 ### Script info
 
 - Version: v1.3.10
