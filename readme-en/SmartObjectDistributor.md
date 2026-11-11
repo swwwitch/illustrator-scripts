@@ -21,7 +21,7 @@ The placement area can be the current artboard, the backmost object, or a rectan
 - Placement area switching (current artboard / backmost object / rectangle in the "_target" layer)
 - Rows, columns, gutter, and margin settings
 - Initial rows and columns derived from the selection count and the area's aspect ratio, so cells stay nearly square
-- Resizing to the cells (Width / Height / Area (W × H) / Scale), keeping the aspect ratio, with a ratio in %
+- Resizing to the cells (Width / Height / Area / Scale), keeping the aspect ratio, with a ratio in %
 - Cell handling: Keep as Rectangle, Convert to Guides, or Convert to Artboards
 - Cell fill (black, white, or no fill) and opacity
 - Shuffle button to randomize the order in which objects fill the cells
@@ -51,14 +51,14 @@ The placement area can be the current artboard, the backmost object, or a rectan
 | --- | --- |
 | Placement Area | Current artboard / backmost object / rectangle in the "_target" layer |
 | Divisions & Margin | Rows, columns, gutter, margin |
-| Resize | None / Width / Height / Area (W × H) / Scale, ratio (%) |
+| Resize | None / Width / Height / Area / Scale, ratio (%) |
 | Cell Handling | Keep as Rectangle / Convert to Guides / Convert to Artboards, color (black / white / no fill), opacity, transparency grid |
 
 ![ss-746-988-72-20250521-053754](https://github.com/user-attachments/assets/3bec4d25-184d-46ab-98c5-fecbb2be9c0d)
 
 ## Notes
 
-- In Resize, Width and Height match each object to the cell width or height times the ratio; Area (W × H) equalizes the areas, sized so every object fits in the cell times the ratio; Scale is relative to the original size. All keep the aspect ratio and scale stroke weights by the same factor. Objects parked beyond the cell count are not resized.
+- In Resize, Width and Height match each object to the cell width or height times the ratio; Area equalizes the areas, sized so every object fits in the cell times the ratio; Scale is relative to the original size. All keep the aspect ratio and scale stroke weights by the same factor. Objects parked beyond the cell count are not resized.
 - The rectangle in the "_target" layer is hidden while the script runs and is never placed into a cell. A rectangle you had already hidden stays hidden afterwards.
 - When the "_target" layer holds several paths, a rectangle wins; open lines and paths with no area are never used as the placement area.
 - When Backmost Object is selected, that framing object is excluded from the objects to place.
@@ -78,7 +78,7 @@ The placement area can be the current artboard, the backmost object, or a rectan
 
 ## Changelog
 
-- v2.0.0 (2026-11-12) Added the Resize panel (Width / Height / Area (W × H) / Scale). The preview now uses duplicates with the originals temporarily hidden instead of Undo, fixing a bug where work done before the script could be undone. Fixed the version at the bottom of the dialog not being shown
+- v2.0.0 (2026-11-12) Added the Resize panel (Width / Height / Area / Scale). The preview now uses duplicates with the originals temporarily hidden instead of Undo, fixing a bug where work done before the script could be undone. Fixed the version at the bottom of the dialog not being shown
 - v1.10.8 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)
 - v1.10.7 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.10.6 (2026-10-01): Added space below the button row to match Illustrator's own dialogs

@@ -1336,7 +1336,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             resizeNone: { ja: "なし", en: "None" },
             resizeWidth: { ja: "幅", en: "Width" },
             resizeHeight: { ja: "高さ", en: "Height" },
-            resizeArea: { ja: "幅×高さ（面積）", en: "Area (W × H)" },
+            resizeArea: { ja: "面積", en: "Area" },
             resizeScale: { ja: "スケール", en: "Scale" }
         },
         button: {
