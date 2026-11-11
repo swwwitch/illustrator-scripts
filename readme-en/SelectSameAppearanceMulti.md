@@ -16,7 +16,7 @@ Runs Select > Same > Appearance once for each selected object and reselects ever
 
 - Uses every selected object, one at a time, as the reference for Same > Appearance
 - For symbol instances, runs Same > Symbol Instance instead, selecting only instances of the same symbol (searched once per symbol, however many instances are selected)
-- If a reference path has no fill, adds every path and compound path with no fill; likewise for no stroke
+- If a reference path has neither fill nor stroke, adds every path and compound path with neither fill nor stroke
 - Combines the results of all passes and selects them together at the end
 - No dialog — just select and run
 - Japanese / English UI (alert messages only)
@@ -39,9 +39,14 @@ For example, selecting one red-stroked object and one blue-filled object selects
 - One menu command runs per reference object, so a large selection takes longer.
 - The selection changes while the script runs. When it finishes, the result replaces the selection — the original selection is not restored.
 
+### Article
+
+[Select every object with the same color or attributes at once in Illustrator (Japanese)](https://note.com/dtp_tranist/n/n61c859d35d86)
+
 ### Update History
 
 - v1.1.0 (20261001) : Symbol instances now select the instances of the same symbol
 - v1.0.0 (20260906) : Initial release
 - v1.1.1 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.2.0 (2026-10-21) Paths and compound paths with no fill or no stroke are also selected when a reference path has no fill or no stroke
+- v1.2.1 (2026-11-12) Paths with no fill or no stroke are now added only when a reference path has neither fill nor stroke (fixes paths of other colors being selected when a reference had only its fill or only its stroke set to none). Faster: references already found by an earlier search are skipped, and less reselection is done. Runs in its own script engine (#targetengine) to start faster

@@ -1,4 +1,5 @@
 #target illustrator
+#targetengine "SelectSameAppearanceMulti"
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
@@ -7,12 +8,12 @@ Script-ID=com.swwwitch.illustrator.SelectSameAppearanceMulti
 Name=複数のオブジェクトを基準に「共通 > アピアランス」を実行
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.2.0
+Version=1.2.1
 Release-Date=2026-09-06
 Description-BEGIN
-選択したオブジェクトそれぞれに「共通 > アピアランス」（シンボルインスタンスは「共通 > シンボルインスタンス」）を適用し、見つかったオブジェクトをまとめて選択し直します。基準に〈塗り〉なし・〈線〉なしのパスがあれば、〈塗り〉なし・〈線〉なしのパスもあわせて選択します。標準機能では基準にできるオブジェクトが1つだけという制限を回避できます。
+選択したオブジェクトそれぞれに「共通 > アピアランス」（シンボルインスタンスは「共通 > シンボルインスタンス」）を適用し、見つかったオブジェクトをまとめて選択し直します。基準に〈塗り〉も〈線〉もないパスがあれば、〈塗り〉も〈線〉もないパスもあわせて選択します。標準機能では基準にできるオブジェクトが1つだけという制限を回避できます。
 
-Applies "Select > Same > Appearance" (or "Same > Symbol Instance" for symbol instances) to each selected object and reselects every object found. If a reference path has no fill or no stroke, every path with no fill or no stroke is selected as well. This works around the built-in limitation of using only one object as the reference.
+Applies "Select > Same > Appearance" (or "Same > Symbol Instance" for symbol instances) to each selected object and reselects every object found. If a reference path has neither fill nor stroke, every path with neither fill nor stroke is selected as well. This works around the built-in limitation of using only one object as the reference.
 Description-END
 SCRIPTMETA-END
 */
@@ -21,14 +22,17 @@ SCRIPTMETA-END
 
 ### 概要
 
-選択したオブジェクトそれぞれに「共通 > アピアランス」（シンボルインスタンスは「共通 > シンボルインスタンス」）を適用し、見つかったオブジェクトをまとめて選択し直します。基準に〈塗り〉なし・〈線〉なしのパスがあれば、〈塗り〉なし・〈線〉なしのパスもあわせて選択します。標準機能では基準にできるオブジェクトが1つだけという制限を回避できます。
+選択したオブジェクトそれぞれに「共通 > アピアランス」（シンボルインスタンスは「共通 > シンボルインスタンス」）を適用し、見つかったオブジェクトをまとめて選択し直します。基準に〈塗り〉も〈線〉もないパスがあれば、〈塗り〉も〈線〉もないパスもあわせて選択します。標準機能では基準にできるオブジェクトが1つだけという制限を回避できます。
 
 詳細は README を参照してください。
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SelectSameAppearanceMulti.md
 
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n61c859d35d86
+
 ### Overview
 
-Applies "Select > Same > Appearance" (or "Same > Symbol Instance" for symbol instances) to each selected object and reselects every object found. If a reference path has no fill or no stroke, every path with no fill or no stroke is selected as well. This works around the built-in limitation of using only one object as the reference.
+Applies "Select > Same > Appearance" (or "Same > Symbol Instance" for symbol instances) to each selected object and reselects every object found. If a reference path has neither fill nor stroke, every path with neither fill nor stroke is selected as well. This works around the built-in limitation of using only one object as the reference.
 
 See the README for details.
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SelectSameAppearanceMulti.md
@@ -39,16 +43,17 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SelectSame
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SelectSameAppearanceMulti";    /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.2.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.2.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-09-06";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-21";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-11-12";                   /* 更新日 / last updated */
 
 var SCRIPT_DESCRIPTION_JA = "複数のオブジェクトを基準に「共通 > アピアランス」を実行"; /* README の見出し / README title (Japanese) */
 
-var SCRIPT_README_JA  = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SelectSameAppearanceMulti.md"; /* README（日本語） */
-var SCRIPT_README_EN  = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SelectSameAppearanceMulti.md"; /* README (English) */
-var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/select/SelectSameAppearanceMulti.jsx"; /* 最新版のソース / latest source */
+var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SelectSameAppearanceMulti.md"; /* README（日本語） */
+var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SelectSameAppearanceMulti.md"; /* README (English) */
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n61c859d35d86"; /* 紹介記事 / article URL */
+var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/select/SelectSameAppearanceMulti.jsx"; /* 最新版のソース / latest source */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
@@ -160,13 +165,16 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
      * 指定したページアイテムを基準に「共通 > アピアランス」を実行し、選択されたページアイテムを返す。
      * シンボルインスタンスは「共通 > シンボルインスタンス」で同じシンボルのインスタンスを選択する
      * @param {PageItem} referencePageItem - 基準にするページアイテム
+     * @param {boolean} isSoleSelection - 基準だけがすでに選択されているか（true なら選択を付け替えない）
      * @returns {PageItem[]} 一致したページアイテムの配列
      */
-    function findPageItemsWithSameAppearance(referencePageItem) {
-        doc.selection = null;
-        referencePageItem.selected = true;
-        /* 選択状態を確定させてからメニューコマンドを実行する */
-        app.redraw();
+    function findPageItemsWithSameAppearance(referencePageItem, isSoleSelection) {
+        if (!isSoleSelection) {
+            doc.selection = null;
+            referencePageItem.selected = true;
+            /* 選択状態を確定させてからメニューコマンドを実行する */
+            app.redraw();
+        }
         if (referencePageItem.typename === "SymbolItem") {
             app.executeMenuCommand("Find Symbol Instance menu item");
         } else {
@@ -211,13 +219,11 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
     }
 
     /**
-     * 〈塗り〉なし、または〈線〉なしのパス・複合パスをドキュメントから集める。
+     * 〈塗り〉も〈線〉もないパス・複合パスをドキュメントから集める。
      * ガイド・クリッピングパス・複合パスの中のパス・ロックや非表示のものは除く
-     * @param {boolean} collectNoFill - 〈塗り〉なしを集めるか
-     * @param {boolean} collectNoStroke - 〈線〉なしを集めるか
      * @returns {PageItem[]} 該当したページアイテムの配列
      */
-    function findNoFillOrNoStrokePageItems(collectNoFill, collectNoStroke) {
+    function findNoFillNoStrokePageItems() {
         var foundPageItems = [];
         var candidateLists = [doc.pathItems, doc.compoundPathItems];
         for (var listIndex = 0; listIndex < candidateLists.length; listIndex++) {
@@ -230,50 +236,71 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
                 }
                 var fillStrokeState = getFillStrokeState(candidateItem);
                 if (!fillStrokeState) continue;
-                var isMatch = (collectNoFill && !fillStrokeState.filled) || (collectNoStroke && !fillStrokeState.stroked);
-                if (!isMatch || !isPageItemSelectable(candidateItem)) continue;
+                if (fillStrokeState.filled || fillStrokeState.stroked) continue;
+                if (!isPageItemSelectable(candidateItem)) continue;
                 foundPageItems.push(candidateItem);
             }
         }
         return foundPageItems;
     }
 
-    /* 重複したまま集めてよい。選択し直す際に同じページアイテムを複数回指定しても結果は変わらない */
-    var pageItemsToSelect = [];
-    /* 基準に〈塗り〉なし・〈線〉なしのパスがあるか / Whether any reference path has no fill or no stroke */
-    var hasNoFillReference = false;
-    var hasNoStrokeReference = false;
-    /* 検索済みのシンボル名。同じシンボルのインスタンスは結果が同じなので1回だけ検索する / Symbol names already searched */
-    var searchedSymbolNames = {};
+    /**
+     * 2つの基準で使うメニューコマンドが同じか（シンボルインスタンスどうし、またはそれ以外どうし）を返す
+     * @param {PageItem} pageItemA - 基準A
+     * @param {PageItem} pageItemB - 基準B
+     * @returns {boolean} 同じコマンドで検索するなら true
+     */
+    function usesSameFindCommand(pageItemA, pageItemB) {
+        return (pageItemA.typename === "SymbolItem") === (pageItemB.typename === "SymbolItem");
+    }
+
+    /* 検索ごとの結果。検索済みの基準と同じものは検索しないので、結果どうしは重ならない
+       Results per search. References already found are skipped, so the results do not overlap */
+    var foundGroups = [];
+    /* 前の検索で見つかった基準（番号 → true）/ References found by an earlier search (index -> true) */
+    var isCoveredReference = {};
+    /* 基準に〈塗り〉も〈線〉もないパスがあるか / Whether any reference path has neither fill nor stroke */
+    var hasNoFillNoStrokeReference = false;
     for (var i = 0; i < referencePageItems.length; i++) {
-        var referenceFillStroke = getFillStrokeState(referencePageItems[i]);
-        if (referenceFillStroke) {
-            if (!referenceFillStroke.filled) hasNoFillReference = true;
-            if (!referenceFillStroke.stroked) hasNoStrokeReference = true;
+        var referencePageItem = referencePageItems[i];
+        var referenceFillStroke = getFillStrokeState(referencePageItem);
+        /* 片方だけ「なし」の基準は「共通 > アピアランス」で色まで照合されるので、ここでは扱わない
+           A reference with only one side set to none is matched by color in Same > Appearance, so it is not handled here */
+        if (referenceFillStroke && !referenceFillStroke.filled && !referenceFillStroke.stroked) {
+            hasNoFillNoStrokeReference = true;
         }
-        if (referencePageItems[i].typename === "SymbolItem") {
-            /* シンボル名はドキュメント内で一意 / Symbol names are unique within a document */
-            var symbolNameKey = "#" + referencePageItems[i].symbol.name;
-            if (searchedSymbolNames[symbolNameKey]) continue;
-            searchedSymbolNames[symbolNameKey] = true;
-        }
-        var samePageItems = findPageItemsWithSameAppearance(referencePageItems[i]);
-        for (var j = 0; j < samePageItems.length; j++) {
-            pageItemsToSelect.push(samePageItems[j]);
+        /* 前の結果に含まれていた基準は、検索しても同じ結果になる / A reference already found would give the same result */
+        if (isCoveredReference[i]) continue;
+        /* 基準が1つだけなら今の選択のまま実行する（選択の付け替えと redraw を省く）
+           With a single reference, run on the current selection (no reselection or redraw) */
+        foundGroups.push(findPageItemsWithSameAppearance(referencePageItem, referencePageItems.length === 1));
+        /* 今の選択に入った後続の基準は検索を省く / Skip later references that are now selected */
+        for (var j = i + 1; j < referencePageItems.length; j++) {
+            if (isCoveredReference[j]) continue;
+            if (usesSameFindCommand(referencePageItem, referencePageItems[j]) && referencePageItems[j].selected) {
+                isCoveredReference[j] = true;
+            }
         }
     }
 
-    /* 〈塗り〉なし・〈線〉なしの基準があれば、該当するパスをすべて加える / Add every path with no fill or no stroke */
-    if (hasNoFillReference || hasNoStrokeReference) {
-        var noFillStrokePageItems = findNoFillOrNoStrokePageItems(hasNoFillReference, hasNoStrokeReference);
+    /* 最後の検索結果は選択されたままなので、それより前の結果だけ選択に加える
+       The last result is still selected, so add only the earlier results */
+    var hasAddedSelection = false;
+    for (var g = 0; g < foundGroups.length - 1; g++) {
+        for (var k = 0; k < foundGroups[g].length; k++) {
+            foundGroups[g][k].selected = true;
+            hasAddedSelection = true;
+        }
+    }
+
+    /* 〈塗り〉も〈線〉もない基準があれば、同じく塗りも線もないパスをすべて加える / Add every path with neither fill nor stroke */
+    if (hasNoFillNoStrokeReference) {
+        var noFillStrokePageItems = findNoFillNoStrokePageItems();
         for (var m = 0; m < noFillStrokePageItems.length; m++) {
-            pageItemsToSelect.push(noFillStrokePageItems[m]);
+            noFillStrokePageItems[m].selected = true;
+            hasAddedSelection = true;
         }
     }
-
-    doc.selection = null;
-    for (var k = 0; k < pageItemsToSelect.length; k++) {
-        pageItemsToSelect[k].selected = true;
-    }
-    app.redraw();
+    /* メニューコマンドの結果のままなら描き直さない / No redraw when the selection is the menu command's own result */
+    if (hasAddedSelection) app.redraw();
 })();
