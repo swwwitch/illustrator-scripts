@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.SmartObjectDistributor
 Name=グリッドの各セル中央にオブジェクトを配置
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.10.8
+Version=2.0.0
 Release-Date=2025-05-20
 Description-BEGIN
 選択したオブジェクトを、指定した行数・列数のグリッドに沿って各セルの中央へ配置します。
@@ -47,10 +47,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartObjec
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SmartObjectDistributor";       /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.10.8";                      /* バージョン / version */
+var SCRIPT_VERSION  = "v2.0.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-05-20";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-11-05";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-11-12";                   /* 更新日 / last updated */
 
 var SCRIPT_DESCRIPTION_JA = "グリッドの各セル中央にオブジェクトを配置"; /* README の見出し / README title (Japanese) */
 
@@ -70,6 +70,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     var CONFIG = {
         defaultGutter: 10,           /* 間隔の初期値（定規単位） / default gutter */
         defaultMargin: 10,           /* マージンの初期値（定規単位） / default margin */
+        defaultResizeRatio: 100,     /* リサイズの比率の初期値（%） / default resize ratio */
+        maxResizeRatio: 1000,        /* リサイズの比率の上限（%） / max resize ratio */
         blackCellOpacity: 15,        /* 黒セルの不透明度（%） / opacity for black cells */
         whiteCellOpacity: 100,       /* 白セルの不透明度（%） / opacity for white cells */
         fallbackDivision: 5,         /* 分割数を決められないときの既定値 / fallback division */
@@ -1309,6 +1311,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         panel: {
             placement: { ja: "配置先", en: "Placement Area" },
             division: { ja: "分割とマージン", en: "Divisions & Margin" },
+            resize: { ja: "リサイズ", en: "Resize" },
             cellDrawing: { ja: "セルの扱い", en: "Cell Handling" }
         },
         fieldLabel: {
@@ -1317,7 +1320,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             gutter: { ja: "セル間隔", en: "Gutter" },
             margin: { ja: "マージン", en: "Margin" },
             cellColor: { ja: "カラー", en: "Color" },
-            cellOpacity: { ja: "不透明度", en: "Opacity" }
+            cellOpacity: { ja: "不透明度", en: "Opacity" },
+            resizeRatio: { ja: "比率", en: "Ratio" }
         },
         radio: {
             targetArtboard: { ja: "現在のアートボード", en: "Current Artboard" },
@@ -1328,7 +1332,12 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             toArtboard: { ja: "アートボード化", en: "Convert to Artboards" },
             blackCell: { ja: "黒", en: "Black" },
             whiteCell: { ja: "白", en: "White" },
-            transparentCell: { ja: "塗りなし", en: "No Fill" }
+            transparentCell: { ja: "塗りなし", en: "No Fill" },
+            resizeNone: { ja: "なし", en: "None" },
+            resizeWidth: { ja: "幅", en: "Width" },
+            resizeHeight: { ja: "高さ", en: "Height" },
+            resizeArea: { ja: "幅×高さ（面積）", en: "Area (W × H)" },
+            resizeScale: { ja: "スケール", en: "Scale" }
         },
         button: {
             transparencyGrid: { ja: "透明グリッド表示", en: "Transparency Grid" },
@@ -1361,6 +1370,27 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             },
             gutter: { ja: "行数・列数のいずれかが2以上のときに有効です。", en: "Available when the rows or columns are 2 or more." },
             margin: { ja: "配置先の四辺から内側に取る余白です。", en: "Inset taken from each edge of the placement area." },
+            resizeNone: { ja: "大きさを変えずに配置します。", en: "Places the objects without resizing them." },
+            resizeWidth: {
+                ja: "縦横比を保ったまま、幅をセルの幅×比率にそろえます。",
+                en: "Keeps the aspect ratio and matches each width to the cell width times the ratio."
+            },
+            resizeHeight: {
+                ja: "縦横比を保ったまま、高さをセルの高さ×比率にそろえます。",
+                en: "Keeps the aspect ratio and matches each height to the cell height times the ratio."
+            },
+            resizeArea: {
+                ja: "縦横比を保ったまま、幅×高さ（面積）をそろえます。どのオブジェクトもセル×比率に収まる大きさになります。",
+                en: "Keeps the aspect ratio and equalizes width × height (area), sized so every object fits in the cell times the ratio."
+            },
+            resizeScale: {
+                ja: "元の大きさに比率を掛けて拡大・縮小します。",
+                en: "Scales each object by the ratio of its original size."
+            },
+            resizeRatio: {
+                ja: "幅・高さ・面積ではセルに対する比率、スケールでは元の大きさに対する比率です。",
+                en: "Relative to the cell for Width, Height, and Area; relative to the original size for Scale."
+            },
             randomize: {
                 ja: "セルへの割り当て順をシャッフルします（押すたびに変わります）。",
                 en: "Shuffles the order in which objects fill the cells (changes on every click)."
@@ -1392,60 +1422,6 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             artboardCreated: { ja: " 個のアートボードを作成しました。", en: " artboards created." }
         }
     };
-
-    // =========================================
-    // 位置の記録と復元 / Position bookkeeping
-    // =========================================
-    /* プレビューの巻き戻しは app.undo() を主、ここでの座標復元を保険とする。
-       app.undo() が効けば履歴は伸びないが、1プレビューが複数の履歴ステップに
-       分かれると 1 回では戻りきらない。その差分だけをここで埋める。
-       位置が変わっていなければ translate しないので、undo が完全に効いた場合は
-       履歴を 1 ステップも増やさない。
-       Preview rollback relies on app.undo(); restoring centers here only fills the gap when one
-       preview spans several history steps, and never moves items that are already in place. */
-
-    /** 位置が変化したと見なす最小差分（pt） / Minimum delta treated as a real move. */
-    var RESTORE_TOLERANCE = 0.001;
-
-    /** @type {Array<number[]>} 記録した中心座標 [x, y] の配列。 */
-    var originalCenters = [];
-
-    /**
-     * 各オブジェクトの中心座標を記録します。/ Record the center of each object.
-     *
-     * @param {Array<PageItem>} pageItems - 記録対象のオブジェクト。
-     * @returns {void}
-     */
-    function saveOriginalCenters(pageItems) {
-        originalCenters = [];
-        for (var i = 0; i < pageItems.length; i++) {
-            var bounds = pageItems[i].visibleBounds;
-            originalCenters.push([(bounds[0] + bounds[2]) / 2, (bounds[1] + bounds[3]) / 2]);
-        }
-    }
-
-    /**
-     * 記録した中心座標へオブジェクトを戻します。/ Move objects back to the recorded centers.
-     * 既に元の位置にあるものは動かさないため、履歴を無駄に増やしません。
-     *
-     * @param {Array<PageItem>} pageItems - 復元対象のオブジェクト（記録時と同じ順序）。
-     * @returns {void}
-     */
-    function restoreOriginalCenters(pageItems) {
-        for (var i = 0; i < pageItems.length && i < originalCenters.length; i++) {
-            try {
-                var bounds = pageItems[i].visibleBounds;
-                var dx = originalCenters[i][0] - (bounds[0] + bounds[2]) / 2;
-                var dy = originalCenters[i][1] - (bounds[1] + bounds[3]) / 2;
-
-                /* undo が効いていれば差分は 0。ここで translate すると履歴が伸びる / Zero after a full undo; moving would add history */
-                if (Math.abs(dx) < RESTORE_TOLERANCE && Math.abs(dy) < RESTORE_TOLERANCE) continue;
-                pageItems[i].translate(dx, dy);
-            } catch (e) {
-                /* 参照が失われたオブジェクトは飛ばす / Skip items whose reference went stale */
-            }
-        }
-    }
 
     // =========================================
     // 退避 / Parking
@@ -1896,6 +1872,83 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         });
     }
 
+    // =========================================
+    // リサイズ / Resize
+    // =========================================
+
+    /**
+     * リサイズの倍率（1 で等倍）をオブジェクトごとに求めます。/ Compute a uniform scale factor per object.
+     * 大きさは配置と同じ visibleBounds で測ります。
+     *
+     * @param {Array<PageItem>} pageItems - セルに入れるオブジェクト。
+     * @param {GridMetrics} gridMetrics - グリッドの寸法。
+     * @param {string} resizeMode - "width" / "height" / "area" / "scale"。
+     * @param {number} ratioPct - 比率（%）。幅・高さ・面積はセルに対して、スケールは元の大きさに対して。
+     * @returns {number[]} オブジェクトごとの倍率。測れないものは 1。
+     */
+    function computeResizeFactors(pageItems, gridMetrics, resizeMode, ratioPct) {
+        var ratio = ratioPct / 100;
+        var fitWidth = gridMetrics.cellWidth * ratio;
+        var fitHeight = gridMetrics.cellHeight * ratio;
+
+        var sizes = [];
+        for (var i = 0; i < pageItems.length; i++) {
+            var bounds = pageItems[i].visibleBounds;
+            sizes.push({ width: bounds[2] - bounds[0], height: bounds[1] - bounds[3] });
+        }
+
+        /* 面積：セル×比率に収めたときの面積のうち最小のものにそろえる。どれもセルからはみ出さない
+           Area: equalize to the smallest fitted area so that every object still fits its cell */
+        var targetArea = Infinity;
+        if (resizeMode === "area") {
+            for (var j = 0; j < sizes.length; j++) {
+                if (sizes[j].width <= 0 || sizes[j].height <= 0) continue;
+                var fitFactor = Math.min(fitWidth / sizes[j].width, fitHeight / sizes[j].height);
+                targetArea = Math.min(targetArea, sizes[j].width * sizes[j].height * fitFactor * fitFactor);
+            }
+        }
+
+        var factors = [];
+        for (var k = 0; k < sizes.length; k++) {
+            var width = sizes[k].width;
+            var height = sizes[k].height;
+            var factor = 1;
+            if (resizeMode === "scale") factor = ratio;
+            else if (resizeMode === "width" && width > 0) factor = fitWidth / width;
+            else if (resizeMode === "height" && height > 0) factor = fitHeight / height;
+            else if (resizeMode === "area" && width > 0 && height > 0 && isFinite(targetArea)) {
+                factor = Math.sqrt(targetArea / (width * height));
+            }
+            factors.push(factor);
+        }
+        return factors;
+    }
+
+    /**
+     * セルに入れるオブジェクトを、縦横比を保ってリサイズします（線幅も同じ倍率）。/ Resize objects for the cells.
+     *
+     * @param {Array<PageItem>} pageItems - セルに入れるオブジェクト（セル数ぶん）。
+     * @param {GridMetrics} gridMetrics - グリッドの寸法。
+     * @param {string} resizeMode - "none" / "width" / "height" / "area" / "scale"。
+     * @param {number|null} ratioPct - 比率（%）。読み取れない場合は null で、リサイズしない。
+     * @returns {void}
+     */
+    function resizeItemsForCells(pageItems, gridMetrics, resizeMode, ratioPct) {
+        if (resizeMode === "none" || ratioPct === null) return;
+
+        var factors = computeResizeFactors(pageItems, gridMetrics, resizeMode, ratioPct);
+        for (var i = 0; i < pageItems.length; i++) {
+            var scalePct = factors[i] * 100;
+            /* 等倍は履歴を増やさないよう触らない / Leave unchanged items alone to keep the history short */
+            if (!isFinite(scalePct) || scalePct <= 0 || Math.abs(scalePct - 100) < 1e-6) continue;
+            try {
+                pageItems[i].resize(scalePct, scalePct, true, true, true, true, scalePct, Transformation.CENTER);
+            } catch (e) {
+                /* 極端な倍率で Illustrator が拒んだものは元の大きさのまま置く / Keep the original size when Illustrator rejects an extreme factor */
+            }
+        }
+    }
+
     /**
      * セルの寸法からアートボードを作成します。/ Create artboards from the cell metrics.
      *
@@ -2156,6 +2209,47 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     }
 
     /**
+     * リサイズのパネルを作成します（1行目：基準／2行目：比率）。/ Build the resize panel.
+     *
+     * @param {Window} parentWindow - 配置先のウィンドウ。
+     * @returns {Object} 基準のラジオボタン、比率の項目名と入力欄をまとめたオブジェクト。
+     */
+    function buildResizePanel(parentWindow) {
+        var resizePanel = parentWindow.add("panel", undefined, getLabel(LABELS.panel.resize));
+        setupPanel(resizePanel, 6);
+
+        var resizeModeRow = resizePanel.add("group");
+        setupRow(resizeModeRow, "left");
+
+        var resizeRatioRow = resizePanel.add("group");
+        setupRow(resizeRatioRow, "left", 4);
+        resizeRatioRow.alignChildren = "center";
+
+        var resizeControls = {
+            noneRadio: resizeModeRow.add("radiobutton", undefined, getLabel(LABELS.radio.resizeNone)),
+            widthRadio: resizeModeRow.add("radiobutton", undefined, getLabel(LABELS.radio.resizeWidth)),
+            heightRadio: resizeModeRow.add("radiobutton", undefined, getLabel(LABELS.radio.resizeHeight)),
+            areaRadio: resizeModeRow.add("radiobutton", undefined, getLabel(LABELS.radio.resizeArea)),
+            scaleRadio: resizeModeRow.add("radiobutton", undefined, getLabel(LABELS.radio.resizeScale)),
+            ratioLabel: resizeRatioRow.add("statictext", undefined, labelText(LABELS.fieldLabel.resizeRatio))
+        };
+        resizeControls.ratioInput = addSteppedInput(resizeRatioRow, String(CONFIG.defaultResizeRatio), {});
+        resizeControls.ratioInput.characters = 4;
+        resizeControls.ratioUnitLabel = resizeRatioRow.add("statictext", undefined, "%");
+        resizeControls.noneRadio.value = true;
+
+        /* 基準ごとの結果をツールチップで補う / Tooltips describe each mode */
+        resizeControls.noneRadio.helpTip = getLabel(LABELS.tooltip.resizeNone);
+        resizeControls.widthRadio.helpTip = getLabel(LABELS.tooltip.resizeWidth);
+        resizeControls.heightRadio.helpTip = getLabel(LABELS.tooltip.resizeHeight);
+        resizeControls.areaRadio.helpTip = getLabel(LABELS.tooltip.resizeArea);
+        resizeControls.scaleRadio.helpTip = getLabel(LABELS.tooltip.resizeScale);
+        resizeControls.ratioLabel.helpTip = getLabel(LABELS.tooltip.resizeRatio);
+        resizeControls.ratioInput.helpTip = getLabel(LABELS.tooltip.resizeRatio);
+        return resizeControls;
+    }
+
+    /**
      * セル描画パネルを作成します。/ Build the cell drawing panel.
      *
      * @param {Window} parentWindow - 配置先のウィンドウ。
@@ -2307,7 +2401,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         var doc = app.activeDocument;
 
         /* 前回実行時のセル描画レイヤーは、OK を押すまで消さずに隠しておく。
-           ここで削除するとキャンセルしても戻せない（app.undo() はここまで巻き戻せない）
+           ここで削除するとキャンセルしても戻せない
            Hide the cell layer from a previous run instead of deleting it, so Cancel can restore it */
         var previousCellLayer = findLayerByName(doc, CONFIG.cellLayerName);
         var wasPreviousCellLayerVisible = previousCellLayer ? previousCellLayer.visible : false;
@@ -2324,7 +2418,6 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         /* 選択内容はダイアログ起動時に固定する（順序も保持）。枠として使う「_target」矩形は移動対象から除く
            Freeze the selection (and its order) at launch, leaving out the _target frame rectangle */
         var placeableItems = excludeItem(doc.selection, targetRectItem);
-        saveOriginalCenters(placeableItems);
 
         /* 初期ターゲット矩形（_target 矩形があればそれ、なければ現在のアートボード）/ Initial target rect */
         var initialTargetRect = targetRectItem ? targetRectItem.geometricBounds : baseArtboardRect;
@@ -2344,6 +2437,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
 
         var placementUI = buildPlacementTargetPanel(distributeDialog, backmostItem !== null, targetRectItem !== null);
         var divisionUI = buildDivisionPanel(distributeDialog, defaultDivision, rulerUnit.label);
+        var resizeUI = buildResizePanel(distributeDialog);
         var cellUI = buildCellDrawingPanel(distributeDialog);
         var footerUI = buildFooterRow(distributeDialog);
 
@@ -2351,8 +2445,10 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         var randomizedOrder = null;
         /** @type {RadioButton} 「長方形で残す」に戻したときに復帰させるカラー選択。 */
         var lastCellColorRadio = cellUI.blackCellRadio;
-        /** @type {boolean} app.undo() で剥がすべきプレビューが適用済みか。 */
-        var hasUncommittedPreview = false;
+        /** @type {Array<PageItem>} プレビュー用に作った複製。 */
+        var previewCopies = [];
+        /** @type {Array<PageItem>} プレビューの間だけ隠した元のオブジェクト。 */
+        var previewHiddenItems = [];
         /** @type {boolean} OK／キャンセルで後始末済みか（onClose の二重実行を防ぐ）。 */
         var isCleanedUp = false;
         /** @type {number} 直近にプレビューを描き直した時刻（ミリ秒）。入力中の間引きに使います。 */
@@ -2378,15 +2474,20 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         enableNumericField(divisionUI.marginInput, 0, null, updatePreview);
         /* 不透明度は 0〜100%（描画側のクランプと表示を一致させる）/ Opacity matches what is actually drawn */
         enableNumericField(cellUI.opacityInput, 0, 100, updatePreview);
+        /* リサイズの比率は 1〜上限% / The resize ratio stays within 1% and the upper limit */
+        enableNumericField(resizeUI.ratioInput, 1, CONFIG.maxResizeRatio, updatePreview);
 
         /* 初期状態を反映してプレビューを表示 / Apply the initial state and show the preview */
         syncGutterEnabled();
         syncCellModeUI();
+        syncResizeRatioEnabled();
         updatePreview();
 
+        /* バージョン表示は layout の前に足す。後から足すとウィンドウの大きさが決まったあとで、行の場所が無く表示されない
+           Add the footer before layout; added afterwards it gets no room in the already-sized window */
+        addVersionFooter(distributeDialog);
         distributeDialog.layout.layout(true);
         trimButtonHeight(cellUI.transparencyGridButton, 4);
-        addVersionFooter(distributeDialog);
         prepareDialogWindow(distributeDialog, SCRIPT_NAME);
         distributeDialog.show();
 
@@ -2419,6 +2520,30 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             if (cellUI.toArtboardRadio.value) return "artboard";
             if (cellUI.toGuideRadio.value) return "guide";
             return "keep";
+        }
+
+        /**
+         * 現在のリサイズの基準を返します。/ Return the current resize mode.
+         *
+         * @returns {string} "none"、"width"、"height"、"area"、"scale" のいずれか。
+         */
+        function getResizeMode() {
+            if (resizeUI.widthRadio.value) return "width";
+            if (resizeUI.heightRadio.value) return "height";
+            if (resizeUI.areaRadio.value) return "area";
+            if (resizeUI.scaleRadio.value) return "scale";
+            return "none";
+        }
+
+        /**
+         * リサイズの比率を 1〜上限% に収めて読み取ります。/ Read the resize ratio clamped to its range.
+         *
+         * @returns {number|null} 比率（%）。数値でない場合は null。
+         */
+        function readResizeRatio() {
+            var parsedRatio = parseFloat(resizeUI.ratioInput.text);
+            if (!isFinite(parsedRatio)) return null;
+            return Math.max(1, Math.min(CONFIG.maxResizeRatio, parsedRatio));
         }
 
         /**
@@ -2479,28 +2604,24 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
 
         /**
          * セル描画と配置を実行します（プレビュー／本番共通）。/ Draw cells and place objects.
+         * プレビューでは元のオブジェクトを複製して元を隠し、複製だけを動かします（元の位置・大きさには触れません）。
          *
          * @param {boolean} isPreview - プレビューとして描画する場合は true。
-         * @param {function(): void} [onWillMutate] - ドキュメントを変更する直前に一度だけ呼ばれます。
          * @returns {boolean} ドキュメントを変更した場合は true。入力が無効で何もしなかった場合は false。
          */
-        function renderDistribution(isPreview, onWillMutate) {
-            /* 配置先の座標を読む前に、必ず元の位置へ戻しておく（通常は clearPreview() 済みで何も動かない）
-               Restore positions before reading the target; normally a no-op after clearPreview() */
-            restoreOriginalCenters(placeableItems);
-
+        function renderDistribution(isPreview) {
             var cellMode = getCellMode();
-            var distributionItems = orderByRandomizedOrder(getDistributionItems(), randomizedOrder);
             var gridMetrics = readGridMetrics();
 
             /* グリッドが成立しない入力では、ドキュメントに一切手を加えない / Leave the document untouched without a valid grid */
             if (!gridMetrics) return false;
 
-            /* これ以降はドキュメントを変更する / Everything below mutates the document */
-            if (onWillMutate) onWillMutate();
+            var sourceItems = orderByRandomizedOrder(getDistributionItems(), randomizedOrder);
+            var distributionItems = isPreview ? createPreviewCopies(sourceItems) : sourceItems;
 
             /* セル数を超えたオブジェクトだけを対象領域の外へ退避する / Park only the objects beyond the cell count */
-            var overflowItems = distributionItems.slice(gridMetrics.rowCount * gridMetrics.columnCount);
+            var cellCount = gridMetrics.rowCount * gridMetrics.columnCount;
+            var overflowItems = distributionItems.slice(cellCount);
             if (overflowItems.length > 0) {
                 parkItemsOutside(doc, overflowItems, gridMetrics.targetRect);
             }
@@ -2512,27 +2633,40 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
                 drawCells(getOrCreateLayer(doc, layerName), gridMetrics, asGuide, getCellFillColor(), readOpacity());
             }
 
-            placeItemsInCells(distributionItems, gridMetrics);
+            /* セルに入るオブジェクトだけをリサイズしてから中央へ置く / Resize only the objects that go into cells, then center them */
+            var cellItems = distributionItems.slice(0, cellCount);
+            resizeItemsForCells(cellItems, gridMetrics, getResizeMode(), readResizeRatio());
+            placeItemsInCells(cellItems, gridMetrics);
             return true;
         }
 
         // -----------------------------------------
         // プレビュー / Preview
         // -----------------------------------------
-        /* app.undo() で直前のプレビューをヒストリごと取り除いてから描き直す。
-           これをしないと、入力欄を 1 文字打つたびに数十〜数千ステップが積まれ、
-           Illustrator の取り消し回数の上限を超えてユーザーの実行前履歴が失われる。
+        /* プレビューは app.undo() で巻き戻さず、複製＋一時非表示で作る。
+           元のオブジェクトを複製してから元を隠し、動かすのは複製だけ。消すときは複製を削除して元を表示に戻す。
+           app.undo() は1プレビューが何段の履歴になるかで戻る量が狂い、スクリプト実行前の作業まで取り消してしまうため。
+           Previews duplicate the objects and hide the originals instead of relying on app.undo(), whose step count
+           drifts and can revert the user's own work from before the script ran. */
 
-           ただし app.undo() は 1 回で 1 ステップしか戻さない。1 プレビューが
-           複数ステップに分かれる場合は戻りきらないため、レイヤー削除と座標復元を
-           保険として必ず併走させる（どちらも差分が無ければ何もしない）。
-
-           undo の回数は「自分が積んだ 1 回分」に限る。ダイアログ表示前に
-           cell-background レイヤーの非表示と _target 矩形の非表示という 2 つの
-           変更を済ませており、そこまで巻き戻すと状態が壊れるため。
-           Each preview is peeled off with one app.undo() so typing does not flood the history;
-           layer removal and center restoring back it up, and undo never reaches the two changes
-           made before the dialog opened. */
+        /**
+         * 元のオブジェクトを複製し、元を隠します。/ Duplicate the objects and hide the originals.
+         * duplicate() は hidden を引き継ぐので、必ず複製してから隠します。
+         *
+         * @param {Array<PageItem>} sourceItems - 元のオブジェクト（配置順）。
+         * @returns {Array<PageItem>} 複製（元と同じ順）。
+         */
+        function createPreviewCopies(sourceItems) {
+            var copies = [];
+            for (var i = 0; i < sourceItems.length; i++) {
+                var copyItem = sourceItems[i].duplicate();
+                previewCopies.push(copyItem);
+                copies.push(copyItem);
+                sourceItems[i].hidden = true;
+                previewHiddenItems.push(sourceItems[i]);
+            }
+            return copies;
+        }
 
         /**
          * プレビューを消して元の状態に戻します。/ Discard the preview and restore the original state.
@@ -2540,20 +2674,20 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
          * @returns {void}
          */
         function clearPreview() {
-            /* 1. 直前のプレビューをヒストリから取り除く / Peel the last preview off the history */
-            if (hasUncommittedPreview) {
-                hasUncommittedPreview = false;
+            for (var i = 0; i < previewCopies.length; i++) {
                 try {
-                    app.undo();
+                    previewCopies[i].remove();
                 } catch (e) {
-                    /* undo できない状態なら、以下の後始末に任せる / Fall back to the cleanup below */
+                    /* 参照が失われた複製は飛ばす / Skip copies whose reference went stale */
                 }
             }
-
-            /* 2. undo で戻りきらなかった分だけを片付ける / Clean up whatever undo left behind */
+            for (var j = 0; j < previewHiddenItems.length; j++) {
+                setItemHidden(previewHiddenItems[j], false);
+            }
+            previewCopies = [];
+            previewHiddenItems = [];
             removeLayerByName(doc, CONFIG.previewCellLayerName);
             removeLayerByName(doc, CONFIG.legacyPreviewLayerName);
-            restoreOriginalCenters(placeableItems);
         }
 
         /**
@@ -2564,10 +2698,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         function updatePreview() {
             try {
                 clearPreview();
-                renderDistribution(true, function () {
-                    /* 変更が始まった時点で印を付ける。途中で例外が出ても undo で剥がせる / Mark first so undo can peel it even on failure */
-                    hasUncommittedPreview = true;
-                });
+                renderDistribution(true);
             } catch (e) {
                 clearPreview();
             }
@@ -2658,14 +2789,23 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         }
 
         /**
+         * 比率欄の有効・無効を、リサイズの基準に合わせます。/ Enable the ratio field only when resizing.
+         *
+         * @returns {void}
+         */
+        function syncResizeRatioEnabled() {
+            var isResizing = (getResizeMode() !== "none");
+            resizeUI.ratioLabel.enabled = isResizing;
+            resizeUI.ratioUnitLabel.enabled = isResizing;
+            setSteppedInputEnabled(resizeUI.ratioInput, isResizing);
+        }
+
+        /**
          * 対象を切り替えます（「_target」矩形は選択中だけ非表示）。/ Switch the target area.
          *
          * @returns {void}
          */
         function handleTargetChange() {
-            /* 表示状態を変える前にプレビューを剥がす。順序を逆にすると、
-               app.undo() がプレビューではなく setItemHidden を取り消してしまう
-               Peel the preview first; otherwise app.undo() would revert setItemHidden instead */
             clearPreview();
             /* 元から隠されていた矩形は、対象を外しても隠したままにする / A rectangle hidden by the user stays hidden */
             if (targetRectItem) {
@@ -2709,7 +2849,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             var createdCount = -1;
             var artboardFailed = false;
 
-            /* プレビューを undo で破棄してから本番処理へ（プレビューの痕跡も履歴も残さない）/ Undo the preview before the real run */
+            /* プレビューの複製を消し、元のオブジェクトを表示に戻してから本番処理へ / Drop the preview copies and show the originals before the real run */
             clearPreview();
 
             /* 前回実行時のセル描画レイヤーは、実際に描き直すこの時点で捨てる
@@ -2723,7 +2863,6 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
                     artboardFailed = true;
                 }
             }
-            /* 本番は undo の対象にしない（ユーザーの取り消し操作に委ねる）/ The real run is left to the user's own undo */
             renderDistribution(false);
 
             /* 「_target」レイヤーの矩形を元の表示状態へ戻す / Restore the _target rectangle's original state */
@@ -2756,6 +2895,12 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             if (targetRectItem) setItemHidden(targetRectItem, wasTargetRectHidden);
             /* 起動時に隠した前回のセル描画レイヤーを元へ戻す / Restore the cell layer hidden at launch */
             setLayerVisible(previousCellLayer, wasPreviousCellLayerVisible);
+            /* プレビュー中に隠したことで外れた選択を戻す / Hiding the originals for the preview cleared the selection */
+            try {
+                doc.selection = placeableItems;
+            } catch (e) {
+                /* 選択を戻せなくても閉じる処理は続ける / Keep closing even if the selection cannot be restored */
+            }
             app.redraw();
         }
 
@@ -2797,6 +2942,13 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
                 syncGutterEnabled();
                 updatePreviewWhileTyping();
             };
+            resizeUI.noneRadio.onClick = resizeUI.widthRadio.onClick = resizeUI.heightRadio.onClick =
+                resizeUI.areaRadio.onClick = resizeUI.scaleRadio.onClick = function () {
+                    syncResizeRatioEnabled();
+                    updatePreview();
+                };
+            resizeUI.ratioInput.onChanging = updatePreviewWhileTyping;
+
             divisionUI.gutterInput.onChanging = updatePreviewWhileTyping;
             divisionUI.marginInput.onChanging = updatePreviewWhileTyping;
             cellUI.opacityInput.onChanging = updatePreviewWhileTyping;

@@ -21,6 +21,7 @@ The placement area can be the current artboard, the backmost object, or a rectan
 - Placement area switching (current artboard / backmost object / rectangle in the "_target" layer)
 - Rows, columns, gutter, and margin settings
 - Initial rows and columns derived from the selection count and the area's aspect ratio, so cells stay nearly square
+- Resizing to the cells (Width / Height / Area (W × H) / Scale), keeping the aspect ratio, with a ratio in %
 - Cell handling: Keep as Rectangle, Convert to Guides, or Convert to Artboards
 - Cell fill (black, white, or no fill) and opacity
 - Shuffle button to randomize the order in which objects fill the cells
@@ -38,6 +39,7 @@ The placement area can be the current artboard, the backmost object, or a rectan
 3. Configure the settings in the dialog panels.
    - Placement Area: the region the grid is laid out in
    - Divisions & Margin: rows, columns, gutter, margin
+   - Resize: how to resize and the ratio
    - Cell Handling: what happens to the rectangles, color, opacity
 4. Click Shuffle to change the assignment order if needed.
 5. Adjust the values while checking the preview.
@@ -49,12 +51,14 @@ The placement area can be the current artboard, the backmost object, or a rectan
 | --- | --- |
 | Placement Area | Current artboard / backmost object / rectangle in the "_target" layer |
 | Divisions & Margin | Rows, columns, gutter, margin |
+| Resize | None / Width / Height / Area (W × H) / Scale, ratio (%) |
 | Cell Handling | Keep as Rectangle / Convert to Guides / Convert to Artboards, color (black / white / no fill), opacity, transparency grid |
 
 ![ss-746-988-72-20250521-053754](https://github.com/user-attachments/assets/3bec4d25-184d-46ab-98c5-fecbb2be9c0d)
 
 ## Notes
 
+- In Resize, Width and Height match each object to the cell width or height times the ratio; Area (W × H) equalizes the areas, sized so every object fits in the cell times the ratio; Scale is relative to the original size. All keep the aspect ratio and scale stroke weights by the same factor. Objects parked beyond the cell count are not resized.
 - The rectangle in the "_target" layer is hidden while the script runs and is never placed into a cell. A rectangle you had already hidden stays hidden afterwards.
 - When the "_target" layer holds several paths, a rectangle wins; open lines and paths with no area are never used as the placement area.
 - When Backmost Object is selected, that framing object is excluded from the objects to place.
@@ -63,7 +67,7 @@ The placement area can be the current artboard, the backmost object, or a rectan
 - With Convert to Guides or Convert to Artboards, the cell color is fixed to No Fill.
 - Up to 100 rows and 100 columns, and up to 1000 cells. Out-of-range values are clamped when the field commits.
 - Nothing is drawn when the margin or gutter leaves no room for cells, and clicking OK keeps the dialog open and explains why.
-- Each preview redraw undoes the previous one, so changing settings does not keep growing Illustrator's edit history (your pre-run history is not pushed out). Anything Undo fails to revert is cleaned up by restoring the recorded centers and dropping the preview layer.
+- The preview shows duplicates of the objects, and the originals are hidden only while the dialog is open. The preview is never removed with Undo, so work done before the script runs is never undone.
 - Besides Cancel, pressing Esc or closing the window also discards the preview and restores the original state.
 - With Keep as Rectangle, the cell rectangles are selected after clicking OK.
 - Values follow Illustrator's ruler unit setting.
@@ -74,6 +78,7 @@ The placement area can be the current artboard, the backmost object, or a rectan
 
 ## Changelog
 
+- v2.0.0 (2026-11-12) Added the Resize panel (Width / Height / Area (W × H) / Scale). The preview now uses duplicates with the originals temporarily hidden instead of Undo, fixing a bug where work done before the script could be undone. Fixed the version at the bottom of the dialog not being shown
 - v1.10.8 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)
 - v1.10.7 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.10.6 (2026-10-01): Added space below the button row to match Illustrator's own dialogs
