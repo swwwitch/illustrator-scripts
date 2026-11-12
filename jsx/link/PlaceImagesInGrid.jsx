@@ -7,14 +7,14 @@ Script-ID=com.swwwitch.illustrator.PlaceImagesInGrid
 Name=画像を選んで長方形やアートボードにグリッド状に配置
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.1.1
+Version=1.1.2
 Release-Date=2026-11-12
 Description-BEGIN
 ファイル選択ダイアログボックスで選んだ画像をリンクで配置し、選択中の長方形（または作業中のアートボード）にグリッド状に並べます。
-列数・行数・マージンは、配置後のダイアログボックスでプレビューを見ながら調整できます。
+列数・行数・マージンと、各画像のマスク（角丸・線）は、配置後のダイアログボックスでプレビューを見ながら調整できます。
 
 Places the images chosen in the file dialog box as links and lays them out in a grid inside the selected rectangle (or the active artboard).
-Columns, rows and margins can be adjusted with a live preview in the dialog box that opens after placing.
+Columns, rows, margins and a mask for each image (corner radius and stroke) can be adjusted with a live preview in the dialog box that opens after placing.
 Description-END
 SCRIPTMETA-END
 */
@@ -24,7 +24,7 @@ SCRIPTMETA-END
 ### 概要
 
 ファイル選択ダイアログボックスで選んだ画像をリンクで配置し、選択中の長方形（または作業中のアートボード）にグリッド状に並べます。
-列数・行数・マージンは、配置後のダイアログボックスでプレビューを見ながら調整できます。
+列数・行数・マージンと、各画像のマスク（角丸・線）は、配置後のダイアログボックスでプレビューを見ながら調整できます。
 
 詳細は README を参照してください。
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/PlaceImagesInGrid.md
@@ -32,7 +32,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/PlaceImage
 ### Overview
 
 Places the images chosen in the file dialog box as links and lays them out in a grid inside the selected rectangle (or the active artboard).
-Columns, rows and margins can be adjusted with a live preview in the dialog box that opens after placing.
+Columns, rows, margins and a mask for each image (corner radius and stroke) can be adjusted with a live preview in the dialog box that opens after placing.
 
 See the README for details.
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PlaceImagesInGrid.md
@@ -43,7 +43,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PlaceImage
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "PlaceImagesInGrid";            /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-11-12";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-11-12";                   /* 更新日 / last updated */
@@ -66,7 +66,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
     /* 対象の拡張子 / Target extensions */
     var IMAGE_EXTENSIONS = ["jpg", "jpeg", "png", "tif", "tiff", "psd", "gif", "bmp", "pdf", "eps", "ai", "svg", "heic", "webp"];
 
-    /* オブジェクト同士のマージン（画像どうしの間隔）の初期値（pt） / Default margin between images (pt) */
+    /* 間隔（画像どうしのマージン）の初期値（pt） / Default margin between images (pt) */
     var DEFAULT_IMAGE_GAP = 10;
 
     /* 対象（長方形・アートボード）の内側に取るマージンの初期値（pt） / Default margin inside the target (pt) */
@@ -85,9 +85,6 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
     /* マスクの長方形に線を付けるか・線幅（pt）の初期値。色の初期値は黒 / Defaults for stroking the mask rectangle and its width (pt); the default color is black */
     var DEFAULT_USE_STROKE = false;
     var DEFAULT_STROKE_WIDTH = 1;
-
-    /* 画像を埋め込むかの初期値 / Default for embedding the images */
-    var DEFAULT_EMBED_IMAGES = false;
 
     /* 列数・行数の決め方 / How columns and rows are set */
     var GRID_MODE_AUTO = "auto";
@@ -181,7 +178,8 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
 
     // UIレイアウト（再利用パーツ）ここまで / End of the reusable UI layout
 
-    var FIELD_LABEL_WIDTH = 90;  /* 項目名の幅（全パネル共通） / label width shared by all panels */
+    var FIELD_LABEL_WIDTH = 52;  /* 項目名の幅（グリッド・マージン。「最終行 :」が入る幅） / label width in the grid and margin panels (fits the last-row label) */
+    var MASK_OPTIONS_LABEL_WIDTH = 64; /* マスクのオプションの項目名の幅（チェックボックスが入る） / label width in the mask options panel (holds checkboxes) */
     var LAST_ROW_TOP_MARGIN = 4; /* 「最終行」の行の上に足す余白 / extra space above the last-row option */
     var COLOR_SWATCH_SIZE = [40, 20]; /* 線の色見本の大きさ / size of the stroke color swatch */
 
@@ -1794,8 +1792,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         cornerRadiusPt: DEFAULT_CORNER_RADIUS,
         useStroke: DEFAULT_USE_STROKE,
         strokeWidthPt: DEFAULT_STROKE_WIDTH,
-        strokeColor: null,
-        embedImages: DEFAULT_EMBED_IMAGES
+        strokeColor: null
     };
 
     // =========================================
@@ -1883,37 +1880,35 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
 
     var LABELS = {
         dialog: {
-            title: { ja: "画像を並べて配置", en: "Place Images in Grid" },
+            title: { ja: "画像をグリッドに配置", en: "Place Images in Grid" },
             chooseImages: { ja: "配置する画像を選択", en: "Choose images to place" }
         },
         panel: {
             grid: { ja: "グリッド", en: "Grid" },
             margin: { ja: "マージン", en: "Margins" },
             mask: { ja: "マスク形状", en: "Mask shape" },
-            maskOptions: { ja: "マスクのオプション", en: "Mask options" },
-            options: { ja: "オプション", en: "Options" }
+            maskOptions: { ja: "マスクのオプション", en: "Mask options" }
         },
         fieldLabel: {
             columns: { ja: "列数", en: "Columns" },
             rows: { ja: "行数", en: "Rows" },
-            gap: { ja: "オブジェクト同士", en: "Between items" },
-            frameMargin: { ja: "対象の内側", en: "Inside target" },
-            strokeWidth: { ja: "線幅", en: "Stroke weight" },
+            gap: { ja: "間隔", en: "Gutter" },
+            frameMargin: { ja: "外周", en: "Inset" },
+            strokeColor: { ja: "線", en: "Stroke" },
             lastRow: { ja: "最終行", en: "Last row" }
         },
         radio: {
             maskNone: { ja: "なし", en: "None" },
-            maskCell: { ja: "セルの形", en: "Cell shape" },
-            maskItem: { ja: "アイテムの形", en: "Item shape" },
+            maskCell: { ja: "セル", en: "Cell" },
+            maskItem: { ja: "画像", en: "Image" },
             gridAuto: { ja: "自動", en: "Auto" },
-            gridManual: { ja: "指定", en: "Custom" },
-            lastRowLeft: { ja: "左", en: "Left" },
-            lastRowCenter: { ja: "中央", en: "Center" }
+            gridManual: { ja: "手動", en: "Manual" },
+            lastRowLeft: { ja: "左揃え", en: "Align Left" },
+            lastRowCenter: { ja: "中央揃え", en: "Align Center" }
         },
         checkbox: {
             useCornerRadius: { ja: "角丸", en: "Corner radius" },
-            useStroke: { ja: "線", en: "Stroke" },
-            embedImages: { ja: "画像を埋め込む", en: "Embed images" }
+            useStroke: { ja: "線幅", en: "Stroke weight" }
         },
         button: {
             shuffle: { ja: "シャッフル", en: "Shuffle" },
@@ -1921,12 +1916,11 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             ok: { ja: "OK", en: "OK" }
         },
         tooltip: {
-            gridAuto: { ja: "枠がいちばん埋まる列数・行数にする", en: "Use the columns and rows that fill the frame best" },
+            gridAuto: { ja: "並べる範囲がいちばん埋まる列数・行数にする", en: "Use the columns and rows that fill the area best" },
             shuffle: { ja: "画像の並び順をランダムに入れ替える", en: "Rearrange the images in random order" },
             strokeColor: { ja: "クリックで線の色を選ぶ", en: "Click to choose the stroke color" },
             maskCell: { ja: "セルを覆う大きさにして、セルの形で切り抜く（大きさがそろう）", en: "Scale each image to cover its cell and clip it to the cell (all the same size)" },
-            maskItem: { ja: "セルに収めた画像の大きさのままマスクする（切り抜かない）", en: "Mask each image at its fitted size (nothing is cropped)" },
-            embedImages: { ja: "OK で確定したときに、リンクではなく埋め込みにする", en: "Embed the images instead of linking them when you click OK" },
+            maskItem: { ja: "画像と同じ大きさでマスクする（切り取られる部分はない）", en: "Mask each image at its own size (nothing is cropped)" },
             stepUp: {
                 ja: "値を増やす（shift＋クリックで10の倍数へ、option＋クリックで0.1ずつ）",
                 en: "Increase (Shift-click to snap to 10s, Option-click by 0.1)"
@@ -2457,15 +2451,14 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
      * @property {string} gridMode - 列数・行数の決め方（"auto" または "manual"）
      * @property {number} columns - 列数（"manual" のとき）
      * @property {string} lastRowAlign - 最終行の揃え（"left" または "center"）
-     * @property {number} gapPt - オブジェクト同士のマージン（pt）
-     * @property {number} frameMarginPt - 対象の内側のマージン（pt）
+     * @property {number} gapPt - 間隔（画像どうしのマージン、pt）
+     * @property {number} frameMarginPt - 外周（並べる範囲の内側に取るマージン、pt）
      * @property {string} maskMode - マスクの種類（"none" / "cell" / "item"）
      * @property {boolean} useCornerRadius - 角丸を付けるなら true
      * @property {number} cornerRadiusPt - 角丸の半径（pt）
      * @property {boolean} useStroke - マスクの長方形に線を付けるなら true
      * @property {number} strokeWidthPt - 線幅（pt）
      * @property {Object|null} strokeColor - 線の色（colorToSettings() の形）
-     * @property {boolean} embedImages - 画像を埋め込むなら true
      */
 
     /**
@@ -2496,7 +2489,6 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         var currentUseStroke = initialSettings.useStroke;
         var currentStrokeWidth = initialSettings.strokeWidthPt;
         var currentStrokeColor = colorFromSettings(doc, initialSettings.strokeColor);
-        var currentEmbedImages = initialSettings.embedImages;
         var currentColumns = Math.max(1, Math.min(imageCount, Math.round(initialSettings.columns)));
         var currentRows = Math.ceil(imageCount / currentColumns);
 
@@ -2569,7 +2561,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
 
         /* 列数・行数の決め方（自動・指定） / How columns and rows are set (auto / manual) */
         var gridModeGroup = gridPanel.add("group");
-        setupRow(gridModeGroup, "left");
+        setupRow(gridModeGroup, "center");
         var gridAutoRadio = gridModeGroup.add("radiobutton", undefined, getLabel("radio.gridAuto"));
         var gridManualRadio = gridModeGroup.add("radiobutton", undefined, getLabel("radio.gridManual"));
         gridAutoRadio.helpTip = getLabel("tooltip.gridAuto");
@@ -2588,8 +2580,14 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         var lastRowLabel = lastRowGroup.add("statictext", undefined, labelText("fieldLabel.lastRow"));
         lastRowLabel.preferredSize.width = FIELD_LABEL_WIDTH;
         lastRowLabel.justify = "right";
-        var lastRowLeftRadio = lastRowGroup.add("radiobutton", undefined, getLabel("radio.lastRowLeft"));
-        var lastRowCenterRadio = lastRowGroup.add("radiobutton", undefined, getLabel("radio.lastRowCenter"));
+        /* ラジオボタンは縦に並べ、項目名は1つ目の行に合わせる / Stack the radios; the label lines up with the first one */
+        lastRowGroup.alignChildren = ["left", "top"];
+        var lastRowRadioGroup = lastRowGroup.add("group");
+        lastRowRadioGroup.orientation = "column";
+        lastRowRadioGroup.alignChildren = ["left", "center"];
+        lastRowRadioGroup.spacing = 6;
+        var lastRowLeftRadio = lastRowRadioGroup.add("radiobutton", undefined, getLabel("radio.lastRowLeft"));
+        var lastRowCenterRadio = lastRowRadioGroup.add("radiobutton", undefined, getLabel("radio.lastRowCenter"));
         lastRowLeftRadio.value = (currentLastRowAlign === LAST_ROW_ALIGN_LEFT);
         lastRowCenterRadio.value = (currentLastRowAlign !== LAST_ROW_ALIGN_LEFT);
         lastRowLeftRadio.onClick = function () {
@@ -2649,7 +2647,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
          */
         function addCheckboxLabel(rowGroup, labelKey, isChecked) {
             var checkboxLabelGroup = rowGroup.add("group");
-            checkboxLabelGroup.preferredSize.width = FIELD_LABEL_WIDTH;
+            checkboxLabelGroup.preferredSize.width = MASK_OPTIONS_LABEL_WIDTH;
             checkboxLabelGroup.alignChildren = ["right", "center"];
             checkboxLabelGroup.margins = 0;
             var labelCheckbox = checkboxLabelGroup.add("checkbox", undefined, labelText("checkbox." + labelKey));
@@ -2677,11 +2675,30 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         cornerRadiusInput.fieldLabel.parent.spacing = 0;
         writeSteppedValue(cornerRadiusInput, ptToUnit(currentCornerRadius, rulerUnit), cornerRadiusFieldOptions);
 
-        /* 線：チェックボックス・色見本 / Stroke: checkbox and color swatch */
-        var strokeRow = maskOptionsPanel.add("group");
-        setupRow(strokeRow, "left", STEPPER_FIELD_SPACING);
-        var useStrokeCheckbox = addCheckboxLabel(strokeRow, "useStroke", currentUseStroke);
-        var strokeSwatch = strokeRow.add("group");
+        /* 線幅：チェックボックス・線幅 / Stroke weight: checkbox and weight */
+        var strokeWidthRow = maskOptionsPanel.add("group");
+        setupRow(strokeWidthRow, "left", STEPPER_FIELD_SPACING);
+        var useStrokeCheckbox = addCheckboxLabel(strokeWidthRow, "useStroke", currentUseStroke);
+        var strokeWidthFieldOptions = {
+            label: "", characters: 5, step: 1, min: 0, unit: " " + strokeUnit.label,
+            onStep: function () { onStrokeWidthChanged(); }
+        };
+        var strokeWidthInput = addSteppedField(strokeWidthRow, strokeWidthFieldOptions);
+        writeSteppedValue(strokeWidthInput, ptToUnit(currentStrokeWidth, strokeUnit), strokeWidthFieldOptions);
+        /* 項目名はチェックボックスが兼ねるので、空の項目名の幅と間隔を詰める / The checkbox is the label, so collapse the empty label */
+        strokeWidthInput.fieldLabel.maximumSize.width = 0;
+        strokeWidthInput.fieldLabel.parent.spacing = 0;
+
+        /* 線：項目名・色見本 / Stroke: label and color swatch */
+        var strokeColorRow = maskOptionsPanel.add("group");
+        setupRow(strokeColorRow, "left", STEPPER_FIELD_SPACING);
+        var strokeColorLabel = strokeColorRow.add("statictext", undefined, labelText("fieldLabel.strokeColor"));
+        strokeColorLabel.preferredSize.width = MASK_OPTIONS_LABEL_WIDTH;
+        strokeColorLabel.justify = "right";
+        /* 色見本の左に、数値欄の∧∨と同じ余白を足す / Same left margin as the steppers of the numeric fields */
+        var strokeSwatchHolder = strokeColorRow.add("group");
+        strokeSwatchHolder.margins = [STEPPER_SIDE_MARGIN, 0, 0, 0];
+        var strokeSwatch = strokeSwatchHolder.add("group");
         strokeSwatch.preferredSize = COLOR_SWATCH_SIZE;
         strokeSwatch.helpTip = getLabel("tooltip.strokeColor");
         strokeSwatch.onDraw = function () {
@@ -2705,13 +2722,6 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             updatePreview();
         });
 
-        var strokeWidthFieldOptions = {
-            label: labelText("fieldLabel.strokeWidth"), labelWidth: FIELD_LABEL_WIDTH,
-            text: "", characters: 5, step: 1, min: 0, unit: " " + strokeUnit.label,
-            onStep: function () { onStrokeWidthChanged(); }
-        };
-        var strokeWidthInput = addSteppedField(maskOptionsPanel, strokeWidthFieldOptions);
-        writeSteppedValue(strokeWidthInput, ptToUnit(currentStrokeWidth, strokeUnit), strokeWidthFieldOptions);
 
         /**
          * 線の色見本を描き直す（group には notify() が無いので隠して再表示する）。
@@ -2731,6 +2741,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             setSteppedFieldEnabled(cornerRadiusInput, currentUseMask && currentUseCornerRadius);
             useStrokeCheckbox.enabled = currentUseMask;
             setSteppedFieldEnabled(strokeWidthInput, currentUseMask && currentUseStroke);
+            strokeColorLabel.enabled = currentUseMask && currentUseStroke;
             redrawStrokeSwatch();
         }
         updateMaskControls();
@@ -2758,18 +2769,6 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             currentUseStroke = useStrokeCheckbox.value;
             updateMaskControls();
             updatePreview();
-        };
-
-        // -----------------------------------------
-        // オプション / Options
-        // -----------------------------------------
-        var optionsPanel = rightColumn.add("panel", undefined, getLabel("panel.options"));
-        setupPanel(optionsPanel, 6);
-        var embedImagesCheckbox = optionsPanel.add("checkbox", undefined, getLabel("checkbox.embedImages"));
-        embedImagesCheckbox.helpTip = getLabel("tooltip.embedImages");
-        embedImagesCheckbox.value = currentEmbedImages;
-        embedImagesCheckbox.onClick = function () {
-            currentEmbedImages = embedImagesCheckbox.value;
         };
 
         // -----------------------------------------
@@ -2822,7 +2821,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         }
 
         /**
-         * マージン（オブジェクト同士・対象の内側）を変えたとき。
+         * マージン（間隔・外周）を変えたとき。
          * @returns {void}
          */
         function onMarginChanged() {
@@ -2910,25 +2909,13 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             cornerRadiusPt: currentCornerRadius,
             useStroke: currentUseStroke,
             strokeWidthPt: currentStrokeWidth,
-            strokeColor: colorToSettings(currentStrokeColor),
-            embedImages: currentEmbedImages
+            strokeColor: colorToSettings(currentStrokeColor)
         };
     }
 
     // =========================================
     // メイン処理 / Main
     // =========================================
-
-    /**
-     * 配置した画像を埋め込む。
-     * @param {PlacedItem[]} placedItems - 埋め込むアイテム
-     * @returns {void}
-     */
-    function embedPlacedItems(placedItems) {
-        for (var i = 0; i < placedItems.length; i++) {
-            placedItems[i].embed();
-        }
-    }
 
     /**
      * メイン処理。
@@ -3001,10 +2988,6 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         settingsStore.save(confirmedSettings);
 
         doc.selection = (maskGroups.length > 0) ? maskGroups : placedItems;
-        if (confirmedSettings.embedImages) {
-            /* 埋め込むと PlacedItem は別のオブジェクトに置き換わるので最後に行う / Embedding replaces the PlacedItems, so do it last */
-            embedPlacedItems(placedItems);
-        }
     }
 
     main();

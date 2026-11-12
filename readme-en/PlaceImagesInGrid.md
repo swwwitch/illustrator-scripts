@@ -12,21 +12,20 @@
 
 Places the images you choose in the file dialog box (one or more) as links and lays them out in a grid inside the selected rectangle. With nothing selected, they are laid out on the active artboard.
 
-After placing, a dialog box lets you adjust the columns, rows, margins and the alignment of the last row while previewing.
+After placing, a dialog box lets you adjust the columns, rows, margins, the alignment of the last row and a mask for each image (corner radius and stroke) while previewing.
 
 ### Features
 
 - Choose and place several images at once (as links)
 - Target: the selected rectangle, or the active artboard
-- Columns and rows are calculated to fill the target as much as possible (Auto), or set by hand (Custom)
-- Each image is scaled to fill its cell while keeping its aspect ratio
-- Margin between images (Between items) and margin inside the target (Inside target)
+- Columns and rows are calculated to fill the target as much as possible (Auto), or set by hand (Manual)
+- Each image is scaled to fit its cell while keeping its aspect ratio
+- Space between images (Gutter) and margin around the area (Inset)
 - Leftover space is split evenly above and below (or left and right)
-- A short last row can be aligned Left or Center
+- A short last row can be set to Align Left or Align Center
 - Shuffle rearranges the images in random order
-- Mask each image (Cell shape / Item shape), with corner radius applied as an effect
-- Stroke the mask rectangle (color and weight)
-- Option to embed the images instead of linking them
+- Mask each image (Cell / Image), with corner radius applied as an effect
+- Stroke the mask rectangle (weight and color)
 - Dialog settings are remembered for the next run
 - Live preview as you type
 - Stepper buttons and arrow keys for numeric fields
@@ -39,11 +38,10 @@ After placing, a dialog box lets you adjust the columns, rows, margins and the a
 2. Run `PlaceImagesInGrid.jsx`.
 3. Choose images in the file dialog box (one or more).
 4. In the dialog box that opens after placing, adjust the settings while previewing.
-   - Grid: Auto / Custom, Columns, Rows, Last row (Left / Center)
-   - Margins: Between items, Inside target
-   - Mask shape: None / Cell shape / Item shape
-   - Mask options: Corner radius, Stroke (color and weight)
-   - Options: Embed images
+   - Grid: Auto / Manual, Columns, Rows, Last row (Align Left / Align Center)
+   - Margins: Gutter, Inset
+   - Mask shape: None / Cell / Image
+   - Mask options: Corner radius, Stroke weight, Stroke (color)
 5. Click Shuffle to rearrange the images if you like.
 6. Click OK.
 
@@ -54,17 +52,18 @@ After placing, a dialog box lets you adjust the columns, rows, margins and the a
 - Images with different aspect ratios do not end up the same size: wide images fit the cell's width and tall images fit its height.
 - When you set the rows, the columns follow. Images fill row by row from the top left, so row counts that cannot be made (such as 5 rows for 16 images) are skipped.
 - If the margins leave no room, the images are lined up in a row at 100%.
-- With Cell shape, each image is scaled to cover its cell and clipped by the cell rectangle. Parts outside the cell are hidden, and all images end up the same size.
-- With Item shape, each image is clipped at its fitted size. Nothing is cropped; use it to add rounded corners or a stroke.
+- With Cell, each image is scaled to cover its cell and clipped by the cell rectangle. Parts outside the cell are hidden, and all images end up the same size.
+- With Image, each image is clipped at its own size. Nothing is cropped; use it to add rounded corners or a stroke.
 - The corner radius is applied to the clip group as Effect > Stylize > Round Corners, so you can change it later in the Appearance panel.
-- The stroke is applied to the clipping path. Click the swatch to choose a color in the standard color picker. The weight is entered in the stroke unit set in Preferences.
-- Embed images takes effect when you click OK (the images stay linked during the preview).
-- Settings are saved when you click OK and used as the defaults next time (the column count carries over only in Custom mode).
+- The corner radius and the stroke are applied only when their checkboxes are on. They are unavailable when Mask shape is None.
+- The stroke is applied to the clipping path. The weight is entered in the stroke unit set in Preferences. Click the Stroke swatch to choose a color in the standard color picker.
+- Settings are saved when you click OK and used as the defaults next time (the column count carries over only in Manual mode).
 - Cancel removes the placed images.
 - Images cannot be placed while the active layer is locked or hidden.
 
 ### Update History
 
+- v1.1.2 (2026-11-12) Revised the dialog box wording (title "Place Images in Grid", Gutter, Inset, Cell / Image, Manual, Align Left / Align Center). Removed the Embed images option. Adjusted the dialog box layout (narrower labels, stacked last-row options, a checkbox on Stroke weight placed above Stroke)
 - v1.1.1 (2026-11-12) Rearranged the dialog box into two columns (grid and margins on the left, mask and options on the right) and aligned the label widths. Stacked the mask modes vertically and added a checkbox for the corner radius
 - v1.1.0 (2026-11-12) Added masks (cell shape / item shape), corner radius (effect), a stroke on the mask (color and weight), an option to embed the images, and remembered settings
 - v1.0.0 (2026-11-12) Initial release
