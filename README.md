@@ -223,6 +223,7 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 - [同じシンボルのインスタンスをすべて選択](readme-ja/FindAllSymbolInstances.md)
 - [配置画像の埋め込み・解除・リンクをまとめて扱う](readme-ja/ImageLinkManager.md)
 - [リンク切れの画像を同名ファイルで自動再リンク](readme-ja/RelinkMissingLinks.md)
+- [画像を選んで長方形やアートボードにグリッド状に配置](readme-ja/PlaceImagesInGrid.md)
 - [見開きを左右2つの片ページに分割](readme-ja/SplitSpreadToSingle.md)
 - [選択オブジェクトを一覧から選んだシンボルに置き換え](readme-ja/%E3%82%B7%E3%83%B3%E3%83%9C%E3%83%AB%E3%81%AB%E7%BD%AE%E3%81%8D%E6%8F%9B%E3%81%88-sw.md)
 

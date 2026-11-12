@@ -222,6 +222,7 @@ After release, we continue to fix bugs and make adjustments through daily use.
 - [Select all instances of the same symbols](readme-en/FindAllSymbolInstances.md)
 - [Embed, unembed and relink placed images in one dialog](readme-en/ImageLinkManager.md)
 - [Relink missing images from a chosen folder](readme-en/RelinkMissingLinks.md)
+- [Place chosen images in a grid inside a rectangle or artboard](readme-en/PlaceImagesInGrid.md)
 - [Split spreads into left and right single pages](readme-en/SplitSpreadToSingle.md)
 - [Replace the selection with a symbol chosen from the d…](readme-en/%E3%82%B7%E3%83%B3%E3%83%9C%E3%83%AB%E3%81%AB%E7%BD%AE%E3%81%8D%E6%8F%9B%E3%81%88-sw.md)
 
