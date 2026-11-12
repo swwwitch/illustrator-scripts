@@ -7,7 +7,7 @@ Script-ID=com.swwwitch.illustrator.PlaceImagesInGrid
 Name=画像を選んで長方形やアートボードにグリッド状に配置
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.0.0
+Version=1.1.0
 Release-Date=2026-11-12
 Description-BEGIN
 ファイル選択ダイアログボックスで選んだ画像をリンクで配置し、選択中の長方形（または作業中のアートボード）にグリッド状に並べます。
@@ -43,7 +43,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PlaceImage
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "PlaceImagesInGrid";            /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-11-12";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-11-12";                   /* 更新日 / last updated */
@@ -66,11 +66,31 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
     /* 対象の拡張子 / Target extensions */
     var IMAGE_EXTENSIONS = ["jpg", "jpeg", "png", "tif", "tiff", "psd", "gif", "bmp", "pdf", "eps", "ai", "svg", "heic", "webp"];
 
-    /* オブジェクト間のマージン（画像どうしの間隔）の初期値（pt） / Default margin between images (pt) */
+    /* オブジェクト同士のマージン（画像どうしの間隔）の初期値（pt） / Default margin between images (pt) */
     var DEFAULT_IMAGE_GAP = 10;
 
     /* 対象（長方形・アートボード）の内側に取るマージンの初期値（pt） / Default margin inside the target (pt) */
     var DEFAULT_FRAME_MARGIN = 0;
+
+    /* マスクの種類 / Mask modes */
+    var MASK_MODE_NONE = "none"; /* マスクしない / no mask */
+    var MASK_MODE_CELL = "cell"; /* セルの形（セルを覆う大きさにして切り抜く） / cell shape (scaled to cover the cell, then clipped) */
+    var MASK_MODE_ITEM = "item"; /* アイテムの形（セルに収めた画像の大きさ） / item shape (the image fitted in its cell) */
+
+    /* マスクの種類・角丸の半径（pt）の初期値 / Defaults for the mask mode and the corner radius (pt) */
+    var DEFAULT_MASK_MODE = MASK_MODE_NONE;
+    var DEFAULT_CORNER_RADIUS = 0;
+
+    /* マスクの長方形に線を付けるか・線幅（pt）の初期値。色の初期値は黒 / Defaults for stroking the mask rectangle and its width (pt); the default color is black */
+    var DEFAULT_USE_STROKE = false;
+    var DEFAULT_STROKE_WIDTH = 1;
+
+    /* 画像を埋め込むかの初期値 / Default for embedding the images */
+    var DEFAULT_EMBED_IMAGES = false;
+
+    /* 列数・行数の決め方 / How columns and rows are set */
+    var GRID_MODE_AUTO = "auto";
+    var GRID_MODE_MANUAL = "manual";
 
     /* 最終行の揃え / Alignment of the last row */
     var LAST_ROW_ALIGN_LEFT = "left";
@@ -161,7 +181,8 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
     // UIレイアウト（再利用パーツ）ここまで / End of the reusable UI layout
 
     var FIELD_LABEL_WIDTH = 60;  /* グリッドの項目名の幅 / label width in the grid panel */
-    var MARGIN_LABEL_WIDTH = 90; /* マージンの項目名の幅 / label width in the margin panel */
+    var MARGIN_LABEL_WIDTH = 90; /* マージン・マスクの項目名の幅 / label width in the margin and mask panels */
+    var COLOR_SWATCH_SIZE = [40, 20]; /* 線の色見本の大きさ / size of the stroke color swatch */
 
     // =========================================
     // 単位 / Units
@@ -1252,6 +1273,530 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
     // ダイアログの位置と不透明度（再利用パーツ）ここまで / End of the reusable dialog position and opacity
 
     // =========================================
+    // 設定の保存 / Settings store
+    // =========================================
+
+    // 設定の保存（再利用パーツ） / Settings store (reusable)
+
+    var SETTINGS_STORE_FOLDER_NAME = "illustrator-scripts"; /* Folder.userData の下に作るフォルダー / folder created under Folder.userData */
+    var SETTINGS_STORE_MAX_DEPTH = 32;                                /* 入れ子の上限（循環参照よけ）/ nesting limit (guards against cycles) */
+
+    /**
+     * 設定の保存先を作る。寿命は "session"（Illustrator の終了まで）か "persistent"（ファイルに保存）
+     * @param {string} storeName - 保存名（ふつうは SCRIPT_NAME）。ファイル名と $.global のキーに使う
+     * @param {string} lifetime - "session" または "persistent"
+     * @param {Object} [storeOptions] - { legacy: function () → 旧形式の保存値のオブジェクト|null }
+     * @returns {{load: Function, save: Function, clear: Function}} 読み込み・保存・消去の関数
+     */
+    function createSettingsStore(storeName, lifetime, storeOptions) {
+        var isPersistent = (lifetime === "persistent");
+        var legacyReader = (storeOptions && typeof storeOptions.legacy === "function") ? storeOptions.legacy : null;
+        var safeStoreName = String(storeName).replace(/[\\\/:*?"<>|]/g, "_");
+        var sessionKey = "__" + safeStoreName + "_Settings";
+        var settingsFile = isPersistent
+            ? new File(Folder.userData + "/" + SETTINGS_STORE_FOLDER_NAME + "/" + safeStoreName + ".json")
+            : null;
+
+        /**
+         * 保存してある文字列を返す
+         * @returns {string|null} 保存文字列。1度も保存していなければ null
+         */
+        function readStoredText() {
+            if (!isPersistent) {
+                return (typeof $.global[sessionKey] === "string") ? $.global[sessionKey] : null;
+            }
+            return settingsStoreReadTextFile(settingsFile);
+        }
+
+        /**
+         * 文字列を保存する
+         * @param {string} storedText - 保存する文字列
+         * @returns {boolean} 保存できたら true
+         */
+        function writeStoredText(storedText) {
+            if (!isPersistent) {
+                $.global[sessionKey] = storedText;
+                return true;
+            }
+            return settingsStoreWriteTextFile(settingsFile, storedText);
+        }
+
+        /**
+         * 保存値を読み込み、既定値と突き合わせて返す（型の合わない値・知らない項目は捨てる）
+         * @param {Object} defaultSettings - 既定値
+         * @returns {Object} 設定（毎回新しいオブジェクト）
+         */
+        function load(defaultSettings) {
+            var savedSettings = null;
+            try {
+                var storedText = readStoredText();
+                if (storedText !== null) {
+                    savedSettings = settingsStoreParse(storedText);
+                } else if (legacyReader) {
+                    savedSettings = legacyReader();
+                }
+            } catch (e) {
+                $.writeln("SettingsStore.load(" + storeName + "): " + e);
+                savedSettings = null;
+            }
+            return settingsStoreMerge(defaultSettings, savedSettings);
+        }
+
+        /**
+         * 設定を保存する
+         * @param {Object} settingValues - 保存する値
+         * @returns {boolean} 保存できたら true
+         */
+        function save(settingValues) {
+            try {
+                return writeStoredText(settingsStoreSerialize(settingValues, "", 0));
+            } catch (e) {
+                $.writeln("SettingsStore.save(" + storeName + "): " + e);
+                return false;
+            }
+        }
+
+        /**
+         * 保存を消す。旧形式を読み継ぐストアでは空の保存を書き、旧設定が戻らないようにする
+         * @returns {boolean} 消せたら true
+         */
+        function clear() {
+            if (legacyReader) return writeStoredText("{}");
+            if (!isPersistent) {
+                try { delete $.global[sessionKey]; } catch (e) { $.global[sessionKey] = undefined; }
+                return true;
+            }
+            try {
+                return settingsFile.exists ? settingsFile.remove() : true;
+            } catch (e) {
+                $.writeln("SettingsStore.clear(" + storeName + "): " + e);
+                return false;
+            }
+        }
+
+        return { load: load, save: save, clear: clear };
+    }
+
+    /**
+     * 旧形式の設定ファイルを読む（key=value の行 / toSource / JSON を自動判別。eval は使わない）
+     * @param {File|string} legacyFileOrPath - 旧ファイルかそのパス
+     * @returns {Object|null} 読み込んだ値（key=value は値がすべて文字列）。無い・読めないときは null
+     */
+    function readSettingsLegacyFile(legacyFileOrPath) {
+        try {
+            var legacyFile = (legacyFileOrPath instanceof File) ? legacyFileOrPath : new File(legacyFileOrPath);
+            var legacyText = settingsStoreReadTextFile(legacyFile);
+            return (legacyText === null) ? null : settingsStoreParseLegacyText(legacyText);
+        } catch (e) {
+            $.writeln("readSettingsLegacyFile: " + e);
+            return null;
+        }
+    }
+
+    /**
+     * app.preferences に文字列で保存していた旧設定を読む（形式は readSettingsLegacyFile と同じく自動判別）
+     * @param {string} preferenceKey - 環境設定のキー
+     * @returns {Object|null} 読み込んだ値。無い・読めないときは null
+     */
+    function readSettingsLegacyPreference(preferenceKey) {
+        try {
+            var legacyText = app.preferences.getStringPreference(preferenceKey);
+            if (!legacyText) return null;
+            return settingsStoreParseLegacyText(String(legacyText));
+        } catch (e) {
+            $.writeln("readSettingsLegacyPreference: " + e);
+            return null;
+        }
+    }
+
+    /**
+     * テキストファイルを UTF-8 で読む
+     * @param {File} textFile - 読むファイル
+     * @returns {string|null} 中身。ファイルが無ければ null
+     */
+    function settingsStoreReadTextFile(textFile) {
+        if (!textFile.exists) return null;
+        textFile.encoding = "UTF-8";
+        if (!textFile.open("r")) throw new Error("cannot open " + textFile.fsName);
+        try {
+            return textFile.read().replace(/^\uFEFF/, "");
+        } finally {
+            textFile.close();
+        }
+    }
+
+    /**
+     * テキストファイルを UTF-8 で書く（フォルダーが無ければ作る）
+     * @param {File} textFile - 書くファイル
+     * @param {string} fileText - 中身
+     * @returns {boolean} 書けたら true
+     */
+    function settingsStoreWriteTextFile(textFile, fileText) {
+        try {
+            var parentFolder = textFile.parent;
+            if (!parentFolder.exists && !parentFolder.create()) throw new Error("cannot create " + parentFolder.fsName);
+            textFile.encoding = "UTF-8";
+            textFile.lineFeed = "Unix";
+            if (!textFile.open("w")) throw new Error("cannot open " + textFile.fsName);
+            try {
+                textFile.write(fileText);
+            } finally {
+                textFile.close();
+            }
+            return true;
+        } catch (e) {
+            $.writeln("SettingsStore write: " + e);
+            return false;
+        }
+    }
+
+    /**
+     * 値が配列か
+     * @param {*} checkedValue - 調べる値
+     * @returns {boolean} 配列なら true
+     */
+    function settingsStoreIsArray(checkedValue) {
+        return Object.prototype.toString.call(checkedValue) === "[object Array]";
+    }
+
+    /**
+     * 値が素のオブジェクト（{ } で作ったもの）か
+     * @param {*} checkedValue - 調べる値
+     * @returns {boolean} 素のオブジェクトなら true
+     */
+    function settingsStoreIsPlainObject(checkedValue) {
+        return checkedValue !== null && typeof checkedValue === "object"
+            && Object.prototype.toString.call(checkedValue) === "[object Object]"
+            && checkedValue.constructor === Object;
+    }
+
+    /**
+     * 文字列を JSON の文字列リテラルにする（ASCII 以外は \uXXXX にして、文字コードの取り違えに強くする）
+     * @param {string} sourceText - 文字列
+     * @returns {string} 引用符つきの文字列
+     */
+    function settingsStoreQuote(sourceText) {
+        var quotedText = "\"";
+        for (var i = 0; i < sourceText.length; i++) {
+            var charCode = sourceText.charCodeAt(i);
+            var oneChar = sourceText.charAt(i);
+            if (oneChar === "\"" || oneChar === "\\") quotedText += "\\" + oneChar;
+            else if (oneChar === "\n") quotedText += "\\n";
+            else if (oneChar === "\r") quotedText += "\\r";
+            else if (oneChar === "\t") quotedText += "\\t";
+            else if (charCode < 0x20 || charCode > 0x7E) quotedText += "\\u" + ("0000" + charCode.toString(16)).slice(-4);
+            else quotedText += oneChar;
+        }
+        return quotedText + "\"";
+    }
+
+    /**
+     * 値を JSON の文字列にする（オブジェクトは1項目1行、中身が値だけの配列は1行）。
+     * undefined・関数・DOM オブジェクトは項目ごと省き、配列の中では null にする。有限でない数値は null
+     * @param {*} sourceValue - 値
+     * @param {string} indentText - 今の字下げ
+     * @param {number} depth - 入れ子の深さ
+     * @returns {string|undefined} JSON の文字列。書けない値は undefined
+     */
+    function settingsStoreSerialize(sourceValue, indentText, depth) {
+        if (depth > SETTINGS_STORE_MAX_DEPTH) throw new Error("settings are nested too deeply");
+        if (sourceValue === null) return "null";
+        var valueType = typeof sourceValue;
+        if (valueType === "boolean") return sourceValue ? "true" : "false";
+        if (valueType === "number") return isFinite(sourceValue) ? String(sourceValue) : "null";
+        if (valueType === "string") return settingsStoreQuote(sourceValue);
+        var innerIndent = indentText + "  ";
+        var itemTexts = [];
+        var i;
+        if (settingsStoreIsArray(sourceValue)) {
+            var hasNested = false;
+            for (i = 0; i < sourceValue.length; i++) {
+                var itemText = settingsStoreSerialize(sourceValue[i], innerIndent, depth + 1);
+                itemTexts.push(itemText === undefined ? "null" : itemText);
+                if (sourceValue[i] !== null && typeof sourceValue[i] === "object") hasNested = true;
+            }
+            if (!itemTexts.length) return "[]";
+            if (!hasNested) return "[" + itemTexts.join(", ") + "]";
+            return "[\n" + innerIndent + itemTexts.join(",\n" + innerIndent) + "\n" + indentText + "]";
+        }
+        if (settingsStoreIsPlainObject(sourceValue)) {
+            for (var key in sourceValue) {
+                if (!sourceValue.hasOwnProperty(key)) continue;
+                var memberText = settingsStoreSerialize(sourceValue[key], innerIndent, depth + 1);
+                if (memberText !== undefined) itemTexts.push(settingsStoreQuote(key) + ": " + memberText);
+            }
+            if (!itemTexts.length) return "{}";
+            return "{\n" + innerIndent + itemTexts.join(",\n" + innerIndent) + "\n" + indentText + "}";
+        }
+        return undefined; /* 関数・DOM オブジェクトなど / functions, DOM objects, etc. */
+    }
+
+    /**
+     * JSON（と toSource の出力）を読む。eval は使わない。
+     * キーの引用符なし・'…' の文字列・全体の ( ) ・末尾のカンマ・(void 0) も受け付ける
+     * @param {string} sourceText - 読む文字列
+     * @returns {*} 読み込んだ値
+     */
+    function settingsStoreParse(sourceText) {
+        var readPos = 0;
+        var textLength = sourceText.length;
+
+        /**
+         * 読み取り位置で失敗を知らせる
+         * @param {string} reasonText - 理由
+         * @returns {void}
+         */
+        function fail(reasonText) {
+            throw new Error("settings parse error at " + readPos + ": " + reasonText);
+        }
+
+        /**
+         * 空白を読み飛ばす
+         * @returns {void}
+         */
+        function skipSpaces() {
+            while (readPos < textLength && /\s/.test(sourceText.charAt(readPos))) readPos++;
+        }
+
+        /**
+         * 識別子（英数字・_・$）を読む
+         * @returns {string} 識別子。無ければ空文字
+         */
+        function readWord() {
+            var startPos = readPos;
+            while (readPos < textLength && /[\w$]/.test(sourceText.charAt(readPos))) readPos++;
+            return sourceText.substring(startPos, readPos);
+        }
+
+        /**
+         * 引用符で囲んだ文字列を読む（" と ' のどちらでも）
+         * @returns {string} 文字列
+         */
+        function readString() {
+            var quoteChar = sourceText.charAt(readPos++);
+            var resultText = "";
+            while (readPos < textLength) {
+                var oneChar = sourceText.charAt(readPos++);
+                if (oneChar === quoteChar) return resultText;
+                if (oneChar !== "\\") { resultText += oneChar; continue; }
+                var escapeChar = sourceText.charAt(readPos++);
+                if (escapeChar === "n") resultText += "\n";
+                else if (escapeChar === "r") resultText += "\r";
+                else if (escapeChar === "t") resultText += "\t";
+                else if (escapeChar === "b") resultText += "\b";
+                else if (escapeChar === "f") resultText += "\f";
+                else if (escapeChar === "v") resultText += "\v";
+                else if (escapeChar === "0") resultText += "\0";
+                else if (escapeChar === "u" || escapeChar === "x") {
+                    var hexLength = (escapeChar === "u") ? 4 : 2;
+                    var hexText = sourceText.substr(readPos, hexLength);
+                    if (!new RegExp("^[0-9A-Fa-f]{" + hexLength + "}$").test(hexText)) fail("bad escape");
+                    resultText += String.fromCharCode(parseInt(hexText, 16));
+                    readPos += hexLength;
+                } else resultText += escapeChar;
+            }
+            fail("unterminated string");
+        }
+
+        /**
+         * 値を1つ読む
+         * @param {number} depth - 入れ子の深さ
+         * @returns {*} 値
+         */
+        function readValue(depth) {
+            if (depth > SETTINGS_STORE_MAX_DEPTH) fail("nested too deeply");
+            skipSpaces();
+            var oneChar = sourceText.charAt(readPos);
+            if (oneChar === "{") return readObject(depth);
+            if (oneChar === "[") return readArray(depth);
+            if (oneChar === "\"" || oneChar === "'") return readString();
+            if (oneChar === "(") {
+                readPos++;
+                var innerValue = readValue(depth + 1);
+                skipSpaces();
+                if (sourceText.charAt(readPos) !== ")") fail("expected )");
+                readPos++;
+                return innerValue;
+            }
+            var numberMatch = /^-?(\d+\.?\d*|\.\d+)([eE][+\-]?\d+)?/.exec(sourceText.substring(readPos, readPos + 64));
+            if (numberMatch) {
+                readPos += numberMatch[0].length;
+                return Number(numberMatch[0]);
+            }
+            var wordText = readWord();
+            if (wordText === "true") return true;
+            if (wordText === "false") return false;
+            if (wordText === "null") return null;
+            if (wordText === "NaN") return NaN;
+            if (wordText === "Infinity") return Infinity;
+            if (wordText === "void") { readValue(depth + 1); return undefined; } /* toSource の (void 0) */
+            fail("unexpected " + (wordText || oneChar || "end of text"));
+        }
+
+        /**
+         * 配列を読む
+         * @param {number} depth - 入れ子の深さ
+         * @returns {Array} 配列
+         */
+        function readArray(depth) {
+            var resultArray = [];
+            readPos++;
+            skipSpaces();
+            while (sourceText.charAt(readPos) !== "]") {
+                resultArray.push(readValue(depth + 1));
+                skipSpaces();
+                if (sourceText.charAt(readPos) === ",") { readPos++; skipSpaces(); continue; }
+                if (sourceText.charAt(readPos) !== "]") fail("expected , or ]");
+            }
+            readPos++;
+            return resultArray;
+        }
+
+        /**
+         * オブジェクトを読む（__proto__ のキーは捨てる）
+         * @param {number} depth - 入れ子の深さ
+         * @returns {Object} オブジェクト
+         */
+        function readObject(depth) {
+            var resultObject = {};
+            readPos++;
+            skipSpaces();
+            while (sourceText.charAt(readPos) !== "}") {
+                var keyChar = sourceText.charAt(readPos);
+                var memberKey = (keyChar === "\"" || keyChar === "'") ? readString() : readWord();
+                if (memberKey === "") fail("expected a key");
+                skipSpaces();
+                if (sourceText.charAt(readPos) !== ":") fail("expected :");
+                readPos++;
+                var memberValue = readValue(depth + 1);
+                if (memberKey !== "__proto__") resultObject[memberKey] = memberValue;
+                skipSpaces();
+                if (sourceText.charAt(readPos) === ",") { readPos++; skipSpaces(); continue; }
+                if (sourceText.charAt(readPos) !== "}") fail("expected , or }");
+            }
+            readPos++;
+            return resultObject;
+        }
+
+        var parsedValue = readValue(0);
+        skipSpaces();
+        if (readPos < textLength) fail("unexpected text after the value");
+        return parsedValue;
+    }
+
+    /**
+     * 旧形式の文字列を読む。{ [ ( で始まれば JSON / toSource、それ以外は key=value の行とみなす
+     * @param {string} legacyText - 旧形式の文字列
+     * @returns {Object|null} 読み込んだ値
+     */
+    function settingsStoreParseLegacyText(legacyText) {
+        var trimmedText = legacyText.replace(/^\uFEFF/, "").replace(/^\s+|\s+$/g, "");
+        if (trimmedText === "") return null;
+        if (/^[\{\[\(]/.test(trimmedText)) return settingsStoreParse(trimmedText);
+        var keyValues = {};
+        var textLines = trimmedText.split(/\r\n|\r|\n/);
+        for (var i = 0; i < textLines.length; i++) {
+            var separatorIndex = textLines[i].indexOf("=");
+            if (separatorIndex < 1) continue;
+            var lineKey = textLines[i].substring(0, separatorIndex).replace(/^\s+|\s+$/g, "");
+            if (lineKey !== "" && lineKey !== "__proto__") keyValues[lineKey] = textLines[i].substring(separatorIndex + 1);
+        }
+        return keyValues;
+    }
+
+    /**
+     * 値を深くコピーする（素のデータだけ。関数・DOM オブジェクトは null）
+     * @param {*} sourceValue - コピー元
+     * @returns {*} コピー
+     */
+    function settingsStoreClone(sourceValue) {
+        if (sourceValue === null || typeof sourceValue !== "object") {
+            return (typeof sourceValue === "function" || sourceValue === undefined) ? null : sourceValue;
+        }
+        var i;
+        if (settingsStoreIsArray(sourceValue)) {
+            var arrayCopy = [];
+            for (i = 0; i < sourceValue.length; i++) arrayCopy.push(settingsStoreClone(sourceValue[i]));
+            return arrayCopy;
+        }
+        if (!settingsStoreIsPlainObject(sourceValue)) return null;
+        var objectCopy = {};
+        for (var key in sourceValue) {
+            if (sourceValue.hasOwnProperty(key)) objectCopy[key] = settingsStoreClone(sourceValue[key]);
+        }
+        return objectCopy;
+    }
+
+    /**
+     * 保存値を既定値と突き合わせる。型は既定値に合わせ、合わなければ既定値を使う。
+     * 既定値が {} か null なら中身を問わず受け取り、配列は配列なら受け取る。既定値に無い項目は捨てる
+     * @param {*} defaultValue - 既定値
+     * @param {*} savedValue - 保存値
+     * @returns {*} 突き合わせた値（新しいオブジェクト）
+     */
+    function settingsStoreMerge(defaultValue, savedValue) {
+        if (defaultValue === null || defaultValue === undefined) {
+            return (savedValue === undefined) ? null : settingsStoreClone(savedValue);
+        }
+        var defaultType = typeof defaultValue;
+        var savedType = typeof savedValue;
+        if (defaultType === "boolean") {
+            if (savedType === "boolean") return savedValue;
+            if (savedValue === 1 || savedValue === "1" || savedValue === "true") return true;
+            if (savedValue === 0 || savedValue === "0" || savedValue === "false") return false;
+            return defaultValue;
+        }
+        if (defaultType === "number") {
+            if (savedType === "number" && isFinite(savedValue)) return savedValue;
+            if (savedType === "string" && /\S/.test(savedValue)) {
+                var parsedNumber = Number(savedValue);
+                if (isFinite(parsedNumber)) return parsedNumber;
+            }
+            return defaultValue;
+        }
+        if (defaultType === "string") {
+            if (savedType === "string") return savedValue;
+            if (savedType === "number" && isFinite(savedValue)) return String(savedValue);
+            if (savedType === "boolean") return String(savedValue);
+            return defaultValue;
+        }
+        if (settingsStoreIsArray(defaultValue)) {
+            return settingsStoreClone(settingsStoreIsArray(savedValue) ? savedValue : defaultValue);
+        }
+        if (defaultType === "object") {
+            var savedIsObject = settingsStoreIsPlainObject(savedValue);
+            var hasDefaultKeys = false;
+            var mergedObject = {};
+            for (var key in defaultValue) {
+                if (!defaultValue.hasOwnProperty(key)) continue;
+                hasDefaultKeys = true;
+                mergedObject[key] = settingsStoreMerge(defaultValue[key], savedIsObject ? savedValue[key] : undefined);
+            }
+            /* 既定値が {} なら自由な入れ物として中身ごと受け取る / an empty default {} is a free-form map */
+            if (!hasDefaultKeys && savedIsObject) return settingsStoreClone(savedValue);
+            return mergedObject;
+        }
+        return defaultValue;
+    }
+
+    // 設定の保存（再利用パーツ）ここまで / End of the reusable settings store
+
+    /* 保存する設定の既定値（長さは pt） / Default settings to store (lengths in pt) */
+    var DEFAULT_SETTINGS = {
+        gridMode: GRID_MODE_AUTO,
+        columns: 1,
+        lastRowAlign: DEFAULT_LAST_ROW_ALIGN,
+        gapPt: DEFAULT_IMAGE_GAP,
+        frameMarginPt: DEFAULT_FRAME_MARGIN,
+        maskMode: DEFAULT_MASK_MODE,
+        cornerRadiusPt: DEFAULT_CORNER_RADIUS,
+        useStroke: DEFAULT_USE_STROKE,
+        strokeWidthPt: DEFAULT_STROKE_WIDTH,
+        strokeColor: null,
+        embedImages: DEFAULT_EMBED_IMAGES
+    };
+
+    // =========================================
     // ローカライズ / Localization
     // =========================================
 
@@ -1341,20 +1886,31 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         },
         panel: {
             grid: { ja: "グリッド", en: "Grid" },
-            margin: { ja: "マージン", en: "Margins" }
+            margin: { ja: "マージン", en: "Margins" },
+            mask: { ja: "マスク", en: "Mask" },
+            options: { ja: "オプション", en: "Options" }
         },
         fieldLabel: {
             columns: { ja: "列数", en: "Columns" },
             rows: { ja: "行数", en: "Rows" },
-            gap: { ja: "オブジェクト間", en: "Between items" },
+            gap: { ja: "オブジェクト同士", en: "Between items" },
             frameMargin: { ja: "対象の内側", en: "Inside target" },
+            cornerRadius: { ja: "角丸", en: "Corner radius" },
+            strokeWidth: { ja: "線幅", en: "Stroke weight" },
             lastRow: { ja: "最終行", en: "Last row" }
         },
         radio: {
+            maskNone: { ja: "なし", en: "None" },
+            maskCell: { ja: "セルの形", en: "Cell shape" },
+            maskItem: { ja: "アイテムの形", en: "Item shape" },
             gridAuto: { ja: "自動", en: "Auto" },
             gridManual: { ja: "指定", en: "Custom" },
             lastRowLeft: { ja: "左", en: "Left" },
             lastRowCenter: { ja: "中央", en: "Center" }
+        },
+        checkbox: {
+            useStroke: { ja: "線", en: "Stroke" },
+            embedImages: { ja: "画像を埋め込む", en: "Embed images" }
         },
         button: {
             shuffle: { ja: "シャッフル", en: "Shuffle" },
@@ -1364,6 +1920,10 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         tooltip: {
             gridAuto: { ja: "枠がいちばん埋まる列数・行数にする", en: "Use the columns and rows that fill the frame best" },
             shuffle: { ja: "画像の並び順をランダムに入れ替える", en: "Rearrange the images in random order" },
+            strokeColor: { ja: "クリックで線の色を選ぶ", en: "Click to choose the stroke color" },
+            maskCell: { ja: "セルを覆う大きさにして、セルの形で切り抜く（大きさがそろう）", en: "Scale each image to cover its cell and clip it to the cell (all the same size)" },
+            maskItem: { ja: "セルに収めた画像の大きさのままマスクする（切り抜かない）", en: "Mask each image at its fitted size (nothing is cropped)" },
+            embedImages: { ja: "OK で確定したときに、リンクではなく埋め込みにする", en: "Embed the images instead of linking them when you click OK" },
             stepUp: {
                 ja: "値を増やす（shift＋クリックで10の倍数へ、option＋クリックで0.1ずつ）",
                 en: "Increase (Shift-click to snap to 10s, Option-click by 0.1)"
@@ -1575,32 +2135,38 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
 
     /**
      * 配置したアイテムを行列に並べる。
-     * 各画像は縦横比を保ったままセルいっぱいに拡大・縮小する（何度呼んでも同じ大きさになる）。
-     * 行・列の大きさは実際の画像に詰め、画像どうしの間隔は縦横とも gap にそろえる。
+     * 各画像は縦横比を保ったまま、セルに収まる大きさ（fillCells が true ならセルを覆う大きさ）に拡大・縮小する
+     * （何度呼んでも同じ大きさになる）。
+     * 行・列の大きさは、収めるときは実際の画像に詰め、覆うときはセルの大きさにする。画像どうしの間隔は縦横とも gap にそろえる。
      * 余った分は枠の上下（左右）に均等に振り分ける。端数の出た最終行は lastRowAlign で左揃えか左右中央にする。
      * @param {PlacedItem[]} placedItems - 並べるアイテム（選んだ順に左上から右へ）
      * @param {number[]} frameBounds - 枠の [左, 上, 右, 下]（ドキュメント座標）
      * @param {GridLayout} grid - 行列とセルの大きさ
      * @param {number} gap - 画像どうしの間隔（pt）
      * @param {string} lastRowAlign - 最終行の揃え（"left" または "center"）
-     * @returns {void}
+     * @param {boolean} fillCells - セルを覆う大きさにする（マスク用）なら true
+     * @returns {number[][]} 各アイテムの区画 [左, 上, 幅, 高さ]（placedItems と同じ順）
      */
-    function arrangeGridInFrame(placedItems, frameBounds, grid, gap, lastRowAlign) {
+    function arrangeGridInFrame(placedItems, frameBounds, grid, gap, lastRowAlign, fillCells) {
         var frameWidth = frameBounds[2] - frameBounds[0];
         var frameHeight = frameBounds[1] - frameBounds[3];
         var imageCount = placedItems.length;
         var usedRows = Math.ceil(imageCount / grid.columns);
+        var slotRects = [];
         var i;
 
-        /* セルいっぱいに拡大・縮小し、列の幅・行の高さを実寸で求める / Scale to the cell, then measure columns and rows */
+        /* セルに合わせて拡大・縮小し、列の幅・行の高さを求める / Scale to the cell, then measure columns and rows */
         var columnWidths = [];
         var rowHeights = [];
-        for (i = 0; i < grid.columns; i++) columnWidths[i] = 0;
-        for (i = 0; i < usedRows; i++) rowHeights[i] = 0;
+        for (i = 0; i < grid.columns; i++) columnWidths[i] = fillCells ? grid.cellWidth : 0;
+        for (i = 0; i < usedRows; i++) rowHeights[i] = fillCells ? grid.cellHeight : 0;
         for (i = 0; i < imageCount; i++) {
             var scaledItem = placedItems[i];
-            var fitScale = Math.min(grid.cellWidth / scaledItem.width, grid.cellHeight / scaledItem.height);
-            scaledItem.resize(fitScale * 100, fitScale * 100);
+            var widthScale = grid.cellWidth / scaledItem.width;
+            var heightScale = grid.cellHeight / scaledItem.height;
+            var cellScale = fillCells ? Math.max(widthScale, heightScale) : Math.min(widthScale, heightScale);
+            scaledItem.resize(cellScale * 100, cellScale * 100);
+            if (fillCells) continue;
             var columnOf = i % grid.columns;
             var rowOf = Math.floor(i / grid.columns);
             if (scaledItem.width > columnWidths[columnOf]) columnWidths[columnOf] = scaledItem.width;
@@ -1629,10 +2195,12 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
                     cellLeft + (columnWidths[columnIndex] - item.width) / 2,
                     rowTop - (rowHeights[rowIndex] - item.height) / 2
                 ];
+                slotRects[firstIndex + columnIndex] = [cellLeft, rowTop, columnWidths[columnIndex], rowHeights[rowIndex]];
                 cellLeft += columnWidths[columnIndex] + gap;
             }
             rowTop -= rowHeights[rowIndex] + gap;
         }
+        return slotRects;
     }
 
     /**
@@ -1693,15 +2261,188 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
      * @param {number} rows - 行数
      * @param {number} gap - 画像どうしの間隔（pt）
      * @param {string} lastRowAlign - 最終行の揃え（"left" または "center"）
-     * @returns {void}
+     * @param {boolean} fillCells - セルを覆う大きさにする（マスク用）なら true
+     * @returns {number[][]|null} 各アイテムの区画 [左, 上, 幅, 高さ]。横一列にしたときは null
      */
-    function layoutPlacedItems(placedItems, frameBounds, columns, rows, gap, lastRowAlign) {
+    function layoutPlacedItems(placedItems, frameBounds, columns, rows, gap, lastRowAlign, fillCells) {
         var grid = makeGrid(columns, rows, frameBounds[2] - frameBounds[0], frameBounds[1] - frameBounds[3], gap);
         if (grid) {
-            arrangeGridInFrame(placedItems, frameBounds, grid, gap, lastRowAlign);
-        } else {
-            arrangeInRow(placedItems, frameBounds, gap);
+            return arrangeGridInFrame(placedItems, frameBounds, grid, gap, lastRowAlign, fillCells);
         }
+        arrangeInRow(placedItems, frameBounds, gap);
+        return null;
+    }
+
+    // =========================================
+    // マスク / Masks
+    // =========================================
+
+    /**
+     * 角丸の効果（Adobe Round Corners）の XML を返す。
+     * @param {number} radius - 半径（pt）
+     * @returns {string} applyEffect() に渡す XML
+     */
+    function roundCornersEffectXml(radius) {
+        return '<LiveEffect name="Adobe Round Corners"><Dict data="R radius ' + radius + ' "/></LiveEffect>';
+    }
+
+    /**
+     * 各アイテムの外接矩形を区画の形 [左, 上, 幅, 高さ] で返す。
+     * @param {PlacedItem[]} placedItems - 対象のアイテム
+     * @returns {number[][]} 各アイテムの [左, 上, 幅, 高さ]
+     */
+    function itemRects(placedItems) {
+        var rects = [];
+        for (var i = 0; i < placedItems.length; i++) {
+            var item = placedItems[i];
+            rects.push([item.position[0], item.position[1], item.width, item.height]);
+        }
+        return rects;
+    }
+
+    /**
+     * 各アイテムを区画の長方形でクリップしたグループに入れる。半径が0より大きければ、グループに角丸の効果を掛ける。
+     * @param {Document} doc - 対象のドキュメント
+     * @param {PlacedItem[]} placedItems - マスクするアイテム
+     * @param {number[][]} slotRects - 各アイテムの区画 [左, 上, 幅, 高さ]
+     * @param {number} cornerRadius - 角丸の半径（pt）
+     * @param {{color: Color, width: number}|null} maskStroke - クリップパスに付ける線（付けないなら null）
+     * @returns {GroupItem[]} 作ったクリップグループ
+     */
+    function wrapItemsInMasks(doc, placedItems, slotRects, cornerRadius, maskStroke) {
+        var maskGroups = [];
+        for (var i = 0; i < placedItems.length; i++) {
+            var item = placedItems[i];
+            var slotRect = slotRects[i];
+            var maskGroup = item.layer.groupItems.add();
+            maskGroup.move(item, ElementPlacement.PLACEBEFORE);
+            item.move(maskGroup, ElementPlacement.PLACEATEND);
+
+            /* クリップパスは区画の長方形（グループのいちばん上） / The clipping path is the slot rectangle, on top */
+            var maskPath = doc.pathItems.rectangle(slotRect[1], slotRect[0], slotRect[2], slotRect[3]);
+            maskPath.move(maskGroup, ElementPlacement.PLACEATBEGINNING);
+            maskGroup.clipped = true;
+
+            /* 線はマスクにしたあとで付ける（マスクにすると塗り・線が消えるため） / Stroke after clipping, which clears fill and stroke */
+            if (maskStroke && maskStroke.width > 0) {
+                maskPath.stroked = true;
+                maskPath.strokeColor = maskStroke.color;
+                maskPath.strokeWidth = maskStroke.width;
+            }
+
+            if (cornerRadius > 0) {
+                maskGroup.applyEffect(roundCornersEffectXml(cornerRadius));
+            }
+            maskGroups.push(maskGroup);
+        }
+        return maskGroups;
+    }
+
+    /**
+     * クリップグループからアイテムを出し、グループ（とクリップパス）を削除する。
+     * @param {GroupItem[]} maskGroups - wrapItemsInMasks() で作ったグループ
+     * @returns {void}
+     */
+    function unwrapMasks(maskGroups) {
+        for (var i = 0; i < maskGroups.length; i++) {
+            var maskGroup = maskGroups[i];
+            /* 画像はクリップパス以外の子 / The image is the child that is not the clipping path */
+            for (var j = maskGroup.pageItems.length - 1; j >= 0; j--) {
+                var child = maskGroup.pageItems[j];
+                if (child.typename === "PlacedItem") child.move(maskGroup, ElementPlacement.PLACEBEFORE);
+            }
+            maskGroup.remove();
+        }
+        maskGroups.length = 0;
+    }
+
+    // =========================================
+    // 線の色 / Stroke color
+    // =========================================
+
+    /**
+     * ドキュメントのカラーモードの黒を返す。
+     * @param {Document} doc - 対象のドキュメント
+     * @returns {Color} RGBColor または CMYKColor
+     */
+    function createBlackColor(doc) {
+        if (doc.documentColorSpace === DocumentColorSpace.CMYK) {
+            var cmykColor = new CMYKColor();
+            cmykColor.cyan = 0;
+            cmykColor.magenta = 0;
+            cmykColor.yellow = 0;
+            cmykColor.black = 100;
+            return cmykColor;
+        }
+        var rgbColor = new RGBColor();
+        rgbColor.red = 0;
+        rgbColor.green = 0;
+        rgbColor.blue = 0;
+        return rgbColor;
+    }
+
+    /**
+     * 色を設定に保存できる形にする（RGB・CMYK・グレー。それ以外は null）。
+     * @param {Color} strokeColor - 色
+     * @returns {Object|null} { model: "rgb"|"cmyk"|"gray", values: number[] }
+     */
+    function colorToSettings(strokeColor) {
+        if (strokeColor.typename === "RGBColor") return { model: "rgb", values: [strokeColor.red, strokeColor.green, strokeColor.blue] };
+        if (strokeColor.typename === "CMYKColor") return { model: "cmyk", values: [strokeColor.cyan, strokeColor.magenta, strokeColor.yellow, strokeColor.black] };
+        if (strokeColor.typename === "GrayColor") return { model: "gray", values: [strokeColor.gray] };
+        return null;
+    }
+
+    /**
+     * 保存した色を Color に戻す。読めないときはドキュメントのカラーモードの黒。
+     * @param {Document} doc - 対象のドキュメント
+     * @param {Object|null} savedColor - colorToSettings() の戻り値
+     * @returns {Color} 色
+     */
+    function colorFromSettings(doc, savedColor) {
+        if (!savedColor || !(savedColor.values instanceof Array)) return createBlackColor(doc);
+        var values = savedColor.values;
+        if (savedColor.model === "rgb" && values.length === 3) {
+            var rgbColor = new RGBColor();
+            rgbColor.red = values[0];
+            rgbColor.green = values[1];
+            rgbColor.blue = values[2];
+            return rgbColor;
+        }
+        if (savedColor.model === "cmyk" && values.length === 4) {
+            var cmykColor = new CMYKColor();
+            cmykColor.cyan = values[0];
+            cmykColor.magenta = values[1];
+            cmykColor.yellow = values[2];
+            cmykColor.black = values[3];
+            return cmykColor;
+        }
+        if (savedColor.model === "gray" && values.length === 1) {
+            var grayColor = new GrayColor();
+            grayColor.gray = values[0];
+            return grayColor;
+        }
+        return createBlackColor(doc);
+    }
+
+    /**
+     * 色を色見本に描くための RGB（0〜1）にする（CMYK・グレーは簡易換算）。
+     * @param {Color} swatchColor - 色
+     * @returns {number[]} [r, g, b]（0〜1）
+     */
+    function colorToScreenRgb(swatchColor) {
+        if (swatchColor.typename === "RGBColor") return [swatchColor.red / 255, swatchColor.green / 255, swatchColor.blue / 255];
+        if (swatchColor.typename === "GrayColor") return [1 - swatchColor.gray / 100, 1 - swatchColor.gray / 100, 1 - swatchColor.gray / 100];
+        if (swatchColor.typename === "CMYKColor") {
+            var blackRatio = 1 - swatchColor.black / 100;
+            return [
+                (1 - swatchColor.cyan / 100) * blackRatio,
+                (1 - swatchColor.magenta / 100) * blackRatio,
+                (1 - swatchColor.yellow / 100) * blackRatio
+            ];
+        }
+        /* スポットカラーなどは灰色で示す / show other color types in gray */
+        return [0.5, 0.5, 0.5];
     }
 
     // =========================================
@@ -1709,23 +2450,50 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
     // =========================================
 
     /**
-     * 配置したアイテムをプレビューしながら、列数・行数・マージンを指定するダイアログボックスを表示する。
+     * @typedef {Object} GridSettings
+     * @property {string} gridMode - 列数・行数の決め方（"auto" または "manual"）
+     * @property {number} columns - 列数（"manual" のとき）
+     * @property {string} lastRowAlign - 最終行の揃え（"left" または "center"）
+     * @property {number} gapPt - オブジェクト同士のマージン（pt）
+     * @property {number} frameMarginPt - 対象の内側のマージン（pt）
+     * @property {string} maskMode - マスクの種類（"none" / "cell" / "item"）
+     * @property {number} cornerRadiusPt - 角丸の半径（pt）
+     * @property {boolean} useStroke - マスクの長方形に線を付けるなら true
+     * @property {number} strokeWidthPt - 線幅（pt）
+     * @property {Object|null} strokeColor - 線の色（colorToSettings() の形）
+     * @property {boolean} embedImages - 画像を埋め込むなら true
+     */
+
+    /**
+     * 配置したアイテムをプレビューしながら、列数・行数・マージン・マスクなどを指定するダイアログボックスを表示する。
+     * @param {Document} doc - 対象のドキュメント
      * @param {PlacedItem[]} placedItems - 配置したアイテム
      * @param {number[]} frameBounds - 対象（長方形・アートボード）の [左, 上, 右, 下]（ドキュメント座標）
-     * @param {number} initialGap - 最初のオブジェクト間のマージン（pt）
-     * @param {number} initialFrameMargin - 最初の対象の内側のマージン（pt）
-     * @returns {boolean} OK なら true、キャンセルなら false
+     * @param {GridSettings} initialSettings - 最初の設定（前回の設定）
+     * @param {GroupItem[]} maskGroups - マスクのクリップグループを入れる配列（ダイアログボックスの中で作り直す）
+     * @returns {GridSettings|null} OK なら確定した設定、キャンセルなら null
      */
-    function showGridDialog(placedItems, frameBounds, initialGap, initialFrameMargin) {
+    function showGridDialog(doc, placedItems, frameBounds, initialSettings, maskGroups) {
         var imageCount = placedItems.length;
         var rulerUnit = getUnitInfo();
-        var unitSuffix = " " + rulerUnit.label;
+        var strokeUnit = getUnitInfo("strokeUnits");
+        var rulerSuffix = " " + rulerUnit.label;
 
-        var currentGap = initialGap;
-        var currentFrameMargin = initialFrameMargin;
-        var currentLastRowAlign = DEFAULT_LAST_ROW_ALIGN;
-        var currentColumns = imageCount;
-        var currentRows = 1;
+        /* show() 前に代入した value は読み戻せないので、状態は変数で持つ / Keep state in variables; values set before show() cannot be read back */
+        var isGridAuto = (initialSettings.gridMode !== GRID_MODE_MANUAL);
+        var currentGap = initialSettings.gapPt;
+        var currentFrameMargin = initialSettings.frameMarginPt;
+        var currentLastRowAlign = initialSettings.lastRowAlign;
+        var currentMaskMode = initialSettings.maskMode;
+        if (currentMaskMode !== MASK_MODE_CELL && currentMaskMode !== MASK_MODE_ITEM) currentMaskMode = MASK_MODE_NONE;
+        var currentUseMask = (currentMaskMode !== MASK_MODE_NONE);
+        var currentCornerRadius = initialSettings.cornerRadiusPt;
+        var currentUseStroke = initialSettings.useStroke;
+        var currentStrokeWidth = initialSettings.strokeWidthPt;
+        var currentStrokeColor = colorFromSettings(doc, initialSettings.strokeColor);
+        var currentEmbedImages = initialSettings.embedImages;
+        var currentColumns = Math.max(1, Math.min(imageCount, Math.round(initialSettings.columns)));
+        var currentRows = Math.ceil(imageCount / currentColumns);
 
         /**
          * いちばん埋まる行列の数を今の値にする。
@@ -1743,16 +2511,29 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
          * @returns {void}
          */
         function updatePreview() {
-            layoutPlacedItems(placedItems, insetBounds(frameBounds, currentFrameMargin), currentColumns, currentRows, currentGap, currentLastRowAlign);
+            /* マスクは並べる前に外し、並べたあとで作り直す / Remove the masks before laying out, then rebuild them */
+            unwrapMasks(maskGroups);
+            var slotRects = layoutPlacedItems(placedItems, insetBounds(frameBounds, currentFrameMargin),
+                currentColumns, currentRows, currentGap, currentLastRowAlign, currentMaskMode === MASK_MODE_CELL);
+            if (currentUseMask && slotRects) {
+                /* アイテムの形なら、セルに収めた画像そのものの大きさでマスク / Item shape: mask to the fitted image itself */
+                var maskRects = (currentMaskMode === MASK_MODE_ITEM) ? itemRects(placedItems) : slotRects;
+                var maskStroke = currentUseStroke ? { color: currentStrokeColor, width: currentStrokeWidth } : null;
+                var newGroups = wrapItemsInMasks(doc, placedItems, maskRects, currentCornerRadius, maskStroke);
+                for (var i = 0; i < newGroups.length; i++) maskGroups.push(newGroups[i]);
+            }
             app.redraw();
         }
 
-        applyBestGrid();
+        if (isGridAuto) applyBestGrid();
         updatePreview();
 
         var gridDialog = new Window("dialog", getLabel("dialog.title"));
         setupWindow(gridDialog);
 
+        // -----------------------------------------
+        // グリッド / Grid
+        // -----------------------------------------
         var gridPanel = gridDialog.add("panel", undefined, getLabel("panel.grid"));
         setupPanel(gridPanel, 6);
 
@@ -1766,16 +2547,6 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             text: String(currentRows), characters: 5, step: 1, min: 1, max: imageCount, integer: true,
             onStep: function () { onRowsChanged(); }
         };
-        var gapFieldOptions = {
-            label: labelText("fieldLabel.gap"), labelWidth: MARGIN_LABEL_WIDTH,
-            text: "", characters: 5, step: 1, min: 0, unit: unitSuffix,
-            onStep: function () { onMarginChanged(); }
-        };
-        var frameMarginFieldOptions = {
-            label: labelText("fieldLabel.frameMargin"), labelWidth: MARGIN_LABEL_WIDTH,
-            text: "", characters: 5, step: 1, min: 0, unit: unitSuffix,
-            onStep: function () { onMarginChanged(); }
-        };
 
         /* 列数・行数の決め方（自動・指定） / How columns and rows are set (auto / manual) */
         var gridModeGroup = gridPanel.add("group");
@@ -1783,10 +2554,13 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         var gridAutoRadio = gridModeGroup.add("radiobutton", undefined, getLabel("radio.gridAuto"));
         var gridManualRadio = gridModeGroup.add("radiobutton", undefined, getLabel("radio.gridManual"));
         gridAutoRadio.helpTip = getLabel("tooltip.gridAuto");
-        gridAutoRadio.value = true;
+        gridAutoRadio.value = isGridAuto;
+        gridManualRadio.value = !isGridAuto;
 
         var columnsInput = addSteppedField(gridPanel, columnsFieldOptions);
         var rowsInput = addSteppedField(gridPanel, rowsFieldOptions);
+        setSteppedFieldEnabled(columnsInput, !isGridAuto);
+        setSteppedFieldEnabled(rowsInput, !isGridAuto);
 
         /* 最終行の揃え（左・中央） / Alignment of the last row (left / center) */
         var lastRowGroup = gridPanel.add("group");
@@ -1797,7 +2571,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         var lastRowLeftRadio = lastRowGroup.add("radiobutton", undefined, getLabel("radio.lastRowLeft"));
         var lastRowCenterRadio = lastRowGroup.add("radiobutton", undefined, getLabel("radio.lastRowCenter"));
         lastRowLeftRadio.value = (currentLastRowAlign === LAST_ROW_ALIGN_LEFT);
-        lastRowCenterRadio.value = (currentLastRowAlign === LAST_ROW_ALIGN_CENTER);
+        lastRowCenterRadio.value = (currentLastRowAlign !== LAST_ROW_ALIGN_LEFT);
         lastRowLeftRadio.onClick = function () {
             currentLastRowAlign = LAST_ROW_ALIGN_LEFT;
             updatePreview();
@@ -1807,13 +2581,149 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             updatePreview();
         };
 
-        /* オブジェクト間と対象の内側のマージン / Margins between items and inside the target */
+        // -----------------------------------------
+        // マージン / Margins
+        // -----------------------------------------
+        var gapFieldOptions = {
+            label: labelText("fieldLabel.gap"), labelWidth: MARGIN_LABEL_WIDTH,
+            text: "", characters: 5, step: 1, min: 0, unit: rulerSuffix,
+            onStep: function () { onMarginChanged(); }
+        };
+        var frameMarginFieldOptions = {
+            label: labelText("fieldLabel.frameMargin"), labelWidth: MARGIN_LABEL_WIDTH,
+            text: "", characters: 5, step: 1, min: 0, unit: rulerSuffix,
+            onStep: function () { onMarginChanged(); }
+        };
         var marginPanel = gridDialog.add("panel", undefined, getLabel("panel.margin"));
         setupPanel(marginPanel, 6);
         var gapInput = addSteppedField(marginPanel, gapFieldOptions);
         var frameMarginInput = addSteppedField(marginPanel, frameMarginFieldOptions);
         writeSteppedValue(gapInput, ptToUnit(currentGap, rulerUnit), gapFieldOptions);
         writeSteppedValue(frameMarginInput, ptToUnit(currentFrameMargin, rulerUnit), frameMarginFieldOptions);
+
+        // -----------------------------------------
+        // マスク（角丸・線） / Mask (corner radius, stroke)
+        // -----------------------------------------
+        var maskPanel = gridDialog.add("panel", undefined, getLabel("panel.mask"));
+        setupPanel(maskPanel, 6);
+        /* マスクの種類（なし・セルの形・アイテムの形） / Mask mode (none / cell shape / item shape) */
+        var maskModeGroup = maskPanel.add("group");
+        setupRow(maskModeGroup, "left");
+        var maskNoneRadio = maskModeGroup.add("radiobutton", undefined, getLabel("radio.maskNone"));
+        var maskCellRadio = maskModeGroup.add("radiobutton", undefined, getLabel("radio.maskCell"));
+        var maskItemRadio = maskModeGroup.add("radiobutton", undefined, getLabel("radio.maskItem"));
+        maskCellRadio.helpTip = getLabel("tooltip.maskCell");
+        maskItemRadio.helpTip = getLabel("tooltip.maskItem");
+        maskNoneRadio.value = (currentMaskMode === MASK_MODE_NONE);
+        maskCellRadio.value = (currentMaskMode === MASK_MODE_CELL);
+        maskItemRadio.value = (currentMaskMode === MASK_MODE_ITEM);
+
+        var cornerRadiusFieldOptions = {
+            label: labelText("fieldLabel.cornerRadius"), labelWidth: MARGIN_LABEL_WIDTH,
+            text: "", characters: 5, step: 1, min: 0, unit: rulerSuffix,
+            onStep: function () { onCornerRadiusChanged(); }
+        };
+        var cornerRadiusInput = addSteppedField(maskPanel, cornerRadiusFieldOptions);
+        writeSteppedValue(cornerRadiusInput, ptToUnit(currentCornerRadius, rulerUnit), cornerRadiusFieldOptions);
+
+        /* 線：チェックボックス・色見本 / Stroke: checkbox and color swatch */
+        var strokeRow = maskPanel.add("group");
+        setupRow(strokeRow, "left", STEPPER_FIELD_SPACING);
+        var strokeLabelGroup = strokeRow.add("group");
+        strokeLabelGroup.preferredSize.width = MARGIN_LABEL_WIDTH;
+        strokeLabelGroup.alignChildren = ["right", "center"];
+        strokeLabelGroup.margins = 0;
+        var useStrokeCheckbox = strokeLabelGroup.add("checkbox", undefined, getLabel("checkbox.useStroke"));
+        useStrokeCheckbox.alignment = ["right", "center"];
+        useStrokeCheckbox.value = currentUseStroke;
+        var strokeSwatch = strokeRow.add("group");
+        strokeSwatch.preferredSize = COLOR_SWATCH_SIZE;
+        strokeSwatch.helpTip = getLabel("tooltip.strokeColor");
+        strokeSwatch.onDraw = function () {
+            var swatchGraphics = strokeSwatch.graphics;
+            var swatchWidth = strokeSwatch.size[0];
+            var swatchHeight = strokeSwatch.size[1];
+            /* 使えないときは薄く描く（自作描画は enabled で淡色にならない） / draw faintly when unavailable */
+            var swatchAlpha = (currentUseMask && currentUseStroke) ? 1 : 0.25;
+            swatchGraphics.newPath();
+            swatchGraphics.rectPath(0, 0, swatchWidth, swatchHeight);
+            swatchGraphics.fillPath(swatchGraphics.newBrush(swatchGraphics.BrushType.SOLID_COLOR, colorToScreenRgb(currentStrokeColor).concat(swatchAlpha)));
+            swatchGraphics.newPath();
+            swatchGraphics.rectPath(0.5, 0.5, swatchWidth - 1, swatchHeight - 1);
+            swatchGraphics.strokePath(swatchGraphics.newPen(swatchGraphics.PenType.SOLID_COLOR, [0.5, 0.5, 0.5, swatchAlpha], 1));
+        };
+        /* クリックで標準のカラーピッカーを開く。キャンセルは渡した色が返る / Clicking opens the standard color picker; Cancel returns the color passed in */
+        strokeSwatch.addEventListener("click", function () {
+            if (!currentUseMask || !currentUseStroke) return;
+            currentStrokeColor = app.showColorPicker(currentStrokeColor);
+            redrawStrokeSwatch();
+            updatePreview();
+        });
+
+        var strokeWidthFieldOptions = {
+            label: labelText("fieldLabel.strokeWidth"), labelWidth: MARGIN_LABEL_WIDTH,
+            text: "", characters: 5, step: 1, min: 0, unit: " " + strokeUnit.label,
+            onStep: function () { onStrokeWidthChanged(); }
+        };
+        var strokeWidthInput = addSteppedField(maskPanel, strokeWidthFieldOptions);
+        writeSteppedValue(strokeWidthInput, ptToUnit(currentStrokeWidth, strokeUnit), strokeWidthFieldOptions);
+
+        /**
+         * 線の色見本を描き直す（group には notify() が無いので隠して再表示する）。
+         * @returns {void}
+         */
+        function redrawStrokeSwatch() {
+            strokeSwatch.hide();
+            strokeSwatch.show();
+        }
+
+        /**
+         * マスク・線のオンオフに合わせて、角丸・線の項目をディムする。
+         * @returns {void}
+         */
+        function updateMaskControls() {
+            setSteppedFieldEnabled(cornerRadiusInput, currentUseMask);
+            useStrokeCheckbox.enabled = currentUseMask;
+            setSteppedFieldEnabled(strokeWidthInput, currentUseMask && currentUseStroke);
+            redrawStrokeSwatch();
+        }
+        updateMaskControls();
+
+        /**
+         * マスクの種類を変えたとき。
+         * @param {string} maskMode - "none" / "cell" / "item"
+         * @returns {void}
+         */
+        function onMaskModeChanged(maskMode) {
+            currentMaskMode = maskMode;
+            currentUseMask = (maskMode !== MASK_MODE_NONE);
+            updateMaskControls();
+            updatePreview();
+        }
+        maskNoneRadio.onClick = function () { onMaskModeChanged(MASK_MODE_NONE); };
+        maskCellRadio.onClick = function () { onMaskModeChanged(MASK_MODE_CELL); };
+        maskItemRadio.onClick = function () { onMaskModeChanged(MASK_MODE_ITEM); };
+        useStrokeCheckbox.onClick = function () {
+            currentUseStroke = useStrokeCheckbox.value;
+            updateMaskControls();
+            updatePreview();
+        };
+
+        // -----------------------------------------
+        // オプション / Options
+        // -----------------------------------------
+        var optionsPanel = gridDialog.add("panel", undefined, getLabel("panel.options"));
+        setupPanel(optionsPanel, 6);
+        var embedImagesCheckbox = optionsPanel.add("checkbox", undefined, getLabel("checkbox.embedImages"));
+        embedImagesCheckbox.helpTip = getLabel("tooltip.embedImages");
+        embedImagesCheckbox.value = currentEmbedImages;
+        embedImagesCheckbox.onClick = function () {
+            currentEmbedImages = embedImagesCheckbox.value;
+        };
+
+        // -----------------------------------------
+        // 入力の処理 / Input handlers
+        // -----------------------------------------
 
         /**
          * 入力欄の確定（直接入力）でも、∧∨と同じ処理を呼ぶ。部品の値の正規化のあとに続ける。
@@ -1861,13 +2771,13 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         }
 
         /**
-         * マージン（オブジェクト間・対象の内側）を変えたとき。
+         * マージン（オブジェクト同士・対象の内側）を変えたとき。
          * @returns {void}
          */
         function onMarginChanged() {
             currentGap = unitToPt(parseFloat(gapInput.text), rulerUnit);
             currentFrameMargin = unitToPt(parseFloat(frameMarginInput.text), rulerUnit);
-            if (gridAutoRadio.value) {
+            if (isGridAuto) {
                 /* 自動なら、マージンに合わせて行列を選び直す / In auto mode, re-pick the grid for the new margin */
                 applyBestGrid();
                 writeGridFields();
@@ -1876,14 +2786,32 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         }
 
         /**
+         * 角丸の半径を変えたとき。
+         * @returns {void}
+         */
+        function onCornerRadiusChanged() {
+            currentCornerRadius = unitToPt(parseFloat(cornerRadiusInput.text), rulerUnit);
+            updatePreview();
+        }
+
+        /**
+         * 線幅を変えたとき。
+         * @returns {void}
+         */
+        function onStrokeWidthChanged() {
+            currentStrokeWidth = unitToPt(parseFloat(strokeWidthInput.text), strokeUnit);
+            updatePreview();
+        }
+
+        /**
          * 自動・指定に合わせて列数・行数の欄を切り替える。自動に戻したときは行列を選び直す。
          * @returns {void}
          */
         function onGridModeChanged() {
-            var isAuto = gridAutoRadio.value;
-            setSteppedFieldEnabled(columnsInput, !isAuto);
-            setSteppedFieldEnabled(rowsInput, !isAuto);
-            if (isAuto) {
+            isGridAuto = gridAutoRadio.value;
+            setSteppedFieldEnabled(columnsInput, !isGridAuto);
+            setSteppedFieldEnabled(rowsInput, !isGridAuto);
+            if (isGridAuto) {
                 applyBestGrid();
                 writeGridFields();
                 updatePreview();
@@ -1894,7 +2822,14 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         chainFieldChange(rowsInput, onRowsChanged);
         chainFieldChange(gapInput, onMarginChanged);
         chainFieldChange(frameMarginInput, onMarginChanged);
+        chainFieldChange(cornerRadiusInput, onCornerRadiusChanged);
+        chainFieldChange(strokeWidthInput, onStrokeWidthChanged);
+        gridAutoRadio.onClick = onGridModeChanged;
+        gridManualRadio.onClick = onGridModeChanged;
 
+        // -----------------------------------------
+        // ボタン / Buttons
+        // -----------------------------------------
         var buttonRow = addButtonRow(gridDialog);
         var btnShuffle = buttonRow.leftGroup.add("button", undefined, getLabel("button.shuffle"));
         btnShuffle.helpTip = getLabel("tooltip.shuffle");
@@ -1905,22 +2840,43 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             shuffleItemsInPlace(placedItems);
             updatePreview();
         };
-        gridAutoRadio.onClick = onGridModeChanged;
-        gridManualRadio.onClick = onGridModeChanged;
-        setSteppedFieldEnabled(columnsInput, false);
-        setSteppedFieldEnabled(rowsInput, false);
         btnCancel.onClick = function () { gridDialog.close(2); };
         btnOK.onClick = function () { gridDialog.close(1); };
 
         alignRightOnlyButtonRow(buttonRow);
         addVersionFooter(gridDialog);
         prepareDialogWindow(gridDialog, SCRIPT_NAME);
-        return gridDialog.show() === 1;
+        if (gridDialog.show() !== 1) return null;
+
+        return {
+            gridMode: isGridAuto ? GRID_MODE_AUTO : GRID_MODE_MANUAL,
+            columns: currentColumns,
+            lastRowAlign: currentLastRowAlign,
+            gapPt: currentGap,
+            frameMarginPt: currentFrameMargin,
+            maskMode: currentMaskMode,
+            cornerRadiusPt: currentCornerRadius,
+            useStroke: currentUseStroke,
+            strokeWidthPt: currentStrokeWidth,
+            strokeColor: colorToSettings(currentStrokeColor),
+            embedImages: currentEmbedImages
+        };
     }
 
     // =========================================
     // メイン処理 / Main
     // =========================================
+
+    /**
+     * 配置した画像を埋め込む。
+     * @param {PlacedItem[]} placedItems - 埋め込むアイテム
+     * @returns {void}
+     */
+    function embedPlacedItems(placedItems) {
+        for (var i = 0; i < placedItems.length; i++) {
+            placedItems[i].embed();
+        }
+    }
 
     /**
      * メイン処理。
@@ -1957,6 +2913,11 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         }
         if (placedItems.length === 0) return;
 
+        var settingsStore = createSettingsStore(SCRIPT_NAME, "persistent");
+        var initialSettings = settingsStore.load(DEFAULT_SETTINGS);
+        var maskGroups = [];
+        var confirmedSettings;
+
         var savedCoordinateSystem = app.coordinateSystem;
         app.coordinateSystem = CoordinateSystem.DOCUMENTCOORDINATESYSTEM;
         try {
@@ -1972,8 +2933,10 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
                 frameBounds = doc.artboards[doc.artboards.getActiveArtboardIndex()].artboardRect;
             }
 
-            if (!showGridDialog(placedItems, frameBounds, DEFAULT_IMAGE_GAP, DEFAULT_FRAME_MARGIN)) {
-                /* キャンセルなら配置した画像を取り除く / Remove the placed images on cancel */
+            confirmedSettings = showGridDialog(doc, placedItems, frameBounds, initialSettings, maskGroups);
+            if (!confirmedSettings) {
+                /* キャンセルならマスクと配置した画像を取り除く / Remove the masks and the placed images on cancel */
+                unwrapMasks(maskGroups);
                 for (var j = placedItems.length - 1; j >= 0; j--) {
                     placedItems[j].remove();
                 }
@@ -1983,7 +2946,13 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         } finally {
             app.coordinateSystem = savedCoordinateSystem;
         }
-        doc.selection = placedItems;
+        settingsStore.save(confirmedSettings);
+
+        doc.selection = (maskGroups.length > 0) ? maskGroups : placedItems;
+        if (confirmedSettings.embedImages) {
+            /* 埋め込むと PlacedItem は別のオブジェクトに置き換わるので最後に行う / Embedding replaces the PlacedItems, so do it last */
+            embedPlacedItems(placedItems);
+        }
     }
 
     main();
