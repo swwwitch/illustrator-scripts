@@ -7,7 +7,7 @@ Script-ID=com.swwwitch.illustrator.PlaceImagesInGrid
 Name=画像を選んで長方形やアートボードにグリッド状に配置
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.1.0
+Version=1.1.1
 Release-Date=2026-11-12
 Description-BEGIN
 ファイル選択ダイアログボックスで選んだ画像をリンクで配置し、選択中の長方形（または作業中のアートボード）にグリッド状に並べます。
@@ -43,7 +43,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PlaceImage
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "PlaceImagesInGrid";            /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-11-12";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-11-12";                   /* 更新日 / last updated */
@@ -79,7 +79,8 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
 
     /* マスクの種類・角丸の半径（pt）の初期値 / Defaults for the mask mode and the corner radius (pt) */
     var DEFAULT_MASK_MODE = MASK_MODE_NONE;
-    var DEFAULT_CORNER_RADIUS = 0;
+    var DEFAULT_USE_CORNER_RADIUS = false;
+    var DEFAULT_CORNER_RADIUS = 10;
 
     /* マスクの長方形に線を付けるか・線幅（pt）の初期値。色の初期値は黒 / Defaults for stroking the mask rectangle and its width (pt); the default color is black */
     var DEFAULT_USE_STROKE = false;
@@ -180,8 +181,8 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
 
     // UIレイアウト（再利用パーツ）ここまで / End of the reusable UI layout
 
-    var FIELD_LABEL_WIDTH = 60;  /* グリッドの項目名の幅 / label width in the grid panel */
-    var MARGIN_LABEL_WIDTH = 90; /* マージン・マスクの項目名の幅 / label width in the margin and mask panels */
+    var FIELD_LABEL_WIDTH = 90;  /* 項目名の幅（全パネル共通） / label width shared by all panels */
+    var LAST_ROW_TOP_MARGIN = 4; /* 「最終行」の行の上に足す余白 / extra space above the last-row option */
     var COLOR_SWATCH_SIZE = [40, 20]; /* 線の色見本の大きさ / size of the stroke color swatch */
 
     // =========================================
@@ -1789,6 +1790,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         gapPt: DEFAULT_IMAGE_GAP,
         frameMarginPt: DEFAULT_FRAME_MARGIN,
         maskMode: DEFAULT_MASK_MODE,
+        useCornerRadius: DEFAULT_USE_CORNER_RADIUS,
         cornerRadiusPt: DEFAULT_CORNER_RADIUS,
         useStroke: DEFAULT_USE_STROKE,
         strokeWidthPt: DEFAULT_STROKE_WIDTH,
@@ -1887,7 +1889,8 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         panel: {
             grid: { ja: "グリッド", en: "Grid" },
             margin: { ja: "マージン", en: "Margins" },
-            mask: { ja: "マスク", en: "Mask" },
+            mask: { ja: "マスク形状", en: "Mask shape" },
+            maskOptions: { ja: "マスクのオプション", en: "Mask options" },
             options: { ja: "オプション", en: "Options" }
         },
         fieldLabel: {
@@ -1895,7 +1898,6 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             rows: { ja: "行数", en: "Rows" },
             gap: { ja: "オブジェクト同士", en: "Between items" },
             frameMargin: { ja: "対象の内側", en: "Inside target" },
-            cornerRadius: { ja: "角丸", en: "Corner radius" },
             strokeWidth: { ja: "線幅", en: "Stroke weight" },
             lastRow: { ja: "最終行", en: "Last row" }
         },
@@ -1909,6 +1911,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             lastRowCenter: { ja: "中央", en: "Center" }
         },
         checkbox: {
+            useCornerRadius: { ja: "角丸", en: "Corner radius" },
             useStroke: { ja: "線", en: "Stroke" },
             embedImages: { ja: "画像を埋め込む", en: "Embed images" }
         },
@@ -2457,6 +2460,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
      * @property {number} gapPt - オブジェクト同士のマージン（pt）
      * @property {number} frameMarginPt - 対象の内側のマージン（pt）
      * @property {string} maskMode - マスクの種類（"none" / "cell" / "item"）
+     * @property {boolean} useCornerRadius - 角丸を付けるなら true
      * @property {number} cornerRadiusPt - 角丸の半径（pt）
      * @property {boolean} useStroke - マスクの長方形に線を付けるなら true
      * @property {number} strokeWidthPt - 線幅（pt）
@@ -2487,6 +2491,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         var currentMaskMode = initialSettings.maskMode;
         if (currentMaskMode !== MASK_MODE_CELL && currentMaskMode !== MASK_MODE_ITEM) currentMaskMode = MASK_MODE_NONE;
         var currentUseMask = (currentMaskMode !== MASK_MODE_NONE);
+        var currentUseCornerRadius = initialSettings.useCornerRadius;
         var currentCornerRadius = initialSettings.cornerRadiusPt;
         var currentUseStroke = initialSettings.useStroke;
         var currentStrokeWidth = initialSettings.strokeWidthPt;
@@ -2519,7 +2524,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
                 /* アイテムの形なら、セルに収めた画像そのものの大きさでマスク / Item shape: mask to the fitted image itself */
                 var maskRects = (currentMaskMode === MASK_MODE_ITEM) ? itemRects(placedItems) : slotRects;
                 var maskStroke = currentUseStroke ? { color: currentStrokeColor, width: currentStrokeWidth } : null;
-                var newGroups = wrapItemsInMasks(doc, placedItems, maskRects, currentCornerRadius, maskStroke);
+                var newGroups = wrapItemsInMasks(doc, placedItems, maskRects, currentUseCornerRadius ? currentCornerRadius : 0, maskStroke);
                 for (var i = 0; i < newGroups.length; i++) maskGroups.push(newGroups[i]);
             }
             app.redraw();
@@ -2531,10 +2536,24 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         var gridDialog = new Window("dialog", getLabel("dialog.title"));
         setupWindow(gridDialog);
 
+        /* 2カラム：左にグリッド・マージン、右にマスク・オプション / Two columns: grid and margins on the left, mask and options on the right */
+        var columnsGroup = gridDialog.add("group");
+        columnsGroup.orientation = "row";
+        columnsGroup.alignChildren = ["fill", "top"];
+        columnsGroup.spacing = COLUMN_SPACING;
+        var leftColumn = columnsGroup.add("group");
+        leftColumn.orientation = "column";
+        leftColumn.alignChildren = ["fill", "top"];
+        leftColumn.spacing = WINDOW_SPACING;
+        var rightColumn = columnsGroup.add("group");
+        rightColumn.orientation = "column";
+        rightColumn.alignChildren = ["fill", "top"];
+        rightColumn.spacing = WINDOW_SPACING;
+
         // -----------------------------------------
         // グリッド / Grid
         // -----------------------------------------
-        var gridPanel = gridDialog.add("panel", undefined, getLabel("panel.grid"));
+        var gridPanel = leftColumn.add("panel", undefined, getLabel("panel.grid"));
         setupPanel(gridPanel, 6);
 
         var columnsFieldOptions = {
@@ -2565,6 +2584,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         /* 最終行の揃え（左・中央） / Alignment of the last row (left / center) */
         var lastRowGroup = gridPanel.add("group");
         setupRow(lastRowGroup, "left", STEPPER_FIELD_SPACING);
+        lastRowGroup.margins = [0, LAST_ROW_TOP_MARGIN, 0, 0]; /* 列数・行数と少し離す / a little apart from the columns and rows */
         var lastRowLabel = lastRowGroup.add("statictext", undefined, labelText("fieldLabel.lastRow"));
         lastRowLabel.preferredSize.width = FIELD_LABEL_WIDTH;
         lastRowLabel.justify = "right";
@@ -2585,16 +2605,16 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         // マージン / Margins
         // -----------------------------------------
         var gapFieldOptions = {
-            label: labelText("fieldLabel.gap"), labelWidth: MARGIN_LABEL_WIDTH,
+            label: labelText("fieldLabel.gap"), labelWidth: FIELD_LABEL_WIDTH,
             text: "", characters: 5, step: 1, min: 0, unit: rulerSuffix,
             onStep: function () { onMarginChanged(); }
         };
         var frameMarginFieldOptions = {
-            label: labelText("fieldLabel.frameMargin"), labelWidth: MARGIN_LABEL_WIDTH,
+            label: labelText("fieldLabel.frameMargin"), labelWidth: FIELD_LABEL_WIDTH,
             text: "", characters: 5, step: 1, min: 0, unit: rulerSuffix,
             onStep: function () { onMarginChanged(); }
         };
-        var marginPanel = gridDialog.add("panel", undefined, getLabel("panel.margin"));
+        var marginPanel = leftColumn.add("panel", undefined, getLabel("panel.margin"));
         setupPanel(marginPanel, 6);
         var gapInput = addSteppedField(marginPanel, gapFieldOptions);
         var frameMarginInput = addSteppedField(marginPanel, frameMarginFieldOptions);
@@ -2604,11 +2624,13 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         // -----------------------------------------
         // マスク（角丸・線） / Mask (corner radius, stroke)
         // -----------------------------------------
-        var maskPanel = gridDialog.add("panel", undefined, getLabel("panel.mask"));
+        var maskPanel = rightColumn.add("panel", undefined, getLabel("panel.mask"));
         setupPanel(maskPanel, 6);
         /* マスクの種類（なし・セルの形・アイテムの形） / Mask mode (none / cell shape / item shape) */
         var maskModeGroup = maskPanel.add("group");
-        setupRow(maskModeGroup, "left");
+        maskModeGroup.orientation = "column";
+        maskModeGroup.alignChildren = ["left", "center"];
+        maskModeGroup.spacing = 6;
         var maskNoneRadio = maskModeGroup.add("radiobutton", undefined, getLabel("radio.maskNone"));
         var maskCellRadio = maskModeGroup.add("radiobutton", undefined, getLabel("radio.maskCell"));
         var maskItemRadio = maskModeGroup.add("radiobutton", undefined, getLabel("radio.maskItem"));
@@ -2618,24 +2640,47 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         maskCellRadio.value = (currentMaskMode === MASK_MODE_CELL);
         maskItemRadio.value = (currentMaskMode === MASK_MODE_ITEM);
 
+        /**
+         * 項目名の位置に、右揃えのチェックボックスを置く（「☐ 角丸 :」の形）。
+         * @param {Group} rowGroup - 行のグループ
+         * @param {string} labelKey - LABELS.checkbox のキー
+         * @param {boolean} isChecked - 最初のオンオフ
+         * @returns {Checkbox} 作ったチェックボックス
+         */
+        function addCheckboxLabel(rowGroup, labelKey, isChecked) {
+            var checkboxLabelGroup = rowGroup.add("group");
+            checkboxLabelGroup.preferredSize.width = FIELD_LABEL_WIDTH;
+            checkboxLabelGroup.alignChildren = ["right", "center"];
+            checkboxLabelGroup.margins = 0;
+            var labelCheckbox = checkboxLabelGroup.add("checkbox", undefined, labelText("checkbox." + labelKey));
+            labelCheckbox.alignment = ["right", "center"];
+            labelCheckbox.value = isChecked;
+            return labelCheckbox;
+        }
+
+        /* マスクのオプション（角丸・線・線幅） / Mask options (corner radius, stroke, stroke weight) */
+        var maskOptionsPanel = rightColumn.add("panel", undefined, getLabel("panel.maskOptions"));
+        setupPanel(maskOptionsPanel, 6);
+
+        /* 角丸：チェックボックス・半径 / Corner radius: checkbox and radius */
+        var cornerRadiusRow = maskOptionsPanel.add("group");
+        setupRow(cornerRadiusRow, "left", STEPPER_FIELD_SPACING);
+        var useCornerRadiusCheckbox = addCheckboxLabel(cornerRadiusRow, "useCornerRadius", currentUseCornerRadius);
         var cornerRadiusFieldOptions = {
-            label: labelText("fieldLabel.cornerRadius"), labelWidth: MARGIN_LABEL_WIDTH,
+            label: "",
             text: "", characters: 5, step: 1, min: 0, unit: rulerSuffix,
             onStep: function () { onCornerRadiusChanged(); }
         };
-        var cornerRadiusInput = addSteppedField(maskPanel, cornerRadiusFieldOptions);
+        var cornerRadiusInput = addSteppedField(cornerRadiusRow, cornerRadiusFieldOptions);
+        /* 項目名はチェックボックスが兼ねるので、空の項目名の幅と間隔を詰める / The checkbox is the label, so collapse the empty label */
+        cornerRadiusInput.fieldLabel.maximumSize.width = 0;
+        cornerRadiusInput.fieldLabel.parent.spacing = 0;
         writeSteppedValue(cornerRadiusInput, ptToUnit(currentCornerRadius, rulerUnit), cornerRadiusFieldOptions);
 
         /* 線：チェックボックス・色見本 / Stroke: checkbox and color swatch */
-        var strokeRow = maskPanel.add("group");
+        var strokeRow = maskOptionsPanel.add("group");
         setupRow(strokeRow, "left", STEPPER_FIELD_SPACING);
-        var strokeLabelGroup = strokeRow.add("group");
-        strokeLabelGroup.preferredSize.width = MARGIN_LABEL_WIDTH;
-        strokeLabelGroup.alignChildren = ["right", "center"];
-        strokeLabelGroup.margins = 0;
-        var useStrokeCheckbox = strokeLabelGroup.add("checkbox", undefined, getLabel("checkbox.useStroke"));
-        useStrokeCheckbox.alignment = ["right", "center"];
-        useStrokeCheckbox.value = currentUseStroke;
+        var useStrokeCheckbox = addCheckboxLabel(strokeRow, "useStroke", currentUseStroke);
         var strokeSwatch = strokeRow.add("group");
         strokeSwatch.preferredSize = COLOR_SWATCH_SIZE;
         strokeSwatch.helpTip = getLabel("tooltip.strokeColor");
@@ -2661,11 +2706,11 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         });
 
         var strokeWidthFieldOptions = {
-            label: labelText("fieldLabel.strokeWidth"), labelWidth: MARGIN_LABEL_WIDTH,
+            label: labelText("fieldLabel.strokeWidth"), labelWidth: FIELD_LABEL_WIDTH,
             text: "", characters: 5, step: 1, min: 0, unit: " " + strokeUnit.label,
             onStep: function () { onStrokeWidthChanged(); }
         };
-        var strokeWidthInput = addSteppedField(maskPanel, strokeWidthFieldOptions);
+        var strokeWidthInput = addSteppedField(maskOptionsPanel, strokeWidthFieldOptions);
         writeSteppedValue(strokeWidthInput, ptToUnit(currentStrokeWidth, strokeUnit), strokeWidthFieldOptions);
 
         /**
@@ -2682,7 +2727,8 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
          * @returns {void}
          */
         function updateMaskControls() {
-            setSteppedFieldEnabled(cornerRadiusInput, currentUseMask);
+            useCornerRadiusCheckbox.enabled = currentUseMask;
+            setSteppedFieldEnabled(cornerRadiusInput, currentUseMask && currentUseCornerRadius);
             useStrokeCheckbox.enabled = currentUseMask;
             setSteppedFieldEnabled(strokeWidthInput, currentUseMask && currentUseStroke);
             redrawStrokeSwatch();
@@ -2703,6 +2749,11 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         maskNoneRadio.onClick = function () { onMaskModeChanged(MASK_MODE_NONE); };
         maskCellRadio.onClick = function () { onMaskModeChanged(MASK_MODE_CELL); };
         maskItemRadio.onClick = function () { onMaskModeChanged(MASK_MODE_ITEM); };
+        useCornerRadiusCheckbox.onClick = function () {
+            currentUseCornerRadius = useCornerRadiusCheckbox.value;
+            updateMaskControls();
+            updatePreview();
+        };
         useStrokeCheckbox.onClick = function () {
             currentUseStroke = useStrokeCheckbox.value;
             updateMaskControls();
@@ -2712,7 +2763,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         // -----------------------------------------
         // オプション / Options
         // -----------------------------------------
-        var optionsPanel = gridDialog.add("panel", undefined, getLabel("panel.options"));
+        var optionsPanel = rightColumn.add("panel", undefined, getLabel("panel.options"));
         setupPanel(optionsPanel, 6);
         var embedImagesCheckbox = optionsPanel.add("checkbox", undefined, getLabel("checkbox.embedImages"));
         embedImagesCheckbox.helpTip = getLabel("tooltip.embedImages");
@@ -2855,6 +2906,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             gapPt: currentGap,
             frameMarginPt: currentFrameMargin,
             maskMode: currentMaskMode,
+            useCornerRadius: currentUseCornerRadius,
             cornerRadiusPt: currentCornerRadius,
             useStroke: currentUseStroke,
             strokeWidthPt: currentStrokeWidth,

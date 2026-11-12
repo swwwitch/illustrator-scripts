@@ -41,7 +41,8 @@ After placing, a dialog box lets you adjust the columns, rows, margins and the a
 4. In the dialog box that opens after placing, adjust the settings while previewing.
    - Grid: Auto / Custom, Columns, Rows, Last row (Left / Center)
    - Margins: Between items, Inside target
-   - Mask: None / Cell shape / Item shape, Corner radius, Stroke (color and weight)
+   - Mask shape: None / Cell shape / Item shape
+   - Mask options: Corner radius, Stroke (color and weight)
    - Options: Embed images
 5. Click Shuffle to rearrange the images if you like.
 6. Click OK.
@@ -64,5 +65,6 @@ After placing, a dialog box lets you adjust the columns, rows, margins and the a
 
 ### Update History
 
+- v1.1.1 (2026-11-12) Rearranged the dialog box into two columns (grid and margins on the left, mask and options on the right) and aligned the label widths. Stacked the mask modes vertically and added a checkbox for the corner radius
 - v1.1.0 (2026-11-12) Added masks (cell shape / item shape), corner radius (effect), a stroke on the mask (color and weight), an option to embed the images, and remembered settings
 - v1.0.0 (2026-11-12) Initial release
