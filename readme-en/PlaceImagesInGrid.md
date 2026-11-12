@@ -27,6 +27,7 @@ After placing, a dialog box lets you adjust the columns, rows, margins, the alig
 - Mask each image (Cell / Image), with corner radius applied as an effect
 - Stroke the mask rectangle (weight and color)
 - Dialog settings are remembered for the next run
+- Save, load and delete settings as presets, with built-in presets (Black 0.3 pt, square / White 1 pt, radius 2 pt / White 1 pt, radius 50 pt)
 - Live preview as you type
 - Stepper buttons and arrow keys for numeric fields
 - Margins are entered in Illustrator's ruler units
@@ -38,6 +39,7 @@ After placing, a dialog box lets you adjust the columns, rows, margins, the alig
 2. Run `PlaceImagesInGrid.jsx`.
 3. Choose images in the file dialog box (one or more).
 4. In the dialog box that opens after placing, adjust the settings while previewing.
+   - Preset: load a saved or built-in preset, save the current settings (save icon), delete the selected preset (trash icon)
    - Grid: Auto / Manual, Columns, Rows, Last row (Align Left / Align Center)
    - Margins: Gutter, Inset
    - Mask shape: None / Cell / Image
@@ -58,11 +60,18 @@ After placing, a dialog box lets you adjust the columns, rows, margins, the alig
 - The corner radius and the stroke are applied only when their checkboxes are on. They are unavailable when Mask shape is None.
 - The stroke is applied to the clipping path. The weight is entered in the stroke unit set in Preferences. Click the Stroke swatch to choose a color in the standard color picker.
 - Settings are saved when you click OK and used as the defaults next time (the column count carries over only in Manual mode).
+- A preset stores the columns, rows, margins, last row, mask shape, corner radius and stroke. Presets are saved to `Folder.userData/illustrator-scripts/PlaceImagesInGridPresets.json` and survive a restart.
+- Built-in presets change only the mask stroke and corner radius (other settings stay as they are), and switch Mask shape from None to Cell. They cannot be deleted, and their names cannot be used for your own presets.
 - Cancel removes the placed images.
 - Images cannot be placed while the active layer is locked or hidden.
 
+### Article
+
+https://note.com/dtp_tranist/n/n3b15f8368c27
+
 ### Update History
 
+- v1.2.0 (2026-11-12) Added presets (save, load, delete) and three built-in presets (Black 0.3 pt, square / White 1 pt, radius 2 pt / White 1 pt, radius 50 pt)
 - v1.1.2 (2026-11-12) Revised the dialog box wording (title "Place Images in Grid", Gutter, Inset, Cell / Image, Manual, Align Left / Align Center). Removed the Embed images option. Adjusted the dialog box layout (narrower labels, stacked last-row options, a checkbox on Stroke weight placed above Stroke)
 - v1.1.1 (2026-11-12) Rearranged the dialog box into two columns (grid and margins on the left, mask and options on the right) and aligned the label widths. Stacked the mask modes vertically and added a checkbox for the corner radius
 - v1.1.0 (2026-11-12) Added masks (cell shape / item shape), corner radius (effect), a stroke on the mask (color and weight), an option to embed the images, and remembered settings

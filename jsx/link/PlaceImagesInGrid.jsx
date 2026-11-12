@@ -7,7 +7,7 @@ Script-ID=com.swwwitch.illustrator.PlaceImagesInGrid
 Name=画像を選んで長方形やアートボードにグリッド状に配置
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.1.2
+Version=1.2.0
 Release-Date=2026-11-12
 Description-BEGIN
 ファイル選択ダイアログボックスで選んだ画像をリンクで配置し、選択中の長方形（または作業中のアートボード）にグリッド状に並べます。
@@ -29,6 +29,9 @@ SCRIPTMETA-END
 詳細は README を参照してください。
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/PlaceImagesInGrid.md
 
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n3b15f8368c27
+
 ### Overview
 
 Places the images chosen in the file dialog box as links and lays them out in a grid inside the selected rectangle (or the active artboard).
@@ -43,16 +46,17 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PlaceImage
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "PlaceImagesInGrid";            /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.2";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.2.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-11-12";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-11-12";                   /* 更新日 / last updated */
 
 var SCRIPT_DESCRIPTION_JA = "画像を選んで長方形やアートボードにグリッド状に配置"; /* README の見出し / README title (Japanese) */
 
-var SCRIPT_README_JA  = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/PlaceImagesInGrid.md"; /* README（日本語） */
-var SCRIPT_README_EN  = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PlaceImagesInGrid.md"; /* README (English) */
-var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/link/PlaceImagesInGrid.jsx"; /* 最新版のソース / latest source */
+var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/PlaceImagesInGrid.md"; /* README（日本語） */
+var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PlaceImagesInGrid.md"; /* README (English) */
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3b15f8368c27"; /* 紹介記事 / article URL */
+var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/link/PlaceImagesInGrid.jsx"; /* 最新版のソース / latest source */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
@@ -181,6 +185,10 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
     var FIELD_LABEL_WIDTH = 52;  /* 項目名の幅（グリッド・マージン。「最終行 :」が入る幅） / label width in the grid and margin panels (fits the last-row label) */
     var MASK_OPTIONS_LABEL_WIDTH = 64; /* マスクのオプションの項目名の幅（チェックボックスが入る） / label width in the mask options panel (holds checkboxes) */
     var LAST_ROW_TOP_MARGIN = 4; /* 「最終行」の行の上に足す余白 / extra space above the last-row option */
+    var PRESET_ICON_SIZE = [20, 18];     /* プリセットの保存・削除アイコンの大きさ / preset save and delete icon size */
+    var SAVE_ICON_OPACITY = 0.75;        /* 保存アイコンの濃さ（ほかのアイコンに対する比率） / save icon opacity relative to the others */
+    var PRESET_DROPDOWN_WIDTH = 160;     /* プリセットのドロップダウンの幅 / preset dropdown width */
+    var PRESET_NAME_CHARS = 20;          /* プリセット名の入力欄の文字数 / preset name field width */
     var COLOR_SWATCH_SIZE = [40, 20]; /* 線の色見本の大きさ / size of the stroke color swatch */
 
     // =========================================
@@ -1271,6 +1279,150 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
 
     // ダイアログの位置と不透明度（再利用パーツ）ここまで / End of the reusable dialog position and opacity
 
+    // アイコンのボタン（再利用パーツ） / Icon buttons (reusable)
+
+    var ICON_BUTTON_SIZE = [24, 22]; /* 既定の大きさ / default size */
+    var ICON_BUTTON_UI_DARK = isDarkUI();
+    var ICON_BUTTON_COLOR     = ICON_BUTTON_UI_DARK ? [1, 1, 1, 1]    : [0, 0, 0, 0.70]; /* 絵の色 / icon color */
+    var ICON_BUTTON_DIM_COLOR = ICON_BUTTON_UI_DARK ? [1, 1, 1, 0.20] : [0, 0, 0, 0.25]; /* 無効時の色 / color when disabled */
+
+    /**
+     * onDraw で絵を描くアイコンのボタンを追加する。押すと onClick を呼ぶ（無効の間は押せず、薄く描く）
+     * @param {Group} parent - 追加先
+     * @param {number[]} iconSize - [幅, 高さ]
+     * @param {Function} drawIcon - 絵を描く関数 (iconGraphics, iconWidth, iconHeight, iconColor)
+     * @returns {Group} アイコン
+     */
+    function addIconButton(parent, iconSize, drawIcon) {
+        var iconButton = parent.add("group");
+        iconButton.preferredSize = iconSize;
+        iconButton.minimumSize = iconSize;
+        iconButton.maximumSize = iconSize;
+        iconButton.onDraw = function () {
+            var iconColor = isIconButtonEnabledInTree(iconButton) ? ICON_BUTTON_COLOR : ICON_BUTTON_DIM_COLOR;
+            drawIcon(iconButton.graphics, iconSize[0], iconSize[1], iconColor);
+        };
+        iconButton.addEventListener("mousedown", function () {
+            if (!isIconButtonEnabledInTree(iconButton)) return;
+            if (typeof iconButton.onClick === "function") iconButton.onClick();
+        });
+        return iconButton;
+    }
+
+    /**
+     * アイコンのボタンの有効／無効を切り替えて描き直す（変わらないときは描き直さない）
+     * @param {Group} iconButton - addIconButton() で作ったアイコン
+     * @param {boolean} isEnabled - 有効にするなら true
+     * @returns {void}
+     */
+    function setIconButtonEnabled(iconButton, isEnabled) {
+        if (iconButton.enabled === isEnabled) return;
+        iconButton.enabled = isEnabled;
+        /* group には notify() が無いため、隠して再表示して描き直させる / groups have no notify(), so hide and show to repaint */
+        iconButton.hide();
+        iconButton.show();
+    }
+
+    /**
+     * コントロールと親がすべて有効かを判定する（親の無効化は子の enabled に出ないため、親もたどる）
+     * @param {Object} control - 判定するコントロール
+     * @returns {boolean} すべて有効なら true
+     */
+    function isIconButtonEnabledInTree(control) {
+        for (var node = control; node; node = node.parent) {
+            if (!node.enabled) return false;
+        }
+        return true;
+    }
+
+    /**
+     * 絵の座標の長方形の並びを、縦横比を保って中央に置いて塗る（ScriptUI は多角形を塗れないため、斜めも長方形の並びで描く）
+     * @param {ScriptUIGraphics} iconGraphics - 描画先
+     * @param {number} iconWidth - アイコンの幅
+     * @param {number} iconHeight - アイコンの高さ
+     * @param {number[]} designSize - 絵の [幅, 高さ]
+     * @param {number[][]} designRects - 長方形 [左, 上, 右, 下] の並び
+     * @param {number[]} iconColor - [r, g, b, a]
+     * @returns {void}
+     */
+    function fillIconButtonRects(iconGraphics, iconWidth, iconHeight, designSize, designRects, iconColor) {
+        var iconScale = Math.min(iconWidth / designSize[0], iconHeight / designSize[1]);
+        var originX = (iconWidth - designSize[0] * iconScale) / 2;
+        var originY = (iconHeight - designSize[1] * iconScale) / 2;
+        iconGraphics.newPath();
+        for (var i = 0; i < designRects.length; i++) {
+            var designRect = designRects[i];
+            if (designRect[2] <= designRect[0] || designRect[3] <= designRect[1]) continue;
+            iconGraphics.rectPath(originX + designRect[0] * iconScale, originY + designRect[1] * iconScale,
+                (designRect[2] - designRect[0]) * iconScale, (designRect[3] - designRect[1]) * iconScale);
+        }
+        iconGraphics.fillPath(iconGraphics.newBrush(iconGraphics.BrushType.SOLID_COLOR, iconColor));
+    }
+
+    /**
+     * 保存アイコン（トレイに下向きの矢印）を描く。1223×993 の絵。
+     * 矢じりとトレイの V 字の切り欠きは細い長方形を並べ、トレイの四角い穴は塗らずに残す
+     * @param {ScriptUIGraphics} iconGraphics - 描画先
+     * @param {number} iconWidth - アイコンの幅
+     * @param {number} iconHeight - アイコンの高さ
+     * @param {number[]} iconColor - [r, g, b, a]
+     * @returns {void}
+     */
+    function drawSaveIcon(iconGraphics, iconWidth, iconHeight, iconColor) {
+        var designWidth = 1223;
+        var trayHole = [78, 688, 230, 840]; /* トレイの四角い穴 [左, 上, 右, 下] / the tray's square hole */
+        var sliceCount = 16;
+        var designRects = [[535, 0, 688, 383]]; /* 矢印の軸 / arrow shaft */
+        var k;
+
+        /** 穴と重なる部分を除いて長方形を足す / add a rectangle minus the tray hole */
+        function addTrayRect(left, top, right, bottom) {
+            if (right <= trayHole[0] || left >= trayHole[2] || bottom <= trayHole[1] || top >= trayHole[3]) {
+                designRects.push([left, top, right, bottom]);
+                return;
+            }
+            designRects.push([left, top, right, trayHole[1]], [left, trayHole[3], right, bottom],
+                [left, Math.max(top, trayHole[1]), trayHole[0], Math.min(bottom, trayHole[3])],
+                [trayHole[2], Math.max(top, trayHole[1]), right, Math.min(bottom, trayHole[3])]);
+        }
+
+        /* 下向きの矢じり（上の付け根から先端へ細っていく）/ the downward head */
+        for (k = 0; k < sliceCount; k++) {
+            var headHalf = 251 * (1 - (k + 0.5) / sliceCount);
+            var headTop = 383 + (703 - 383) * k / sliceCount;
+            designRects.push([612 - headHalf, headTop, 612 + headHalf, headTop + (703 - 383) / sliceCount]);
+        }
+        /* トレイ：上辺に V 字の切り欠き（幅 458 から下へ細り、856 で閉じる）/ tray with a V notch along the top */
+        for (k = 0; k < sliceCount; k++) {
+            var notchTop = 612 + (856 - 612) * k / sliceCount;
+            var notchBottom = notchTop + (856 - 612) / sliceCount;
+            var notchHalf = 229 * (1 - (k + 0.5) / sliceCount);
+            addTrayRect(0, notchTop, 612 - notchHalf, notchBottom);
+            addTrayRect(612 + notchHalf, notchTop, designWidth, notchBottom);
+        }
+        addTrayRect(0, 856, designWidth, 993);
+        fillIconButtonRects(iconGraphics, iconWidth, iconHeight, [designWidth, 993], designRects, iconColor);
+    }
+
+    /**
+     * 削除アイコン（ゴミ箱）を描く。756×825 の絵
+     * @param {ScriptUIGraphics} iconGraphics - 描画先
+     * @param {number} iconWidth - アイコンの幅
+     * @param {number} iconHeight - アイコンの高さ
+     * @param {number[]} iconColor - [r, g, b, a]
+     * @returns {void}
+     */
+    function drawTrashIcon(iconGraphics, iconWidth, iconHeight, iconColor) {
+        fillIconButtonRects(iconGraphics, iconWidth, iconHeight, [756, 825], [
+            [206, 0, 550, 70], [206, 70, 275, 137], [481, 70, 550, 137],     /* 取っ手 / handle */
+            [0, 137, 756, 207],                                               /* ふた / lid */
+            [69, 207, 138, 825], [618, 207, 688, 825], [138, 756, 618, 825], /* 本体 / body */
+            [206, 275, 275, 687], [343, 275, 413, 687], [481, 275, 550, 687] /* 縦の線 / ribs */
+        ], iconColor);
+    }
+
+    // アイコンのボタン（再利用パーツ）ここまで / End of the reusable icon buttons
+
     // =========================================
     // 設定の保存 / Settings store
     // =========================================
@@ -1795,6 +1947,134 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         strokeColor: null
     };
 
+    /* プリセット：名前をキーにした設定の集まり（{} の既定値は中身を問わず受け取る）。再起動しても残る
+       Presets: settings keyed by name (the {} default accepts any content), kept across restarts */
+    var presetSettingsStore = createSettingsStore(SCRIPT_NAME + "Presets", "persistent");
+
+    /* 組み込みのプリセット（マスクの線・角丸だけを変える。削除できない）。長さは pt、色の "black" / "white" はドキュメントのカラーモードで作る
+       Built-in presets (change only the mask stroke and corner radius; cannot be deleted). Lengths in pt; "black" / "white" follow the document color mode */
+    var BUILTIN_PRESETS = [
+        { labelKey: "presetBlackThin", data: { useStroke: true, strokeWidthPt: 0.3, strokeColor: { model: "black" }, useCornerRadius: false } },
+        { labelKey: "presetWhiteRound2", data: { useStroke: true, strokeWidthPt: 1, strokeColor: { model: "white" }, useCornerRadius: true, cornerRadiusPt: 2 } },
+        { labelKey: "presetWhiteRound50", data: { useStroke: true, strokeWidthPt: 1, strokeColor: { model: "white" }, useCornerRadius: true, cornerRadiusPt: 50 } }
+    ];
+
+    /**
+     * 設定の各項目を既定値の型にそろえる（型の合わない項目・無い項目は既定値）。プリセットの読み込みに使う。
+     * @param {Object} rawSettings - 保存してあった設定
+     * @returns {Object} DEFAULT_SETTINGS と同じ項目を持つ設定
+     */
+    function normalizeSettings(rawSettings) {
+        var normalized = {};
+        for (var settingKey in DEFAULT_SETTINGS) {
+            if (!DEFAULT_SETTINGS.hasOwnProperty(settingKey)) continue;
+            var defaultValue = DEFAULT_SETTINGS[settingKey];
+            var savedValue = rawSettings ? rawSettings[settingKey] : undefined;
+            if (defaultValue === null) {
+                normalized[settingKey] = (savedValue && typeof savedValue === "object") ? savedValue : null;
+            } else {
+                normalized[settingKey] = (typeof savedValue === typeof defaultValue) ? savedValue : defaultValue;
+            }
+        }
+        return normalized;
+    }
+
+    // =========================================
+    // プリセット / Presets
+    // =========================================
+
+    /**
+     * 保存したプリセットを返す。
+     * @returns {Object} プリセット名をキーにした設定の集まり（書き換えても保存されない）
+     */
+    function loadPresetMap() {
+        return presetSettingsStore.load({});
+    }
+
+    /**
+     * 保存したプリセットの名前を、名前順で返す。
+     * @returns {string[]} プリセット名
+     */
+    function getPresetNames() {
+        var presetMap = loadPresetMap();
+        var presetNames = [];
+        for (var presetName in presetMap) {
+            if (presetMap.hasOwnProperty(presetName)) presetNames.push(presetName);
+        }
+        presetNames.sort();
+        return presetNames;
+    }
+
+    /**
+     * プリセット名を尋ねる。
+     * @param {string} initialName - 入力欄に入れておく名前
+     * @returns {string|null} プリセット名。キャンセルか空なら null
+     */
+    function showPresetNameDialog(initialName) {
+        var nameDialog = new Window("dialog", getLabel("dialog.presetSave"));
+        setupWindow(nameDialog);
+        var nameRow = nameDialog.add("group");
+        setupRow(nameRow, "left");
+        nameRow.add("statictext", undefined, labelText("fieldLabel.presetName"));
+        var nameInput = nameRow.add("edittext", undefined, initialName);
+        nameInput.helpTip = getLabel("tooltip.presetName");
+        nameInput.characters = PRESET_NAME_CHARS;
+        nameInput.active = true;
+
+        /* ボタン行（右：キャンセル・OK） / Button row (right: Cancel and OK) */
+        var buttonRow = addButtonRow(nameDialog);
+        buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+        buttonRow.rightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+        alignRightOnlyButtonRow(buttonRow);
+        prepareDialogWindow(nameDialog, SCRIPT_NAME + "_presetName");
+        if (nameDialog.show() !== 1) return null;
+
+        var presetName = nameInput.text.replace(/^\s+|\s+$/g, "");
+        if (!presetName || presetName === getLabel("dropdown.presetPlaceholder")) return null;
+        return presetName;
+    }
+
+    /**
+     * 設定を名前を付けて保存する（同じ名前は確認してから上書き）。
+     * @param {string} initialName - 名前の入力欄に入れておく名前
+     * @param {Object} presetData - 保存する設定
+     * @returns {string|null} 保存したプリセット名。保存しなかったら null
+     */
+    function savePreset(initialName, presetData) {
+        var presetName = showPresetNameDialog(initialName);
+        if (!presetName) return null;
+        for (var i = 0; i < BUILTIN_PRESETS.length; i++) {
+            if (getLabel("dropdown." + BUILTIN_PRESETS[i].labelKey) === presetName) {
+                alert(getLabel("alert.presetNameBuiltin", { name: presetName }));
+                return null;
+            }
+        }
+        var presetMap = loadPresetMap();
+        if (presetMap.hasOwnProperty(presetName) && !confirm(getLabel("confirm.presetOverwrite", { name: presetName }), true)) return null;
+        presetMap[presetName] = presetData;
+        if (!presetSettingsStore.save(presetMap)) {
+            alert(getLabel("alert.presetSaveFailed"));
+            return null;
+        }
+        return presetName;
+    }
+
+    /**
+     * プリセットを確認してから削除する。
+     * @param {string} presetName - 削除するプリセット名
+     * @returns {boolean} 削除したら true
+     */
+    function deletePreset(presetName) {
+        if (!confirm(getLabel("confirm.presetDelete", { name: presetName }), true)) return false;
+        var presetMap = loadPresetMap();
+        delete presetMap[presetName];
+        if (!presetSettingsStore.save(presetMap)) {
+            alert(getLabel("alert.presetSaveFailed"));
+            return false;
+        }
+        return true;
+    }
+
     // =========================================
     // ローカライズ / Localization
     // =========================================
@@ -1881,6 +2161,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
     var LABELS = {
         dialog: {
             title: { ja: "画像をグリッドに配置", en: "Place Images in Grid" },
+            presetSave: { ja: "プリセットを保存", en: "Save Preset" },
             chooseImages: { ja: "配置する画像を選択", en: "Choose images to place" }
         },
         panel: {
@@ -1889,7 +2170,15 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             mask: { ja: "マスク形状", en: "Mask shape" },
             maskOptions: { ja: "マスクのオプション", en: "Mask options" }
         },
+        dropdown: {
+            presetPlaceholder: { ja: "---", en: "---" },
+            presetBlackThin: { ja: "黒 0.3pt・角丸なし", en: "Black 0.3 pt, square" },
+            presetWhiteRound2: { ja: "白 1pt・角丸 2pt", en: "White 1 pt, radius 2 pt" },
+            presetWhiteRound50: { ja: "白 1pt・角丸 50pt", en: "White 1 pt, radius 50 pt" }
+        },
         fieldLabel: {
+            preset: { ja: "プリセット", en: "Preset" },
+            presetName: { ja: "プリセット名", en: "Preset name" },
             columns: { ja: "列数", en: "Columns" },
             rows: { ja: "行数", en: "Rows" },
             gap: { ja: "間隔", en: "Gutter" },
@@ -1916,6 +2205,10 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             ok: { ja: "OK", en: "OK" }
         },
         tooltip: {
+            preset: { ja: "保存した設定を読み込む", en: "Load a saved set of settings" },
+            presetSave: { ja: "今の設定に名前を付けて保存する", en: "Save the current settings under a name" },
+            presetDelete: { ja: "選んでいるプリセットを削除する", en: "Delete the selected preset" },
+            presetName: { ja: "保存する設定の名前。同じ名前は上書きする", en: "Name to save the settings under. The same name is overwritten" },
             gridAuto: { ja: "並べる範囲がいちばん埋まる列数・行数にする", en: "Use the columns and rows that fill the area best" },
             shuffle: { ja: "画像の並び順をランダムに入れ替える", en: "Rearrange the images in random order" },
             strokeColor: { ja: "クリックで線の色を選ぶ", en: "Click to choose the stroke color" },
@@ -1932,7 +2225,13 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             stepUpInteger: { ja: "値を増やす（shift＋クリックで10の倍数へ）", en: "Increase (Shift-click to snap to 10s)" },
             stepDownInteger: { ja: "値を減らす（shift＋クリックで10の倍数へ）", en: "Decrease (Shift-click to snap to 10s)" }
         },
+        confirm: {
+            presetOverwrite: { ja: "「{name}」を上書きしますか？", en: "Overwrite \"{name}\"?" },
+            presetDelete: { ja: "「{name}」を削除しますか？", en: "Delete \"{name}\"?" }
+        },
         alert: {
+            presetSaveFailed: { ja: "プリセットを保存できませんでした。", en: "Could not save the preset." },
+            presetNameBuiltin: { ja: "「{name}」は組み込みのプリセットの名前なので使えません。", en: "\"{name}\" is the name of a built-in preset and cannot be used." },
             noDocument: { ja: "ドキュメントを開いてから実行してください。", en: "Open a document first." },
             notRectangle: {
                 ja: "長方形を1つ選択してから実行してください。\n何も選択していないときは、アートボードに並べます。",
@@ -2363,18 +2662,38 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
      * @returns {Color} RGBColor または CMYKColor
      */
     function createBlackColor(doc) {
+        return createDocumentGray(doc, 100);
+    }
+
+    /**
+     * ドキュメントのカラーモードの白を返す。
+     * @param {Document} doc - 対象のドキュメント
+     * @returns {Color} RGBColor または CMYKColor
+     */
+    function createWhiteColor(doc) {
+        return createDocumentGray(doc, 0);
+    }
+
+    /**
+     * ドキュメントのカラーモードで、墨（K）だけの色を返す（RGB では同じ濃さの灰色）。
+     * @param {Document} doc - 対象のドキュメント
+     * @param {number} blackPercent - 濃さ（0〜100。0 は白、100 は黒）
+     * @returns {Color} RGBColor または CMYKColor
+     */
+    function createDocumentGray(doc, blackPercent) {
         if (doc.documentColorSpace === DocumentColorSpace.CMYK) {
             var cmykColor = new CMYKColor();
             cmykColor.cyan = 0;
             cmykColor.magenta = 0;
             cmykColor.yellow = 0;
-            cmykColor.black = 100;
+            cmykColor.black = blackPercent;
             return cmykColor;
         }
+        var rgbLevel = Math.round(255 * (1 - blackPercent / 100));
         var rgbColor = new RGBColor();
-        rgbColor.red = 0;
-        rgbColor.green = 0;
-        rgbColor.blue = 0;
+        rgbColor.red = rgbLevel;
+        rgbColor.green = rgbLevel;
+        rgbColor.blue = rgbLevel;
         return rgbColor;
     }
 
@@ -2397,6 +2716,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
      * @returns {Color} 色
      */
     function colorFromSettings(doc, savedColor) {
+        if (savedColor && savedColor.model === "white") return createWhiteColor(doc);
         if (!savedColor || !(savedColor.values instanceof Array)) return createBlackColor(doc);
         var values = savedColor.values;
         if (savedColor.model === "rgb" && values.length === 3) {
@@ -2527,6 +2847,21 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
 
         var gridDialog = new Window("dialog", getLabel("dialog.title"));
         setupWindow(gridDialog);
+
+        /* プリセット（ダイアログボックスの左右中央） / Presets, centered in the dialog box */
+        var presetRow = gridDialog.add("group");
+        setupRow(presetRow, "center");
+        presetRow.add("statictext", undefined, labelText("fieldLabel.preset"));
+        var presetDropdown = presetRow.add("dropdownlist", undefined, []);
+        presetDropdown.helpTip = getLabel("tooltip.preset");
+        presetDropdown.preferredSize.width = PRESET_DROPDOWN_WIDTH;
+        /* 保存アイコンは塗りの面が大きく濃く見えるので、色を薄めて描く / the save icon is mostly solid and looks heavy, so draw it lighter */
+        var presetSaveIcon = addIconButton(presetRow, PRESET_ICON_SIZE, function (iconGraphics, iconWidth, iconHeight, iconColor) {
+            drawSaveIcon(iconGraphics, iconWidth, iconHeight, [iconColor[0], iconColor[1], iconColor[2], iconColor[3] * SAVE_ICON_OPACITY]);
+        });
+        presetSaveIcon.helpTip = getLabel("tooltip.presetSave");
+        var presetDeleteIcon = addIconButton(presetRow, PRESET_ICON_SIZE, drawTrashIcon);
+        presetDeleteIcon.helpTip = getLabel("tooltip.presetDelete");
 
         /* 2カラム：左にグリッド・マージン、右にマスク・オプション / Two columns: grid and margins on the left, mask and options on the right */
         var columnsGroup = gridDialog.add("group");
@@ -2893,24 +3228,161 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         btnCancel.onClick = function () { gridDialog.close(2); };
         btnOK.onClick = function () { gridDialog.close(1); };
 
+        // -----------------------------------------
+        // プリセットの読み込み・保存・削除 / Load, save and delete presets
+        // -----------------------------------------
+
+        /**
+         * 今の設定をまとめる（OK の戻り値・プリセットの保存に使う）。
+         * @returns {GridSettings} 今の設定
+         */
+        function collectDialogSettings() {
+            return {
+                gridMode: isGridAuto ? GRID_MODE_AUTO : GRID_MODE_MANUAL,
+                columns: currentColumns,
+                lastRowAlign: currentLastRowAlign,
+                gapPt: currentGap,
+                frameMarginPt: currentFrameMargin,
+                maskMode: currentMaskMode,
+                useCornerRadius: currentUseCornerRadius,
+                cornerRadiusPt: currentCornerRadius,
+                useStroke: currentUseStroke,
+                strokeWidthPt: currentStrokeWidth,
+                strokeColor: colorToSettings(currentStrokeColor)
+            };
+        }
+
+        /**
+         * 設定をダイアログボックスの各項目とプレビューに反映する（プリセットの読み込み用）。
+         * @param {Object} presetData - プリセット（無い項目は今の値のまま、型の合わない項目は既定値になる）
+         * @returns {void}
+         */
+        function applyDialogSettings(presetData) {
+            /* プリセットに無い項目は今の値のまま（組み込みのプリセットは線・角丸だけ） / Keys missing from the preset keep their current values */
+            var mergedSettings = collectDialogSettings();
+            for (var presetKey in presetData) {
+                if (presetData.hasOwnProperty(presetKey)) mergedSettings[presetKey] = presetData[presetKey];
+            }
+            var presetSettings = normalizeSettings(mergedSettings);
+
+            isGridAuto = (presetSettings.gridMode !== GRID_MODE_MANUAL);
+            gridAutoRadio.value = isGridAuto;
+            gridManualRadio.value = !isGridAuto;
+            currentLastRowAlign = (presetSettings.lastRowAlign === LAST_ROW_ALIGN_LEFT) ? LAST_ROW_ALIGN_LEFT : LAST_ROW_ALIGN_CENTER;
+            lastRowLeftRadio.value = (currentLastRowAlign === LAST_ROW_ALIGN_LEFT);
+            lastRowCenterRadio.value = (currentLastRowAlign === LAST_ROW_ALIGN_CENTER);
+
+            currentGap = presetSettings.gapPt;
+            currentFrameMargin = presetSettings.frameMarginPt;
+            writeSteppedValue(gapInput, ptToUnit(currentGap, rulerUnit), gapFieldOptions);
+            writeSteppedValue(frameMarginInput, ptToUnit(currentFrameMargin, rulerUnit), frameMarginFieldOptions);
+
+            currentMaskMode = presetSettings.maskMode;
+            if (currentMaskMode !== MASK_MODE_CELL && currentMaskMode !== MASK_MODE_ITEM) currentMaskMode = MASK_MODE_NONE;
+            currentUseMask = (currentMaskMode !== MASK_MODE_NONE);
+            maskNoneRadio.value = (currentMaskMode === MASK_MODE_NONE);
+            maskCellRadio.value = (currentMaskMode === MASK_MODE_CELL);
+            maskItemRadio.value = (currentMaskMode === MASK_MODE_ITEM);
+
+            currentUseCornerRadius = presetSettings.useCornerRadius;
+            currentCornerRadius = presetSettings.cornerRadiusPt;
+            useCornerRadiusCheckbox.value = currentUseCornerRadius;
+            writeSteppedValue(cornerRadiusInput, ptToUnit(currentCornerRadius, rulerUnit), cornerRadiusFieldOptions);
+            currentUseStroke = presetSettings.useStroke;
+            currentStrokeWidth = presetSettings.strokeWidthPt;
+            currentStrokeColor = colorFromSettings(doc, presetSettings.strokeColor);
+            useStrokeCheckbox.value = currentUseStroke;
+            writeSteppedValue(strokeWidthInput, ptToUnit(currentStrokeWidth, strokeUnit), strokeWidthFieldOptions);
+
+            if (isGridAuto) {
+                applyBestGrid();
+            } else {
+                currentColumns = Math.max(1, Math.min(imageCount, Math.round(presetSettings.columns)));
+                currentRows = Math.ceil(imageCount / currentColumns);
+            }
+            writeGridFields();
+            setSteppedFieldEnabled(columnsInput, !isGridAuto);
+            setSteppedFieldEnabled(rowsInput, !isGridAuto);
+            updateMaskControls();
+            updatePreview();
+        }
+
+        /**
+         * 選んでいるプリセット名を返す。
+         * @returns {string|null} プリセット名。「---」なら null
+         */
+        function getSelectedPresetName() {
+            var presetSelection = presetDropdown.selection;
+            return (presetSelection && presetSelection.index > BUILTIN_PRESETS.length) ? presetSelection.text : null;
+        }
+
+        /**
+         * 選んでいる組み込みのプリセットを返す。
+         * @returns {Object|null} BUILTIN_PRESETS の要素。組み込みでなければ null
+         */
+        function getSelectedBuiltinPreset() {
+            var presetSelection = presetDropdown.selection;
+            if (!presetSelection || presetSelection.index < 1 || presetSelection.index > BUILTIN_PRESETS.length) return null;
+            return BUILTIN_PRESETS[presetSelection.index - 1];
+        }
+
+        /* ドロップダウンの作り直しでも onChange が来るので、作り直し中は読み込まない / Refilling also fires onChange, so ignore it meanwhile */
+        var isFillingPresets = false;
+
+        /**
+         * プリセットのドロップダウンを作り直し、指定の名前を選ぶ。
+         * @param {string|null} selectedName - 選んでおくプリセット名（null なら「---」）
+         * @returns {void}
+         */
+        function fillPresetDropdown(selectedName) {
+            isFillingPresets = true;
+            var presetNames = getPresetNames();
+            var selectedIndex = 0;
+            presetDropdown.removeAll();
+            presetDropdown.add("item", getLabel("dropdown.presetPlaceholder"));
+            for (var j = 0; j < BUILTIN_PRESETS.length; j++) {
+                presetDropdown.add("item", getLabel("dropdown." + BUILTIN_PRESETS[j].labelKey));
+            }
+            if (presetNames.length > 0) presetDropdown.add("separator");
+            for (var i = 0; i < presetNames.length; i++) {
+                presetDropdown.add("item", presetNames[i]);
+                if (presetNames[i] === selectedName) selectedIndex = presetDropdown.items.length - 1;
+            }
+            presetDropdown.selection = selectedIndex;
+            setIconButtonEnabled(presetDeleteIcon, selectedIndex > BUILTIN_PRESETS.length);
+            isFillingPresets = false;
+        }
+
+        presetDropdown.onChange = function () {
+            if (isFillingPresets) return;
+            var presetName = getSelectedPresetName();
+            setIconButtonEnabled(presetDeleteIcon, presetName !== null);
+            var builtinPreset = getSelectedBuiltinPreset();
+            if (builtinPreset) {
+                /* 線・角丸はマスクに付くので、マスクがなしならセルの形にする / Stroke and corners need a mask, so switch None to Cell */
+                if (currentMaskMode === MASK_MODE_NONE) currentMaskMode = MASK_MODE_CELL;
+                applyDialogSettings(builtinPreset.data);
+                return;
+            }
+            if (!presetName) return;
+            var presetData = loadPresetMap()[presetName];
+            if (presetData) applyDialogSettings(presetData);
+        };
+        presetSaveIcon.onClick = function () {
+            var savedName = savePreset(getSelectedPresetName() || "", collectDialogSettings());
+            if (savedName) fillPresetDropdown(savedName);
+        };
+        presetDeleteIcon.onClick = function () {
+            var presetName = getSelectedPresetName();
+            if (presetName && deletePreset(presetName)) fillPresetDropdown(null);
+        };
+        fillPresetDropdown(null);
+
         alignRightOnlyButtonRow(buttonRow);
         addVersionFooter(gridDialog);
         prepareDialogWindow(gridDialog, SCRIPT_NAME);
         if (gridDialog.show() !== 1) return null;
-
-        return {
-            gridMode: isGridAuto ? GRID_MODE_AUTO : GRID_MODE_MANUAL,
-            columns: currentColumns,
-            lastRowAlign: currentLastRowAlign,
-            gapPt: currentGap,
-            frameMarginPt: currentFrameMargin,
-            maskMode: currentMaskMode,
-            useCornerRadius: currentUseCornerRadius,
-            cornerRadiusPt: currentCornerRadius,
-            useStroke: currentUseStroke,
-            strokeWidthPt: currentStrokeWidth,
-            strokeColor: colorToSettings(currentStrokeColor)
-        };
+        return collectDialogSettings();
     }
 
     // =========================================
