@@ -39,3 +39,4 @@ Applies a random font to each selected text object. All the text in an object ge
 - v1.0.2 (2026-11-08): Japanese font detection no longer counts fonts whose names start with HG
 - v1.0.3 (2026-11-08): Japanese font detection no longer counts the kana-only fonts SDUdai, SDTenga and SDSeimu
 - v1.1.0 (2026-11-08): Added "Exclude kana fonts" (on by default), which leaves out kana-only fonts without kanji (such as ML Chocolate, ML Tokatsuki Kana, Seiren Mincho Kana, Hommaru Kana and Seimei Kana). Fonts that were left out only because their names contain Kana, such as FOT-Kanae Reisho, now count as Japanese
+- v1.1.1 (2026-11-13): "Exclude kana fonts" also leaves out the TypeBank Ajioka kana series (Komachi, Ryokan, Yukinari, Kodoken and Tsukiji, such as TB Komachi G Std and Komachi-GM)

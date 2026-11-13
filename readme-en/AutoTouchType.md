@@ -30,6 +30,7 @@ https://note.com/dtp_tranist/n/ne6545c4717af
 
 ### Update History
 
+- v1.4.1 (2026-11-13): "Exclude kana fonts" also leaves out the TypeBank Ajioka kana series (Komachi, Ryokan, Yukinari, Kodoken and Tsukiji, such as TB Komachi G Std and Komachi-GM)
 - v1.4.0 (2026-11-08): Added "Exclude kana fonts" (on by default), which leaves out kana-only fonts without kanji (such as ML Chocolate, ML Tokatsuki Kana, Seiren Mincho Kana, Hommaru Kana and Seimei Kana). Fonts that were left out only because their names contain Kana, such as FOT-Kanae Reisho, now count as Japanese
 - v1.3.12 (2026-11-08): Japanese font detection no longer counts the kana-only fonts SDUdai, SDTenga and SDSeimu
 - v1.3.11 (2026-11-08): Japanese font detection no longer counts fonts whose names start with HG

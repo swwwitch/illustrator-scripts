@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.AutoTouchType
 Name=文字タッチツールの調整をランダムに付与
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.4.0
+Version=1.4.1
 Release-Date=2026-02-16
 Description-BEGIN
 選択したテキストの各文字に対して、ベースライン・比率・回転・カーニング・トラッキングをランダムに付与します。
@@ -47,10 +47,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AutoTouchT
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AutoTouchType";                /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.4.0";                      /* バージョン / version */
+var SCRIPT_VERSION  = "v1.4.1";                      /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-02-16";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-11-08";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-11-13";                   /* 更新日 / last updated */
 
 var SCRIPT_DESCRIPTION_JA = "文字タッチツールの調整をランダムに付与"; /* README の見出し / README title (Japanese) */
 
@@ -2207,7 +2207,12 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
        「かな」「Kana」など名前の語では決めない（游明朝体+36ポかな・FOT-DNP 秀英四号かな・A-SK 大蘭明朝かな・FOT-鼎隷書 は漢字を持つ）
        Kana-only fonts without kanji (PostScript name prefixes), skipped by "Exclude kana fonts". Words like Kana in a name are not enough */
     var KANA_ONLY_FONT_MARKERS = [
-        "MLChocolate", "MLTokatsukiKn", "TB Komachi",                 /* MLチョコレート・MLトカツキ かな・TBこまち */
+        "MLChocolate", "MLTokatsukiKn",                               /* MLチョコレート・MLトカツキ かな */
+        /* タイプバンクの味岡伸太郎かなシリーズ（TB小町G Std・TB良寛RG Std・小町-GM など）/ TypeBank Ajioka kana series */
+        "TBKomachi", "TBRyokan", "TBYukinari", "TBKodoken", "TBTsukiji",
+        "TB Komachi", "TB Ryokan", "TB Yukinari", "TB Kodoken", "TB Tsukiji",
+        "TB小町", "TB良寛", "TB行成", "TB弘道軒", "TB築地",
+        "小町-", "良寛-", "行成-", "弘道軒-", "築地-",
         "SDUdai", "SDTenga", "SDSeimu",                               /* ＳＤウダイ・ＳＤテンガ・ＳＤセイム */
         "SeiminKana", "SeigoKana", "SeimeiKana", "SeiryuKana",        /* 勢蓮明朝仮名・勢蓮呉竹仮名・清明かな（角_清明かな）・清流かな */
         "HommaruKana", "HappiKana", "Hongyo2Kana", "YoinKana",        /* ほんまるかな・はっぴ かな・奔行2かな・余韻かな */
