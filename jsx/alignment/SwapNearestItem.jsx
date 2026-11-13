@@ -7,7 +7,7 @@ Script-ID=com.swwwitch.illustrator.SwapNearestItem
 Name=指定方向で最も近いオブジェクトと位置を入れ替える
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.0.6
+Version=1.0.7
 Release-Date=2025-06-10
 Description-BEGIN
 選択したオブジェクトを基準に、指定した方向（右／左／上／下）にある最も近いオブジェクトと位置を入れ替えます。
@@ -42,10 +42,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SwapNeares
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SwapNearestItem";              /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.6";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.7";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-06-10";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-11-14";                   /* 更新日 / last updated */
 
 var SCRIPT_DESCRIPTION_JA = "指定方向で最も近いオブジェクトと位置を入れ替える"; /* README の見出し / README title (Japanese) */
 
@@ -63,9 +63,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     // ユーザー設定 / User Settings
     // =========================================
 
-    /* 入れ替え先を探す方向 "right" | "left" | "up" | "down"
-       Direction to look for the object to swap with */
-    var SEARCH_DIRECTION = "left";
+    /* 入れ替え先を探す方向。VectorKeys などから実行時に差し替えられる / Direction to look for the object to swap with; can be overridden at run time (VectorKeys etc.) */
+    var SW_DIRECTION = "left"; /* [right|left|up|down] */
 
     // =========================================
     // 基本設定 / Basic settings
@@ -394,7 +393,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
      * @returns {void}
      */
     function swapItems(itemA, itemB) {
-        if (SEARCH_DIRECTION === "up" || SEARCH_DIRECTION === "down") {
+        if (SW_DIRECTION === "up" || SW_DIRECTION === "down") {
             swapVertically(itemA, itemB);
         } else {
             swapHorizontally(itemA, itemB);
@@ -438,7 +437,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         }
 
         /* 選択中のオブジェクト同士で入れ替わらないよう、選択全体を候補から外す / Keep the selection out of the candidates */
-        var nearestItem = findNearestObjectInDirection(baseItem, SEARCH_DIRECTION, selectedObjects);
+        var nearestItem = findNearestObjectInDirection(baseItem, SW_DIRECTION, selectedObjects);
         if (!nearestItem) {
             alert(getLabel("alert.noTarget"));
             return;

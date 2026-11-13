@@ -40,3 +40,4 @@
 - v1.0.4 (20250615): Removed temporary grouping, cleaned up logic
 - v1.0.5 (20260919): Reorganized the internals (the search direction is now set with SEARCH_DIRECTION under User Settings, swappable types are listed in one table, names revised; no change in behavior)
 - v1.0.6 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
+- v1.0.7 (2026-11-14): Renamed the search-direction setting to SW_DIRECTION, an SW_ variable that VectorKeys and similar tools can override at run time (no change in behavior)
