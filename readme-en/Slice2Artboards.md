@@ -23,6 +23,7 @@
 - Aspect ratio presets (A4, Square, US Letter, 16:9, 8:9, Custom)
 - Automatic conversion to artboards, naming, zero padding
 - Margin setting
+- The dialog shows a thumbnail of the slices (the original object, the slices, and the artboards with their names), redrawn as you change the settings
 
 ### Workflow
 
@@ -69,3 +70,4 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/mask/ResizeClipM
 - v1.7.10 (2026-10-16) Right-only button rows are now centered when the dialog's inner width is up to 240 px (was 200 px) (shared part update)
 - v1.7.11 (2026-10-29) With the ruler unit set to Ha (H), unit labels now read "H" instead of "Q" (unit handling unified)
 - v1.7.12 (2026-10-29) Offset and Margin are now converted from the ruler unit to points (typing 10 with a mm ruler used to apply 10 pt). The defaults keep the same length (-20 pt, 0 pt), shown in the ruler unit
+- v1.8.0 (2026-11-15) Added a thumbnail of the slices to the dialog. It redraws as you change the aspect ratio, rows, columns, offset, margin or artboard naming, and shows the artboard name each slice gets

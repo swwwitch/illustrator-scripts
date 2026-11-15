@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.Slice2Artboards
 Name=画像を分割してアートボード化
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.7.13
+Version=1.8.0
 Release-Date=2025-07-10
 Description-BEGIN
 選択したオブジェクトを、指定した行数・列数のグリッドに分割し、各ピースを矩形マスクでクリッピングします。
@@ -44,10 +44,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/Slice2Artb
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "Slice2Artboards";              /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.7.13";                      /* バージョン / version */
+var SCRIPT_VERSION  = "v1.8.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-07-10";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-11-05";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-11-15";                   /* 更新日 / last updated */
 
 var SCRIPT_DESCRIPTION_JA = "画像を分割してアートボード化"; /* README の見出し / README title (Japanese) */
 
@@ -225,6 +225,10 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             startNumber: { ja: "連番の開始値です。", en: "The number the sequence starts from." },
             zeroPad:     { ja: "開始番号の桁数にそろえて 0 を補います（01, 02, ...）。", en: "Pads the numbers with zeros to the width of the start number (01, 02, ...)." },
             margin:      { ja: "各アートボードの外側に足す余白です。", en: "Extra space added around each artboard." },
+            thumbnail: {
+                ja: "分割後の縮小図です。灰色が元のオブジェクト、白が分割した枠、青い枠がアートボードです。",
+                en: "Thumbnail of the slices. Gray is the original object, white boxes are the slices, and blue frames are the artboards."
+            },
             stepUp: {
                 ja: "値を増やす（shift＋クリックで10の倍数へ、option＋クリックで0.1ずつ）",
                 en: "Increase (Shift-click to snap to 10s, Option-click by 0.1)"
@@ -413,6 +417,12 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
     }
 
     // UIレイアウト（再利用パーツ）ここまで / End of the reusable UI layout
+
+    /* 分割後の縮小図 / Thumbnail of the slices */
+    var THUMBNAIL_SIZE = [300, 150];         /* 描画域（幅は最小幅。ダイアログの幅いっぱいに伸ばす）/ canvas (minimum width; fills the dialog width) */
+    var THUMBNAIL_PADDING = 10;              /* 描画域の内側の余白 / inner padding */
+    var THUMBNAIL_LABEL_FONT_SIZE = 9;       /* アートボード名の文字サイズ / font size of the artboard names */
+    var THUMBNAIL_MAX_CELLS = 400;           /* これより多い枠は1つずつ描かず、全体の範囲だけ描く / beyond this, draw only the overall extent instead of each slice */
 
     /**
      * 入力欄の直前にある項目名のクリックで、入力欄にフォーカスを移す（addSteppedField() の項目名と同じ挙動。無効の間は移さない）。
@@ -1722,6 +1732,286 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
     }
 
     // =========================================
+    // 縮小図 / Slice thumbnail
+    // =========================================
+
+    var THUMBNAIL_UI_DARK = isDarkUI();
+    var THUMBNAIL_COLORS = {
+        background:  THUMBNAIL_UI_DARK ? [0.16, 0.16, 0.16, 1] : [0.90, 0.90, 0.90, 1], /* 地 / background */
+        source:      THUMBNAIL_UI_DARK ? [0.36, 0.36, 0.36, 1] : [0.74, 0.74, 0.74, 1], /* 元のオブジェクト / original object */
+        sourceFrame: THUMBNAIL_UI_DARK ? [0.55, 0.55, 0.55, 1] : [0.55, 0.55, 0.55, 1], /* 元のオブジェクトの枠 / original object frame */
+        slice:       [1, 1, 1, 1],                                                     /* 分割した枠 / slice */
+        sliceFrame:  [0.50, 0.50, 0.50, 1],                                            /* 分割した枠の線 / slice frame */
+        artboard:    THUMBNAIL_UI_DARK ? [0.40, 0.65, 1.00, 1] : [0.10, 0.40, 0.85, 1], /* アートボード / artboard */
+        label:       [0.40, 0.40, 0.40, 1]                                             /* アートボード名 / artboard name */
+    };
+
+    // 縮小図（再利用パーツ） / Thumbnail canvas (reusable)
+
+    var thumbnailFontCache = {}; /* 文字サイズごとの書体 / fonts per size */
+
+    /**
+     * 縮小図を自作描画する描画域（group）を追加する
+     * @param {Window|Panel|Group} parent - 追加先
+     * @param {number[]} canvasSize - [幅, 高さ]（px）。fillWidth のときの幅は最小幅
+     * @param {Function} drawFn - 描くたびに drawFn(canvasGraphics, canvasWidth, canvasHeight) で呼ぶ関数
+     * @param {boolean} [fillWidth] - true なら親の幅いっぱいに伸ばす（ダイアログの幅は広げない）
+     * @returns {Group} 描画域
+     */
+    function addThumbnailCanvas(parent, canvasSize, drawFn, fillWidth) {
+        var thumbnailCanvas = parent.add("group");
+        thumbnailCanvas.preferredSize = [canvasSize[0], canvasSize[1]];
+        thumbnailCanvas.minimumSize = [canvasSize[0], canvasSize[1]];
+        thumbnailCanvas.maximumSize = [fillWidth ? 10000 : canvasSize[0], canvasSize[1]];
+        if (fillWidth) thumbnailCanvas.alignment = ["fill", "top"];
+        thumbnailCanvas.onDraw = function () {
+            var drawnSize = thumbnailCanvas.size;
+            drawFn(thumbnailCanvas.graphics, drawnSize.width, drawnSize.height);
+        };
+        return thumbnailCanvas;
+    }
+
+    /**
+     * 縮小図を描き直す（group には notify() が無いので、隠して再表示する）
+     * @param {Group} thumbnailCanvas - addThumbnailCanvas() の戻り値
+     * @returns {void}
+     */
+    function redrawThumbnailCanvas(thumbnailCanvas) {
+        thumbnailCanvas.hide();
+        thumbnailCanvas.show();
+    }
+
+    /**
+     * 縮小図に矩形を塗る（rectPath の前に newPath を呼ばないとパスが重なって線画になる）
+     * @param {ScriptUIGraphics} canvasGraphics - 描画先
+     * @param {number} left - 左（px）
+     * @param {number} top - 上（px）
+     * @param {number} width - 幅（px）
+     * @param {number} height - 高さ（px）
+     * @param {number[]} color - RGBA
+     * @returns {void}
+     */
+    function fillThumbnailRect(canvasGraphics, left, top, width, height, color) {
+        canvasGraphics.newPath();
+        canvasGraphics.rectPath(left, top, width, height);
+        canvasGraphics.fillPath(canvasGraphics.newBrush(canvasGraphics.BrushType.SOLID_COLOR, color));
+    }
+
+    /**
+     * 縮小図に矩形の枠を描く（1px の線が内側に収まるよう 0.5px 内に寄せる）
+     * @param {ScriptUIGraphics} canvasGraphics - 描画先
+     * @param {number} left - 左（px）
+     * @param {number} top - 上（px）
+     * @param {number} width - 幅（px）
+     * @param {number} height - 高さ（px）
+     * @param {number[]} color - RGBA
+     * @returns {void}
+     */
+    function strokeThumbnailRect(canvasGraphics, left, top, width, height, color) {
+        canvasGraphics.newPath();
+        canvasGraphics.rectPath(left + 0.5, top + 0.5, Math.max(width - 1, 0), Math.max(height - 1, 0));
+        canvasGraphics.strokePath(canvasGraphics.newPen(canvasGraphics.PenType.SOLID_COLOR, color, 1));
+    }
+
+    /**
+     * 縮小図の文字の書体を返す（作れない環境ではコントロールの書体を使う）
+     * @param {ScriptUIGraphics} canvasGraphics - 描画先
+     * @param {number} fontSize - 文字サイズ（px。InDesign では無視される）
+     * @returns {ScriptUIFont} 書体
+     */
+    function getThumbnailFont(canvasGraphics, fontSize) {
+        if (thumbnailFontCache[fontSize]) return thumbnailFontCache[fontSize];
+        try {
+            thumbnailFontCache[fontSize] = ScriptUI.newFont(canvasGraphics.font.name, "REGULAR", fontSize);
+        } catch (e) {
+            thumbnailFontCache[fontSize] = canvasGraphics.font;
+        }
+        return thumbnailFontCache[fontSize];
+    }
+
+    /**
+     * 文字列の幅と高さを測る（measureString は配列か {width, height} で返る）
+     * @param {ScriptUIGraphics} canvasGraphics - 描画先
+     * @param {string} text - 文字列
+     * @param {ScriptUIFont} font - 書体
+     * @returns {number[]} [幅, 高さ]（px）
+     */
+    function measureThumbnailText(canvasGraphics, text, font) {
+        var measured = canvasGraphics.measureString(text, font);
+        if (measured.width !== undefined) return [measured.width, measured.height];
+        return [measured[0], measured[1]];
+    }
+
+    // 縮小図（再利用パーツ）ここまで / End of the reusable thumbnail canvas
+
+    /**
+     * 選択したオブジェクト全体の大きさを返す（複数選択は外接矩形。読めないオブジェクトは飛ばす）
+     * @param {Array} selection - 選択中のオブジェクト
+     * @returns {{width: number, height: number}|null} 大きさ（pt）。1つも読めなければ null
+     */
+    function getSelectionUnionSize(selection) {
+        var unionBounds = null;
+        for (var i = 0; i < selection.length; i++) {
+            var itemBounds;
+            try {
+                itemBounds = selection[i].geometricBounds;
+            } catch (e) {
+                continue; /* 外形を持たない選択（文字の選択など）は飛ばす / skip selections without bounds */
+            }
+            if (!unionBounds) {
+                unionBounds = [itemBounds[0], itemBounds[1], itemBounds[2], itemBounds[3]];
+                continue;
+            }
+            unionBounds[0] = Math.min(unionBounds[0], itemBounds[0]);
+            unionBounds[1] = Math.max(unionBounds[1], itemBounds[1]);
+            unionBounds[2] = Math.max(unionBounds[2], itemBounds[2]);
+            unionBounds[3] = Math.min(unionBounds[3], itemBounds[3]);
+        }
+        return unionBounds ? getSize(unionBounds) : null;
+    }
+
+    /**
+     * ダイアログの設定から、分割後の枠・アートボード・アートボード名を求める（実行時と同じ resolveCounts() / computePieceSize() / buildArtboardName() を使う）。
+     * 座標は元のオブジェクトの左上を原点に、右と下を正とする
+     * @param {{width: number, height: number}|null} sourceSize - 元のオブジェクトの大きさ（pt）
+     * @param {string} fileName - ドキュメントのファイル名（拡張子なし）
+     * @param {Object} settings - buildDialog() の read() の戻り値
+     * @returns {{sourceWidth: number, sourceHeight: number, cells: Object[], extent: number[]|null, createsArtboards: boolean}|null} 縮小図のモデル。元の大きさが無ければ null
+     */
+    function buildSliceThumbnail(sourceSize, fileName, settings) {
+        if (!sourceSize || !(sourceSize.width > 0) || !(sourceSize.height > 0)) return null;
+        var thumbnailModel = {
+            sourceWidth: sourceSize.width,
+            sourceHeight: sourceSize.height,
+            cells: [],
+            extent: null,
+            createsArtboards: settings.createsArtboards
+        };
+        if (!hasUsableCounts(settings)) return thumbnailModel;
+
+        var counts = resolveCounts(settings, sourceSize);
+        if (counts.columnCount < 1 || counts.rowCount < 1) return thumbnailModel;
+        var pieceSize = computePieceSize(sourceSize, counts.columnCount, counts.rowCount, settings.targetRatio);
+        /* 枠はオフセットの分だけ四方に広がる（マイナスなら縮む）/ each slice grows on all sides by the offset (shrinks when negative) */
+        var offsetValue = (settings.offsetValue !== null) ? settings.offsetValue : 0;
+        var cellCount = counts.columnCount * counts.rowCount;
+        if (cellCount > THUMBNAIL_MAX_CELLS) {
+            thumbnailModel.extent = [-offsetValue, -offsetValue,
+                pieceSize.width * counts.columnCount + offsetValue * 2, pieceSize.height * counts.rowCount + offsetValue * 2];
+            return thumbnailModel;
+        }
+
+        var nameOptions = {
+            prefix: settings.prefix,
+            separator: settings.separator,
+            zeroPadding: settings.zeroPadding,
+            digitCount: settings.zeroPadding ? String(settings.startNumber + cellCount - 1).length : settings.startNumberText.length,
+            useFileName: settings.useFileName,
+            fileName: fileName
+        };
+        /* 生成も並べ替えも上の行から左→右の順なので、番号はこの順に付く / numbering follows rows top to bottom, left to right */
+        for (var row = 0; row < counts.rowCount; row++) {
+            for (var column = 0; column < counts.columnCount; column++) {
+                var sliceRect = [
+                    column * pieceSize.width - offsetValue,
+                    row * pieceSize.height - offsetValue,
+                    pieceSize.width + offsetValue * 2,
+                    pieceSize.height + offsetValue * 2
+                ];
+                thumbnailModel.cells.push({
+                    slice: sliceRect,
+                    artboard: [sliceRect[0] - settings.margin, sliceRect[1] - settings.margin,
+                        sliceRect[2] + settings.margin * 2, sliceRect[3] + settings.margin * 2],
+                    name: settings.createsArtboards ? buildArtboardName(nameOptions, settings.startNumber + thumbnailModel.cells.length) : ""
+                });
+            }
+        }
+        return thumbnailModel;
+    }
+
+    /**
+     * 分割後の縮小図を描く。元のオブジェクトは灰色、分割した枠は白、アートボードは青い枠、名前は枠に収まるときだけ描く
+     * @param {ScriptUIGraphics} canvasGraphics - 描画先
+     * @param {number} canvasWidth - 描画域の幅（px）
+     * @param {number} canvasHeight - 描画域の高さ（px）
+     * @param {Object|null} thumbnailModel - buildSliceThumbnail() の戻り値
+     * @returns {void}
+     */
+    function drawSliceThumbnail(canvasGraphics, canvasWidth, canvasHeight, thumbnailModel) {
+        fillThumbnailRect(canvasGraphics, 0, 0, canvasWidth, canvasHeight, THUMBNAIL_COLORS.background);
+        if (!thumbnailModel) return;
+
+        /* 元のオブジェクト・枠・アートボードがすべて入る範囲で縮尺を決める / fit the source, slices and artboards together */
+        var minX = 0, minY = 0, maxX = thumbnailModel.sourceWidth, maxY = thumbnailModel.sourceHeight;
+        var rectsToFit = [];
+        if (thumbnailModel.extent) rectsToFit.push(thumbnailModel.extent);
+        for (var i = 0; i < thumbnailModel.cells.length; i++) {
+            rectsToFit.push(thumbnailModel.cells[i].slice);
+            if (thumbnailModel.createsArtboards) rectsToFit.push(thumbnailModel.cells[i].artboard);
+        }
+        for (var j = 0; j < rectsToFit.length; j++) {
+            var fitRect = rectsToFit[j];
+            minX = Math.min(minX, fitRect[0]);
+            minY = Math.min(minY, fitRect[1]);
+            maxX = Math.max(maxX, fitRect[0] + Math.max(0, fitRect[2]));
+            maxY = Math.max(maxY, fitRect[1] + Math.max(0, fitRect[3]));
+        }
+        var drawableWidth = canvasWidth - THUMBNAIL_PADDING * 2;
+        var drawableHeight = canvasHeight - THUMBNAIL_PADDING * 2;
+        if (drawableWidth <= 0 || drawableHeight <= 0 || !(maxX > minX) || !(maxY > minY)) return;
+        var pixelsPerPoint = Math.min(drawableWidth / (maxX - minX), drawableHeight / (maxY - minY));
+        var originLeft = (canvasWidth - (maxX - minX) * pixelsPerPoint) / 2 - minX * pixelsPerPoint;
+        var originTop = (canvasHeight - (maxY - minY) * pixelsPerPoint) / 2 - minY * pixelsPerPoint;
+
+        /**
+         * 原点からの矩形 [左, 上, 幅, 高さ]（pt）を描画域の px にする（小さくても 1px は残す）
+         * @param {number[]} modelRect - 矩形（pt）
+         * @returns {number[]} [左, 上, 幅, 高さ]（px）
+         */
+        function toCanvasRect(modelRect) {
+            return [
+                Math.round(originLeft + modelRect[0] * pixelsPerPoint),
+                Math.round(originTop + modelRect[1] * pixelsPerPoint),
+                Math.max(1, Math.round(modelRect[2] * pixelsPerPoint)),
+                Math.max(1, Math.round(modelRect[3] * pixelsPerPoint))
+            ];
+        }
+
+        var sourceRect = toCanvasRect([0, 0, thumbnailModel.sourceWidth, thumbnailModel.sourceHeight]);
+        fillThumbnailRect(canvasGraphics, sourceRect[0], sourceRect[1], sourceRect[2], sourceRect[3], THUMBNAIL_COLORS.source);
+        strokeThumbnailRect(canvasGraphics, sourceRect[0], sourceRect[1], sourceRect[2], sourceRect[3], THUMBNAIL_COLORS.sourceFrame);
+
+        if (thumbnailModel.extent) {
+            /* 枠が多すぎるときは全体の範囲だけ / too many slices: draw only the overall extent */
+            var extentRect = toCanvasRect(thumbnailModel.extent);
+            strokeThumbnailRect(canvasGraphics, extentRect[0], extentRect[1], extentRect[2], extentRect[3],
+                thumbnailModel.createsArtboards ? THUMBNAIL_COLORS.artboard : THUMBNAIL_COLORS.sliceFrame);
+            return;
+        }
+
+        var labelFont = getThumbnailFont(canvasGraphics, THUMBNAIL_LABEL_FONT_SIZE);
+        var labelPen = canvasGraphics.newPen(canvasGraphics.PenType.SOLID_COLOR, THUMBNAIL_COLORS.label, 1);
+        for (var k = 0; k < thumbnailModel.cells.length; k++) {
+            var cell = thumbnailModel.cells[k];
+            if (!(cell.slice[2] > 0) || !(cell.slice[3] > 0)) continue; /* オフセットで潰れた枠は描かない / skip slices collapsed by the offset */
+            var sliceRect = toCanvasRect(cell.slice);
+            fillThumbnailRect(canvasGraphics, sliceRect[0], sliceRect[1], sliceRect[2], sliceRect[3], THUMBNAIL_COLORS.slice);
+            strokeThumbnailRect(canvasGraphics, sliceRect[0], sliceRect[1], sliceRect[2], sliceRect[3], THUMBNAIL_COLORS.sliceFrame);
+            if (thumbnailModel.createsArtboards) {
+                var artboardRect = toCanvasRect(cell.artboard);
+                strokeThumbnailRect(canvasGraphics, artboardRect[0], artboardRect[1], artboardRect[2], artboardRect[3], THUMBNAIL_COLORS.artboard);
+            }
+            if (!cell.name) continue;
+            var labelSize = measureThumbnailText(canvasGraphics, cell.name, labelFont);
+            if (labelSize[0] + 4 <= sliceRect[2] && labelSize[1] + 2 <= sliceRect[3]) {
+                canvasGraphics.drawString(cell.name, labelPen,
+                    Math.round(sliceRect[0] + (sliceRect[2] - labelSize[0]) / 2),
+                    Math.round(sliceRect[1] + (sliceRect[3] - labelSize[1]) / 2), labelFont);
+            }
+        }
+    }
+
+    // =========================================
     // ダイアログ / Dialog
     // =========================================
 
@@ -1729,8 +2019,9 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
      * 分割設定のダイアログを組み立てる。
      * 戻り値の read() が、入力内容をまとめたオブジェクトを返す。
      * Build the settings dialog. The returned read() collects the entered values.
+     * previewSource は縮小図に使う { size, fileName }（size は選択全体の大きさ）/ previewSource feeds the thumbnail
      */
-    function buildDialog(sourceSize) {
+    function buildDialog(sourceSize, previewSource) {
         /* オフセット・マージンの欄は定規の単位（ダイアログを開くときに一度だけ読む）/ Offset and margin fields use the ruler unit, read once */
         var rulerUnit = getUnitInfo();
 
@@ -1850,6 +2141,13 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         marginInput.characters = 5;
         marginRow.add("statictext", undefined, rulerUnit.label);
 
+        /* 分割後の縮小図（ダイアログの幅いっぱい）/ Thumbnail of the slices (full dialog width) */
+        var thumbnailModel = null;
+        var thumbnailCanvas = addThumbnailCanvas(dialog, THUMBNAIL_SIZE, function (canvasGraphics, canvasWidth, canvasHeight) {
+            drawSliceThumbnail(canvasGraphics, canvasWidth, canvasHeight, thumbnailModel);
+        }, true);
+        thumbnailCanvas.helpTip = getLabel("tooltip.thumbnail");
+
         /* ボタン列 / Button row */
         var buttonRow = addButtonRow(dialog);
         var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
@@ -1902,23 +2200,48 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         // -----------------------------------------
         // イベント / Event wiring
         // -----------------------------------------
+        /**
+         * 今の設定で縮小図を作り直して描き直す
+         * @returns {void}
+         */
+        function updateThumbnail() {
+            thumbnailModel = buildSliceThumbnail(previewSource.size, previewSource.fileName, read());
+            redrawThumbnailCanvas(thumbnailCanvas);
+        }
+
         for (var k = 0; k < shapeRadios.length; k++) {
-            shapeRadios[k].radio.onClick = syncDivision;
+            shapeRadios[k].radio.onClick = function () { syncDivision(); updateThumbnail(); };
         }
 
         /* 行数・列数を直接触ったらカスタム扱いにする / Switch to Custom once the counts are edited by hand */
         function selectCustom() {
             shapeRadios[shapeRadios.length - 1].radio.value = true;
         }
-        columnInput.onChanging = selectCustom;
-        rowInput.onChanging = selectCustom;
+        columnInput.onChanging = function () { selectCustom(); updateThumbnail(); };
+        rowInput.onChanging = function () { selectCustom(); updateThumbnail(); };
 
-        offsetCheckbox.onClick = syncOffsetEnabled;
-        artboardCheckbox.onClick = syncArtboardEnabled;
+        offsetCheckbox.onClick = function () { syncOffsetEnabled(); updateThumbnail(); };
+        artboardCheckbox.onClick = function () { syncArtboardEnabled(); updateThumbnail(); };
+
+        /* そのほかの入力も、変えるたびに縮小図を描き直す / Redraw the thumbnail on every other change too */
+        var redrawFields = [columnInput, rowInput, offsetInput, prefixInput, startNumberInput, marginInput];
+        for (var fieldIndex = 0; fieldIndex < redrawFields.length; fieldIndex++) {
+            redrawFields[fieldIndex].onChange = updateThumbnail;
+        }
+        offsetInput.onChanging = updateThumbnail;
+        prefixInput.onChanging = updateThumbnail;
+        startNumberInput.onChanging = updateThumbnail;
+        marginInput.onChanging = updateThumbnail;
+        useFileNameCheckbox.onClick = updateThumbnail;
+        zeroPadCheckbox.onClick = updateThumbnail;
+        dashRadio.onClick = updateThumbnail;
+        underscoreRadio.onClick = updateThumbnail;
+        withoutRadio.onClick = updateThumbnail;
 
         syncDivision();
         syncOffsetEnabled();
         syncArtboardEnabled();
+        updateThumbnail();
 
         dialog.layout.layout(true);
 
@@ -2047,7 +2370,11 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         var selection = doc.selection;
 
         var sourceSize = (selection.length === 1) ? getSize(selection[0].geometricBounds) : null;
-        var dialog = buildDialog(sourceSize);
+        /* 縮小図は複数選択でも全体の外形で描く / The thumbnail uses the overall bounds even for multiple items */
+        var dialog = buildDialog(sourceSize, {
+            size: sourceSize || getSelectionUnionSize(selection),
+            fileName: getFileNameWithoutExtension(doc)
+        });
         addVersionFooter(dialog.window);
         prepareDialogWindow(dialog.window, SCRIPT_NAME);
         if (dialog.window.show() !== 1) return;

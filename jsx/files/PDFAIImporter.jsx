@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.PDFAIImporter
 Name=PDF/AIをページ範囲で読み込んで配置
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.3.10
+Version=1.4.0
 Release-Date=2026-04-13
 Description-BEGIN
 PDF/AI ファイルを指定したページ範囲で読み込み、現在のドキュメントまたは新規ドキュメント上に配置します。
@@ -47,10 +47,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PDFAIImpor
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "PDFAIImporter";                /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.3.10";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.4.0";                        /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-04-13";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-11-05";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-11-15";                   /* 更新日 / last updated */
 
 var SCRIPT_DESCRIPTION_JA = "PDF/AIをページ範囲で読み込んで配置"; /* README の見出し / README title (Japanese) */
 
@@ -269,6 +269,10 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             colorMode: {
                 ja: "作成する新規ドキュメントのカラーモードです。初期値は現在のドキュメントに合わせます",
                 en: "Color mode of the new document. Defaults to that of the current document"
+            },
+            thumbnail: {
+                ja: "配置後の並びの縮小図です。3ページ目以降は2ページ目と同じ大きさとみなした目安です。見開きを分割したページは「3L」「3R」のように左右を付けて示します",
+                en: "Thumbnail of the placement layout. Pages from page 3 on are assumed to be the size of page 2. Split spreads are labeled with their side, such as 3L and 3R"
             }
         },
         alert: {
@@ -441,6 +445,11 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
 
     /* パネル内のグループの要素間隔 / Spacing inside the groups within panels */
     var GROUP_SPACING = 8;
+
+    /* 配置後の並びの縮小図 / Thumbnail of the placement layout */
+    var THUMBNAIL_SIZE = [300, 140];        /* 描画域（幅は最小幅。ダイアログの幅いっぱいに伸ばす）/ canvas (minimum width; fills the dialog width) */
+    var THUMBNAIL_PADDING = 10;             /* 描画域の内側の余白 / inner padding */
+    var THUMBNAIL_LABEL_FONT_SIZE = 9;      /* ページ番号の文字サイズ / font size of the page numbers */
 
     /**
      * グループへ共通のレイアウト設定を適用する（row/column で整列を切り替え）
@@ -1961,6 +1970,198 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         }
     }
 
+    // =========================================
+    // 縮小図 / Layout thumbnail
+    // 配置後の並びをダイアログの中に描く。並びの計算は配置と同じ placementSplitSpreads() / placementBuildLayout() を使う
+    // Draws the placement layout in the dialog, using the same placementSplitSpreads() / placementBuildLayout() as the placement
+    // =========================================
+
+    var THUMBNAIL_UI_DARK = isDarkUI();
+    var THUMBNAIL_COLORS = {
+        background: THUMBNAIL_UI_DARK ? [0.16, 0.16, 0.16, 1] : [0.90, 0.90, 0.90, 1], /* 地 / background */
+        page:       [1, 1, 1, 1],                                                     /* ページ / page */
+        pageFrame:  THUMBNAIL_UI_DARK ? [0.55, 0.55, 0.55, 1] : [0.50, 0.50, 0.50, 1], /* ページの枠 / page frame */
+        pageLabel:  [0.40, 0.40, 0.40, 1]                                             /* ページ番号 / page number */
+    };
+
+    // 縮小図（再利用パーツ） / Thumbnail canvas (reusable)
+
+    var thumbnailFontCache = {}; /* 文字サイズごとの書体 / fonts per size */
+
+    /**
+     * 縮小図を自作描画する描画域（group）を追加する
+     * @param {Window|Panel|Group} parent - 追加先
+     * @param {number[]} canvasSize - [幅, 高さ]（px）。fillWidth のときの幅は最小幅
+     * @param {Function} drawFn - 描くたびに drawFn(canvasGraphics, canvasWidth, canvasHeight) で呼ぶ関数
+     * @param {boolean} [fillWidth] - true なら親の幅いっぱいに伸ばす（ダイアログの幅は広げない）
+     * @returns {Group} 描画域
+     */
+    function addThumbnailCanvas(parent, canvasSize, drawFn, fillWidth) {
+        var thumbnailCanvas = parent.add("group");
+        thumbnailCanvas.preferredSize = [canvasSize[0], canvasSize[1]];
+        thumbnailCanvas.minimumSize = [canvasSize[0], canvasSize[1]];
+        thumbnailCanvas.maximumSize = [fillWidth ? 10000 : canvasSize[0], canvasSize[1]];
+        if (fillWidth) thumbnailCanvas.alignment = ["fill", "top"];
+        thumbnailCanvas.onDraw = function () {
+            var drawnSize = thumbnailCanvas.size;
+            drawFn(thumbnailCanvas.graphics, drawnSize.width, drawnSize.height);
+        };
+        return thumbnailCanvas;
+    }
+
+    /**
+     * 縮小図を描き直す（group には notify() が無いので、隠して再表示する）
+     * @param {Group} thumbnailCanvas - addThumbnailCanvas() の戻り値
+     * @returns {void}
+     */
+    function redrawThumbnailCanvas(thumbnailCanvas) {
+        thumbnailCanvas.hide();
+        thumbnailCanvas.show();
+    }
+
+    /**
+     * 縮小図に矩形を塗る（rectPath の前に newPath を呼ばないとパスが重なって線画になる）
+     * @param {ScriptUIGraphics} canvasGraphics - 描画先
+     * @param {number} left - 左（px）
+     * @param {number} top - 上（px）
+     * @param {number} width - 幅（px）
+     * @param {number} height - 高さ（px）
+     * @param {number[]} color - RGBA
+     * @returns {void}
+     */
+    function fillThumbnailRect(canvasGraphics, left, top, width, height, color) {
+        canvasGraphics.newPath();
+        canvasGraphics.rectPath(left, top, width, height);
+        canvasGraphics.fillPath(canvasGraphics.newBrush(canvasGraphics.BrushType.SOLID_COLOR, color));
+    }
+
+    /**
+     * 縮小図に矩形の枠を描く（1px の線が内側に収まるよう 0.5px 内に寄せる）
+     * @param {ScriptUIGraphics} canvasGraphics - 描画先
+     * @param {number} left - 左（px）
+     * @param {number} top - 上（px）
+     * @param {number} width - 幅（px）
+     * @param {number} height - 高さ（px）
+     * @param {number[]} color - RGBA
+     * @returns {void}
+     */
+    function strokeThumbnailRect(canvasGraphics, left, top, width, height, color) {
+        canvasGraphics.newPath();
+        canvasGraphics.rectPath(left + 0.5, top + 0.5, Math.max(width - 1, 0), Math.max(height - 1, 0));
+        canvasGraphics.strokePath(canvasGraphics.newPen(canvasGraphics.PenType.SOLID_COLOR, color, 1));
+    }
+
+    /**
+     * 縮小図の文字の書体を返す（作れない環境ではコントロールの書体を使う）
+     * @param {ScriptUIGraphics} canvasGraphics - 描画先
+     * @param {number} fontSize - 文字サイズ（px。InDesign では無視される）
+     * @returns {ScriptUIFont} 書体
+     */
+    function getThumbnailFont(canvasGraphics, fontSize) {
+        if (thumbnailFontCache[fontSize]) return thumbnailFontCache[fontSize];
+        try {
+            thumbnailFontCache[fontSize] = ScriptUI.newFont(canvasGraphics.font.name, "REGULAR", fontSize);
+        } catch (e) {
+            thumbnailFontCache[fontSize] = canvasGraphics.font;
+        }
+        return thumbnailFontCache[fontSize];
+    }
+
+    /**
+     * 文字列の幅と高さを測る（measureString は配列か {width, height} で返る）
+     * @param {ScriptUIGraphics} canvasGraphics - 描画先
+     * @param {string} text - 文字列
+     * @param {ScriptUIFont} font - 書体
+     * @returns {number[]} [幅, 高さ]（px）
+     */
+    function measureThumbnailText(canvasGraphics, text, font) {
+        var measured = canvasGraphics.measureString(text, font);
+        if (measured.width !== undefined) return [measured.width, measured.height];
+        return [measured[0], measured[1]];
+    }
+
+    // 縮小図（再利用パーツ）ここまで / End of the reusable thumbnail canvas
+
+    /**
+     * 縮小図のために、1ページ目と2ページ目の大きさを一時配置で測る（crop・取り込みページの環境設定と変更フラグは元に戻す）
+     * @param {Document} targetDoc - 一時配置に使うドキュメント
+     * @param {File} fileObj - 読み込み元ファイル
+     * @param {number} cropMode - トリミング指定（CropTo の値）
+     * @param {number} totalPages - 総ページ数（2 未満なら1ページ目だけ測る）
+     * @returns {Array} [1ページ目, 2ページ目] の計測結果（測れなかったものは null。2ページ目が無ければ1要素）
+     */
+    function measureThumbnailPageSizes(targetDoc, fileObj, cropMode, totalPages) {
+        var wasModified = targetDoc.modified;
+        var cropSnapshot = SC_snapshotPdfCropPreference();
+        try {
+            return placementMeasurePages(targetDoc, fileObj, (totalPages >= 2) ? [1, 2] : [1], cropMode);
+        } finally {
+            placementResetImportPageNumber();
+            SC_restorePdfCropPreference(cropSnapshot);
+            try { targetDoc.modified = wasModified; } catch (e) { }
+        }
+    }
+
+    /**
+     * 対象ページを、1ページ目は1ページ目の大きさ、それ以外は2ページ目の大きさとみなして並べた配置結果を求める
+     * @param {number[]} targetPages - 対象ページ番号
+     * @param {Array} pageSizes - measureThumbnailPageSizes() の戻り値
+     * @param {object} layoutOptions - splitSpreads / evenPageOnRight / scaleFactor / gap / colsPerRow
+     * @returns {object|null} placementBuildLayout() の戻り値（1ページ目の大きさが分からなければ null）
+     */
+    function buildPlacementThumbnail(targetPages, pageSizes, layoutOptions) {
+        if (!pageSizes || !pageSizes[0]) return null;
+        var measured = [];
+        for (var i = 0; i < targetPages.length; i++) {
+            var pageSize = (targetPages[i] === 1 || !pageSizes[1]) ? pageSizes[0] : pageSizes[1];
+            measured.push({ page: targetPages[i], width: pageSize.width, height: pageSize.height });
+        }
+        if (layoutOptions.splitSpreads) measured = placementSplitSpreads(measured, layoutOptions.evenPageOnRight);
+        return placementBuildLayout(measured, layoutOptions.scaleFactor, layoutOptions.gap, layoutOptions.colsPerRow);
+    }
+
+    /**
+     * 配置後の並びを縮小して描く。ページ番号は収まるときだけ描き、見開きを分割した半ページには L / R を付ける
+     * @param {ScriptUIGraphics} canvasGraphics - 描画先
+     * @param {number} canvasWidth - 描画域の幅（px）
+     * @param {number} canvasHeight - 描画域の高さ（px）
+     * @param {object|null} thumbnailLayout - buildPlacementThumbnail() の戻り値
+     * @returns {void}
+     */
+    function drawPlacementThumbnail(canvasGraphics, canvasWidth, canvasHeight, thumbnailLayout) {
+        fillThumbnailRect(canvasGraphics, 0, 0, canvasWidth, canvasHeight, THUMBNAIL_COLORS.background);
+        if (!thumbnailLayout || !(thumbnailLayout.width > 0) || !(thumbnailLayout.height > 0)) return;
+
+        var drawableWidth = canvasWidth - THUMBNAIL_PADDING * 2;
+        var drawableHeight = canvasHeight - THUMBNAIL_PADDING * 2;
+        if (drawableWidth <= 0 || drawableHeight <= 0) return;
+        var pixelsPerPoint = Math.min(drawableWidth / thumbnailLayout.width, drawableHeight / thumbnailLayout.height);
+        var originLeft = (canvasWidth - thumbnailLayout.width * pixelsPerPoint) / 2;
+        var originTop = (canvasHeight - thumbnailLayout.height * pixelsPerPoint) / 2;
+
+        var labelFont = getThumbnailFont(canvasGraphics, THUMBNAIL_LABEL_FONT_SIZE);
+        var labelPen = canvasGraphics.newPen(canvasGraphics.PenType.SOLID_COLOR, THUMBNAIL_COLORS.pageLabel, 1);
+        for (var i = 0; i < thumbnailLayout.slots.length; i++) {
+            var slot = thumbnailLayout.slots[i];
+            if (!slot) continue;
+            /* slot.y は上が0で下へマイナス / slot.y is 0 at the top and negative downward */
+            var rectLeft = Math.round(originLeft + slot.x * pixelsPerPoint);
+            var rectTop = Math.round(originTop - slot.y * pixelsPerPoint);
+            var rectWidth = Math.max(2, Math.round(slot.width * pixelsPerPoint));
+            var rectHeight = Math.max(2, Math.round(slot.height * pixelsPerPoint));
+            fillThumbnailRect(canvasGraphics, rectLeft, rectTop, rectWidth, rectHeight, THUMBNAIL_COLORS.page);
+            strokeThumbnailRect(canvasGraphics, rectLeft, rectTop, rectWidth, rectHeight, THUMBNAIL_COLORS.pageFrame);
+
+            var pageLabelText = String(slot.page) + (slot.half ? (slot.half === "left" ? "L" : "R") : "");
+            var labelSize = measureThumbnailText(canvasGraphics, pageLabelText, labelFont);
+            if (labelSize[0] + 4 <= rectWidth && labelSize[1] + 2 <= rectHeight) {
+                canvasGraphics.drawString(pageLabelText, labelPen,
+                    Math.round(rectLeft + (rectWidth - labelSize[0]) / 2),
+                    Math.round(rectTop + (rectHeight - labelSize[1]) / 2), labelFont);
+            }
+        }
+    }
+
     // ============================================================
     // ページ数取得ヘルパー
     // - リンクされた PDF/AI の総ページ数（最終ページ番号）を推定
@@ -2234,6 +2435,10 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         var wasCustomRange = false;
         // OK 押下時の配置指示。ダイアログを閉じてから実行する / Placement request, run after the dialog closes
         var placementRequest = null;
+        // 縮小図用に測ったページの大きさと、そのファイル・トリミング / Page sizes measured for the thumbnail, and their file and crop
+        var thumbnailPageSizes = null;
+        var thumbnailPageSizesKey = "";
+        var thumbnailLayout = null;
         // 進捗表示用のパレット / Progress palette
         var progressWin = null;
         var progressBar = null;
@@ -2444,6 +2649,12 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         etRoundCorner.enabled = false;
         cbRoundCorner.helpTip = getLabel(LABELS.tooltip.roundCorner);
         etRoundCorner.helpTip = getLabel(LABELS.tooltip.roundCorner);
+
+        /* 配置後の並びの縮小図（ダイアログの幅いっぱい）/ Thumbnail of the placement layout (full dialog width) */
+        var thumbnailCanvas = addThumbnailCanvas(win, THUMBNAIL_SIZE, function (canvasGraphics, canvasWidth, canvasHeight) {
+            drawPlacementThumbnail(canvasGraphics, canvasWidth, canvasHeight, thumbnailLayout);
+        }, true);
+        thumbnailCanvas.helpTip = getLabel(LABELS.tooltip.thumbnail);
 
         // === ボタンエリア（左スペーサー／右キャンセル・OK）/ Button area (spacer left, cancel+ok right)
         var buttonRow = addButtonRow(win);
@@ -2746,6 +2957,32 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             return (custom && custom.length > 0) ? custom : [1];
         }
 
+        /**
+         * 今の設定で縮小図を作り直して描き直す。ページの大きさはファイルかトリミングが変わったときだけ測り直す
+         * @returns {void}
+         */
+        function updateThumbnail() {
+            if (!thumbnailCanvas) return;
+            thumbnailLayout = null;
+            if (sourceFile) {
+                var cropMode = getCropModeFromUI();
+                var sizesKey = sourceFile.fsName + "|" + cropMode + "|" + getDetectedTotalPages();
+                if (sizesKey !== thumbnailPageSizesKey) {
+                    thumbnailPageSizes = measureThumbnailPageSizes(doc, sourceFile, cropMode, getDetectedTotalPages());
+                    thumbnailPageSizesKey = sizesKey;
+                }
+                var perArtboard = rbPerArtboard.value;
+                thumbnailLayout = buildPlacementThumbnail(getTargetPagesFromUI(), thumbnailPageSizes, {
+                    splitSpreads: cbSplitSpreads.value,
+                    evenPageOnRight: rbEvenPageRight.value,
+                    scaleFactor: perArtboard ? 1 : (getScaleFromUI() / 100),
+                    gap: getArtboardGap(),
+                    colsPerRow: getColsPerRow()
+                });
+            }
+            redrawThumbnailCanvas(thumbnailCanvas);
+        }
+
         // ------------------------
         // 進捗表示
         // ダイアログを閉じた後に使うため、独立したパレットで表示する
@@ -2919,6 +3156,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
                 updateRangeEnabledState();
                 updateTotalPagesLabel();
                 updateRowsInfo();
+                updateThumbnail();
             }
 
             /**
@@ -2951,28 +3189,44 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
                 customRangeText = etRange.text;
                 updateTotalPagesLabel();
                 updateRowsInfo();
+                updateThumbnail();
             };
             etRange.onChange = etRange.onChanging;
 
-            etCols.onChanging = updateRowsInfo;
+            etCols.onChanging = function () {
+                updateRowsInfo();
+                updateThumbnail();
+            };
             etCols.onChange = function () {
                 // 0 以下や数値でない入力は自動扱いなので、確定時に表示も「自動」へ揃える
                 // Zero or non-numeric input means Auto; normalize the field text on commit
                 var autoText = getLabel(LABELS.label.columnsAuto);
                 if (getColsPerRow() === 0 && etCols.text !== autoText) etCols.text = autoText;
                 updateRowsInfo();
+                updateThumbnail();
             };
+
+            /* 間隔・倍率・トリミング・偶数ページの位置は縮小図だけに効く / These only affect the thumbnail */
+            etArtboardGap.onChanging = updateThumbnail;
+            etArtboardGap.onChange = updateThumbnail;
+            etScale.onChanging = updateThumbnail;
+            etScale.onChange = updateThumbnail;
+            ddCropMode.onChange = updateThumbnail;
+            rbEvenPageRight.onClick = updateThumbnail;
+            rbEvenPageLeft.onClick = updateThumbnail;
 
             rbPerArtboard.onClick = function () {
                 updateScaleEnabledState();
                 updateGapHelpTip();
                 updateRowsInfo();
+                updateThumbnail();
             };
             rbIgnoreArtboard.onClick = rbPerArtboard.onClick;
 
             cbSplitSpreads.onClick = function () {
                 updateEvenPageEnabledState();
                 updateRowsInfo();
+                updateThumbnail();
             };
 
             rbDestinationCurrent.onClick = updateColorModeEnabledState;
@@ -3033,6 +3287,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             updateEvenPageEnabledState();
             updateColorModeEnabledState();
             updateRowsInfo();
+            updateThumbnail();
 
             stRoundCornerUnit.text = getUnitInfo().label;
         }

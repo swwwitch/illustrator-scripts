@@ -21,6 +21,7 @@ Slices the selected image or artwork into grid cells or jigsaw pieces and masks 
 - Placed images and symbols are duplicated for each piece and masked with a clipping group
 - Embedded images and vector artwork (paths, groups, compound paths) are converted to a symbol before slicing. Multiple selected objects are grouped into one symbol, keeping their stacking order
 - Fine-tune the result with offset, overlap, scatter, stroke and rounded corners
+- The dialog shows a thumbnail of the pieces. A column or row count of 0 is drawn with the count derived from the aspect ratio, and puzzle tabs are marked with dots (with Random, the directions are decided at run time and differ from the figure)
 - Japanese and English UI
 
 ### How to Use
@@ -81,4 +82,5 @@ https://community.adobe.com/t5/illustrator-discussions/cut-multiple-jigsaw-shape
 - v1.7.0 (2026-10-07) Length fields now include the unit (as in "10 mm"); values typed in other units or as expressions are converted to the field's unit. Fixed the rows and columns not being recalculated after an expression in Pieces was committed. Updated the stepper part to the latest version. Code cleanup
 - v1.7.1 (2026-10-16) Right-only button rows are now centered when the dialog's inner width is up to 240 px (was 200 px) (shared part update)
 - v1.7.2 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)
+- v1.8.0 (2026-11-15) Added a thumbnail of the pieces to the dialog. It redraws as you change the method, piece count, columns, rows or shape
 
