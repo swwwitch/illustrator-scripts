@@ -25,6 +25,7 @@
   - **Append to current row**: unmatched names go to the end of the most recently matched row (from max column + 1 onward)
   - **Collect in final row**: unmatched names are laid out in the final row in the order they appear
   - The gap is tripled at the boundary into the exception area for clearer separation
+- The dialog shows a thumbnail of the rearranged artboards. It redraws as you change the gaps or the unmatched / duplicate handling, with unmatched and duplicate artboards in orange
 - "Exclude Locked / Hidden" skips locked or hidden layers and/or objects when moving artwork
 - "Reorder in Artboards panel" rebuilds the panel order in ascending row-then-column order
 - Column widths and row heights use the per-column / per-row maximum size, so artboards of mixed sizes never overlap
@@ -50,6 +51,7 @@
 
 ### Update History
 
+- v1.3.0 (2026-11-15) Added a thumbnail of the rearranged artboards to the dialog (unmatched and duplicate artboards in orange). When no name has the row-column or prefix-number format, the warning now appears before the dialog opens
 - v1.2.12 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)
 - v1.2.11 (2026-10-29) With the ruler unit set to Ha (H), unit labels now read "H" instead of "Q" (unit handling unified)
 - v1.2.10 (2026-10-16) Right-only button rows are now centered when the dialog's inner width is up to 240 px (was 200 px) (shared part update)

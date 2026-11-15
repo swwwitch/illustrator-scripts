@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.ArrangeArtboardsToSquareGrid
 Name=アートボード全体が正方形に近づくよう再配置
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.1.11
+Version=1.2.0
 Description-BEGIN
 複数のアートボードを、全体の外形ができるだけ正方形に近づく行列で再配置します。
 各アートボード内のアートワークも一緒に移動し、グリッドはカンバス中央に配置します。
@@ -43,10 +43,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ArrangeArt
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ArrangeArtboardsToSquareGrid";  /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.11";                      /* バージョン / version */
+var SCRIPT_VERSION  = "v1.2.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-11-05";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-11-15";                   /* 更新日 / last updated */
 
 var SCRIPT_DESCRIPTION_JA = "アートボード全体が正方形に近づくよう再配置"; /* README の見出し / README title (Japanese) */
 
@@ -146,6 +146,9 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
     var NUMBER_FIELD_CHARS = 4;              /* 間隔・列数の入力欄の文字数 / width of the gap and column fields */
     var AUTO_BUTTON_HEIGHT = 22;             /* ［自動］ボタンの高さ / height of the Auto button */
     var PREVIEW_TEXT_SIZE = [330, 36];       /* 行列・外形サイズの表示欄 / size of the grid summary text */
+    var THUMBNAIL_SIZE = [330, 160];         /* 並びの縮小図 / size of the layout thumbnail */
+    var THUMBNAIL_PADDING = 10;              /* 縮小図の内側の余白 / inner padding of the thumbnail */
+    var THUMBNAIL_NUMBER_FONT_SIZE = 9;      /* アートボード番号の文字サイズ / font size of the artboard numbers */
 
     // =========================================
     // 単位 / Units
@@ -1314,6 +1317,10 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
                 ja: "アートボード数から、できるだけ正方形に近くなる列数を入れ直します。",
                 en: "Fills in the column count that comes closest to a square arrangement."
             },
+            thumbnail: {
+                ja: "整列後の並びの縮小図です。青い枠は正方形の目安です。",
+                en: "Thumbnail of the arranged artboards. The blue frame marks a square for reference."
+            },
             stepUp: {
                 ja: "値を増やす（shift＋クリックで10の倍数へ、option＋クリックで0.1ずつ）",
                 en: "Increase (Shift-click to snap to 10s, Option-click by 0.1)"
@@ -1429,6 +1436,213 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             }
         }
         return bestColumns;
+    }
+
+    /**
+     * グリッドの左上から見た、index 番目のセルの位置（右と下を正とする）
+     * @param {number} index - アートボードの番号（0始まり）
+     * @param {number} columnCount - 列数
+     * @param {number} cellWidth - セルの幅（pt）
+     * @param {number} cellHeight - セルの高さ（pt）
+     * @param {number} gap - 間隔（pt）
+     * @returns {{offsetX: number, offsetY: number}} セルの左上までの距離（pt）
+     */
+    function getGridCellOffset(index, columnCount, cellWidth, cellHeight, gap) {
+        var gridRow = Math.floor(index / columnCount);
+        var gridColumn = index % columnCount;
+        return {
+            offsetX: gridColumn * (cellWidth + gap),
+            offsetY: gridRow * (cellHeight + gap)
+        };
+    }
+
+    // =========================================
+    // 縮小図 / Layout thumbnail
+    // =========================================
+
+    var THUMBNAIL_UI_DARK = isDarkUI();
+    var THUMBNAIL_COLORS = {
+        background:    THUMBNAIL_UI_DARK ? [0.16, 0.16, 0.16, 1] : [0.90, 0.90, 0.90, 1], /* 地 / background */
+        artboard:      [1, 1, 1, 1],                                                     /* アートボード / artboard */
+        artboardFrame: THUMBNAIL_UI_DARK ? [0.55, 0.55, 0.55, 1] : [0.50, 0.50, 0.50, 1], /* アートボードの枠 / artboard frame */
+        squareGuide:   THUMBNAIL_UI_DARK ? [0.40, 0.65, 1.00, 1] : [0.10, 0.40, 0.85, 1], /* 正方形の目安 / square guide */
+        artboardNumber: [0.45, 0.45, 0.45, 1]                                            /* アートボード番号 / artboard number */
+    };
+
+    // 縮小図（再利用パーツ） / Thumbnail canvas (reusable)
+
+    var thumbnailFontCache = {}; /* 文字サイズごとの書体 / fonts per size */
+
+    /**
+     * 縮小図を自作描画する描画域（group）を追加する
+     * @param {Window|Panel|Group} parent - 追加先
+     * @param {number[]} canvasSize - [幅, 高さ]（px）。fillWidth のときの幅は最小幅
+     * @param {Function} drawFn - 描くたびに drawFn(canvasGraphics, canvasWidth, canvasHeight) で呼ぶ関数
+     * @param {boolean} [fillWidth] - true なら親の幅いっぱいに伸ばす（ダイアログの幅は広げない）
+     * @returns {Group} 描画域
+     */
+    function addThumbnailCanvas(parent, canvasSize, drawFn, fillWidth) {
+        var thumbnailCanvas = parent.add("group");
+        thumbnailCanvas.preferredSize = [canvasSize[0], canvasSize[1]];
+        thumbnailCanvas.minimumSize = [canvasSize[0], canvasSize[1]];
+        thumbnailCanvas.maximumSize = [fillWidth ? 10000 : canvasSize[0], canvasSize[1]];
+        if (fillWidth) thumbnailCanvas.alignment = ["fill", "top"];
+        thumbnailCanvas.onDraw = function () {
+            var drawnSize = thumbnailCanvas.size;
+            drawFn(thumbnailCanvas.graphics, drawnSize.width, drawnSize.height);
+        };
+        return thumbnailCanvas;
+    }
+
+    /**
+     * 縮小図を描き直す（group には notify() が無いので、隠して再表示する）
+     * @param {Group} thumbnailCanvas - addThumbnailCanvas() の戻り値
+     * @returns {void}
+     */
+    function redrawThumbnailCanvas(thumbnailCanvas) {
+        thumbnailCanvas.hide();
+        thumbnailCanvas.show();
+    }
+
+    /**
+     * 縮小図に矩形を塗る（rectPath の前に newPath を呼ばないとパスが重なって線画になる）
+     * @param {ScriptUIGraphics} canvasGraphics - 描画先
+     * @param {number} left - 左（px）
+     * @param {number} top - 上（px）
+     * @param {number} width - 幅（px）
+     * @param {number} height - 高さ（px）
+     * @param {number[]} color - RGBA
+     * @returns {void}
+     */
+    function fillThumbnailRect(canvasGraphics, left, top, width, height, color) {
+        canvasGraphics.newPath();
+        canvasGraphics.rectPath(left, top, width, height);
+        canvasGraphics.fillPath(canvasGraphics.newBrush(canvasGraphics.BrushType.SOLID_COLOR, color));
+    }
+
+    /**
+     * 縮小図に矩形の枠を描く（1px の線が内側に収まるよう 0.5px 内に寄せる）
+     * @param {ScriptUIGraphics} canvasGraphics - 描画先
+     * @param {number} left - 左（px）
+     * @param {number} top - 上（px）
+     * @param {number} width - 幅（px）
+     * @param {number} height - 高さ（px）
+     * @param {number[]} color - RGBA
+     * @returns {void}
+     */
+    function strokeThumbnailRect(canvasGraphics, left, top, width, height, color) {
+        canvasGraphics.newPath();
+        canvasGraphics.rectPath(left + 0.5, top + 0.5, Math.max(width - 1, 0), Math.max(height - 1, 0));
+        canvasGraphics.strokePath(canvasGraphics.newPen(canvasGraphics.PenType.SOLID_COLOR, color, 1));
+    }
+
+    /**
+     * 縮小図の文字の書体を返す（作れない環境ではコントロールの書体を使う）
+     * @param {ScriptUIGraphics} canvasGraphics - 描画先
+     * @param {number} fontSize - 文字サイズ（px。InDesign では無視される）
+     * @returns {ScriptUIFont} 書体
+     */
+    function getThumbnailFont(canvasGraphics, fontSize) {
+        if (thumbnailFontCache[fontSize]) return thumbnailFontCache[fontSize];
+        try {
+            thumbnailFontCache[fontSize] = ScriptUI.newFont(canvasGraphics.font.name, "REGULAR", fontSize);
+        } catch (e) {
+            thumbnailFontCache[fontSize] = canvasGraphics.font;
+        }
+        return thumbnailFontCache[fontSize];
+    }
+
+    /**
+     * 文字列の幅と高さを測る（measureString は配列か {width, height} で返る）
+     * @param {ScriptUIGraphics} canvasGraphics - 描画先
+     * @param {string} text - 文字列
+     * @param {ScriptUIFont} font - 書体
+     * @returns {number[]} [幅, 高さ]（px）
+     */
+    function measureThumbnailText(canvasGraphics, text, font) {
+        var measured = canvasGraphics.measureString(text, font);
+        if (measured.width !== undefined) return [measured.width, measured.height];
+        return [measured[0], measured[1]];
+    }
+
+    // 縮小図（再利用パーツ）ここまで / End of the reusable thumbnail canvas
+
+    /**
+     * 整列後のアートボードの位置を、グリッドの左上を原点とした矩形の一覧にする（moveArtboardsToGrid() と同じ並べ方）
+     * @param {number[][]} artboardSizes - アートボードごとの [幅, 高さ]（pt）
+     * @param {number} columnCount - 列数
+     * @param {number} cellWidth - セルの幅（pt）
+     * @param {number} cellHeight - セルの高さ（pt）
+     * @param {number} gap - 間隔（pt）
+     * @returns {{rects: number[][], gridWidth: number, gridHeight: number}} 矩形 [左, 上, 幅, 高さ]（pt、下を正）とグリッドの外形
+     */
+    function buildThumbnailLayout(artboardSizes, columnCount, cellWidth, cellHeight, gap) {
+        var gridSize = computeGridSize(artboardSizes.length, columnCount, cellWidth, cellHeight, gap);
+        var artboardRects = [];
+        for (var i = 0; i < artboardSizes.length; i++) {
+            var cellOffset = getGridCellOffset(i, columnCount, cellWidth, cellHeight, gap);
+            var artboardWidth = artboardSizes[i][0];
+            var artboardHeight = artboardSizes[i][1];
+            /* セル内で中央に置く / center within the cell */
+            artboardRects.push([
+                cellOffset.offsetX + (cellWidth - artboardWidth) / 2,
+                cellOffset.offsetY + (cellHeight - artboardHeight) / 2,
+                artboardWidth,
+                artboardHeight
+            ]);
+        }
+        return { rects: artboardRects, gridWidth: gridSize.gridWidth, gridHeight: gridSize.gridHeight };
+    }
+
+    /**
+     * 整列後の並びを縮小して描く。グリッドの長いほうの辺を1辺とする正方形を目安の枠として重ねる
+     * @param {ScriptUIGraphics} canvasGraphics - 描画先
+     * @param {number} canvasWidth - 描画域の幅（px）
+     * @param {number} canvasHeight - 描画域の高さ（px）
+     * @param {{rects: number[][], gridWidth: number, gridHeight: number}|null} thumbnailLayout - buildThumbnailLayout() の戻り値（入力が不正なときは null）
+     * @returns {void}
+     */
+    function drawThumbnail(canvasGraphics, canvasWidth, canvasHeight, thumbnailLayout) {
+        fillThumbnailRect(canvasGraphics, 0, 0, canvasWidth, canvasHeight, THUMBNAIL_COLORS.background);
+        if (!thumbnailLayout) return;
+
+        var squareSide = Math.max(thumbnailLayout.gridWidth, thumbnailLayout.gridHeight);
+        if (!(squareSide > 0)) return;
+        var drawableSide = Math.min(canvasWidth, canvasHeight) - THUMBNAIL_PADDING * 2;
+        if (drawableSide <= 0) return;
+        var pixelsPerPoint = drawableSide / squareSide;
+
+        /* 正方形の目安を描画域の中央に置き、グリッドはその中で中央に置く
+           Center the square guide in the canvas and the grid inside it */
+        var squareLeft = (canvasWidth - drawableSide) / 2;
+        var squareTop = (canvasHeight - drawableSide) / 2;
+        var gridLeft = squareLeft + (squareSide - thumbnailLayout.gridWidth) * pixelsPerPoint / 2;
+        var gridTop = squareTop + (squareSide - thumbnailLayout.gridHeight) * pixelsPerPoint / 2;
+
+        var numberFont = getThumbnailFont(canvasGraphics, THUMBNAIL_NUMBER_FONT_SIZE);
+        var numberPen = canvasGraphics.newPen(canvasGraphics.PenType.SOLID_COLOR, THUMBNAIL_COLORS.artboardNumber, 1);
+        for (var i = 0; i < thumbnailLayout.rects.length; i++) {
+            var artboardRect = thumbnailLayout.rects[i];
+            /* 1px 未満でも見えるよう最小 2px にする / keep at least 2px so tiny artboards stay visible */
+            var rectLeft = Math.round(gridLeft + artboardRect[0] * pixelsPerPoint);
+            var rectTop = Math.round(gridTop + artboardRect[1] * pixelsPerPoint);
+            var rectWidth = Math.max(2, Math.round(artboardRect[2] * pixelsPerPoint));
+            var rectHeight = Math.max(2, Math.round(artboardRect[3] * pixelsPerPoint));
+            fillThumbnailRect(canvasGraphics, rectLeft, rectTop, rectWidth, rectHeight, THUMBNAIL_COLORS.artboard);
+            strokeThumbnailRect(canvasGraphics, rectLeft, rectTop, rectWidth, rectHeight, THUMBNAIL_COLORS.artboardFrame);
+
+            /* 番号は収まるときだけ描く（アートボードパネルの順）/ draw the number only when it fits (artboard panel order) */
+            var numberText = String(i + 1);
+            var numberSize = measureThumbnailText(canvasGraphics, numberText, numberFont);
+            if (numberSize[0] + 4 <= rectWidth && numberSize[1] + 2 <= rectHeight) {
+                canvasGraphics.drawString(numberText, numberPen,
+                    Math.round(rectLeft + (rectWidth - numberSize[0]) / 2),
+                    Math.round(rectTop + (rectHeight - numberSize[1]) / 2), numberFont);
+            }
+        }
+
+        strokeThumbnailRect(canvasGraphics, Math.round(squareLeft), Math.round(squareTop),
+            Math.round(drawableSide), Math.round(drawableSide), THUMBNAIL_COLORS.squareGuide);
     }
 
     // =========================================
@@ -1585,14 +1799,15 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
 
     /**
      * 列数と間隔を指定するダイアログを表示する
-     * @param {number} artboardCount - アートボード数
+     * @param {number[][]} artboardSizes - アートボードごとの [幅, 高さ]（pt、アートボードパネルの順）
      * @param {number} cellWidth - セルの幅（pt）
      * @param {number} cellHeight - セルの高さ（pt）
      * @param {{label: string, pointsPerUnit: number}} rulerUnit - 定規の単位
      * @returns {{columns: number, gapInPoints: number}|null} 指定した列数と間隔（キャンセルなら null）
      */
-    function showGridDialog(artboardCount, cellWidth, cellHeight, rulerUnit) {
+    function showGridDialog(artboardSizes, cellWidth, cellHeight, rulerUnit) {
         var dialogResult = null;
+        var artboardCount = artboardSizes.length;
 
         var gridDialog = new Window("dialog", getLabel("dialog.title"));
         setupWindow(gridDialog);
@@ -1623,25 +1838,36 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         btnAuto.helpTip = getLabel("tooltip.auto");
         btnAuto.preferredSize.height = AUTO_BUTTON_HEIGHT;
 
-        /* プレビュー / Preview */
+        /* プレビュー（縮小図と行列・外形サイズ）/ Preview (thumbnail, grid and outline size) */
+        var thumbnailLayout = null;
+        var thumbnailCanvas = addThumbnailCanvas(settingsPanel, THUMBNAIL_SIZE, function (canvasGraphics, canvasWidth, canvasHeight) {
+            drawThumbnail(canvasGraphics, canvasWidth, canvasHeight, thumbnailLayout);
+        });
+        thumbnailCanvas.helpTip = getLabel("tooltip.thumbnail");
         var previewText = settingsPanel.add("statictext", undefined, "", { multiline: true });
         previewText.preferredSize = PREVIEW_TEXT_SIZE;
 
         /**
-         * 入力値から行列と外形サイズ、推奨列数を表示し直す
+         * 入力値から縮小図・行列と外形サイズ・推奨列数を表示し直す
          * @returns {void}
          */
         function updatePreview() {
             var layoutInputs = readLayoutInputs(columnInput, gapInput);
-            if (layoutInputs.errorLabelPath) { previewText.text = getLabel(layoutInputs.errorLabelPath); return; }
-            var columns = layoutInputs.columns;
-            var gapInPoints = unitToPt(layoutInputs.gapInRulerUnit, rulerUnit);
-            var gridSize = computeGridSize(artboardCount, columns, cellWidth, cellHeight, gapInPoints);
-            var bestColumns = chooseBestColumnCount(artboardCount, cellWidth, cellHeight, gapInPoints);
-            previewText.text = columns + " " + getLabel("status.columnUnit") + " x " + gridSize.rows + " " + getLabel("status.rowUnit")
-                + "  /  " + formatNumber(ptToUnit(gridSize.gridWidth, rulerUnit))
-                + " x " + formatNumber(ptToUnit(gridSize.gridHeight, rulerUnit)) + " " + rulerUnit.label
-                + "\n" + labelValueText("status.recommend", bestColumns + " " + getLabel("status.columnUnit"));
+            if (layoutInputs.errorLabelPath) {
+                previewText.text = getLabel(layoutInputs.errorLabelPath);
+                thumbnailLayout = null;
+            } else {
+                var columns = layoutInputs.columns;
+                var gapInPoints = unitToPt(layoutInputs.gapInRulerUnit, rulerUnit);
+                var gridSize = computeGridSize(artboardCount, columns, cellWidth, cellHeight, gapInPoints);
+                var bestColumns = chooseBestColumnCount(artboardCount, cellWidth, cellHeight, gapInPoints);
+                previewText.text = columns + " " + getLabel("status.columnUnit") + " x " + gridSize.rows + " " + getLabel("status.rowUnit")
+                    + "  /  " + formatNumber(ptToUnit(gridSize.gridWidth, rulerUnit))
+                    + " x " + formatNumber(ptToUnit(gridSize.gridHeight, rulerUnit)) + " " + rulerUnit.label
+                    + "\n" + labelValueText("status.recommend", bestColumns + " " + getLabel("status.columnUnit"));
+                thumbnailLayout = buildThumbnailLayout(artboardSizes, columns, cellWidth, cellHeight, gapInPoints);
+            }
+            redrawThumbnailCanvas(thumbnailCanvas);
         }
 
         gapInput.onChanging = updatePreview;
@@ -1725,10 +1951,9 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
     function moveArtboardsToGrid(doc, originalArtboardRects, itemsByArtboard, gridLayout) {
         var failedMoveCount = 0;
         for (var i = 0; i < originalArtboardRects.length; i++) {
-            var gridRow = Math.floor(i / gridLayout.columnCount);
-            var gridColumn = i % gridLayout.columnCount;
-            var cellLeft = gridLayout.gridOrigin.left + gridColumn * (gridLayout.cellWidth + gridLayout.gapInPoints);
-            var cellTop = gridLayout.gridOrigin.top - gridRow * (gridLayout.cellHeight + gridLayout.gapInPoints);
+            var cellOffset = getGridCellOffset(i, gridLayout.columnCount, gridLayout.cellWidth, gridLayout.cellHeight, gridLayout.gapInPoints);
+            var cellLeft = gridLayout.gridOrigin.left + cellOffset.offsetX;
+            var cellTop = gridLayout.gridOrigin.top - cellOffset.offsetY;
 
             var originalRect = originalArtboardRects[i];
             var artboardWidth = originalRect[2] - originalRect[0];
@@ -1772,19 +1997,20 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         } catch (e) { }
 
         /* 元の矩形を保存し、最大サイズを 1 セルとする / capture original rects; cell = largest artboard */
-        var originalArtboardRects = [], cellWidth = 0, cellHeight = 0;
+        var originalArtboardRects = [], artboardSizes = [], cellWidth = 0, cellHeight = 0;
         for (var i = 0; i < artboardCount; i++) {
             var artboardRect = doc.artboards[i].artboardRect; // [left, top, right, bottom]
             originalArtboardRects.push(artboardRect);
             var artboardWidth = artboardRect[2] - artboardRect[0];
             var artboardHeight = artboardRect[1] - artboardRect[3];
+            artboardSizes.push([artboardWidth, artboardHeight]);
             if (artboardWidth > cellWidth) cellWidth = artboardWidth;
             if (artboardHeight > cellHeight) cellHeight = artboardHeight;
         }
 
         var rulerUnit = getUnitInfo();
 
-        var layoutSettings = showGridDialog(artboardCount, cellWidth, cellHeight, rulerUnit);
+        var layoutSettings = showGridDialog(artboardSizes, cellWidth, cellHeight, rulerUnit);
         if (!layoutSettings) { restoreCoordinateSystem(savedCoordinateSystem); return; }
         var gapInPoints = layoutSettings.gapInPoints;
         var columnCount = layoutSettings.columns;

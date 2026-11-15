@@ -16,6 +16,7 @@ Re-lays out every artboard so the whole grid's outline is as close to a square a
 
 - Each artboard's artwork moves with it
 - The grid is centered on the canvas
+- The dialog shows a thumbnail of the arranged artboards (the blue frame marks a square for reference)
 
 ### Usage
 
@@ -41,4 +42,4 @@ Re-lays out every artboard so the whole grid's outline is as close to a square a
 - v1.1.9 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.1.10 (2026-10-16) Right-only button rows are now centered when the dialog's inner width is up to 240 px (was 200 px) (shared part update)
 - v1.1.11 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)
-
+- v1.2.0 (2026-11-15) Added a thumbnail of the arranged artboards to the dialog. It redraws as you change the columns or gap, with a square frame overlaid for reference

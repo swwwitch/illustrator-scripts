@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.GridArrangeArtboards
 Name=アートボード名を解析して行列グリッドに再配置
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.2.12
+Version=1.3.0
 Description-BEGIN
 アートボード名を解析し、行列グリッドとして再配置します。
 名前全体が「行番号＋区切り文字（-, _, x）＋列番号」に一致するアートボードを、行列指定として扱います。
@@ -43,10 +43,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/GridArrang
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "GridArrangeArtboards";         /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.2.12";                      /* バージョン / version */
+var SCRIPT_VERSION  = "v1.3.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-11-05";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-11-15";                   /* 更新日 / last updated */
 
 var SCRIPT_DESCRIPTION_JA = "アートボード名を解析して行列グリッドに再配置"; /* README の見出し / README title (Japanese) */
 
@@ -156,6 +156,9 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
     // UIレイアウト（再利用パーツ）ここまで / End of the reusable UI layout
 
     var SPACING_FIELD_CHARACTERS = 5;           /* 間隔欄の桁数 / width of the gap fields */
+    var THUMBNAIL_SIZE = [200, 150];            /* 並びの縮小図（幅は最小幅。ダイアログの幅いっぱいに伸ばす）/ layout thumbnail (minimum width; fills the dialog width) */
+    var THUMBNAIL_PADDING = 10;                 /* 縮小図の内側の余白 / inner padding of the thumbnail */
+    var THUMBNAIL_LABEL_FONT_SIZE = 9;          /* アートボード名の文字サイズ / font size of the artboard names */
 
     // =========================================
     // ローカライズ / Localization
@@ -287,6 +290,10 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             changeArtboardOrder: {
                 ja: "アートボードパネルの並び順も、配置後の順序に合わせて入れ替えます。",
                 en: "Also reorders the Artboards panel to match the new layout."
+            },
+            thumbnail: {
+                ja: "再配置後の並びの縮小図です。オレンジは未指定・重複のアートボードです。",
+                en: "Thumbnail of the rearranged artboards. Orange ones are unmatched or duplicates."
             },
             stepUp: {
                 ja: "値を増やす（shift＋クリックで10の倍数へ、option＋クリックで0.1ずつ）",
@@ -1374,6 +1381,191 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
     // ステップボタン（再利用パーツ）ここまで / End of the reusable stepper
 
     // =========================================
+    // 縮小図 / Layout thumbnail
+    // =========================================
+
+    var THUMBNAIL_UI_DARK = isDarkUI();
+    var THUMBNAIL_COLORS = {
+        background:    THUMBNAIL_UI_DARK ? [0.16, 0.16, 0.16, 1] : [0.90, 0.90, 0.90, 1], /* 地 / background */
+        artboard:      [1, 1, 1, 1],                                                     /* アートボード / artboard */
+        exception:     [1.00, 0.84, 0.62, 1],                                            /* 未指定・重複のアートボード / unmatched or duplicate artboard */
+        artboardFrame: THUMBNAIL_UI_DARK ? [0.55, 0.55, 0.55, 1] : [0.50, 0.50, 0.50, 1], /* アートボードの枠 / artboard frame */
+        artboardLabel: [0.40, 0.40, 0.40, 1]                                             /* アートボード名 / artboard name */
+    };
+
+    // 縮小図（再利用パーツ） / Thumbnail canvas (reusable)
+
+    var thumbnailFontCache = {}; /* 文字サイズごとの書体 / fonts per size */
+
+    /**
+     * 縮小図を自作描画する描画域（group）を追加する
+     * @param {Window|Panel|Group} parent - 追加先
+     * @param {number[]} canvasSize - [幅, 高さ]（px）。fillWidth のときの幅は最小幅
+     * @param {Function} drawFn - 描くたびに drawFn(canvasGraphics, canvasWidth, canvasHeight) で呼ぶ関数
+     * @param {boolean} [fillWidth] - true なら親の幅いっぱいに伸ばす（ダイアログの幅は広げない）
+     * @returns {Group} 描画域
+     */
+    function addThumbnailCanvas(parent, canvasSize, drawFn, fillWidth) {
+        var thumbnailCanvas = parent.add("group");
+        thumbnailCanvas.preferredSize = [canvasSize[0], canvasSize[1]];
+        thumbnailCanvas.minimumSize = [canvasSize[0], canvasSize[1]];
+        thumbnailCanvas.maximumSize = [fillWidth ? 10000 : canvasSize[0], canvasSize[1]];
+        if (fillWidth) thumbnailCanvas.alignment = ["fill", "top"];
+        thumbnailCanvas.onDraw = function () {
+            var drawnSize = thumbnailCanvas.size;
+            drawFn(thumbnailCanvas.graphics, drawnSize.width, drawnSize.height);
+        };
+        return thumbnailCanvas;
+    }
+
+    /**
+     * 縮小図を描き直す（group には notify() が無いので、隠して再表示する）
+     * @param {Group} thumbnailCanvas - addThumbnailCanvas() の戻り値
+     * @returns {void}
+     */
+    function redrawThumbnailCanvas(thumbnailCanvas) {
+        thumbnailCanvas.hide();
+        thumbnailCanvas.show();
+    }
+
+    /**
+     * 縮小図に矩形を塗る（rectPath の前に newPath を呼ばないとパスが重なって線画になる）
+     * @param {ScriptUIGraphics} canvasGraphics - 描画先
+     * @param {number} left - 左（px）
+     * @param {number} top - 上（px）
+     * @param {number} width - 幅（px）
+     * @param {number} height - 高さ（px）
+     * @param {number[]} color - RGBA
+     * @returns {void}
+     */
+    function fillThumbnailRect(canvasGraphics, left, top, width, height, color) {
+        canvasGraphics.newPath();
+        canvasGraphics.rectPath(left, top, width, height);
+        canvasGraphics.fillPath(canvasGraphics.newBrush(canvasGraphics.BrushType.SOLID_COLOR, color));
+    }
+
+    /**
+     * 縮小図に矩形の枠を描く（1px の線が内側に収まるよう 0.5px 内に寄せる）
+     * @param {ScriptUIGraphics} canvasGraphics - 描画先
+     * @param {number} left - 左（px）
+     * @param {number} top - 上（px）
+     * @param {number} width - 幅（px）
+     * @param {number} height - 高さ（px）
+     * @param {number[]} color - RGBA
+     * @returns {void}
+     */
+    function strokeThumbnailRect(canvasGraphics, left, top, width, height, color) {
+        canvasGraphics.newPath();
+        canvasGraphics.rectPath(left + 0.5, top + 0.5, Math.max(width - 1, 0), Math.max(height - 1, 0));
+        canvasGraphics.strokePath(canvasGraphics.newPen(canvasGraphics.PenType.SOLID_COLOR, color, 1));
+    }
+
+    /**
+     * 縮小図の文字の書体を返す（作れない環境ではコントロールの書体を使う）
+     * @param {ScriptUIGraphics} canvasGraphics - 描画先
+     * @param {number} fontSize - 文字サイズ（px。InDesign では無視される）
+     * @returns {ScriptUIFont} 書体
+     */
+    function getThumbnailFont(canvasGraphics, fontSize) {
+        if (thumbnailFontCache[fontSize]) return thumbnailFontCache[fontSize];
+        try {
+            thumbnailFontCache[fontSize] = ScriptUI.newFont(canvasGraphics.font.name, "REGULAR", fontSize);
+        } catch (e) {
+            thumbnailFontCache[fontSize] = canvasGraphics.font;
+        }
+        return thumbnailFontCache[fontSize];
+    }
+
+    /**
+     * 文字列の幅と高さを測る（measureString は配列か {width, height} で返る）
+     * @param {ScriptUIGraphics} canvasGraphics - 描画先
+     * @param {string} text - 文字列
+     * @param {ScriptUIFont} font - 書体
+     * @returns {number[]} [幅, 高さ]（px）
+     */
+    function measureThumbnailText(canvasGraphics, text, font) {
+        var measured = canvasGraphics.measureString(text, font);
+        if (measured.width !== undefined) return [measured.width, measured.height];
+        return [measured[0], measured[1]];
+    }
+
+    // 縮小図（再利用パーツ）ここまで / End of the reusable thumbnail canvas
+
+    /**
+     * 設定どおりに行列を割り当てて移動先を求め、縮小図で描く矩形の一覧にする（実行時と同じ assignGridSlots() / computeArtboardDestinations() を使う）
+     * @param {Object} gridInfo - collectArtboardPlacements() の結果（行列と移動先を書き込む。実行時に同じ処理で上書きされる）
+     * @param {string} exceptionMode - 'rowEnd' | 'lastRow'
+     * @param {number} spacingX - 列間（pt）
+     * @param {number} spacingY - 行間（pt）
+     * @returns {{rects: Object[], totalWidth: number, totalHeight: number}} 矩形（left / top は全体の左上からの距離で下を正、width / height / name / isException）と全体の大きさ（pt）
+     */
+    function buildArrangeThumbnail(gridInfo, exceptionMode, spacingX, spacingY) {
+        assignGridSlots(gridInfo, exceptionMode);
+        computeArtboardDestinations(gridInfo.placementItems, spacingX, spacingY,
+            gridInfo.maxColumnNumber + 1, gridInfo.maxMatchedRowNumber + 1);
+
+        var thumbnailRects = [], totalWidth = 0, totalHeight = 0;
+        for (var i = 0; i < gridInfo.placementItems.length; i++) {
+            var placeItem = gridInfo.placementItems[i];
+            /* 移動先は原点 (0, 0) から右下へ並ぶ（Y は下がマイナス）/ destinations run right and down from (0, 0); Y is negative downward */
+            var thumbnailRect = {
+                left: placeItem.newLeft,
+                top: -placeItem.newTop,
+                width: placeItem.width,
+                height: placeItem.height,
+                name: placeItem.artboard.name,
+                /* 名前から行列を読めなかったか、同じ行列が先に埋まって押し出されたもの / unmatched, or pushed aside by a duplicate */
+                isException: !placeItem.matched || placeItem.assignedColumn !== placeItem.columnNumber
+            };
+            thumbnailRects.push(thumbnailRect);
+            totalWidth = Math.max(totalWidth, thumbnailRect.left + thumbnailRect.width);
+            totalHeight = Math.max(totalHeight, thumbnailRect.top + thumbnailRect.height);
+        }
+        return { rects: thumbnailRects, totalWidth: totalWidth, totalHeight: totalHeight };
+    }
+
+    /**
+     * 再配置後の並びを縮小して描く。未指定・重複のアートボードはオレンジで塗り、名前は収まるときだけ描く
+     * @param {ScriptUIGraphics} canvasGraphics - 描画先
+     * @param {number} canvasWidth - 描画域の幅（px）
+     * @param {number} canvasHeight - 描画域の高さ（px）
+     * @param {{rects: Object[], totalWidth: number, totalHeight: number}|null} thumbnailLayout - buildArrangeThumbnail() の戻り値
+     * @returns {void}
+     */
+    function drawArrangeThumbnail(canvasGraphics, canvasWidth, canvasHeight, thumbnailLayout) {
+        fillThumbnailRect(canvasGraphics, 0, 0, canvasWidth, canvasHeight, THUMBNAIL_COLORS.background);
+        if (!thumbnailLayout || !(thumbnailLayout.totalWidth > 0) || !(thumbnailLayout.totalHeight > 0)) return;
+
+        var drawableWidth = canvasWidth - THUMBNAIL_PADDING * 2;
+        var drawableHeight = canvasHeight - THUMBNAIL_PADDING * 2;
+        if (drawableWidth <= 0 || drawableHeight <= 0) return;
+        var pixelsPerPoint = Math.min(drawableWidth / thumbnailLayout.totalWidth, drawableHeight / thumbnailLayout.totalHeight);
+        var originLeft = (canvasWidth - thumbnailLayout.totalWidth * pixelsPerPoint) / 2;
+        var originTop = (canvasHeight - thumbnailLayout.totalHeight * pixelsPerPoint) / 2;
+
+        var labelFont = getThumbnailFont(canvasGraphics, THUMBNAIL_LABEL_FONT_SIZE);
+        var labelPen = canvasGraphics.newPen(canvasGraphics.PenType.SOLID_COLOR, THUMBNAIL_COLORS.artboardLabel, 1);
+        for (var i = 0; i < thumbnailLayout.rects.length; i++) {
+            var thumbnailRect = thumbnailLayout.rects[i];
+            /* 小さなアートボードも見えるよう最小 2px にする / keep at least 2px so tiny artboards stay visible */
+            var rectLeft = Math.round(originLeft + thumbnailRect.left * pixelsPerPoint);
+            var rectTop = Math.round(originTop + thumbnailRect.top * pixelsPerPoint);
+            var rectWidth = Math.max(2, Math.round(thumbnailRect.width * pixelsPerPoint));
+            var rectHeight = Math.max(2, Math.round(thumbnailRect.height * pixelsPerPoint));
+            fillThumbnailRect(canvasGraphics, rectLeft, rectTop, rectWidth, rectHeight,
+                thumbnailRect.isException ? THUMBNAIL_COLORS.exception : THUMBNAIL_COLORS.artboard);
+            strokeThumbnailRect(canvasGraphics, rectLeft, rectTop, rectWidth, rectHeight, THUMBNAIL_COLORS.artboardFrame);
+
+            var labelSize = measureThumbnailText(canvasGraphics, thumbnailRect.name, labelFont);
+            if (labelSize[0] + 4 <= rectWidth && labelSize[1] + 2 <= rectHeight) {
+                canvasGraphics.drawString(thumbnailRect.name, labelPen,
+                    Math.round(rectLeft + (rectWidth - labelSize[0]) / 2),
+                    Math.round(rectTop + (rectHeight - labelSize[1]) / 2), labelFont);
+            }
+        }
+    }
+
+    // =========================================
     // ダイアログ / Dialog
     // =========================================
 
@@ -1835,9 +2027,10 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
     /**
      * 設定ダイアログを表示し、ユーザーが入力した値を返す
      * @param {Object} defaultSettings - 初期値（間隔は pt）
+     * @param {Object} gridInfo - collectArtboardPlacements() の結果（縮小図に使う）
      * @returns {Object|null} 設定。キャンセル時は null
      */
-    function showSettingsDialog(defaultSettings) {
+    function showSettingsDialog(defaultSettings, gridInfo) {
         var settingsDialog = new Window('dialog', getLabel('dialog.title'));
         setupWindow(settingsDialog);
 
@@ -1859,13 +2052,15 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
 
         /* 列間を増減したら、連動時は行間にもミラーする / mirror the column gap to the row gap when linked */
         var spacingXInput = addSpacingField(spacingInputColumn, 'fieldLabel.spacingX', 'tooltip.spacingX', defaultSettings.spacingX, rulerUnit,
-            function () { syncLinkedSpacingValue(); });
+            function () { syncLinkedSpacingValue(); updateThumbnail(); });
         spacingXInput.active = true;
-        var spacingYInput = addSpacingField(spacingInputColumn, 'fieldLabel.spacingY', 'tooltip.spacingY', defaultSettings.spacingY, rulerUnit);
+        var spacingYInput = addSpacingField(spacingInputColumn, 'fieldLabel.spacingY', 'tooltip.spacingY', defaultSettings.spacingY, rulerUnit,
+            function () { updateThumbnail(); });
 
         var linkToggle = addLinkToggle(spacingContentGroup, !!defaultSettings.linkSpacing, function () {
             syncLinkedSpacingValue();
             syncLinkedSpacingInputState();
+            updateThumbnail();
         });
         linkToggle.helpTip = getLabel('tooltip.linkSpacing');
 
@@ -1880,7 +2075,8 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         }
         syncLinkedSpacingInputState();
 
-        spacingXInput.onChanging = syncLinkedSpacingValue;
+        spacingXInput.onChanging = function () { syncLinkedSpacingValue(); updateThumbnail(); };
+        spacingYInput.onChanging = updateThumbnail;
 
         /* ロック／非表示の除外パネル / Locked / hidden exclusion panel */
         var exclusionPanel = settingsDialog.add('panel', undefined, getLabel('panel.exclusion'));
@@ -1905,6 +2101,28 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         var optionsPanel = settingsDialog.add('panel', undefined, getLabel('panel.options'));
         setupPanel(optionsPanel, 6);
         var changeArtboardOrderCheckbox = addOptionCheckbox(optionsPanel, 'checkbox.changeArtboardOrder', 'tooltip.changeArtboardOrder', defaultSettings.changeArtboardOrder);
+
+        /* 再配置後の並びの縮小図（ダイアログの幅いっぱい）/ Thumbnail of the rearranged artboards (full dialog width) */
+        var thumbnailLayout = null;
+        var thumbnailCanvas = addThumbnailCanvas(settingsDialog, THUMBNAIL_SIZE, function (canvasGraphics, canvasWidth, canvasHeight) {
+            drawArrangeThumbnail(canvasGraphics, canvasWidth, canvasHeight, thumbnailLayout);
+        }, true);
+        thumbnailCanvas.helpTip = getLabel('tooltip.thumbnail');
+
+        /**
+         * 今の間隔と未指定／重複の扱いで縮小図を作り直して描き直す（描画域を作る前に呼ばれたら何もしない）
+         * @returns {void}
+         */
+        function updateThumbnail() {
+            if (!thumbnailCanvas) return;
+            thumbnailLayout = buildArrangeThumbnail(gridInfo, lastRowRadio.value ? 'lastRow' : 'rowEnd',
+                readSpacingPoints(spacingXInput, defaultSettings.spacingX, rulerUnit),
+                readSpacingPoints(spacingYInput, defaultSettings.spacingY, rulerUnit));
+            redrawThumbnailCanvas(thumbnailCanvas);
+        }
+        rowEndRadio.onClick = updateThumbnail;
+        lastRowRadio.onClick = updateThumbnail;
+        updateThumbnail();
 
         /* OK / キャンセルボタン / OK and Cancel buttons */
         var buttonRow = addButtonRow(settingsDialog);
@@ -2175,6 +2393,14 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         var documentRef = app.activeDocument;
         var defaultSpacing = getDefaultSpacingFromActiveArtboard(documentRef);
 
+        /* 名前の解析はドキュメントを変えないので、縮小図のためにダイアログより先に行う
+           Parsing the names does not change the document, so do it before the dialog for the thumbnail */
+        var gridInfo = collectArtboardPlacements(documentRef.artboards);
+        if (!gridInfo.hasMatchedArtboard) {
+            alert(getLabel('alert.noMatch'));
+            return;
+        }
+
         var arrangeSettings = showSettingsDialog({
             spacingX: defaultSpacing,
             spacingY: defaultSpacing,
@@ -2183,14 +2409,8 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             excludeLockedHiddenLayers: DIALOG_DEFAULTS.excludeLockedHiddenLayers,
             excludeLockedHiddenItems: DIALOG_DEFAULTS.excludeLockedHiddenItems,
             changeArtboardOrder: DIALOG_DEFAULTS.changeArtboardOrder
-        });
+        }, gridInfo);
         if (!arrangeSettings) return;
-
-        var gridInfo = collectArtboardPlacements(documentRef.artboards);
-        if (!gridInfo.hasMatchedArtboard) {
-            alert(getLabel('alert.noMatch'));
-            return;
-        }
 
         assignGridSlots(gridInfo, arrangeSettings.exceptionMode);
         computeArtboardDestinations(gridInfo.placementItems, arrangeSettings.spacingX, arrangeSettings.spacingY,
