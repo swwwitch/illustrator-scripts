@@ -31,14 +31,16 @@ TextCountStatsPalette / SelectionInspectorPalette / ApplyLeadingPerTextFramePale
 AiAlignToArtboardPalette / AiSmartRotateViewPalette / AutoKerningPalette / FontPresetPickerPalette / KPTSketchyPalette /
 LockHistoryPalette / PathInspectorPalette / QuickTransformPalette / TypeBasicsPalette /
 ArtboardNavigatorPalette / LEConvertToShapePalette / AiSmartPathfinderPalette / SmartDistributorPalette /
-AiAdjustVerticalGapPalette / DirectPrefsPalette / DocumentFontListSelectorPalette / FavoriteFontPickerPalette
+AiAdjustVerticalGapPalette / DirectPrefsPalette / DocumentFontListSelectorPalette / FavoriteFontPickerPalette /
+ViewTogglePalette / SwapNearestItemPalette
 
 ### Script info
 
-- Version: v1.1.2
+- Version: v1.1.3
 
 ### Update History
 
+- v1.1.3 (2026-11-13) Added SwapNearestItemPalette to the targets.
 - v1.1.2 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.1.1 (2026-10-03) Added ViewTogglePalette to the targets.
 - v1.1.0 (2026-10-03) Fixed palettes never closing: a BridgeTalk body's `#targetengine` was ignored and ran in the main engine. The script now closes palettes directly from the shared engine `SwwwitchPalettes`. All 28 target palettes have moved to that engine.

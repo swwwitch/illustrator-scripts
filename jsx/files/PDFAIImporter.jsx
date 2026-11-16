@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.PDFAIImporter
 Name=PDF/AIをページ範囲で読み込んで配置
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.4.0
+Version=1.4.1
 Release-Date=2026-04-13
 Description-BEGIN
 PDF/AI ファイルを指定したページ範囲で読み込み、現在のドキュメントまたは新規ドキュメント上に配置します。
@@ -47,7 +47,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PDFAIImpor
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "PDFAIImporter";                /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.4.0";                        /* バージョン / version */
+var SCRIPT_VERSION  = "v1.4.1";                        /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-04-13";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-11-15";                   /* 更新日 / last updated */
@@ -79,6 +79,10 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
 
     /* 綴じ方向の判定で読むPDFの行数 / Number of PDF lines scanned for the binding direction */
     var BINDING_SCAN_LINE_LIMIT = 200;
+
+    /* 縮小図のためにページの大きさを読むとき、PDF のオブジェクトの文字列として控える上限（これより長いものは読み飛ばす）
+       Longest PDF object text kept when reading page sizes for the thumbnail (longer ones are skipped) */
+    var PDF_OBJECT_TEXT_LIMIT = 20000;
 
     /* 新規ドキュメントのラスタライズ効果解像度（ppi） / Raster effects resolution of a new document (ppi) */
     var NEW_DOCUMENT_RASTER_RESOLUTION = 300;
@@ -271,8 +275,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
                 en: "Color mode of the new document. Defaults to that of the current document"
             },
             thumbnail: {
-                ja: "配置後の並びの縮小図です。3ページ目以降は2ページ目と同じ大きさとみなした目安です。見開きを分割したページは「3L」「3R」のように左右を付けて示します",
-                en: "Thumbnail of the placement layout. Pages from page 3 on are assumed to be the size of page 2. Split spreads are labeled with their side, such as 3L and 3R"
+                ja: "配置後の並びの縮小図です。ページの大きさは PDF から読みます（ページ情報が圧縮されたファイルでは表示しません。［アート］は目安）。見開きを分割したページは「3L」「3R」のように左右を付けて示します",
+                en: "Thumbnail of the placement layout. Page sizes are read from the PDF (not shown for files with compressed page data; approximate for Art). Split spreads are labeled with their side, such as 3L and 3R"
             }
         },
         alert: {
@@ -2083,37 +2087,232 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     // 縮小図（再利用パーツ）ここまで / End of the reusable thumbnail canvas
 
     /**
-     * 縮小図のために、1ページ目と2ページ目の大きさを一時配置で測る（crop・取り込みページの環境設定と変更フラグは元に戻す）
-     * @param {Document} targetDoc - 一時配置に使うドキュメント
-     * @param {File} fileObj - 読み込み元ファイル
-     * @param {number} cropMode - トリミング指定（CropTo の値）
-     * @param {number} totalPages - 総ページ数（2 未満なら1ページ目だけ測る）
-     * @returns {Array} [1ページ目, 2ページ目] の計測結果（測れなかったものは null。2ページ目が無ければ1要素）
+     * PDF のオブジェクトのうち、ページの大きさを読むのに使うもの（ページ・ページツリー・カタログ・配列）だけを控える。
+     * 同じ番号は後から出たもの（増分更新）で上書きする
+     * @param {Object} pdfObjects - 番号 → 本文の表（order に出てきた順も控える）
+     * @param {string} objectNumber - オブジェクト番号
+     * @param {string} objectText - obj から endobj（ストリームなら stream）までの本文
+     * @returns {void}
      */
-    function measureThumbnailPageSizes(targetDoc, fileObj, cropMode, totalPages) {
-        var wasModified = targetDoc.modified;
-        var cropSnapshot = SC_snapshotPdfCropPreference();
-        try {
-            return placementMeasurePages(targetDoc, fileObj, (totalPages >= 2) ? [1, 2] : [1], cropMode);
-        } finally {
-            placementResetImportPageNumber();
-            SC_restorePdfCropPreference(cropSnapshot);
-            try { targetDoc.modified = wasModified; } catch (e) { }
-        }
+    function storePdfObject(pdfObjects, objectNumber, objectText) {
+        /* ExtendScript は量指定と選択を入れ子にした正規表現を誤評価するので、分けて調べる
+           ExtendScript misreads regexes that nest quantifiers and alternation, so test separately */
+        var isTreeNode = /\/Type\s*\/Pages?\b/.test(objectText) || /\/Type\s*\/Catalog\b/.test(objectText);
+        var isArray = /^\s*\[/.test(objectText);
+        if (!isTreeNode && !isArray) return;
+        pdfObjects.texts[objectNumber] = objectText;
+        pdfObjects.order[objectNumber] = pdfObjects.count++;
     }
 
     /**
-     * 対象ページを、1ページ目は1ページ目の大きさ、それ以外は2ページ目の大きさとみなして並べた配置結果を求める
-     * @param {number[]} targetPages - 対象ページ番号
-     * @param {Array} pageSizes - measureThumbnailPageSizes() の戻り値
-     * @param {object} layoutOptions - splitSpreads / evenPageOnRight / scaleFactor / gap / colsPerRow
-     * @returns {object|null} placementBuildLayout() の戻り値（1ページ目の大きさが分からなければ null）
+     * PDF ファイルを1行ずつ読み、ページ・ページツリー・カタログ・配列のオブジェクトを集める（ストリームの中身は控えない）
+     * @param {File} fileObj - 読み込み元ファイル
+     * @returns {{texts: Object, order: Object, count: number}} 番号 → 本文の表と出てきた順
      */
-    function buildPlacementThumbnail(targetPages, pageSizes, layoutOptions) {
-        if (!pageSizes || !pageSizes[0]) return null;
+    function collectPdfObjects(fileObj) {
+        var pdfObjects = { texts: {}, order: {}, count: 0 };
+        var headerPattern = /(\d+)\s+\d+\s+obj\b/;
+        var streamPattern = /\bstream\b/;
+        var objectNumber = null;  /* 読んでいるオブジェクトの番号（外側なら null）/ number of the object being read (null outside) */
+        var objectText = "";
+        var isSkipping = false;   /* ストリームか長すぎる本文で、endobj まで読み飛ばす / skipping to endobj (stream or oversized body) */
+        try {
+            fileObj.encoding = "BINARY";
+            fileObj.open("r");
+            while (!fileObj.eof) {
+                var restText = fileObj.readln();
+                while (restText !== null) {
+                    if (objectNumber === null) {
+                        var headerMatch = headerPattern.exec(restText);
+                        if (!headerMatch) break;
+                        objectNumber = headerMatch[1];
+                        objectText = "";
+                        isSkipping = false;
+                        restText = restText.substring(headerMatch.index + headerMatch[0].length);
+                        continue;
+                    }
+                    var endIndex = restText.indexOf("endobj");
+                    if (!isSkipping) {
+                        var streamIndex = restText.search(streamPattern);
+                        if (streamIndex >= 0 && (endIndex < 0 || streamIndex < endIndex)) {
+                            /* ストリームは辞書の部分だけ控える / keep only the dictionary of a stream object */
+                            objectText += restText.substring(0, streamIndex);
+                            storePdfObject(pdfObjects, objectNumber, objectText);
+                            isSkipping = true;
+                            restText = restText.substring(streamIndex + 6);
+                            continue;
+                        }
+                    }
+                    if (endIndex >= 0) {
+                        if (!isSkipping) storePdfObject(pdfObjects, objectNumber, objectText + restText.substring(0, endIndex));
+                        objectNumber = null;
+                        restText = restText.substring(endIndex + 6);
+                        continue;
+                    }
+                    if (!isSkipping) {
+                        objectText += restText + "\n";
+                        if (objectText.length > PDF_OBJECT_TEXT_LIMIT) isSkipping = true;
+                    }
+                    break;
+                }
+            }
+        } finally {
+            try { fileObj.close(); } catch (e) { }
+        }
+        return pdfObjects;
+    }
+
+    /**
+     * 辞書の中の矩形（/MediaBox など）を読む。間接参照なら参照先の配列を読む
+     * @param {string} dictText - 辞書の本文
+     * @param {string} boxName - キー名（"MediaBox" など）
+     * @param {Object} pdfObjects - collectPdfObjects() の戻り値
+     * @returns {number[]|null} [x1, y1, x2, y2]。無ければ null
+     */
+    function readPdfBox(dictText, boxName, pdfObjects) {
+        /* 直接の配列か間接参照か（選択を入れ子にせず2つの正規表現で調べる）/ inline array or indirect reference, tested with two regexes */
+        var arrayText = null;
+        var inlineMatch = new RegExp("/" + boxName + "\\s*\\[([^\\]]*)\\]").exec(dictText);
+        if (inlineMatch) {
+            arrayText = inlineMatch[1];
+        } else {
+            var referenceMatch = new RegExp("/" + boxName + "\\s+(\\d+)\\s+\\d+\\s+R").exec(dictText);
+            var referencedText = referenceMatch ? pdfObjects.texts[referenceMatch[1]] : null;
+            var arrayMatch = referencedText ? /\[([^\]]*)\]/.exec(referencedText) : null;
+            if (!arrayMatch) return null;
+            arrayText = arrayMatch[1];
+        }
+        var numbers = arrayText.replace(/^\s+|\s+$/g, "").split(/\s+/);
+        if (numbers.length !== 4) return null;
+        var box = [];
+        for (var i = 0; i < 4; i++) {
+            var value = parseFloat(numbers[i]);
+            if (isNaN(value)) return null;
+            box.push(value);
+        }
+        return box;
+    }
+
+    /**
+     * 辞書の中の数値（/Rotate など）を読む
+     * @param {string} dictText - 辞書の本文
+     * @param {string} keyName - キー名
+     * @returns {number|null} 値。無ければ null
+     */
+    function readPdfNumber(dictText, keyName) {
+        var numberMatch = new RegExp("/" + keyName + "\\s+(-?[\\d.]+)").exec(dictText);
+        return numberMatch ? parseFloat(numberMatch[1]) : null;
+    }
+
+    /**
+     * PDF のページツリーをたどり、ページごとの矩形（メディア・トリミング・仕上がり・裁ち落とし・アート）と回転を、ページ順に読む。
+     * 一時配置はせず、ファイルの文字列だけから読む。ページ情報が圧縮されている（オブジェクトストリーム）など読めないときは null
+     * @param {File} fileObj - 読み込み元ファイル（PDF か、PDF 互換の AI）
+     * @returns {Object[]|null} ページごとの { mediaBox, cropBox, trimBox, bleedBox, artBox, rotate, userUnit }
+     */
+    function readPdfPageBoxes(fileObj) {
+        var pdfObjects;
+        try {
+            pdfObjects = collectPdfObjects(fileObj);
+        } catch (e) {
+            return null;
+        }
+
+        /* 最後に出てきたカタログからページツリーの根をたどる / start from the last catalog in the file */
+        var catalogText = null, catalogOrder = -1;
+        for (var objectNumber in pdfObjects.texts) {
+            if (!pdfObjects.texts.hasOwnProperty(objectNumber)) continue;
+            var candidateText = pdfObjects.texts[objectNumber];
+            if (/\/Type\s*\/Catalog\b/.test(candidateText) && pdfObjects.order[objectNumber] > catalogOrder) {
+                catalogText = candidateText;
+                catalogOrder = pdfObjects.order[objectNumber];
+            }
+        }
+        var rootMatch = catalogText ? /\/Pages\s+(\d+)\s+\d+\s+R/.exec(catalogText) : null;
+        if (!rootMatch) return null;
+
+        var pageInfos = [];
+        var visitedNodes = {};
+
+        /**
+         * ページツリーの節を再帰的にたどる（MediaBox・CropBox・Rotate は親から引き継ぐ）
+         * @param {string} nodeNumber - 節のオブジェクト番号
+         * @param {Object} inherited - 親から引き継ぐ { mediaBox, cropBox, rotate }
+         * @param {number} depth - 深さ（壊れたファイルで止まらないための上限に使う）
+         * @returns {boolean} たどれたら true
+         */
+        function walkPageTree(nodeNumber, inherited, depth) {
+            var nodeText = pdfObjects.texts[nodeNumber];
+            if (!nodeText || visitedNodes[nodeNumber] || depth > 64) return false;
+            visitedNodes[nodeNumber] = true;
+            var nodeInherited = {
+                mediaBox: readPdfBox(nodeText, "MediaBox", pdfObjects) || inherited.mediaBox,
+                cropBox: readPdfBox(nodeText, "CropBox", pdfObjects) || inherited.cropBox,
+                rotate: (readPdfNumber(nodeText, "Rotate") !== null) ? readPdfNumber(nodeText, "Rotate") : inherited.rotate
+            };
+            if (/\/Type\s*\/Pages\b/.test(nodeText)) {
+                var kidsMatch = /\/Kids\s*\[([^\]]*)\]/.exec(nodeText);
+                if (!kidsMatch) return false;
+                var kidPattern = /(\d+)\s+\d+\s+R/g;
+                var kidMatch;
+                while ((kidMatch = kidPattern.exec(kidsMatch[1])) !== null) {
+                    if (!walkPageTree(kidMatch[1], nodeInherited, depth + 1)) return false;
+                }
+                return true;
+            }
+            if (!nodeInherited.mediaBox) return false;
+            pageInfos.push({
+                mediaBox: nodeInherited.mediaBox,
+                cropBox: nodeInherited.cropBox || nodeInherited.mediaBox,
+                trimBox: readPdfBox(nodeText, "TrimBox", pdfObjects),
+                bleedBox: readPdfBox(nodeText, "BleedBox", pdfObjects),
+                artBox: readPdfBox(nodeText, "ArtBox", pdfObjects),
+                rotate: nodeInherited.rotate || 0,
+                userUnit: readPdfNumber(nodeText, "UserUnit") || 1
+            });
+            return true;
+        }
+
+        if (!walkPageTree(rootMatch[1], { mediaBox: null, cropBox: null, rotate: 0 }, 0)) return null;
+        return (pageInfos.length > 0) ? pageInfos : null;
+    }
+
+    /**
+     * トリミングの指定に対応する矩形から、配置したときの幅と高さ（pt）を求める。
+     * 仕上がり・裁ち落とし・アートが無ければトリミングの矩形を使う。［アート］はアートの範囲を読めないので、アートボックス（無ければトリミング）で代える目安
+     * @param {Object} pageInfo - readPdfPageBoxes() の要素
+     * @param {number} cropMode - トリミング指定（CropTo の値。0 アート / 1 トリミング / 2 仕上がり / 3 裁ち落とし / 4 メディア）
+     * @returns {{width: number, height: number}} 幅と高さ（pt）
+     */
+    function getPdfPageSize(pageInfo, cropMode) {
+        var box = pageInfo.cropBox;
+        if (cropMode === 0 && pageInfo.artBox) box = pageInfo.artBox;
+        if (cropMode === 2 && pageInfo.trimBox) box = pageInfo.trimBox;
+        if (cropMode === 3 && pageInfo.bleedBox) box = pageInfo.bleedBox;
+        if (cropMode === 4) box = pageInfo.mediaBox;
+        var boxWidth = Math.abs(box[2] - box[0]) * pageInfo.userUnit;
+        var boxHeight = Math.abs(box[3] - box[1]) * pageInfo.userUnit;
+        /* 90° / 270° 回転したページは幅と高さが入れ替わる / pages rotated by 90 or 270 degrees swap width and height */
+        var rotation = ((pageInfo.rotate % 360) + 360) % 360;
+        if (rotation === 90 || rotation === 270) return { width: boxHeight, height: boxWidth };
+        return { width: boxWidth, height: boxHeight };
+    }
+
+    /**
+     * 対象ページを、PDF から読んだ各ページの大きさで並べた配置結果を求める
+     * @param {number[]} targetPages - 対象ページ番号
+     * @param {Object[]|null} pageInfos - readPdfPageBoxes() の戻り値
+     * @param {number} cropMode - トリミング指定（CropTo の値）
+     * @param {object} layoutOptions - splitSpreads / evenPageOnRight / scaleFactor / gap / colsPerRow
+     * @returns {object|null} placementBuildLayout() の戻り値（大きさを読めないページがあれば null）
+     */
+    function buildPlacementThumbnail(targetPages, pageInfos, cropMode, layoutOptions) {
+        if (!pageInfos) return null;
         var measured = [];
         for (var i = 0; i < targetPages.length; i++) {
-            var pageSize = (targetPages[i] === 1 || !pageSizes[1]) ? pageSizes[0] : pageSizes[1];
+            var pageInfo = pageInfos[targetPages[i] - 1];
+            if (!pageInfo) return null;
+            var pageSize = getPdfPageSize(pageInfo, cropMode);
             measured.push({ page: targetPages[i], width: pageSize.width, height: pageSize.height });
         }
         if (layoutOptions.splitSpreads) measured = placementSplitSpreads(measured, layoutOptions.evenPageOnRight);
@@ -2435,9 +2634,9 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         var wasCustomRange = false;
         // OK 押下時の配置指示。ダイアログを閉じてから実行する / Placement request, run after the dialog closes
         var placementRequest = null;
-        // 縮小図用に測ったページの大きさと、そのファイル・トリミング / Page sizes measured for the thumbnail, and their file and crop
-        var thumbnailPageSizes = null;
-        var thumbnailPageSizesKey = "";
+        // 縮小図用に PDF から読んだページの大きさと、そのファイル・更新日時 / Page boxes read from the PDF for the thumbnail, and their file and modification date
+        var thumbnailPageInfos = null;
+        var thumbnailPageInfosKey = "";
         var thumbnailLayout = null;
         // 進捗表示用のパレット / Progress palette
         var progressWin = null;
@@ -2958,21 +3157,20 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         }
 
         /**
-         * 今の設定で縮小図を作り直して描き直す。ページの大きさはファイルかトリミングが変わったときだけ測り直す
+         * 今の設定で縮小図を作り直して描き直す。ページの大きさは、ファイルが変わったときだけ PDF から読み直す
          * @returns {void}
          */
         function updateThumbnail() {
             if (!thumbnailCanvas) return;
             thumbnailLayout = null;
             if (sourceFile) {
-                var cropMode = getCropModeFromUI();
-                var sizesKey = sourceFile.fsName + "|" + cropMode + "|" + getDetectedTotalPages();
-                if (sizesKey !== thumbnailPageSizesKey) {
-                    thumbnailPageSizes = measureThumbnailPageSizes(doc, sourceFile, cropMode, getDetectedTotalPages());
-                    thumbnailPageSizesKey = sizesKey;
+                var pageInfosKey = sourceFile.fsName + "|" + sourceFile.modified;
+                if (pageInfosKey !== thumbnailPageInfosKey) {
+                    thumbnailPageInfos = readPdfPageBoxes(sourceFile);
+                    thumbnailPageInfosKey = pageInfosKey;
                 }
                 var perArtboard = rbPerArtboard.value;
-                thumbnailLayout = buildPlacementThumbnail(getTargetPagesFromUI(), thumbnailPageSizes, {
+                thumbnailLayout = buildPlacementThumbnail(getTargetPagesFromUI(), thumbnailPageInfos, getCropModeFromUI(), {
                     splitSpreads: cbSplitSpreads.value,
                     evenPageOnRight: rbEvenPageRight.value,
                     scaleFactor: perArtboard ? 1 : (getScaleFromUI() / 100),

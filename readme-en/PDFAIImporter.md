@@ -29,7 +29,7 @@ It is meant for arranging multiple pages in a grid or building a contact-sheet s
 - Scale can be set when ignoring artboards
 - PDF crop box selection (Art / Crop / Trim / Bleed)
 - Landscape pages can be treated as spreads and split left and right; the even-page side is set from the PDF binding direction
-- The dialog shows a thumbnail of the placement layout. It redraws as you change the pages, placement method, columns, gap, scale, crop or spread splitting (pages 1 and 2 are measured; later pages are assumed to match page 2)
+- The dialog shows a thumbnail of the placement layout. It redraws as you change the pages, placement method, columns, gap, scale, crop or spread splitting (each page's size is read from the PDF file; not shown for PDFs with compressed page data; approximate for Art)
 - Destination: the current document or a new one (with its color mode)
 - Adds a stroke to the placed pages, with optional rounded corners
 - Centers the whole layout on the canvas
@@ -83,6 +83,7 @@ https://note.com/dtp_tranist/n/n42595650216f
 
 ### Changelog
 
+- v1.4.1 (2026-11-15) The thumbnail now reads each page's boxes (crop, trim, bleed, media, rotation) from the PDF file instead of placing pages temporarily to measure them. Nothing is placed while the dialog is open, and PDFs with mixed page sizes are drawn page by page. The thumbnail is not shown for PDFs whose page data is compressed (object streams)
 - v1.4.0 (2026-11-15) Added a thumbnail of the placement layout to the dialog. It redraws as you change the settings and labels split spread halves with their side, such as 3L and 3R. For the thumbnail, pages 1 and 2 are briefly placed to measure their size when a file is chosen or the crop changes
 - v1.3.10 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)
 - v1.3.9 (2026-10-29) With the ruler unit set to Ha (H), unit labels now read "H" instead of "Q" (unit handling unified)

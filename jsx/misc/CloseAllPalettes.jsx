@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.CloseAllPalettes
 Name=常駐パレットをまとめて閉じる
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.1.2
+Version=1.1.3
 Description-BEGIN
 常駐エンジンで動いている各種フローティングパレットをまとめて閉じるユーティリティ。
 
@@ -72,10 +72,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CloseAllPa
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "CloseAllPalettes";             /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.2";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.3";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-11-13";                   /* 更新日 / last updated */
 
 var SCRIPT_DESCRIPTION_JA = "常駐パレットをまとめて閉じる"; /* README の見出し / README title (Japanese) */
 
@@ -130,7 +130,8 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         { name: "DirectPrefsPalette", global: "__directPrefsPalette" },
         { name: "DocumentFontListSelectorPalette", global: "__documentFontListSelectorPalette" },
         { name: "FavoriteFontPickerPalette", global: "__FavoriteFontPickerPalette" },
-        { name: "ViewTogglePalette", global: "__viewTogglePalette" }
+        { name: "ViewTogglePalette", global: "__viewTogglePalette" },
+        { name: "SwapNearestItemPalette", global: "__swapNearestItemPalette" }
     ];
 
     // =========================================

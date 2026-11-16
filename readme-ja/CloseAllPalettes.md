@@ -31,14 +31,16 @@ TextCountStatsPalette / SelectionInspectorPalette / ApplyLeadingPerTextFramePale
 AiAlignToArtboardPalette / AiSmartRotateViewPalette / AutoKerningPalette / FontPresetPickerPalette / KPTSketchyPalette /
 LockHistoryPalette / PathInspectorPalette / QuickTransformPalette / TypeBasicsPalette /
 ArtboardNavigatorPalette / LEConvertToShapePalette / AiSmartPathfinderPalette / SmartDistributorPalette /
-AiAdjustVerticalGapPalette / DirectPrefsPalette / DocumentFontListSelectorPalette / FavoriteFontPickerPalette
+AiAdjustVerticalGapPalette / DirectPrefsPalette / DocumentFontListSelectorPalette / FavoriteFontPickerPalette /
+ViewTogglePalette / SwapNearestItemPalette
 
 ### スクリプト情報
 
-- バージョン: v1.1.2
+- バージョン: v1.1.3
 
 ### 更新履歴
 
+- v1.1.3（2026-11-13）SwapNearestItemPalette を対象に追加。
 - v1.1.2（2026-10-04）項目名のコロンを「 :」（半角スペース＋半角コロン）に変更（共通部品の更新）
 - v1.1.1（2026-10-03）ViewTogglePalette を対象に追加。
 - v1.1.0（2026-10-03）どのパレットも閉じられなかった不具合を修正。BridgeTalk で送った本文の `#targetengine` は無視され main エンジンで動いていたため、パレットと同じ共通エンジン `SwwwitchPalettes` で直接閉じる方式に変更。対象の常駐パレット28本も共通エンジンへ移行した。
