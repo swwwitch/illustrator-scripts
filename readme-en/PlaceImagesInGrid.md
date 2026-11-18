@@ -10,13 +10,15 @@
 
 ### Overview
 
-Places the images you choose in the file dialog box (one or more) as links and lays them out in a grid inside the selected rectangle. With nothing selected, they are laid out on the active artboard.
+Places the images you choose (one or more), or all the images in a folder, as links and lays them out in a grid inside the selected rectangle. With nothing selected, they are laid out on the active artboard.
 
 After placing, a dialog box lets you adjust the columns, rows, margins, the alignment of the last row and a mask for each image (corner radius and stroke) while previewing.
 
+<img alt="The Place Images in Grid dialog box" src="../png/ss-888-906-144-20261119-042716.png" width="50%" />
+
 ### Features
 
-- Choose and place several images at once (as links)
+- Choose and place several images at once (as links), or choose a folder to place all the images in it
 - Target: the selected rectangle, or the active artboard
 - Columns and rows are calculated to fill the target as much as possible (Auto), or set by hand (Manual)
 - Each image is scaled to fit its cell while keeping its aspect ratio
@@ -27,7 +29,7 @@ After placing, a dialog box lets you adjust the columns, rows, margins, the alig
 - Mask each image (Cell / Image), with corner radius applied as an effect
 - Stroke the mask rectangle (weight and color)
 - Dialog settings are remembered for the next run
-- Save, load and delete settings as presets, with built-in presets (Black 0.3 pt, square / White 1 pt, radius 2 pt / White 1 pt, radius 50 pt)
+- Save, load and delete settings as presets, with built-in presets (Default / Black 0.3 pt, square / White 1 pt, radius 2 pt / White 1 pt, radius 50 pt)
 - Live preview as you type
 - Stepper buttons and arrow keys for numeric fields
 - Margins are entered in Illustrator's ruler units
@@ -37,13 +39,13 @@ After placing, a dialog box lets you adjust the columns, rows, margins, the alig
 
 1. Select one rectangle to fill with images. To use the artboard, select nothing.
 2. Run `PlaceImagesInGrid.jsx`.
-3. Choose images in the file dialog box (one or more).
+3. Click Choose Files... to pick images (one or more), or Choose Folder... to pick a folder. The one you chose last time is the default button (Return).
 4. In the dialog box that opens after placing, adjust the settings while previewing.
    - Preset: load a saved or built-in preset, save the current settings (save icon), delete the selected preset (trash icon)
    - Grid: Auto / Manual, Columns, Rows, Last row (Align Left / Align Center)
    - Margins: Gutter, Inset
    - Mask shape: None / Cell / Image
-   - Mask options: Corner radius, Stroke weight, Stroke (color)
+   - Mask options: Corner radius (the Half Width button sets it to half the mask width), Stroke weight, Stroke (color)
 5. Click Shuffle to rearrange the images if you like.
 6. Click OK.
 
@@ -57,11 +59,14 @@ After placing, a dialog box lets you adjust the columns, rows, margins, the alig
 - With Cell, each image is scaled to cover its cell and clipped by the cell rectangle. Parts outside the cell are hidden, and all images end up the same size.
 - With Image, each image is clipped at its own size. Nothing is cropped; use it to add rounded corners or a stroke.
 - The corner radius is applied to the clip group as Effect > Stylize > Round Corners, so you can change it later in the Appearance panel.
+- The Half Width button enters half the width of the narrowest mask in the corner radius field.
 - The corner radius and the stroke are applied only when their checkboxes are on. They are unavailable when Mask shape is None.
 - The stroke is applied to the clipping path. The weight is entered in the stroke unit set in Preferences. Click the Stroke swatch to choose a color in the standard color picker.
 - Settings are saved when you click OK and used as the defaults next time (the column count carries over only in Manual mode).
 - A preset stores the columns, rows, margins, last row, mask shape, corner radius and stroke. Presets are saved to `Folder.userData/illustrator-scripts/PlaceImagesInGridPresets.json` and survive a restart.
-- Built-in presets change only the mask stroke and corner radius (other settings stay as they are), and switch Mask shape from None to Cell. They cannot be deleted, and their names cannot be used for your own presets.
+- When you choose a folder, the image files directly inside it are placed in name order. Subfolders, hidden files and files with other extensions are skipped.
+- The built-in Default preset sets Mask shape to None and Inset and Gutter to 0 (other settings stay as they are).
+- The other built-in presets change only the mask stroke and corner radius (other settings stay as they are), and switch Mask shape from None to Cell. They cannot be deleted, and their names cannot be used for your own presets.
 - Cancel removes the placed images.
 - Images cannot be placed while the active layer is locked or hidden.
 
@@ -71,6 +76,7 @@ https://note.com/dtp_tranist/n/n3b15f8368c27
 
 ### Update History
 
+- v1.3.0 (2026-11-19) Added the built-in Default preset (no mask, Inset 0, Gutter 0), the Half Width button for the corner radius, and Choose Folder... to place all the images in a folder (the last choice becomes the default button)
 - v1.2.0 (2026-11-12) Added presets (save, load, delete) and three built-in presets (Black 0.3 pt, square / White 1 pt, radius 2 pt / White 1 pt, radius 50 pt)
 - v1.1.2 (2026-11-12) Revised the dialog box wording (title "Place Images in Grid", Gutter, Inset, Cell / Image, Manual, Align Left / Align Center). Removed the Embed images option. Adjusted the dialog box layout (narrower labels, stacked last-row options, a checkbox on Stroke weight placed above Stroke)
 - v1.1.1 (2026-11-12) Rearranged the dialog box into two columns (grid and margins on the left, mask and options on the right) and aligned the label widths. Stacked the mask modes vertically and added a checkbox for the corner radius

@@ -7,13 +7,13 @@ Script-ID=com.swwwitch.illustrator.PlaceImagesInGrid
 Name=画像を選んで長方形やアートボードにグリッド状に配置
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.2.0
+Version=1.3.0
 Release-Date=2026-11-12
 Description-BEGIN
-ファイル選択ダイアログボックスで選んだ画像をリンクで配置し、選択中の長方形（または作業中のアートボード）にグリッド状に並べます。
+選んだ画像（またはフォルダー内の画像）をリンクで配置し、選択中の長方形（または作業中のアートボード）にグリッド状に並べます。
 列数・行数・マージンと、各画像のマスク（角丸・線）は、配置後のダイアログボックスでプレビューを見ながら調整できます。
 
-Places the images chosen in the file dialog box as links and lays them out in a grid inside the selected rectangle (or the active artboard).
+Places the images you choose (or all the images in a folder) as links and lays them out in a grid inside the selected rectangle (or the active artboard).
 Columns, rows, margins and a mask for each image (corner radius and stroke) can be adjusted with a live preview in the dialog box that opens after placing.
 Description-END
 SCRIPTMETA-END
@@ -23,7 +23,7 @@ SCRIPTMETA-END
 
 ### 概要
 
-ファイル選択ダイアログボックスで選んだ画像をリンクで配置し、選択中の長方形（または作業中のアートボード）にグリッド状に並べます。
+選んだ画像（またはフォルダー内の画像）をリンクで配置し、選択中の長方形（または作業中のアートボード）にグリッド状に並べます。
 列数・行数・マージンと、各画像のマスク（角丸・線）は、配置後のダイアログボックスでプレビューを見ながら調整できます。
 
 詳細は README を参照してください。
@@ -34,7 +34,7 @@ https://note.com/dtp_tranist/n/n3b15f8368c27
 
 ### Overview
 
-Places the images chosen in the file dialog box as links and lays them out in a grid inside the selected rectangle (or the active artboard).
+Places the images you choose (or all the images in a folder) as links and lays them out in a grid inside the selected rectangle (or the active artboard).
 Columns, rows, margins and a mask for each image (corner radius and stroke) can be adjusted with a live preview in the dialog box that opens after placing.
 
 See the README for details.
@@ -46,10 +46,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PlaceImage
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "PlaceImagesInGrid";            /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.2.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.3.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-11-12";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-11-12";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-11-19";                   /* 更新日 / last updated */
 
 var SCRIPT_DESCRIPTION_JA = "画像を選んで長方形やアートボードにグリッド状に配置"; /* README の見出し / README title (Japanese) */
 
@@ -1951,9 +1951,10 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
        Presets: settings keyed by name (the {} default accepts any content), kept across restarts */
     var presetSettingsStore = createSettingsStore(SCRIPT_NAME + "Presets", "persistent");
 
-    /* 組み込みのプリセット（マスクの線・角丸だけを変える。削除できない）。長さは pt、色の "black" / "white" はドキュメントのカラーモードで作る
-       Built-in presets (change only the mask stroke and corner radius; cannot be deleted). Lengths in pt; "black" / "white" follow the document color mode */
+    /* 組み込みのプリセット（data に無い項目は今の値のまま。削除できない）。「デフォルト」はマスクなし・外周と間隔 0、ほかはマスクの線・角丸だけを変える。長さは pt、色の "black" / "white" はドキュメントのカラーモードで作る
+       Built-in presets (keys missing from data keep their current values; cannot be deleted). "Default" sets no mask and zero margin / gap; the others change only the mask stroke and corner radius. Lengths in pt; "black" / "white" follow the document color mode */
     var BUILTIN_PRESETS = [
+        { labelKey: "presetDefault", data: { maskMode: MASK_MODE_NONE, frameMarginPt: 0, gapPt: 0 } },
         { labelKey: "presetBlackThin", data: { useStroke: true, strokeWidthPt: 0.3, strokeColor: { model: "black" }, useCornerRadius: false } },
         { labelKey: "presetWhiteRound2", data: { useStroke: true, strokeWidthPt: 1, strokeColor: { model: "white" }, useCornerRadius: true, cornerRadiusPt: 2 } },
         { labelKey: "presetWhiteRound50", data: { useStroke: true, strokeWidthPt: 1, strokeColor: { model: "white" }, useCornerRadius: true, cornerRadiusPt: 50 } }
@@ -2162,7 +2163,9 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         dialog: {
             title: { ja: "画像をグリッドに配置", en: "Place Images in Grid" },
             presetSave: { ja: "プリセットを保存", en: "Save Preset" },
-            chooseImages: { ja: "配置する画像を選択", en: "Choose images to place" }
+            chooseImages: { ja: "配置する画像を選択", en: "Choose images to place" },
+            chooseSource: { ja: "画像の選択", en: "Choose Images" },
+            chooseFolder: { ja: "画像のあるフォルダーを選択", en: "Choose a folder of images" }
         },
         panel: {
             grid: { ja: "グリッド", en: "Grid" },
@@ -2172,6 +2175,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         },
         dropdown: {
             presetPlaceholder: { ja: "---", en: "---" },
+            presetDefault: { ja: "デフォルト", en: "Default" },
             presetBlackThin: { ja: "黒 0.3pt・角丸なし", en: "Black 0.3 pt, square" },
             presetWhiteRound2: { ja: "白 1pt・角丸 2pt", en: "White 1 pt, radius 2 pt" },
             presetWhiteRound50: { ja: "白 1pt・角丸 50pt", en: "White 1 pt, radius 50 pt" }
@@ -2201,8 +2205,11 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         },
         button: {
             shuffle: { ja: "シャッフル", en: "Shuffle" },
+            cornerRadiusHalfWidth: { ja: "幅の半分", en: "Half Width" },
             cancel: { ja: "キャンセル", en: "Cancel" },
-            ok: { ja: "OK", en: "OK" }
+            ok: { ja: "OK", en: "OK" },
+            chooseFiles: { ja: "ファイルを選択...", en: "Choose Files..." },
+            chooseFolder: { ja: "フォルダーを選択...", en: "Choose Folder..." }
         },
         tooltip: {
             preset: { ja: "保存した設定を読み込む", en: "Load a saved set of settings" },
@@ -2212,6 +2219,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             gridAuto: { ja: "並べる範囲がいちばん埋まる列数・行数にする", en: "Use the columns and rows that fill the area best" },
             shuffle: { ja: "画像の並び順をランダムに入れ替える", en: "Rearrange the images in random order" },
             strokeColor: { ja: "クリックで線の色を選ぶ", en: "Click to choose the stroke color" },
+            cornerRadiusHalfWidth: { ja: "角丸の半径を、いちばん狭いマスクの幅の半分にする", en: "Set the corner radius to half the width of the narrowest mask" },
             maskCell: { ja: "セルを覆う大きさにして、セルの形で切り抜く（大きさがそろう）", en: "Scale each image to cover its cell and clip it to the cell (all the same size)" },
             maskItem: { ja: "画像と同じ大きさでマスクする（切り取られる部分はない）", en: "Mask each image at its own size (nothing is cropped)" },
             stepUp: {
@@ -2229,10 +2237,14 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             presetOverwrite: { ja: "「{name}」を上書きしますか？", en: "Overwrite \"{name}\"?" },
             presetDelete: { ja: "「{name}」を削除しますか？", en: "Delete \"{name}\"?" }
         },
+        message: {
+            chooseSource: { ja: "配置する画像を、ファイルかフォルダーで選びます。", en: "Choose the images to place as files or as a folder." }
+        },
         alert: {
             presetSaveFailed: { ja: "プリセットを保存できませんでした。", en: "Could not save the preset." },
             presetNameBuiltin: { ja: "「{name}」は組み込みのプリセットの名前なので使えません。", en: "\"{name}\" is the name of a built-in preset and cannot be used." },
             noDocument: { ja: "ドキュメントを開いてから実行してください。", en: "Open a document first." },
+            noImagesInFolder: { ja: "「{name}」に配置できる画像がありません。", en: "\"{name}\" contains no images to place." },
             notRectangle: {
                 ja: "長方形を1つ選択してから実行してください。\n何も選択していないときは、アートボードに並べます。",
                 en: "Select one rectangle before running the script.\nWith nothing selected, images are laid out on the artboard."
@@ -2267,6 +2279,42 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         return false;
     }
 
+    /* 画像の選び方 / How the images are chosen */
+    var IMAGE_SOURCE_FILES = "files";
+    var IMAGE_SOURCE_FOLDER = "folder";
+
+    /* 前回選んだ方式（次回の既定のボタンにする）。再起動しても残る / The last choice, used as the default button next time; kept across restarts */
+    var imageSourceStore = createSettingsStore(SCRIPT_NAME + "Source", "persistent");
+
+    /**
+     * 画像をファイルで選ぶかフォルダーで選ぶかを尋ねる（File.openDialog ではフォルダーを選べないため）。前回選んだ方式を既定のボタンにする。
+     * @returns {string|null} IMAGE_SOURCE_FILES / IMAGE_SOURCE_FOLDER。キャンセルなら null
+     */
+    function showImageSourceDialog() {
+        var isFolderDefault = (imageSourceStore.load({ imageSource: IMAGE_SOURCE_FILES }).imageSource === IMAGE_SOURCE_FOLDER);
+        var sourceDialog = new Window("dialog", getLabel("dialog.chooseSource"));
+        setupWindow(sourceDialog);
+        sourceDialog.add("statictext", undefined, getLabel("message.chooseSource"));
+
+        /* ボタン行（右：キャンセル・フォルダー・ファイル）。前回選んだほうを既定（return）にする / Button row; the last choice is the default (Return) */
+        var buttonRow = addButtonRow(sourceDialog);
+        var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+        var btnFolder = buttonRow.rightGroup.add("button", undefined, getLabel("button.chooseFolder"), isFolderDefault ? { name: "ok" } : {});
+        var btnFiles = buttonRow.rightGroup.add("button", undefined, getLabel("button.chooseFiles"), isFolderDefault ? {} : { name: "ok" });
+        btnCancel.onClick = function () { sourceDialog.close(2); };
+        btnFolder.onClick = function () { sourceDialog.close(3); };
+        btnFiles.onClick = function () { sourceDialog.close(1); };
+        alignRightOnlyButtonRow(buttonRow);
+        prepareDialogWindow(sourceDialog, SCRIPT_NAME + "_source");
+
+        var result = sourceDialog.show();
+        var imageSource = null;
+        if (result === 1) imageSource = IMAGE_SOURCE_FILES;
+        if (result === 3) imageSource = IMAGE_SOURCE_FOLDER;
+        if (imageSource) imageSourceStore.save({ imageSource: imageSource });
+        return imageSource;
+    }
+
     /**
      * ファイル選択ダイアログボックスを開いて画像を選ばせる（複数選択可）。
      * @returns {File[]} 選んだファイル。キャンセル時は空の配列
@@ -2285,6 +2333,38 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         var chosen = File.openDialog(getLabel("dialog.chooseImages"), fileFilter, true);
         if (!chosen) return [];
         return (chosen instanceof Array) ? chosen : [chosen];
+    }
+
+    /**
+     * フォルダーを選ばせ、その中（直下）の画像ファイルを名前順で返す。画像が無ければ知らせる。
+     * @returns {File[]} 画像ファイル。キャンセル時・画像が無いときは空の配列
+     */
+    function chooseImageFolderFiles() {
+        var chosenFolder = Folder.selectDialog(getLabel("dialog.chooseFolder"));
+        if (!chosenFolder) return [];
+        var imageFiles = listImagesInFolder(chosenFolder);
+        if (imageFiles.length === 0) alert(getLabel("alert.noImagesInFolder", { name: decodeURI(chosenFolder.name) }));
+        return imageFiles;
+    }
+
+    /**
+     * フォルダーの直下にある画像ファイルを名前順で返す。サブフォルダーと不可視ファイル（.DS_Store など）は除く。
+     * @param {Folder} imageFolder - 対象のフォルダー
+     * @returns {File[]} 画像ファイル
+     */
+    function listImagesInFolder(imageFolder) {
+        var folderFiles = imageFolder.getFiles(function (f) {
+            var fileName = decodeURI(f.name);
+            return (f instanceof File) && !f.hidden && fileName.charAt(0) !== "." && isImageName(fileName);
+        });
+        /* 比較関数つきの sort() は遅く並びも狂うので、「名前\n番号」の文字列を既定の sort() で並べる
+           A comparator sort is slow and unreliable, so sort "name\nindex" strings with the default sort() */
+        var sortKeys = [];
+        for (var i = 0; i < folderFiles.length; i++) sortKeys.push(decodeURI(folderFiles[i].name).toLowerCase() + "\n" + i);
+        sortKeys.sort();
+        var imageFiles = [];
+        for (var j = 0; j < sortKeys.length; j++) imageFiles.push(folderFiles[parseInt(sortKeys[j].split("\n")[1], 10)]);
+        return imageFiles;
     }
 
     // =========================================
@@ -2806,6 +2886,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         var currentUseMask = (currentMaskMode !== MASK_MODE_NONE);
         var currentUseCornerRadius = initialSettings.useCornerRadius;
         var currentCornerRadius = initialSettings.cornerRadiusPt;
+        /* 直近のプレビューで作ったマスクの長方形（［幅の半分］で使う） / Mask rectangles of the latest preview, used by Half Width */
+        var currentMaskRects = [];
         var currentUseStroke = initialSettings.useStroke;
         var currentStrokeWidth = initialSettings.strokeWidthPt;
         var currentStrokeColor = colorFromSettings(doc, initialSettings.strokeColor);
@@ -2830,12 +2912,14 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         function updatePreview() {
             /* マスクは並べる前に外し、並べたあとで作り直す / Remove the masks before laying out, then rebuild them */
             unwrapMasks(maskGroups);
+            currentMaskRects = [];
             var slotRects = layoutPlacedItems(placedItems, insetBounds(frameBounds, currentFrameMargin),
                 currentColumns, currentRows, currentGap, currentLastRowAlign, currentMaskMode === MASK_MODE_CELL);
             if (currentUseMask && slotRects) {
                 /* アイテムの形なら、セルに収めた画像そのものの大きさでマスク / Item shape: mask to the fitted image itself */
                 var maskRects = (currentMaskMode === MASK_MODE_ITEM) ? itemRects(placedItems) : slotRects;
                 var maskStroke = currentUseStroke ? { color: currentStrokeColor, width: currentStrokeWidth } : null;
+                currentMaskRects = maskRects;
                 var newGroups = wrapItemsInMasks(doc, placedItems, maskRects, currentUseCornerRadius ? currentCornerRadius : 0, maskStroke);
                 for (var i = 0; i < newGroups.length; i++) maskGroups.push(newGroups[i]);
             }
@@ -3010,6 +3094,16 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         cornerRadiusInput.fieldLabel.parent.spacing = 0;
         writeSteppedValue(cornerRadiusInput, ptToUnit(currentCornerRadius, rulerUnit), cornerRadiusFieldOptions);
 
+        /* 角丸を幅の半分に：数値欄の位置に揃えたボタン / Half-width corner radius: button aligned with the numeric field */
+        var halfWidthRow = maskOptionsPanel.add("group");
+        setupRow(halfWidthRow, "left", STEPPER_FIELD_SPACING);
+        var halfWidthSpacer = halfWidthRow.add("group");
+        halfWidthSpacer.preferredSize.width = MASK_OPTIONS_LABEL_WIDTH;
+        var halfWidthHolder = halfWidthRow.add("group");
+        halfWidthHolder.margins = [STEPPER_SIDE_MARGIN, 0, 0, 0];
+        var halfWidthButton = halfWidthHolder.add("button", undefined, getLabel("button.cornerRadiusHalfWidth"));
+        halfWidthButton.helpTip = getLabel("tooltip.cornerRadiusHalfWidth");
+
         /* 線幅：チェックボックス・線幅 / Stroke weight: checkbox and weight */
         var strokeWidthRow = maskOptionsPanel.add("group");
         setupRow(strokeWidthRow, "left", STEPPER_FIELD_SPACING);
@@ -3074,6 +3168,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         function updateMaskControls() {
             useCornerRadiusCheckbox.enabled = currentUseMask;
             setSteppedFieldEnabled(cornerRadiusInput, currentUseMask && currentUseCornerRadius);
+            halfWidthButton.enabled = currentUseMask && currentUseCornerRadius;
             useStrokeCheckbox.enabled = currentUseMask;
             setSteppedFieldEnabled(strokeWidthInput, currentUseMask && currentUseStroke);
             strokeColorLabel.enabled = currentUseMask && currentUseStroke;
@@ -3098,6 +3193,17 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         useCornerRadiusCheckbox.onClick = function () {
             currentUseCornerRadius = useCornerRadiusCheckbox.value;
             updateMaskControls();
+            updatePreview();
+        };
+        /* 角丸の半径を、いちばん狭いマスクの幅の半分にする / Set the corner radius to half the width of the narrowest mask */
+        halfWidthButton.onClick = function () {
+            if (currentMaskRects.length === 0) return;
+            var narrowestWidth = currentMaskRects[0][2];
+            for (var i = 1; i < currentMaskRects.length; i++) {
+                if (currentMaskRects[i][2] < narrowestWidth) narrowestWidth = currentMaskRects[i][2];
+            }
+            currentCornerRadius = narrowestWidth / 2;
+            writeSteppedValue(cornerRadiusInput, ptToUnit(currentCornerRadius, rulerUnit), cornerRadiusFieldOptions);
             updatePreview();
         };
         useStrokeCheckbox.onClick = function () {
@@ -3359,8 +3465,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             setIconButtonEnabled(presetDeleteIcon, presetName !== null);
             var builtinPreset = getSelectedBuiltinPreset();
             if (builtinPreset) {
-                /* 線・角丸はマスクに付くので、マスクがなしならセルの形にする / Stroke and corners need a mask, so switch None to Cell */
-                if (currentMaskMode === MASK_MODE_NONE) currentMaskMode = MASK_MODE_CELL;
+                /* 線・角丸はマスクに付くので、マスク形状を指定しないプリセットではなしをセルの形にする / Stroke and corners need a mask, so switch None to Cell unless the preset sets the mask shape */
+                if (!builtinPreset.data.hasOwnProperty("maskMode") && currentMaskMode === MASK_MODE_NONE) currentMaskMode = MASK_MODE_CELL;
                 applyDialogSettings(builtinPreset.data);
                 return;
             }
@@ -3414,7 +3520,9 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             return;
         }
 
-        var imageFiles = chooseImageFiles();
+        var imageSource = showImageSourceDialog();
+        if (!imageSource) return;
+        var imageFiles = (imageSource === IMAGE_SOURCE_FOLDER) ? chooseImageFolderFiles() : chooseImageFiles();
         if (imageFiles.length === 0) return;
 
         var failedNames = [];
