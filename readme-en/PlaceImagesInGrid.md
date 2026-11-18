@@ -14,7 +14,7 @@ Places the images you choose (one or more), or all the images in a folder, as li
 
 After placing, a dialog box lets you adjust the columns, rows, margins, the alignment of the last row and a mask for each image (corner radius and stroke) while previewing.
 
-<img alt="The Place Images in Grid dialog box" src="../png/ss-888-906-144-20261119-042716.png" width="50%" />
+<img alt="The Place Images in Grid dialog box" src="../png/ss-1056-1074-144-20261119-042714-s.png" width="50%" />
 
 ### Features
 
