@@ -244,6 +244,7 @@ After release, we continue to fix bugs and make adjustments through daily use.
 - [Build a color palette from an image](readme-en/ColorPaletteFromImage.md)
 - [Adjust brightness with a slider](readme-en/ColorToneSlider.md)
 - [Create a linear gradient starting from the current fi…](readme-en/GradientFromFill.md)
+- [List and edit gradient stops](readme-en/EditGradientStops.md)
 - [Register fill colors as a swatch group in layout order](readme-en/SwatchGroupFromSelection.md)
 
 

@@ -245,6 +245,7 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 - [カラーパレットを生成してスウォッチに登録](readme-ja/ColorGenerator.md)
 - [明るさをスライダーで調整](readme-ja/ColorToneSlider.md)
 - [元の塗り色を始点にした線形グラデーションを作成](readme-ja/GradientFromFill.md)
+- [グラデーションストップを一覧表示して編集](readme-ja/EditGradientStops.md)
 - [配置順で塗り色を抽出してスウォッチグループに登録](readme-ja/SwatchGroupFromSelection.md)
 
 
