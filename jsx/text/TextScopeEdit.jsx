@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.TextScopeEdit
 Name=テキストを一覧で編集してドキュメントに書き戻す
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.6.2
+Version=1.6.3
 Release-Date=2026-04-08
 Description-BEGIN
 ドキュメント内のテキスト（シンボル内を含む）を一覧にし、書式を保ったまま編集して書き戻します。
@@ -47,10 +47,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TextScopeE
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "TextScopeEdit";                /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.6.2";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.6.3";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-04-08";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-11-05";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-11-18";                   /* 更新日 / last updated */
 
 var SCRIPT_DESCRIPTION_JA = "テキストを一覧で編集してドキュメントに書き戻す"; /* README の見出し / README title (Japanese) */
 
@@ -2547,6 +2547,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
 
         dialogControls.cbWholeDocument = addCheckbox(artboardScopePanel, "wholeDocument", false);
         dialogControls.cbWholeDocument.enabled = false;
+        dialogControls.artboardScopePanel = artboardScopePanel;
     }
 
     /**
@@ -2715,6 +2716,24 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     }
 
     /**
+     * 収集に使う範囲を返す。［選択しているテキストのみ］のときは、アートボードの外やほかのアートボードにある選択も拾うよう "all" にする
+     * @param {Object} editSession - 編集の状態
+     * @returns {string} "all" / "allArtboards" / "current"
+     */
+    function getEffectiveScopeMode(editSession) {
+        return editSession.selectedOnly ? 'all' : getCurrentScopeMode(editSession.dialogControls);
+    }
+
+    /**
+     * ［選択しているテキストのみ］のあいだは、効かない［アートボード］パネルをディムする
+     * @param {Object} editSession - 編集の状態
+     * @returns {void}
+     */
+    function updateArtboardScopeEnabled(editSession) {
+        editSession.dialogControls.artboardScopePanel.enabled = !editSession.selectedOnly;
+    }
+
+    /**
      * 対象テキストの条件をダイアログから読む
      * @param {Object} dialogControls - buildDialog() の結果
      * @returns {Object} { includeComment, includeLocked, includeHidden, includeSymbols }
@@ -2737,7 +2756,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         var dialogControls = editSession.dialogControls;
         var collectOptions = readCollectOptions(dialogControls);
         editSession.symbolEntries = collectOptions.includeSymbols
-            ? collectSymbolTextEntries(editSession.doc, collectOptions, getCurrentScopeMode(dialogControls))
+            ? collectSymbolTextEntries(editSession.doc, collectOptions, getEffectiveScopeMode(editSession))
             : [];
     }
 
@@ -2773,7 +2792,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
      */
     function refreshTextList(editSession) {
         var dialogControls = editSession.dialogControls;
-        var textFrames = collectFramesByScope(editSession.doc, getCurrentScopeMode(dialogControls), readCollectOptions(dialogControls));
+        var textFrames = collectFramesByScope(editSession.doc, getEffectiveScopeMode(editSession), readCollectOptions(dialogControls));
         if (editSession.selectedOnly) textFrames = filterSelectedFrames(textFrames, editSession.selectedItems.frames);
         if (dialogControls.rbSortPosition.value) {
             sortByPosition(textFrames);
@@ -2996,7 +3015,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         try {
             var exportSettings = showExportOptionsDialog();
             if (!exportSettings) return;
-            var exportContent = buildExportText(doc, exportSettings, readCollectOptions(dialogControls), getCurrentScopeMode(dialogControls),
+            var exportContent = buildExportText(doc, exportSettings, readCollectOptions(dialogControls), getEffectiveScopeMode(editSession),
                 editSession.selectedOnly ? editSession.selectedItems : null);
             var exportFile = writeTextFile(buildExportFilePath(doc), exportContent);
             if (exportSettings.openAfter) exportFile.execute();
@@ -3073,6 +3092,9 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         dialogControls.cbMergeDuplicates.onClick = function () { refreshTextList(editSession); };
         dialogControls.cbSelectedOnly.onClick = function () {
             editSession.selectedOnly = dialogControls.cbSelectedOnly.value;
+            updateArtboardScopeEnabled(editSession);
+            /* 範囲が変わるのでシンボル内のテキストも集め直す / The scope changes, so collect symbol text again */
+            refreshSymbolEntries(editSession);
             refreshTextList(editSession);
         };
     }
@@ -3265,6 +3287,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         editSession.selectedOnly = hasSelectedText;
         editSession.dialogControls.cbSelectedOnly.value = hasSelectedText;
         editSession.dialogControls.cbSelectedOnly.enabled = hasSelectedText;
+        updateArtboardScopeEnabled(editSession);
         bindEditEvents(editSession);
         bindScopeEvents(editSession);
         bindInfoTabEvents(editSession);
