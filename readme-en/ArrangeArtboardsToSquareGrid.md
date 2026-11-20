@@ -44,3 +44,4 @@ Re-lays out every artboard so the whole grid's outline is as close to a square a
 - v1.1.11 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)
 - v1.2.0 (2026-11-15) Added a thumbnail of the arranged artboards to the dialog. It redraws as you change the columns or gap, with a square frame overlaid for reference
 - v1.2.1 (2026-11-20) Clicking the script name and version at the bottom left opens About This Script (copy the script name, open the README and other links, show in Finder; shared part updated)
+- v1.3.0 (2026-11-20) The Auto button for Columns is now an icon (a magic wand)

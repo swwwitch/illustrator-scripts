@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.SmartObjectDistributor
 Name=グリッドの各セル中央にオブジェクトを配置
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=3.7.0
+Version=3.8.0
 Release-Date=2025-05-20
 Description-BEGIN
 選択したオブジェクトを、指定した行数・列数のグリッドの各セル中央へ配置します。
@@ -47,7 +47,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartObjec
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SmartObjectDistributor";       /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v3.7.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v3.8.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-05-20";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-11-20";                   /* 更新日 / last updated */
@@ -2470,8 +2470,6 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         },
         button: {
             transparencyGrid: { ja: "透明グリッド表示", en: "Transparency Grid" },
-            autoScale: { ja: "自動計算", en: "Auto" },
-            autoCornerRadius: { ja: "自動計算", en: "Auto" },
             randomize: { ja: "シャッフル", en: "Shuffle" },
             cancel: { ja: "キャンセル", en: "Cancel" },
             ok: { ja: "OK", en: "OK" }
@@ -2567,16 +2565,16 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
                 en: "Removes one cell from every even row and shifts it by half a cell, like a brick wall (with 2 or more columns)."
             },
             autoCornerRadius: {
-                ja: "角丸の半径を、セルの短い辺の半分にします（短い辺の両端が半円になります）。",
-                en: "Sets the corner radius to half the shorter side of a cell (the short ends become semicircles)."
+                ja: "自動計算：角丸の半径を、セルの短い辺の半分にします（短い辺の両端が半円になります）。",
+                en: "Auto: sets the corner radius to half the shorter side of a cell (the short ends become semicircles)."
             },
             autoDivision: {
                 ja: "行数・列数を自動計算します。配置するオブジェクトの数と配置先の縦横比から、セルが正方形に近くなる行数・列数を入れます（［レンガ］も考慮）。配置先や［レンガ］を切り替えたときも計算し直します。",
                 en: "Calculates rows and columns automatically: enters the ones that make the cells closest to square for the number of objects and the shape of the area (Brick included). Also recalculated when you switch the area or Brick."
             },
             autoScale: {
-                ja: "すべてのオブジェクトがセルを覆い、上下左右にアキが出ない共通のスケールを計算して比率に入れます。はみ出した分は［マスクする］で切り抜けます。",
-                en: "Calculates one scale at which every object covers its cell with no gap on any side, and enters it as the ratio. Use Mask to crop what extends past the cell."
+                ja: "自動計算（スケールのとき）：すべてのオブジェクトがセルを覆い、上下左右にアキが出ない共通のスケールを計算して比率に入れます。はみ出した分は［マスクする］で切り抜けます。",
+                en: "Auto (with Scale): calculates one scale at which every object covers its cell with no gap on any side, and enters it as the ratio. Use Mask to crop what extends past the cell."
             },
             randomize: {
                 ja: "セルへの割り当て順をシャッフルします。［均等にまばらに］では、距離が同じセルどうしの選び方も選び直します（押すたびに変わります）。",
@@ -3792,10 +3790,10 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     }
 
     /**
-     * リサイズのパネルを作成します（基準のラジオボタンを縦に並べ、その下に比率と［自動計算］）。/ Build the resize panel.
+     * リサイズのパネルを作成します（基準のラジオボタンを縦に並べ、その下に比率と自動計算のアイコン）。/ Build the resize panel.
      *
      * @param {Group} parentColumn - 配置先のカラム。
-     * @returns {Object} 基準のラジオボタン、比率の項目名と入力欄、［自動計算］をまとめたオブジェクト。
+     * @returns {Object} 基準のラジオボタン、比率の項目名と入力欄、自動計算のアイコンをまとめたオブジェクト。
      */
     function buildResizePanel(parentColumn) {
         var resizePanel = parentColumn.add("panel", undefined, getLabel(LABELS.panel.resize));
@@ -3821,13 +3819,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         resizeControls.ratioUnitLabel = resizeRatioRow.add("statictext", undefined, "%");
         resizeControls.noneRadio.value = true;
 
-        /* スケールのときだけ使う［自動計算］。次の行に、入力欄（∧∨）の左端にそろえて置く
-           Auto is used only with Scale; it sits on the next line, aligned with the field */
-        var autoScaleRow = resizePanel.add("group");
-        setupRow(autoScaleRow, "left", 4);
-        var autoScaleSpacer = autoScaleRow.add("group");
-        autoScaleSpacer.preferredSize = [measureControlText(resizeControls.ratioLabel), 1];
-        resizeControls.autoScaleButton = autoScaleRow.add("button", undefined, getLabel(LABELS.button.autoScale));
+        /* スケールのときだけ使う自動計算のアイコンを、比率の単位の右に置く / The Auto icon (Scale only) sits after the ratio's unit */
+        resizeControls.autoScaleButton = addIconButton(resizeRatioRow, ICON_BUTTON_SIZE, drawAutoIcon);
         resizeControls.autoScaleButton.helpTip = getLabel(LABELS.tooltip.autoScale);
 
         /* 基準ごとの結果をツールチップで補う / Tooltips describe each mode */
@@ -3872,13 +3865,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         maskControls.cornerRadiusInput = addSteppedInput(cornerRadiusRow, String(CONFIG.defaultCornerRadius), {});
         maskControls.cornerRadiusInput.characters = 4;
         maskControls.cornerRadiusUnitLabel = cornerRadiusRow.add("statictext", undefined, rulerUnitLabel);
-
-        /* 角丸の［自動計算］は次の行に、入力欄（∧∨）の左端にそろえて置く（字下げの幅は下で項目名の幅が決まってから入れる）
-           Auto for the radius sits on the next line, aligned with the field; the indent is set once the label width is known */
-        var autoCornerRadiusRow = maskStyleGroup.add("group");
-        setupRow(autoCornerRadiusRow, "left", 4);
-        var autoCornerRadiusSpacer = autoCornerRadiusRow.add("group");
-        maskControls.autoCornerRadiusButton = autoCornerRadiusRow.add("button", undefined, getLabel(LABELS.button.autoCornerRadius));
+        /* 角丸の自動計算のアイコンを、半径の単位の右に置く / The Auto icon for the radius sits after its unit */
+        maskControls.autoCornerRadiusButton = addIconButton(cornerRadiusRow, ICON_BUTTON_SIZE, drawAutoIcon);
         maskControls.autoCornerRadiusButton.helpTip = getLabel(LABELS.tooltip.autoCornerRadius);
 
         var frameRow = maskStyleGroup.add("group");
@@ -3896,7 +3884,6 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         ) + CHECKBOX_BOX_WIDTH;
         maskControls.cornerRadiusCheckbox.preferredSize.width = maskStyleLabelWidth;
         maskControls.frameCheckbox.preferredSize.width = maskStyleLabelWidth;
-        autoCornerRadiusSpacer.preferredSize = [maskStyleLabelWidth, 1];
 
         /* 枠の色見本は次の行に、入力欄（∧∨）の左端にそろえて置く / The frame swatch sits on the next line, aligned with the field */
         var frameColorRow = maskStyleGroup.add("group");
@@ -4655,7 +4642,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             resizeUI.ratioLabel.enabled = isResizing;
             resizeUI.ratioUnitLabel.enabled = isResizing;
             setSteppedInputEnabled(resizeUI.ratioInput, isResizing);
-            resizeUI.autoScaleButton.enabled = (getResizeMode() === "scale");
+            setIconButtonEnabled(resizeUI.autoScaleButton, getResizeMode() === "scale");
         }
 
         /**
@@ -4694,7 +4681,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             var usesCornerRadius = isMaskEnabled && isCornerRadiusEnabled;
             setSteppedInputEnabled(maskUI.cornerRadiusInput, usesCornerRadius);
             maskUI.cornerRadiusUnitLabel.enabled = usesCornerRadius;
-            maskUI.autoCornerRadiusButton.enabled = usesCornerRadius;
+            setIconButtonEnabled(maskUI.autoCornerRadiusButton, usesCornerRadius);
             var usesFrame = isMaskEnabled && isFrameEnabled;
             setSteppedInputEnabled(maskUI.frameWidthInput, usesFrame);
             maskUI.frameUnitLabel.enabled = usesFrame;
@@ -4746,7 +4733,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         }
 
         /**
-         * ［自動計算］：セルに入るオブジェクトがすべてセルを覆う（アキが出ない）スケールを比率に入れます。/ Fill the ratio with a covering scale.
+         * スケールの自動計算：セルに入るオブジェクトがすべてセルを覆う（アキが出ない）スケールを比率に入れます。/ Fill the ratio with a covering scale.
          *
          * @returns {void}
          */
@@ -4766,7 +4753,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         }
 
         /**
-         * 角丸の［自動計算］：半径をセルの短い辺の半分にします。/ Set the corner radius to half the shorter cell side.
+         * 角丸の自動計算：半径をセルの短い辺の半分にします。/ Set the corner radius to half the shorter cell side.
          * 定規の単位に換算し、大きくならないよう 0.01 単位で切り捨てます。
          *
          * @returns {void}

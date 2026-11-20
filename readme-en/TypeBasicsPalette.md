@@ -16,7 +16,7 @@ features are extracted from UnifiedTypePalette.jsx and gathered into a single vi
 
 ### Script info
 
-- Version: v1.1.4
+- Version: v1.2.0
 
 ### note
 
@@ -25,6 +25,7 @@ features are extracted from UnifiedTypePalette.jsx and gathered into a single vi
 
 ### Update History
 
+- v1.2.0 (2026-11-20) The Auto-calc button for Leading (%) is now an icon (a magic wand)
 - v1.1.6 (2026-11-20) Clicking the script name and version at the bottom left opens About This Script (copy the script name, open the README and other links, show in Finder; shared part updated)
 - v1.1.5 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)
 - v1.1.4 (2026-10-10) Fixed the palette operating on another Illustrator version when several versions are running

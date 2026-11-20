@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.TypeBasicsPalette
 Name=基本的な文字組み設定を調整するパネル
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.1.6
+Version=1.2.0
 Release-Date=2026-07-07
 Description-BEGIN
 選択したテキストの基本的な文字組み設定（フォントサイズと行送り・自動カーニング・プロポーショナルメトリクス・文字ツメ・トラッキング）だけをまとめて行う常駐パレットです。
@@ -43,7 +43,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TypeBasics
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "TypeBasicsPalette";            /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.6";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.2.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-07-07";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-11-20";                   /* 更新日 / last updated */
@@ -856,7 +856,6 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     var INNER_PANEL_SPACING   = 6;                 /* 各パネル内の間隔 / spacing inside each panel */
     var MAIN_COLUMN_SPACING   = 8;                 /* パネルどうしの間隔 / spacing between panels */
     var LEADING_LABEL_WIDTH   = 68;                /* サイズ／行送りの項目名の幅 / width of the size and leading labels */
-    var AUTO_BUTTON_WIDTH     = 68;                /* ［自動計算］ボタンの幅 / width of the Auto-calc button */
     var LEADING_FIELD_CHARS   = 4;                 /* サイズ／行送りの入力欄の幅 / width of the size and leading fields */
     var SPACING_FIELD_CHARS   = 3;                 /* 文字ツメ／トラッキングの入力欄の幅 / width of the tsume and tracking fields */
     var PROP_METRICS_MARGINS  = [0, 0, 0, 4];      /* プロポーショナルメトリクス行の余白 / margins of the proportional metrics row */
@@ -979,8 +978,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             kernOptical: { ja: "オプティカル", en: "Optical" }
         },
         button: {
-            reload: { ja: "再読み込み", en: "Reload" },
-            autoCalc: { ja: "自動計算", en: "Auto-calc" }
+            reload: { ja: "再読み込み", en: "Reload" }
         },
         tooltip: {
             stepUp: {
@@ -1037,8 +1035,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
                 en: "Re-read the current values from the selection and reflect them in the UI."
             },
             leadingAuto: {
-                ja: "現在の行送り（絶対値）からフォントサイズに対する％を計算し、行送り（%）に反映して適用します。",
-                en: "Compute the % of the current (absolute) leading relative to the font size, set it in Leading (%), and apply."
+                ja: "自動計算：現在の行送り（絶対値）からフォントサイズに対する％を計算し、行送り（%）に反映して適用します。",
+                en: "Auto: compute the % of the current (absolute) leading relative to the font size, set it in Leading (%), and apply."
             },
             proportionalMetrics: {
                 ja: "プロポーショナルメトリクス（和文プロポーショナル字形／メトリクス由来のツメ）をオン／オフします。",
@@ -1545,6 +1543,185 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     }
 
     // UI の明暗（再利用パーツ）ここまで / End of the reusable UI theme
+
+    // アイコンのボタン（再利用パーツ） / Icon buttons (reusable)
+
+    var ICON_BUTTON_SIZE = [24, 22]; /* 既定の大きさ / default size */
+    var ICON_BUTTON_UI_DARK = isDarkUI();
+    var ICON_BUTTON_COLOR     = ICON_BUTTON_UI_DARK ? [1, 1, 1, 1]    : [0, 0, 0, 0.70]; /* 絵の色 / icon color */
+    var ICON_BUTTON_DIM_COLOR = ICON_BUTTON_UI_DARK ? [1, 1, 1, 0.20] : [0, 0, 0, 0.25]; /* 無効時の色 / color when disabled */
+
+    /**
+     * onDraw で絵を描くアイコンのボタンを追加する。押すと onClick を呼ぶ（無効の間は押せず、薄く描く）
+     * @param {Group} parent - 追加先
+     * @param {number[]} iconSize - [幅, 高さ]
+     * @param {Function} drawIcon - 絵を描く関数 (iconGraphics, iconWidth, iconHeight, iconColor)
+     * @returns {Group} アイコン
+     */
+    function addIconButton(parent, iconSize, drawIcon) {
+        var iconButton = parent.add("group");
+        iconButton.preferredSize = iconSize;
+        iconButton.minimumSize = iconSize;
+        iconButton.maximumSize = iconSize;
+        iconButton.onDraw = function () {
+            var iconColor = isIconButtonEnabledInTree(iconButton) ? ICON_BUTTON_COLOR : ICON_BUTTON_DIM_COLOR;
+            drawIcon(iconButton.graphics, iconSize[0], iconSize[1], iconColor);
+        };
+        iconButton.addEventListener("mousedown", function () {
+            if (!isIconButtonEnabledInTree(iconButton)) return;
+            if (typeof iconButton.onClick === "function") iconButton.onClick();
+        });
+        return iconButton;
+    }
+
+    /**
+     * アイコンのボタンの有効／無効を切り替えて描き直す（変わらないときは描き直さない）
+     * @param {Group} iconButton - addIconButton() で作ったアイコン
+     * @param {boolean} isEnabled - 有効にするなら true
+     * @returns {void}
+     */
+    function setIconButtonEnabled(iconButton, isEnabled) {
+        if (iconButton.enabled === isEnabled) return;
+        iconButton.enabled = isEnabled;
+        /* group には notify() が無いため、隠して再表示して描き直させる / groups have no notify(), so hide and show to repaint */
+        iconButton.hide();
+        iconButton.show();
+    }
+
+    /**
+     * コントロールと親がすべて有効かを判定する（親の無効化は子の enabled に出ないため、親もたどる）
+     * @param {Object} control - 判定するコントロール
+     * @returns {boolean} すべて有効なら true
+     */
+    function isIconButtonEnabledInTree(control) {
+        for (var node = control; node; node = node.parent) {
+            if (!node.enabled) return false;
+        }
+        return true;
+    }
+
+    /**
+     * 絵の座標の長方形の並びを、縦横比を保って中央に置いて塗る（ScriptUI は多角形を塗れないため、斜めも長方形の並びで描く）
+     * @param {ScriptUIGraphics} iconGraphics - 描画先
+     * @param {number} iconWidth - アイコンの幅
+     * @param {number} iconHeight - アイコンの高さ
+     * @param {number[]} designSize - 絵の [幅, 高さ]
+     * @param {number[][]} designRects - 長方形 [左, 上, 右, 下] の並び
+     * @param {number[]} iconColor - [r, g, b, a]
+     * @returns {void}
+     */
+    function fillIconButtonRects(iconGraphics, iconWidth, iconHeight, designSize, designRects, iconColor) {
+        var iconScale = Math.min(iconWidth / designSize[0], iconHeight / designSize[1]);
+        var originX = (iconWidth - designSize[0] * iconScale) / 2;
+        var originY = (iconHeight - designSize[1] * iconScale) / 2;
+        iconGraphics.newPath();
+        for (var i = 0; i < designRects.length; i++) {
+            var designRect = designRects[i];
+            if (designRect[2] <= designRect[0] || designRect[3] <= designRect[1]) continue;
+            iconGraphics.rectPath(originX + designRect[0] * iconScale, originY + designRect[1] * iconScale,
+                (designRect[2] - designRect[0]) * iconScale, (designRect[3] - designRect[1]) * iconScale);
+        }
+        iconGraphics.fillPath(iconGraphics.newBrush(iconGraphics.BrushType.SOLID_COLOR, iconColor));
+    }
+
+    /**
+     * 保存アイコン（トレイに下向きの矢印）を描く。1223×993 の絵。
+     * 矢じりとトレイの V 字の切り欠きは細い長方形を並べ、トレイの四角い穴は塗らずに残す
+     * @param {ScriptUIGraphics} iconGraphics - 描画先
+     * @param {number} iconWidth - アイコンの幅
+     * @param {number} iconHeight - アイコンの高さ
+     * @param {number[]} iconColor - [r, g, b, a]
+     * @returns {void}
+     */
+    function drawSaveIcon(iconGraphics, iconWidth, iconHeight, iconColor) {
+        var designWidth = 1223;
+        var trayHole = [78, 688, 230, 840]; /* トレイの四角い穴 [左, 上, 右, 下] / the tray's square hole */
+        var sliceCount = 16;
+        var designRects = [[535, 0, 688, 383]]; /* 矢印の軸 / arrow shaft */
+        var k;
+
+        /** 穴と重なる部分を除いて長方形を足す / add a rectangle minus the tray hole */
+        function addTrayRect(left, top, right, bottom) {
+            if (right <= trayHole[0] || left >= trayHole[2] || bottom <= trayHole[1] || top >= trayHole[3]) {
+                designRects.push([left, top, right, bottom]);
+                return;
+            }
+            designRects.push([left, top, right, trayHole[1]], [left, trayHole[3], right, bottom],
+                [left, Math.max(top, trayHole[1]), trayHole[0], Math.min(bottom, trayHole[3])],
+                [trayHole[2], Math.max(top, trayHole[1]), right, Math.min(bottom, trayHole[3])]);
+        }
+
+        /* 下向きの矢じり（上の付け根から先端へ細っていく）/ the downward head */
+        for (k = 0; k < sliceCount; k++) {
+            var headHalf = 251 * (1 - (k + 0.5) / sliceCount);
+            var headTop = 383 + (703 - 383) * k / sliceCount;
+            designRects.push([612 - headHalf, headTop, 612 + headHalf, headTop + (703 - 383) / sliceCount]);
+        }
+        /* トレイ：上辺に V 字の切り欠き（幅 458 から下へ細り、856 で閉じる）/ tray with a V notch along the top */
+        for (k = 0; k < sliceCount; k++) {
+            var notchTop = 612 + (856 - 612) * k / sliceCount;
+            var notchBottom = notchTop + (856 - 612) / sliceCount;
+            var notchHalf = 229 * (1 - (k + 0.5) / sliceCount);
+            addTrayRect(0, notchTop, 612 - notchHalf, notchBottom);
+            addTrayRect(612 + notchHalf, notchTop, designWidth, notchBottom);
+        }
+        addTrayRect(0, 856, designWidth, 993);
+        fillIconButtonRects(iconGraphics, iconWidth, iconHeight, [designWidth, 993], designRects, iconColor);
+    }
+
+    /**
+     * 削除アイコン（ゴミ箱）を描く。756×825 の絵
+     * @param {ScriptUIGraphics} iconGraphics - 描画先
+     * @param {number} iconWidth - アイコンの幅
+     * @param {number} iconHeight - アイコンの高さ
+     * @param {number[]} iconColor - [r, g, b, a]
+     * @returns {void}
+     */
+    function drawTrashIcon(iconGraphics, iconWidth, iconHeight, iconColor) {
+        fillIconButtonRects(iconGraphics, iconWidth, iconHeight, [756, 825], [
+            [206, 0, 550, 70], [206, 70, 275, 137], [481, 70, 550, 137],     /* 取っ手 / handle */
+            [0, 137, 756, 207],                                               /* ふた / lid */
+            [69, 207, 138, 825], [618, 207, 688, 825], [138, 756, 618, 825], /* 本体 / body */
+            [206, 275, 275, 687], [343, 275, 413, 687], [481, 275, 550, 687] /* 縦の線 / ribs */
+        ], iconColor);
+    }
+
+    /**
+     * 自動計算アイコン（魔法の杖と3つのきらめき）を描く。24×22 の絵を、縦横比を保って中央に置く。
+     * 行数・列数や比率など、値を自動で求める［自動］ボタンの代わりに使う
+     * @param {ScriptUIGraphics} iconGraphics - 描画先
+     * @param {number} iconWidth - アイコンの幅
+     * @param {number} iconHeight - アイコンの高さ
+     * @param {number[]} iconColor - [r, g, b, a]
+     * @returns {void}
+     */
+    function drawAutoIcon(iconGraphics, iconWidth, iconHeight, iconColor) {
+        var iconScale = Math.min(iconWidth / 24, iconHeight / 22);
+        var originX = (iconWidth - 24 * iconScale) / 2;
+        var originY = (iconHeight - 22 * iconScale) / 2;
+
+        /** 絵の座標で線を1本引く / stroke one line in design coordinates */
+        function strokeLine(x1, y1, x2, y2, lineWidth) {
+            iconGraphics.newPath();
+            iconGraphics.moveTo(originX + x1 * iconScale, originY + y1 * iconScale);
+            iconGraphics.lineTo(originX + x2 * iconScale, originY + y2 * iconScale);
+            iconGraphics.strokePath(iconGraphics.newPen(iconGraphics.PenType.SOLID_COLOR, iconColor, lineWidth * iconScale));
+        }
+
+        /** 十字のきらめきを描く / draw a cross-shaped sparkle */
+        function drawSparkle(centerX, centerY, radius) {
+            strokeLine(centerX - radius, centerY, centerX + radius, centerY, 1.2);
+            strokeLine(centerX, centerY - radius, centerX, centerY + radius, 1.2);
+        }
+
+        strokeLine(4, 19, 14, 9, 2.2);     /* 杖 / wand */
+        strokeLine(14, 9, 16.5, 6.5, 3.2); /* 杖の先 / wand tip */
+        drawSparkle(18.5, 12.5, 2.5);
+        drawSparkle(9, 5, 2.5);
+        drawSparkle(20, 3.5, 1.8);
+    }
+
+    // アイコンのボタン（再利用パーツ）ここまで / End of the reusable icon buttons
 
     // ステップボタン（再利用パーツ） / Stepper buttons (reusable)
 
@@ -2256,7 +2433,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
      * 「フォントサイズと行送り」パネルを作る
      * @param {Group} parentGroup - 追加先のグループ
      * @param {{code: number, label: string}} textUnit - 文字サイズの単位
-     * @returns {{fontSizeInput: EditText, leadingEffectiveInput: EditText, leadingPercentInput: EditText, leadingAutoButton: Button}} 作成したコントロール
+     * @returns {{fontSizeInput: EditText, leadingEffectiveInput: EditText, leadingPercentInput: EditText, leadingAutoButton: Group}} 作成したコントロール
      */
     function buildLeadingPanel(parentGroup, textUnit) {
         var leadingPanel = parentGroup.add("panel", undefined, getLabel(LABELS.panel.sizeAndLeading));
@@ -2272,8 +2449,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
 
         /* 行送り（自動行送り量 %）/ Leading (auto-leading amount %) */
         var percentRow = addLeadingFieldRow(leadingPanel, LABELS.fieldLabel.leadingPercent, "%", LABELS.tooltip.leading);
-        var leadingAutoButton = percentRow.fieldRow.add("button", undefined, getLabel(LABELS.button.autoCalc));
-        leadingAutoButton.preferredSize.width = AUTO_BUTTON_WIDTH;
+        var leadingAutoButton = addIconButton(percentRow.fieldRow, ICON_BUTTON_SIZE, drawAutoIcon);
         leadingAutoButton.helpTip = getLabel(LABELS.tooltip.leadingAuto);
 
         /* ラベル幅を揃える / Unify label widths */
@@ -2645,7 +2821,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         paletteControls.leadingEffectiveInput.onChange = applyLeadingFromEffective;
         bindOneDecimalStepper(paletteControls.leadingEffectiveInput, 0, applyLeadingFromEffective);
 
-        /* 自動計算ボタン：現在の行送り（絶対値）から % を逆算して行送り（%）へ反映し適用
+        /* 自動計算のアイコン：現在の行送り（絶対値）から % を逆算して行送り（%）へ反映し適用
            Auto-calc button: back-calculate the % from the current (absolute) leading, set Leading (%), and apply */
         paletteControls.leadingAutoButton.onClick = function () {
             runWorker("getLeadingAbs", null, function (status, payload) {
