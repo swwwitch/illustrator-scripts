@@ -93,3 +93,4 @@ Editable in the "Settings" block at the top of the script.
 - v1.0.10 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.0.11 (2026-10-16) Right-only button rows are now centered when the dialog's inner width is up to 240 px (was 200 px) (shared part update)
 - v1.0.12 (2026-10-29) Rewrote a nested ternary as if/else so the target (selection, artboard, all) is applied as chosen
+- v1.0.14 (2026-11-20): Clicking the script name and version at the bottom left opens About This Script (copy the script name, open the README and other links, show in Finder; shared part updated)

@@ -112,6 +112,7 @@ https://note.com/dtp_tranist/n/ne0f78458ddd3
 
 ### Update History
 
+- v1.2.13 (2026-11-20) Clicking the script name and version at the bottom left opens About This Script (copy the script name, open the README and other links, show in Finder; shared part updated)
 - v1.2.12 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)
 - v1.2.11 (2026-10-29) Rewrote a nested ternary as if/else so custom sets sort correctly
 - v1.2.10 (2026-10-06) Confirmation dialogs for deleting or overwriting now default to No (Enter cancels)

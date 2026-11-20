@@ -61,6 +61,7 @@ Groups and compound paths are walked recursively. Text is handled by outlining a
 
 ### Update History
 
+- v1.3.9 (2026-11-20) Clicking the script name and version at the bottom left opens About This Script (copy the script name, open the README and other links, show in Finder; shared part updated)
 - v1.3.8 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)
 - v1.3.7 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.3.6 (2026-10-01): Added space below the button row to match Illustrator's own dialogs

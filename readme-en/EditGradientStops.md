@@ -44,4 +44,5 @@ Lists the gradient stops used by the selected objects and lets you change their 
 
 ### Update History
 
+- v1.0.1 (2026-11-20) Clicking the script name and version at the bottom left opens About This Script (copy the script name, open the README and other links, show in Finder; shared part updated)
 - v1.0.0 (2026-11-20) First release

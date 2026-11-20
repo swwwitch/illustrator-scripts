@@ -51,6 +51,7 @@ Rearranges a row of lines or objects so the gaps widen by a constant ratio, keep
 
 ### Update History
 
+- v1.6.2 (2026-11-20): Clicking the script name and version at the bottom left opens About This Script (copy the script name, open the README and other links, show in Finder; shared part updated)
 - v1.6.1 (2026-11-09): Renamed the dialog box to Blend-Like Spacing
 - v1.6.0 (2026-11-09): Folded Up, Left and Ends into a Reverse option, leaving three radio buttons per row
 - v1.5.0 (2026-11-09): Count is now the number to add (Add, 0 to 64), with Total shown beside it

@@ -64,6 +64,7 @@ https://note.com/dtp_tranist/n/n9f8c7370f4e5
 
 ### Update History
 
+- v1.9.2 (2026-11-20) Clicking the script name and version at the bottom left opens About This Script (copy the script name, open the README and other links, show in Finder; shared part updated)
 - v1.9.1 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)
 - v1.9.0 (2026-11-03) Added the Contact Sheet tab (columns and rows per artboard, margin, flow (Z / Reverse N) and scale; artboards are added for the items that do not fit; no background color or other artboard styling); a progress bar shows in the Load Artboards panel while loading; Shift-drag the Scale sliders to snap to 10%
 - v1.8.1 (2026-10-13) The right column is now tabbed (Grid / Spotlight), and the selected tab sets the mode; renamed Depth to Spotlight, Cover to Cover Size, labeled the Crop To dropdown and changed its defaults (cover 190%, far size 50%, scatter 70%, dimming 80%); switching back to Grid restores Rotate, Margin, Round Mask Corners and Background to their opening values; fixed OK not committing the Spotlight layout; Artboard Background & Mask moved below Layout

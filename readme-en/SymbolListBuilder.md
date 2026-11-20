@@ -45,6 +45,7 @@ Parameters are adjusted in a dialog with a live preview; OK commits the result (
 - v1.3.8 (2026-10-29): With the ruler unit set to H (ha), the size, margin and gap fields now show "H" instead of "Q". Unit conversion now uses the shared helpers
 - v1.3.9 (2026-10-29) Inches now read "in" instead of "inch", like the other scripts
 - v1.3.10 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)
+- v1.3.11 (2026-11-20) Clicking the script name and version at the bottom left opens About This Script (copy the script name, open the README and other links, show in Finder; shared part updated)
 
 ### Article
 

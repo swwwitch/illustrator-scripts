@@ -51,6 +51,7 @@
 
 ### Update History
 
+- v1.3.1 (2026-11-20) Clicking the script name and version at the bottom left opens About This Script (copy the script name, open the README and other links, show in Finder; shared part updated)
 - v1.3.0 (2026-11-15) Added a thumbnail of the rearranged artboards to the dialog (unmatched and duplicate artboards in orange). When no name has the row-column or prefix-number format, the warning now appears before the dialog opens
 - v1.2.12 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)
 - v1.2.11 (2026-10-29) With the ruler unit set to Ha (H), unit labels now read "H" instead of "Q" (unit handling unified)

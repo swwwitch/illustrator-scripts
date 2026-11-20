@@ -85,6 +85,7 @@ https://note.com/dtp_tranist/n/nf9d7245b0653
 
 ### Update History
 
+- v1.5.2 (2026-11-20) Clicking the script name and version at the bottom left opens About This Script (copy the script name, open the README and other links, show in Finder; shared part updated)
 - v1.5.1 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)
 - v1.5.0 (2026-11-03) Added the built-in preset "Keep all" (every row Keep, every option off)
 - v1.4.0 (2026-11-01) Added "Half-width forms for 2-digit numbers" and "Third-width forms for 3-digit numbers" (applies fixed-width glyph forms to two or three half-width digits; numbers with separators and digits next to letters are skipped) and "Units after digits to squares" (5kg → 5㌕, 10m2 → 10㎡) to Vertical Text. Added Dashes to Punctuation (unifies — ― ─ to the chosen form)

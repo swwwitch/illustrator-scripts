@@ -116,6 +116,7 @@ It can also round the frame corners, fill the cells with random gray tints, and 
 
 ### Update History
 
+- v1.10.2 (2026-11-20) Clicking the script name and version at the bottom left opens About This Script (copy the script name, open the README and other links, show in Finder; shared part updated)
 - v1.10.1 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)
 - v1.10.0 (2026-10-30) Added the Options panel below the Cells panel, with "Grayscale" (black strokes and text, grayscale path and cell fills)
 - v1.9.0 (2026-10-30) Added "Text color" to the Text panel (applies the color picked in the Color Picker to the fill of the selected texts)

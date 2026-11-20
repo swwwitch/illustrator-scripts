@@ -71,4 +71,5 @@
 - v2.10.12 (2026-10-16) Right-only button rows are now centered when the dialog's inner width is up to 240 px (was 200 px) (shared part update)
 - v2.10.13 (2026-10-29): Fixed values being rounded to 2 decimals instead of 3 with in, cm, pica and other units of 10 pt or more. Unit conversion now uses the shared helpers
 - v2.10.14 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)
+- v2.10.15 (2026-11-20) Clicking the script name and version at the bottom left opens About This Script (copy the script name, open the README and other links, show in Finder; shared part updated)
 

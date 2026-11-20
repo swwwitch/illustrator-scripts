@@ -67,6 +67,7 @@ Clicking Export remembers each artboard's settings plus the file name, destinati
 
 ### Update History
 
+- v1.1.5 (2026-11-20) Clicking the script name and version at the bottom left opens About This Script (copy the script name, open the README and other links, show in Finder; shared part updated)
 - v1.1.4 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)
 - v1.1.3 (2026-10-29) Rewrote a nested ternary as if/else so the background swatch (black, white, transparent) shows the right color
 - v1.1.2 (2026-10-06) Confirmation dialogs for deleting or overwriting now default to No (Enter cancels)

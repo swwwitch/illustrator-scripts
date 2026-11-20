@@ -48,4 +48,5 @@ Modified from [Bin Packing For Illustrator and Indesign](https://github.com/mark
 
 ### Update History
 
+- v1.2.1 (2026-11-20) : Clicking the script name and version at the bottom left opens About This Script (copy the script name, open the README and other links, show in Finder; shared part updated)
 - v1.2.0 (2026-11-07) : First public release. **Show results** is now off by default. The library is bundled, so this script runs on its own

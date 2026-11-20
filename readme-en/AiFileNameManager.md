@@ -221,6 +221,7 @@ The active Illustrator document. The output is always .ai. When a non-.ai docume
 - v1.3.17 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.3.18 (2026-10-06) Confirmation dialogs for deleting or overwriting now default to No (Enter cancels)
 - v1.3.21 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)
+- v1.3.22 (2026-11-20) Clicking the script name and version at the bottom left opens About This Script (copy the script name, open the README and other links, show in Finder; shared part updated)
 
 ### Article
 

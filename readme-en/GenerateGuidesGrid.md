@@ -95,4 +95,5 @@ https://note.com/sgswkn/n/nee8c3ec1a14c
 - v1.8.10 (2026-10-29) Unit conversion now uses the shared unit table; fixed ruler units ft/in, m, yd and ft being treated as points
 - v1.8.11 (2026-10-29) Number fields now show units like the other scripts ("in" for inches, "H" for Ha)
 - v1.8.12 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)
+- v1.8.13 (2026-11-20) Clicking the script name and version at the bottom left opens About This Script (copy the script name, open the README and other links, show in Finder; shared part updated)
 

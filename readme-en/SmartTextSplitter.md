@@ -36,4 +36,5 @@ Splits the selected text frame into one text frame per character, preserving the
 - v2.0.10 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v2.0.11 (2026-10-16) Right-only button rows are now centered when the dialog's inner width is up to 240 px (was 200 px) (shared part update)
 - v2.0.12 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)
+- v2.0.13 (2026-11-20) Clicking the script name and version at the bottom left opens About This Script (copy the script name, open the README and other links, show in Finder; shared part updated)
 

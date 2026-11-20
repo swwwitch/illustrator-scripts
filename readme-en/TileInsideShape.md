@@ -49,6 +49,7 @@ The fill area can also be the backmost object or the active artboard.
 
 ### Update History
 
+- v2.2.1 (2026-11-20) Clicking the script name and version at the bottom left opens About This Script (copy the script name, open the README and other links, show in Finder; shared part updated)
 - v2.2.0 (2026-11-08) Added the Target panel to choose the fill area from Largest Object, Backmost Object and Active Artboard. Active Artboard tiles every selected object and runs with a single object selected (the Fill Area panel is dimmed). Original objects over the fill area are hidden from the preview on and stay hidden after tiling (Cancel shows and reselects them again). The chosen target is remembered until Illustrator quits, like the other settings
 - v2.1.1 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)
 - v2.1.0 (2026-10-31) The preview is now always shown, and the Preview checkbox was removed. The preview now appears at full opacity instead of 60%. Added Reset to the left of the buttons in its place (restores every setting to the script's defaults; the random arrangement is kept)

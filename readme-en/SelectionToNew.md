@@ -128,6 +128,7 @@ The artboard layout logic is ported from [AddArtboardPlus.jsx](https://github.co
 
 ## Update history
 
+- v1.1.10 (2026-11-20) Clicking the script name and version at the bottom left opens About This Script (copy the script name, open the README and other links, show in Finder; shared part updated)
 - v1.1.8 (2026-10-06) Confirmation dialogs for deleting or overwriting now default to No (Enter cancels)
 - v1.1.7 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.1.6 (2026-10-01): Added space below the button row to match Illustrator's own dialogs

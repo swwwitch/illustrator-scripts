@@ -90,6 +90,7 @@ The dialog follows the Japanese / English UI. The 3×3 registration widget is dr
 
 ## Change log
 
+- v1.1.10 (2026-11-20): Clicking the script name and version at the bottom left opens About This Script (copy the script name, open the README and other links, show in Finder; shared part updated)
 - v1.1.8 (2026-10-16): Right-only button rows are now centered when the dialog's inner width is up to 240 px (was 200 px) (shared part update)
 - v1.1.6 (2026-10-01): Added space below the button row to match Illustrator's own dialogs
 - v1.1.5 (2026-10-01): Moved the color dialog's buttons to the standard bottom row and removed hand-written centering; position and opacity now come from the shared part. Unified the window and panel margins and spacing with the shared layout part

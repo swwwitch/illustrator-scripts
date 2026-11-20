@@ -145,6 +145,7 @@ Colors given as K tints become grays of the same darkness in RGB documents.
 
 ### Update History
 
+- v1.1.5 (2026-11-20) Clicking the script name and version at the bottom left opens About This Script (copy the script name, open the README and other links, show in Finder; shared part updated)
 - v1.1.4 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)
 - v1.1.3 (2026-10-09) Branches with a junction caption now center their band on the caption, so the junction circle/rectangle and the band split line up
 - v1.1.2 (2026-10-09) Draw Bands as Strokes is now on by default

@@ -146,6 +146,7 @@ https://note.com/dtp_tranist/n/na1804afb7fe2
 
 ### Update History
 
+- v1.7.7 (2026-11-20) Clicking the script name and version at the bottom left opens About This Script (copy the script name, open the README and other links, show in Finder; shared part updated)
 - v1.7.6 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)
 - v1.7.5 (2026-11-02) Added the built-in preset Rounded Frame (after Frame)
 - v1.7.4 (2026-11-02) Renamed Match Padding to Auto-Adjust Kerning to Padding

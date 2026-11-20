@@ -83,6 +83,7 @@ https://note.com/dtp_tranist/n/n42595650216f
 
 ### Changelog
 
+- v1.4.2 (2026-11-20) Clicking the script name and version at the bottom left opens About This Script (copy the script name, open the README and other links, show in Finder; shared part updated)
 - v1.4.1 (2026-11-15) The thumbnail now reads each page's boxes (crop, trim, bleed, media, rotation) from the PDF file instead of placing pages temporarily to measure them. Nothing is placed while the dialog is open, and PDFs with mixed page sizes are drawn page by page. The thumbnail is not shown for PDFs whose page data is compressed (object streams)
 - v1.4.0 (2026-11-15) Added a thumbnail of the placement layout to the dialog. It redraws as you change the settings and labels split spread halves with their side, such as 3L and 3R. For the thumbnail, pages 1 and 2 are briefly placed to measure their size when a file is chosen or the crop changes
 - v1.3.10 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)

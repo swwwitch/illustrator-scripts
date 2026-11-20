@@ -46,3 +46,4 @@ https://note.com/dtp_tranist/n/na3c45cea09b7 (Japanese)
 - v1.3.8 (2026-10-16) Right-only button rows are now centered when the dialog's inner width is up to 240 px (was 200 px) (shared part update)
 - v1.3.9 (2026-10-21) The dialog now remembers its settings (direction, spacing, alignment, options) from when it was last closed, for the rest of the Illustrator session
 - v1.3.10 (2026-10-29) With the ruler unit set to Ha (H), unit labels now read "H" instead of "Q" (unit handling unified)
+- v1.3.12 (2026-11-20) Clicking the script name and version at the bottom left opens About This Script (copy the script name, open the README and other links, show in Finder; shared part updated)

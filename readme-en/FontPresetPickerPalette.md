@@ -89,6 +89,7 @@ https://note.com/dtp_tranist/n/n3d7f8b58ef88
 
 ### Release Notes
 
+- v1.2.2 (2026-11-20) Clicking the script name and version at the bottom left opens About This Script (copy the script name, open the README and other links, show in Finder; shared part updated)
 - v1.2.0 (2026-10-16) Added support for the document's custom mojikumi sets: they are saved by name and, on apply, matched by name in the target document (mojikumi is left unchanged when no set has that name)
 - v1.1.4 (2026-10-03) Moved to the shared persistent engine `SwwwitchPalettes` so CloseAllPalettes can close it
 - v1.1.3 (2026-10-01) Added space below the button row to match Illustrator's own dialogs

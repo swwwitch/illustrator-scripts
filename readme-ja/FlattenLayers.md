@@ -67,6 +67,7 @@ Locked / hidden layers and objects can be excluded independently, and dialog ite
 are dimmed automatically. Guides can be handled in one of three modes: integrate, keep in the current layer,
 or move to another layer.
 - v1.7.14（2026-11-05）バージョンをタイトルバーから外し、ダイアログボックスの左下に小さく薄く表示（共通部品の追加）
+- v1.7.15（2026-11-20）左下のスクリプト名・バージョンをクリックすると［このスクリプトについて］を表示（スクリプト名のコピー、README などのリンク、Finder に表示。共通部品の更新）
 
 ### スクリプト情報
 

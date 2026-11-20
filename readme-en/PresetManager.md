@@ -217,3 +217,4 @@ Every checkbox item is declared once, on a single line that carries its preferen
 - v1.10.1 (2026-10-10) The dialog now opens centered after switching layouts
 - v1.10.2 (2026-10-10) Added Light Gray to the highlight colors. [Preset 1] now uses Light Gray and a stroke width of 1 (matching [Light] in the artboard display palette)
 - v1.10.3 (2026-10-10) The dialog now opens in the two-column view the first time
+- v1.10.5 (2026-11-20): Clicking the script name and version at the bottom left opens About This Script (copy the script name, open the README and other links, show in Finder; shared part updated)

@@ -80,3 +80,4 @@ https://note.com/dtp_tranist/n/nba8235fe91b2
 - v2.5.3 (2026-11-08): Japanese font detection no longer counts the kana-only fonts SDUdai, SDTenga and SDSeimu
 - v2.6.0 (2026-11-08): Added "Exclude kana fonts" (on by default), which leaves out kana-only fonts without kanji (such as ML Chocolate, ML Tokatsuki Kana, Seiren Mincho Kana, Hommaru Kana and Seimei Kana). Fonts that were left out only because their names contain Kana, such as FOT-Kanae Reisho, now count as Japanese
 - v2.6.1 (2026-11-13): "Exclude kana fonts" also leaves out the TypeBank Ajioka kana series (Komachi, Ryokan, Yukinari, Kodoken and Tsukiji, such as TB Komachi G Std and Komachi-GM)
+- v2.6.2 (2026-11-20): Clicking the script name and version at the bottom left opens About This Script (copy the script name, open the README and other links, show in Finder; shared part updated)

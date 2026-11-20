@@ -79,6 +79,7 @@ The defaults can be changed in the "User Settings" block at the top of the scrip
 
 ### Update History
 
+- v1.1.4 (2026-11-20) Clicking the script name and version at the bottom left opens About This Script (copy the script name, open the README and other links, show in Finder; shared part updated)
 - v1.1.3 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)
 - v1.1.2 (2026-10-16) Right-only button rows are now centered when the dialog's inner width is up to 240 px (was 200 px) (shared part update)
 - v1.1.1 (2026-10-08) The source PDF itself and PDFs saved earlier in the same run are never overwritten (with "Overwrite Existing PDF" on, a number is added or the file is skipped)

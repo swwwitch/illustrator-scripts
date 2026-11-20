@@ -39,6 +39,7 @@
 - v1.8.0 (2026-10-21) Added Preview, which shows the result on the artboard while the dialog is open
 - v1.8.1 (2026-10-29) The default custom stroke width (0.25 pt) is now shown in the stroke unit (with a mm stroke unit it was taken as 0.25 mm)
 - v1.8.2 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)
+- v1.8.3 (2026-11-20) Clicking the script name and version at the bottom left opens About This Script (copy the script name, open the README and other links, show in Finder; shared part updated)
 
 ### Script info
 

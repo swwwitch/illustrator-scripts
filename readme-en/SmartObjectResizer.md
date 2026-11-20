@@ -172,6 +172,7 @@ The key-object detection is based on the idea published in this article.
 
 ## Update history
 
+- v1.5.9 (2026-11-20) Clicking the script name and version at the bottom left opens About This Script (copy the script name, open the README and other links, show in Finder; shared part updated)
 - v1.5.7 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.5.6 (2026-10-01): Added space below the button row to match Illustrator's own dialogs
 - v1.5.5 (2026-10-01): Unified the window and panel margins and spacing with the shared layout part

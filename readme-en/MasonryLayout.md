@@ -61,3 +61,4 @@ The layout calculation is ported from [Masonry](https://masonry.desandro.com) v3
 - v1.1.0 (2026-11-07): Added Fit to Artboard, Match Width to Column, Margin, and From Center for the artboard
 - v1.1.1 (2026-11-07): The dialog now opens with Current Artboard, Fit to Artboard on, From Center both ways, and Random order
 - v1.2.0 (2026-11-07): Added Rotate 90° to Fit Column. Renamed the Current Artboard reference to Artboard, which now uses the artboard holding the selected objects. Column Width can now be used with the artboard
+- v1.2.1 (2026-11-20): Clicking the script name and version at the bottom left opens About This Script (copy the script name, open the README and other links, show in Finder; shared part updated)

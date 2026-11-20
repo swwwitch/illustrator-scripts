@@ -139,6 +139,7 @@ ExtendScript has no way to reveal a file with selection, so the path is handed t
 
 ### Update History
 
+- v1.7.3 (2026-11-20) Clicking the script name and version at the bottom left opens About This Script (copy the script name, open the README and other links, show in Finder; shared part updated)
 - v1.7.2 (2026-11-09) After closing with **Remember the search** off, the checkbox is back on the next time you open the launcher. It used to stay off until Illustrator quit, which made it easy to miss that nothing was being remembered
 - v1.7.1 (2026-11-09) When no script in the folder has a description (`SCRIPT_DESCRIPTION_JA`), the launcher opens without the description column (a single file-name column, with up to two rows of English keyword buttons). Set `SHOW_DESCRIPTION_COLUMN` at the top of the script to `false` to always use this layout
 - v1.7.0 (2026-11-09) Split the file name list into two columns; the right column shows each script's description (`SCRIPT_DESCRIPTION_JA`), which the keyword search now covers. Drag the header divider to resize the columns. Keyword buttons now take two rows: English words from the file names on the first, and up to eight frequent Japanese words from the descriptions on the second

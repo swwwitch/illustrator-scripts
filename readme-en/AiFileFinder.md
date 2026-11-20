@@ -188,6 +188,7 @@ ExtendScript has no way to select a file in the Finder, so the path is handed to
 
 ### Version history
 
+- v1.2.3 (2026-11-20) Clicking the script name and version at the bottom left opens About This Script (copy the script name, open the README and other links, show in Finder; shared part updated)
 - v1.2.1 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.2.0 (2026-10-04): Added [Export...] and [Import...] to the search folders in the preferences (a text file with one path per line)
 - v1.1.0 (2026-10-01): Folders and files are now shown in Path Finder while it is running, when the helper app OpenInFileViewer.app is installed (takes priority over RevealInFinder.app)

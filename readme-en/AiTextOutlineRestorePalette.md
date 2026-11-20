@@ -112,6 +112,7 @@ The template-layer attribute cannot be set through the API, so a temporary actio
 
 ## Update history
 
+- v2.0.13 (2026-11-20) Clicking the script name and version at the bottom left opens About This Script (copy the script name, open the README and other links, show in Finder; shared part updated)
 - v2.0.11 (2026-10-16) Custom mojikumi sets defined in the document are now saved and restored
 - v2.0.10 (2026-10-10) Fixed the palette operating on another Illustrator version when several versions are running
 - v2.0.9 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)

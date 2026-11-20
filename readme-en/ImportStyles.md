@@ -67,4 +67,5 @@
 - v1.5.10 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.5.11 (2026-10-29): Fixed closing an already-open library file without saving its changes (the import stops when the file is the destination itself). [Add] now asks before replacing a same-named file and copies nothing when the name dialog is cancelled. The selection is cleared before pasting so selected text is not replaced. [Add] also clears the search query so the new item shows in the list
 - v1.5.12 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)
+- v1.5.13 (2026-11-20) Clicking the script name and version at the bottom left opens About This Script (copy the script name, open the README and other links, show in Finder; shared part updated)
 

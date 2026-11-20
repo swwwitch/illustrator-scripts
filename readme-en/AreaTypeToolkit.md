@@ -207,6 +207,7 @@ TextFrame (point / path / area text), PathItem and CompoundPathItem (closed path
 
 ## Change log
 
+- v1.7.2 (2026-11-20) Clicking the script name and version at the bottom left opens About This Script (copy the script name, open the README and other links, show in Finder; shared part updated)
 - v1.7.0 (2026-10-16) Added the document's custom mojikumi sets to the Mojikumi menu (a custom set on the selected text is now reflected). Fixed the mojikumi read-back not recognizing built-in sets
 - v1.6.2 (2026-10-12) Fixed Separate Text shifting centered and right-aligned Roman text left by the space left at each wrap (that space is now replaced by the return). Fixed point text landing far from the frame when the whole text was overset
 - v1.6.1 (2026-10-12) Added Remove returns and line breaks to the text handling in Separate Text

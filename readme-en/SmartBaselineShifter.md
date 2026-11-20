@@ -55,4 +55,5 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartBasel
 
 ### Update History
 
+- v2.3.9 (2026-11-20) Clicking the script name and version at the bottom left opens About This Script (copy the script name, open the README and other links, show in Finder; shared part updated)
 - v2.3.7 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)

@@ -36,6 +36,7 @@ osacompile -o /Applications/OpenInFileViewer.app helpers/OpenInFileViewer.apples
 
 ### Update History
 
+- v1.2.3 (2026-11-20) Clicking the script name and version at the bottom left opens About This Script (copy the script name, open the README and other links, show in Finder; shared part updated)
 - v1.2.2 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)
 - v1.2.1 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.2.0 (2026-10-01) Added **Close the document after export** and **Open the output folder after export** below the list (both on by default; opening the folder is macOS only). With the helper app, the folder opens in Path Finder while it is running

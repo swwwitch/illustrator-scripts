@@ -69,6 +69,7 @@
 
 ### Changelog
 
+- v1.3.7 (2026-11-20) Clicking the script name and version at the bottom left opens About This Script (copy the script name, open the README and other links, show in Finder; shared part updated)
 - v1.3.6 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)
 - v1.3.5 (2026-10-10) Fixed the palette operating on another Illustrator version when several versions are running
 - v1.3.4 (2026-10-07) Updated the stepper part to the latest version. Tooltips now describe the arrow keys as they actually behave, and errors read "Error: details"

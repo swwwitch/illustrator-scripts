@@ -123,6 +123,7 @@ https://note.com/dtp_tranist/n/ndb9bee6b7a2e
 
 ### Change log
 
+- v1.5.2 (2026-11-20): Clicking the script name and version at the bottom left opens About This Script (copy the script name, open the README and other links, show in Finder; shared part updated)
 - v1.5.0 (2026-10-12): Reorganized the dialog into the Margins, Rules, Mask and Rotation, Typesetting and Dummy Text panels. Added Direction (vertical / horizontal) and English newspaper mode, so Japanese / Western and the direction are chosen separately (horizontal Western draws the headline rules above and below and the tier rules as vertical rules). Added Single (top only) to the rule styles, Weight for the rules and the tier rules, Gutter, Vertical for the mask, linked margins, Text... (replace the dummy text), Tier rules, Fit to Window, and Option (Alt)+B to toggle Blur. Merged Tiers and Columns into one field. Initial choices now follow the selected headline. Length and weight fields hold their unit, and label widths are measured and aligned. Reviewed the wording and cleaned up the internals
 - v1.4.1 (2026-10-12): Added a checkbox to Blur so it can be turned on and off without changing the radius
 - v1.4.0 (2026-10-12): Added Japanese and Western options to the newspaper dummy; Western builds horizontal columns from the number of columns the headline spans. The dialog now has two columns, with the newspaper dummy settings on the right

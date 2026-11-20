@@ -62,6 +62,7 @@ The shadow is built by bridging the original shape and a moved, scaled copy of i
 
 ### Update History
 
+- v1.7.1 (2026-11-20) Clicking the script name and version at the bottom left opens About This Script (copy the script name, open the README and other links, show in Finder; shared part updated)
 - v1.7.0 (2026-11-09) Added Average Edge, which trims the uneven far end of the shadow along a horizontal or vertical line
 - v1.6.1 (2026-11-09) Fixed the temporary outline (merged shape) used to build the shadow being left in the document for text and groups
 - v1.6.0 (2026-11-09) Holding Shift while dragging a slider now steps the angle by 15° and the scale by 10%

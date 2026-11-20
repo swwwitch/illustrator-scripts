@@ -58,14 +58,15 @@ Press Down in the search field to move to the list. Cmd (Ctrl) / Shift-click to 
 | Item | Value |
 | --- | --- |
 | File | `jsx/misc/AiPanelLauncher.jsx` |
-| Version | v1.1.0 |
+| Version | v1.1.1 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-11-05 |
-| Last updated | 2026-11-06 |
+| Last updated | 2026-11-20 |
 | Tested with | Illustrator 2026 (30.8) / macOS |
 
 ### Update History
 
+- v1.1.1 (2026-11-20): Clicking the script name and version at the bottom left opens About This Script (copy the script name, open the README and other links, show in Finder; shared part updated)
 - v1.1.0 (2026-11-06): Added set buttons that show a fixed group of panels at once (Text, Appearance, Color)
 - v1.0.0 (2026-11-05): Initial release
 

@@ -71,3 +71,4 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/mask/ResizeClipM
 - v1.7.11 (2026-10-29) With the ruler unit set to Ha (H), unit labels now read "H" instead of "Q" (unit handling unified)
 - v1.7.12 (2026-10-29) Offset and Margin are now converted from the ruler unit to points (typing 10 with a mm ruler used to apply 10 pt). The defaults keep the same length (-20 pt, 0 pt), shown in the ruler unit
 - v1.8.0 (2026-11-15) Added a thumbnail of the slices to the dialog. It redraws as you change the aspect ratio, rows, columns, offset, margin or artboard naming, and shows the artboard name each slice gets
+- v1.8.1 (2026-11-20): Clicking the script name and version at the bottom left opens About This Script (copy the script name, open the README and other links, show in Finder; shared part updated)
