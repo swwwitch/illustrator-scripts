@@ -5,13 +5,13 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-保存（トレイに下向きの矢印）と削除（ゴミ箱）のアイコンのボタンを、onDraw で描く再利用テンプレートです。
-プリセットの保存・削除など、文字のボタンの代わりに使います。無効の間は押せず、薄く描きます。
+保存（トレイに下向きの矢印）・削除（ゴミ箱）・自動計算（魔法の杖ときらめき）のアイコンのボタンを、onDraw で描く再利用テンプレートです。
+プリセットの保存・削除や、値を自動で求める［自動］など、文字のボタンの代わりに使います。無効の間は押せず、薄く描きます。
 
 ### Overview
 
-A reusable template for save (tray with a down arrow) and delete (trash can) icon buttons drawn in onDraw.
-Use them in place of text buttons, e.g. to save or delete presets. While disabled they cannot be pressed and are drawn faint.
+A reusable template for save (tray with a down arrow), delete (trash can), and auto (magic wand with sparkles) icon buttons drawn in onDraw.
+Use them in place of text buttons, e.g. to save or delete presets or to calculate a value automatically. While disabled they cannot be pressed and are drawn faint.
 
 */
 
@@ -19,10 +19,10 @@ Use them in place of text buttons, e.g. to save or delete presets. While disable
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "IconButtons";                  /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-04";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-11-20";                   /* 更新日 / last updated */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
@@ -31,7 +31,7 @@ var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last update
 
     // 【移植手順 / How to port】
     // 1. 「（再利用パーツ）」の行から「ここまで」の行までをまるごと、コピー先の IIFE 内に貼る。
-    //    識別子は ICON_BUTTON_* / *IconButton* / drawSaveIcon / drawTrashIcon
+    //    識別子は ICON_BUTTON_* / *IconButton* / drawSaveIcon / drawTrashIcon / drawAutoIcon
     //    UI の明暗は UITheme 部品の isDarkUI() を使う（先に UITheme の部品も貼っておく）
     // 2. アイコンを addIconButton(親, [幅, 高さ], 描く関数) で作り、onClick と helpTip はコピー先で付ける
     //      var presetSaveIcon = addIconButton(presetRow, ICON_BUTTON_SIZE, drawSaveIcon);
@@ -182,6 +182,41 @@ var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last update
         ], iconColor);
     }
 
+    /**
+     * 自動計算アイコン（魔法の杖と3つのきらめき）を描く。24×22 の絵を、縦横比を保って中央に置く。
+     * 行数・列数や比率など、値を自動で求める［自動］ボタンの代わりに使う
+     * @param {ScriptUIGraphics} iconGraphics - 描画先
+     * @param {number} iconWidth - アイコンの幅
+     * @param {number} iconHeight - アイコンの高さ
+     * @param {number[]} iconColor - [r, g, b, a]
+     * @returns {void}
+     */
+    function drawAutoIcon(iconGraphics, iconWidth, iconHeight, iconColor) {
+        var iconScale = Math.min(iconWidth / 24, iconHeight / 22);
+        var originX = (iconWidth - 24 * iconScale) / 2;
+        var originY = (iconHeight - 22 * iconScale) / 2;
+
+        /** 絵の座標で線を1本引く / stroke one line in design coordinates */
+        function strokeLine(x1, y1, x2, y2, lineWidth) {
+            iconGraphics.newPath();
+            iconGraphics.moveTo(originX + x1 * iconScale, originY + y1 * iconScale);
+            iconGraphics.lineTo(originX + x2 * iconScale, originY + y2 * iconScale);
+            iconGraphics.strokePath(iconGraphics.newPen(iconGraphics.PenType.SOLID_COLOR, iconColor, lineWidth * iconScale));
+        }
+
+        /** 十字のきらめきを描く / draw a cross-shaped sparkle */
+        function drawSparkle(centerX, centerY, radius) {
+            strokeLine(centerX - radius, centerY, centerX + radius, centerY, 1.2);
+            strokeLine(centerX, centerY - radius, centerX, centerY + radius, 1.2);
+        }
+
+        strokeLine(4, 19, 14, 9, 2.2);     /* 杖 / wand */
+        strokeLine(14, 9, 16.5, 6.5, 3.2); /* 杖の先 / wand tip */
+        drawSparkle(18.5, 12.5, 2.5);
+        drawSparkle(9, 5, 2.5);
+        drawSparkle(20, 3.5, 1.8);
+    }
+
     // アイコンのボタン（再利用パーツ）ここまで / End of the reusable icon buttons
 
     /**
@@ -228,6 +263,16 @@ var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last update
         deleteIcon.onClick = function () { alert((isJapanese ? "削除 : " : "Delete: ") + presetDropdown.selection.text); };
         setIconButtonEnabled(deleteIcon, false);
         presetDropdown.onChange = function () { setIconButtonEnabled(deleteIcon, presetDropdown.selection.index > 0); };
+
+        /* 数値欄の右に自動計算のアイコン / an Auto icon next to a number field */
+        var countRow = demoDialog.add("group");
+        countRow.orientation = "row";
+        countRow.alignChildren = ["left", "center"];
+        var countInput = countRow.add("edittext", undefined, "3");
+        countInput.characters = 4;
+        var autoIcon = addIconButton(countRow, ICON_BUTTON_SIZE, drawAutoIcon);
+        autoIcon.helpTip = isJapanese ? "自動計算" : "Calculate automatically";
+        autoIcon.onClick = function () { countInput.text = String(Math.floor(Math.random() * 9) + 1); };
 
         demoDialog.add("button", undefined, "OK", { name: "ok" });
         demoDialog.show();
