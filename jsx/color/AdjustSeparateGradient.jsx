@@ -1734,6 +1734,9 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         /* return でも esc でも閉じる / Close with both Return and Esc */
         infoDialog.defaultElement = closeButton;
         infoDialog.cancelElement = closeButton;
+        infoDialog.onShow = function () {
+            pinVersionInfoCopyButton(infoPanel);
+        };
         infoDialog.show();
     }
 
@@ -1777,8 +1780,24 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         var copySpacer = infoRow.add("group");
         copySpacer.alignment = ["fill", "fill"];
         copySpacer.minimumSize.width = 0;
-        addVersionInfoCopyButton(infoRow, valueLabel, copyFromPalette);
+        infoRow.copyButton = addVersionInfoCopyButton(infoRow, valueLabel, copyFromPalette);
         return valueLabel;
+    }
+
+    /**
+     * コピーボタンを［基本情報］パネルの右端に置き直す（表示時、レイアウトが決まったあとに呼ぶ）。
+     * 行の fill・スペーサーだけでは、項目の値が短い行がパネルの幅まで伸びないことがあるので、行の幅とボタンの位置を直接入れる
+     * @param {Panel} infoPanel - ［基本情報］パネル
+     * @returns {void}
+     */
+    function pinVersionInfoCopyButton(infoPanel) {
+        var innerWidth = infoPanel.size.width - VERSION_INFO_PANEL_MARGINS[0] - VERSION_INFO_PANEL_MARGINS[2];
+        for (var i = 0; i < infoPanel.children.length; i++) {
+            var infoRow = infoPanel.children[i];
+            if (!infoRow.copyButton || !infoRow.size || infoRow.size.width >= innerWidth) continue;
+            infoRow.size = [innerWidth, infoRow.size.height];
+            infoRow.copyButton.location = [innerWidth - infoRow.copyButton.size.width, infoRow.copyButton.location[1]];
+        }
     }
 
     /**

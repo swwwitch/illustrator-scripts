@@ -20,7 +20,7 @@ Clicking the name and version at the bottom left opens About This Script (copy t
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "VersionFooter";                /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.2.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.2.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-11-05";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-11-20";                   /* 更新日 / last updated */
@@ -447,6 +447,9 @@ var SCRIPT_UPDATED  = "2026-11-20";                   /* 更新日 / last update
         /* return でも esc でも閉じる / Close with both Return and Esc */
         infoDialog.defaultElement = closeButton;
         infoDialog.cancelElement = closeButton;
+        infoDialog.onShow = function () {
+            pinVersionInfoCopyButton(infoPanel);
+        };
         infoDialog.show();
     }
 
@@ -484,10 +487,30 @@ var SCRIPT_UPDATED  = "2026-11-20";                   /* 更新日 / last update
         var rowLabel = infoRow.add("statictext", undefined, getVersionInfoLabel(labelEntry) + (VERSION_INFO_LANG === "ja" ? " :" : ":"));
         rowLabel.justify = "right";
         var valueLabel = infoRow.add("statictext", undefined, valueText);
-        /* 余りの幅を取り、コピーボタンを右端に置く / Take the extra width so the copy button sits at the right */
-        valueLabel.alignment = ["fill", "center"];
-        if (copyFromPalette !== null) addVersionInfoCopyButton(infoRow, valueLabel, copyFromPalette);
+        if (copyFromPalette === null) return valueLabel;
+        /* statictext の fill では伸びないことがあるので、伸びるスペーサーでコピーボタンをパネルの右端に寄せる
+           A stretching spacer (statictext fill is unreliable) pushes the copy button to the panel's right edge */
+        var copySpacer = infoRow.add("group");
+        copySpacer.alignment = ["fill", "fill"];
+        copySpacer.minimumSize.width = 0;
+        infoRow.copyButton = addVersionInfoCopyButton(infoRow, valueLabel, copyFromPalette);
         return valueLabel;
+    }
+
+    /**
+     * コピーボタンを［基本情報］パネルの右端に置き直す（表示時、レイアウトが決まったあとに呼ぶ）。
+     * 行の fill・スペーサーだけでは、項目の値が短い行がパネルの幅まで伸びないことがあるので、行の幅とボタンの位置を直接入れる
+     * @param {Panel} infoPanel - ［基本情報］パネル
+     * @returns {void}
+     */
+    function pinVersionInfoCopyButton(infoPanel) {
+        var innerWidth = infoPanel.size.width - VERSION_INFO_PANEL_MARGINS[0] - VERSION_INFO_PANEL_MARGINS[2];
+        for (var i = 0; i < infoPanel.children.length; i++) {
+            var infoRow = infoPanel.children[i];
+            if (!infoRow.copyButton || !infoRow.size || infoRow.size.width >= innerWidth) continue;
+            infoRow.size = [innerWidth, infoRow.size.height];
+            infoRow.copyButton.location = [innerWidth - infoRow.copyButton.size.width, infoRow.copyButton.location[1]];
+        }
     }
 
     /**
