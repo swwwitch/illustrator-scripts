@@ -8,11 +8,11 @@ Script-ID=com.swwwitch.illustrator.SmartObjectDistributor
 Name=グリッドの各セル中央にオブジェクトを配置
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=3.0.0
+Version=3.1.0
 Release-Date=2025-05-20
 Description-BEGIN
 選択したオブジェクトを、指定した行数・列数のグリッドの各セル中央へ配置します。
-セルに合わせたリサイズやマスク、埋め方を指定でき、プレビューを見ながら調整できます。
+セルに合わせたリサイズやマスク、開始位置を指定でき、プレビューを見ながら調整できます。
 
 Places the selected objects at the center of each cell of a grid with the rows and columns you specify.
 Objects can be resized and masked to fit the cells, and the fill order can be set, all with a live preview.
@@ -25,7 +25,7 @@ SCRIPTMETA-END
 ### 概要
 
 選択したオブジェクトを、指定した行数・列数のグリッドの各セル中央へ配置します。
-セルに合わせたリサイズやマスク、埋め方を指定でき、プレビューを見ながら調整できます。
+セルに合わせたリサイズやマスク、開始位置を指定でき、プレビューを見ながら調整できます。
 
 詳細は README を参照してください。
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartObjectDistributor.md
@@ -47,7 +47,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartObjec
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SmartObjectDistributor";       /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v3.0.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v3.1.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-05-20";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-11-20";                   /* 更新日 / last updated */
@@ -79,7 +79,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         defaultFrameWidth: 1,        /* 枠の線幅の初期値（線の単位） / default frame weight (stroke unit) */
         defaultKeepOriginals: false, /* ［配置するオブジェクトを残す］の初期値 / Keep Original Objects starts unchecked */
         defaultSpreadEvenly: false,  /* ［均等にまばらに］の初期値 / Spread Evenly starts unchecked */
-        defaultFillStart: "topLeft", /* 埋め方の初期値（"topLeft" / "topRight" / "bottomLeft" / "bottomRight" / "center"） / where filling starts */
+        defaultFillStart: "topLeft", /* 開始位置の初期値（"topLeft" / "top" / "topRight" / "left" / "center" / "right" / "bottomLeft" / "bottom" / "bottomRight"） / where filling starts */
         blackCellOpacity: 15,        /* 黒セルの不透明度（%） / opacity for black cells */
         whiteCellOpacity: 100,       /* 白セルの不透明度（%） / opacity for white cells */
         fallbackDivision: 5,         /* 分割数を決められないときの既定値 / fallback division */
@@ -182,7 +182,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     var RADIO_COLUMN_SPACING = 4;  /* 縦に並べたラジオボタンの間隔 / spacing of stacked radio buttons */
     var PANEL_SECTION_SPACING = 8; /* パネル内のまとまりどうしの間隔 / spacing between sections in a panel */
     var COLUMN_PANEL_SPACING = 8;  /* カラム内のパネルどうしの間隔 / spacing between panels in a column */
-    var FILL_START_WIDGET_SIZE = 50; /* 埋め方のウィジェットの一辺 / size of the Fill From widget */
+    var FILL_START_WIDGET_SIZE = 50; /* 開始位置のウィジェットの一辺 / size of the Start From widget */
     var COLOR_SWATCH_SIZE = [40, 20]; /* 枠の色見本の大きさ / size of the frame color swatch */
     var CHECKBOX_BOX_WIDTH = 24;  /* チェックボックスの□と文字の間の分の幅 / width of a checkbox's box and its gap */
 
@@ -2258,7 +2258,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             cellColor: { ja: "カラー", en: "Color" },
             cellOpacity: { ja: "不透明度", en: "Opacity" },
             resizeRatio: { ja: "比率", en: "Ratio" },
-            fillStart: { ja: "埋め方", en: "Fill From" }
+            fillStart: { ja: "開始位置", en: "Start From" }
         },
         checkbox: {
             maskToCell: { ja: "マスクする", en: "Mask" },
@@ -2350,8 +2350,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
                 en: "Leaves the original objects in place and places copies in the cells."
             },
             fillStart: {
-                ja: "セルを埋め始める位置です（左上・右上・左下・右下・中央）。四隅からは横方向に埋め、中央は中心に近いセルから埋めます。",
-                en: "Where filling starts (top left, top right, bottom left, bottom right, or center). Corners fill row by row; Center fills the cells nearest the middle first."
+                ja: "セルを埋め始める位置です。四隅からは横方向に、上・下の中央からは各行を中央から外へ、左・右の中央からは縦方向に各列を中央から外へ埋めます。中央は中心に近いセルから埋めます。",
+                en: "Where filling starts. Corners fill row by row; top and bottom centers fill each row from the middle out; left and right centers fill column by column from the middle out; Center fills the cells nearest the middle first."
             },
             cornerRadius: {
                 ja: "マスクの角を、指定した半径で丸めます（効果の［角を丸くする］）。",
@@ -2363,8 +2363,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             },
             frameColor: { ja: "クリックで枠の色を選ぶ", en: "Click to choose the frame color" },
             spreadEvenly: {
-                ja: "オブジェクトがセルより少ないとき、詰めずにグリッド全体へ均等に散らします（オンの間は埋め方を使いません）。",
-                en: "When there are fewer objects than cells, spreads them evenly over the grid instead of packing them (Fill From is not used while on)."
+                ja: "オブジェクトがセルより少ないとき、詰めずにグリッド全体へ均等に散らします（開始位置から始めます）。",
+                en: "When there are fewer objects than cells, spreads them evenly over the grid instead of packing them, starting from the Start From position."
             },
             autoCornerRadius: {
                 ja: "角丸の半径を、セルの短い辺の半分にします（短い辺の両端が半円になります）。",
@@ -2760,32 +2760,79 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
 
     /**
      * セルの矩形を、オブジェクトを入れる順に並べて返します。/ List the cell rects in fill order.
-     * 四隅からは、その角の行から横方向に埋めます。中央は中心に近いセルから埋めます。
+     * 四隅からは、その角の行から横方向に埋めます。上・下の中央からは、その辺の行から、各行を中央の列から外へ埋めます。
+     * 左・右の中央からは、その辺の列から、各列を中央の行から外へ埋めます。中央は中心に近いセルから埋めます。
      *
      * @param {GridMetrics} gridMetrics - グリッドの寸法。
-     * @param {number} fillStartIndex - 埋め始める位置（基準点ウィジェットの番号。0=左上, 2=右上, 4=中央, 6=左下, 8=右下）。
+     * @param {number} fillStartIndex - 埋め始める位置（基準点ウィジェットの番号。0=左上, 1=上, 2=右上, 3=左, 4=中央, 5=右, 6=左下, 7=下, 8=右下）。
      * @returns {Array<number[]>} セルの矩形 [左, 上, 右, 下] の配列。
      */
     function listCellRectsInFillOrder(gridMetrics, fillStartIndex) {
         var rowCount = gridMetrics.rowCount;
         var columnCount = gridMetrics.columnCount;
-        var fromBottom = (fillStartIndex === 6 || fillStartIndex === 8);
-        var fromRight = (fillStartIndex === 2 || fillStartIndex === 8);
+        var anchorRow = Math.floor(fillStartIndex / 3);    /* 0=上, 1=中, 2=下 / 0 top, 1 middle, 2 bottom */
+        var anchorColumn = fillStartIndex % 3;            /* 0=左, 1=中, 2=右 / 0 left, 1 middle, 2 right */
+        var rowOrder = listLineOrder(rowCount, anchorRow);
+        var columnOrder = listLineOrder(columnCount, anchorColumn);
 
         var cellPositions = [];
-        for (var i = 0; i < rowCount; i++) {
-            var rowIndex = fromBottom ? rowCount - 1 - i : i;
-            for (var j = 0; j < columnCount; j++) {
-                cellPositions.push([rowIndex, fromRight ? columnCount - 1 - j : j]);
+        var i, j;
+        if (anchorColumn === 1 && anchorRow !== 1) {
+            /* 上・下の中央は、行ごとに中央の列から外へ（行優先）/ Top and bottom centers: row by row, middle column outward */
+            for (i = 0; i < rowCount; i++) {
+                for (j = 0; j < columnCount; j++) cellPositions.push([rowOrder[i], columnOrder[j]]);
+            }
+        } else if (anchorRow === 1 && anchorColumn !== 1) {
+            /* 左・右の中央は、列ごとに中央の行から外へ（列優先）/ Left and right centers: column by column, middle row outward */
+            for (j = 0; j < columnCount; j++) {
+                for (i = 0; i < rowCount; i++) cellPositions.push([rowOrder[i], columnOrder[j]]);
+            }
+        } else if (fillStartIndex === 4) {
+            /* 中央は左上からの行優先に並べてから、中心に近い順へ（同じ距離は左上側が先）/ Center: row-major from the top left, then nearest the middle first */
+            for (i = 0; i < rowCount; i++) {
+                for (j = 0; j < columnCount; j++) cellPositions.push([i, j]);
+            }
+            cellPositions = orderCellsFromCenter(cellPositions, rowCount, columnCount);
+        } else {
+            /* 四隅は、その角の行から横方向に（行優先）/ Corners: row by row from that corner */
+            for (i = 0; i < rowCount; i++) {
+                for (j = 0; j < columnCount; j++) cellPositions.push([rowOrder[i], columnOrder[j]]);
             }
         }
-        if (fillStartIndex === 4) cellPositions = orderCellsFromCenter(cellPositions, rowCount, columnCount);
 
         var cellRects = [];
         for (var k = 0; k < cellPositions.length; k++) {
             cellRects.push(getCellRect(gridMetrics, cellPositions[k][0], cellPositions[k][1]));
         }
         return cellRects;
+    }
+
+    /**
+     * 行（列）を埋める順に並べた番号を返します。/ Return line indexes in fill order.
+     *
+     * @param {number} lineCount - 行数（列数）。
+     * @param {number} anchorSide - 0 なら先頭から、2 なら末尾から、1 なら中央から外へ（同じ距離なら先頭側が先）。
+     * @returns {number[]} 行（列）の番号の配列。
+     */
+    function listLineOrder(lineCount, anchorSide) {
+        var lineOrder = [];
+        var i;
+        if (anchorSide !== 1) {
+            for (i = 0; i < lineCount; i++) lineOrder.push(anchorSide === 2 ? lineCount - 1 - i : i);
+            return lineOrder;
+        }
+        /* 中央から外へ：中央の左（上）・右（下）を交互に足す / Middle outward, alternating toward the start and end */
+        var lowIndex = Math.floor((lineCount - 1) / 2);
+        var highIndex = lowIndex + 1;
+        if (lineCount % 2 === 1) {
+            lineOrder.push(lowIndex);
+            lowIndex--;
+        }
+        while (lowIndex >= 0 || highIndex < lineCount) {
+            if (lowIndex >= 0) lineOrder.push(lowIndex--);
+            if (highIndex < lineCount) lineOrder.push(highIndex++);
+        }
+        return lineOrder;
     }
 
     /**
@@ -2822,9 +2869,9 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
 
     /**
      * 使うセルを、グリッド全体に均等に散らして選びます（最遠点の順に選ぶ）。/ Pick cells spread evenly over the grid.
-     * 先頭のセルから始め、選んだセルからいちばん離れたセルを次々に選びます（同じ距離なら先に調べたもの）。
-     * 乱数を渡すと、始めるセルと同じ距離どうしの選び方を乱数で決めます（シャッフル用）。
-     * 選んだセルは埋める順のまま返すので、オブジェクトの並びは埋め方に従います。
+     * 埋める順の先頭のセルから始め、選んだセルからいちばん離れたセルを次々に選びます（同じ距離なら先に調べたもの）。
+     * 乱数を渡すと、同じ距離どうしの選び方を乱数で決めます（シャッフル用）。
+     * 選んだセルは埋める順のまま返すので、オブジェクトの並びは開始位置に従います。
      *
      * @param {Array<number[]>} cellRects - セルの矩形（埋める順）。
      * @param {number} pickCount - 選ぶ数（セル数より少ない）。
@@ -2849,7 +2896,9 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             isPicked.push(false);
         }
 
-        var pickIndex = visitOrder[0];
+        /* 始めるセルは埋める順の先頭（開始位置）。乱数は同じ距離どうしの選び方だけに使う
+           Start at the first cell in fill order (Start From); randomness only breaks ties */
+        var pickIndex = 0;
         for (var pickedCount = 0; pickedCount < pickCount; pickedCount++) {
             isPicked[pickIndex] = true;
             /* 選んだセルまでの距離で、各セルの「最寄りの選択済みセルまでの距離」を更新しつつ、次に選ぶセルを探す
@@ -3585,24 +3634,23 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     }
 
     /**
-     * 配置と整列のパネルを作成します（埋め方・均等にまばらに・シャッフル）。/ Build the arrangement panel.
+     * 配置と整列のパネルを作成します（開始位置・均等にまばらに・シャッフル）。/ Build the arrangement panel.
      *
      * @param {Group} parentColumn - 配置先のカラム。
-     * @param {function(): void} onFillStartChange - 埋め方を選んだときに呼ぶ処理。
-     * @returns {{fillStartLabel: StaticText, fillStartWidget: Button, spreadEvenlyCheckbox: Checkbox, btnShuffle: Button}} 埋め方の項目名・ウィジェット、［均等にまばらに］、［シャッフル］。
+     * @param {function(): void} onFillStartChange - 開始位置を選んだときに呼ぶ処理。
+     * @returns {{fillStartLabel: StaticText, fillStartWidget: Button, spreadEvenlyCheckbox: Checkbox, btnShuffle: Button}} 開始位置の項目名・ウィジェット、［均等にまばらに］、［シャッフル］。
      */
     function buildArrangementPanel(parentColumn, onFillStartChange) {
         var arrangementPanel = parentColumn.add("panel", undefined, getLabel(LABELS.panel.arrangement));
         setupPanel(arrangementPanel, PANEL_SECTION_SPACING);
         arrangementPanel.alignChildren = ["left", "top"];
 
-        /* 埋め方は基準点ウィジェットの四隅と中央だけを使う（上・下・左・右は選べない）
-           Fill start uses only the corners and center of the anchor widget */
+        /* 開始位置は基準点ウィジェットの9か所すべてから選べる / Start From can start at any of the nine anchor positions */
         var fillStartRow = arrangementPanel.add("group");
         setupRow(fillStartRow, "left", 8);
         fillStartRow.alignChildren = ["left", "top"];
         var fillStartLabel = fillStartRow.add("statictext", undefined, labelText(LABELS.fieldLabel.fillStart));
-        var fillStartWidget = addAnchorWidget(fillStartRow, CONFIG.defaultFillStart, onFillStartChange, { disabledCells: [1, 3, 5, 7], size: FILL_START_WIDGET_SIZE });
+        var fillStartWidget = addAnchorWidget(fillStartRow, CONFIG.defaultFillStart, onFillStartChange, { size: FILL_START_WIDGET_SIZE });
         fillStartLabel.helpTip = getLabel(LABELS.tooltip.fillStart);
         fillStartWidget.helpTip = getLabel(LABELS.tooltip.fillStart);
 
@@ -3647,7 +3695,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
      * @param {{rowCount: number, columnCount: number}} defaultDivision - 行数・列数の初期値。
      * @param {string} rulerUnitLabel - 定規の単位のラベル。
      * @param {string} strokeUnitLabel - 線の単位のラベル。
-     * @param {function(): void} onFillStartChange - 埋め方を選んだときに呼ぶ処理。
+     * @param {function(): void} onFillStartChange - 開始位置を選んだときに呼ぶ処理。
      * @returns {Object} ダイアログボックス（distributeDialog）と、各パネル・ボタン行のコントロール。
      */
     function buildDistributeDialog(hasBackmostItem, defaultDivision, rulerUnitLabel, strokeUnitLabel, onFillStartChange) {
@@ -4025,16 +4073,14 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         }
 
         /**
-         * オブジェクトを入れるセルを、入れる順に返します（埋め方と［均等にまばらに］を反映）。/ List the cells to fill, in order.
+         * オブジェクトを入れるセルを、入れる順に返します（開始位置と［均等にまばらに］を反映）。/ List the cells to fill, in order.
          *
          * @param {GridMetrics} gridMetrics - グリッドの寸法。
          * @param {number} itemCount - セルに入れるオブジェクトの数。
          * @returns {Array<number[]>} セルの矩形 [左, 上, 右, 下] の配列。
          */
         function listTargetCellRects(gridMetrics, itemCount) {
-            /* ［均等にまばらに］の間は埋め方を使わず、左上からの順で選ぶ / Spread Evenly ignores Fill From and works from the top left */
-            var fillStartIndex = isSpreadEnabled ? 0 : getAnchorWidgetIndex(arrangementUI.fillStartWidget);
-            var cellRects = listCellRectsInFillOrder(gridMetrics, fillStartIndex);
+            var cellRects = listCellRectsInFillOrder(gridMetrics, getAnchorWidgetIndex(arrangementUI.fillStartWidget));
             /* セルが余るときは、使うセルをグリッド全体に散らす / With spare cells, spread the used cells over the grid */
             if (!isSpreadEnabled || itemCount >= cellRects.length) return cellRects;
             var spreadRandom = (spreadSeed === null) ? null : createSeededRandom(spreadSeed);
@@ -4173,7 +4219,6 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             syncCellModeUI();
             syncResizeRatioEnabled();
             syncMaskStyleEnabled();
-            syncFillStartEnabled();
         }
 
         /**
@@ -4240,16 +4285,6 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             resizeUI.ratioUnitLabel.enabled = isResizing;
             setSteppedInputEnabled(resizeUI.ratioInput, isResizing);
             resizeUI.autoScaleButton.enabled = (getResizeMode() === "scale");
-        }
-
-        /**
-         * 埋め方を、［均等にまばらに］がオンの間はディムにします。/ Dim Fill From while Spread Evenly is on.
-         *
-         * @returns {void}
-         */
-        function syncFillStartEnabled() {
-            arrangementUI.fillStartLabel.enabled = !isSpreadEnabled;
-            setAnchorWidgetEnabled(arrangementUI.fillStartWidget, !isSpreadEnabled);
         }
 
         /**
@@ -4492,8 +4527,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             maskUI.autoCornerRadiusButton.onClick = applyAutoCornerRadius;
             arrangementUI.spreadEvenlyCheckbox.onClick = function () {
                 isSpreadEnabled = arrangementUI.spreadEvenlyCheckbox.value;
-                syncFillStartEnabled();
-                updatePreview();
+                    updatePreview();
             };
             footerUI.keepOriginalsCheckbox.onClick = function () {
                 isKeepOriginalsEnabled = footerUI.keepOriginalsCheckbox.value;
