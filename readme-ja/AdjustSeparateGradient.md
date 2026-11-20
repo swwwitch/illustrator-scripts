@@ -1,6 +1,6 @@
 # 指定した％の位置でセパレートグラデーションを作成・調整
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-AdjustSeparateGradient.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/color/AdjustSeparateGradient.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-AdjustSeparateGradient.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/color/single-function/AdjustSeparateGradient.jsx)
 
 [![English](https://img.shields.io/badge/README-English-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AdjustSeparateGradient.md)
 
@@ -12,6 +12,8 @@
 
 指定した％の位置で色が切り替わるセパレートグラデーション（色が混ざらない、境界のくっきりしたグラデーション）を作ります。
 色の異なる2つ以上のオブジェクトを選択したときは新しいグラデーションを作り、塗りか線がグラデーションのオブジェクトを選択したときはその境界の位置を変えます。
+
+同じ機能は [グラデーションストップを一覧表示して編集](EditGradientStops.md)（EditGradientStops）にも入っています。
 
 ### 主な機能
 

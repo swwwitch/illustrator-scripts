@@ -8,12 +8,14 @@ Script-ID=com.swwwitch.illustrator.EditGradientStops
 Name=グラデーションストップを一覧表示して編集
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.0.1
+Version=1.1.0
 Release-Date=2026-11-20
 Description-BEGIN
 選択したオブジェクトに使われているグラデーションのストップを一覧表示し、カラー・位置・不透明度の変更や、ストップどうしの入れ替えができます。
+指定した％の位置で色が切り替わるセパレートグラデーションへの変換や、グラデーションの無いオブジェクトの色からの作成もできます。
 
 Lists the gradient stops used by the selected objects and lets you change their color, location and opacity, or swap stops.
+It can also turn a gradient into a segmented one whose colors switch at the percentages you enter, or build one from the colors of objects without gradients.
 Description-END
 SCRIPTMETA-END
 */
@@ -23,6 +25,7 @@ SCRIPTMETA-END
 ### 概要
 
 選択したオブジェクトに使われているグラデーションのストップを一覧表示し、カラー・位置・不透明度の変更や、ストップどうしの入れ替えができます。
+指定した％の位置で色が切り替わるセパレートグラデーションへの変換や、グラデーションの無いオブジェクトの色からの作成もできます。
 
 詳細は README を参照してください。
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/EditGradientStops.md
@@ -33,6 +36,7 @@ https://note.com/dtp_tranist/n/n524fafa198dd
 ### Overview
 
 Lists the gradient stops used by the selected objects and lets you change their color, location and opacity, or swap stops.
+It can also turn a gradient into a segmented one whose colors switch at the percentages you enter, or build one from the colors of objects without gradients.
 
 See the README for details.
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/EditGradientStops.md
@@ -43,7 +47,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/EditGradie
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "EditGradientStops";            /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-11-20";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-11-20";                   /* 更新日 / last updated */
@@ -70,11 +74,29 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     /* グラデーションに残すストップの最小数（Illustrator は2つ未満にできない） / Minimum stops a gradient keeps (Illustrator needs two) */
     var MIN_STOP_COUNT = 2;
 
-    /* ［プレビュー］を最初からオンにするか / Whether Preview starts on */
-    var DEFAULT_PREVIEW_ON = true;
-
     /* 位置・不透明度の欄の増減量・範囲・単位 / Step, range and unit of the location and opacity fields */
     var PERCENT_FIELD_OPTIONS = { step: 1, min: 0, max: 100, unit: "%" };
+
+    /* セパレートで扱える最大の色数（境界の欄は色数より1つ少ない） / Max colors for a segmented gradient (one boundary field fewer) */
+    var MAX_SEPARATE_COLORS = 10;
+
+    /* 境界の前後に置く2つのストップのずれ（%）。同じ位置には重ねず、境界の±この値に置く / Offset of the stop pair on each side of a boundary (%) */
+    var BOUNDARY_OFFSET = 0.01;
+
+    /* 色の切り替わりの幅がこれ以内（%）ならセパレートとみなし、今の境界を初期値にする / Max color transition width (%) treated as a hard edge */
+    var SEPARATE_EDGE_MAX_GAP = 1;
+
+    /* 境界の欄の増減量・範囲・単位 / Step, range and unit of the boundary fields */
+    var BOUNDARY_FIELD_OPTIONS = { step: 1, min: 0, max: 100, unit: "%" };
+
+    /* 新規作成するグラデーションの名前 / Name of a new gradient */
+    var NEW_GRADIENT_BASE_NAME = "Separate Gradient";
+
+    /* 新規作成で、選択の大きさが測れないときの長方形の大きさ（pt） / Rectangle size when the selection cannot be measured (pt) */
+    var DEFAULT_RECT_SIZE = 100;
+
+    /* ［丸型の破線］で入れる破線（pt）。[線分] だけなら間隔は空白（線分と同じ間隔） / Dash pattern set by Round Dashes (pt); a single value leaves the gap blank */
+    var STROKE_DASH_PATTERN = [1];
 
     // =========================================
     // レイアウト / Layout
@@ -98,6 +120,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     var SWAP_ARROW_LENGTH  = 11;  /* 矢印の長さ / arrow length */
     var SWAP_ARROW_HEAD_SIZE = 3.5; /* 矢じりの大きさ / arrowhead size */
     var SWAP_ARROW_LINE_WIDTH = 1.4; /* 矢印の線の太さ / arrow line width */
+    var BOUNDARY_LABEL_WIDTH = 60;    /* 境界の欄の項目名の幅 / label width of the boundary fields */
+    var BOUNDARY_FIELD_CHARACTERS = 6; /* 境界の入力欄の文字数 / characters of the boundary fields */
 
     // UIレイアウト（再利用パーツ） / UI layout (reusable)
 
@@ -1927,218 +1951,18 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
 
     // ローカライズ（再利用パーツ）ここまで / End of the reusable localization
 
-    // キーボードショートカット（再利用パーツ） / Keyboard shortcuts (reusable)
-
-    /* 入力中はショートカットを止めるコントロールの種類 / Control types that swallow keys while focused */
-    var KEY_SHORTCUT_TYPING_TYPES = { edittext: true, dropdownlist: true, listbox: true };
-
-    /* 修飾キーの並び順（キーの表記をそろえる）/ Canonical order of modifiers in a key spec */
-    var KEY_SHORTCUT_MODIFIERS = ["SHIFT", "ALT", "CMD"];
-
-    /* 修飾キーの別名 / Aliases accepted for the modifiers */
-    var KEY_SHORTCUT_MODIFIER_ALIASES = {
-        SHIFT: "SHIFT",
-        ALT: "ALT", OPTION: "ALT", OPT: "ALT",
-        CMD: "CMD", COMMAND: "CMD", META: "CMD", CTRL: "CMD", CONTROL: "CMD"
-    };
-
-    /**
-     * キーの指定（"Shift+R" など）を、照合用の表記（"SHIFT+R"）にそろえる
-     * @param {string} keySpec - キーの指定。修飾キーは "Shift+" / "Alt+" / "Cmd+" を前に付ける
-     * @returns {string} 照合用の表記（大文字、修飾キーは SHIFT → ALT → CMD の順）
-     */
-    function normalizeKeyShortcutSpec(keySpec) {
-        var specParts = String(keySpec).split("+");
-        var baseKey = specParts.pop().toUpperCase();
-        var modifierFlags = {};
-        for (var i = 0; i < specParts.length; i++) {
-            var modifierName = KEY_SHORTCUT_MODIFIER_ALIASES[specParts[i].toUpperCase()];
-            if (modifierName) modifierFlags[modifierName] = true;
-        }
-        return buildKeyShortcutSpec(modifierFlags, baseKey);
-    }
-
-    /**
-     * 修飾キーの状態とキー名から照合用の表記を組み立てる
-     * @param {Object} modifierFlags - { SHIFT: true, ALT: true, CMD: true } のうち押されているもの
-     * @param {string} baseKey - 大文字のキー名
-     * @returns {string} 照合用の表記
-     */
-    function buildKeyShortcutSpec(modifierFlags, baseKey) {
-        var specText = "";
-        for (var i = 0; i < KEY_SHORTCUT_MODIFIERS.length; i++) {
-            if (modifierFlags[KEY_SHORTCUT_MODIFIERS[i]]) specText += KEY_SHORTCUT_MODIFIERS[i] + "+";
-        }
-        return specText + baseKey;
-    }
-
-    /**
-     * keydown イベントから照合用の表記を作る。修飾キーはイベントと keyboardState の両方を見る
-     * @param {Object} keyEvent - keydown イベント
-     * @returns {string} 照合用の表記。キー名が無いときは空文字
-     */
-    function readKeyShortcutSpec(keyEvent) {
-        if (!keyEvent || !keyEvent.keyName) return "";
-        var keyboardState = {};
-        try { keyboardState = ScriptUI.environment.keyboardState; } catch (e) { }
-        var modifierFlags = {
-            SHIFT: !!(keyEvent.shiftKey || keyboardState.shiftKey),
-            ALT: !!(keyEvent.altKey || keyboardState.altKey),
-            CMD: !!(keyEvent.metaKey || keyEvent.ctrlKey || keyboardState.metaKey || keyboardState.ctrlKey)
-        };
-        return buildKeyShortcutSpec(modifierFlags, String(keyEvent.keyName).toUpperCase());
-    }
-
-    /**
-     * コントロールが押せる状態か（自分と親がすべて有効で表示中か）を返す
-     * @param {Object} control - コントロール
-     * @returns {boolean} 押せるなら true
-     */
-    function isKeyShortcutControlUsable(control) {
-        for (var node = control; node; node = node.parent) {
-            if (node.enabled === false || node.visible === false) return false;
-        }
-        return true;
-    }
-
-    /**
-     * キーを受けたコントロールが、文字を入力する欄か
-     * @param {Object} focusedControl - イベントの発生元
-     * @param {Object[]} numericFields - 数値だけの欄（ショートカットを効かせる）
-     * @returns {boolean} 入力中としてショートカットを止めるなら true
-     */
-    function isKeyShortcutTypingTarget(focusedControl, numericFields) {
-        if (!focusedControl || !KEY_SHORTCUT_TYPING_TYPES[focusedControl.type]) return false;
-        for (var i = 0; i < numericFields.length; i++) {
-            if (numericFields[i] === focusedControl) return false;
-        }
-        return true;
-    }
-
-    /**
-     * コントロールをクリックしたときと同じ動作をする
-     * ラジオは同じ親のラジオを外して選び、チェックボックスは反転してから onClick を呼ぶ
-     * @param {Object} control - ラジオボタン・チェックボックス・ボタンなど
-     * @returns {void}
-     */
-    function pressKeyShortcutControl(control) {
-        if (control.type === "radiobutton") {
-            /* 同じ親の直下だけが排他になるので、クリックと同じく兄弟を外す / Clear siblings like a click would */
-            var siblings = control.parent ? control.parent.children : [];
-            for (var i = 0; i < siblings.length; i++) {
-                if (siblings[i] !== control && siblings[i].type === "radiobutton") siblings[i].value = false;
-            }
-            control.value = true;
-        } else if (control.type === "checkbox") {
-            control.value = !control.value;
-        }
-        if (typeof control.onClick === "function") {
-            control.onClick.call(control);
-        } else if (control.type === "button" && typeof control.notify === "function") {
-            /* onClick の無い OK・キャンセルは notify で既定の動作（閉じる）を起こす / Let default buttons close the dialog */
-            control.notify("onClick");
-        }
-    }
-
-    /**
-     * 1つのショートカットを実行する
-     * @param {Object|Function} shortcutTarget - コントロール、または関数
-     * @param {Object} keyEvent - keydown イベント
-     * @returns {boolean} キーを使ったなら true（false なら文字をそのまま通す）
-     */
-    function runKeyShortcutTarget(shortcutTarget, keyEvent) {
-        var targetControl = shortcutTarget;
-        if (typeof shortcutTarget === "function") {
-            var runResult = shortcutTarget(keyEvent);
-            if (runResult === false || runResult === null) return false;
-            if (!runResult || typeof runResult !== "object" || !runResult.type) return true;
-            targetControl = runResult;
-        }
-        /* 無効なコントロールのキーも使ったことにして、数値欄へ文字を入れない / Consume the key even when disabled */
-        if (isKeyShortcutControlUsable(targetControl)) pressKeyShortcutControl(targetControl);
-        return true;
-    }
-
-    /**
-     * キーの指定に修飾キーの表示名を当てて、ツールチップ用の表記にする
-     * @param {string} normalizedSpec - 照合用の表記（"SHIFT+R" など）
-     * @returns {string} 表示用の表記（"Shift+R" など）
-     */
-    function formatKeyShortcutLabel(normalizedSpec) {
-        var isMac = ($.os.indexOf("Mac") === 0);
-        var displayNames = { SHIFT: "Shift", ALT: isMac ? "Option" : "Alt", CMD: isMac ? "Cmd" : "Ctrl" };
-        var specParts = normalizedSpec.split("+");
-        var baseKey = specParts.pop();
-        var labelText = "";
-        for (var i = 0; i < specParts.length; i++) labelText += displayNames[specParts[i]] + "+";
-        if (baseKey.length > 1) baseKey = baseKey.charAt(0) + baseKey.substring(1).toLowerCase();
-        return labelText + baseKey;
-    }
-
-    /**
-     * コントロールのツールチップの末尾にキーを足す（すでに書いてあれば足さない）
-     * @param {Object} control - コントロール
-     * @param {string} normalizedSpec - 照合用の表記
-     * @returns {void}
-     */
-    function appendKeyShortcutToTip(control, normalizedSpec) {
-        var keyLabel = formatKeyShortcutLabel(normalizedSpec);
-        var currentTip = control.helpTip ? String(control.helpTip) : "";
-        if (currentTip.indexOf("（" + keyLabel) >= 0 || currentTip.indexOf("(" + keyLabel) >= 0) return;
-        var keySuffix = (uiLang === "ja") ? "（" + keyLabel + "）" : " (" + keyLabel + ")";
-        control.helpTip = currentTip ? currentTip + keySuffix : keyLabel;
-    }
-
-    /**
-     * ダイアログ・パレットに文字キーのショートカットを付ける
-     * @param {Window} targetWindow - キーを受けるダイアログ・パレット
-     * @param {Object} shortcutMap - { "L": ラジオ, "Shift+R": ボタン, "G": 関数, "Escape": { target: 関数, inFields: true } }
-     * @param {Object} [shortcutOptions] - numericFields（数値だけの欄の配列）/ afterKey（キーを使ったあとに呼ぶ関数）/ showInTip（ツールチップにキーを足す）
-     * @returns {Object} 照合用の表記 → { target, inFields } の表（テスト・デバッグ用）
-     */
-    function addKeyShortcuts(targetWindow, shortcutMap, shortcutOptions) {
-        var shortcutSettings = shortcutOptions || {};
-        var numericFields = shortcutSettings.numericFields || [];
-        var bindingTable = {};
-
-        for (var keySpec in shortcutMap) {
-            if (!shortcutMap.hasOwnProperty(keySpec)) continue;
-            var mapEntry = shortcutMap[keySpec];
-            if (!mapEntry) continue;
-            var isWrapped = (typeof mapEntry === "object" && !mapEntry.type && mapEntry.target);
-            var normalizedSpec = normalizeKeyShortcutSpec(keySpec);
-            bindingTable[normalizedSpec] = {
-                target: isWrapped ? mapEntry.target : mapEntry,
-                inFields: !!(isWrapped && mapEntry.inFields)
-            };
-            var tipControl = bindingTable[normalizedSpec].target;
-            if (shortcutSettings.showInTip && typeof tipControl === "object" && tipControl.type) {
-                appendKeyShortcutToTip(tipControl, normalizedSpec);
-            }
-        }
-
-        /* キャプチャで受けて、数値欄に文字が入る前に止める / Capture phase keeps the letter out of numeric fields */
-        targetWindow.addEventListener("keydown", function (keyEvent) {
-            var binding = bindingTable[readKeyShortcutSpec(keyEvent)];
-            if (!binding) return;
-            if (!binding.inFields && isKeyShortcutTypingTarget(keyEvent.target, numericFields)) return;
-            if (!runKeyShortcutTarget(binding.target, keyEvent)) return;
-            if (keyEvent.preventDefault) keyEvent.preventDefault();
-            if (typeof shortcutSettings.afterKey === "function") shortcutSettings.afterKey(keyEvent);
-        }, true);
-
-        return bindingTable;
-    }
-
-    // キーボードショートカット（再利用パーツ）ここまで / End of the reusable keyboard shortcuts
-
     /* 日英ラベル定義 / Japanese-English label definitions */
     var LABELS = {
         dialog: {
-            title: { ja: "グラデーションストップの編集", en: "Edit Gradient Stops" }
+            title: { ja: "グラデーションストップの編集", en: "Edit Gradient Stops" },
+            separateTitle: { ja: "セパレートグラデーション", en: "Segmented Gradient" }
         },
         panel: {
-            untitledGradient: { ja: "グラデーション %1", en: "Gradient %1" }
+            untitledGradient: { ja: "グラデーション %1", en: "Gradient %1" },
+            boundaries: { ja: "境界の位置", en: "Boundary positions" }
+        },
+        fieldLabel: {
+            boundary: { ja: "境界 %1", en: "Boundary %1" }
         },
         column: {
             color: { ja: "カラー", en: "Color" },
@@ -2150,16 +1974,29 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             unknown: { ja: "（不明）", en: "(Unknown)" }
         },
         message: {
-            omittedGradients: { ja: "ほか %1 個のグラデーションは省略しました。", en: "%1 more gradients are not shown." }
-        },
-        checkbox: {
-            preview: { ja: "プレビュー", en: "Preview" }
+            omittedGradients: { ja: "ほか %1 個のグラデーションは省略しました。", en: "%1 more gradients are not shown." },
+            modeCreate: { ja: "%1 色から新しいグラデーションを作成", en: "Create a new gradient from %1 colors" },
+            modeAdjust: { ja: "%1 件のグラデーション（%2 色）を調整", en: "Adjust %1 gradient(s) with %2 colors" }
         },
         button: {
-            cancel: { ja: "キャンセル", en: "Cancel" }
+            cancel: { ja: "キャンセル", en: "Cancel" },
+            separate: { ja: "セパレート...", en: "Segment..." },
+            setDashes: { ja: "丸型の破線", en: "Round Dashes" }
         },
         tooltip: {
             colorChip: { ja: "クリックしてカラーを変更", en: "Click to change the color" },
+            setDashes: {
+                ja: "グラデーションの線に、破線（線分 1pt・間隔は空白）・丸型線端・［コーナーやパス先端に破線の先端を整列］を設定",
+                en: "Sets dashes (1 pt dash, blank gap), round caps and Align Dashes to Corners and Path Ends on gradient strokes"
+            },
+            separate: {
+                ja: "色が混ざらない、境界のくっきりしたグラデーションにして、境界の位置を％で指定",
+                en: "Make a segmented gradient with hard edges and set the boundary positions in %"
+            },
+            boundary: {
+                ja: "前の色から次の色に切り替わる位置（グラデーションの始点 0%〜終点 100%）",
+                en: "Where one color switches to the next (0% at the start of the gradient, 100% at the end)"
+            },
             swapUp: { ja: "上のストップとカラー・不透明度を入れ替え", en: "Swap color and opacity with the stop above" },
             swapDown: { ja: "下のストップとカラー・不透明度を入れ替え", en: "Swap color and opacity with the stop below" },
             duplicate: { ja: "このストップを複製", en: "Duplicate this stop" },
@@ -2179,7 +2016,28 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             noDocument: { ja: "ドキュメントが開かれていません。", en: "No document is open." },
             noSelection: { ja: "オブジェクトを選択してください。", en: "Please select an object." },
             noGradient: { ja: "選択したオブジェクトにグラデーションが見つかりません。", en: "No gradient was found on the selected objects." },
-            applyFailed: { ja: "%1 個の塗り・線に変更を適用できませんでした。", en: "Could not apply the changes to %1 fills or strokes." }
+            applyFailed: { ja: "%1 個の塗り・線に変更を適用できませんでした。", en: "Could not apply the changes to %1 fills or strokes." },
+            singleColor: {
+                ja: "グラデーションの色が1色しかないため、境界がありません。",
+                en: "The gradient has only one color, so there is no boundary to move."
+            },
+            tooManyColors: { ja: "色は %1 色までです。", en: "Up to %1 colors are supported." },
+            invalidBoundaries: {
+                ja: "境界の位置は 0% より大きく 100% より小さい値を、上の欄から順に大きくなるように入力してください。",
+                en: "Enter boundary positions greater than 0% and less than 100%, increasing from the top field down."
+            },
+            dashAlignFailed: {
+                ja: "［コーナーやパス先端に破線の先端を整列］を設定できませんでした。破線と丸型線端だけ設定しました。",
+                en: "Could not set Align Dashes to Corners and Path Ends. Only the dashes and round caps were set."
+            },
+            skipped: {
+                ja: "色数の異なるグラデーション %1 件は変更していません。",
+                en: "%1 gradient(s) with a different number of colors were left unchanged."
+            },
+            noDrawableLayer: {
+                ja: "長方形を描けるレイヤー（ロック・非表示でないもの）がありません。",
+                en: "There is no unlocked, visible layer to draw the rectangle on."
+            }
         }
     };
 
@@ -2584,6 +2442,130 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
 
     // 選択の収集と境界（再利用パーツ）ここまで / End of the reusable selection items and bounds
 
+    // 一時アクション（再利用パーツ） / Temporary action (reusable)
+
+    /**
+     * 文字列を UTF-8 のバイト列の16進にする（アクション定義の /name・/localizedName 用）
+     * @param {string} sourceText - 変換する文字列
+     * @returns {string} 16進の文字列（2文字で1バイト）
+     */
+    function toActionHex(sourceText) {
+        var utf8Text = unescape(encodeURIComponent(String(sourceText)));
+        var hexText = "";
+        for (var i = 0; i < utf8Text.length; i++) {
+            var hexByte = utf8Text.charCodeAt(i).toString(16);
+            hexText += (hexByte.length < 2 ? "0" : "") + hexByte;
+        }
+        return hexText;
+    }
+
+    /**
+     * アクション定義の「/name [ バイト数 16進 ]」の3行を返す
+     * @param {string} indent - 行頭の字下げ（"\t" など）
+     * @param {string} nameText - 名前
+     * @param {string} [fieldName] - 項目名（既定は "name"。"localizedName" など）
+     * @returns {string[]} 3行ぶんの配列
+     */
+    function buildActionNameLines(indent, nameText, fieldName) {
+        var nameHex = toActionHex(nameText);
+        return [
+            indent + "/" + (fieldName || "name") + " [ " + (nameHex.length / 2),
+            indent + "\t" + nameHex,
+            indent + "]"
+        ];
+    }
+
+    /**
+     * アクション定義を一時ファイルに書き出してセットを読み込む。読み込んだら一時ファイルは消す
+     * （読み込んだ時点で解釈済みなので、以降の失敗でファイルが残らない）
+     * @param {string} actionSource - アクション定義のテキスト
+     * @param {string} setName - アクションセット名
+     * @returns {boolean} 読み込めたら true
+     */
+    function loadTemporaryActionSet(actionSource, setName) {
+        var actionFile = new File(Folder.temp + "/" + setName + "_" + new Date().getTime() + ".aia");
+        try {
+            actionFile.encoding = "UTF-8";
+            if (!actionFile.open("w")) throw new Error("cannot open " + actionFile.fsName);
+            actionFile.write(actionSource);
+            actionFile.close();
+            /* 前回の失敗で同じ名前のセットが残っていれば外す / Remove a same-name set left by an earlier failure */
+            unloadTemporaryActionSet(setName);
+            app.loadAction(actionFile);
+            return true;
+        } catch (e) {
+            $.writeln("loadTemporaryActionSet: " + e);
+            return false;
+        } finally {
+            try { actionFile.close(); } catch (closeError) { /* 閉じ済み / already closed */ }
+            try { actionFile.remove(); } catch (removeError) { /* 消せなくても続ける / keep going */ }
+        }
+    }
+
+    /**
+     * 一時アクションのセットを解除する（読み込まれていなくてもエラーにしない）
+     * @param {string} setName - アクションセット名
+     * @returns {void}
+     */
+    function unloadTemporaryActionSet(setName) {
+        try {
+            app.unloadAction(setName, "");
+        } catch (e) {
+            /* 読み込まれていない / not loaded */
+        }
+    }
+
+    /**
+     * アクション定義を読み込んで1回実行し、解除する。途中で失敗しても解除は必ず試みる
+     * @param {string} actionSource - アクション定義のテキスト
+     * @param {string} setName - アクションセット名
+     * @param {string} actionName - 実行するアクション名
+     * @returns {boolean} 実行できたら true
+     */
+    function runTemporaryAction(actionSource, setName, actionName) {
+        if (!loadTemporaryActionSet(actionSource, setName)) return false;
+        try {
+            app.doScript(actionName, setName);
+            return true;
+        } catch (e) {
+            $.writeln("runTemporaryAction: " + e);
+            return false;
+        } finally {
+            unloadTemporaryActionSet(setName);
+        }
+    }
+
+    // 一時アクション（再利用パーツ）ここまで / End of the reusable temporary action
+
+    // =========================================
+    // 前回の境界 / Last boundaries
+    // =========================================
+
+    /* 新規作成で使った境界を色数ごとに覚える（$.global に置き、Illustrator の終了まで残す）
+       Boundaries used for new gradients, kept per color count until Illustrator quits */
+    var LAST_BOUNDARIES_KEY = "__" + SCRIPT_NAME + "_LastBoundaries";
+
+    // =========================================
+    // 破線の一時アクション / Dash temporary action
+    // =========================================
+
+    var DASH_ACTION_SET_NAME = "SwwwitchTempDashSet";
+    var DASH_ACTION_NAME     = "SwwwitchTempDash";
+    var ACTION_UNIT_POINT    = 592476268;  /* ポイント / point（parameter /unit） */
+
+    /* 線の設定（ai_plugin_setStroke）のパラメーターキー。記録した .aia から採取 / Parameter keys of ai_plugin_setStroke, taken from a recorded .aia */
+    var STROKE_KEY_WIDTH      = 2003072104; /* wdth: 線幅 / stroke width */
+    var STROKE_KEY_CAP        = 1667330094; /* cap : 線端 / cap */
+    var STROKE_KEY_MITER      = 1836344690; /* mitr: 比率 / miter limit */
+    var STROKE_KEY_JOIN       = 1785686382; /* join: 角の形状 / join */
+    var STROKE_KEY_DASH_COUNT = 1684825454; /* dlen: 破線の値の数 / number of dash values */
+    var STROKE_KEY_DASH_1     = 1685284913; /* dsh1: 線分 / first dash */
+    var STROKE_KEY_DASH_ADJUST = 1684104298; /* dadj: コーナーやパス先端に破線の先端を整列 / align dashes to corners and path ends */
+    var STROKE_KEY_ARROW_1    = 1634231345; /* ahd1: 始点の矢印 / start arrowhead */
+    var STROKE_KEY_ARROW_2    = 1634231346; /* ahd2: 終点の矢印 / end arrowhead */
+    var STROKE_KEY_TIP_ALIGN  = 1634230636; /* ahal: 矢印の配置 / arrow tip alignment */
+    var STROKE_KEY_ALIGN      = 1634494318; /* algn: 線の位置 / stroke alignment */
+
     // =========================================
     // メイン処理 / Main
     // =========================================
@@ -2603,12 +2585,19 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     }
 
     var gradientEntries = collectGradientEntries(selectionSource);
-    if (gradientEntries.length === 0) {
-        alert(getLabel("alert.noGradient"));
+    if (gradientEntries.length > 0) {
+        showGradientStopsDialog(gradientEntries);
         return;
     }
 
-    showGradientStopsDialog(gradientEntries);
+    /* グラデーションが無く、色が2つ以上あれば、その色からセパレートグラデーションを作る / Without gradients, build a segmented gradient from two or more colors */
+    var selectionOrientation = isTextSelection ? "unknown" : detectSelectionOrientation(selectionSource);
+    var solidColors = isTextSelection ? [] : collectSolidColors(selectionSource, selectionOrientation);
+    if (solidColors.length < 2) {
+        alert(getLabel("alert.noGradient"));
+        return;
+    }
+    runCreateMode(activeDoc, solidColors, selectionOrientation);
 
     // =========================================
     // グラデーションの収集 / Collecting gradients
@@ -2770,16 +2759,27 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     function syncGradientEdits(gradientEntries, showEdits) {
         var failedCount = 0;
         for (var i = 0; i < gradientEntries.length; i++) {
-            var gradientEntry = gradientEntries[i];
-            if (showEdits && hasStopEdits(gradientEntry)) {
-                failedCount += writeGradientEntry(gradientEntry, buildStopsToWrite(gradientEntry, true));
-                gradientEntry.isWritten = true;
-            } else if (gradientEntry.isWritten) {
-                failedCount += writeGradientEntry(gradientEntry, buildStopsToWrite(gradientEntry, false));
-                gradientEntry.isWritten = false;
-            }
+            failedCount += syncGradientEntry(gradientEntries[i], showEdits);
         }
         app.redraw();
+        return failedCount;
+    }
+
+    /**
+     * グラデーション1つ分の変更を書き込む／元に戻す（再描画はしない）
+     * @param {Object} gradientEntry - collectGradientEntries() の要素
+     * @param {boolean} showEdits - 変更を書き込むなら true、元に戻すなら false
+     * @returns {number} 書き込めなかった塗り・線の数
+     */
+    function syncGradientEntry(gradientEntry, showEdits) {
+        var failedCount = 0;
+        if (showEdits && hasStopEdits(gradientEntry)) {
+            failedCount = writeGradientEntry(gradientEntry, buildStopsToWrite(gradientEntry, true));
+            gradientEntry.isWritten = true;
+        } else if (gradientEntry.isWritten) {
+            failedCount = writeGradientEntry(gradientEntry, buildStopsToWrite(gradientEntry, false));
+            gradientEntry.isWritten = false;
+        }
         return failedCount;
     }
 
@@ -2814,24 +2814,57 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     }
 
     /**
-     * ストップに変更後の値を書き込む（数をそろえ、色・不透明度・中間点を先に、位置は最後にまとめて）
+     * ストップに変更後の値を書き込む（数をそろえ、位置を隣を追い越さない順で動かしてから、位置の順に色・不透明度・中間点を書く）
      * @param {GradientStops} gradientStops - 書き込む先のストップ
-     * @param {Object[]} stopsToWrite - buildStopsToWrite() の戻り値
+     * @param {Object[]} stopsToWrite - buildStopsToWrite() の戻り値（位置の昇順）
      * @returns {void}
      */
     function writeGradientStops(gradientStops, stopsToWrite) {
-        /* 複製したストップの分だけ増やし、元に戻すときは減らす / add stops for duplicates, remove them when rolling back */
+        /* 複製・セパレートで増えた分を足し、元に戻すときは減らす / add stops for duplicates and segments, remove them when rolling back */
         while (gradientStops.length < stopsToWrite.length) gradientStops.add();
         while (gradientStops.length > stopsToWrite.length) gradientStops[gradientStops.length - 1].remove();
-        var stopCount = stopsToWrite.length;
+        var orderedStops = getStopsByPosition(gradientStops);
+        moveStopsWithoutOverlap(orderedStops, stopsToWrite);
+        var stopCount = orderedStops.length;
         for (var i = 0; i < stopCount; i++) {
-            gradientStops[i].color = stopsToWrite[i].color;
-            gradientStops[i].opacity = stopsToWrite[i].opacity;
+            orderedStops[i].color = stopsToWrite[i].color;
+            orderedStops[i].opacity = stopsToWrite[i].opacity;
             /* 最後のストップの中間点は使われないので、書けなくても続ける / the last stop's midpoint is unused */
-            try { gradientStops[i].midPoint = stopsToWrite[i].midPoint; } catch (e) { }
+            try { orderedStops[i].midPoint = stopsToWrite[i].midPoint; } catch (e) { }
         }
-        for (var j = 0; j < stopCount; j++) {
-            gradientStops[j].rampPoint = stopsToWrite[j].rampPoint;
+    }
+
+    /**
+     * グラデーションのストップを今の位置の昇順に並べた配列を返す（同じ位置は元の順のまま）
+     * @param {GradientStops} gradientStops - グラデーションのストップ
+     * @returns {GradientStop[]} 位置の昇順のストップ
+     */
+    function getStopsByPosition(gradientStops) {
+        var orderedStops = [];
+        for (var i = 0; i < gradientStops.length; i++) {
+            var gradientStop = gradientStops[i];
+            var insertAt = orderedStops.length;
+            while (insertAt > 0 && orderedStops[insertAt - 1].rampPoint > gradientStop.rampPoint) insertAt--;
+            orderedStops.splice(insertAt, 0, gradientStop);
+        }
+        return orderedStops;
+    }
+
+    /**
+     * ストップを、隣のストップを追い越さない順で目標の位置へ動かす。
+     * Illustrator は前後のストップを越える位置を入れると例外になるので、
+     * 始点側へ動くものは始点側から、終点側へ動くものは終点側から順に動かす
+     * @param {GradientStop[]} orderedStops - 位置の昇順のストップ
+     * @param {Object[]} targetStops - 目標の {rampPoint} の配列（位置の昇順、orderedStops と同じ数）
+     * @returns {void}
+     */
+    function moveStopsWithoutOverlap(orderedStops, targetStops) {
+        var i;
+        for (i = 0; i < orderedStops.length; i++) {
+            if (targetStops[i].rampPoint < orderedStops[i].rampPoint) orderedStops[i].rampPoint = targetStops[i].rampPoint;
+        }
+        for (i = orderedStops.length - 1; i >= 0; i--) {
+            if (targetStops[i].rampPoint > orderedStops[i].rampPoint) orderedStops[i].rampPoint = targetStops[i].rampPoint;
         }
     }
 
@@ -2910,12 +2943,766 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     }
 
     // =========================================
+    // セパレート / Segmented gradients
+    // =========================================
+
+    /**
+     * 色を等分する境界の位置を返す（小数第1位まで）
+     * @param {number} colorCount - 色数
+     * @returns {number[]} 境界の位置（%、colorCount - 1 個）
+     */
+    function getEvenBoundaries(colorCount) {
+        var boundaries = [];
+        for (var i = 1; i < colorCount; i++) boundaries.push(Math.round(1000 * i / colorCount) / 10);
+        return boundaries;
+    }
+
+    /**
+     * 境界の位置が使えるか調べる（0〜100% の内側で、前後のストップが重ならずに昇順）
+     * @param {number[]} boundaries - 境界の位置（%）
+     * @returns {boolean} 使えるなら true
+     */
+    function areBoundariesValid(boundaries) {
+        var previousEdge = 0;
+        for (var i = 0; i < boundaries.length; i++) {
+            var boundary = boundaries[i];
+            if (typeof boundary !== "number" || isNaN(boundary)) return false;
+            if (boundary - BOUNDARY_OFFSET <= previousEdge) return false;
+            previousEdge = boundary + BOUNDARY_OFFSET;
+        }
+        return previousEdge < 100;
+    }
+
+    /**
+     * 色の帯の並びと境界の位置から、セパレートグラデーションのストップ列を作る。
+     * 両端に1つずつ、境界ごとに前の色と次の色を ±BOUNDARY_OFFSET の位置に置く
+     * @param {Object[]} bands - {color, opacity} の配列（始点側から順）
+     * @param {number[]} boundaries - 境界の位置（%、bands.length - 1 個、昇順）
+     * @returns {Object[]} {color, rampPoint, opacity, midPoint} の配列（位置の昇順）
+     */
+    function buildSeparateStops(bands, boundaries) {
+        var stops = [{ color: bands[0].color, rampPoint: 0, opacity: bands[0].opacity, midPoint: 50 }];
+        for (var i = 0; i < boundaries.length; i++) {
+            stops.push({ color: bands[i].color, rampPoint: boundaries[i] - BOUNDARY_OFFSET, opacity: bands[i].opacity, midPoint: 50 });
+            stops.push({ color: bands[i + 1].color, rampPoint: boundaries[i] + BOUNDARY_OFFSET, opacity: bands[i + 1].opacity, midPoint: 50 });
+        }
+        var lastBand = bands[bands.length - 1];
+        stops.push({ color: lastBand.color, rampPoint: 100, opacity: lastBand.opacity, midPoint: 50 });
+        return stops;
+    }
+
+    /**
+     * ストップ列を、同じ色・不透明度が続く「色の帯」にまとめる。
+     * なめらかなグラデーションはストップ1つが1帯、セパレートは同じ色の2つのストップが1帯になる
+     * @param {Object[]} stops - buildStopsToWrite() の戻り値（位置の昇順）
+     * @returns {Object[]} {color, opacity, start, end} の配列（始点側から順）
+     */
+    function extractColorBands(stops) {
+        var bands = [];
+        var lastKey = null;
+        for (var i = 0; i < stops.length; i++) {
+            var bandKey = describeColor(stops[i].color) + "@" + stops[i].opacity;
+            if (bandKey === lastKey) {
+                bands[bands.length - 1].end = stops[i].rampPoint;
+                continue;
+            }
+            lastKey = bandKey;
+            bands.push({ color: stops[i].color, opacity: stops[i].opacity, start: stops[i].rampPoint, end: stops[i].rampPoint });
+        }
+        return bands;
+    }
+
+    /**
+     * 境界の欄の初期値を返す。すでにセパレート（色の切り替わりがすべて SEPARATE_EDGE_MAX_GAP 以内）なら
+     * 今の境界（前の帯の終わりと次の帯の始まりの中間、小数第2位まで）、なめらかなグラデーションなら等分
+     * @param {Object[]} bands - extractColorBands() の戻り値
+     * @returns {number[]} 境界の位置（%）
+     */
+    function getInitialBoundaries(bands) {
+        var boundaries = [];
+        for (var i = 0; i < bands.length - 1; i++) {
+            if (bands[i + 1].start - bands[i].end > SEPARATE_EDGE_MAX_GAP) return getEvenBoundaries(bands.length);
+            boundaries.push(Math.round((bands[i].end + bands[i + 1].start) * 50) / 100);
+        }
+        return boundaries;
+    }
+
+    /**
+     * ダイアログで足すストップを作る（複製・セパレート用）
+     * @param {Color} color - カラー
+     * @param {number} rampPoint - 位置（0〜100）
+     * @param {number} opacity - 不透明度（0〜100）
+     * @param {number} midPoint - 中間点（13〜87）
+     * @returns {Object} readGradientEntry() のストップと同じ形（isAdded は true）
+     */
+    function createAddedStop(color, rampPoint, opacity, midPoint) {
+        return {
+            color: color,
+            rampPoint: rampPoint,
+            opacity: opacity,
+            midPoint: midPoint,
+            isAdded: true,
+            isRemoved: false,
+            editedColor: null,
+            editedRampPoint: null,
+            editedOpacity: null
+        };
+    }
+
+    /**
+     * グラデーションのストップを、セパレートのストップに置き換える
+     * （元からあるストップは削除の印を付けて残し、ダイアログで足したストップは消す）
+     * @param {Object} gradientEntry - collectGradientEntries() の要素
+     * @param {Object[]} bands - extractColorBands() の戻り値
+     * @param {number[]} boundaries - 境界の位置（%）
+     * @returns {void}
+     */
+    function replaceWithSeparateStops(gradientEntry, bands, boundaries) {
+        var newStops = [];
+        for (var i = 0; i < gradientEntry.stops.length; i++) {
+            var stopEntry = gradientEntry.stops[i];
+            if (stopEntry.isAdded) continue;
+            stopEntry.isRemoved = true;
+            newStops.push(stopEntry);
+        }
+        var separateStops = buildSeparateStops(bands, boundaries);
+        for (var j = 0; j < separateStops.length; j++) {
+            var separateStop = separateStops[j];
+            newStops.push(createAddedStop(separateStop.color, separateStop.rampPoint, separateStop.opacity, separateStop.midPoint));
+        }
+        gradientEntry.stops = newStops;
+    }
+
+    /**
+     * ストップの並びと削除の印を控える（セパレートのダイアログを取り消したとき用）
+     * @param {Object} gradientEntry - collectGradientEntries() の要素
+     * @returns {Object[]} {stopEntry, isRemoved} の配列
+     */
+    function saveStopList(gradientEntry) {
+        var savedStops = [];
+        for (var i = 0; i < gradientEntry.stops.length; i++) {
+            savedStops.push({ stopEntry: gradientEntry.stops[i], isRemoved: gradientEntry.stops[i].isRemoved });
+        }
+        return savedStops;
+    }
+
+    /**
+     * saveStopList() で控えた並びと削除の印に戻す
+     * @param {Object} gradientEntry - collectGradientEntries() の要素
+     * @param {Object[]} savedStops - saveStopList() の戻り値
+     * @returns {void}
+     */
+    function restoreStopList(gradientEntry, savedStops) {
+        var stops = [];
+        for (var i = 0; i < savedStops.length; i++) {
+            savedStops[i].stopEntry.isRemoved = savedStops[i].isRemoved;
+            stops.push(savedStops[i].stopEntry);
+        }
+        gradientEntry.stops = stops;
+    }
+
+    /**
+     * 一覧のグラデーションをセパレートにする。境界のダイアログを開き、［OK］で行をセパレートのストップに置き換える
+     * （書き込みは親のダイアログの［OK］で。親の［キャンセル］では元に戻る）。
+     * 対象は、2色以上ある最初のグラデーションと色数がそろうものだけ。
+     * 対象に線のグラデーションがあれば、境界のダイアログに［丸型の破線］を置く（境界のダイアログの［キャンセル］で、そこで設定した分は戻す）
+     * @param {Object[]} gradientPanels - addGradientPanel() の戻り値の配列
+     * @param {Object} panelCallbacks - showGradientStopsDialog() の onRowsRebuilt / dashOriginals（［丸型の破線］を押す前の線の設定）を持つ
+     * @returns {void}
+     */
+    function separateGradientPanels(gradientPanels, panelCallbacks) {
+        /* 入力中の値を控えてから、パネルごとに色の帯を数える / capture typed values, then count the bands per panel */
+        var panelBands = [];
+        var colorCount = 0;
+        for (var i = 0; i < gradientPanels.length; i++) {
+            for (var j = 0; j < gradientPanels[i].rows.length; j++) readStopRowEdits(gradientPanels[i].rows[j]);
+            panelBands.push(extractColorBands(buildStopsToWrite(gradientPanels[i].gradientEntry, true)));
+            if (colorCount === 0 && panelBands[i].length >= 2) colorCount = panelBands[i].length;
+        }
+        if (colorCount === 0) {
+            alert(getLabel("alert.singleColor"));
+            return;
+        }
+        if (colorCount > MAX_SEPARATE_COLORS) {
+            alert(getLabel("alert.tooManyColors", [MAX_SEPARATE_COLORS]));
+            return;
+        }
+
+        /* 色数がそろうパネルだけを対象にし、取り消し用に並びを控える / only panels with the same color count, saved for rolling back */
+        var separateTargets = [];
+        for (var k = 0; k < gradientPanels.length; k++) {
+            if (panelBands[k].length !== colorCount) continue;
+            separateTargets.push({
+                panelControls: gradientPanels[k],
+                bands: panelBands[k],
+                savedStops: saveStopList(gradientPanels[k].gradientEntry)
+            });
+        }
+
+        /**
+         * 対象を控えた並びに戻し、境界があればセパレートに置き換えて書き込む
+         * @param {number[]|null} boundaries - 境界の位置（%。null なら元の並びのまま）
+         * @returns {void}
+         */
+        function applyToTargets(boundaries) {
+            for (var m = 0; m < separateTargets.length; m++) {
+                var gradientEntry = separateTargets[m].panelControls.gradientEntry;
+                restoreStopList(gradientEntry, separateTargets[m].savedStops);
+                if (boundaries) replaceWithSeparateStops(gradientEntry, separateTargets[m].bands, boundaries);
+                syncGradientEntry(gradientEntry, true);
+            }
+            app.redraw();
+        }
+
+        var targetEntries = [];
+        for (var t = 0; t < separateTargets.length; t++) targetEntries.push(separateTargets[t].panelControls.gradientEntry);
+        var strokeItems = collectGradientStrokeItems(targetEntries);
+        var dashOriginals = panelCallbacks.dashOriginals;
+        var dashOriginalCount = dashOriginals.length; /* このダイアログで初めて設定した線を見分ける / tells which strokes were first set in this dialog */
+        var dashButton = null;
+        if (strokeItems.length > 0) {
+            dashButton = {
+                label: getLabel("button.setDashes"),
+                helpTip: getLabel("tooltip.setDashes"),
+                onClick: function () {
+                    addStrokeSnapshots(dashOriginals, strokeItems);
+                    if (!applyDashSettings(strokeItems)) alert(getLabel("alert.dashAlignFailed"));
+                }
+            };
+        }
+
+        var boundaries = showBoundaryDialog({
+            modeText: getLabel("message.modeAdjust", [separateTargets.length, colorCount]),
+            initialBoundaries: getInitialBoundaries(separateTargets[0].bands),
+            hasFooter: false,
+            onPreview: applyToTargets,
+            extraButton: dashButton
+        });
+        applyToTargets(boundaries);
+        if (!boundaries) {
+            /* このダイアログで設定した破線と線端を戻す / roll back the dashes and caps set in this dialog */
+            restoreStrokeSnapshots(dashOriginals.slice(dashOriginalCount), true);
+            dashOriginals.length = dashOriginalCount;
+            return;
+        }
+
+        for (var n = 0; n < separateTargets.length; n++) buildStopRows(separateTargets[n].panelControls);
+        panelCallbacks.onRowsRebuilt();
+        var skippedCount = gradientPanels.length - separateTargets.length;
+        if (skippedCount > 0) alert(getLabel("alert.skipped", [skippedCount]));
+    }
+
+    // =========================================
+    // 破線の設定 / Dash settings
+    // =========================================
+
+    /**
+     * 線がグラデーションのパスを集める（同じパスは1回だけ。テキストは外す）
+     * @param {Object[]} gradientEntries - collectGradientEntries() の戻り値
+     * @returns {PathItem[]} パス
+     */
+    function collectGradientStrokeItems(gradientEntries) {
+        var strokeItems = [];
+        for (var i = 0; i < gradientEntries.length; i++) {
+            var paintTargets = gradientEntries[i].targets;
+            for (var j = 0; j < paintTargets.length; j++) {
+                var strokeItem = paintTargets[j].item;
+                if (paintTargets[j].paintKey !== "strokeColor" || strokeItem.typename !== "PathItem") continue;
+                var isListed = false;
+                for (var k = 0; k < strokeItems.length; k++) {
+                    if (strokeItems[k] === strokeItem) isListed = true;
+                }
+                if (!isListed) strokeItems.push(strokeItem);
+            }
+        }
+        return strokeItems;
+    }
+
+    /**
+     * 線の設定を控える（アクションで変わる線幅・角の形状・比率と、［キャンセル］で戻す破線・線端）
+     * @param {PathItem[]} strokeItems - collectGradientStrokeItems() の戻り値
+     * @returns {Object[]} {item, strokeWidth, strokeJoin, strokeMiterLimit, strokeDashes, strokeCap} の配列
+     */
+    function saveStrokeSnapshots(strokeItems) {
+        var strokeSnapshots = [];
+        for (var i = 0; i < strokeItems.length; i++) {
+            var strokeItem = strokeItems[i];
+            strokeSnapshots.push({
+                item: strokeItem,
+                strokeWidth: strokeItem.strokeWidth,
+                strokeJoin: strokeItem.strokeJoin,
+                strokeMiterLimit: strokeItem.strokeMiterLimit,
+                strokeDashes: strokeItem.strokeDashes,
+                strokeCap: strokeItem.strokeCap
+            });
+        }
+        return strokeSnapshots;
+    }
+
+    /**
+     * まだ控えていないパスの線の設定を、控えの配列に足す（最初に［丸型の破線］を押す前の値を残す）
+     * @param {Object[]} strokeSnapshots - 控えの配列（saveStrokeSnapshots() と同じ形）
+     * @param {PathItem[]} strokeItems - パス
+     * @returns {void}
+     */
+    function addStrokeSnapshots(strokeSnapshots, strokeItems) {
+        var newItems = [];
+        for (var i = 0; i < strokeItems.length; i++) {
+            var isSaved = false;
+            for (var j = 0; j < strokeSnapshots.length; j++) {
+                if (strokeSnapshots[j].item === strokeItems[i]) isSaved = true;
+            }
+            if (!isSaved) newItems.push(strokeItems[i]);
+        }
+        var newSnapshots = saveStrokeSnapshots(newItems);
+        for (var k = 0; k < newSnapshots.length; k++) strokeSnapshots.push(newSnapshots[k]);
+    }
+
+    /**
+     * 控えた線の設定に戻す
+     * @param {Object[]} strokeSnapshots - saveStrokeSnapshots() の戻り値
+     * @param {boolean} includeDashes - 破線と線端も戻すなら true（線幅・角の形状・比率だけなら false）
+     * @returns {void}
+     */
+    function restoreStrokeSnapshots(strokeSnapshots, includeDashes) {
+        for (var i = 0; i < strokeSnapshots.length; i++) {
+            var snapshot = strokeSnapshots[i];
+            /* ロック中などで戻せなくても、残りは続ける / keep going when one item refuses */
+            try {
+                snapshot.item.strokeWidth = snapshot.strokeWidth;
+                snapshot.item.strokeJoin = snapshot.strokeJoin;
+                snapshot.item.strokeMiterLimit = snapshot.strokeMiterLimit;
+                if (includeDashes) {
+                    snapshot.item.strokeDashes = snapshot.strokeDashes;
+                    snapshot.item.strokeCap = snapshot.strokeCap;
+                }
+            } catch (e) { $.writeln("restoreStrokeSnapshots: " + e); }
+        }
+        app.redraw();
+    }
+
+    /**
+     * パスに、破線（STROKE_DASH_PATTERN）・丸型線端・［コーナーやパス先端に破線の先端を整列］を設定する。
+     * 整列は DOM に無いので線の設定のアクションで入れ、アクションが既定値に戻す線幅・角の形状・比率は控えた値に戻す。
+     * 破線と線端は DOM でも確かめて入れ直す
+     * @param {PathItem[]} strokeItems - collectGradientStrokeItems() の戻り値
+     * @returns {boolean} 整列まで設定できたら true
+     */
+    function applyDashSettings(strokeItems) {
+        var strokeSnapshots = saveStrokeSnapshots(strokeItems); /* アクションの前の線幅・角の形状・比率 / weight, join and miter before the action */
+        var doc = app.activeDocument;
+        var savedSelection = doc.selection;
+        var isAligned = false;
+        try {
+            doc.selection = strokeItems;
+            isAligned = runTemporaryAction(buildDashActionSource(strokeSnapshots[0].strokeWidth), DASH_ACTION_SET_NAME, DASH_ACTION_NAME);
+        } catch (e) {
+            $.writeln("applyDashSettings: " + e);
+        }
+        restoreStrokeSnapshots(strokeSnapshots, false);
+        for (var i = 0; i < strokeItems.length; i++) {
+            try {
+                if (String(strokeItems[i].strokeDashes) !== String(STROKE_DASH_PATTERN)) strokeItems[i].strokeDashes = STROKE_DASH_PATTERN;
+                if (strokeItems[i].strokeCap !== StrokeCap.ROUNDENDCAP) strokeItems[i].strokeCap = StrokeCap.ROUNDENDCAP;
+            } catch (e2) { $.writeln("applyDashSettings: " + e2); }
+        }
+        try {
+            if (savedSelection instanceof Array) doc.selection = savedSelection;
+            else if (savedSelection && savedSelection.select) savedSelection.select();
+        } catch (e3) { /* 選択を戻せなくても設定は済んでいる / the settings are already applied */ }
+        app.redraw();
+        return isAligned;
+    }
+
+    /**
+     * 破線・丸型線端・［コーナーやパス先端に破線の先端を整列］を設定する、線の設定（ai_plugin_setStroke）の一時アクションを作る。
+     * 省いたパラメーターは既定値に戻るので、すべて書く（線幅・角の形状・比率はあとで DOM で戻す。矢印はなし、線の位置は中央になる）
+     * @param {number} strokeWidth - 線幅（pt）
+     * @returns {string} アクション定義のテキスト
+     */
+    function buildDashActionSource(strokeWidth) {
+        var actionLines = ["/version 3"]
+            .concat(buildActionNameLines("", DASH_ACTION_SET_NAME))
+            .concat(["/isOpen 1", "/actionCount 1", "/action-1 {"])
+            .concat(buildActionNameLines("\t", DASH_ACTION_NAME))
+            .concat(["\t/keyIndex 0", "\t/colorIndex 0", "\t/isOpen 1", "\t/eventCount 1", "\t/event-1 {",
+                "\t\t/useRulersIn1stQuadrant 0", "\t\t/internalName (ai_plugin_setStroke)"])
+            .concat(buildActionNameLines("\t\t", "線を設定", "localizedName"))
+            .concat(["\t\t/isOpen 0", "\t\t/isOn 1", "\t\t/hasDialog 0", "\t\t/parameterCount " + (10 + STROKE_DASH_PATTERN.length)]);
+        var paramIndex = 0;
+
+        /**
+         * パラメーターを1つ足す
+         * @param {number} paramKey - パラメーターキー
+         * @param {string[]} bodyLines - /type から後の行（字下げなし）
+         * @returns {void}
+         */
+        function addParam(paramKey, bodyLines) {
+            paramIndex++;
+            actionLines.push("\t\t/parameter-" + paramIndex + " {", "\t\t\t/key " + paramKey, "\t\t\t/showInPalette 4294967295");
+            for (var i = 0; i < bodyLines.length; i++) actionLines.push("\t\t\t" + bodyLines[i]);
+            actionLines.push("\t\t}");
+        }
+
+        /**
+         * 列挙パラメーターの本文を作る
+         * @param {string} displayName - 表示名
+         * @param {number} enumValue - 値
+         * @returns {string[]} 本文の行
+         */
+        function enumBody(displayName, enumValue) {
+            return ["/type (enumerated)"].concat(buildActionNameLines("", displayName), ["/value " + enumValue]);
+        }
+
+        addParam(STROKE_KEY_WIDTH, ["/type (unit real)", "/value " + formatActionReal(strokeWidth), "/unit " + ACTION_UNIT_POINT]);
+        addParam(STROKE_KEY_CAP, enumBody("丸型線端", 1));
+        addParam(STROKE_KEY_MITER, ["/type (real)", "/value 10.0"]);
+        addParam(STROKE_KEY_JOIN, enumBody("マイター結合", 0));
+        addParam(STROKE_KEY_DASH_COUNT, ["/type (integer)", "/value " + STROKE_DASH_PATTERN.length]);
+        for (var d = 0; d < STROKE_DASH_PATTERN.length; d++) {
+            addParam(STROKE_KEY_DASH_1 + d, ["/type (unit real)", "/value " + formatActionReal(STROKE_DASH_PATTERN[d]), "/unit " + ACTION_UNIT_POINT]);
+        }
+        addParam(STROKE_KEY_DASH_ADJUST, ["/type (boolean)", "/value 1"]);
+        /* 矢印は「[なし]」 / no arrowheads */
+        addParam(STROKE_KEY_ARROW_1, ["/type (ustring)"].concat(buildActionNameLines("", "[なし]", "value")));
+        addParam(STROKE_KEY_ARROW_2, ["/type (ustring)"].concat(buildActionNameLines("", "[なし]", "value")));
+        addParam(STROKE_KEY_TIP_ALIGN, enumBody("パスの終点に配置", 0));
+        addParam(STROKE_KEY_ALIGN, enumBody("中央", 0));
+        actionLines.push("\t}", "}", "");
+        return actionLines.join(String.fromCharCode(13));
+    }
+
+    /**
+     * アクション定義の実数の書き方にする（整数でも「.0」を付ける）
+     * @param {number} value - 数値
+     * @returns {string} 「1.0」「0.5」の形の文字列
+     */
+    function formatActionReal(value) {
+        var realText = String(Math.round(value * 10000) / 10000);
+        return (realText.indexOf(".") < 0) ? realText + ".0" : realText;
+    }
+
+    // =========================================
+    // 新規作成 / Creating gradients
+    // =========================================
+
+    /**
+     * 選択から、ストップに使える単色（グラデーション・パターン・なし以外）を、
+     * 長辺方向（横並びは左→右／縦並びは上→下）の順に重複を除いて集める
+     * @param {*} source - doc.selection
+     * @param {string} selectionOrientation - detectSelectionOrientation() の結果
+     * @returns {Color[]} 重複を除いた色
+     */
+    function collectSolidColors(source, selectionOrientation) {
+        var colorEntries = [];
+        var leafItems = collectSelectionItems(source, {
+            enterCompoundPaths: true,
+            textRangeToFrame: false,
+            accept: function (item) {
+                return item.typename !== "GroupItem" && item.typename !== "CompoundPathItem";
+            }
+        });
+        for (var i = 0; i < leafItems.length; i++) collectColorEntries(leafItems[i], colorEntries);
+
+        /* 縦並びなら上→下、それ以外は左→右を優先。数件なので挿入ソート（比較関数つきの sort() は使わない）
+           top-to-bottom for a vertical selection, otherwise left-to-right; insertion sort instead of sort() with a comparator */
+        var isVertical = (selectionOrientation === "vertical");
+        var orderedEntries = [];
+        for (var j = 0; j < colorEntries.length; j++) {
+            var insertAt = orderedEntries.length;
+            while (insertAt > 0 && isColorEntryBefore(colorEntries[j], orderedEntries[insertAt - 1], isVertical)) insertAt--;
+            orderedEntries.splice(insertAt, 0, colorEntries[j]);
+        }
+
+        var colors = [];
+        var seenKeys = {};
+        for (var k = 0; k < orderedEntries.length; k++) {
+            var entryColor = orderedEntries[k].color;
+            if (!entryColor) continue;
+            var colorType = entryColor.typename;
+            if (colorType === "NoColor" || colorType === "GradientColor" || colorType === "PatternColor") continue;
+            var colorText = describeColor(entryColor);
+            if (seenKeys.hasOwnProperty(colorText)) continue;
+            seenKeys[colorText] = true;
+            colors.push(entryColor);
+        }
+        return colors;
+    }
+
+    /**
+     * 色の並び順で、entryA を entryB より前に置くかを返す
+     * @param {{left: number, top: number}} entryA - 色の項目
+     * @param {{left: number, top: number}} entryB - 色の項目
+     * @param {boolean} isVertical - 縦並び（上→下を優先）なら true、それ以外は左→右を優先
+     * @returns {boolean} entryA が先なら true（同じ位置なら false で元の順を保つ）
+     */
+    function isColorEntryBefore(entryA, entryB, isVertical) {
+        if (isVertical) {
+            if (entryA.top !== entryB.top) return entryA.top > entryB.top;
+            return entryA.left < entryB.left;
+        }
+        if (entryA.left !== entryB.left) return entryA.left < entryB.left;
+        return entryA.top > entryB.top;
+    }
+
+    /**
+     * オブジェクト1件から塗り・線の色を、左上の位置付きで集める
+     * @param {PageItem} item - 対象のオブジェクト（グループ・複合パスは展開済み）
+     * @param {Object[]} outEntries - {left, top, color} を足す配列
+     * @returns {void}
+     */
+    function collectColorEntries(item, outEntries) {
+        try {
+            var bounds = item.geometricBounds;
+            var paintSource = getPaintSource(item);
+            if (!paintSource) return;
+            var isText = (item.typename === "TextFrame");
+            /* テキストは filled / stroked を持たないので、色があれば使う / text has no filled / stroked flags */
+            if (isText || item.filled) outEntries.push({ left: bounds[0], top: bounds[1], color: paintSource.fillColor });
+            if (isText || item.stroked) outEntries.push({ left: bounds[0], top: bounds[1], color: paintSource.strokeColor });
+        } catch (e) { /* 色や位置を読めないオブジェクトは外す / skip items whose color or bounds are unreadable */ }
+    }
+
+    /**
+     * 選択オブジェクトが横並びか縦並びかを、各オブジェクトの中心の散らばりから判定する
+     * @param {*} source - doc.selection
+     * @returns {string} "horizontal" / "vertical" / "mixed" / "unknown"
+     */
+    function detectSelectionOrientation(source) {
+        var selectedItems = normalizeSelectionItems(source);
+        if (selectedItems.length < 2) return "unknown";
+        var minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+        for (var i = 0; i < selectedItems.length; i++) {
+            try {
+                var bounds = selectedItems[i].geometricBounds;
+                var centerX = (bounds[0] + bounds[2]) / 2;
+                var centerY = (bounds[1] + bounds[3]) / 2;
+                if (centerX < minX) minX = centerX;
+                if (centerX > maxX) maxX = centerX;
+                if (centerY < minY) minY = centerY;
+                if (centerY > maxY) maxY = centerY;
+            } catch (e) { /* 境界を読めないものは外す / skip items without bounds */ }
+        }
+        if (minX > maxX) return "unknown";
+        var dx = maxX - minX;
+        var dy = maxY - minY;
+        if (dx > dy) return "horizontal";
+        if (dy > dx) return "vertical";
+        return "mixed";
+    }
+
+    /**
+     * 前回同じ色数で使った境界を返す（無いか使えなければ等分）
+     * @param {number} colorCount - 色数
+     * @returns {number[]} 境界の位置（%）
+     */
+    function loadLastBoundaries(colorCount) {
+        var savedSets = $.global[LAST_BOUNDARIES_KEY];
+        var savedBoundaries = savedSets ? savedSets[colorCount] : null;
+        if (savedBoundaries instanceof Array && savedBoundaries.length === colorCount - 1 && areBoundariesValid(savedBoundaries)) {
+            return savedBoundaries.slice(0);
+        }
+        return getEvenBoundaries(colorCount);
+    }
+
+    /**
+     * 境界を色数ごとに覚える
+     * @param {number[]} boundaries - 境界の位置（%）
+     * @returns {void}
+     */
+    function saveLastBoundaries(boundaries) {
+        if (!$.global[LAST_BOUNDARIES_KEY]) $.global[LAST_BOUNDARIES_KEY] = {};
+        $.global[LAST_BOUNDARIES_KEY][boundaries.length + 1] = boundaries.slice(0);
+    }
+
+    /**
+     * 選択の色から新しいセパレートグラデーションを作る。境界のダイアログを開き、［OK］で長方形に塗って置く
+     * @param {Document} doc - 対象ドキュメント
+     * @param {Color[]} colors - collectSolidColors() の戻り値（2色以上）
+     * @param {string} selectionOrientation - detectSelectionOrientation() の結果
+     * @returns {void}
+     */
+    function runCreateMode(doc, colors, selectionOrientation) {
+        if (colors.length > MAX_SEPARATE_COLORS) {
+            alert(getLabel("alert.tooManyColors", [MAX_SEPARATE_COLORS]));
+            return;
+        }
+        /* クリップグループはマスクで測る / clip groups are measured by their mask */
+        var selectionBounds = getClipAwareUnionBounds(doc.selection, false);
+
+        var boundaries = showBoundaryDialog({
+            modeText: getLabel("message.modeCreate", [colors.length]),
+            initialBoundaries: loadLastBoundaries(colors.length),
+            hasFooter: true
+        });
+        if (!boundaries) return;
+
+        saveLastBoundaries(boundaries);
+        createSeparateGradientRect(doc, colors, boundaries, selectionBounds, selectionOrientation);
+    }
+
+    /**
+     * 色と境界からセパレートグラデーションを作り、長方形に塗る（縦並びなら角度を 90° に）
+     * @param {Document} doc - 対象ドキュメント
+     * @param {Color[]} colors - 始点側から並べる色
+     * @param {number[]} boundaries - 境界の位置（%）
+     * @param {number[]|null} selectionBounds - 選択の [左, 上, 右, 下]
+     * @param {string} selectionOrientation - detectSelectionOrientation() の結果
+     * @returns {void}
+     */
+    function createSeparateGradientRect(doc, colors, boundaries, selectionBounds, selectionOrientation) {
+        var targetLayer = getUnlockedVisibleLayer(doc);
+        if (!targetLayer) {
+            alert(getLabel("alert.noDrawableLayer"));
+            return;
+        }
+
+        var bands = [];
+        for (var i = 0; i < colors.length; i++) bands.push({ color: colors[i], opacity: 100 });
+
+        var gradient = doc.gradients.add();
+        gradient.type = GradientType.LINEAR;
+        writeGradientStops(gradient.gradientStops, buildSeparateStops(bands, boundaries));
+        gradient.name = uniqueName(NEW_GRADIENT_BASE_NAME, doc.gradients);
+
+        var rectFrame = computeRectFrame(doc, selectionBounds, selectionOrientation);
+        var gradientRect = targetLayer.pathItems.rectangle(rectFrame.top, rectFrame.left, rectFrame.width, rectFrame.height);
+        doc.selection = null;
+        gradientRect.selected = true;
+
+        /* 縦並びなら上→下の向きにする（塗る前に実行） / top-to-bottom for a vertical selection, run before filling */
+        if (selectionOrientation === "vertical") runGradientAngle90Action();
+
+        gradientRect.stroked = false;
+        gradientRect.filled = true;
+        var gradientFill = new GradientColor();
+        gradientFill.gradient = gradient;
+        gradientRect.fillColor = gradientFill;
+    }
+
+    /**
+     * 長方形の位置と大きさを決める。大きさは選択の外接サイズ、
+     * 縦並びなら選択の右、それ以外は選択の下に、長方形1個分の間隔をあけて置く
+     * @param {Document} doc - 対象ドキュメント
+     * @param {number[]|null} selectionBounds - 選択の [左, 上, 右, 下]（測れなければ null）
+     * @param {string} selectionOrientation - detectSelectionOrientation() の結果
+     * @returns {{left: number, top: number, width: number, height: number}} 長方形の左上と大きさ
+     */
+    function computeRectFrame(doc, selectionBounds, selectionOrientation) {
+        if (!selectionBounds || selectionBounds[0] > selectionBounds[2] || selectionBounds[3] > selectionBounds[1]) {
+            var viewCenter = doc.activeView.centerPoint;
+            return {
+                left: viewCenter[0] - DEFAULT_RECT_SIZE / 2,
+                top: viewCenter[1] + DEFAULT_RECT_SIZE / 2,
+                width: DEFAULT_RECT_SIZE,
+                height: DEFAULT_RECT_SIZE
+            };
+        }
+        var rectWidth = selectionBounds[2] - selectionBounds[0];
+        var rectHeight = selectionBounds[1] - selectionBounds[3];
+        if (!(rectWidth > 0)) rectWidth = DEFAULT_RECT_SIZE;
+        if (!(rectHeight > 0)) rectHeight = DEFAULT_RECT_SIZE;
+
+        if (selectionOrientation === "vertical") {
+            return { left: selectionBounds[2] + rectWidth, top: selectionBounds[1], width: rectWidth, height: rectHeight };
+        }
+        return { left: selectionBounds[0], top: selectionBounds[3] - rectHeight, width: rectWidth, height: rectHeight };
+    }
+
+    /**
+     * 描画できるレイヤー（ロックも非表示もされていないもの）を返す。アクティブレイヤーを優先する
+     * @param {Document} doc - 対象ドキュメント
+     * @returns {Layer|null} 描画できるレイヤー（無ければ null）
+     */
+    function getUnlockedVisibleLayer(doc) {
+        var activeLayer = doc.activeLayer;
+        if (activeLayer && !activeLayer.locked && activeLayer.visible) return activeLayer;
+        for (var i = 0; i < doc.layers.length; i++) {
+            if (!doc.layers[i].locked && doc.layers[i].visible) return doc.layers[i];
+        }
+        return null;
+    }
+
+    /**
+     * 名前の衝突を避けた一意な名前を作る（"名前", "名前 1", "名前 2" …）
+     * @param {string} baseName - 元の名前
+     * @param {Object} namedCollection - 名前の重複を調べるコレクション（getByName を持つ）
+     * @returns {string} 使われていない名前
+     */
+    function uniqueName(baseName, namedCollection) {
+        var candidateName = baseName;
+        for (var suffix = 1; hasItemNamed(namedCollection, candidateName); suffix++) {
+            candidateName = baseName + " " + suffix;
+        }
+        return candidateName;
+    }
+
+    /**
+     * コレクションに同じ名前の項目があるかを調べる
+     * @param {Object} namedCollection - getByName を持つコレクション
+     * @param {string} itemName - 調べる名前
+     * @returns {boolean} あれば true
+     */
+    function hasItemNamed(namedCollection, itemName) {
+        try {
+            namedCollection.getByName(itemName); /* 見つからないと例外 / throws when not found */
+            return true;
+        } catch (e) {
+            return false;
+        }
+    }
+
+    /**
+     * 選択中のオブジェクトのグラデーション角度を 90° にするアクションを実行する
+     * @returns {void}
+     */
+    function runGradientAngle90Action() {
+        var actionCode = [
+            " /version 3",
+            "/name [ 8",
+            "\t6772616469656e74",
+            "]",
+            "/isOpen 1",
+            "/actionCount 1",
+            "/action-1 {",
+            "\t/name [ 8",
+            "\t\t3930646567726565",
+            "\t]",
+            "\t/keyIndex 0",
+            "\t/colorIndex 0",
+            "\t/isOpen 1",
+            "\t/eventCount 1",
+            "\t/event-1 {",
+            "\t\t/useRulersIn1stQuadrant 0",
+            "\t\t/internalName (ai_plugin_setGradient)",
+            "\t\t/localizedName [ 30",
+            "\t\t\te382b0e383a9e38387e383bce382b7e383a7e383b3e38292e8a8ade5ae9a",
+            "\t\t]",
+            "\t\t/isOpen 1",
+            "\t\t/isOn 1",
+            "\t\t/hasDialog 0",
+            "\t\t/parameterCount 1",
+            "\t\t/parameter-1 {",
+            "\t\t\t/key 1634625388",
+            "\t\t\t/showInPalette 4294967295",
+            "\t\t\t/type (unit real)",
+            "\t\t\t/value -90.0",
+            "\t\t\t/unit 591490663",
+            "\t\t}",
+            "\t}",
+            "}",
+            ""
+        ].join(String.fromCharCode(13));
+        runTemporaryAction(actionCode, "gradient", "90degree");
+    }
+
+    // =========================================
     // ダイアログUI / Dialog UI
     // =========================================
 
     /**
      * グラデーションストップの一覧をダイアログボックスに表示し、変更を受け付ける。
-     * ［プレビュー］がオンの間は変更をその場で書き込み、［OK］で確定、［キャンセル］で元に戻す
+     * 変更はその場でオブジェクトに書き込み（プレビューは常にオン）、［OK］で確定、［キャンセル］で元に戻す
      * @param {Object[]} gradientEntries - collectGradientEntries() の戻り値
      * @returns {void}
      */
@@ -2924,12 +3711,9 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         setupWindow(stopsDialog);
 
         var gradientPanels = [];
-        /* 表示前に代入した checkbox.value は読み戻せないので、状態は変数で持つ / checkbox.value set before show() cannot be read back */
-        var isPreviewOn = DEFAULT_PREVIEW_ON;
         var panelCallbacks = {
-            /* 行が変わったとき、プレビューがオンなら書き込み直す / rewrite while the preview is on */
+            /* 行が変わったら書き込み直す / rewrite whenever a row changes */
             onStopEdited: function () {
-                if (!isPreviewOn) return;
                 syncDialogEdits(gradientEntries, gradientPanels, true);
             },
             /* 行を作り直したあと、ダイアログの大きさと見出しを合わせ直す / refit the dialog and headers after rebuilding rows */
@@ -2937,7 +3721,9 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
                 stopsDialog.layout.layout(true);
                 stopsDialog.layout.resize();
                 alignAllHeaderLabels(gradientPanels);
-            }
+            },
+            /* セパレートのダイアログで［丸型の破線］を押す前の線の設定（［キャンセル］で戻す） / strokes before Round Dashes, restored on Cancel */
+            dashOriginals: []
         };
 
         var listedCount = Math.min(gradientEntries.length, MAX_LISTED_GRADIENTS);
@@ -2949,19 +3735,13 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         }
 
         var buttonRow = addButtonRow(stopsDialog);
-        var previewCheckbox = buttonRow.leftGroup.add("checkbox", undefined, getLabel("checkbox.preview"));
-        previewCheckbox.value = isPreviewOn;
-        previewCheckbox.onClick = function () {
-            isPreviewOn = previewCheckbox.value;
-            syncDialogEdits(gradientEntries, gradientPanels, isPreviewOn);
+        var separateButton = buttonRow.leftGroup.add("button", undefined, getLabel("button.separate"));
+        separateButton.helpTip = getLabel("tooltip.separate");
+        separateButton.onClick = function () {
+            separateGradientPanels(gradientPanels, panelCallbacks);
         };
         buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
         buttonRow.rightGroup.add("button", undefined, "OK", { name: "ok" });
-
-        /* option＋A で［プレビュー］を切り替える。入力欄の編集中も効かせる / Option+A toggles Preview, even while editing a field */
-        addKeyShortcuts(stopsDialog, {
-            "Alt+A": { target: previewCheckbox, inFields: true }
-        }, { showInTip: true });
 
         alignRightOnlyButtonRow(buttonRow);
         /* レイアウトが決まってから見出しを入力欄に揃える（ボタン行の並べ直しより後） / align the headers once the layout is settled */
@@ -2974,6 +3754,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
 
         /* OK なら変更を書き込み、キャンセルならプレビューで書いた分を元に戻す / write on OK, roll back the preview on Cancel */
         var failedCount = syncDialogEdits(gradientEntries, gradientPanels, isConfirmed);
+        /* セパレートのダイアログで設定した破線と線端を戻す / roll back the dashes and caps set in the segment dialog */
+        if (!isConfirmed && panelCallbacks.dashOriginals.length > 0) restoreStrokeSnapshots(panelCallbacks.dashOriginals, true);
         if (isConfirmed && failedCount > 0) alert(getLabel("alert.applyFailed", [failedCount]));
     }
 
@@ -3061,17 +3843,12 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         var neighbourLocation = getCurrentRampPoint(panelRows[neighbourIndex].stopEntry);
         /* 削除したストップも stops に残っているので、行の番号ではなく元のストップの場所の次に入れる / insert after the source stop, since removed stops stay in the list */
         var stops = panelControls.gradientEntry.stops;
-        stops.splice(indexOfStop(stops, sourceStop) + 1, 0, {
-            color: sourceStop.editedColor || sourceStop.color,
-            rampPoint: Math.round((sourceLocation + neighbourLocation) / 2 * 100) / 100,
-            opacity: (sourceStop.editedOpacity !== null) ? sourceStop.editedOpacity : sourceStop.opacity,
-            midPoint: 50,
-            isAdded: true,
-            isRemoved: false,
-            editedColor: null,
-            editedRampPoint: null,
-            editedOpacity: null
-        });
+        stops.splice(indexOfStop(stops, sourceStop) + 1, 0, createAddedStop(
+            sourceStop.editedColor || sourceStop.color,
+            Math.round((sourceLocation + neighbourLocation) / 2 * 100) / 100,
+            (sourceStop.editedOpacity !== null) ? sourceStop.editedOpacity : sourceStop.opacity,
+            50
+        ));
         rebuildPanelRows(panelControls);
     }
 
@@ -3524,6 +4301,106 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             chipGraphics.strokePath(framePen);
         };
         return colorChip;
+    }
+
+    // -----------------------------------------
+    // 境界のダイアログ / Boundary dialog
+    // -----------------------------------------
+
+    /**
+     * セパレートの境界の位置を入力するダイアログを表示する。onPreview を渡すと、入力に合わせて反映する（プレビューは常にオン）
+     * @param {Object} dialogSetup - 表示の設定
+     * @param {string} dialogSetup.modeText - 上に出す説明
+     * @param {number[]} dialogSetup.initialBoundaries - 境界の初期値（%）
+     * @param {boolean} dialogSetup.hasFooter - 左下にスクリプト名・バージョンを出すなら true（一覧のダイアログから開く小さなダイアログは false）
+     * @param {function(number[]): void} [dialogSetup.onPreview] - 使える境界が入力されるたびに呼ぶ（取り消しは呼び出し側で戻す）
+     * @param {{label: string, helpTip: string, onClick: Function}|null} [dialogSetup.extraButton] - ボタン行の左に置くボタン
+     * @returns {number[]|null} 境界の位置（キャンセルなら null）
+     */
+    function showBoundaryDialog(dialogSetup) {
+        var boundaryDialog = new Window("dialog", getLabel("dialog.separateTitle"));
+        setupWindow(boundaryDialog);
+
+        boundaryDialog.add("statictext", undefined, dialogSetup.modeText);
+
+        var boundaryPanel = boundaryDialog.add("panel", undefined, getLabel("panel.boundaries"));
+        setupPanel(boundaryPanel, 6);
+
+        var boundaryInputs = [];
+        for (var i = 0; i < dialogSetup.initialBoundaries.length; i++) {
+            var boundaryInput = addSteppedField(boundaryPanel, {
+                label: labelText("fieldLabel.boundary", [i + 1]),
+                labelWidth: BOUNDARY_LABEL_WIDTH,
+                text: formatStepperNumber(dialogSetup.initialBoundaries[i]) + BOUNDARY_FIELD_OPTIONS.unit,
+                characters: BOUNDARY_FIELD_CHARACTERS,
+                step: BOUNDARY_FIELD_OPTIONS.step,
+                min: BOUNDARY_FIELD_OPTIONS.min,
+                max: BOUNDARY_FIELD_OPTIONS.max,
+                unit: BOUNDARY_FIELD_OPTIONS.unit,
+                onStep: refreshPreview
+            });
+            boundaryInput.helpTip = getLabel("tooltip.boundary");
+            appendOnChange(boundaryInput, refreshPreview);
+            boundaryInputs.push(boundaryInput);
+        }
+
+        var buttonRow = addButtonRow(boundaryDialog);
+        if (dialogSetup.extraButton) {
+            var extraButton = buttonRow.leftGroup.add("button", undefined, dialogSetup.extraButton.label);
+            extraButton.helpTip = dialogSetup.extraButton.helpTip;
+            extraButton.onClick = dialogSetup.extraButton.onClick;
+        }
+        buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+        var okButton = buttonRow.rightGroup.add("button", undefined, "OK", { name: "ok" });
+
+        /**
+         * 入力欄の値を読む
+         * @returns {number[]} 境界の位置（%。読めない欄は NaN）
+         */
+        function readBoundaries() {
+            var boundaries = [];
+            for (var j = 0; j < boundaryInputs.length; j++) boundaries.push(parseFloat(boundaryInputs[j].text));
+            return boundaries;
+        }
+
+        /**
+         * 入力した境界をプレビューに反映する（使えない値のあいだは前の表示のまま）
+         * @returns {void}
+         */
+        function refreshPreview() {
+            if (!dialogSetup.onPreview) return;
+            var boundaries = readBoundaries();
+            if (areBoundariesValid(boundaries)) dialogSetup.onPreview(boundaries);
+        }
+
+        okButton.onClick = function () {
+            if (!areBoundariesValid(readBoundaries())) {
+                alert(getLabel("alert.invalidBoundaries"));
+                return;
+            }
+            boundaryDialog.close(1);
+        };
+
+        refreshPreview();
+        alignRightOnlyButtonRow(buttonRow);
+        if (dialogSetup.hasFooter) addVersionFooter(boundaryDialog);
+        prepareDialogWindow(boundaryDialog, SCRIPT_NAME + "Boundary");
+        if (boundaryDialog.show() !== 1) return null;
+        return readBoundaries();
+    }
+
+    /**
+     * 入力欄の確定時の処理に、あとから処理を足す（StepperButtons の onChange で値をそろえたあとに呼ぶ）
+     * @param {EditText} numberInput - addSteppedField() で作った入力欄
+     * @param {Function} afterChange - 足す処理
+     * @returns {void}
+     */
+    function appendOnChange(numberInput, afterChange) {
+        var baseOnChange = numberInput.onChange;
+        numberInput.onChange = function () {
+            if (baseOnChange) baseOnChange();
+            afterChange();
+        };
     }
 
 })();

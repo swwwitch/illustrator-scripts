@@ -53,7 +53,7 @@ var SCRIPT_DESCRIPTION_JA = "指定した％の位置でセパレートグラデ
 
 var SCRIPT_README_JA  = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AdjustSeparateGradient.md"; /* README（日本語） */
 var SCRIPT_README_EN  = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AdjustSeparateGradient.md"; /* README (English) */
-var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/color/AdjustSeparateGradient.jsx"; /* 最新版のソース / latest source */
+var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/color/single-function/AdjustSeparateGradient.jsx"; /* 最新版のソース / latest source */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php

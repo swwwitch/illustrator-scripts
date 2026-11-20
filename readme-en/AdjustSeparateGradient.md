@@ -1,6 +1,6 @@
 # Create and adjust segmented gradients at set percentages
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-AdjustSeparateGradient.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/color/AdjustSeparateGradient.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-AdjustSeparateGradient.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/color/single-function/AdjustSeparateGradient.jsx)
 
 [![Japanese](https://img.shields.io/badge/README-Japanese-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AdjustSeparateGradient.md)
 
@@ -12,6 +12,8 @@
 
 Builds a segmented gradient (hard-edged, with no blending between colors) whose colors switch at the percentages you enter.
 With two or more differently colored objects selected it creates a new gradient; with objects whose fill or stroke is a gradient selected it moves their boundaries.
+
+The same features are also in [List and edit gradient stops](EditGradientStops.md) (EditGradientStops).
 
 ### Features
 
