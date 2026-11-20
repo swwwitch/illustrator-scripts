@@ -98,4 +98,5 @@ The dialog box has Presets centered at the top, the Tail and Text Options panels
 - v1.2.0 (2026-11-03): Added the tail shapes U shape, Loop, Horn and Thought, and the line shapes L shape and Top & bottom (the tail shapes now sit in three columns). Added Dot at the tip for the tail and Side gaps for a box, plus the built-in presets Underline, U; Underline, loop; L shape, V down left; Capsule box with gaps; Capsule box, slash with a dot; Thought bubble; Rounded box, horn; and Top & bottom, slash down left
 - v1.2.1 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)
 - v1.2.2 (2026-11-20) Clicking the script name and version at the bottom left opens About This Script (copy the script name, open the README and other links, show in Finder; shared part updated)
+- v1.2.3 (2026-11-20) Shared part update (icon buttons: added the Auto icon; no change in behavior)
 

@@ -63,6 +63,7 @@ To create a new segmented gradient, select two or more differently colored objec
 
 ### Update History
 
+- v1.1.1 (2026-11-20) Shared part update (icon buttons: added the Auto icon; no change in behavior)
 - v1.1.0 (2026-11-20) Merged in the features of AdjustSeparateGradient. Segment... at the bottom left turns the gradients into segmented ones at the boundary positions you enter. Removed the Preview checkbox; the preview is now always on. When a stroke uses a gradient, Round Dashes in the Segment dialog box sets dashes (1 pt dash, blank gap), round caps and Align Dashes to Corners and Path Ends. With two or more differently colored objects without gradients selected, creates a new segmented gradient from their colors
 - v1.0.1 (2026-11-20) Clicking the script name and version at the bottom left opens About This Script (copy the script name, open the README and other links, show in Finder; shared part updated)
 - v1.0.0 (2026-11-20) First release

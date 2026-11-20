@@ -76,6 +76,7 @@ https://note.com/dtp_tranist/n/n3b15f8368c27
 
 ### Update History
 
+- v1.3.2 (2026-11-20) Shared part update (icon buttons: added the Auto icon; no change in behavior)
 - v1.3.1 (2026-11-20) Clicking the script name and version at the bottom left opens About This Script (copy the script name, open the README and other links, show in Finder; shared part updated)
 - v1.3.0 (2026-11-19) Added the built-in Default preset (no mask, Inset 0, Gutter 0), the Half Width button for the corner radius, and Choose Folder... to place all the images in a folder (the last choice becomes the default button)
 - v1.2.0 (2026-11-12) Added presets (save, load, delete) and three built-in presets (Black 0.3 pt, square / White 1 pt, radius 2 pt / White 1 pt, radius 50 pt)

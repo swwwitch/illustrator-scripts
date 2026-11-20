@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.SpeechBubbleMaker
 Name=テキストに吹き出しのしっぽ付きの下線・囲みを描く
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.2.2
+Version=1.2.3
 Release-Date=2026-11-02
 Description-BEGIN
 選択したテキストに、吹き出しのしっぽ（V字・斜線・すぼまり・U字・ループ・つの・思考）の付いた下線・L字・コの字・囲み・上下の線を描きます。線は上下左右のどの側にも描けます。
@@ -47,7 +47,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SpeechBubb
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SpeechBubbleMaker";            /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.2.2";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.2.3";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-11-02";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-11-20";                   /* 更新日 / last updated */
@@ -1131,6 +1131,41 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             [69, 207, 138, 825], [618, 207, 688, 825], [138, 756, 618, 825], /* 本体 / body */
             [206, 275, 275, 687], [343, 275, 413, 687], [481, 275, 550, 687] /* 縦の線 / ribs */
         ], iconColor);
+    }
+
+    /**
+     * 自動計算アイコン（魔法の杖と3つのきらめき）を描く。24×22 の絵を、縦横比を保って中央に置く。
+     * 行数・列数や比率など、値を自動で求める［自動］ボタンの代わりに使う
+     * @param {ScriptUIGraphics} iconGraphics - 描画先
+     * @param {number} iconWidth - アイコンの幅
+     * @param {number} iconHeight - アイコンの高さ
+     * @param {number[]} iconColor - [r, g, b, a]
+     * @returns {void}
+     */
+    function drawAutoIcon(iconGraphics, iconWidth, iconHeight, iconColor) {
+        var iconScale = Math.min(iconWidth / 24, iconHeight / 22);
+        var originX = (iconWidth - 24 * iconScale) / 2;
+        var originY = (iconHeight - 22 * iconScale) / 2;
+
+        /** 絵の座標で線を1本引く / stroke one line in design coordinates */
+        function strokeLine(x1, y1, x2, y2, lineWidth) {
+            iconGraphics.newPath();
+            iconGraphics.moveTo(originX + x1 * iconScale, originY + y1 * iconScale);
+            iconGraphics.lineTo(originX + x2 * iconScale, originY + y2 * iconScale);
+            iconGraphics.strokePath(iconGraphics.newPen(iconGraphics.PenType.SOLID_COLOR, iconColor, lineWidth * iconScale));
+        }
+
+        /** 十字のきらめきを描く / draw a cross-shaped sparkle */
+        function drawSparkle(centerX, centerY, radius) {
+            strokeLine(centerX - radius, centerY, centerX + radius, centerY, 1.2);
+            strokeLine(centerX, centerY - radius, centerX, centerY + radius, 1.2);
+        }
+
+        strokeLine(4, 19, 14, 9, 2.2);     /* 杖 / wand */
+        strokeLine(14, 9, 16.5, 6.5, 3.2); /* 杖の先 / wand tip */
+        drawSparkle(18.5, 12.5, 2.5);
+        drawSparkle(9, 5, 2.5);
+        drawSparkle(20, 3.5, 1.8);
     }
 
     // アイコンのボタン（再利用パーツ）ここまで / End of the reusable icon buttons

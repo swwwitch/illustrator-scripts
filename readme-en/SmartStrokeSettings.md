@@ -105,6 +105,7 @@ https://note.com/dtp_tranist/n/n1726fc0f8dc9
 
 ### Update History
 
+- v1.3.5 (2026-11-20) Shared part update (icon buttons: added the Auto icon; no change in behavior)
 - v1.3.4 (2026-11-20) Clicking the script name and version at the bottom left opens About This Script (copy the script name, open the README and other links, show in Finder; shared part updated)
 - v1.3.3 (2026-11-12) Fixed no stroke being added to paths with neither fill nor stroke. Paths with no stroke color now get a black stroke
 - v1.3.2 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)
