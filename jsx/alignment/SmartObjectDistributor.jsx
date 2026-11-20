@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.SmartObjectDistributor
 Name=グリッドの各セル中央にオブジェクトを配置
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=3.2.0
+Version=3.4.0
 Release-Date=2025-05-20
 Description-BEGIN
 選択したオブジェクトを、指定した行数・列数のグリッドの各セル中央へ配置します。
@@ -47,7 +47,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartObjec
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SmartObjectDistributor";       /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v3.2.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v3.4.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-05-20";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-11-20";                   /* 更新日 / last updated */
@@ -78,8 +78,10 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         defaultCornerRadius: 10,     /* 角丸の半径の初期値（定規単位） / default corner radius (ruler unit) */
         defaultUseFrame: false,      /* ［枠］の初期値 / Frame starts unchecked */
         defaultFrameWidth: 1,        /* 枠の線幅の初期値（線の単位） / default frame weight (stroke unit) */
+        defaultItemAnchor: "center", /* アイテムの基準位置の初期値（開始位置と同じ名前） / where each object sits in its cell when masked */
         defaultKeepOriginals: false, /* ［配置するオブジェクトを残す］の初期値 / Keep Original Objects starts unchecked */
         defaultSpreadEvenly: false,  /* ［均等にまばらに］の初期値 / Spread Evenly starts unchecked */
+        defaultBrick: false,         /* ［レンガ］の初期値 / Brick starts unchecked */
         defaultFillStart: "topLeft", /* 開始位置の初期値（"topLeft" / "top" / "topRight" / "left" / "center" / "right" / "bottomLeft" / "bottom" / "bottomRight"） / where filling starts */
         blackCellOpacity: 15,        /* 黒セルの不透明度（%） / opacity for black cells */
         whiteCellOpacity: 100,       /* 白セルの不透明度（%） / opacity for white cells */
@@ -179,10 +181,10 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
 
     // UIレイアウト（再利用パーツ）ここまで / End of the reusable UI layout
 
-    /* ダイアログボックスを詰めるための間隔 / Tighter spacing to keep the dialog compact */
-    var RADIO_COLUMN_SPACING = 4;  /* 縦に並べたラジオボタンの間隔 / spacing of stacked radio buttons */
-    var PANEL_SECTION_SPACING = 8; /* パネル内のまとまりどうしの間隔 / spacing between sections in a panel */
-    var COLUMN_PANEL_SPACING = 8;  /* カラム内のパネルどうしの間隔 / spacing between panels in a column */
+    /* 間隔は共通部品 UILayout と同じにそろえる / Spacing matches the shared UILayout part */
+    var RADIO_COLUMN_SPACING = 6;              /* 縦に並べたラジオボタンの間隔 / spacing of stacked radio buttons */
+    var PANEL_SECTION_SPACING = PANEL_SPACING; /* パネル内のまとまりどうしの間隔 / spacing between sections in a panel */
+    var COLUMN_PANEL_SPACING = WINDOW_SPACING; /* カラム内のパネルどうしの間隔 / spacing between panels in a column */
     var FILL_START_WIDGET_SIZE = 50; /* 開始位置のウィジェットの一辺 / size of the Start From widget */
     var COLOR_SWATCH_SIZE = [40, 20]; /* 枠の色見本の大きさ / size of the frame color swatch */
     var CHECKBOX_BOX_WIDTH = 24;  /* チェックボックスの□と文字の間の分の幅 / width of a checkbox's box and its gap */
@@ -2259,7 +2261,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             cellColor: { ja: "カラー", en: "Color" },
             cellOpacity: { ja: "不透明度", en: "Opacity" },
             resizeRatio: { ja: "比率", en: "Ratio" },
-            fillStart: { ja: "開始位置", en: "Start From" }
+            fillStart: { ja: "開始位置", en: "Start From" },
+            itemAnchor: { ja: "アイテムの基準位置", en: "Object Anchor" }
         },
         checkbox: {
             maskToCell: { ja: "マスクする", en: "Mask" },
@@ -2267,6 +2270,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             cornerRadius: { ja: "角丸", en: "Round Corners" },
             frameStroke: { ja: "枠", en: "Frame" },
             spreadEvenly: { ja: "均等にまばらに", en: "Spread Evenly" },
+            brick: { ja: "レンガ", en: "Brick" },
             keepOriginals: { ja: "配置するオブジェクトを残す", en: "Keep Original Objects" }
         },
         radio: {
@@ -2371,9 +2375,17 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
                 en: "Adds a stroke to each mask rectangle. Click the swatch to choose the frame color."
             },
             frameColor: { ja: "クリックで枠の色を選ぶ", en: "Click to choose the frame color" },
+            itemAnchor: {
+                ja: "オブジェクトのどこをセルのどこに合わせるかです。中央以外では、その側をそろえてから反対側をマスクで切り抜きます。",
+                en: "Which point of each object meets the same point of its cell. Off center, that side is aligned and the opposite side is cropped by the mask."
+            },
             spreadEvenly: {
                 ja: "オブジェクトがセルより少ないとき、詰めずにグリッド全体へ均等に散らします（開始位置から始めます）。",
                 en: "When there are fewer objects than cells, spreads them evenly over the grid instead of packing them, starting from the start position."
+            },
+            brick: {
+                ja: "偶数行のセルを1つ減らし、半セルずらしてレンガ積みにします（列数が2以上のとき）。",
+                en: "Removes one cell from every even row and shifts it by half a cell, like a brick wall (with 2 or more columns)."
             },
             autoCornerRadius: {
                 ja: "角丸の半径を、セルの短い辺の半分にします（短い辺の両端が半円になります）。",
@@ -2693,7 +2705,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
      *
      * @typedef {Object} GridMetrics
      * @property {number} rowCount - 行数。
-     * @property {number} columnCount - 列数。
+     * @property {number} columnCount - 列数（［レンガ］では奇数行の数。偶数行は1つ少ない）。
+     * @property {boolean} brick - ［レンガ］なら true（偶数行を1つ減らし、半セル右へずらす）。
      * @property {number} originLeft - 1行1列目のセル左端。
      * @property {number} originTop - 1行1列目のセル上端。
      * @property {number} cellWidth - セルの幅。
@@ -2710,9 +2723,10 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
      * @param {number} margin - マージン（pt）。
      * @param {number} gutter - セル間隔（pt）。
      * @param {number[]} targetRect - 配置先の矩形 [左, 上, 右, 下]。
+     * @param {boolean} isBrick - ［レンガ］なら true。列数が1のときは偶数行が空になるので無視します。
      * @returns {GridMetrics|null} グリッドの寸法。入力が無効な場合は null。
      */
-    function computeGridMetrics(rowCount, columnCount, margin, gutter, targetRect) {
+    function computeGridMetrics(rowCount, columnCount, margin, gutter, targetRect, isBrick) {
         if (rowCount === null || columnCount === null) return null;
         if (rowCount < 1 || columnCount < 1) return null;
         if (rowCount > CONFIG.maxDivision || columnCount > CONFIG.maxDivision) return null;
@@ -2729,6 +2743,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         return {
             rowCount: rowCount,
             columnCount: columnCount,
+            brick: !!isBrick && columnCount >= 2,
             originLeft: targetRect[0] + margin,
             originTop: targetRect[1] - margin,
             cellWidth: cellWidth,
@@ -2747,10 +2762,44 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
      */
     function forEachCell(gridMetrics, handleCell) {
         for (var i = 0; i < gridMetrics.rowCount; i++) {
-            for (var j = 0; j < gridMetrics.columnCount; j++) {
+            var rowCellCount = countRowCells(gridMetrics, i);
+            for (var j = 0; j < rowCellCount; j++) {
                 if (handleCell(getCellRect(gridMetrics, i, j)) === false) return;
             }
         }
+    }
+
+    /**
+     * 行のセル数を返します（［レンガ］では偶数行が1つ少ない）。/ Return the number of cells in a row.
+     *
+     * @param {GridMetrics} gridMetrics - グリッドの寸法。
+     * @param {number} rowIndex - 行の番号（0 が上。1, 3, … が偶数行）。
+     * @returns {number} その行のセル数。
+     */
+    function countRowCells(gridMetrics, rowIndex) {
+        return isShortBrickRow(gridMetrics, rowIndex) ? gridMetrics.columnCount - 1 : gridMetrics.columnCount;
+    }
+
+    /**
+     * ［レンガ］で1つ少なく半セルずれる行（偶数行）かを返します。/ Whether the row is a shortened brick row.
+     *
+     * @param {GridMetrics} gridMetrics - グリッドの寸法。
+     * @param {number} rowIndex - 行の番号（0 が上）。
+     * @returns {boolean} 偶数行で［レンガ］なら true。
+     */
+    function isShortBrickRow(gridMetrics, rowIndex) {
+        return gridMetrics.brick && rowIndex % 2 === 1;
+    }
+
+    /**
+     * グリッド全体のセル数を返します。/ Return the total number of cells.
+     *
+     * @param {GridMetrics} gridMetrics - グリッドの寸法。
+     * @returns {number} セル数。
+     */
+    function countCells(gridMetrics) {
+        if (!gridMetrics.brick) return gridMetrics.rowCount * gridMetrics.columnCount;
+        return gridMetrics.rowCount * gridMetrics.columnCount - Math.floor(gridMetrics.rowCount / 2);
     }
 
     /**
@@ -2758,12 +2807,13 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
      *
      * @param {GridMetrics} gridMetrics - グリッドの寸法。
      * @param {number} rowIndex - 行の番号（0 が上）。
-     * @param {number} columnIndex - 列の番号（0 が左）。
+     * @param {number} columnIndex - 列の番号（0 が左）。［レンガ］の偶数行は半セル右へずらします。
      * @returns {number[]} セルの矩形 [左, 上, 右, 下]。
      */
     function getCellRect(gridMetrics, rowIndex, columnIndex) {
+        var columnOffset = isShortBrickRow(gridMetrics, rowIndex) ? 0.5 : 0;
         var cellTop = gridMetrics.originTop - (gridMetrics.cellHeight + gridMetrics.gutter) * rowIndex;
-        var cellLeft = gridMetrics.originLeft + (gridMetrics.cellWidth + gridMetrics.gutter) * columnIndex;
+        var cellLeft = gridMetrics.originLeft + (gridMetrics.cellWidth + gridMetrics.gutter) * (columnIndex + columnOffset);
         return [cellLeft, cellTop, cellLeft + gridMetrics.cellWidth, cellTop - gridMetrics.cellHeight];
     }
 
@@ -2794,6 +2844,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         return {
             rowCount: gridMetrics.rowCount,
             columnCount: gridMetrics.columnCount,
+            brick: gridMetrics.brick,
             originLeft: (targetRect[0] + targetRect[2]) / 2 - blockWidth / 2,
             originTop: (targetRect[1] + targetRect[3]) / 2 + blockHeight / 2,
             cellWidth: cellWidth,
@@ -2807,6 +2858,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
      * セルの矩形を、オブジェクトを入れる順に並べて返します。/ List the cell rects in fill order.
      * 四隅からは、その角の行から横方向に埋めます。上・下の中央からは、その辺の行から、各行を中央の列から外へ埋めます。
      * 左・右の中央からは、その辺の列から、各列を中央の行から外へ埋めます。中央は中心に近いセルから埋めます。
+     * ［レンガ］では、行ごとのセル数で並べ、縦方向に埋めるときは半セル単位の横位置で列を数えます。
      *
      * @param {GridMetrics} gridMetrics - グリッドの寸法。
      * @param {number} fillStartIndex - 埋め始める位置（基準点ウィジェットの番号。0=左上, 1=上, 2=右上, 3=左, 4=中央, 5=右, 6=左下, 7=下, 8=右下）。
@@ -2814,34 +2866,38 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
      */
     function listCellRectsInFillOrder(gridMetrics, fillStartIndex) {
         var rowCount = gridMetrics.rowCount;
-        var columnCount = gridMetrics.columnCount;
         var anchorRow = Math.floor(fillStartIndex / 3);    /* 0=上, 1=中, 2=下 / 0 top, 1 middle, 2 bottom */
         var anchorColumn = fillStartIndex % 3;            /* 0=左, 1=中, 2=右 / 0 left, 1 middle, 2 right */
         var rowOrder = listLineOrder(rowCount, anchorRow);
-        var columnOrder = listLineOrder(columnCount, anchorColumn);
 
         var cellPositions = [];
         var i, j;
-        if (anchorColumn === 1 && anchorRow !== 1) {
-            /* 上・下の中央は、行ごとに中央の列から外へ（行優先）/ Top and bottom centers: row by row, middle column outward */
-            for (i = 0; i < rowCount; i++) {
-                for (j = 0; j < columnCount; j++) cellPositions.push([rowOrder[i], columnOrder[j]]);
-            }
-        } else if (anchorRow === 1 && anchorColumn !== 1) {
-            /* 左・右の中央は、列ごとに中央の行から外へ（列優先）/ Left and right centers: column by column, middle row outward */
-            for (j = 0; j < columnCount; j++) {
-                for (i = 0; i < rowCount; i++) cellPositions.push([rowOrder[i], columnOrder[j]]);
+        if (anchorRow === 1 && anchorColumn !== 1) {
+            /* 左・右の中央は、列ごとに中央の行から外へ（列優先）。［レンガ］の偶数行は奇数行の列のあいだに入る
+               Left and right centers: column by column, middle row outward; brick rows sit between the columns */
+            var slotStep = gridMetrics.brick ? 2 : 1;
+            var slotOrder = listLineOrder((gridMetrics.columnCount - 1) * slotStep + 1, anchorColumn);
+            for (j = 0; j < slotOrder.length; j++) {
+                for (i = 0; i < rowCount; i++) {
+                    var rowIndex = rowOrder[i];
+                    var rowSlot = slotOrder[j] - (isShortBrickRow(gridMetrics, rowIndex) ? 1 : 0);
+                    if (rowSlot < 0 || rowSlot % slotStep !== 0) continue;
+                    var columnIndex = rowSlot / slotStep;
+                    if (columnIndex < countRowCells(gridMetrics, rowIndex)) cellPositions.push([rowIndex, columnIndex]);
+                }
             }
         } else if (fillStartIndex === 4) {
             /* 中央は左上からの行優先に並べてから、中心に近い順へ（同じ距離は左上側が先）/ Center: row-major from the top left, then nearest the middle first */
             for (i = 0; i < rowCount; i++) {
-                for (j = 0; j < columnCount; j++) cellPositions.push([i, j]);
+                for (j = 0; j < countRowCells(gridMetrics, i); j++) cellPositions.push([i, j]);
             }
-            cellPositions = orderCellsFromCenter(cellPositions, rowCount, columnCount);
+            cellPositions = orderCellsFromCenter(cellPositions, gridMetrics);
         } else {
-            /* 四隅は、その角の行から横方向に（行優先）/ Corners: row by row from that corner */
+            /* 四隅は、その角の行から横方向に。上・下の中央は、各行を中央の列から外へ（どちらも行優先）
+               Corners: row by row from that corner; top and bottom centers: each row from the middle out */
             for (i = 0; i < rowCount; i++) {
-                for (j = 0; j < columnCount; j++) cellPositions.push([rowOrder[i], columnOrder[j]]);
+                var columnOrder = listLineOrder(countRowCells(gridMetrics, rowOrder[i]), anchorColumn);
+                for (j = 0; j < columnOrder.length; j++) cellPositions.push([rowOrder[i], columnOrder[j]]);
             }
         }
 
@@ -2883,19 +2939,21 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     /**
      * セルを、グリッドの中心に近い順に並べ直します（同じ距離どうしは元の順）。/ Order cells from the center outward.
      * 距離は行・列の番号で測ります（半セル単位の整数にして、比較関数つきの sort() を使わずに束ねます）。
+     * ［レンガ］の偶数行は、半セルずらした位置で測ります。
      *
      * @param {Array<number[]>} cellPositions - [行の番号, 列の番号] の配列（左上から行優先）。
-     * @param {number} rowCount - 行数。
-     * @param {number} columnCount - 列数。
+     * @param {GridMetrics} gridMetrics - グリッドの寸法。
      * @returns {Array<number[]>} 並べ直した [行の番号, 列の番号] の配列。
      */
-    function orderCellsFromCenter(cellPositions, rowCount, columnCount) {
+    function orderCellsFromCenter(cellPositions, gridMetrics) {
+        var rowCount = gridMetrics.rowCount;
+        var columnCount = gridMetrics.columnCount;
         var cellsByDistance = {};
         var distanceKeys = [];
         for (var i = 0; i < cellPositions.length; i++) {
             /* 中心からのずれを2倍して整数にする / Double the offsets so they stay integers */
             var dy = 2 * cellPositions[i][0] - (rowCount - 1);
-            var dx = 2 * cellPositions[i][1] - (columnCount - 1);
+            var dx = 2 * cellPositions[i][1] + (isShortBrickRow(gridMetrics, cellPositions[i][0]) ? 1 : 0) - (columnCount - 1);
             var distanceKey = dx * dx + dy * dy;
             if (!cellsByDistance.hasOwnProperty(distanceKey)) {
                 cellsByDistance[distanceKey] = [];
@@ -3027,20 +3085,19 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     }
 
     /**
-     * 各セルの中央へオブジェクトを1つずつ配置します。/ Place one object at the center of each cell.
+     * 各セルへオブジェクトを1つずつ配置します（オブジェクトの基準点をセルの同じ基準点に合わせる）。/ Place one object in each cell.
      *
      * @param {Array<PageItem>} pageItems - 配置するオブジェクト（配置順）。
      * @param {Array<number[]>} cellRects - セルの矩形（埋める順。listCellRectsInFillOrder() の戻り値）。
+     * @param {number} anchorIndex - 合わせる基準点（基準点ウィジェットの番号。4 が中央）。
      * @returns {void}
      */
-    function placeItemsInCells(pageItems, cellRects) {
+    function placeItemsInCells(pageItems, cellRects, anchorIndex) {
         var placeCount = Math.min(pageItems.length, cellRects.length);
         for (var i = 0; i < placeCount; i++) {
-            var cellRect = cellRects[i];
-            var bounds = pageItems[i].visibleBounds;
-            var dx = (cellRect[0] + cellRect[2]) / 2 - (bounds[0] + bounds[2]) / 2;
-            var dy = (cellRect[1] + cellRect[3]) / 2 - (bounds[1] + bounds[3]) / 2;
-            pageItems[i].translate(dx, dy);
+            var cellPoint = getAnchorPointOnBounds(cellRects[i], anchorIndex);
+            var itemPoint = getAnchorPointOnBounds(pageItems[i].visibleBounds, anchorIndex);
+            pageItems[i].translate(cellPoint[0] - itemPoint[0], cellPoint[1] - itemPoint[1]);
         }
     }
 
@@ -3486,7 +3543,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
      */
     function buildDivisionPanel(parentColumn, defaultDivision, unitLabel) {
         var divisionPanel = parentColumn.add("panel", undefined, getLabel(LABELS.panel.division));
-        setupPanel(divisionPanel, RADIO_COLUMN_SPACING);
+        setupPanel(divisionPanel);
         divisionPanel.alignChildren = ["left", "top"];
 
         /* 4項目の項目名を同じ幅で右揃えにする。幅は日本語環境と英語環境で個別に指定
@@ -3557,14 +3614,15 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     }
 
     /**
-     * マスクのパネルを作成します（［マスクする］と、その下に字下げした角丸・枠）。/ Build the mask panel.
+     * マスクのパネルを作成します（［マスクする］と、その下の角丸・枠・アイテムの基準位置）。/ Build the mask panel.
      *
      * @param {Group} parentColumn - 配置先のカラム。
      * @param {string} rulerUnitLabel - 角丸の半径の単位（定規の単位）。
      * @param {string} strokeUnitLabel - 枠の線幅の単位（線の単位）。
-     * @returns {Object} マスク・角丸・枠の項目をまとめたオブジェクト。
+     * @param {function(): void} onItemAnchorChange - アイテムの基準位置を選んだときに呼ぶ処理。
+     * @returns {Object} マスク・角丸・枠・アイテムの基準位置の項目をまとめたオブジェクト。
      */
-    function buildMaskPanel(parentColumn, rulerUnitLabel, strokeUnitLabel) {
+    function buildMaskPanel(parentColumn, rulerUnitLabel, strokeUnitLabel, onItemAnchorChange) {
         var maskPanel = parentColumn.add("panel", undefined, getLabel(LABELS.panel.mask));
         setupPanel(maskPanel, PANEL_SECTION_SPACING);
         maskPanel.alignChildren = ["left", "top"];
@@ -3621,6 +3679,15 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         maskControls.frameColorSwatch = frameColorRow.add("group");
         maskControls.frameColorSwatch.preferredSize = COLOR_SWATCH_SIZE;
         maskControls.frameColorSwatch.helpTip = getLabel(LABELS.tooltip.frameColor);
+
+        /* セルの中でオブジェクトを寄せる位置（9か所）/ Where each object sits in its cell (nine positions) */
+        var itemAnchorRow = maskStyleGroup.add("group");
+        setupRow(itemAnchorRow, "left", 8);
+        itemAnchorRow.alignChildren = ["left", "top"];
+        maskControls.itemAnchorLabel = itemAnchorRow.add("statictext", undefined, labelText(LABELS.fieldLabel.itemAnchor));
+        maskControls.itemAnchorWidget = addAnchorWidget(itemAnchorRow, CONFIG.defaultItemAnchor, onItemAnchorChange, { size: FILL_START_WIDGET_SIZE });
+        maskControls.itemAnchorLabel.helpTip = getLabel(LABELS.tooltip.itemAnchor);
+        maskControls.itemAnchorWidget.helpTip = getLabel(LABELS.tooltip.itemAnchor);
 
         maskControls.cornerRadiusCheckbox.helpTip = getLabel(LABELS.tooltip.cornerRadius);
         maskControls.cornerRadiusInput.helpTip = getLabel(LABELS.tooltip.cornerRadius);
@@ -3683,11 +3750,11 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     }
 
     /**
-     * 配置と整列のパネルを作成します（開始位置・均等にまばらに・シャッフル）。/ Build the arrangement panel.
+     * 配置と整列のパネルを作成します（開始位置・均等にまばらに・レンガ・シャッフル）。/ Build the arrangement panel.
      *
      * @param {Group} parentColumn - 配置先のカラム。
      * @param {function(): void} onFillStartChange - 開始位置を選んだときに呼ぶ処理。
-     * @returns {{fillStartLabel: StaticText, fillStartWidget: Button, spreadEvenlyCheckbox: Checkbox, btnShuffle: Button}} 開始位置の項目名・ウィジェット、［均等にまばらに］、［シャッフル］。
+     * @returns {{fillStartLabel: StaticText, fillStartWidget: Button, spreadEvenlyCheckbox: Checkbox, brickCheckbox: Checkbox, btnShuffle: Button}} 開始位置の項目名・ウィジェット、［均等にまばらに］、［レンガ］、［シャッフル］。
      */
     function buildArrangementPanel(parentColumn, onFillStartChange) {
         var arrangementPanel = parentColumn.add("panel", undefined, getLabel(LABELS.panel.arrangement));
@@ -3707,6 +3774,10 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         spreadEvenlyCheckbox.helpTip = getLabel(LABELS.tooltip.spreadEvenly);
         spreadEvenlyCheckbox.value = CONFIG.defaultSpreadEvenly;
 
+        var brickCheckbox = arrangementPanel.add("checkbox", undefined, getLabel(LABELS.checkbox.brick));
+        brickCheckbox.helpTip = getLabel(LABELS.tooltip.brick);
+        brickCheckbox.value = CONFIG.defaultBrick;
+
         var btnShuffle = arrangementPanel.add("button", undefined, getLabel(LABELS.button.randomize));
         btnShuffle.alignment = "left"; /* パネル幅いっぱいに広げない / Keep the button from stretching */
         btnShuffle.helpTip = getLabel(LABELS.tooltip.randomize);
@@ -3714,6 +3785,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             fillStartLabel: fillStartLabel,
             fillStartWidget: fillStartWidget,
             spreadEvenlyCheckbox: spreadEvenlyCheckbox,
+            brickCheckbox: brickCheckbox,
             btnShuffle: btnShuffle
         };
     }
@@ -3745,9 +3817,10 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
      * @param {string} rulerUnitLabel - 定規の単位のラベル。
      * @param {string} strokeUnitLabel - 線の単位のラベル。
      * @param {function(): void} onFillStartChange - 開始位置を選んだときに呼ぶ処理。
+     * @param {function(): void} onItemAnchorChange - アイテムの基準位置を選んだときに呼ぶ処理。
      * @returns {Object} ダイアログボックス（distributeDialog）と、各パネル・ボタン行のコントロール。
      */
-    function buildDistributeDialog(hasBackmostItem, defaultDivision, rulerUnitLabel, strokeUnitLabel, onFillStartChange) {
+    function buildDistributeDialog(hasBackmostItem, defaultDivision, rulerUnitLabel, strokeUnitLabel, onFillStartChange, onItemAnchorChange) {
         var distributeDialog = new Window("dialog", getLabel(LABELS.dialog.title));
         setupWindow(distributeDialog);
 
@@ -3764,7 +3837,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             divisionUI: buildDivisionPanel(leftColumn, defaultDivision, rulerUnitLabel),
             arrangementUI: buildArrangementPanel(leftColumn, onFillStartChange),
             resizeUI: buildResizePanel(centerColumn),
-            maskUI: buildMaskPanel(centerColumn, rulerUnitLabel, strokeUnitLabel),
+            maskUI: buildMaskPanel(centerColumn, rulerUnitLabel, strokeUnitLabel, onItemAnchorChange),
             cellUI: buildCellHandlingPanel(rightColumn),
             footerUI: buildFooterRow(distributeDialog)
         };
@@ -3890,7 +3963,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         var transparencyGridToggleCount = 0;
 
         var strokeUnit = getUnitInfo("strokeUnits");
-        var dialogUI = buildDistributeDialog(backmostItem !== null, defaultDivision, rulerUnit.label, strokeUnit.label, handleFillStartChange);
+        var dialogUI = buildDistributeDialog(backmostItem !== null, defaultDivision, rulerUnit.label, strokeUnit.label, handleFillStartChange, updatePreview);
         var distributeDialog = dialogUI.distributeDialog;
         var placementUI = dialogUI.placementUI;
         var divisionUI = dialogUI.divisionUI;
@@ -3924,6 +3997,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         var lastGridMetrics = null;
         /** @type {boolean} ［均等にまばらに］の状態（理由は isMaskEnabled と同じ）。 */
         var isSpreadEnabled = CONFIG.defaultSpreadEvenly;
+        /** @type {boolean} ［レンガ］の状態（理由は isMaskEnabled と同じ）。 */
+        var isBrickEnabled = CONFIG.defaultBrick;
         /** @type {boolean} ［角丸］の状態（理由は isMaskEnabled と同じ）。 */
         var isCornerRadiusEnabled = CONFIG.defaultUseCornerRadius;
         /** @type {boolean} ［枠］の状態（理由は isMaskEnabled と同じ）。 */
@@ -4019,7 +4094,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
                 readCount(divisionUI.columnCountInput),
                 readLengthPt(divisionUI.marginInput, rulerUnit),
                 readLengthPt(divisionUI.gutterInput, rulerUnit),
-                getTargetRect()
+                getTargetRect(),
+                isBrickEnabled
             );
         }
 
@@ -4067,7 +4143,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             /* グリッドが成立しない入力では、ドキュメントに一切手を加えない / Leave the document untouched without a valid grid */
             if (!gridMetrics) return null;
 
-            var cellCount = gridMetrics.rowCount * gridMetrics.columnCount;
+            var cellCount = countCells(gridMetrics);
             var distributionItems = prepareDistributionItems(cellCount, isPreview);
 
             /* セル数を超えたオブジェクトだけを対象領域の外へ退避する / Park only the objects beyond the cell count */
@@ -4085,7 +4161,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
 
             drawCellLayer(gridMetrics, cellMode, isPreview);
             var cellRects = listTargetCellRects(gridMetrics, cellItems.length);
-            placeItemsInCells(cellItems, cellRects);
+            /* アイテムの基準位置は［マスクする］のときだけ使い、マスクしないときは中央 / The object anchor applies only when masking */
+            placeItemsInCells(cellItems, cellRects, isMaskEnabled ? getAnchorWidgetIndex(maskUI.itemAnchorWidget) : 4);
 
             /* マスクはセルに入れたものだけ。プレビューのグループは複製と一緒に消す
                Mask only the objects in cells; preview groups are removed along with the copies */
@@ -4358,7 +4435,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         }
 
         /**
-         * 角丸・枠の項目を、［マスクする］と各チェックボックスに合わせてディムします。/ Dim the corner and frame controls.
+         * 角丸・枠・アイテムの基準位置の項目を、［マスクする］と各チェックボックスに合わせてディムします。/ Dim the corner and frame controls.
          *
          * @returns {void}
          */
@@ -4372,6 +4449,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             var usesFrame = isMaskEnabled && isFrameEnabled;
             setSteppedInputEnabled(maskUI.frameWidthInput, usesFrame);
             maskUI.frameUnitLabel.enabled = usesFrame;
+            maskUI.itemAnchorLabel.enabled = isMaskEnabled;
+            setAnchorWidgetEnabled(maskUI.itemAnchorWidget, isMaskEnabled);
             redrawFrameColorSwatch();
         }
 
@@ -4415,7 +4494,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
                 alert(getLabel(LABELS.alert.invalidGrid));
                 return;
             }
-            var cellCount = gridMetrics.rowCount * gridMetrics.columnCount;
+            var cellCount = countCells(gridMetrics);
             var cellItems = orderByRandomizedOrder(getDistributionItems(), randomizedOrder).slice(0, cellCount);
             var coverScalePct = computeCoverScalePct(cellItems, gridMetrics);
             if (coverScalePct === null) return;
@@ -4603,7 +4682,11 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             maskUI.autoCornerRadiusButton.onClick = applyAutoCornerRadius;
             arrangementUI.spreadEvenlyCheckbox.onClick = function () {
                 isSpreadEnabled = arrangementUI.spreadEvenlyCheckbox.value;
-                    updatePreview();
+                updatePreview();
+            };
+            arrangementUI.brickCheckbox.onClick = function () {
+                isBrickEnabled = arrangementUI.brickCheckbox.value;
+                updatePreview();
             };
             footerUI.keepOriginalsCheckbox.onClick = function () {
                 isKeepOriginalsEnabled = footerUI.keepOriginalsCheckbox.value;
