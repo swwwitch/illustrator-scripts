@@ -1,4 +1,4 @@
-　#target illustrator
+#target illustrator
 #targetengine "SmartObjectDistributorEngine"
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.SmartObjectDistributor
 Name=グリッドの各セル中央にオブジェクトを配置
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=2.0.0
+Version=2.1.0
 Release-Date=2025-05-20
 Description-BEGIN
 選択したオブジェクトを、指定した行数・列数のグリッドに沿って各セルの中央へ配置します。
@@ -47,10 +47,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartObjec
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SmartObjectDistributor";       /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v2.0.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v2.1.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-05-20";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-11-12";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-11-20";                   /* 更新日 / last updated */
 
 var SCRIPT_DESCRIPTION_JA = "グリッドの各セル中央にオブジェクトを配置"; /* README の見出し / README title (Japanese) */
 
@@ -72,6 +72,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         defaultMargin: 10,           /* マージンの初期値（定規単位） / default margin */
         defaultResizeRatio: 100,     /* リサイズの比率の初期値（%） / default resize ratio */
         maxResizeRatio: 1000,        /* リサイズの比率の上限（%） / max resize ratio */
+        defaultMaskToCell: true,     /* ［マスクする］の初期値 / Mask starts checked */
         blackCellOpacity: 15,        /* 黒セルの不透明度（%） / opacity for black cells */
         whiteCellOpacity: 100,       /* 白セルの不透明度（%） / opacity for white cells */
         fallbackDivision: 5,         /* 分割数を決められないときの既定値 / fallback division */
@@ -498,6 +499,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         if (typeof SCRIPT_NAME === "string" && hasVersionFooterGlyphs(SCRIPT_NAME)) leftCandidates.unshift(SCRIPT_NAME + " " + versionText);
         var versionCanvas = addVersionFooterCanvas(footerGroup, leftCandidates);
         versionCanvas.alignment = ["fill", "center"];
+        bindVersionInfoClick(versionCanvas);
         var brandCanvas = addVersionFooterCanvas(footerGroup, [VERSION_FOOTER_BRAND]);
         brandCanvas.alignment = ["right", "center"];
         brandCanvas.maximumSize = brandCanvas.preferredSize;
@@ -588,6 +590,371 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             cursorDots += glyphRows[0].length;
         }
         canvasGraphics.fillPath(footerBrush);
+    }
+
+    /**
+     * 左下のスクリプト名・バージョンをクリックしたら、「このスクリプトについて」のダイアログを開くようにする
+     * @param {Group} versionCanvas - addVersionFooterCanvas() で作った左の欄
+     * @returns {void}
+     */
+    function bindVersionInfoClick(versionCanvas) {
+        versionCanvas.helpTip = getLabel(LABELS.tooltip.versionInfo);
+        /* mousedown で開くと、離したときのイベントが閉じたあとの欄に届くので mouseup で開く
+           Open on mouseup so the release does not land on the footer after the dialog closes */
+        versionCanvas.addEventListener("mouseup", function () {
+            showVersionInfoDialog();
+        });
+    }
+
+    /**
+     * 「このスクリプトについて」のダイアログを開く。スクリプト名（コピーボタン付き）・機能・バージョンの［基本情報］パネル、
+     * README・ソースコード・記事を開く［リンク］パネル、［Finder に表示］［閉じる］を並べる
+     * @returns {void}
+     */
+    function showVersionInfoDialog() {
+        var infoDialog = new Window("dialog", getLabel(LABELS.dialog.versionInfo));
+        setupWindow(infoDialog);
+
+        var infoPanel = infoDialog.add("panel", undefined, getLabel(LABELS.panel.generalInfo));
+        setupPanel(infoPanel);
+        /* コピーボタンはスクリプト名だけ / Only the script name gets a copy button */
+        addVersionInfoRow(infoPanel, LABELS.fieldLabel.scriptName, String(SCRIPT_NAME), true);
+        /* 機能は README の見出しで日本語だけなので、日本語の画面だけに出す。基本情報ブロックに無いスクリプトでも出さない
+           The feature is the Japanese README title: shown only in the Japanese UI, and only when the script defines it */
+        if (uiLang === "ja" && typeof SCRIPT_DESCRIPTION_JA === "string" && SCRIPT_DESCRIPTION_JA !== "") {
+            addVersionInfoRow(infoPanel, LABELS.fieldLabel.scriptFeature, SCRIPT_DESCRIPTION_JA, false);
+        }
+        addVersionInfoRow(infoPanel, LABELS.fieldLabel.scriptVersion, String(SCRIPT_VERSION), false);
+        alignVersionInfoLabels(infoPanel);
+
+        addVersionInfoWebPanel(infoDialog);
+
+        var buttonRow = addButtonRow(infoDialog);
+        addVersionInfoRevealButton(infoDialog, buttonRow.leftGroup);
+
+        var closeButton = buttonRow.rightGroup.add("button", undefined, getLabel(LABELS.button.close), { name: "ok" });
+        /* return でも esc でも閉じる / Close with both Return and Esc */
+        infoDialog.defaultElement = closeButton;
+        infoDialog.cancelElement = closeButton;
+        alignRightOnlyButtonRow(buttonRow);
+        infoDialog.show();
+    }
+
+    /**
+     * ［基本情報］パネルに「項目名 : 値」の1行を足す（値は見せるだけなので statictext）
+     * @param {Panel} infoPanel - 足す先のパネル
+     * @param {Object} labelEntry - 項目名の文言 { ja, en }
+     * @param {string} valueText - 表示する値
+     * @param {boolean} hasCopyButton - 値の右にコピーボタンを置くなら true
+     * @returns {StaticText} 値の statictext
+     */
+    function addVersionInfoRow(infoPanel, labelEntry, valueText, hasCopyButton) {
+        var infoRow = infoPanel.add("group");
+        setupRow(infoRow, "fill", 6);
+        var rowLabel = infoRow.add("statictext", undefined, labelText(labelEntry));
+        rowLabel.justify = "right";
+        var valueLabel = infoRow.add("statictext", undefined, valueText);
+        /* 余りの幅を取り、コピーボタンを右端にそろえる / Take the extra width so the copy buttons line up at the right */
+        valueLabel.alignment = ["fill", "center"];
+        if (hasCopyButton) addVersionInfoCopyButton(infoRow, valueLabel);
+        return valueLabel;
+    }
+
+    var VERSION_INFO_COPY_BUTTON_SIZE = 22; /* コピーボタンの一辺 / copy button size */
+    /* コピーボタンの配色。∧∨（ステップボタン）と同じく、背景に重ねる半透明 / Copy button colors, translucent overlays like the stepper */
+    var VERSION_INFO_COPY_FILL_COLOR    = isDarkUI() ? [0, 0, 0, 0.10] : [1, 1, 1, 0.50]; /* 地 / background */
+    var VERSION_INFO_COPY_FRAME_COLOR   = isDarkUI() ? [1, 1, 1, 0.12] : [0, 0, 0, 0.15]; /* 枠線 / frame */
+    var VERSION_INFO_COPY_PRESSED_COLOR = isDarkUI() ? [1, 1, 1, 0.12] : [0, 0, 0, 0.13]; /* 押下中 / pressed */
+    var VERSION_INFO_COPY_ICON_COLOR    = isDarkUI() ? [1, 1, 1, 0.85] : [0, 0, 0, 0.70]; /* アイコン / icon */
+
+    /**
+     * 表示している値をクリップボードへコピーするアイコンのボタンを足す。
+     * コピーしたらアイコンをチェックマークに変え、ポインタが外れたら戻す
+     * @param {Group} infoRow - 足す先の行
+     * @param {StaticText} valueLabel - コピーする値の statictext
+     * @returns {Group} ボタンとして使う group
+     */
+    function addVersionInfoCopyButton(infoRow, valueLabel) {
+        var buttonSize = VERSION_INFO_COPY_BUTTON_SIZE;
+        var copyButton = infoRow.add("group");
+        copyButton.preferredSize = [buttonSize, buttonSize];
+        copyButton.minimumSize = [buttonSize, buttonSize];
+        copyButton.maximumSize = [buttonSize, buttonSize];
+        copyButton.helpTip = getLabel(LABELS.tooltip.copyScriptName);
+        copyButton.isPressed = false;
+        copyButton.isCopied = false;
+
+        copyButton.onDraw = function () {
+            var buttonGraphics = copyButton.graphics;
+            var fillColor = copyButton.isPressed ? VERSION_INFO_COPY_PRESSED_COLOR : VERSION_INFO_COPY_FILL_COLOR;
+            buttonGraphics.newPath();
+            buttonGraphics.rectPath(0, 0, buttonSize, buttonSize);
+            buttonGraphics.fillPath(buttonGraphics.newBrush(buttonGraphics.BrushType.SOLID_COLOR, fillColor));
+            buttonGraphics.newPath();
+            buttonGraphics.rectPath(0.5, 0.5, buttonSize - 1, buttonSize - 1);
+            buttonGraphics.strokePath(buttonGraphics.newPen(buttonGraphics.PenType.SOLID_COLOR, VERSION_INFO_COPY_FRAME_COLOR, 1));
+            if (copyButton.isCopied) drawVersionInfoCheckIcon(buttonGraphics, buttonSize);
+            else drawVersionInfoCopyIcon(buttonGraphics, buttonSize);
+        };
+
+        /**
+         * 状態を変えて描き直す（group には notify() が無いので隠して再表示する）
+         * @param {boolean} isPressed - 押下中なら true
+         * @param {boolean} isCopied - コピー済みなら true
+         * @returns {void}
+         */
+        function repaint(isPressed, isCopied) {
+            if (copyButton.isPressed === isPressed && copyButton.isCopied === isCopied) return;
+            copyButton.isPressed = isPressed;
+            copyButton.isCopied = isCopied;
+            copyButton.hide();
+            copyButton.show();
+        }
+        copyButton.addEventListener("mousedown", function () { repaint(true, false); });
+        copyButton.addEventListener("mouseup", function () {
+            if (!copyButton.isPressed) return;
+            var hasCopied = copyVersionInfoText(valueLabel.text);
+            repaint(false, hasCopied);
+            if (!hasCopied) alert(getLabel(LABELS.alert.copyFailed));
+        });
+        /* 押したまま外へ出たとき・コピーのあと離れたときは元の見た目に戻す / Reset when the pointer leaves */
+        copyButton.addEventListener("mouseout", function () { repaint(false, false); });
+        return copyButton;
+    }
+
+    /**
+     * コピーのアイコン（後ろの四角に前の四角を重ねた形）を描く
+     * @param {ScriptUIGraphics} buttonGraphics - 描画先
+     * @param {number} buttonSize - ボタンの一辺
+     * @returns {void}
+     */
+    function drawVersionInfoCopyIcon(buttonGraphics, buttonSize) {
+        var iconPen = buttonGraphics.newPen(buttonGraphics.PenType.SOLID_COLOR, VERSION_INFO_COPY_ICON_COLOR, 1);
+        var sheetSize = 9;
+        var offset = 3;
+        var frontLeft = Math.round((buttonSize - sheetSize - offset) / 2) + offset + 0.5;
+        var frontTop = Math.round((buttonSize - sheetSize - offset) / 2) + offset + 0.5;
+        var backLeft = frontLeft - offset;
+        var backTop = frontTop - offset;
+        /* 後ろの四角は、前の四角に隠れる部分を描かない（上と左の辺だけ）/ Draw only the visible top and left of the back sheet */
+        buttonGraphics.newPath();
+        buttonGraphics.moveTo(frontLeft, backTop + sheetSize);
+        buttonGraphics.lineTo(backLeft, backTop + sheetSize);
+        buttonGraphics.lineTo(backLeft, backTop);
+        buttonGraphics.lineTo(backLeft + sheetSize, backTop);
+        buttonGraphics.lineTo(backLeft + sheetSize, frontTop);
+        buttonGraphics.strokePath(iconPen);
+        buttonGraphics.newPath();
+        buttonGraphics.rectPath(frontLeft, frontTop, sheetSize, sheetSize);
+        buttonGraphics.strokePath(iconPen);
+    }
+
+    /**
+     * コピーしたあとのチェックマークを描く
+     * @param {ScriptUIGraphics} buttonGraphics - 描画先
+     * @param {number} buttonSize - ボタンの一辺
+     * @returns {void}
+     */
+    function drawVersionInfoCheckIcon(buttonGraphics, buttonSize) {
+        var center = buttonSize / 2;
+        buttonGraphics.newPath();
+        buttonGraphics.moveTo(center - 4.5, center);
+        buttonGraphics.lineTo(center - 1.5, center + 3);
+        buttonGraphics.lineTo(center + 4.5, center - 3.5);
+        buttonGraphics.strokePath(buttonGraphics.newPen(buttonGraphics.PenType.SOLID_COLOR, VERSION_INFO_COPY_ICON_COLOR, 1.5));
+    }
+
+    /**
+     * 文字列をクリップボードにコピーする。
+     * Illustrator には文字列を直接クリップボードへ送る API が無いので、一時レイヤーにテキストフレームを作り、
+     * フレームを選択してコピーして、レイヤーごと消す。
+     * 文字として選択（textRange.select()）してコピーすると「オブジェクトをコピーできません」の警告が出るので使わない
+     * ドキュメントが無ければ一時ドキュメントを作って閉じる
+     * @param {string} copyText - コピーする文字列
+     * @returns {boolean} コピーの操作まで進めたら true
+     */
+    function copyVersionInfoText(copyText) {
+        var usingTempDoc = (app.documents.length === 0);
+        var targetDoc = usingTempDoc ? app.documents.add() : app.activeDocument;
+        /* 文字編集中の選択は TextRange なので控えない / A text selection is a TextRange; do not save it */
+        var savedSelection = (!usingTempDoc && targetDoc.selection instanceof Array) ? targetDoc.selection : [];
+        var savedActiveLayer = usingTempDoc ? null : targetDoc.activeLayer; /* layers.add() で作業レイヤーが変わる / layers.add() changes the active layer */
+        var tempLayer = null;
+        var copySucceeded = false;
+        try {
+            /* 今のレイヤーのロック・非表示に左右されないよう、一時レイヤーに作る / A temporary layer avoids locked or hidden layers */
+            tempLayer = targetDoc.layers.add();
+            var tempFrame = tempLayer.textFrames.add();
+            tempFrame.contents = copyText;
+            /* 追加直後のフレームは再描画しないとコピー対象にならない / A new frame needs a redraw before it can be copied */
+            app.redraw();
+            app.executeMenuCommand("deselectall");
+            tempFrame.selected = true; /* doc.selection = [frame] より確実 / more reliable than doc.selection = [frame] */
+            app.redraw();
+            /* app.copy() は黙って無視されることがあるので、メニューコマンドでコピーする / app.copy() can silently do nothing */
+            app.executeMenuCommand("copy");
+            /* コピーが確定する前に消すと空になる / Removing before the copy settles leaves the clipboard empty */
+            app.redraw();
+            copySucceeded = true;
+        } catch (e) {
+            copySucceeded = false;
+        }
+        if (tempLayer) {
+            try {
+                tempLayer.remove();
+            } catch (e) { }
+        }
+        if (usingTempDoc) {
+            targetDoc.close(SaveOptions.DONOTSAVECHANGES);
+            return copySucceeded;
+        }
+        try {
+            targetDoc.activeLayer = savedActiveLayer;
+        } catch (e) { }
+        targetDoc.selection = null;
+        for (var i = 0; i < savedSelection.length; i++) {
+            /* ロック・非表示の項目は選択の代入で例外になる / Locked or hidden items throw on selection */
+            try {
+                savedSelection[i].selected = true;
+            } catch (e) { }
+        }
+        app.redraw();
+        return copySucceeded;
+    }
+
+    /**
+     * ［基本情報］パネルの項目名を、いちばん長いものの幅にそろえる
+     * @param {Panel} infoPanel - 対象のパネル
+     * @returns {void}
+     */
+    function alignVersionInfoLabels(infoPanel) {
+        var rowLabels = [];
+        var labelWidth = 0;
+        for (var i = 0; i < infoPanel.children.length; i++) {
+            var rowLabel = infoPanel.children[i].children[0]; /* 行の先頭は項目名 / each row starts with its label */
+            rowLabels.push(rowLabel);
+            labelWidth = Math.max(labelWidth, rowLabel.graphics.measureString(rowLabel.text)[0]);
+        }
+        for (var j = 0; j < rowLabels.length; j++) {
+            rowLabels[j].preferredSize.width = Math.ceil(labelWidth) + 2;
+        }
+    }
+
+    /**
+     * README・ソースコード・記事を開くボタンを並べた［リンク］パネルを足す。URL が無いボタンはディム表示にする
+     * @param {Window} infoDialog - 足す先のダイアログ
+     * @returns {void}
+     */
+    function addVersionInfoWebPanel(infoDialog) {
+        /* 基本情報ブロックに無い変数は typeof で飛ばす / Skip variables the basic info block does not define */
+        var readmeUrl = (uiLang === "ja")
+            ? (typeof SCRIPT_README_JA === "string" ? SCRIPT_README_JA : "")
+            : (typeof SCRIPT_README_EN === "string" ? SCRIPT_README_EN : "");
+        var sourceUrl = (typeof SCRIPT_SOURCE_URL === "string") ? SCRIPT_SOURCE_URL : "";
+        var articleUrl = (typeof SCRIPT_ARTICLE_URL === "string") ? SCRIPT_ARTICLE_URL : "";
+
+        var webPanel = infoDialog.add("panel", undefined, getLabel(LABELS.panel.links));
+        setupPanel(webPanel);
+        var webButtonRow = webPanel.add("group");
+        setupRow(webButtonRow, "left", BUTTON_ROW_SPACING);
+        addVersionInfoLinkButton(infoDialog, webButtonRow, LABELS.button.openReadme, readmeUrl);
+        addVersionInfoLinkButton(infoDialog, webButtonRow, LABELS.button.openSourceCode, sourceUrl);
+        addVersionInfoLinkButton(infoDialog, webButtonRow, LABELS.button.openArticle, articleUrl);
+    }
+
+    /**
+     * URL を開くボタンを足す。URL が無ければディム表示にする（ボタンの並びをスクリプトごとに変えない）。開いたらダイアログは閉じる
+     * @param {Window} infoDialog - ボタンを置くダイアログ
+     * @param {Group} buttonGroup - 足す先のグループ
+     * @param {Object} labelEntry - ボタンの文言 { ja, en }
+     * @param {string} targetUrl - 開く URL（空ならディム表示）
+     * @returns {void}
+     */
+    function addVersionInfoLinkButton(infoDialog, buttonGroup, labelEntry, targetUrl) {
+        var linkButton = buttonGroup.add("button", undefined, getLabel(labelEntry));
+        if (!targetUrl) {
+            linkButton.enabled = false;
+            return;
+        }
+        linkButton.helpTip = targetUrl;
+        linkButton.onClick = function () {
+            openUrlInBrowser(targetUrl);
+            infoDialog.close();
+        };
+    }
+
+    /* 実行中のスクリプトのファイル。ボタンを押すころには $.fileName が別のものを指すことがあるので、読み込んだ時点で控える
+       The running script file, captured at load time; $.fileName may point elsewhere by the time the button is clicked */
+    var VERSION_INFO_SCRIPT_FILE = new File($.fileName);
+    var VERSION_INFO_REVEAL_APP_PATH = "/Applications/RevealInFinder.app"; /* Finder で選択表示する補助アプリ / helper app that reveals a file in the Finder */
+    var VERSION_INFO_REVEAL_PATH_FILE = "/tmp/illustrator_reveal_path.txt"; /* 補助アプリが読むパス（アプリの旧名のまま。変えると読めない）/ path the helper reads (keeps the app's old name) */
+
+    /**
+     * スクリプトのファイルを Finder で表示するボタンを足す。ファイルが見つからなければ足さない。表示したらダイアログは閉じる
+     * @param {Window} infoDialog - ボタンを置くダイアログ
+     * @param {Group} buttonGroup - 足す先のグループ
+     * @returns {void}
+     */
+    function addVersionInfoRevealButton(infoDialog, buttonGroup) {
+        if (!VERSION_INFO_SCRIPT_FILE.exists) return;
+        var revealButton = buttonGroup.add("button", undefined, getLabel(File.fs === "Windows" ? LABELS.button.revealInExplorer : LABELS.button.revealInFinder));
+        revealButton.helpTip = VERSION_INFO_SCRIPT_FILE.fsName;
+        revealButton.onClick = function () {
+            revealVersionInfoScriptFile(VERSION_INFO_SCRIPT_FILE);
+            infoDialog.close();
+        };
+    }
+
+    /**
+     * ファイルを Finder で表示する。RevealInFinder.app があればファイルを選択した状態で表示し、無ければ入っているフォルダーを開く
+     * @param {File} scriptFile - 表示するファイル
+     * @returns {void}
+     */
+    function revealVersionInfoScriptFile(scriptFile) {
+        /* .app は実体がフォルダーなので File.exists が false になる環境がある。Folder でも確かめる / An .app is a folder, so check with Folder too */
+        var hasRevealApp = (File.fs === "Macintosh")
+            && (new Folder(VERSION_INFO_REVEAL_APP_PATH).exists || new File(VERSION_INFO_REVEAL_APP_PATH).exists);
+        /* アプリは一時ファイルからパスを読むので、書き出してから起動する / The app reads the path from a temp file */
+        if (hasRevealApp && writeVersionInfoRevealPath(scriptFile.fsName) && new File(VERSION_INFO_REVEAL_APP_PATH).execute()) return;
+        /* アプリが無い・起動できないときは、何も起きないままにせずフォルダーを開く / Otherwise open the enclosing folder */
+        scriptFile.parent.execute();
+    }
+
+    /**
+     * RevealInFinder.app に渡すパスを一時ファイルへ書き出す（UTF-8、改行なし）
+     * @param {string} targetPath - 絶対パス
+     * @returns {boolean} 書き出せたら true
+     */
+    function writeVersionInfoRevealPath(targetPath) {
+        var pathFile = new File(VERSION_INFO_REVEAL_PATH_FILE);
+        pathFile.encoding = "UTF-8";
+        pathFile.lineFeed = "Unix";
+        if (!pathFile.open("w")) return false;
+        var hasWritten = pathFile.write(targetPath);
+        pathFile.close();
+        return hasWritten;
+    }
+
+    /**
+     * URL を既定のブラウザーで開く（一時的なショートカットファイルを作って開く）
+     * @param {string} targetUrl - 開く URL
+     * @returns {void}
+     */
+    function openUrlInBrowser(targetUrl) {
+        var isMac = (File.fs === "Macintosh");
+        var shortcutFile = new File(Folder.temp.fsName + "/" + SCRIPT_NAME + (isMac ? ".webloc" : ".url"));
+        shortcutFile.encoding = "UTF-8";
+        shortcutFile.open("w");
+        if (isMac) {
+            var escapedUrl = targetUrl.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+            shortcutFile.write('<?xml version="1.0" encoding="UTF-8"?>\n'
+                + '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n'
+                + '<plist version="1.0"><dict><key>URL</key><string>' + escapedUrl + '</string></dict></plist>\n');
+        } else {
+            shortcutFile.write("[InternetShortcut]\r\nURL=" + targetUrl + "\r\n");
+        }
+        shortcutFile.close();
+        shortcutFile.execute();
     }
 
     // バージョン表示（再利用パーツ）ここまで / End of the reusable version footer
@@ -1306,13 +1673,18 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
 
     var LABELS = {
         dialog: {
-            title: { ja: "グリッドに整列配置", en: "Arrange in Grid" }
+            title: { ja: "グリッドに整列配置", en: "Arrange in Grid" },
+            /* バージョン表示用 / for the version footer */
+            versionInfo: { ja: "このスクリプトについて", en: "About This Script" }
         },
         panel: {
             placement: { ja: "配置先", en: "Placement Area" },
             division: { ja: "分割とマージン", en: "Divisions & Margin" },
-            resize: { ja: "リサイズ", en: "Resize" },
-            cellDrawing: { ja: "セルの扱い", en: "Cell Handling" }
+            resize: { ja: "リサイズとマスク", en: "Resize & Mask" },
+            cellDrawing: { ja: "セルの扱い", en: "Cell Handling" },
+            /* バージョン表示用 / for the version footer */
+            generalInfo: { ja: "基本情報", en: "General" },
+            links: { ja: "リンク", en: "Links" }
         },
         fieldLabel: {
             rowCount: { ja: "行数", en: "Rows" },
@@ -1321,7 +1693,14 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             margin: { ja: "マージン", en: "Margin" },
             cellColor: { ja: "カラー", en: "Color" },
             cellOpacity: { ja: "不透明度", en: "Opacity" },
-            resizeRatio: { ja: "比率", en: "Ratio" }
+            resizeRatio: { ja: "比率", en: "Ratio" },
+            /* バージョン表示用 / for the version footer */
+            scriptName: { ja: "スクリプト名", en: "Script Name" },
+            scriptFeature: { ja: "機能", en: "Feature" },
+            scriptVersion: { ja: "バージョン", en: "Version" }
+        },
+        checkbox: {
+            maskToCell: { ja: "マスクする", en: "Mask" }
         },
         radio: {
             targetArtboard: { ja: "現在のアートボード", en: "Current Artboard" },
@@ -1343,7 +1722,14 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             transparencyGrid: { ja: "透明グリッド表示", en: "Transparency Grid" },
             randomize: { ja: "シャッフル", en: "Shuffle" },
             cancel: { ja: "キャンセル", en: "Cancel" },
-            ok: { ja: "OK", en: "OK" }
+            ok: { ja: "OK", en: "OK" },
+            /* バージョン表示用 / for the version footer */
+            openReadme: { ja: "README", en: "README" },
+            openSourceCode: { ja: "ソースコード", en: "Source Code" },
+            openArticle: { ja: "記事（note）", en: "Article (note)" },
+            revealInFinder: { ja: "Finder に表示", en: "Show in Finder" },
+            revealInExplorer: { ja: "エクスプローラーに表示", en: "Show in Explorer" },
+            close: { ja: "閉じる", en: "Close" }
         },
         tooltip: {
             targetUnavailable: { ja: "該当するオブジェクトがありません。", en: "No matching object was found." },
@@ -1391,6 +1777,10 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
                 ja: "幅・高さ・面積ではセルに対する比率、スケールでは元の大きさに対する比率です。",
                 en: "Relative to the cell for Width, Height, and Area; relative to the original size for Scale."
             },
+            maskToCell: {
+                ja: "セルに入れたオブジェクトを、セルの長方形でクリッピングマスクします。",
+                en: "Clips each object placed in a cell with the cell rectangle."
+            },
             randomize: {
                 ja: "セルへの割り当て順をシャッフルします（押すたびに変わります）。",
                 en: "Shuffles the order in which objects fill the cells (changes on every click)."
@@ -1409,7 +1799,10 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
                 en: "Decrease (Shift-click to snap to 10s, Option-click by 0.1)"
             },
             stepUpInteger: { ja: "値を増やす（shift＋クリックで10の倍数へ）", en: "Increase (Shift-click to snap to 10s)" },
-            stepDownInteger: { ja: "値を減らす（shift＋クリックで10の倍数へ）", en: "Decrease (Shift-click to snap to 10s)" }
+            stepDownInteger: { ja: "値を減らす（shift＋クリックで10の倍数へ）", en: "Decrease (Shift-click to snap to 10s)" },
+            /* バージョン表示用 / for the version footer */
+            copyScriptName: { ja: "スクリプト名をコピー", en: "Copy Script Name" },
+            versionInfo: { ja: "クリックで、このスクリプトについての情報を表示", en: "Click for info about this script" }
         },
         alert: {
             noDocument: { ja: "ドキュメントを開いてください。", en: "Please open a document." },
@@ -1419,7 +1812,9 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
                 en: "These settings cannot form a grid. Check the rows, columns, gutter, and margin."
             },
             artboardError: { ja: "アートボードの作成中にエラーが発生しました。", en: "Error occurred while creating artboards." },
-            artboardCreated: { ja: " 個のアートボードを作成しました。", en: " artboards created." }
+            artboardCreated: { ja: " 個のアートボードを作成しました。", en: " artboards created." },
+            /* バージョン表示用 / for the version footer */
+            copyFailed: { ja: "スクリプト名をコピーできませんでした。", en: "Could not copy the script name." }
         }
     };
 
@@ -1872,6 +2267,44 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         });
     }
 
+    /**
+     * セルに入れたオブジェクトを、セルの長方形でクリッピングマスクします。/ Clip each placed object with its cell.
+     * オブジェクトのあった場所にグループを作り、オブジェクトとセルの長方形（最前面）を入れて clipped にします。
+     *
+     * @param {Array<PageItem>} pageItems - セルに入れたオブジェクト（配置順）。
+     * @param {GridMetrics} gridMetrics - グリッドの寸法。
+     * @param {Array<GroupItem>} clipGroups - 作ったクリップグループを1つずつ足す配列（途中で例外になっても、作った分は残る）。
+     * @returns {void}
+     */
+    function maskItemsToCells(pageItems, gridMetrics, clipGroups) {
+        var itemIndex = 0;
+        forEachCell(gridMetrics, function (cellRect) {
+            if (itemIndex >= pageItems.length) return false;
+            clipGroups.push(clipItemToRect(pageItems[itemIndex], cellRect));
+            itemIndex++;
+        });
+    }
+
+    /**
+     * 1つのオブジェクトを矩形でクリッピングマスクします。/ Clip one object with a rectangle.
+     *
+     * @param {PageItem} pageItem - 対象のオブジェクト。
+     * @param {number[]} clipRect - マスクの矩形 [左, 上, 右, 下]。
+     * @returns {GroupItem} 作ったクリップグループ。
+     */
+    function clipItemToRect(pageItem, clipRect) {
+        /* 元の重ね順の位置にグループを作る / Create the group where the object sits in the stacking order */
+        var clipGroup = pageItem.parent.groupItems.add();
+        clipGroup.move(pageItem, ElementPlacement.PLACEBEFORE);
+        pageItem.move(clipGroup, ElementPlacement.PLACEATEND);
+
+        var clipPath = clipGroup.pathItems.rectangle(clipRect[1], clipRect[0], clipRect[2] - clipRect[0], clipRect[1] - clipRect[3]);
+        /* マスクにするパスはグループの最前面 / The clipping path must be frontmost in the group */
+        clipPath.move(clipGroup, ElementPlacement.PLACEATBEGINNING);
+        clipGroup.clipped = true;
+        return clipGroup;
+    }
+
     // =========================================
     // リサイズ / Resize
     // =========================================
@@ -2034,6 +2467,21 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             if (!containsItem(orderedItems, distributionItems[j])) orderedItems.push(distributionItems[j]);
         }
         return orderedItems;
+    }
+
+    /**
+     * マスクしたオブジェクトを、そのクリップグループに置き換えた配列を返します。/ Swap masked items for their clip groups.
+     *
+     * @param {Array<PageItem>} pageItems - 元のオブジェクト。
+     * @param {Array<GroupItem>} clipGroups - maskItemsToCells() で作ったクリップグループ。
+     * @returns {Array<PageItem>} 選択に使う配列。
+     */
+    function replaceMaskedItems(pageItems, clipGroups) {
+        var resultItems = [];
+        for (var i = 0; i < pageItems.length; i++) {
+            resultItems.push(containsItem(clipGroups, pageItems[i].parent) ? pageItems[i].parent : pageItems[i]);
+        }
+        return resultItems;
     }
 
     /**
@@ -2209,10 +2657,10 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     }
 
     /**
-     * リサイズのパネルを作成します（1行目：基準／2行目：比率）。/ Build the resize panel.
+     * リサイズとマスクのパネルを作成します（1行目：基準／2行目：比率／3行目：マスク）。/ Build the resize & mask panel.
      *
      * @param {Window} parentWindow - 配置先のウィンドウ。
-     * @returns {Object} 基準のラジオボタン、比率の項目名と入力欄をまとめたオブジェクト。
+     * @returns {Object} 基準のラジオボタン、比率の項目名と入力欄、マスクのチェックボックスをまとめたオブジェクト。
      */
     function buildResizePanel(parentWindow) {
         var resizePanel = parentWindow.add("panel", undefined, getLabel(LABELS.panel.resize));
@@ -2237,6 +2685,10 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         resizeControls.ratioInput.characters = 4;
         resizeControls.ratioUnitLabel = resizeRatioRow.add("statictext", undefined, "%");
         resizeControls.noneRadio.value = true;
+
+        resizeControls.maskCheckbox = resizePanel.add("checkbox", undefined, getLabel(LABELS.checkbox.maskToCell));
+        resizeControls.maskCheckbox.helpTip = getLabel(LABELS.tooltip.maskToCell);
+        resizeControls.maskCheckbox.value = CONFIG.defaultMaskToCell;
 
         /* 基準ごとの結果をツールチップで補う / Tooltips describe each mode */
         resizeControls.noneRadio.helpTip = getLabel(LABELS.tooltip.resizeNone);
@@ -2453,6 +2905,10 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         var isCleanedUp = false;
         /** @type {number} 直近にプレビューを描き直した時刻（ミリ秒）。入力中の間引きに使います。 */
         var lastPreviewTime = 0;
+        /** @type {Array<GroupItem>} 直近の描画で作ったクリップグループ。 */
+        var maskGroups = [];
+        /** @type {boolean} ［マスクする］の状態。表示前に代入したチェックボックスの value は読み戻せないことがあるので、変数で持ちます。 */
+        var isMaskEnabled = CONFIG.defaultMaskToCell;
 
         bindDialogEvents();
 
@@ -2637,6 +3093,11 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             var cellItems = distributionItems.slice(0, cellCount);
             resizeItemsForCells(cellItems, gridMetrics, getResizeMode(), readResizeRatio());
             placeItemsInCells(cellItems, gridMetrics);
+
+            /* マスクはセルに入れたものだけ。プレビューのグループは複製と一緒に消す
+               Mask only the objects in cells; preview groups are removed along with the copies */
+            maskGroups = [];
+            if (isMaskEnabled) maskItemsToCells(cellItems, gridMetrics, isPreview ? previewCopies : maskGroups);
             return true;
         }
 
@@ -2870,7 +3331,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
 
             /* セル描画を残した場合はその長方形を、それ以外は元の選択を選択状態にする / Select the kept cells, or the original selection */
             if (cellMode !== "keep" || !selectCellRectangles(doc)) {
-                doc.selection = placeableItems;
+                doc.selection = replaceMaskedItems(placeableItems, maskGroups);
             }
 
             isCleanedUp = true;
@@ -2948,6 +3409,10 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
                     updatePreview();
                 };
             resizeUI.ratioInput.onChanging = updatePreviewWhileTyping;
+            resizeUI.maskCheckbox.onClick = function () {
+                isMaskEnabled = resizeUI.maskCheckbox.value;
+                updatePreview();
+            };
 
             divisionUI.gutterInput.onChanging = updatePreviewWhileTyping;
             divisionUI.marginInput.onChanging = updatePreviewWhileTyping;

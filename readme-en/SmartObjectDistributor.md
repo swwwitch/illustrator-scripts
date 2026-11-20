@@ -22,6 +22,7 @@ The placement area can be the current artboard, the backmost object, or a rectan
 - Rows, columns, gutter, and margin settings
 - Initial rows and columns derived from the selection count and the area's aspect ratio, so cells stay nearly square
 - Resizing to the cells (Width / Height / Area / Scale), keeping the aspect ratio, with a ratio in %
+- Clipping each object with its cell rectangle (Mask)
 - Cell handling: Keep as Rectangle, Convert to Guides, or Convert to Artboards
 - Cell fill (black, white, or no fill) and opacity
 - Shuffle button to randomize the order in which objects fill the cells
@@ -39,7 +40,7 @@ The placement area can be the current artboard, the backmost object, or a rectan
 3. Configure the settings in the dialog panels.
    - Placement Area: the region the grid is laid out in
    - Divisions & Margin: rows, columns, gutter, margin
-   - Resize: how to resize and the ratio
+   - Resize & Mask: how to resize, the ratio, and whether to mask
    - Cell Handling: what happens to the rectangles, color, opacity
 4. Click Shuffle to change the assignment order if needed.
 5. Adjust the values while checking the preview.
@@ -51,14 +52,16 @@ The placement area can be the current artboard, the backmost object, or a rectan
 | --- | --- |
 | Placement Area | Current artboard / backmost object / rectangle in the "_target" layer |
 | Divisions & Margin | Rows, columns, gutter, margin |
-| Resize | None / Width / Height / Area / Scale, ratio (%) |
+| Resize & Mask | None / Width / Height / Area / Scale, ratio (%), Mask |
 | Cell Handling | Keep as Rectangle / Convert to Guides / Convert to Artboards, color (black / white / no fill), opacity, transparency grid |
 
 ![ss-746-988-72-20250521-053754](https://github.com/user-attachments/assets/3bec4d25-184d-46ab-98c5-fecbb2be9c0d)
 
 ## Notes
 
-- In Resize, Width and Height match each object to the cell width or height times the ratio; Area equalizes the areas, sized so every object fits in the cell times the ratio; Scale is relative to the original size. All keep the aspect ratio and scale stroke weights by the same factor. Objects parked beyond the cell count are not resized.
+- In Resize & Mask, Width and Height match each object to the cell width or height times the ratio; Area equalizes the areas, sized so every object fits in the cell times the ratio; Scale is relative to the original size. All keep the aspect ratio and scale stroke weights by the same factor. Objects parked beyond the cell count are not resized.
+- With Mask on, each object placed in a cell is clipped with the cell rectangle (one clipping group per object). Objects parked beyond the cell count are not masked. Mask is on by default.
+- Click the script name and version at the bottom left of the dialog to open About This Script, which shows the script name and version, opens the README, the source code, or the article (note), and shows the script file (Show in Finder). The button to the right of the script name copies it to the clipboard.
 - The rectangle in the "_target" layer is hidden while the script runs and is never placed into a cell. A rectangle you had already hidden stays hidden afterwards.
 - When the "_target" layer holds several paths, a rectangle wins; open lines and paths with no area are never used as the placement area.
 - When Backmost Object is selected, that framing object is excluded from the objects to place.
@@ -78,6 +81,7 @@ The placement area can be the current artboard, the backmost object, or a rectan
 
 ## Changelog
 
+- v2.1.0 (2026-11-20) Renamed the panel to Resize & Mask and added Mask, which clips each object with its cell rectangle. Clicking the script name and version at the bottom left opens About This Script (copy the script name, open the README, source code, or article, and show the file in the Finder)
 - v2.0.0 (2026-11-12) Added the Resize panel (Width / Height / Area / Scale). The preview now uses duplicates with the originals temporarily hidden instead of Undo, fixing a bug where work done before the script could be undone. Fixed the version at the bottom of the dialog not being shown
 - v1.10.8 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)
 - v1.10.7 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
