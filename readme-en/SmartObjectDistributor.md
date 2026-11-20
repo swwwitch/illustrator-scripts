@@ -14,16 +14,18 @@
 
 This script places the selected objects at the center of each cell of a grid with the given number of rows and columns.
 
-The placement area can be the current artboard, the backmost object, or a rectangle in the "_target" layer. The cell rectangles can be kept as they are, converted to guides, or turned into artboards. Divisions, margins, and gutters are adjusted with a live preview.
+The placement area can be the current artboard or the backmost object. Objects can be resized to the cells and clipped with masks that have round corners and a frame. Filling can start from a corner or the center, or the objects can be spread evenly over the grid. The cell rectangles can be kept, converted to guides, turned into artboards, or left out. Every setting is adjusted with a live preview.
 
 ## Main features
 
-- Placement area switching (current artboard / backmost object / rectangle in the "_target" layer)
+- Placement area switching (current artboard / backmost object)
 - Rows, columns, gutter, and margin settings
 - Initial rows and columns derived from the selection count and the area's aspect ratio, so cells stay nearly square
-- Resizing to the cells (Width / Height / Area / Scale), keeping the aspect ratio, with a ratio in %
-- Clipping each object with its cell rectangle (Mask)
-- Cell handling: Keep as Rectangle, Convert to Guides, or Convert to Artboards
+- Resizing to the cells (Width / Height / Area / Scale), keeping the aspect ratio, with a ratio in %. For Scale, Auto enters a ratio at which every object covers its cell
+- Clipping each object with its cell rectangle (Mask), with round corners and a frame (weight and color)
+- Keeping the originals and placing copies in the cells (Keep Original Objects)
+- Fill From (top left / top right / bottom left / bottom right / center), and Spread Evenly to scatter objects over the grid when there are spare cells
+- Cell handling: Do Nothing, Keep as Rectangles, Convert to Guides, or Convert to Artboards
 - Cell fill (black, white, or no fill) and opacity
 - Shuffle button to randomize the order in which objects fill the cells
 - Objects beyond the number of cells are parked clear of other objects and artboards
@@ -37,11 +39,14 @@ The placement area can be the current artboard, the backmost object, or a rectan
 
 1. Select the objects to arrange in a grid.
 2. Run `SmartObjectDistributor.jsx`.
-3. Configure the settings in the dialog panels.
+3. Configure the settings in the dialog box panels.
    - Placement Area: the region the grid is laid out in
    - Divisions & Margin: rows, columns, gutter, margin
-   - Resize & Mask: how to resize, the ratio, and whether to mask
+   - Placement & Arrangement: where filling starts, Spread Evenly, and Shuffle
+   - Resize: how to resize and the ratio
+   - Mask: whether to mask, round corners, frame
    - Cell Handling: what happens to the rectangles, color, opacity
+   - Keep Original Objects at the left of the button row: whether to keep the originals and place copies
 4. Click Shuffle to change the assignment order if needed.
 5. Adjust the values while checking the preview.
 6. Click OK to apply.
@@ -50,29 +55,35 @@ The placement area can be the current artboard, the backmost object, or a rectan
 
 | Panel | Settings |
 | --- | --- |
-| Placement Area | Current artboard / backmost object / rectangle in the "_target" layer |
+| Placement Area | Current artboard / backmost object |
 | Divisions & Margin | Rows, columns, gutter, margin |
-| Resize & Mask | None / Width / Height / Area / Scale, ratio (%), Mask |
-| Cell Handling | Keep as Rectangle / Convert to Guides / Convert to Artboards, color (black / white / no fill), opacity, transparency grid |
+| Placement & Arrangement | Fill From (top left / top right / bottom left / bottom right / center), Spread Evenly, Shuffle |
+| Resize | None / Width / Height / Area / Scale, ratio (%), Auto |
+| Mask | Mask, Round Corners (radius, Auto), Frame (weight and color) |
+| Cell Handling | Do Nothing / Keep as Rectangles / Convert to Guides / Convert to Artboards, color (black / white / no fill), opacity, transparency grid |
+| (left of the button row) | Keep Original Objects |
 
 ![ss-746-988-72-20250521-053754](https://github.com/user-attachments/assets/3bec4d25-184d-46ab-98c5-fecbb2be9c0d)
 
 ## Notes
 
-- In Resize & Mask, Width and Height match each object to the cell width or height times the ratio; Area equalizes the areas, sized so every object fits in the cell times the ratio; Scale is relative to the original size. All keep the aspect ratio and scale stroke weights by the same factor. Objects parked beyond the cell count are not resized.
+- In Resize, Width and Height match each object to the cell width or height times the ratio; Area equalizes the areas, sized so every object fits in the cell times the ratio; Scale is relative to the original size. All keep the aspect ratio and scale stroke weights by the same factor. Objects parked beyond the cell count are not resized.
+- Auto is available with Scale. It enters the ratio at which every object in a cell is at least as wide and as tall as the cell, leaving no gap on any side, rounded up to 0.1%. Use Mask to crop what extends past the cell.
 - With Mask on, each object placed in a cell is clipped with the cell rectangle (one clipping group per object). Objects parked beyond the cell count are not masked. Mask is on by default.
+- Round Corners applies the Round Corners effect to each clipping group. Its Auto button sets the radius to half the shorter side of a cell, so the short ends become semicircles. Frame adds a stroke to each mask rectangle (weight in the stroke unit; click the swatch to pick a color with the standard color picker; black by default). Both are available while Mask is on.
+- From a corner, Fill From fills row by row starting at that corner; Center fills the cells nearest the middle first. With Spread Evenly on and fewer objects than cells, each cell is picked as far as possible from those already picked, so the objects spread over the whole grid. While it is on, Fill From is dimmed and not used; cells are picked from the top left. Shuffle also re-picks the cells used.
+- With Keep Original Objects on, the originals stay where they are and only as many copies as there are cells are placed (nothing is copied or parked beyond the cell count). The placed copies are selected after OK. It is off by default.
 - Click the script name and version at the bottom left of the dialog to open About This Script, which shows the script name and version, opens the README, the source code, or the article (note), and shows the script file (Show in Finder). The button to the right of the script name copies it to the clipboard.
-- The rectangle in the "_target" layer is hidden while the script runs and is never placed into a cell. A rectangle you had already hidden stays hidden afterwards.
-- When the "_target" layer holds several paths, a rectangle wins; open lines and paths with no area are never used as the placement area.
 - When Backmost Object is selected, that framing object is excluded from the objects to place.
 - Objects beyond the number of cells are parked where they overlap neither other objects nor artboards.
 - Any existing "cell-background" layer is hidden while the dialog is open and removed when you click OK, which clears the result of the previous run. Cancel restores its original visibility.
-- With Convert to Guides or Convert to Artboards, the cell color is fixed to No Fill.
+- Do Nothing leaves no cell rectangles (the preview shows the cells as guides).
+- With Do Nothing, Convert to Guides or Convert to Artboards, the cell color is fixed to No Fill.
 - Up to 100 rows and 100 columns, and up to 1000 cells. Out-of-range values are clamped when the field commits.
 - Nothing is drawn when the margin or gutter leaves no room for cells, and clicking OK keeps the dialog open and explains why.
 - The preview shows duplicates of the objects, and the originals are hidden only while the dialog is open. The preview is never removed with Undo, so work done before the script runs is never undone.
 - Besides Cancel, pressing Esc or closing the window also discards the preview and restores the original state.
-- With Keep as Rectangle, the cell rectangles are selected after clicking OK.
+- With Keep as Rectangles, the cell rectangles are selected after clicking OK.
 - Values follow Illustrator's ruler unit setting.
 
 ## Article
@@ -81,6 +92,7 @@ The placement area can be the current artboard, the backmost object, or a rectan
 
 ## Changelog
 
+- v3.0.0 (2026-11-20) Removed the "_target" layer rectangle as a placement area. The dialog now has three columns (left: Placement Area, Divisions & Margin, Placement & Arrangement; center: Resize, Mask; right: Cell Handling), with the radio buttons and the Divisions & Margin fields stacked vertically. Split Resize & Mask into the Resize and Mask panels. Added the Placement & Arrangement panel with Fill From (top left / top right / bottom left / bottom right / center) and Spread Evenly, and moved Shuffle into it. Added Keep Original Objects (leaves the originals in place and places copies) at the left of the button row. Added Auto for Scale, and Round Corners (with Auto) and Frame for the mask, and Do Nothing for cell handling
 - v2.1.0 (2026-11-20) Renamed the panel to Resize & Mask and added Mask, which clips each object with its cell rectangle. Clicking the script name and version at the bottom left opens About This Script (copy the script name, open the README, source code, or article, and show the file in the Finder)
 - v2.0.0 (2026-11-12) Added the Resize panel (Width / Height / Area / Scale). The preview now uses duplicates with the originals temporarily hidden instead of Undo, fixing a bug where work done before the script could be undone. Fixed the version at the bottom of the dialog not being shown
 - v1.10.8 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)

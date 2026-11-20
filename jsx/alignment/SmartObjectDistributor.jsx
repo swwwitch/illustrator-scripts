@@ -8,14 +8,14 @@ Script-ID=com.swwwitch.illustrator.SmartObjectDistributor
 Name=グリッドの各セル中央にオブジェクトを配置
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=2.1.0
+Version=3.0.0
 Release-Date=2025-05-20
 Description-BEGIN
-選択したオブジェクトを、指定した行数・列数のグリッドに沿って各セルの中央へ配置します。
-配置先は「現在のアートボード」「最背面のオブジェクト」「_target レイヤーの長方形」から選べます。
+選択したオブジェクトを、指定した行数・列数のグリッドの各セル中央へ配置します。
+セルに合わせたリサイズやマスク、埋め方を指定でき、プレビューを見ながら調整できます。
 
 Places the selected objects at the center of each cell of a grid with the rows and columns you specify.
-The target area can be the current artboard, the backmost object, or a rectangle on the `_target` layer.
+Objects can be resized and masked to fit the cells, and the fill order can be set, all with a live preview.
 Description-END
 SCRIPTMETA-END
 */
@@ -24,8 +24,8 @@ SCRIPTMETA-END
 
 ### 概要
 
-選択したオブジェクトを、指定した行数・列数のグリッドに沿って各セルの中央へ配置します。
-配置先は「現在のアートボード」「最背面のオブジェクト」「_target レイヤーの長方形」から選べます。
+選択したオブジェクトを、指定した行数・列数のグリッドの各セル中央へ配置します。
+セルに合わせたリサイズやマスク、埋め方を指定でき、プレビューを見ながら調整できます。
 
 詳細は README を参照してください。
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartObjectDistributor.md
@@ -36,7 +36,7 @@ https://note.com/dtp_tranist/n/na3c45cea09b7
 ### Overview
 
 Places the selected objects at the center of each cell of a grid with the rows and columns you specify.
-The target area can be the current artboard, the backmost object, or a rectangle on the `_target` layer.
+Objects can be resized and masked to fit the cells, and the fill order can be set, all with a live preview.
 
 See the README for details.
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartObjectDistributor.md
@@ -47,7 +47,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartObjec
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SmartObjectDistributor";       /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v2.1.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v3.0.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-05-20";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-11-20";                   /* 更新日 / last updated */
@@ -73,6 +73,13 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         defaultResizeRatio: 100,     /* リサイズの比率の初期値（%） / default resize ratio */
         maxResizeRatio: 1000,        /* リサイズの比率の上限（%） / max resize ratio */
         defaultMaskToCell: true,     /* ［マスクする］の初期値 / Mask starts checked */
+        defaultUseCornerRadius: false, /* ［角丸］の初期値 / Round Corners starts unchecked */
+        defaultCornerRadius: 10,     /* 角丸の半径の初期値（定規単位） / default corner radius (ruler unit) */
+        defaultUseFrame: false,      /* ［枠］の初期値 / Frame starts unchecked */
+        defaultFrameWidth: 1,        /* 枠の線幅の初期値（線の単位） / default frame weight (stroke unit) */
+        defaultKeepOriginals: false, /* ［配置するオブジェクトを残す］の初期値 / Keep Original Objects starts unchecked */
+        defaultSpreadEvenly: false,  /* ［均等にまばらに］の初期値 / Spread Evenly starts unchecked */
+        defaultFillStart: "topLeft", /* 埋め方の初期値（"topLeft" / "topRight" / "bottomLeft" / "bottomRight" / "center"） / where filling starts */
         blackCellOpacity: 15,        /* 黒セルの不透明度（%） / opacity for black cells */
         whiteCellOpacity: 100,       /* 白セルの不透明度（%） / opacity for white cells */
         fallbackDivision: 5,         /* 分割数を決められないときの既定値 / fallback division */
@@ -83,7 +90,6 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         parkingStep: 200,            /* 退避時の移動量（pt） / step when parking objects */
         overlapTolerance: 1,         /* 重なり判定の余裕（pt） / overlap tolerance */
         artboardBuffer: 10,          /* 他アートボードとの余裕（pt） / buffer around artboards */
-        targetLayerName: "_target",                  /* 配置先レイヤー名 / target layer name */
         cellLayerName: "cell-background",            /* セル描画レイヤー名 / cell layer name */
         previewCellLayerName: "_Preview_Background", /* プレビュー用レイヤー名 / preview layer name */
         legacyPreviewLayerName: "_Preview_Guides"    /* 旧版のプレビュー用レイヤー名 / legacy preview layer */
@@ -171,6 +177,394 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     }
 
     // UIレイアウト（再利用パーツ）ここまで / End of the reusable UI layout
+
+    /* ダイアログボックスを詰めるための間隔 / Tighter spacing to keep the dialog compact */
+    var RADIO_COLUMN_SPACING = 4;  /* 縦に並べたラジオボタンの間隔 / spacing of stacked radio buttons */
+    var PANEL_SECTION_SPACING = 8; /* パネル内のまとまりどうしの間隔 / spacing between sections in a panel */
+    var COLUMN_PANEL_SPACING = 8;  /* カラム内のパネルどうしの間隔 / spacing between panels in a column */
+    var FILL_START_WIDGET_SIZE = 50; /* 埋め方のウィジェットの一辺 / size of the Fill From widget */
+    var COLOR_SWATCH_SIZE = [40, 20]; /* 枠の色見本の大きさ / size of the frame color swatch */
+    var CHECKBOX_BOX_WIDTH = 24;  /* チェックボックスの□と文字の間の分の幅 / width of a checkbox's box and its gap */
+
+    /**
+     * コントロールの文字の幅を測る
+     * @param {Object} control - text を持つコントロール
+     * @returns {number} 文字の幅（px）
+     */
+    function measureControlText(control) {
+        return Math.ceil(control.graphics.measureString(control.text)[0]);
+    }
+
+    /**
+     * ダイアログの1カラム分のグループを作る（パネルを縦に積み、幅をそろえる）
+     * @param {Group} columnsGroup - カラムを並べる横並びのグループ
+     * @returns {Group} カラムのグループ
+     */
+    function addDialogColumn(columnsGroup) {
+        var dialogColumn = columnsGroup.add("group");
+        dialogColumn.orientation = "column";
+        dialogColumn.alignment = ["fill", "fill"];
+        dialogColumn.alignChildren = ["fill", "top"];
+        dialogColumn.spacing = COLUMN_PANEL_SPACING;
+        return dialogColumn;
+    }
+
+    /**
+     * ラジオボタンを縦に並べるグループを作る（排他は同じ親の中だけなので、1組につき1グループ）
+     * @param {Panel|Group} parent - 追加先
+     * @returns {Group} ラジオボタンを入れるグループ
+     */
+    function addRadioColumn(parent) {
+        var radioColumn = parent.add("group");
+        radioColumn.orientation = "column";
+        radioColumn.alignment = ["left", "top"];
+        radioColumn.alignChildren = ["left", "top"];
+        radioColumn.spacing = RADIO_COLUMN_SPACING;
+        return radioColumn;
+    }
+
+    // 基準点ウィジェット（再利用パーツ） / Anchor widget (reusable)
+
+    // -----------------------------------------
+    // 基準点ウィジェットの寸法 / Anchor widget metrics
+    // -----------------------------------------
+    var ANCHOR_WIDGET_SIZE      = 66;   /* ウィジェット全体の一辺 / overall size of the widget */
+    var ANCHOR_WIDGET_CELL_SIZE = 9;    /* □1個の一辺 / size of one square */
+    var ANCHOR_WIDGET_CELL_GAP  = 7.5;  /* □どうしの間隔 / gap between squares */
+    var ANCHOR_WIDGET_NONE      = -1;   /* 未選択のインデックス / index while nothing is selected */
+
+    /* セルの名前（行優先：上 → 中 → 下、列：左 → 中 → 右）。Transformation の列挙名にそろえる
+       Cell names in row-major order, matching the Transformation enumeration */
+    var ANCHOR_WIDGET_NAMES = ["topLeft", "top", "topRight", "left", "center", "right", "bottomLeft", "bottom", "bottomRight"];
+
+    /* 中央(4)を除く外周の□どうしをつなぐケイ線 / Rules joining the outer squares (the center stands alone) */
+    var ANCHOR_WIDGET_CONNECTIONS = [[0, 1], [1, 2], [6, 7], [7, 8], [0, 3], [3, 6], [2, 5], [5, 8]];
+
+    // -----------------------------------------
+    // 基準点ウィジェットの配色 / Anchor widget colors
+    // -----------------------------------------
+    var ANCHOR_WIDGET_UI_DARK = isDarkUI();
+    /* 枠線・ケイ線はグレー、選択セルの塗りはライトで濃いグレー・ダークで明るいグレー（既存スクリプトの配色を踏襲）。
+       無効時は同じ色を半透明にして背景へ沈める（不透明の薄いグレーだとダークUIで逆に明るく浮くため）
+       Gray rules; the selected fill is dark gray on light UI and light gray on dark UI (as in the existing scripts).
+       Disabled colors are translucent versions so they sink into any background */
+    var ANCHOR_WIDGET_LINE_COLOR     = ANCHOR_WIDGET_UI_DARK ? [0.7, 0.7, 0.7, 1]     : [0.42, 0.42, 0.42, 1];  /* 枠線・ケイ線 / rules */
+    var ANCHOR_WIDGET_FILL_COLOR     = ANCHOR_WIDGET_UI_DARK ? [0.9, 0.9, 0.9, 1]     : [0.27, 0.27, 0.27, 1];  /* 選択セルの塗り / selected fill */
+    var ANCHOR_WIDGET_DIM_LINE_COLOR = ANCHOR_WIDGET_UI_DARK ? [0.7, 0.7, 0.7, 0.4]   : [0.42, 0.42, 0.42, 0.4];  /* 無効時の枠線 / rules when disabled */
+    var ANCHOR_WIDGET_DIM_FILL_COLOR = ANCHOR_WIDGET_UI_DARK ? [0.9, 0.9, 0.9, 0.3]   : [0.27, 0.27, 0.27, 0.3];  /* 無効時の塗り / fill when disabled */
+
+    // -----------------------------------------
+    // ウィジェットを作る・読み書きする（外から呼ぶ関数） / Public API
+    // -----------------------------------------
+    /**
+     * 基準点（3×3）を選ぶウィジェットを追加する。クリックしたセルを選び、onChange を呼ぶ
+     * @param {Group|Panel} parent - 追加先
+     * @param {number|string} initialValue - 最初に選ぶセル（0〜8 か "topLeft" などの名前。allowNone なら -1 も可）
+     * @param {Function} [onChange] - クリックで選んだときに呼ぶ関数（引数はセルのインデックスとウィジェット）
+     * @param {Object} [widgetOptions] - allowNone（true で未選択 -1 を許す）/ disabledCells（選べないセルの配列）/ size（一辺。既定 66）
+     * @returns {Button} ウィジェット（値は getAnchorWidgetIndex() / getAnchorWidgetName() で読む）
+     */
+    function addAnchorWidget(parent, initialValue, onChange, widgetOptions) {
+        var anchorOptions = widgetOptions || {};
+        var widgetSize = anchorOptions.size || ANCHOR_WIDGET_SIZE;
+        var anchorWidget = parent.add("button", undefined, "");
+        anchorWidget.minimumSize = [widgetSize, widgetSize];
+        anchorWidget.preferredSize = [widgetSize, widgetSize];
+        anchorWidget.maximumSize = [widgetSize, widgetSize];
+        anchorWidget.isAnchorWidget = true; /* redrawAnchorWidgetsIn() の目印 / marker for redrawAnchorWidgetsIn() */
+        anchorWidget.anchorAllowNone = !!anchorOptions.allowNone;
+        anchorWidget.anchorDisabledCells = toAnchorCellFlags(anchorOptions.disabledCells);
+        anchorWidget.anchorWidgetIndex = resolveAnchorWidgetIndex(initialValue, anchorWidget.anchorAllowNone);
+        anchorWidget.onDraw = function () { drawAnchorWidget(anchorWidget); };
+        anchorWidget.onClick = function () {}; /* セルの判定は mousedown で行う / hit-testing happens in mousedown */
+
+        /* クリック座標（コントロール基準）を3分割してセルを判定する / split the control-relative click into thirds */
+        anchorWidget.addEventListener("mousedown", function (event) {
+            if (!isAnchorWidgetEnabledInTree(anchorWidget)) return;
+            var cellIndex = getAnchorCellAt(event.clientX, event.clientY, anchorWidget.size[0], anchorWidget.size[1]);
+            if (anchorWidget.anchorDisabledCells[cellIndex]) return;
+            anchorWidget.anchorWidgetIndex = cellIndex;
+            redrawAnchorWidget(anchorWidget);
+            if (onChange) onChange(cellIndex, anchorWidget);
+        });
+        return anchorWidget;
+    }
+
+    /**
+     * 選択中のセルのインデックスを返す
+     * @param {Button} anchorWidget - addAnchorWidget() で作ったウィジェット
+     * @returns {number} 0〜8（行優先）。未選択なら -1
+     */
+    function getAnchorWidgetIndex(anchorWidget) {
+        return anchorWidget.anchorWidgetIndex;
+    }
+
+    /**
+     * 選択中のセルの名前を返す
+     * @param {Button} anchorWidget - addAnchorWidget() で作ったウィジェット
+     * @returns {string} "topLeft" など。未選択なら ""
+     */
+    function getAnchorWidgetName(anchorWidget) {
+        return ANCHOR_WIDGET_NAMES[anchorWidget.anchorWidgetIndex] || "";
+    }
+
+    /**
+     * 選択するセルを変えて描き直す（onChange は呼ばない）
+     * @param {Button} anchorWidget - addAnchorWidget() で作ったウィジェット
+     * @param {number|string} anchorValue - 0〜8 か名前（allowNone なら -1 も可）
+     * @returns {void}
+     */
+    function setAnchorWidgetValue(anchorWidget, anchorValue) {
+        anchorWidget.anchorWidgetIndex = resolveAnchorWidgetIndex(anchorValue, anchorWidget.anchorAllowNone);
+        redrawAnchorWidget(anchorWidget);
+    }
+
+    /**
+     * ウィジェットの有効／無効を切り替えて描き直す（無効の間は薄く描き、クリックも無視する）
+     * @param {Button} anchorWidget - addAnchorWidget() で作ったウィジェット
+     * @param {boolean} isEnabled - 有効にするなら true
+     * @returns {void}
+     */
+    function setAnchorWidgetEnabled(anchorWidget, isEnabled) {
+        anchorWidget.enabled = isEnabled;
+        redrawAnchorWidget(anchorWidget);
+    }
+
+    /**
+     * 選べないセルを指定し直して描き直す（選択中のセルは変えない）
+     * @param {Button} anchorWidget - addAnchorWidget() で作ったウィジェット
+     * @param {number[]} disabledCells - 選べないセルのインデックス（空配列ですべて選べる）
+     * @returns {void}
+     */
+    function setAnchorWidgetCellsDisabled(anchorWidget, disabledCells) {
+        anchorWidget.anchorDisabledCells = toAnchorCellFlags(disabledCells);
+        redrawAnchorWidget(anchorWidget);
+    }
+
+    /**
+     * コンテナ以下にある基準点ウィジェットをすべて描き直す。パネルや行の enabled を切り替えたあとに呼ぶ
+     * @param {Object} container - パネル・グループ・ウィンドウなど
+     * @returns {void}
+     */
+    function redrawAnchorWidgetsIn(container) {
+        if (container.isAnchorWidget) {
+            redrawAnchorWidget(container);
+            return;
+        }
+        if (!container.children) return;
+        for (var i = 0; i < container.children.length; i++) {
+            redrawAnchorWidgetsIn(container.children[i]);
+        }
+    }
+
+    // -----------------------------------------
+    // 値の変換 / Value helpers
+    // -----------------------------------------
+    /**
+     * セルのインデックスか名前を 0〜8 のインデックスにする。解釈できない値は中央（4）
+     * @param {number|string} anchorValue - 0〜8 / -1 / "topLeft" などの名前
+     * @param {boolean} [allowNone] - true なら -1（未選択）をそのまま返す
+     * @returns {number} 0〜8。allowNone で -1 を渡したときだけ -1
+     */
+    function resolveAnchorWidgetIndex(anchorValue, allowNone) {
+        if (typeof anchorValue === "string") {
+            for (var i = 0; i < ANCHOR_WIDGET_NAMES.length; i++) {
+                if (ANCHOR_WIDGET_NAMES[i] === anchorValue) return i;
+            }
+            return 4;
+        }
+        if (anchorValue === ANCHOR_WIDGET_NONE && allowNone) return ANCHOR_WIDGET_NONE;
+        if (typeof anchorValue === "number" && anchorValue >= 0 && anchorValue <= 8 && anchorValue === Math.floor(anchorValue)) {
+            return anchorValue;
+        }
+        return 4;
+    }
+
+    /**
+     * セルの位置を割合で返す（左・上が 0、中央が 0.5、右・下が 1）
+     * @param {number|string} anchorValue - 0〜8 か名前
+     * @returns {number[]} [横の割合, 縦の割合]
+     */
+    function getAnchorRatio(anchorValue) {
+        var anchorIndex = resolveAnchorWidgetIndex(anchorValue);
+        return [(anchorIndex % 3) / 2, Math.floor(anchorIndex / 3) / 2];
+    }
+
+    /**
+     * 境界ボックス上の基準点の座標を返す（Illustrator の [左, 上, 右, 下] でも、y 下向きの座標でもそのまま使える）
+     * @param {number[]} bounds - [左, 上, 右, 下]（geometricBounds・visibleBounds・artboardRect など）
+     * @param {number|string} anchorValue - 0〜8 か名前
+     * @returns {number[]} [x, y]
+     */
+    function getAnchorPointOnBounds(bounds, anchorValue) {
+        var anchorRatio = getAnchorRatio(anchorValue);
+        return [
+            bounds[0] + (bounds[2] - bounds[0]) * anchorRatio[0],
+            bounds[1] + (bounds[3] - bounds[1]) * anchorRatio[1]
+        ];
+    }
+
+    /**
+     * resize()・rotate()・transform() に渡す基準点を返す（Illustrator 専用）。
+     * 基準は効果を含まない境界（geometricBounds）
+     * @param {number|string} anchorValue - 0〜8 か名前
+     * @returns {Transformation} Transformation.TOPLEFT など
+     */
+    function getAnchorTransformation(anchorValue) {
+        var transformations = [
+            Transformation.TOPLEFT, Transformation.TOP, Transformation.TOPRIGHT,
+            Transformation.LEFT, Transformation.CENTER, Transformation.RIGHT,
+            Transformation.BOTTOMLEFT, Transformation.BOTTOM, Transformation.BOTTOMRIGHT
+        ];
+        return transformations[resolveAnchorWidgetIndex(anchorValue)];
+    }
+
+    /**
+     * symbols.add() に渡す登録点を返す（Illustrator 専用）
+     * @param {number|string} anchorValue - 0〜8 か名前
+     * @returns {SymbolRegistrationPoint} SymbolRegistrationPoint.SYMBOLTOPLEFTPOINT など
+     */
+    function getAnchorSymbolRegistrationPoint(anchorValue) {
+        var registrationPoints = [
+            SymbolRegistrationPoint.SYMBOLTOPLEFTPOINT, SymbolRegistrationPoint.SYMBOLTOPMIDDLEPOINT, SymbolRegistrationPoint.SYMBOLTOPRIGHTPOINT,
+            SymbolRegistrationPoint.SYMBOLMIDDLELEFTPOINT, SymbolRegistrationPoint.SYMBOLCENTERPOINT, SymbolRegistrationPoint.SYMBOLMIDDLERIGHTPOINT,
+            SymbolRegistrationPoint.SYMBOLBOTTOMLEFTPOINT, SymbolRegistrationPoint.SYMBOLBOTTOMMIDDLEPOINT, SymbolRegistrationPoint.SYMBOLBOTTOMRIGHTPOINT
+        ];
+        return registrationPoints[resolveAnchorWidgetIndex(anchorValue)];
+    }
+
+    /**
+     * クリック位置からセルのインデックスを求める（ウィジェットを縦横3等分し、外にはみ出した座標は端のセルに寄せる）
+     * @param {number} clickX - コントロール基準の x
+     * @param {number} clickY - コントロール基準の y
+     * @param {number} widgetWidth - ウィジェットの幅
+     * @param {number} widgetHeight - ウィジェットの高さ
+     * @returns {number} 0〜8
+     */
+    function getAnchorCellAt(clickX, clickY, widgetWidth, widgetHeight) {
+        var column = Math.min(2, Math.max(0, Math.floor(clickX / (widgetWidth / 3))));
+        var row = Math.min(2, Math.max(0, Math.floor(clickY / (widgetHeight / 3))));
+        return row * 3 + column;
+    }
+
+    /**
+     * セルのインデックスの配列を、9個の真偽値に直す
+     * @param {number[]} [cellIndexes] - セルのインデックスの配列
+     * @returns {boolean[]} 含まれるセルだけ true
+     */
+    function toAnchorCellFlags(cellIndexes) {
+        var cellFlags = [false, false, false, false, false, false, false, false, false];
+        if (!cellIndexes) return cellFlags;
+        for (var i = 0; i < cellIndexes.length; i++) {
+            if (cellIndexes[i] >= 0 && cellIndexes[i] <= 8) cellFlags[cellIndexes[i]] = true;
+        }
+        return cellFlags;
+    }
+
+    // -----------------------------------------
+    // 描画 / Drawing
+    // -----------------------------------------
+    /**
+     * ウィジェットを描く（外周の□をケイ線でつなぎ、中央は独立。選択セルだけ塗る）
+     * @param {Button} anchorWidget - 描くウィジェット
+     * @returns {void}
+     */
+    function drawAnchorWidget(anchorWidget) {
+        var graphics = anchorWidget.graphics;
+        var widgetWidth = anchorWidget.size[0];
+        var widgetHeight = anchorWidget.size[1];
+        var cellSize = ANCHOR_WIDGET_CELL_SIZE;
+        var halfCell = cellSize / 2;
+        /* 自作描画は自動でディムにならないので、親までたどって判定する / custom drawing is not dimmed automatically */
+        var isEnabled = isAnchorWidgetEnabledInTree(anchorWidget);
+
+        /* ボタンの地をコントロールの地色で塗り、パネルに溶け込ませる（backgroundColor が無い環境では例外）
+           Paint the control's own background so the widget blends into the panel; throws where backgroundColor is missing */
+        try {
+            graphics.newPath();
+            graphics.rectPath(0, 0, widgetWidth, widgetHeight);
+            graphics.fillPath(graphics.backgroundColor);
+        } catch (e) {}
+
+        var cellStep = cellSize + ANCHOR_WIDGET_CELL_GAP;
+        var gridSize = cellSize * 3 + ANCHOR_WIDGET_CELL_GAP * 2;
+        var originX = Math.round((widgetWidth - gridSize) / 2);
+        var originY = Math.round((widgetHeight - gridSize) / 2);
+        var cellPositions = [];
+        var i;
+        for (i = 0; i < 9; i++) {
+            cellPositions.push([originX + (i % 3) * cellStep, originY + Math.floor(i / 3) * cellStep]);
+        }
+
+        var linePen = graphics.newPen(graphics.PenType.SOLID_COLOR, isEnabled ? ANCHOR_WIDGET_LINE_COLOR : ANCHOR_WIDGET_DIM_LINE_COLOR, 1);
+        for (i = 0; i < ANCHOR_WIDGET_CONNECTIONS.length; i++) {
+            var cellA = cellPositions[ANCHOR_WIDGET_CONNECTIONS[i][0]];
+            var cellB = cellPositions[ANCHOR_WIDGET_CONNECTIONS[i][1]];
+            graphics.newPath();
+            if (ANCHOR_WIDGET_CONNECTIONS[i][1] - ANCHOR_WIDGET_CONNECTIONS[i][0] === 1) {
+                /* 横方向：右隣の□へ / horizontal: to the square on the right */
+                graphics.moveTo(cellA[0] + cellSize, cellA[1] + halfCell);
+                graphics.lineTo(cellB[0], cellB[1] + halfCell);
+            } else {
+                /* 縦方向：下の□へ / vertical: to the square below */
+                graphics.moveTo(cellA[0] + halfCell, cellA[1] + cellSize);
+                graphics.lineTo(cellB[0] + halfCell, cellB[1]);
+            }
+            graphics.strokePath(linePen);
+        }
+
+        for (i = 0; i < 9; i++) {
+            var isCellEnabled = isEnabled && !anchorWidget.anchorDisabledCells[i];
+            drawAnchorWidgetCell(graphics, cellPositions[i][0], cellPositions[i][1], i === anchorWidget.anchorWidgetIndex, isCellEnabled);
+        }
+    }
+
+    /**
+     * □を1つ描く（選択中だけ塗り、枠は塗りの上に重ねる）
+     * @param {ScriptUIGraphics} graphics - 描画先
+     * @param {number} cellX - 左端
+     * @param {number} cellY - 上端
+     * @param {boolean} isSelected - 選択中なら true
+     * @param {boolean} isEnabled - 選べるセルなら true（false なら薄く描く）
+     * @returns {void}
+     */
+    function drawAnchorWidgetCell(graphics, cellX, cellY, isSelected, isEnabled) {
+        var cellSize = ANCHOR_WIDGET_CELL_SIZE;
+        /* rectPath の前には毎回 newPath()（呼ばないとパスが累積して塗りが線画になる）
+           Always call newPath() before rectPath(), or paths accumulate and fills turn into outlines */
+        if (isSelected) {
+            graphics.newPath();
+            graphics.rectPath(cellX, cellY, cellSize, cellSize);
+            graphics.fillPath(graphics.newBrush(graphics.BrushType.SOLID_COLOR, isEnabled ? ANCHOR_WIDGET_FILL_COLOR : ANCHOR_WIDGET_DIM_FILL_COLOR));
+        }
+        graphics.newPath();
+        graphics.rectPath(cellX, cellY, cellSize, cellSize);
+        graphics.strokePath(graphics.newPen(graphics.PenType.SOLID_COLOR, isEnabled ? ANCHOR_WIDGET_LINE_COLOR : ANCHOR_WIDGET_DIM_LINE_COLOR, 1));
+    }
+
+    /**
+     * コントロールと、その親をたどってすべて有効かを返す（親の無効化は子の enabled に出ない）
+     * @param {Object} control - 対象のコントロール
+     * @returns {boolean} すべて有効なら true
+     */
+    function isAnchorWidgetEnabledInTree(control) {
+        for (var node = control; node; node = node.parent) {
+            if (node.enabled === false) return false;
+        }
+        return true;
+    }
+
+    /**
+     * ウィジェットの onDraw を呼び直す。notify("onDraw") は環境によって例外や空振りになるため、隠して再表示して描き直させる
+     * @param {Button} anchorWidget - 描き直すウィジェット
+     * @returns {void}
+     */
+    function redrawAnchorWidget(anchorWidget) {
+        anchorWidget.hide();
+        anchorWidget.show();
+    }
+
+    // 基準点ウィジェット（再利用パーツ）ここまで / End of the reusable anchor widget
 
     // ダイアログの位置と不透明度（再利用パーツ） / Dialog position and opacity (reusable)
 
@@ -1127,9 +1521,13 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
        「p」は「1p6」（1パイカ6ポイント）の形にも使う
        Units UnitValue lacks, mapped onto UnitValue units (how many of `unit` make one) */
     var STEPPER_UNIT_ALIASES = {
-        "q": { unit: "mm", amount: 0.25 }, /* 級 / Q */
-        "h": { unit: "mm", amount: 0.25 }, /* 歯 / H */
-        "p": { unit: "pc", amount: 1 }     /* パイカ / pica */
+        "q": { unit: "mm", amount: 0.25 },    /* 級 / Q */
+        "h": { unit: "mm", amount: 0.25 },    /* 歯 / H */
+        "p": { unit: "pc", amount: 1 },       /* パイカ / pica */
+        "ft/in": { unit: "ft", amount: 1 },   /* Illustrator の単位コード7の表示 / Illustrator unit code 7 */
+        "c": { unit: "ci", amount: 1 },       /* シセロ（InDesign の表示） / ciceros as InDesign shows them */
+        "ag": { unit: "in", amount: 1 / 14 }, /* アゲート / agates */
+        "ap": { unit: "tpt", amount: 1 }      /* アメリカンポイント / American points */
     };
 
     // -----------------------------------------
@@ -1223,6 +1621,28 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     }
 
     /**
+     * 数値欄の単位を差し替える（単位の設定やドロップダウンを切り替えたとき用）。
+     * shouldConvert が true なら値を新しい単位へ換算し（10 mm → 28.35 pt）、false なら数値はそのままで単位だけ付け替える
+     * @param {EditText} numberInput - addSteppedField() で作った入力欄、または bindSteppedArrowKeys() を呼んだ入力欄
+     * @param {string} unit - 新しい単位（例 " pt"。単位なしは ""）
+     * @param {boolean} [shouldConvert] - 値も換算するなら true
+     * @returns {void}
+     */
+    function setSteppedFieldUnit(numberInput, unit, shouldConvert) {
+        var stepOptions = numberInput.stepperGroup.stepOptions;
+        var oldUnit = stepOptions.unit || "";
+        var value = parseFloat(numberInput.text);
+        stepOptions.unit = unit;
+        if (isNaN(value)) return;
+        if (shouldConvert) {
+            var converted = evaluateArithmetic(String(value) + oldUnit, unit);
+            if (!isNaN(converted)) value = converted;
+        }
+        numberInput.text = formatStepperNumber(value) + unit;
+        numberInput.lastValidText = numberInput.text;
+    }
+
+    /**
      * 入力欄の値を増減する∧∨ボタンを、隙間なく縦に積んで追加する
      * @param {Group|Panel} parent - 追加先
      * @param {Function} getNumberInput - 対象の入力欄を返す関数（入力欄を∧∨より後に作れるよう、クリック時に引く）
@@ -1293,9 +1713,15 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             if (isNaN(value)) return; /* 計算できなければ各スクリプトの処理に任せる / leave it to the script's own handler */
             /* 式か、換算で値が変わったときだけ書き戻す（ただの数値は書式を崩さない） / rewrite only expressions and converted values */
             var hasOperator = /[*\/()\u00D7\u00F7\uFF0A\uFF0F\uFF08\uFF09]|[\d.\uFF10-\uFF19][^\d.\uFF10-\uFF19]*[+\-\u2212\uFF0B\uFF0D]/.test(numberInput.text);
-            if (!hasOperator && value === parseFloat(numberInput.text)) return;
+            if (!hasOperator && value === parseFloat(numberInput.text)) {
+                /* 単位を省いて入れた数値には、欄の単位だけ付け足す（桁は丸めない） / append the field unit to a bare number */
+                var trimmedText = numberInput.text.replace(/^\s+|\s+$/g, "");
+                if (fieldUnit && /[\d.]$/.test(trimmedText)) numberInput.text = trimmedText + fieldUnit;
+                return;
+            }
             numberInput.text = formatStepperNumber(value) + (fieldUnit || "");
         });
+        numberInput.stepperGroup = stepperGroup; /* setSteppedFieldUnit() から∧∨の設定を引けるようにする / lets setSteppedFieldUnit() find the options */
     }
 
     // -----------------------------------------
@@ -1423,7 +1849,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
          * @returns {number} 欄の単位での値（換算できない単位なら NaN）
          */
         function readUnitSuffix(value) {
-            var unitMatch = /^([A-Za-z]+|%|°)/.exec(source.substring(position));
+            var unitMatch = /^(ft\/in|[A-Za-z]+|%|°)/i.exec(source.substring(position));
             if (!unitMatch) return value; /* 単位なしは欄の単位 / no unit means the field's unit */
             position += unitMatch[0].length;
             var unitKey = unitMatch[0].toLowerCase();
@@ -1711,6 +2137,16 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         return value * unit.pointsPerUnit;
     }
 
+    /**
+     * pt の値を単位の値に換算する
+     * @param {number} ptValue - pt の値
+     * @param {{pointsPerUnit: number}} unit - getUnitInfo() の戻り値か UNITS[i]
+     * @returns {number} 単位の値
+     */
+    function ptToUnit(ptValue, unit) {
+        return ptValue / unit.pointsPerUnit;
+    }
+
     // =========================================
     // ローカライズ / Localization
     // =========================================
@@ -1809,8 +2245,10 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         panel: {
             placement: { ja: "配置先", en: "Placement Area" },
             division: { ja: "分割とマージン", en: "Divisions & Margin" },
-            resize: { ja: "リサイズとマスク", en: "Resize & Mask" },
-            cellDrawing: { ja: "セルの扱い", en: "Cell Handling" }
+            resize: { ja: "リサイズ", en: "Resize" },
+            mask: { ja: "マスク", en: "Mask" },
+            cellHandling: { ja: "セルの扱い", en: "Cell Handling" },
+            arrangement: { ja: "配置と整列", en: "Placement & Arrangement" }
         },
         fieldLabel: {
             rowCount: { ja: "行数", en: "Rows" },
@@ -1819,16 +2257,21 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             margin: { ja: "マージン", en: "Margin" },
             cellColor: { ja: "カラー", en: "Color" },
             cellOpacity: { ja: "不透明度", en: "Opacity" },
-            resizeRatio: { ja: "比率", en: "Ratio" }
+            resizeRatio: { ja: "比率", en: "Ratio" },
+            fillStart: { ja: "埋め方", en: "Fill From" }
         },
         checkbox: {
-            maskToCell: { ja: "マスクする", en: "Mask" }
+            maskToCell: { ja: "マスクする", en: "Mask" },
+            cornerRadius: { ja: "角丸", en: "Round Corners" },
+            frameStroke: { ja: "枠", en: "Frame" },
+            spreadEvenly: { ja: "均等にまばらに", en: "Spread Evenly" },
+            keepOriginals: { ja: "配置するオブジェクトを残す", en: "Keep Original Objects" }
         },
         radio: {
             targetArtboard: { ja: "現在のアートボード", en: "Current Artboard" },
             targetBackmost: { ja: "最背面のオブジェクト", en: "Backmost Object" },
-            targetRectLayer: { ja: "「_target」レイヤーの長方形", en: "Rectangle in '_target' Layer" },
-            keepCell: { ja: "長方形で残す", en: "Keep as Rectangle" },
+            noCell: { ja: "何もしない", en: "Do Nothing" },
+            keepCell: { ja: "長方形で残す", en: "Keep as Rectangles" },
             toGuide: { ja: "ガイド化", en: "Convert to Guides" },
             toArtboard: { ja: "アートボード化", en: "Convert to Artboards" },
             blackCell: { ja: "黒", en: "Black" },
@@ -1842,19 +2285,25 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         },
         button: {
             transparencyGrid: { ja: "透明グリッド表示", en: "Transparency Grid" },
+            autoScale: { ja: "自動計算", en: "Auto" },
+            autoCornerRadius: { ja: "自動計算", en: "Auto" },
             randomize: { ja: "シャッフル", en: "Shuffle" },
             cancel: { ja: "キャンセル", en: "Cancel" },
             ok: { ja: "OK", en: "OK" }
         },
         tooltip: {
             targetUnavailable: { ja: "該当するオブジェクトがありません。", en: "No matching object was found." },
+            targetArtboard: {
+                ja: "ダイアログボックスを開いたときに作業中だったアートボードを配置先にします。",
+                en: "Uses the artboard that was active when the dialog box opened as the area."
+            },
             targetBackmost: {
                 ja: "表示されていてロックされていないオブジェクトのうち、最も背面にあるものを配置先にします。そのオブジェクト自体は配置しません。",
                 en: "Uses the backmost visible, unlocked object as the area. That object itself is not placed."
             },
-            targetRectLayer: {
-                ja: "この長方形は処理中だけ非表示になり、配置対象には含まれません。",
-                en: "This rectangle is hidden while the script runs and is never placed into a cell."
+            noCell: {
+                ja: "セルの長方形を残しません（プレビューではセルの範囲をガイドで示します）。",
+                en: "Leaves no cell rectangles (the preview shows the cells as guides)."
             },
             keepCell: {
                 ja: "セルの長方形を「cell-background」レイヤーに残します。",
@@ -1896,9 +2345,38 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
                 ja: "セルに入れたオブジェクトを、セルの長方形でクリッピングマスクします。",
                 en: "Clips each object placed in a cell with the cell rectangle."
             },
+            keepOriginals: {
+                ja: "元のオブジェクトはその場に残し、複製をセルに配置します。",
+                en: "Leaves the original objects in place and places copies in the cells."
+            },
+            fillStart: {
+                ja: "セルを埋め始める位置です（左上・右上・左下・右下・中央）。四隅からは横方向に埋め、中央は中心に近いセルから埋めます。",
+                en: "Where filling starts (top left, top right, bottom left, bottom right, or center). Corners fill row by row; Center fills the cells nearest the middle first."
+            },
+            cornerRadius: {
+                ja: "マスクの角を、指定した半径で丸めます（効果の［角を丸くする］）。",
+                en: "Rounds the corners of each mask by the radius (the Round Corners effect)."
+            },
+            frameStroke: {
+                ja: "マスクの長方形に線を付けます。色見本をクリックすると線の色を選べます。",
+                en: "Adds a stroke to each mask rectangle. Click the swatch to choose its color."
+            },
+            frameColor: { ja: "クリックで枠の色を選ぶ", en: "Click to choose the frame color" },
+            spreadEvenly: {
+                ja: "オブジェクトがセルより少ないとき、詰めずにグリッド全体へ均等に散らします（オンの間は埋め方を使いません）。",
+                en: "When there are fewer objects than cells, spreads them evenly over the grid instead of packing them (Fill From is not used while on)."
+            },
+            autoCornerRadius: {
+                ja: "角丸の半径を、セルの短い辺の半分にします（短い辺の両端が半円になります）。",
+                en: "Sets the corner radius to half the shorter side of a cell (the short ends become semicircles)."
+            },
+            autoScale: {
+                ja: "すべてのオブジェクトがセルを覆い、上下左右にアキが出ない共通のスケールを計算して比率に入れます。はみ出した分は［マスクする］で切り抜けます。",
+                en: "Calculates one scale at which every object covers its cell with no gap on any side, and enters it as the ratio. Use Mask to crop what extends past the cell."
+            },
             randomize: {
-                ja: "セルへの割り当て順をシャッフルします（押すたびに変わります）。",
-                en: "Shuffles the order in which objects fill the cells (changes on every click)."
+                ja: "セルへの割り当て順をシャッフルします。［均等にまばらに］では、使うセルの選び方も選び直します（押すたびに変わります）。",
+                en: "Shuffles the order in which objects fill the cells, and with Spread Evenly also re-picks the cells used (changes on every click)."
             },
             transparencyGrid: {
                 ja: "透明グリッドの表示を切り替えます。スクリプト終了時に元へ戻します。",
@@ -1920,11 +2398,11 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             noDocument: { ja: "ドキュメントを開いてください。", en: "Please open a document." },
             noSelection: { ja: "オブジェクトが選択されていません。", en: "No objects selected." },
             invalidGrid: {
-                ja: "この設定ではグリッドを作れません。行数・列数・間隔・マージンを見直してください。",
+                ja: "この設定ではグリッドを作れません。行数・列数・セル間隔・マージンを見直してください。",
                 en: "These settings cannot form a grid. Check the rows, columns, gutter, and margin."
             },
-            artboardError: { ja: "アートボードの作成中にエラーが発生しました。", en: "Error occurred while creating artboards." },
-            artboardCreated: { ja: " 個のアートボードを作成しました。", en: " artboards created." }
+            artboardError: { ja: "アートボードを作成できませんでした。", en: "Could not create the artboards." },
+            artboardCreated: { ja: "%1 個のアートボードを作成しました。", en: "%1 artboards created." }
         }
     };
 
@@ -2011,73 +2489,9 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     /* スクリプトが作る・使うレイヤー名の集合。最背面の検出ではこれらを飛ばす
        Layer names this script manages; skipped when looking for the backmost object */
     var SYSTEM_LAYER_NAMES = {};
-    SYSTEM_LAYER_NAMES[CONFIG.targetLayerName] = true;
     SYSTEM_LAYER_NAMES[CONFIG.cellLayerName] = true;
     SYSTEM_LAYER_NAMES[CONFIG.previewCellLayerName] = true;
     SYSTEM_LAYER_NAMES[CONFIG.legacyPreviewLayerName] = true;
-
-    /**
-     * パスが枠として使える広がりを持つか判定します。/ Whether a path has usable extents for a frame.
-     *
-     * @param {PathItem} pathItem - 対象のパス。
-     * @returns {boolean} 幅・高さともに正なら true。
-     */
-    function hasUsableArea(pathItem) {
-        try {
-            var bounds = pathItem.geometricBounds;
-            return (bounds[2] - bounds[0] > 0) && (bounds[1] - bounds[3] > 0);
-        } catch (e) {
-            /* 空のパスなどは geometricBounds が例外 / geometricBounds throws on empty paths */
-            return false;
-        }
-    }
-
-    /**
-     * パスが長方形か判定します（閉じた4点で、各点が角）。/ Whether a path is a rectangle.
-     *
-     * @param {PathItem} pathItem - 対象のパス。
-     * @returns {boolean} 長方形とみなせる場合は true。
-     */
-    function isRectanglePath(pathItem) {
-        try {
-            if (!pathItem.closed || pathItem.pathPoints.length !== 4) return false;
-            for (var i = 0; i < 4; i++) {
-                var pathPoint = pathItem.pathPoints[i];
-                /* ハンドルが出ていれば角丸などで長方形ではない / Handles mean rounded or curved corners */
-                if (pathPoint.leftDirection[0] !== pathPoint.anchor[0]) return false;
-                if (pathPoint.leftDirection[1] !== pathPoint.anchor[1]) return false;
-                if (pathPoint.rightDirection[0] !== pathPoint.anchor[0]) return false;
-                if (pathPoint.rightDirection[1] !== pathPoint.anchor[1]) return false;
-            }
-            return true;
-        } catch (e) {
-            return false;
-        }
-    }
-
-    /**
-     * 「_target」レイヤーの長方形を返します。/ Return the rectangle on the "_target" layer.
-     * 長方形が無ければ、枠として使える閉じたパスで代用します。開いた線や面積のないパスは対象外です。
-     *
-     * @param {Document} doc - 対象ドキュメント。
-     * @returns {PathItem|null} 見つかった長方形。無ければ null。
-     */
-    function findTargetLayerRectangle(doc) {
-        var fallbackPath = null;
-        for (var i = 0; i < doc.layers.length; i++) {
-            var candidateLayer = doc.layers[i];
-            if (candidateLayer.name !== CONFIG.targetLayerName) continue;
-
-            for (var j = 0; j < candidateLayer.pathItems.length; j++) {
-                var pathItem = candidateLayer.pathItems[j];
-                /* 枠の上に引いた線などを配置先にしない / A stray line must not become the placement area */
-                if (!hasUsableArea(pathItem)) continue;
-                if (isRectanglePath(pathItem)) return pathItem;
-                if (!fallbackPath && pathItem.closed) fallbackPath = pathItem;
-            }
-        }
-        return fallbackPath;
-    }
 
     /**
      * システムレイヤーを除く最背面のオブジェクトを返します。/ Return the backmost object, ignoring system layers.
@@ -2100,13 +2514,14 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     }
 
     /**
-     * 選択から、指定のアイテムを除いた配列を返します（順序は保持）。/ Copy the selection without one item.
+     * 指定のアイテムを除いた配列の写しを返します（順序は保持）。/ Copy the items without one item.
+     * 除くものが無ければ null を渡し、選択（doc.selection）を配列に写すのにも使います。
      *
-     * @param {Array<PageItem>|null} selectionItems - 選択。
-     * @param {PageItem|null} excludedItem - 除くアイテム。
+     * @param {Array<PageItem>|null} selectionItems - 元の配列（選択など）。
+     * @param {PageItem|null} excludedItem - 除くアイテム。無ければ null。
      * @returns {Array<PageItem>} 残ったオブジェクト。
      */
-    function excludeItem(selectionItems, excludedItem) {
+    function copyItemsExcept(selectionItems, excludedItem) {
         var remainingItems = [];
         for (var i = 0; selectionItems && i < selectionItems.length; i++) {
             if (selectionItems[i] !== excludedItem) remainingItems.push(selectionItems[i]);
@@ -2191,7 +2606,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             foundLayer.locked = false;
             foundLayer.remove();
         } catch (e) {
-            /* 消せない場合は何もしない / Nothing to do when the layer cannot be removed */
+            /* ドキュメントに残る最後のレイヤーなどは削除できない。そのときは残す / The last layer of a document cannot be removed; leave it */
         }
     }
 
@@ -2225,7 +2640,9 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         if (!layer) return;
         try {
             layer.visible = visible;
-        } catch (e) { }
+        } catch (e) {
+            /* 親レイヤーがロックされていると例外になる。表示は変えずに続ける / Throws under a locked parent layer; keep going */
+        }
     }
 
     /**
@@ -2238,7 +2655,9 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     function setItemHidden(pageItem, hidden) {
         try {
             pageItem.hidden = hidden;
-        } catch (e) { }
+        } catch (e) {
+            /* ロック中のオブジェクトやレイヤーでは例外になる。表示は変えずに続ける / Throws on locked items or layers; keep going */
+        }
     }
 
     /**
@@ -2248,13 +2667,10 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
      * @returns {boolean} 選択できた場合は true。レイヤーが無い場合は false。
      */
     function selectCellRectangles(doc) {
+        var cellLayer = findLayerByName(doc, CONFIG.cellLayerName);
+        if (!cellLayer) return false;
         var cellItems = [];
-        try {
-            var cellLayer = doc.layers.getByName(CONFIG.cellLayerName);
-            for (var i = 0; i < cellLayer.pathItems.length; i++) cellItems.push(cellLayer.pathItems[i]);
-        } catch (e) {
-            return false;
-        }
+        for (var i = 0; i < cellLayer.pathItems.length; i++) cellItems.push(cellLayer.pathItems[i]);
         doc.selection = cellItems;
         return true;
     }
@@ -2322,13 +2738,172 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
      */
     function forEachCell(gridMetrics, handleCell) {
         for (var i = 0; i < gridMetrics.rowCount; i++) {
-            var cellTop = gridMetrics.originTop - (gridMetrics.cellHeight + gridMetrics.gutter) * i;
             for (var j = 0; j < gridMetrics.columnCount; j++) {
-                var cellLeft = gridMetrics.originLeft + (gridMetrics.cellWidth + gridMetrics.gutter) * j;
-                var cellRect = [cellLeft, cellTop, cellLeft + gridMetrics.cellWidth, cellTop - gridMetrics.cellHeight];
-                if (handleCell(cellRect) === false) return;
+                if (handleCell(getCellRect(gridMetrics, i, j)) === false) return;
             }
         }
+    }
+
+    /**
+     * 行・列の番号からセルの矩形を求めます。/ Return the rect of one cell.
+     *
+     * @param {GridMetrics} gridMetrics - グリッドの寸法。
+     * @param {number} rowIndex - 行の番号（0 が上）。
+     * @param {number} columnIndex - 列の番号（0 が左）。
+     * @returns {number[]} セルの矩形 [左, 上, 右, 下]。
+     */
+    function getCellRect(gridMetrics, rowIndex, columnIndex) {
+        var cellTop = gridMetrics.originTop - (gridMetrics.cellHeight + gridMetrics.gutter) * rowIndex;
+        var cellLeft = gridMetrics.originLeft + (gridMetrics.cellWidth + gridMetrics.gutter) * columnIndex;
+        return [cellLeft, cellTop, cellLeft + gridMetrics.cellWidth, cellTop - gridMetrics.cellHeight];
+    }
+
+    /**
+     * セルの矩形を、オブジェクトを入れる順に並べて返します。/ List the cell rects in fill order.
+     * 四隅からは、その角の行から横方向に埋めます。中央は中心に近いセルから埋めます。
+     *
+     * @param {GridMetrics} gridMetrics - グリッドの寸法。
+     * @param {number} fillStartIndex - 埋め始める位置（基準点ウィジェットの番号。0=左上, 2=右上, 4=中央, 6=左下, 8=右下）。
+     * @returns {Array<number[]>} セルの矩形 [左, 上, 右, 下] の配列。
+     */
+    function listCellRectsInFillOrder(gridMetrics, fillStartIndex) {
+        var rowCount = gridMetrics.rowCount;
+        var columnCount = gridMetrics.columnCount;
+        var fromBottom = (fillStartIndex === 6 || fillStartIndex === 8);
+        var fromRight = (fillStartIndex === 2 || fillStartIndex === 8);
+
+        var cellPositions = [];
+        for (var i = 0; i < rowCount; i++) {
+            var rowIndex = fromBottom ? rowCount - 1 - i : i;
+            for (var j = 0; j < columnCount; j++) {
+                cellPositions.push([rowIndex, fromRight ? columnCount - 1 - j : j]);
+            }
+        }
+        if (fillStartIndex === 4) cellPositions = orderCellsFromCenter(cellPositions, rowCount, columnCount);
+
+        var cellRects = [];
+        for (var k = 0; k < cellPositions.length; k++) {
+            cellRects.push(getCellRect(gridMetrics, cellPositions[k][0], cellPositions[k][1]));
+        }
+        return cellRects;
+    }
+
+    /**
+     * セルを、グリッドの中心に近い順に並べ直します（同じ距離どうしは元の順）。/ Order cells from the center outward.
+     * 距離は行・列の番号で測ります（半セル単位の整数にして、比較関数つきの sort() を使わずに束ねます）。
+     *
+     * @param {Array<number[]>} cellPositions - [行の番号, 列の番号] の配列（左上から行優先）。
+     * @param {number} rowCount - 行数。
+     * @param {number} columnCount - 列数。
+     * @returns {Array<number[]>} 並べ直した [行の番号, 列の番号] の配列。
+     */
+    function orderCellsFromCenter(cellPositions, rowCount, columnCount) {
+        var cellsByDistance = {};
+        var distanceKeys = [];
+        for (var i = 0; i < cellPositions.length; i++) {
+            /* 中心からのずれを2倍して整数にする / Double the offsets so they stay integers */
+            var dy = 2 * cellPositions[i][0] - (rowCount - 1);
+            var dx = 2 * cellPositions[i][1] - (columnCount - 1);
+            var distanceKey = dx * dx + dy * dy;
+            if (!cellsByDistance.hasOwnProperty(distanceKey)) {
+                cellsByDistance[distanceKey] = [];
+                insertSortedNumber(distanceKeys, distanceKey);
+            }
+            cellsByDistance[distanceKey].push(cellPositions[i]);
+        }
+
+        var orderedPositions = [];
+        for (var j = 0; j < distanceKeys.length; j++) {
+            var sameDistanceCells = cellsByDistance[distanceKeys[j]];
+            for (var k = 0; k < sameDistanceCells.length; k++) orderedPositions.push(sameDistanceCells[k]);
+        }
+        return orderedPositions;
+    }
+
+    /**
+     * 使うセルを、グリッド全体に均等に散らして選びます（最遠点の順に選ぶ）。/ Pick cells spread evenly over the grid.
+     * 先頭のセルから始め、選んだセルからいちばん離れたセルを次々に選びます（同じ距離なら先に調べたもの）。
+     * 乱数を渡すと、始めるセルと同じ距離どうしの選び方を乱数で決めます（シャッフル用）。
+     * 選んだセルは埋める順のまま返すので、オブジェクトの並びは埋め方に従います。
+     *
+     * @param {Array<number[]>} cellRects - セルの矩形（埋める順）。
+     * @param {number} pickCount - 選ぶ数（セル数より少ない）。
+     * @param {function(): number|null} randomFn - 0 以上 1 未満を返す乱数。null なら決まった選び方。
+     * @returns {Array<number[]>} 選んだセルの矩形（埋める順）。
+     */
+    function pickSpreadCells(cellRects, pickCount, randomFn) {
+        if (pickCount <= 0) return [];
+        var cellCount = cellRects.length;
+        /* 調べる順。乱数があれば並べ替えて、同じ距離のときに選ばれるセルを散らす / Visiting order; shuffled to randomize ties */
+        var visitOrder = [];
+        for (var cellIndex = 0; cellIndex < cellCount; cellIndex++) visitOrder.push(cellIndex);
+        if (randomFn) visitOrder = createShuffledCopy(visitOrder, randomFn);
+        var centerXs = [];
+        var centerYs = [];
+        var nearestDistances = [];
+        var isPicked = [];
+        for (var i = 0; i < cellCount; i++) {
+            centerXs.push((cellRects[i][0] + cellRects[i][2]) / 2);
+            centerYs.push((cellRects[i][1] + cellRects[i][3]) / 2);
+            nearestDistances.push(Infinity);
+            isPicked.push(false);
+        }
+
+        var pickIndex = visitOrder[0];
+        for (var pickedCount = 0; pickedCount < pickCount; pickedCount++) {
+            isPicked[pickIndex] = true;
+            /* 選んだセルまでの距離で、各セルの「最寄りの選択済みセルまでの距離」を更新しつつ、次に選ぶセルを探す
+               Update each cell's distance to its nearest picked cell, and find the farthest one */
+            var farthestIndex = -1;
+            var farthestDistance = -1;
+            for (var n = 0; n < cellCount; n++) {
+                var j = visitOrder[n];
+                if (isPicked[j]) continue;
+                var dx = centerXs[j] - centerXs[pickIndex];
+                var dy = centerYs[j] - centerYs[pickIndex];
+                nearestDistances[j] = Math.min(nearestDistances[j], dx * dx + dy * dy);
+                if (nearestDistances[j] > farthestDistance) {
+                    farthestDistance = nearestDistances[j];
+                    farthestIndex = j;
+                }
+            }
+            if (farthestIndex < 0) break;
+            pickIndex = farthestIndex;
+        }
+
+        var pickedRects = [];
+        for (var k = 0; k < cellCount; k++) {
+            if (isPicked[k]) pickedRects.push(cellRects[k]);
+        }
+        return pickedRects;
+    }
+
+    /**
+     * 種から同じ並びを返す乱数を作ります（線形合同法）。/ Create a seeded random generator (LCG).
+     * プレビューを描き直しても、シャッフルするまでは同じ結果にするために使います。
+     *
+     * @param {number} seed - 種（0 以上 2^32 未満の整数）。
+     * @returns {function(): number} 0 以上 1 未満を返す関数。
+     */
+    function createSeededRandom(seed) {
+        var randomState = seed;
+        return function () {
+            randomState = (randomState * 1664525 + 1013904223) % 4294967296;
+            return randomState / 4294967296;
+        };
+    }
+
+    /**
+     * 昇順の配列に、順序を保って数値を差し込みます。/ Insert a number into an ascending array.
+     *
+     * @param {number[]} sortedNumbers - 昇順の配列（書き換える）。
+     * @param {number} newNumber - 差し込む数値。
+     * @returns {void}
+     */
+    function insertSortedNumber(sortedNumbers, newNumber) {
+        var insertAt = sortedNumbers.length;
+        while (insertAt > 0 && sortedNumbers[insertAt - 1] > newNumber) insertAt--;
+        sortedNumbers.splice(insertAt, 0, newNumber);
     }
 
     /**
@@ -2361,20 +2936,18 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
      * 各セルの中央へオブジェクトを1つずつ配置します。/ Place one object at the center of each cell.
      *
      * @param {Array<PageItem>} pageItems - 配置するオブジェクト（配置順）。
-     * @param {GridMetrics} gridMetrics - グリッドの寸法。
+     * @param {Array<number[]>} cellRects - セルの矩形（埋める順。listCellRectsInFillOrder() の戻り値）。
      * @returns {void}
      */
-    function placeItemsInCells(pageItems, gridMetrics) {
-        var itemIndex = 0;
-        forEachCell(gridMetrics, function (cellRect) {
-            if (itemIndex >= pageItems.length) return false;
-
-            var bounds = pageItems[itemIndex].visibleBounds;
+    function placeItemsInCells(pageItems, cellRects) {
+        var placeCount = Math.min(pageItems.length, cellRects.length);
+        for (var i = 0; i < placeCount; i++) {
+            var cellRect = cellRects[i];
+            var bounds = pageItems[i].visibleBounds;
             var dx = (cellRect[0] + cellRect[2]) / 2 - (bounds[0] + bounds[2]) / 2;
             var dy = (cellRect[1] + cellRect[3]) / 2 - (bounds[1] + bounds[3]) / 2;
-            pageItems[itemIndex].translate(dx, dy);
-            itemIndex++;
-        });
+            pageItems[i].translate(dx, dy);
+        }
     }
 
     /**
@@ -2382,17 +2955,35 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
      * オブジェクトのあった場所にグループを作り、オブジェクトとセルの長方形（最前面）を入れて clipped にします。
      *
      * @param {Array<PageItem>} pageItems - セルに入れたオブジェクト（配置順）。
-     * @param {GridMetrics} gridMetrics - グリッドの寸法。
+     * @param {Array<number[]>} cellRects - セルの矩形（埋める順。placeItemsInCells() に渡したもの）。
      * @param {Array<GroupItem>} clipGroups - 作ったクリップグループを1つずつ足す配列（途中で例外になっても、作った分は残る）。
+     * @param {MaskStyle} maskStyle - 角丸と枠の指定。
      * @returns {void}
      */
-    function maskItemsToCells(pageItems, gridMetrics, clipGroups) {
-        var itemIndex = 0;
-        forEachCell(gridMetrics, function (cellRect) {
-            if (itemIndex >= pageItems.length) return false;
-            clipGroups.push(clipItemToRect(pageItems[itemIndex], cellRect));
-            itemIndex++;
-        });
+    function maskItemsToCells(pageItems, cellRects, clipGroups, maskStyle) {
+        var maskCount = Math.min(pageItems.length, cellRects.length);
+        for (var i = 0; i < maskCount; i++) {
+            clipGroups.push(clipItemToRect(pageItems[i], cellRects[i], maskStyle));
+        }
+    }
+
+    /**
+     * マスクの角丸と枠の指定。
+     *
+     * @typedef {Object} MaskStyle
+     * @property {number} cornerRadius - 角丸の半径（pt）。0 なら角丸にしない。
+     * @property {number} frameWidth - 枠の線幅（pt）。0 なら枠を付けない。
+     * @property {CMYKColor|RGBColor|null} frameColor - 枠の色。
+     */
+
+    /**
+     * 角丸の効果（Adobe Round Corners）の XML を返します。/ Return the Round Corners live effect XML.
+     *
+     * @param {number} radius - 半径（pt）。
+     * @returns {string} applyEffect() に渡す XML。
+     */
+    function roundCornersEffectXml(radius) {
+        return '<LiveEffect name="Adobe Round Corners"><Dict data="R radius ' + radius + ' "/></LiveEffect>';
     }
 
     /**
@@ -2400,9 +2991,10 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
      *
      * @param {PageItem} pageItem - 対象のオブジェクト。
      * @param {number[]} clipRect - マスクの矩形 [左, 上, 右, 下]。
+     * @param {MaskStyle} maskStyle - 角丸と枠の指定。
      * @returns {GroupItem} 作ったクリップグループ。
      */
-    function clipItemToRect(pageItem, clipRect) {
+    function clipItemToRect(pageItem, clipRect, maskStyle) {
         /* 元の重ね順の位置にグループを作る / Create the group where the object sits in the stacking order */
         var clipGroup = pageItem.parent.groupItems.add();
         clipGroup.move(pageItem, ElementPlacement.PLACEBEFORE);
@@ -2412,6 +3004,15 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         /* マスクにするパスはグループの最前面 / The clipping path must be frontmost in the group */
         clipPath.move(clipGroup, ElementPlacement.PLACEATBEGINNING);
         clipGroup.clipped = true;
+
+        /* 枠はマスクにしたあとで付ける（マスクにすると塗り・線が消えるため）/ Stroke after clipping, which clears fill and stroke */
+        if (maskStyle.frameWidth > 0 && maskStyle.frameColor) {
+            clipPath.stroked = true;
+            clipPath.strokeColor = maskStyle.frameColor;
+            clipPath.strokeWidth = maskStyle.frameWidth;
+        }
+        /* 角丸はグループに効果で掛け、マスクと枠をいっしょに丸める / Round the group so the mask and frame round together */
+        if (maskStyle.cornerRadius > 0) clipGroup.applyEffect(roundCornersEffectXml(maskStyle.cornerRadius));
         return clipGroup;
     }
 
@@ -2493,6 +3094,29 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     }
 
     /**
+     * すべてのオブジェクトがセルを覆う（上下左右にアキが出ない）、共通のスケール（%）を求めます。/ Compute one scale that makes every object cover its cell.
+     * オブジェクトごとに、幅・高さの両方がセル以上になる倍率を求め、いちばん大きいものに合わせます。
+     * アキが残らないよう 0.1% 単位で切り上げます（はみ出した分は［マスクする］で切り抜けます）。
+     *
+     * @param {Array<PageItem>} pageItems - セルに入れるオブジェクト。
+     * @param {GridMetrics} gridMetrics - グリッドの寸法。
+     * @returns {number|null} スケール（%）。測れるオブジェクトが無ければ null。
+     */
+    function computeCoverScalePct(pageItems, gridMetrics) {
+        var coverFactor = -Infinity;
+        for (var i = 0; i < pageItems.length; i++) {
+            var bounds = pageItems[i].visibleBounds;
+            var width = bounds[2] - bounds[0];
+            var height = bounds[1] - bounds[3];
+            if (width <= 0 || height <= 0) continue;
+            /* そのオブジェクトがセルを覆う倍率は、幅・高さの倍率の大きいほう / Covering takes the larger of the two factors */
+            coverFactor = Math.max(coverFactor, gridMetrics.cellWidth / width, gridMetrics.cellHeight / height);
+        }
+        if (!isFinite(coverFactor)) return null;
+        return Math.ceil(coverFactor * 1000) / 10;
+    }
+
+    /**
      * セルの寸法からアートボードを作成します。/ Create artboards from the cell metrics.
      *
      * @param {Document} doc - 対象ドキュメント。
@@ -2540,9 +3164,47 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         return rgbColor;
     }
 
+    /**
+     * 色見本に描く画面の RGB（0〜1）を返します。/ Return the screen RGB (0-1) for a swatch.
+     *
+     * @param {Color} swatchColor - 色。
+     * @returns {number[]} [r, g, b]。
+     */
+    function colorToScreenRgb(swatchColor) {
+        if (swatchColor.typename === "RGBColor") return [swatchColor.red / 255, swatchColor.green / 255, swatchColor.blue / 255];
+        if (swatchColor.typename === "GrayColor") return [1 - swatchColor.gray / 100, 1 - swatchColor.gray / 100, 1 - swatchColor.gray / 100];
+        if (swatchColor.typename === "CMYKColor") {
+            var blackRatio = 1 - swatchColor.black / 100;
+            return [
+                (1 - swatchColor.cyan / 100) * blackRatio,
+                (1 - swatchColor.magenta / 100) * blackRatio,
+                (1 - swatchColor.yellow / 100) * blackRatio
+            ];
+        }
+        /* スポットカラーなどは灰色で示す / Show other color types in gray */
+        return [0.5, 0.5, 0.5];
+    }
+
     // =========================================
     // 配置順 / Placement order
     // =========================================
+
+    /**
+     * オブジェクトを複製します（元は隠しません）。/ Duplicate the objects, leaving the originals visible.
+     *
+     * @param {Array<PageItem>} sourceItems - 元のオブジェクト（配置順）。
+     * @param {Array<PageItem>} copyStore - 作った複製を1つずつ足す配列（途中で例外になっても、作った分は残る）。
+     * @returns {Array<PageItem>} 複製（元と同じ順）。
+     */
+    function duplicateItems(sourceItems, copyStore) {
+        var copies = [];
+        for (var i = 0; i < sourceItems.length; i++) {
+            var copyItem = sourceItems[i].duplicate();
+            copyStore.push(copyItem);
+            copies.push(copyItem);
+        }
+        return copies;
+    }
 
     /**
      * 配列に指定アイテムが含まれるかを判定します。/ Test whether the list contains the item.
@@ -2597,14 +3259,15 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     /**
      * 順序をシャッフルした新しい配列を返します（Fisher-Yates）。/ Return a shuffled copy.
      *
-     * @param {Array<PageItem>} sourceItems - 元の配列。
-     * @returns {Array<PageItem>} シャッフルした配列。
+     * @param {Array} sourceItems - 元の配列。
+     * @param {function(): number} [randomFn] - 0 以上 1 未満を返す乱数。省略時は Math.random。
+     * @returns {Array} シャッフルした配列。
      */
-    function createShuffledCopy(sourceItems) {
-        var shuffledItems = [];
-        for (var i = 0; i < sourceItems.length; i++) shuffledItems.push(sourceItems[i]);
+    function createShuffledCopy(sourceItems, randomFn) {
+        var nextRandom = randomFn || Math.random;
+        var shuffledItems = sourceItems.slice(0);
         for (var k = shuffledItems.length - 1; k > 0; k--) {
-            var swapIndex = Math.floor(Math.random() * (k + 1));
+            var swapIndex = Math.floor(nextRandom() * (k + 1));
             var swapItem = shuffledItems[k];
             shuffledItems[k] = shuffledItems[swapIndex];
             shuffledItems[swapIndex] = swapItem;
@@ -2619,38 +3282,28 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     /**
      * 対象パネルを作成します。/ Build the target panel.
      *
-     * @param {Window} parentWindow - 配置先のウィンドウ。
+     * @param {Group} parentColumn - 配置先のカラム。
      * @param {boolean} hasBackmostItem - 最背面のオブジェクトが存在する場合は true。
-     * @param {boolean} hasTargetRect - 「_target」レイヤーの長方形が存在する場合は true。
-     * @returns {{artboardRadio: RadioButton, backmostRadio: RadioButton, rectLayerRadio: RadioButton}} 配置先のラジオボタン。
+     * @returns {{artboardRadio: RadioButton, backmostRadio: RadioButton}} 配置先のラジオボタン。
      */
-    function buildPlacementTargetPanel(parentWindow, hasBackmostItem, hasTargetRect) {
-        var placementPanel = parentWindow.add("panel", undefined, getLabel(LABELS.panel.placement));
-        setupPanel(placementPanel, 6);
+    function buildPlacementTargetPanel(parentColumn, hasBackmostItem) {
+        var placementPanel = parentColumn.add("panel", undefined, getLabel(LABELS.panel.placement));
+        setupPanel(placementPanel, RADIO_COLUMN_SPACING);
         placementPanel.alignChildren = ["left", "top"];
 
         var placementControls = {
             artboardRadio: placementPanel.add("radiobutton", undefined, getLabel(LABELS.radio.targetArtboard)),
-            backmostRadio: placementPanel.add("radiobutton", undefined, getLabel(LABELS.radio.targetBackmost)),
-            rectLayerRadio: placementPanel.add("radiobutton", undefined, getLabel(LABELS.radio.targetRectLayer))
+            backmostRadio: placementPanel.add("radiobutton", undefined, getLabel(LABELS.radio.targetBackmost))
         };
 
         placementControls.backmostRadio.enabled = hasBackmostItem;
-        placementControls.rectLayerRadio.enabled = hasTargetRect;
+        placementControls.artboardRadio.helpTip = getLabel(LABELS.tooltip.targetArtboard);
 
         /* 選べない理由、または選んだときの挙動をツールチップで補う / Tooltips explain why an option is unavailable or what it does */
         placementControls.backmostRadio.helpTip = hasBackmostItem
             ? getLabel(LABELS.tooltip.targetBackmost)
             : getLabel(LABELS.tooltip.targetUnavailable);
-        placementControls.rectLayerRadio.helpTip = hasTargetRect
-            ? getLabel(LABELS.tooltip.targetRectLayer)
-            : getLabel(LABELS.tooltip.targetUnavailable);
-
-        if (hasTargetRect) {
-            placementControls.rectLayerRadio.value = true;
-        } else {
-            placementControls.artboardRadio.value = true;
-        }
+        placementControls.artboardRadio.value = true;
         return placementControls;
     }
 
@@ -2673,7 +3326,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
 
         var fieldLabel = fieldRow.add("statictext", undefined, labelText(labelEntry));
         fieldLabel.preferredSize.width = labelWidth;
-        if (unitSuffix) fieldLabel.justify = "right";
+        fieldLabel.justify = "right";
 
         var fieldInput = addSteppedInput(fieldRow, String(initialValue), stepOptions);
         fieldInput.characters = unitSuffix ? 4 : 3;
@@ -2730,65 +3383,54 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     }
 
     /**
-     * 分割とマージンのパネルを作成します（左：分割数／右：間隔）。/ Build the division panel.
+     * 分割とマージンのパネルを作成します（行数・列数・セル間隔・マージンを縦に並べる）。/ Build the division panel.
      *
-     * @param {Window} parentWindow - 配置先のウィンドウ。
+     * @param {Group} parentColumn - 配置先のカラム。
      * @param {{rowCount: number, columnCount: number}} defaultDivision - 行数・列数の初期値。
      * @param {string} unitLabel - 定規単位のラベル。
      * @returns {{rowCountInput: EditText, columnCountInput: EditText, gutterInput: EditText, marginInput: EditText}} 入力欄。
      */
-    function buildDivisionPanel(parentWindow, defaultDivision, unitLabel) {
-        var divisionPanel = parentWindow.add("panel", undefined, getLabel(LABELS.panel.division));
-        setupPanel(divisionPanel, 6);
-        divisionPanel.orientation = "row";
+    function buildDivisionPanel(parentColumn, defaultDivision, unitLabel) {
+        var divisionPanel = parentColumn.add("panel", undefined, getLabel(LABELS.panel.division));
+        setupPanel(divisionPanel, RADIO_COLUMN_SPACING);
         divisionPanel.alignChildren = ["left", "top"];
-        divisionPanel.spacing = COLUMN_SPACING;
 
-        var divisionColumn = divisionPanel.add("group");
-        divisionColumn.orientation = "column";
-        divisionColumn.alignChildren = "left";
-        divisionColumn.margins.right = COLUMN_SPACING;
-
-        var spacingColumn = divisionPanel.add("group");
-        spacingColumn.orientation = "column";
-        spacingColumn.alignChildren = "left";
-
-        /* ラベル幅は日本語環境と英語環境で個別に指定 / Label widths per language */
-        var divisionLabelWidth = (uiLang === "ja") ? 45 : 60;
-        var spacingLabelWidth = (uiLang === "ja") ? 70 : 75;
+        /* 4項目の項目名を同じ幅で右揃えにする。幅は日本語環境と英語環境で個別に指定
+           All four labels share one width, right-aligned; widths per language */
+        var fieldLabelWidth = (uiLang === "ja") ? 70 : 75;
 
         return {
             /* 範囲の正規化は enableNumericField() の onChange が受け持つ / range clamping is done in enableNumericField() */
-            rowCountInput: addFieldRow(divisionColumn, LABELS.fieldLabel.rowCount, defaultDivision.rowCount, divisionLabelWidth, null, LABELS.tooltip.division, { integer: true }),
-            columnCountInput: addFieldRow(divisionColumn, LABELS.fieldLabel.columnCount, defaultDivision.columnCount, divisionLabelWidth, null, LABELS.tooltip.division, { integer: true }),
-            gutterInput: addFieldRow(spacingColumn, LABELS.fieldLabel.gutter, CONFIG.defaultGutter, spacingLabelWidth, unitLabel, LABELS.tooltip.gutter, {}),
-            marginInput: addFieldRow(spacingColumn, LABELS.fieldLabel.margin, CONFIG.defaultMargin, spacingLabelWidth, unitLabel, LABELS.tooltip.margin, {})
+            rowCountInput: addFieldRow(divisionPanel, LABELS.fieldLabel.rowCount, defaultDivision.rowCount, fieldLabelWidth, null, LABELS.tooltip.division, { integer: true }),
+            columnCountInput: addFieldRow(divisionPanel, LABELS.fieldLabel.columnCount, defaultDivision.columnCount, fieldLabelWidth, null, LABELS.tooltip.division, { integer: true }),
+            gutterInput: addFieldRow(divisionPanel, LABELS.fieldLabel.gutter, CONFIG.defaultGutter, fieldLabelWidth, unitLabel, LABELS.tooltip.gutter, {}),
+            marginInput: addFieldRow(divisionPanel, LABELS.fieldLabel.margin, CONFIG.defaultMargin, fieldLabelWidth, unitLabel, LABELS.tooltip.margin, {})
         };
     }
 
     /**
-     * リサイズとマスクのパネルを作成します（1行目：基準／2行目：比率／3行目：マスク）。/ Build the resize & mask panel.
+     * リサイズのパネルを作成します（基準のラジオボタンを縦に並べ、その下に比率と［自動計算］）。/ Build the resize panel.
      *
-     * @param {Window} parentWindow - 配置先のウィンドウ。
-     * @returns {Object} 基準のラジオボタン、比率の項目名と入力欄、マスクのチェックボックスをまとめたオブジェクト。
+     * @param {Group} parentColumn - 配置先のカラム。
+     * @returns {Object} 基準のラジオボタン、比率の項目名と入力欄、［自動計算］をまとめたオブジェクト。
      */
-    function buildResizePanel(parentWindow) {
-        var resizePanel = parentWindow.add("panel", undefined, getLabel(LABELS.panel.resize));
-        setupPanel(resizePanel, 6);
+    function buildResizePanel(parentColumn) {
+        var resizePanel = parentColumn.add("panel", undefined, getLabel(LABELS.panel.resize));
+        setupPanel(resizePanel, PANEL_SECTION_SPACING);
+        resizePanel.alignChildren = ["left", "top"];
 
-        var resizeModeRow = resizePanel.add("group");
-        setupRow(resizeModeRow, "left");
+        var resizeModeGroup = addRadioColumn(resizePanel);
 
         var resizeRatioRow = resizePanel.add("group");
         setupRow(resizeRatioRow, "left", 4);
         resizeRatioRow.alignChildren = "center";
 
         var resizeControls = {
-            noneRadio: resizeModeRow.add("radiobutton", undefined, getLabel(LABELS.radio.resizeNone)),
-            widthRadio: resizeModeRow.add("radiobutton", undefined, getLabel(LABELS.radio.resizeWidth)),
-            heightRadio: resizeModeRow.add("radiobutton", undefined, getLabel(LABELS.radio.resizeHeight)),
-            areaRadio: resizeModeRow.add("radiobutton", undefined, getLabel(LABELS.radio.resizeArea)),
-            scaleRadio: resizeModeRow.add("radiobutton", undefined, getLabel(LABELS.radio.resizeScale)),
+            noneRadio: resizeModeGroup.add("radiobutton", undefined, getLabel(LABELS.radio.resizeNone)),
+            widthRadio: resizeModeGroup.add("radiobutton", undefined, getLabel(LABELS.radio.resizeWidth)),
+            heightRadio: resizeModeGroup.add("radiobutton", undefined, getLabel(LABELS.radio.resizeHeight)),
+            areaRadio: resizeModeGroup.add("radiobutton", undefined, getLabel(LABELS.radio.resizeArea)),
+            scaleRadio: resizeModeGroup.add("radiobutton", undefined, getLabel(LABELS.radio.resizeScale)),
             ratioLabel: resizeRatioRow.add("statictext", undefined, labelText(LABELS.fieldLabel.resizeRatio))
         };
         resizeControls.ratioInput = addSteppedInput(resizeRatioRow, String(CONFIG.defaultResizeRatio), {});
@@ -2796,9 +3438,14 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         resizeControls.ratioUnitLabel = resizeRatioRow.add("statictext", undefined, "%");
         resizeControls.noneRadio.value = true;
 
-        resizeControls.maskCheckbox = resizePanel.add("checkbox", undefined, getLabel(LABELS.checkbox.maskToCell));
-        resizeControls.maskCheckbox.helpTip = getLabel(LABELS.tooltip.maskToCell);
-        resizeControls.maskCheckbox.value = CONFIG.defaultMaskToCell;
+        /* スケールのときだけ使う［自動計算］。次の行に、入力欄（∧∨）の左端にそろえて置く
+           Auto is used only with Scale; it sits on the next line, aligned with the field */
+        var autoScaleRow = resizePanel.add("group");
+        setupRow(autoScaleRow, "left", 4);
+        var autoScaleSpacer = autoScaleRow.add("group");
+        autoScaleSpacer.preferredSize = [measureControlText(resizeControls.ratioLabel), 1];
+        resizeControls.autoScaleButton = autoScaleRow.add("button", undefined, getLabel(LABELS.button.autoScale));
+        resizeControls.autoScaleButton.helpTip = getLabel(LABELS.tooltip.autoScale);
 
         /* 基準ごとの結果をツールチップで補う / Tooltips describe each mode */
         resizeControls.noneRadio.helpTip = getLabel(LABELS.tooltip.resizeNone);
@@ -2812,34 +3459,109 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     }
 
     /**
+     * マスクのパネルを作成します（［マスクする］と、その下に字下げした角丸・枠）。/ Build the mask panel.
+     *
+     * @param {Group} parentColumn - 配置先のカラム。
+     * @param {string} rulerUnitLabel - 角丸の半径の単位（定規の単位）。
+     * @param {string} strokeUnitLabel - 枠の線幅の単位（線の単位）。
+     * @returns {Object} マスク・角丸・枠の項目をまとめたオブジェクト。
+     */
+    function buildMaskPanel(parentColumn, rulerUnitLabel, strokeUnitLabel) {
+        var maskPanel = parentColumn.add("panel", undefined, getLabel(LABELS.panel.mask));
+        setupPanel(maskPanel, PANEL_SECTION_SPACING);
+        maskPanel.alignChildren = ["left", "top"];
+
+        var maskControls = {};
+        maskControls.maskCheckbox = maskPanel.add("checkbox", undefined, getLabel(LABELS.checkbox.maskToCell));
+        maskControls.maskCheckbox.helpTip = getLabel(LABELS.tooltip.maskToCell);
+        maskControls.maskCheckbox.value = CONFIG.defaultMaskToCell;
+
+        /* 角丸と枠は［マスクする］の下に、字下げせずに置く / Round Corners and Frame sit under Mask without an indent */
+        var maskStyleGroup = maskPanel.add("group");
+        maskStyleGroup.orientation = "column";
+        maskStyleGroup.alignChildren = ["left", "top"];
+        maskStyleGroup.spacing = RADIO_COLUMN_SPACING;
+
+        var cornerRadiusRow = maskStyleGroup.add("group");
+        setupRow(cornerRadiusRow, "left", 4);
+        maskControls.cornerRadiusCheckbox = cornerRadiusRow.add("checkbox", undefined, labelText(LABELS.checkbox.cornerRadius));
+        maskControls.cornerRadiusCheckbox.value = CONFIG.defaultUseCornerRadius;
+        maskControls.cornerRadiusInput = addSteppedInput(cornerRadiusRow, String(CONFIG.defaultCornerRadius), {});
+        maskControls.cornerRadiusInput.characters = 4;
+        maskControls.cornerRadiusUnitLabel = cornerRadiusRow.add("statictext", undefined, rulerUnitLabel);
+
+        /* 角丸の［自動計算］は次の行に、入力欄（∧∨）の左端にそろえて置く（字下げの幅は下で項目名の幅が決まってから入れる）
+           Auto for the radius sits on the next line, aligned with the field; the indent is set once the label width is known */
+        var autoCornerRadiusRow = maskStyleGroup.add("group");
+        setupRow(autoCornerRadiusRow, "left", 4);
+        var autoCornerRadiusSpacer = autoCornerRadiusRow.add("group");
+        maskControls.autoCornerRadiusButton = autoCornerRadiusRow.add("button", undefined, getLabel(LABELS.button.autoCornerRadius));
+        maskControls.autoCornerRadiusButton.helpTip = getLabel(LABELS.tooltip.autoCornerRadius);
+
+        var frameRow = maskStyleGroup.add("group");
+        setupRow(frameRow, "left", 4);
+        maskControls.frameCheckbox = frameRow.add("checkbox", undefined, labelText(LABELS.checkbox.frameStroke));
+        maskControls.frameCheckbox.value = CONFIG.defaultUseFrame;
+        maskControls.frameWidthInput = addSteppedInput(frameRow, String(CONFIG.defaultFrameWidth), {});
+        maskControls.frameWidthInput.characters = 4;
+        maskControls.frameUnitLabel = frameRow.add("statictext", undefined, strokeUnitLabel);
+
+        /* 角丸・枠のチェックボックスは項目名を兼ねるので、行の項目名の幅をそろえる / The checkboxes double as labels; align their widths */
+        var maskStyleLabelWidth = Math.max(
+            measureControlText(maskControls.cornerRadiusCheckbox),
+            measureControlText(maskControls.frameCheckbox)
+        ) + CHECKBOX_BOX_WIDTH;
+        maskControls.cornerRadiusCheckbox.preferredSize.width = maskStyleLabelWidth;
+        maskControls.frameCheckbox.preferredSize.width = maskStyleLabelWidth;
+        autoCornerRadiusSpacer.preferredSize = [maskStyleLabelWidth, 1];
+
+        /* 枠の色見本は次の行に、入力欄（∧∨）の左端にそろえて置く / The frame swatch sits on the next line, aligned with the field */
+        var frameColorRow = maskStyleGroup.add("group");
+        setupRow(frameColorRow, "left", 4);
+        var frameColorSpacer = frameColorRow.add("group");
+        frameColorSpacer.preferredSize = [maskStyleLabelWidth, 1];
+        maskControls.frameColorSwatch = frameColorRow.add("group");
+        maskControls.frameColorSwatch.preferredSize = COLOR_SWATCH_SIZE;
+        maskControls.frameColorSwatch.helpTip = getLabel(LABELS.tooltip.frameColor);
+
+        maskControls.cornerRadiusCheckbox.helpTip = getLabel(LABELS.tooltip.cornerRadius);
+        maskControls.cornerRadiusInput.helpTip = getLabel(LABELS.tooltip.cornerRadius);
+        maskControls.frameCheckbox.helpTip = getLabel(LABELS.tooltip.frameStroke);
+        maskControls.frameWidthInput.helpTip = getLabel(LABELS.tooltip.frameStroke);
+        return maskControls;
+    }
+
+    /**
      * セル描画パネルを作成します。/ Build the cell drawing panel.
      *
-     * @param {Window} parentWindow - 配置先のウィンドウ。
+     * @param {Group} parentColumn - 配置先のカラム。
      * @returns {Object} セル描画モード、カラー、不透明度、透明グリッドボタンをまとめたオブジェクト。
      */
-    function buildCellDrawingPanel(parentWindow) {
-        var cellDrawingPanel = parentWindow.add("panel", undefined, getLabel(LABELS.panel.cellDrawing));
-        setupPanel(cellDrawingPanel, 6);
+    function buildCellHandlingPanel(parentColumn) {
+        var cellHandlingPanel = parentColumn.add("panel", undefined, getLabel(LABELS.panel.cellHandling));
+        setupPanel(cellHandlingPanel, PANEL_SECTION_SPACING);
+        cellHandlingPanel.alignChildren = ["left", "top"];
 
-        var cellModeRow = cellDrawingPanel.add("group");
-        setupRow(cellModeRow, "left");
+        var cellModeGroup = addRadioColumn(cellHandlingPanel);
 
-        var cellColorRow = cellDrawingPanel.add("group");
-        setupRow(cellColorRow, "left");
-        cellColorRow.add("statictext", undefined, labelText(LABELS.fieldLabel.cellColor));
+        /* カラーは項目名の下にラジオボタンを縦に並べる / The color radios stack under their label */
+        var cellColorGroup = addRadioColumn(cellHandlingPanel);
+        cellColorGroup.add("statictext", undefined, labelText(LABELS.fieldLabel.cellColor));
 
-        var cellOpacityRow = cellDrawingPanel.add("group");
-        setupRow(cellOpacityRow, "left");
-        cellOpacityRow.alignChildren = "center";
-        cellOpacityRow.add("statictext", undefined, labelText(LABELS.fieldLabel.cellOpacity));
+        /* 不透明度は項目名の下の行に入力欄を置く / The opacity field sits on the line below its label */
+        var cellOpacityGroup = addRadioColumn(cellHandlingPanel);
+        cellOpacityGroup.add("statictext", undefined, labelText(LABELS.fieldLabel.cellOpacity));
+        var cellOpacityRow = cellOpacityGroup.add("group");
+        setupRow(cellOpacityRow, "left", 4);
 
         var cellControls = {
-            keepCellRadio: cellModeRow.add("radiobutton", undefined, getLabel(LABELS.radio.keepCell)),
-            toGuideRadio: cellModeRow.add("radiobutton", undefined, getLabel(LABELS.radio.toGuide)),
-            toArtboardRadio: cellModeRow.add("radiobutton", undefined, getLabel(LABELS.radio.toArtboard)),
-            blackCellRadio: cellColorRow.add("radiobutton", undefined, getLabel(LABELS.radio.blackCell)),
-            whiteCellRadio: cellColorRow.add("radiobutton", undefined, getLabel(LABELS.radio.whiteCell)),
-            transparentCellRadio: cellColorRow.add("radiobutton", undefined, getLabel(LABELS.radio.transparentCell)),
+            noCellRadio: cellModeGroup.add("radiobutton", undefined, getLabel(LABELS.radio.noCell)),
+            keepCellRadio: cellModeGroup.add("radiobutton", undefined, getLabel(LABELS.radio.keepCell)),
+            toGuideRadio: cellModeGroup.add("radiobutton", undefined, getLabel(LABELS.radio.toGuide)),
+            toArtboardRadio: cellModeGroup.add("radiobutton", undefined, getLabel(LABELS.radio.toArtboard)),
+            blackCellRadio: cellColorGroup.add("radiobutton", undefined, getLabel(LABELS.radio.blackCell)),
+            whiteCellRadio: cellColorGroup.add("radiobutton", undefined, getLabel(LABELS.radio.whiteCell)),
+            transparentCellRadio: cellColorGroup.add("radiobutton", undefined, getLabel(LABELS.radio.transparentCell)),
             opacityInput: addSteppedInput(cellOpacityRow, String(CONFIG.blackCellOpacity), {})
         };
         cellControls.keepCellRadio.value = true;
@@ -2847,35 +3569,108 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         cellControls.opacityInput.characters = 4;
 
         /* モードごとの結果をツールチップで補う / Tooltips describe each mode's result */
+        cellControls.noCellRadio.helpTip = getLabel(LABELS.tooltip.noCell);
         cellControls.keepCellRadio.helpTip = getLabel(LABELS.tooltip.keepCell);
         cellControls.toGuideRadio.helpTip = getLabel(LABELS.tooltip.toGuide);
         cellControls.toArtboardRadio.helpTip = getLabel(LABELS.tooltip.toArtboard);
 
         cellOpacityRow.add("statictext", undefined, "%");
 
-        /* ボタンはパネル幅いっぱいに広げない / Keep the button from stretching across the panel */
-        cellControls.transparencyGridButton = cellOpacityRow.add("button", undefined, getLabel(LABELS.button.transparencyGrid));
+        /* ボタンはパネル幅いっぱいに広げない。カラムを細く保つよう、不透明度の下の行に置く
+           Keep the button from stretching; it sits below the opacity to keep the column narrow */
+        cellControls.transparencyGridButton = cellHandlingPanel.add("button", undefined, getLabel(LABELS.button.transparencyGrid));
         cellControls.transparencyGridButton.alignment = "left";
         cellControls.transparencyGridButton.helpTip = getLabel(LABELS.tooltip.transparencyGrid);
         return cellControls;
     }
 
     /**
-     * 下部のボタン列を作成します。/ Build the footer button row.
+     * 配置と整列のパネルを作成します（埋め方・均等にまばらに・シャッフル）。/ Build the arrangement panel.
+     *
+     * @param {Group} parentColumn - 配置先のカラム。
+     * @param {function(): void} onFillStartChange - 埋め方を選んだときに呼ぶ処理。
+     * @returns {{fillStartLabel: StaticText, fillStartWidget: Button, spreadEvenlyCheckbox: Checkbox, btnShuffle: Button}} 埋め方の項目名・ウィジェット、［均等にまばらに］、［シャッフル］。
+     */
+    function buildArrangementPanel(parentColumn, onFillStartChange) {
+        var arrangementPanel = parentColumn.add("panel", undefined, getLabel(LABELS.panel.arrangement));
+        setupPanel(arrangementPanel, PANEL_SECTION_SPACING);
+        arrangementPanel.alignChildren = ["left", "top"];
+
+        /* 埋め方は基準点ウィジェットの四隅と中央だけを使う（上・下・左・右は選べない）
+           Fill start uses only the corners and center of the anchor widget */
+        var fillStartRow = arrangementPanel.add("group");
+        setupRow(fillStartRow, "left", 8);
+        fillStartRow.alignChildren = ["left", "top"];
+        var fillStartLabel = fillStartRow.add("statictext", undefined, labelText(LABELS.fieldLabel.fillStart));
+        var fillStartWidget = addAnchorWidget(fillStartRow, CONFIG.defaultFillStart, onFillStartChange, { disabledCells: [1, 3, 5, 7], size: FILL_START_WIDGET_SIZE });
+        fillStartLabel.helpTip = getLabel(LABELS.tooltip.fillStart);
+        fillStartWidget.helpTip = getLabel(LABELS.tooltip.fillStart);
+
+        var spreadEvenlyCheckbox = arrangementPanel.add("checkbox", undefined, getLabel(LABELS.checkbox.spreadEvenly));
+        spreadEvenlyCheckbox.helpTip = getLabel(LABELS.tooltip.spreadEvenly);
+        spreadEvenlyCheckbox.value = CONFIG.defaultSpreadEvenly;
+
+        var btnShuffle = arrangementPanel.add("button", undefined, getLabel(LABELS.button.randomize));
+        btnShuffle.alignment = "left"; /* パネル幅いっぱいに広げない / Keep the button from stretching */
+        btnShuffle.helpTip = getLabel(LABELS.tooltip.randomize);
+        return {
+            fillStartLabel: fillStartLabel,
+            fillStartWidget: fillStartWidget,
+            spreadEvenlyCheckbox: spreadEvenlyCheckbox,
+            btnShuffle: btnShuffle
+        };
+    }
+
+    /**
+     * 下部のボタン列を作成します（左に［配置するオブジェクトを残す］、右に［キャンセル］［OK］）。/ Build the footer button row.
      *
      * @param {Window} parentWindow - 配置先のウィンドウ。
-     * @returns {{btnShuffle: Button, btnCancel: Button, btnOK: Button}} 各ボタン。
+     * @returns {{keepOriginalsCheckbox: Checkbox, btnCancel: Button, btnOK: Button}} チェックボックスと各ボタン。
      */
     function buildFooterRow(parentWindow) {
         var buttonRow = addButtonRow(parentWindow);
-        var btnShuffle = buttonRow.leftGroup.add("button", undefined, getLabel(LABELS.button.randomize));
-        btnShuffle.helpTip = getLabel(LABELS.tooltip.randomize);
+        var keepOriginalsCheckbox = buttonRow.leftGroup.add("checkbox", undefined, getLabel(LABELS.checkbox.keepOriginals));
+        keepOriginalsCheckbox.helpTip = getLabel(LABELS.tooltip.keepOriginals);
+        keepOriginalsCheckbox.value = CONFIG.defaultKeepOriginals;
 
         var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel(LABELS.button.cancel), { name: "cancel" });
         var btnOK = buttonRow.rightGroup.add("button", undefined, getLabel(LABELS.button.ok), { name: "ok" });
 
-        var footerButtons = { btnShuffle: btnShuffle, btnCancel: btnCancel, btnOK: btnOK };
-        return footerButtons;
+        return { keepOriginalsCheckbox: keepOriginalsCheckbox, btnCancel: btnCancel, btnOK: btnOK };
+    }
+
+    /**
+     * 3カラムのダイアログボックスを組み立てます（イベントは結び付けません）。/ Build the three-column dialog box.
+     * 左に配置先・分割とマージン・配置と整列、中央にリサイズ・マスク、右にセルの扱いを置きます。
+     *
+     * @param {boolean} hasBackmostItem - 最背面のオブジェクトが存在する場合は true。
+     * @param {{rowCount: number, columnCount: number}} defaultDivision - 行数・列数の初期値。
+     * @param {string} rulerUnitLabel - 定規の単位のラベル。
+     * @param {string} strokeUnitLabel - 線の単位のラベル。
+     * @param {function(): void} onFillStartChange - 埋め方を選んだときに呼ぶ処理。
+     * @returns {Object} ダイアログボックス（distributeDialog）と、各パネル・ボタン行のコントロール。
+     */
+    function buildDistributeDialog(hasBackmostItem, defaultDivision, rulerUnitLabel, strokeUnitLabel, onFillStartChange) {
+        var distributeDialog = new Window("dialog", getLabel(LABELS.dialog.title));
+        setupWindow(distributeDialog);
+
+        var columnsGroup = distributeDialog.add("group");
+        setupRow(columnsGroup, ["fill", "top"], COLUMN_SPACING);
+        columnsGroup.alignChildren = ["fill", "fill"];
+        var leftColumn = addDialogColumn(columnsGroup);
+        var centerColumn = addDialogColumn(columnsGroup);
+        var rightColumn = addDialogColumn(columnsGroup);
+
+        return {
+            distributeDialog: distributeDialog,
+            placementUI: buildPlacementTargetPanel(leftColumn, hasBackmostItem),
+            divisionUI: buildDivisionPanel(leftColumn, defaultDivision, rulerUnitLabel),
+            arrangementUI: buildArrangementPanel(leftColumn, onFillStartChange),
+            resizeUI: buildResizePanel(centerColumn),
+            maskUI: buildMaskPanel(centerColumn, rulerUnitLabel, strokeUnitLabel),
+            cellUI: buildCellHandlingPanel(rightColumn),
+            footerUI: buildFooterRow(distributeDialog)
+        };
     }
 
     // =========================================
@@ -2891,6 +3686,20 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     function readCount(inputField) {
         var parsedCount = parseInt(inputField.text, 10);
         return isFinite(parsedCount) ? parsedCount : null;
+    }
+
+    /**
+     * 入力欄の値を数値として読み取り、下限・上限に収めます。/ Read a number from a field, clamped to a range.
+     *
+     * @param {EditText} inputField - 対象の入力欄。
+     * @param {number} minValue - 下限値。
+     * @param {number} maxValue - 上限値。
+     * @returns {number|null} 範囲に収めた値。数値でない場合は null。
+     */
+    function readClampedNumber(inputField, minValue, maxValue) {
+        var parsedValue = parseFloat(inputField.text);
+        if (!isFinite(parsedValue)) return null;
+        return Math.max(minValue, Math.min(maxValue, parsedValue));
     }
 
     /**
@@ -2974,37 +3783,30 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         var baseArtboardRect = doc.artboards[baseArtboardIndex].artboardRect;
 
         /* 対象候補の検出（この時点では変更を加えない）/ Detect target candidates without changing anything */
-        var targetRectItem = findTargetLayerRectangle(doc);
         var backmostItem = findBackmostPageItem(doc);
 
-        /* 選択内容はダイアログ起動時に固定する（順序も保持）。枠として使う「_target」矩形は移動対象から除く
-           Freeze the selection (and its order) at launch, leaving out the _target frame rectangle */
-        var placeableItems = excludeItem(doc.selection, targetRectItem);
-
-        /* 初期ターゲット矩形（_target 矩形があればそれ、なければ現在のアートボード）/ Initial target rect */
-        var initialTargetRect = targetRectItem ? targetRectItem.geometricBounds : baseArtboardRect;
-
-        /* 「_target」レイヤーの矩形は対象として選ばれている間は非表示にする。
-           元から隠されていた矩形を勝手に表示しないよう、元の状態を控えておく
-           Hide the _target rectangle while it is the target, remembering its original state */
-        var wasTargetRectHidden = targetRectItem ? targetRectItem.hidden : false;
-        if (targetRectItem) setItemHidden(targetRectItem, true);
+        /* 選択内容はダイアログ起動時に固定する（順序も保持）/ Freeze the selection (and its order) at launch */
+        var placeableItems = copyItemsExcept(doc.selection, null);
 
         var rulerUnit = getUnitInfo();
-        var defaultDivision = computeDefaultDivision(placeableItems.length, initialTargetRect);
+        var defaultDivision = computeDefaultDivision(placeableItems.length, baseArtboardRect);
         var transparencyGridToggleCount = 0;
 
-        var distributeDialog = new Window("dialog", getLabel(LABELS.dialog.title));
-        setupWindow(distributeDialog);
-
-        var placementUI = buildPlacementTargetPanel(distributeDialog, backmostItem !== null, targetRectItem !== null);
-        var divisionUI = buildDivisionPanel(distributeDialog, defaultDivision, rulerUnit.label);
-        var resizeUI = buildResizePanel(distributeDialog);
-        var cellUI = buildCellDrawingPanel(distributeDialog);
-        var footerUI = buildFooterRow(distributeDialog);
+        var strokeUnit = getUnitInfo("strokeUnits");
+        var dialogUI = buildDistributeDialog(backmostItem !== null, defaultDivision, rulerUnit.label, strokeUnit.label, function () { updatePreview(); });
+        var distributeDialog = dialogUI.distributeDialog;
+        var placementUI = dialogUI.placementUI;
+        var divisionUI = dialogUI.divisionUI;
+        var arrangementUI = dialogUI.arrangementUI;
+        var resizeUI = dialogUI.resizeUI;
+        var maskUI = dialogUI.maskUI;
+        var cellUI = dialogUI.cellUI;
+        var footerUI = dialogUI.footerUI;
 
         /** @type {Array<PageItem>|null} シャッフルで決めた配置順。未使用なら null。 */
         var randomizedOrder = null;
+        /** @type {number|null} ［均等にまばらに］のセルの選び方を決める乱数の種。シャッフルするまでは null（決まった選び方）。 */
+        var spreadSeed = null;
         /** @type {RadioButton} 「長方形で残す」に戻したときに復帰させるカラー選択。 */
         var lastCellColorRadio = cellUI.blackCellRadio;
         /** @type {Array<PageItem>} プレビュー用に作った複製。 */
@@ -3019,34 +3821,24 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         var maskGroups = [];
         /** @type {boolean} ［マスクする］の状態。表示前に代入したチェックボックスの value は読み戻せないことがあるので、変数で持ちます。 */
         var isMaskEnabled = CONFIG.defaultMaskToCell;
+        /** @type {boolean} ［均等にまばらに］の状態（理由は isMaskEnabled と同じ）。 */
+        var isSpreadEnabled = CONFIG.defaultSpreadEvenly;
+        /** @type {boolean} ［角丸］の状態（理由は isMaskEnabled と同じ）。 */
+        var isCornerRadiusEnabled = CONFIG.defaultUseCornerRadius;
+        /** @type {boolean} ［枠］の状態（理由は isMaskEnabled と同じ）。 */
+        var isFrameEnabled = CONFIG.defaultUseFrame;
+        /** @type {CMYKColor|RGBColor} 枠の色（標準のカラーピッカーで選ぶ）。 */
+        var frameColor = createGrayColor(doc, 100, 0);
+        /** @type {boolean} ［配置するオブジェクトを残す］の状態（理由は isMaskEnabled と同じ）。 */
+        var isKeepOriginalsEnabled = CONFIG.defaultKeepOriginals;
+        /** @type {Array<PageItem>} ［配置するオブジェクトを残す］で、本番の配置に作った複製。 */
+        var keptCopies = [];
 
         bindDialogEvents();
-
-        /**
-         * 行数・列数を変えたあとに間隔欄とプレビューを更新します。/ Refresh after a row or column change.
-         *
-         * @returns {void}
-         */
-        function handleDivisionChange() {
-            syncGutterEnabled();
-            updatePreview();
-        }
-
-        /* 行数・列数は 1 以上、上限はグリッドが成立する範囲まで / Rows and columns stay within a workable grid */
-        enableNumericField(divisionUI.rowCountInput, 1, CONFIG.maxDivision, handleDivisionChange);
-        enableNumericField(divisionUI.columnCountInput, 1, CONFIG.maxDivision, handleDivisionChange);
-        /* 間隔・マージンは負にしない（配置先の外へはみ出す）/ Gutter and margin never go negative */
-        enableNumericField(divisionUI.gutterInput, 0, null, updatePreview);
-        enableNumericField(divisionUI.marginInput, 0, null, updatePreview);
-        /* 不透明度は 0〜100%（描画側のクランプと表示を一致させる）/ Opacity matches what is actually drawn */
-        enableNumericField(cellUI.opacityInput, 0, 100, updatePreview);
-        /* リサイズの比率は 1〜上限% / The resize ratio stays within 1% and the upper limit */
-        enableNumericField(resizeUI.ratioInput, 1, CONFIG.maxResizeRatio, updatePreview);
+        wireNumericFields();
 
         /* 初期状態を反映してプレビューを表示 / Apply the initial state and show the preview */
-        syncGutterEnabled();
-        syncCellModeUI();
-        syncResizeRatioEnabled();
+        syncAllControls();
         updatePreview();
 
         /* バージョン表示は layout の前に足す。後から足すとウィンドウの大きさが決まったあとで、行の場所が無く表示されない
@@ -3067,22 +3859,12 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         // -----------------------------------------
 
         /**
-         * 不透明度を 0〜100 に収めて読み取ります。/ Read the opacity clamped to 0-100.
-         *
-         * @returns {number|null} 不透明度（%）。数値でない場合は null。
-         */
-        function readOpacity() {
-            var parsedOpacity = parseFloat(cellUI.opacityInput.text);
-            if (!isFinite(parsedOpacity)) return null;
-            return Math.max(0, Math.min(100, parsedOpacity));
-        }
-
-        /**
          * 現在のセル描画モードを返します。/ Return the current cell drawing mode.
          *
-         * @returns {string} "keep"、"guide"、"artboard" のいずれか。
+         * @returns {string} "none"、"keep"、"guide"、"artboard" のいずれか。
          */
         function getCellMode() {
+            if (cellUI.noCellRadio.value) return "none";
             if (cellUI.toArtboardRadio.value) return "artboard";
             if (cellUI.toGuideRadio.value) return "guide";
             return "keep";
@@ -3102,14 +3884,16 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         }
 
         /**
-         * リサイズの比率を 1〜上限% に収めて読み取ります。/ Read the resize ratio clamped to its range.
+         * 角丸と枠の指定を読み取ります（オフ・読めない値は 0）。/ Read the corner radius and frame settings.
          *
-         * @returns {number|null} 比率（%）。数値でない場合は null。
+         * @returns {MaskStyle} 角丸と枠の指定。
          */
-        function readResizeRatio() {
-            var parsedRatio = parseFloat(resizeUI.ratioInput.text);
-            if (!isFinite(parsedRatio)) return null;
-            return Math.max(1, Math.min(CONFIG.maxResizeRatio, parsedRatio));
+        function readMaskStyle() {
+            return {
+                cornerRadius: isCornerRadiusEnabled ? readLengthPt(maskUI.cornerRadiusInput, rulerUnit) : 0,
+                frameWidth: isFrameEnabled ? readLengthPt(maskUI.frameWidthInput, strokeUnit) : 0,
+                frameColor: frameColor
+            };
         }
 
         /**
@@ -3119,7 +3903,6 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
          */
         function getTargetRect() {
             if (placementUI.backmostRadio.value && backmostItem) return backmostItem.geometricBounds;
-            if (placementUI.rectLayerRadio.value && targetRectItem) return targetRectItem.geometricBounds;
             if (doc.artboards.length > baseArtboardIndex) return doc.artboards[baseArtboardIndex].artboardRect;
             return baseArtboardRect;
         }
@@ -3161,7 +3944,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
          */
         function getDistributionItems() {
             if (!(placementUI.backmostRadio.value && backmostItem)) return placeableItems;
-            return excludeItem(placeableItems, backmostItem);
+            return copyItemsExcept(placeableItems, backmostItem);
         }
 
         // -----------------------------------------
@@ -3171,6 +3954,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         /**
          * セル描画と配置を実行します（プレビュー／本番共通）。/ Draw cells and place objects.
          * プレビューでは元のオブジェクトを複製して元を隠し、複製だけを動かします（元の位置・大きさには触れません）。
+         * ［配置するオブジェクトを残す］では、本番でも複製を動かし、元は隠さずその場に残します。
          *
          * @param {boolean} isPreview - プレビューとして描画する場合は true。
          * @returns {boolean} ドキュメントを変更した場合は true。入力が無効で何もしなかった場合は false。
@@ -3182,33 +3966,79 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             /* グリッドが成立しない入力では、ドキュメントに一切手を加えない / Leave the document untouched without a valid grid */
             if (!gridMetrics) return false;
 
-            var sourceItems = orderByRandomizedOrder(getDistributionItems(), randomizedOrder);
-            var distributionItems = isPreview ? createPreviewCopies(sourceItems) : sourceItems;
+            var cellCount = gridMetrics.rowCount * gridMetrics.columnCount;
+            var distributionItems = prepareDistributionItems(cellCount, isPreview);
 
             /* セル数を超えたオブジェクトだけを対象領域の外へ退避する / Park only the objects beyond the cell count */
-            var cellCount = gridMetrics.rowCount * gridMetrics.columnCount;
             var overflowItems = distributionItems.slice(cellCount);
             if (overflowItems.length > 0) {
                 parkItemsOutside(doc, overflowItems, gridMetrics.targetRect);
             }
 
-            /* アートボード化のプレビューは、セルの範囲をガイドで示す / The artboard mode previews its cells as guides */
-            if ((cellMode !== "artboard") || isPreview) {
-                var layerName = isPreview ? CONFIG.previewCellLayerName : CONFIG.cellLayerName;
-                var asGuide = (cellMode === "guide") || (cellMode === "artboard" && isPreview);
-                drawCells(getOrCreateLayer(doc, layerName), gridMetrics, asGuide, getCellFillColor(), readOpacity());
-            }
+            drawCellLayer(gridMetrics, cellMode, isPreview);
 
             /* セルに入るオブジェクトだけをリサイズしてから中央へ置く / Resize only the objects that go into cells, then center them */
             var cellItems = distributionItems.slice(0, cellCount);
-            resizeItemsForCells(cellItems, gridMetrics, getResizeMode(), readResizeRatio());
-            placeItemsInCells(cellItems, gridMetrics);
+            resizeItemsForCells(cellItems, gridMetrics, getResizeMode(), readClampedNumber(resizeUI.ratioInput, 1, CONFIG.maxResizeRatio));
+            var cellRects = listTargetCellRects(gridMetrics, cellItems.length);
+            placeItemsInCells(cellItems, cellRects);
 
             /* マスクはセルに入れたものだけ。プレビューのグループは複製と一緒に消す
                Mask only the objects in cells; preview groups are removed along with the copies */
             maskGroups = [];
-            if (isMaskEnabled) maskItemsToCells(cellItems, gridMetrics, isPreview ? previewCopies : maskGroups);
+            if (isMaskEnabled) maskItemsToCells(cellItems, cellRects, isPreview ? previewCopies : maskGroups, readMaskStyle());
             return true;
+        }
+
+        /**
+         * 動かすオブジェクトを用意します（元そのもの・プレビュー用の複製・残す場合の複製）。/ Prepare the objects to move.
+         *
+         * @param {number} cellCount - セルの数。
+         * @param {boolean} isPreview - プレビューなら true。
+         * @returns {Array<PageItem>} 動かすオブジェクト（配置順）。
+         */
+        function prepareDistributionItems(cellCount, isPreview) {
+            var sourceItems = orderByRandomizedOrder(getDistributionItems(), randomizedOrder);
+            if (!isKeepOriginalsEnabled) return isPreview ? createPreviewCopies(sourceItems) : sourceItems;
+
+            /* 元はその場に残し、セルに入る分だけ複製する（あふれた分は複製も退避もしない）
+               Leave the originals in place and copy only what fits in the cells (nothing to park) */
+            if (!isPreview) keptCopies = [];
+            return duplicateItems(sourceItems.slice(0, cellCount), isPreview ? previewCopies : keptCopies);
+        }
+
+        /**
+         * セルの扱いに合わせてセルを描きます。/ Draw the cells for the current cell handling.
+         * ［アートボード化］［何もしない］は本番では描かず、プレビューでだけセルの範囲をガイドで示します。
+         *
+         * @param {GridMetrics} gridMetrics - グリッドの寸法。
+         * @param {string} cellMode - getCellMode() の値。
+         * @param {boolean} isPreview - プレビューなら true。
+         * @returns {void}
+         */
+        function drawCellLayer(gridMetrics, cellMode, isPreview) {
+            var drawsNoCells = (cellMode === "artboard" || cellMode === "none");
+            if (drawsNoCells && !isPreview) return;
+            var layerName = isPreview ? CONFIG.previewCellLayerName : CONFIG.cellLayerName;
+            var asGuide = (cellMode === "guide") || drawsNoCells;
+            drawCells(getOrCreateLayer(doc, layerName), gridMetrics, asGuide, getCellFillColor(), readClampedNumber(cellUI.opacityInput, 0, 100));
+        }
+
+        /**
+         * オブジェクトを入れるセルを、入れる順に返します（埋め方と［均等にまばらに］を反映）。/ List the cells to fill, in order.
+         *
+         * @param {GridMetrics} gridMetrics - グリッドの寸法。
+         * @param {number} itemCount - セルに入れるオブジェクトの数。
+         * @returns {Array<number[]>} セルの矩形 [左, 上, 右, 下] の配列。
+         */
+        function listTargetCellRects(gridMetrics, itemCount) {
+            /* ［均等にまばらに］の間は埋め方を使わず、左上からの順で選ぶ / Spread Evenly ignores Fill From and works from the top left */
+            var fillStartIndex = isSpreadEnabled ? 0 : getAnchorWidgetIndex(arrangementUI.fillStartWidget);
+            var cellRects = listCellRectsInFillOrder(gridMetrics, fillStartIndex);
+            /* セルが余るときは、使うセルをグリッド全体に散らす / With spare cells, spread the used cells over the grid */
+            if (!isSpreadEnabled || itemCount >= cellRects.length) return cellRects;
+            var spreadRandom = (spreadSeed === null) ? null : createSeededRandom(spreadSeed);
+            return pickSpreadCells(cellRects, itemCount, spreadRandom);
         }
 
         // -----------------------------------------
@@ -3228,11 +4058,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
          * @returns {Array<PageItem>} 複製（元と同じ順）。
          */
         function createPreviewCopies(sourceItems) {
-            var copies = [];
+            var copies = duplicateItems(sourceItems, previewCopies);
             for (var i = 0; i < sourceItems.length; i++) {
-                var copyItem = sourceItems[i].duplicate();
-                previewCopies.push(copyItem);
-                copies.push(copyItem);
                 sourceItems[i].hidden = true;
                 previewHiddenItems.push(sourceItems[i]);
             }
@@ -3307,6 +4134,49 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         // -----------------------------------------
 
         /**
+         * 数値欄に範囲の正規化と、確定後の処理を結び付けます。/ Wire range clamping and commit handlers into the fields.
+         *
+         * @returns {void}
+         */
+        function wireNumericFields() {
+            /**
+             * 行数・列数を変えたら、セル間隔の有効・無効も合わせてプレビューを描き直す
+             * @returns {void}
+             */
+            function handleDivisionChange() {
+                syncGutterEnabled();
+                updatePreview();
+            }
+
+            /* 行数・列数は 1 以上、上限はグリッドが成立する範囲まで / Rows and columns stay within a workable grid */
+            enableNumericField(divisionUI.rowCountInput, 1, CONFIG.maxDivision, handleDivisionChange);
+            enableNumericField(divisionUI.columnCountInput, 1, CONFIG.maxDivision, handleDivisionChange);
+            /* 間隔・マージンは負にしない（配置先の外へはみ出す）/ Gutter and margin never go negative */
+            enableNumericField(divisionUI.gutterInput, 0, null, updatePreview);
+            enableNumericField(divisionUI.marginInput, 0, null, updatePreview);
+            /* 不透明度は 0〜100%（描画側のクランプと表示を一致させる）/ Opacity matches what is actually drawn */
+            enableNumericField(cellUI.opacityInput, 0, 100, updatePreview);
+            /* リサイズの比率は 1〜上限% / The resize ratio stays within 1% and the upper limit */
+            enableNumericField(resizeUI.ratioInput, 1, CONFIG.maxResizeRatio, updatePreview);
+            /* 角丸の半径・枠の線幅は負にしない / Corner radius and frame weight never go negative */
+            enableNumericField(maskUI.cornerRadiusInput, 0, null, updatePreview);
+            enableNumericField(maskUI.frameWidthInput, 0, null, updatePreview);
+        }
+
+        /**
+         * すべての項目の有効・無効を、今の設定に合わせます。/ Sync every control's enabled state.
+         *
+         * @returns {void}
+         */
+        function syncAllControls() {
+            syncGutterEnabled();
+            syncCellModeUI();
+            syncResizeRatioEnabled();
+            syncMaskStyleEnabled();
+            syncFillStartEnabled();
+        }
+
+        /**
          * 間隔欄の有効・無効を切り替えます。/ Enable or disable the gutter field.
          * 間隔は行・列いずれかが2以上のときだけ意味を持ちます。
          *
@@ -3369,20 +4239,102 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             resizeUI.ratioLabel.enabled = isResizing;
             resizeUI.ratioUnitLabel.enabled = isResizing;
             setSteppedInputEnabled(resizeUI.ratioInput, isResizing);
+            resizeUI.autoScaleButton.enabled = (getResizeMode() === "scale");
         }
 
         /**
-         * 対象を切り替えます（「_target」矩形は選択中だけ非表示）。/ Switch the target area.
+         * 埋め方を、［均等にまばらに］がオンの間はディムにします。/ Dim Fill From while Spread Evenly is on.
          *
          * @returns {void}
          */
-        function handleTargetChange() {
-            clearPreview();
-            /* 元から隠されていた矩形は、対象を外しても隠したままにする / A rectangle hidden by the user stays hidden */
-            if (targetRectItem) {
-                setItemHidden(targetRectItem, wasTargetRectHidden || placementUI.rectLayerRadio.value === true);
+        function syncFillStartEnabled() {
+            arrangementUI.fillStartLabel.enabled = !isSpreadEnabled;
+            setAnchorWidgetEnabled(arrangementUI.fillStartWidget, !isSpreadEnabled);
+        }
+
+        /**
+         * 角丸・枠の項目を、［マスクする］と各チェックボックスに合わせてディムします。/ Dim the corner and frame controls.
+         *
+         * @returns {void}
+         */
+        function syncMaskStyleEnabled() {
+            maskUI.cornerRadiusCheckbox.enabled = isMaskEnabled;
+            maskUI.frameCheckbox.enabled = isMaskEnabled;
+            var usesCornerRadius = isMaskEnabled && isCornerRadiusEnabled;
+            setSteppedInputEnabled(maskUI.cornerRadiusInput, usesCornerRadius);
+            maskUI.cornerRadiusUnitLabel.enabled = usesCornerRadius;
+            maskUI.autoCornerRadiusButton.enabled = usesCornerRadius;
+            var usesFrame = isMaskEnabled && isFrameEnabled;
+            setSteppedInputEnabled(maskUI.frameWidthInput, usesFrame);
+            maskUI.frameUnitLabel.enabled = usesFrame;
+            redrawFrameColorSwatch();
+        }
+
+        /**
+         * 枠の色見本を描き直します（group には notify() が無いので隠して再表示する）。/ Redraw the frame color swatch.
+         *
+         * @returns {void}
+         */
+        function redrawFrameColorSwatch() {
+            maskUI.frameColorSwatch.hide();
+            maskUI.frameColorSwatch.show();
+        }
+
+        /**
+         * 枠の色見本を描きます。使えないときは薄く描きます（自作描画は enabled で淡色にならない）。/ Draw the frame color swatch.
+         *
+         * @returns {void}
+         */
+        function drawFrameColorSwatch() {
+            var swatch = maskUI.frameColorSwatch;
+            var swatchGraphics = swatch.graphics;
+            var swatchWidth = swatch.size[0];
+            var swatchHeight = swatch.size[1];
+            var swatchAlpha = (isMaskEnabled && isFrameEnabled) ? 1 : 0.25;
+            swatchGraphics.newPath();
+            swatchGraphics.rectPath(0, 0, swatchWidth, swatchHeight);
+            swatchGraphics.fillPath(swatchGraphics.newBrush(swatchGraphics.BrushType.SOLID_COLOR, colorToScreenRgb(frameColor).concat(swatchAlpha)));
+            swatchGraphics.newPath();
+            swatchGraphics.rectPath(0.5, 0.5, swatchWidth - 1, swatchHeight - 1);
+            swatchGraphics.strokePath(swatchGraphics.newPen(swatchGraphics.PenType.SOLID_COLOR, [0.5, 0.5, 0.5, swatchAlpha], 1));
+        }
+
+        /**
+         * ［自動計算］：セルに入るオブジェクトがすべてセルを覆う（アキが出ない）スケールを比率に入れます。/ Fill the ratio with a covering scale.
+         *
+         * @returns {void}
+         */
+        function applyAutoScale() {
+            var gridMetrics = readGridMetrics();
+            if (!gridMetrics) {
+                alert(getLabel(LABELS.alert.invalidGrid));
+                return;
             }
-            updatePreview();
+            var cellCount = gridMetrics.rowCount * gridMetrics.columnCount;
+            var cellItems = orderByRandomizedOrder(getDistributionItems(), randomizedOrder).slice(0, cellCount);
+            var coverScalePct = computeCoverScalePct(cellItems, gridMetrics);
+            if (coverScalePct === null) return;
+            resizeUI.ratioInput.text = String(coverScalePct);
+            /* 範囲の正規化とプレビューは onChange に任せる（代入では呼ばれない）/ Let onChange clamp and redraw; assignment does not fire it */
+            resizeUI.ratioInput.onChange();
+        }
+
+        /**
+         * 角丸の［自動計算］：半径をセルの短い辺の半分にします。/ Set the corner radius to half the shorter cell side.
+         * 定規の単位に換算し、大きくならないよう 0.01 単位で切り捨てます。
+         *
+         * @returns {void}
+         */
+        function applyAutoCornerRadius() {
+            var gridMetrics = readGridMetrics();
+            if (!gridMetrics) {
+                alert(getLabel(LABELS.alert.invalidGrid));
+                return;
+            }
+            var radiusPt = Math.min(gridMetrics.cellWidth, gridMetrics.cellHeight) / 2;
+            maskUI.cornerRadiusInput.text = String(Math.floor(ptToUnit(radiusPt, rulerUnit) * 100) / 100);
+            /* 範囲の正規化とプレビューは onChange に任せる（代入では呼ばれない）/ Let onChange clamp and redraw; assignment does not fire it */
+            maskUI.cornerRadiusInput.onChange();
         }
 
         // -----------------------------------------
@@ -3401,6 +4353,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
                 return;
             }
             randomizedOrder = createShuffledCopy(distributionItems);
+            /* ［均等にまばらに］で使うセルの選び方も選び直す / Also re-pick the cells for Spread Evenly */
+            spreadSeed = Math.floor(Math.random() * 4294967296);
             updatePreview();
         }
 
@@ -3418,7 +4372,6 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
 
             var cellMode = getCellMode();
             var createdCount = -1;
-            var artboardFailed = false;
 
             /* プレビューの複製を消し、元のオブジェクトを表示に戻してから本番処理へ / Drop the preview copies and show the originals before the real run */
             clearPreview();
@@ -3427,32 +4380,25 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
                Discard the previous run's cell layer only now that we are really redrawing */
             removeLayerByName(doc, CONFIG.cellLayerName);
 
-            if (cellMode === "artboard") {
-                try {
-                    createdCount = createArtboardsFromCells(doc, readGridMetrics(), baseArtboardIndex);
-                } catch (e) {
-                    artboardFailed = true;
-                }
-            }
+            /* 1枚ずつの失敗は createArtboardsFromCells() の中で飛ばす / Single failures are skipped inside createArtboardsFromCells() */
+            if (cellMode === "artboard") createdCount = createArtboardsFromCells(doc, readGridMetrics(), baseArtboardIndex);
             renderDistribution(false);
 
-            /* 「_target」レイヤーの矩形を元の表示状態へ戻す / Restore the _target rectangle's original state */
-            if (targetRectItem) setItemHidden(targetRectItem, wasTargetRectHidden);
-
-            /* セル描画を残した場合はその長方形を、それ以外は元の選択を選択状態にする / Select the kept cells, or the original selection */
+            /* セル描画を残した場合はその長方形を、それ以外は配置したオブジェクト（元を残したときは複製）を選択状態にする
+               Select the kept cells, or the placed objects (the copies when the originals are kept) */
             if (cellMode !== "keep" || !selectCellRectangles(doc)) {
-                doc.selection = replaceMaskedItems(placeableItems, maskGroups);
+                doc.selection = replaceMaskedItems(isKeepOriginalsEnabled ? keptCopies : placeableItems, maskGroups);
             }
 
             isCleanedUp = true;
             app.redraw();
             distributeDialog.close(1);
 
-            /* 0 個は入力値が無効でグリッドが成立しなかったケース / Zero means the grid was invalid */
-            if (artboardFailed || createdCount === 0) {
+            /* 0 個は1枚も作れなかったとき / Zero means not a single artboard could be created */
+            if (createdCount === 0) {
                 alert(getLabel(LABELS.alert.artboardError));
             } else if (createdCount > 0) {
-                alert(createdCount + getLabel(LABELS.alert.artboardCreated));
+                alert(getLabel(LABELS.alert.artboardCreated, [createdCount]));
             }
         }
 
@@ -3463,7 +4409,6 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
          */
         function discardDialogChanges() {
             clearPreview();
-            if (targetRectItem) setItemHidden(targetRectItem, wasTargetRectHidden);
             /* 起動時に隠した前回のセル描画レイヤーを元へ戻す / Restore the cell layer hidden at launch */
             setLayerVisible(previousCellLayer, wasPreviousCellLayerVisible);
             /* プレビュー中に隠したことで外れた選択を戻す / Hiding the originals for the preview cleared the selection */
@@ -3485,11 +4430,10 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
          * @returns {void}
          */
         function bindDialogEvents() {
-            placementUI.artboardRadio.onClick = handleTargetChange;
-            placementUI.backmostRadio.onClick = handleTargetChange;
-            placementUI.rectLayerRadio.onClick = handleTargetChange;
+            placementUI.artboardRadio.onClick = updatePreview;
+            placementUI.backmostRadio.onClick = updatePreview;
 
-            cellUI.keepCellRadio.onClick = cellUI.toGuideRadio.onClick = cellUI.toArtboardRadio.onClick = function () {
+            cellUI.noCellRadio.onClick = cellUI.keepCellRadio.onClick = cellUI.toGuideRadio.onClick = cellUI.toArtboardRadio.onClick = function () {
                 syncCellModeUI();
                 updatePreview();
             };
@@ -3519,8 +4463,40 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
                     updatePreview();
                 };
             resizeUI.ratioInput.onChanging = updatePreviewWhileTyping;
-            resizeUI.maskCheckbox.onClick = function () {
-                isMaskEnabled = resizeUI.maskCheckbox.value;
+            maskUI.maskCheckbox.onClick = function () {
+                isMaskEnabled = maskUI.maskCheckbox.value;
+                syncMaskStyleEnabled();
+                updatePreview();
+            };
+            maskUI.cornerRadiusCheckbox.onClick = function () {
+                isCornerRadiusEnabled = maskUI.cornerRadiusCheckbox.value;
+                syncMaskStyleEnabled();
+                updatePreview();
+            };
+            maskUI.frameCheckbox.onClick = function () {
+                isFrameEnabled = maskUI.frameCheckbox.value;
+                syncMaskStyleEnabled();
+                updatePreview();
+            };
+            maskUI.cornerRadiusInput.onChanging = updatePreviewWhileTyping;
+            maskUI.frameWidthInput.onChanging = updatePreviewWhileTyping;
+            maskUI.frameColorSwatch.onDraw = drawFrameColorSwatch;
+            /* クリックで標準のカラーピッカーを開く。キャンセルは渡した色が返る / The standard color picker; Cancel returns the color passed in */
+            maskUI.frameColorSwatch.addEventListener("click", function () {
+                if (!isMaskEnabled || !isFrameEnabled) return;
+                frameColor = app.showColorPicker(frameColor);
+                redrawFrameColorSwatch();
+                updatePreview();
+            });
+            resizeUI.autoScaleButton.onClick = applyAutoScale;
+            maskUI.autoCornerRadiusButton.onClick = applyAutoCornerRadius;
+            arrangementUI.spreadEvenlyCheckbox.onClick = function () {
+                isSpreadEnabled = arrangementUI.spreadEvenlyCheckbox.value;
+                syncFillStartEnabled();
+                updatePreview();
+            };
+            footerUI.keepOriginalsCheckbox.onClick = function () {
+                isKeepOriginalsEnabled = footerUI.keepOriginalsCheckbox.value;
                 updatePreview();
             };
 
@@ -3533,7 +4509,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
                 transparencyGridToggleCount++;
             };
 
-            footerUI.btnShuffle.onClick = shuffleDistributionOrder;
+            arrangementUI.btnShuffle.onClick = shuffleDistributionOrder;
             footerUI.btnOK.onClick = commitDistribution;
 
             footerUI.btnCancel.onClick = function () {
