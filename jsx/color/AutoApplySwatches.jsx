@@ -4,16 +4,25 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 /*
 SCRIPTMETA-BEGIN
 Script-ID=com.swwwitch.illustrator.ApplySwatchesToSelection
+Meta-Default-language=ja
 Name=スウォッチの連続適用
+Name[en]=Distribute swatch colors across the selection
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.2.1
 Release-Date=2026-03-05
+Tags=color,カラー
+X-com.swwwitch-Script-Name=AutoApplySwatches
+X-com.swwwitch-Updated=2026-10-21
+X-com.swwwitch-README-JA=https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AutoApplySwatches.md
+X-com.swwwitch-README-EN=https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AutoApplySwatches.md
+X-com.swwwitch-Source-URL=https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/color/AutoApplySwatches.jsx
 Description-BEGIN
+[ja]
 選択したオブジェクトやテキストに、スウォッチや定義済みカラーを自動で適用します。
 CMYK／RGBのカラーモードに応じて使う色を切り替え、CMYKでスウォッチ未選択のときは2色混合の色をランダム生成します。
 パスやテキストは塗りだけなら塗り、線だけなら線、両方あれば塗りと線に別の色を付けます（線幅0は1ptに）。
-
+[en]
 Applies swatches, or predefined colors, to the selected objects and text automatically.
 The palette follows the CMYK/RGB color mode, and in CMYK with no swatch selected it generates random two-ink combinations.
 Paths and text get the color on the fill, the stroke, or both (in different colors), matching what they already have (zero stroke widths become 1 pt).
@@ -21,42 +30,66 @@ Description-END
 SCRIPTMETA-END
 */
 
-/*
-
-### 概要
-
-選択したオブジェクトやテキストに、スウォッチや定義済みカラーを自動で適用します。
-CMYK／RGBのカラーモードに応じて使う色を切り替え、CMYKでスウォッチ未選択のときは2色混合の色をランダム生成します。
-パスやテキストは塗りだけなら塗り、線だけなら線、両方あれば塗りと線に別の色を付けます（線幅0は1ptに）。
-
-詳細は README を参照してください。
-https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AutoApplySwatches.md
-
-### Overview
-
-Applies swatches, or predefined colors, to the selected objects and text automatically.
-The palette follows the CMYK/RGB color mode, and in CMYK with no swatch selected it generates random two-ink combinations.
-Paths and text get the color on the fill, the stroke, or both (in different colors), matching what they already have (zero stroke widths become 1 pt).
-
-See the README for details.
-https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AutoApplySwatches.md
-
-*/
-
 // =========================================
 // 基本情報 / Basic info
 // =========================================
-var SCRIPT_NAME     = "AutoApplySwatches";            /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.2.1";                       /* バージョン / version */
-var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
-var SCRIPT_RELEASED = "2026-03-05";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-21";                   /* 更新日 / last updated */
+// スクリプト情報（再利用パーツ） / Script info (reusable)
+/* 基本情報は先頭の SCRIPTMETA が元。実行時に読んで SCRIPT_* に入れる（値は SCRIPTMETA を書き換え、helpers/sync-scriptmeta.py で同期）
+   The basic info lives in the SCRIPTMETA block at the top; it is read into SCRIPT_* at run time */
 
-var SCRIPT_DESCRIPTION_JA = "スウォッチの連続適用"; /* README の見出し / README title (Japanese) */
+/**
+ * このスクリプトの先頭にある SCRIPTMETA の項目（Description の手前まで）を読む
+ * @returns {Object} 項目名 → 値（同じ項目は最初の値）。ファイルが読めなければ空のオブジェクト
+ */
+function readScriptMeta() {
+    var metaFields = {};
+    var scriptFile = new File($.fileName);
+    scriptFile.encoding = "UTF-8";
+    if (!scriptFile.exists || !scriptFile.open("r")) return metaFields;
+    /* 境界の文字列は分けて書く（コードの中に境界があると SCRIPTMETA を読むアプリが誤読するため）
+       Marker strings are split so apps that scan for SCRIPTMETA do not find them in the code */
+    var blockBegin = "SCRIPTMETA" + "-BEGIN";
+    var blockEnd = "SCRIPTMETA" + "-END";
+    var descriptionBegin = "Description" + "-BEGIN";
+    var isInBlock = false;
+    for (var lineCount = 0; lineCount < 200 && !scriptFile.eof; lineCount++) {
+        var metaLine = scriptFile.readln().replace(/\r$/, "");
+        if (metaLine === blockBegin) {
+            isInBlock = true;
+        } else if (isInBlock) {
+            if (metaLine === blockEnd || metaLine === descriptionBegin) break;
+            var separatorIndex = metaLine.indexOf("=");
+            var fieldKey = metaLine.substring(0, separatorIndex);
+            if (separatorIndex > 0 && !metaFields.hasOwnProperty(fieldKey)) metaFields[fieldKey] = metaLine.substring(separatorIndex + 1);
+        }
+    }
+    scriptFile.close();
+    return metaFields;
+}
 
-var SCRIPT_README_JA  = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AutoApplySwatches.md"; /* README（日本語） */
-var SCRIPT_README_EN  = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AutoApplySwatches.md"; /* README (English) */
-var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/color/AutoApplySwatches.jsx"; /* 最新版のソース / latest source */
+var SCRIPT_META = readScriptMeta();
+
+/**
+ * SCRIPTMETA の項目の値を返す
+ * @param {string} fieldKey - 項目名（"Version"、"X-com.swwwitch-Updated" など）
+ * @returns {string} 値。項目が無ければ空文字
+ */
+function getScriptMetaValue(fieldKey) {
+    return SCRIPT_META.hasOwnProperty(fieldKey) ? SCRIPT_META[fieldKey] : "";
+}
+
+/* SCRIPTMETA が読めないとき（ファイルを経由しない実行）は、スクリプト名だけファイル名から補う / fall back to the file name */
+var SCRIPT_NAME           = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(new File($.fileName).name).replace(/\.[^.]+$/, ""); /* スクリプト名 / script name */
+var SCRIPT_VERSION        = getScriptMetaValue("Version") ? "v" + getScriptMetaValue("Version") : ""; /* バージョン / version */
+var SCRIPT_AUTHOR         = getScriptMetaValue("Author");                       /* 作者 / author */
+var SCRIPT_RELEASED       = getScriptMetaValue("Release-Date");                 /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED        = getScriptMetaValue("X-com.swwwitch-Updated");       /* 更新日 / last updated */
+var SCRIPT_DESCRIPTION_JA = getScriptMetaValue("Name");                         /* README の見出し / README title (Japanese) */
+var SCRIPT_README_JA      = getScriptMetaValue("X-com.swwwitch-README-JA");     /* README（日本語） */
+var SCRIPT_README_EN      = getScriptMetaValue("X-com.swwwitch-README-EN");     /* README (English) */
+var SCRIPT_ARTICLE_URL    = getScriptMetaValue("X-com.swwwitch-Article-URL");   /* 紹介記事 / article URL */
+var SCRIPT_SOURCE_URL     = getScriptMetaValue("X-com.swwwitch-Source-URL");    /* 最新版のソース / latest source */
+// スクリプト情報（再利用パーツ）ここまで / End of the reusable script info
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php

@@ -15,7 +15,7 @@ This repository contains Adobe Illustrator ExtendScript (`.jsx`).
 
 Split the top of the file into separate `// ====` comment blocks, one per concern:
 
-1. **基本情報 / Basic info** — the metadata block below
+1. **基本情報 / Basic info** — the Script info part that reads SCRIPTMETA (see below)
 2. **ユーザー設定 / User Settings** — values you tweak to change behavior
    (protected layer names, options that start unchecked, external folder paths)
 3. **レイアウト / Layout** — dialog metrics (panel margins/spacing, control widths, indents)
@@ -26,109 +26,97 @@ Split the top of the file into separate `// ====` comment blocks, one per concer
 
 Keep layout metrics out of User Settings: pixel values are not what a user edits to change behavior.
 
-## Header comment (`### 概要` / `### Overview`)
+## SCRIPTMETA (basic info)
 
-- A few bullets, then point at the README for the full feature list
-- Put the README URL on the line right after the pointer: `SCRIPT_README_JA` under 概要,
-  `SCRIPT_README_EN` under Overview. When `SCRIPT_ARTICLE_URL` exists, add the article under 概要 only.
-  Copy the values from the basic info block and keep them there too. Skip the lines when the README
-  files do not exist
-- **No other GitHub links** (no `### GitHub` section, no source URLs)
-- **No version history** — the changelog lives in `readme-ja/` and `readme-en/`
-- Keep it to 概要 / 注意 / Overview / Notes
+A script's basic info lives only in the SCRIPTMETA block at the very top of the file, in the SCRIPTMETA 2.1
+multilingual form ([MetadataAuthoring.md](https://github.com/Yamonov/SCRIPTMETAKit/blob/main/docs/MetadataAuthoring.md)).
+There is no hand-written `var SCRIPT_* = "…"` block and no `### 概要` / `### Overview` header comment any more.
+Update checking is not used: write no `Meta-URL` and no `SCRIPTMETA.txt`.
 
 ```js
 /*
-
-### 概要
-
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.illustrator.<ScriptName>
+Meta-Default-language=ja
+Name=<README の見出し>
+Name[en]=<English README title>
+Author=Masahiro Takano (@swwwitch)
+Target-App=Illustrator
+Version=1.6.0
+Release-Date=2026-02-24
+Tags=<folder tags>
+X-com.swwwitch-Script-Name=<ScriptName>
+X-com.swwwitch-Updated=2026-07-26
+X-com.swwwitch-README-JA=https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/<ScriptName>.md
+X-com.swwwitch-README-EN=https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/<ScriptName>.md
+X-com.swwwitch-Article-URL=https://note.com/dtp_tranist/n/xxxxxxxx
+X-com.swwwitch-Source-URL=https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/<category>/<ScriptName>.jsx
+Description-BEGIN
+[ja]
 （1〜2文の説明）
-
-詳細は README を参照してください。
-https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/<ScriptName>.md
-
-note記事も参照してください。
-https://note.com/dtp_tranist/n/xxxxxxxx
-
-### Overview
-
+[en]
 (one or two sentences)
-
-See the README for details.
-https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/<ScriptName>.md
-
+Description-END
+SCRIPTMETA-END
 */
 ```
 
-Bare URLs are safe inside this `/* */` block; the Error 11 label problem only affects `//` lines.
+- Edit by hand: `Version` (no `v`), `Author`, `Release-Date` (first release), the Description, and the
+  `X-com.swwwitch-*` fields `Script-Name`, `Modified-By`, `Updated`, `README-JA` / `README-EN` (only when the README
+  files exist), `Article-URL`, `Reference-URL`, `Pro-URL`. Leave out a field that has no value
+- `X-com.swwwitch-Script-Name` becomes `SCRIPT_NAME`, which is also the key of saved settings and dialog positions.
+  Changing it loses what users have saved
+- Description: `[ja]` and `[en]` labels on their own lines, one or two sentences each, then point nowhere else
+  (the README links are in the fields). Write a literal `[`, `]`, `\` as `\[`, `\]`, `\\`. Never `*/`
+- Notes that do not fit in the Description (`### 注意` / `### Notes`) go in a `/* */` comment right after the SCRIPTMETA block
+- When adapting someone else's script, `Author` is the original author and `X-com.swwwitch-Modified-By=Masahiro Takano (@swwwitch)`.
+  Put the original credit (`@author` / `@discussion`) in a JSDoc block after the Script info part
+- `python3 helpers/sync-scriptmeta.py` (`--check` reports files out of sync) fills in the rest. Run it after editing
+  SCRIPTMETA or a README title, and after adding, moving or renaming a script:
+  - `Script-ID` only when it is missing (`com.swwwitch.illustrator.<Script-Name>`; names with characters other than
+    `A-Z a-z 0-9 . _ -` get an entry in `ID_OVERRIDES`). Never change a published Script-ID, even when renaming a script
+  - `Name` / `Name[en]` from the `# ` titles of the READMEs that `README-JA` / `README-EN` point to. To change them, edit
+    the README titles. A script without a README keeps a hand-written `Name` (a short phrase saying what it does)
+  - `Meta-Default-language`, `Target-App`, `Tags` (from the top folder under `jsx/`, `FOLDER_TAGS` in the tool; a new folder
+    needs an entry there), `X-com.swwwitch-Source-URL` (from the file's path), percent-encoding of non-ASCII in URLs,
+    and the field order
+  - the Script info part below, rewritten to match `jsx/_templates/ScriptMeta.jsx`
+- `jsx/_templates/` is excluded
 
-## Basic info block
+## Basic info (Script info part)
 
-`=` aligns at column 20 (16 characters after `var `), comments at column 54.
-`SCRIPT_DESCRIPTION_JA` (the Japanese README title) sits alone in its own group after a blank line.
-The README links, `SCRIPT_ARTICLE_URL` and `SCRIPT_SOURCE_URL` are exempt from that alignment: put them
-in a separate group after a blank line and align `=` across those lines only. `SCRIPT_SOURCE_URL` is
-always the last line and is written by `helpers/sync-scriptmeta.py` (see SCRIPTMETA below).
-
-Hold the README links in string variables, not in line comments. Two consecutive
-`// https://…` lines make ExtendScript read `https:` as a duplicate label and the script dies with
-Error 11 ("label not found"). Include the links only when the README files actually exist.
+The 基本情報 / Basic info block holds the Script info part (`jsx/_templates/ScriptMeta.jsx`), at the top level outside the IIFE:
 
 ```js
 // =========================================
 // 基本情報 / Basic info
 // =========================================
-var SCRIPT_NAME     = "SmartGridMaker";               /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.6.0";                       /* バージョン / version */
-var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
-var SCRIPT_RELEASED = "2026-02-24";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-07-26";                   /* 更新日 / last updated */
-
-var SCRIPT_DESCRIPTION_JA = "<README の見出し>"; /* README の見出し / README title (Japanese) */
-
-var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/<ScriptName>.md"; /* README（日本語） */
-var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/<ScriptName>.md"; /* README (English) */
-var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記事 / article URL */
-var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/<category>/<ScriptName>.jsx"; /* 最新版のソース / latest source */
+// スクリプト情報（再利用パーツ） / Script info (reusable)
+…
+// スクリプト情報（再利用パーツ）ここまで / End of the reusable script info
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
 ```
 
-When adapting someone else's script, keep the original author in `SCRIPT_AUTHOR` and add
-`var SCRIPT_MODIFIED = "Masahiro Takano (@swwwitch)";  /* 改変 / modified by */` on the same alignment.
-Put the original credit (`@author` / `@discussion`) in a JSDoc block right after the metadata.
+It reads the SCRIPTMETA of `$.fileName` when the script loads and sets `SCRIPT_NAME`, `SCRIPT_VERSION` (`"v" + Version`),
+`SCRIPT_AUTHOR`, `SCRIPT_RELEASED`, `SCRIPT_UPDATED`, `SCRIPT_DESCRIPTION_JA` (`Name`), `SCRIPT_README_JA` / `SCRIPT_README_EN`,
+`SCRIPT_ARTICLE_URL` and `SCRIPT_SOURCE_URL` (empty string when a field is missing). Use those variables as before; do not
+assign them by hand and do not edit the part (the sync tool rewrites it). In code, write the SCRIPTMETA marker strings split
+(`"SCRIPTMETA" + "-BEGIN"`) so apps that scan for SCRIPTMETA do not pick them up.
 
-## SCRIPT_VERSION
+## Version
 
-Bump `SCRIPT_VERSION` whenever a change alters behavior; do not wait to be told.
+Bump `Version` in SCRIPTMETA whenever a change alters behavior; do not wait to be told.
 Version numbers are tied to the READMEs and published articles, so keep them in step.
 
-- Bug fix or small behavior change: bump the patch (`v1.6.0` → `v1.6.1`; two-part versions grow a third part, `v1.1` → `v1.1.1`)
-- Larger feature addition: bump the minor (`v1.6.1` → `v1.7.0`)
-- Set `SCRIPT_UPDATED` to that day and add the same version to the change log in `readme-ja/` and `readme-en/`
+- Bug fix or small behavior change: bump the patch (`1.6.0` → `1.6.1`; two-part versions grow a third part, `1.1` → `1.1.1`)
+- Larger feature addition: bump the minor (`1.6.1` → `1.7.0`)
+- Set `X-com.swwwitch-Updated` to that day and add the same version to the change log in `readme-ja/` and `readme-en/`
   (create the section when it is missing)
 - Do not bump for links, comments, alignment or JSDoc only
 - Bump once per unreleased change set: count from the version in the last commit, not from today's working copy
-- New scripts start at `v1.0.0`
-
-## SCRIPTMETA
-
-Every script carries a [SCRIPTMETA](https://github.com/Yamonov/SCRIPTMETA) block (Local Subset) right before
-the header comment. It is generated from the basic info block and the 概要 / Overview text — do not edit it by hand.
-Update checking is not used: write no `Meta-URL` and no `SCRIPTMETA.txt`.
-
-- After bumping `SCRIPT_VERSION`, editing the overview or a Japanese README title, or adding, moving or renaming a script, run
-  `python3 helpers/sync-scriptmeta.py` (`--check` reports files out of sync)
-- The same tool writes `SCRIPT_SOURCE_URL` (the GitHub link to the latest source) as the last line of the README /
-  article group in the basic info block, from the file's path, and realigns that group's `=`. Do not edit it by hand
-- It also writes `SCRIPT_DESCRIPTION_JA` from the `# ` title of the README that `SCRIPT_README_JA` points to,
-  as a one-line group between the first group and the README / article group, and uses the same title as
-  SCRIPTMETA `Name`. To change it, edit the README title and run the tool. A script without a README gets a
-  hand-written `SCRIPT_DESCRIPTION_JA` in the same style (a short phrase saying what it does); the tool keeps it and uses it as `Name`
-- Script-ID is `com.swwwitch.illustrator.<SCRIPT_NAME>`. Never change a published Script-ID, even when renaming a script;
-  names with characters other than `A-Z a-z 0-9 . _ -` get an entry in `ID_OVERRIDES`
-- `jsx/_templates/` is excluded
+- New scripts start at `1.0.0`
 
 ## Units
 
@@ -296,7 +284,8 @@ function findUnitByLabel(label) {
   It draws the script name and version (left) and "DTP Transit" (right) small and gray at the bottom left (dot glyphs in `onDraw`; needs the UITheme part for `isDarkUI()`) and takes over the button row's bottom margin.
   Progress, confirm and other small sub-windows get no footer
   Clicking the name and version opens the part's About This Script dialog (script name with a copy button, the Japanese README title,
-  version, README / source code / article links, Show in Finder). It reads the `SCRIPT_*` basic info with `typeof` and carries its own
+  version, README / source code / article links, Show in Finder — in Path Finder when it is running, through
+  `/Applications/OpenInFileViewer.app`). It reads the `SCRIPT_*` basic info with `typeof` and carries its own
   labels (`VERSION_INFO_LABELS`), so paste the whole part unchanged; do not add its labels to `LABELS`
 - A 3×3 anchor / alignment picker is a custom widget drawn in a `button`'s `onDraw`, never nine radio buttons.
   Reference implementation: `addAnchorWidget()` / `drawAnchorWidget()` / `drawAnchorCell()` in

@@ -4,59 +4,91 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 /*
 SCRIPTMETA-BEGIN
 Script-ID=com.swwwitch.illustrator.ReplaceTextWithPasteSequential
+Meta-Default-language=ja
 Name=クリップボードの1行目でテキストを置き換える
+Name[en]=Replace text with the first line of the clipboard
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.0.5
 Release-Date=2026-08-14
+Tags=text,テキスト
+X-com.swwwitch-Script-Name=ReplaceTextWithPasteSequential
+X-com.swwwitch-Updated=2026-10-04
+X-com.swwwitch-README-JA=https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ReplaceTextWithPasteSequential.md
+X-com.swwwitch-README-EN=https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ReplaceTextWithPasteSequential.md
+X-com.swwwitch-Article-URL=https://note.com/dtp_tranist/n/nf4b285b87940
+X-com.swwwitch-Source-URL=https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/ReplaceTextWithPasteSequential.jsx
 Description-BEGIN
+[ja]
 クリップボードの複数行テキストから1行目を取り出して、選択中のテキストフレームに適用します（空行は読み飛ばします）。
 適用した行はクリップボードから取り除かれるため、繰り返し実行すると次の行へ順に進みます。
-
+[en]
 Takes the first line of the multi-line text on the clipboard and applies it to the selected text frame, skipping blank lines.
 The line used is removed from the clipboard, so running it again moves on to the next one.
 Description-END
 SCRIPTMETA-END
 */
 
-/*
-
-### 概要
-
-クリップボードの複数行テキストから1行目を取り出して、選択中のテキストフレームに適用します（空行は読み飛ばします）。
-適用した行はクリップボードから取り除かれるため、繰り返し実行すると次の行へ順に進みます。
-
-詳細は README を参照してください。
-https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ReplaceTextWithPasteSequential.md
-
-note記事も参照してください。
-https://note.com/dtp_tranist/n/nf4b285b87940
-
-### Overview
-
-Takes the first line of the multi-line text on the clipboard and applies it to the selected text frame, skipping blank lines.
-The line used is removed from the clipboard, so running it again moves on to the next one.
-
-See the README for details.
-https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ReplaceTextWithPasteSequential.md
-
-*/
-
 // =========================================
 // 基本情報 / Basic info
 // =========================================
-var SCRIPT_NAME     = "ReplaceTextWithPasteSequential";  /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.5";                       /* バージョン / version */
-var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
-var SCRIPT_RELEASED = "2026-08-14";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last updated */
+// スクリプト情報（再利用パーツ） / Script info (reusable)
+/* 基本情報は先頭の SCRIPTMETA が元。実行時に読んで SCRIPT_* に入れる（値は SCRIPTMETA を書き換え、helpers/sync-scriptmeta.py で同期）
+   The basic info lives in the SCRIPTMETA block at the top; it is read into SCRIPT_* at run time */
 
-var SCRIPT_DESCRIPTION_JA = "クリップボードの1行目でテキストを置き換える"; /* README の見出し / README title (Japanese) */
+/**
+ * このスクリプトの先頭にある SCRIPTMETA の項目（Description の手前まで）を読む
+ * @returns {Object} 項目名 → 値（同じ項目は最初の値）。ファイルが読めなければ空のオブジェクト
+ */
+function readScriptMeta() {
+    var metaFields = {};
+    var scriptFile = new File($.fileName);
+    scriptFile.encoding = "UTF-8";
+    if (!scriptFile.exists || !scriptFile.open("r")) return metaFields;
+    /* 境界の文字列は分けて書く（コードの中に境界があると SCRIPTMETA を読むアプリが誤読するため）
+       Marker strings are split so apps that scan for SCRIPTMETA do not find them in the code */
+    var blockBegin = "SCRIPTMETA" + "-BEGIN";
+    var blockEnd = "SCRIPTMETA" + "-END";
+    var descriptionBegin = "Description" + "-BEGIN";
+    var isInBlock = false;
+    for (var lineCount = 0; lineCount < 200 && !scriptFile.eof; lineCount++) {
+        var metaLine = scriptFile.readln().replace(/\r$/, "");
+        if (metaLine === blockBegin) {
+            isInBlock = true;
+        } else if (isInBlock) {
+            if (metaLine === blockEnd || metaLine === descriptionBegin) break;
+            var separatorIndex = metaLine.indexOf("=");
+            var fieldKey = metaLine.substring(0, separatorIndex);
+            if (separatorIndex > 0 && !metaFields.hasOwnProperty(fieldKey)) metaFields[fieldKey] = metaLine.substring(separatorIndex + 1);
+        }
+    }
+    scriptFile.close();
+    return metaFields;
+}
 
-var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ReplaceTextWithPasteSequential.md"; /* README（日本語） */
-var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ReplaceTextWithPasteSequential.md"; /* README (English) */
-var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf4b285b87940"; /* 紹介記事 / article URL */
-var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/ReplaceTextWithPasteSequential.jsx"; /* 最新版のソース / latest source */
+var SCRIPT_META = readScriptMeta();
+
+/**
+ * SCRIPTMETA の項目の値を返す
+ * @param {string} fieldKey - 項目名（"Version"、"X-com.swwwitch-Updated" など）
+ * @returns {string} 値。項目が無ければ空文字
+ */
+function getScriptMetaValue(fieldKey) {
+    return SCRIPT_META.hasOwnProperty(fieldKey) ? SCRIPT_META[fieldKey] : "";
+}
+
+/* SCRIPTMETA が読めないとき（ファイルを経由しない実行）は、スクリプト名だけファイル名から補う / fall back to the file name */
+var SCRIPT_NAME           = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(new File($.fileName).name).replace(/\.[^.]+$/, ""); /* スクリプト名 / script name */
+var SCRIPT_VERSION        = getScriptMetaValue("Version") ? "v" + getScriptMetaValue("Version") : ""; /* バージョン / version */
+var SCRIPT_AUTHOR         = getScriptMetaValue("Author");                       /* 作者 / author */
+var SCRIPT_RELEASED       = getScriptMetaValue("Release-Date");                 /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED        = getScriptMetaValue("X-com.swwwitch-Updated");       /* 更新日 / last updated */
+var SCRIPT_DESCRIPTION_JA = getScriptMetaValue("Name");                         /* README の見出し / README title (Japanese) */
+var SCRIPT_README_JA      = getScriptMetaValue("X-com.swwwitch-README-JA");     /* README（日本語） */
+var SCRIPT_README_EN      = getScriptMetaValue("X-com.swwwitch-README-EN");     /* README (English) */
+var SCRIPT_ARTICLE_URL    = getScriptMetaValue("X-com.swwwitch-Article-URL");   /* 紹介記事 / article URL */
+var SCRIPT_SOURCE_URL     = getScriptMetaValue("X-com.swwwitch-Source-URL");    /* 最新版のソース / latest source */
+// スクリプト情報（再利用パーツ）ここまで / End of the reusable script info
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php

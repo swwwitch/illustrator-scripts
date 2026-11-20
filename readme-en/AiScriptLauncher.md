@@ -12,7 +12,7 @@
 
 Once your script collection grows, just finding the one you want takes time. This launcher filters the `.jsx` / `.js` / `.jsxbin` files in a chosen folder by keyword and runs the selected script on the spot.
 
-Folders and file names are shown in two side-by-side lists, so you reach the script you want without walking the hierarchy.
+Folders and file names are shown in two side-by-side lists, so you reach the script you want without walking the hierarchy. Each file name comes with the script's description, which helps tell apart scripts whose names alone are unclear.
 
 ### Features
 

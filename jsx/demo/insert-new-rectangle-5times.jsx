@@ -4,57 +4,90 @@ app.preferences.setBooleanPreference("ShowExternalJSXWarning", false);
 /*
 SCRIPTMETA-BEGIN
 Script-ID=com.swwwitch.illustrator.InsertNewRectangle5Times
+Meta-Default-language=ja
 Name=表示領域の中心付近に正方形を5つ作成
+Name[en]=Create five squares near the center of the view
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.3.1
 Release-Date=2025-04-01
+Tags=demo,デモ
+X-com.swwwitch-Script-Name=InsertNewRectangle5Times
+X-com.swwwitch-Updated=2026-10-04
+X-com.swwwitch-README-JA=https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/InsertNewRectangle5Times.md
+X-com.swwwitch-README-EN=https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/InsertNewRectangle5Times.md
+X-com.swwwitch-Article-URL=https://note.com/dtp_tranist/n/n509eb6aa0a19
+X-com.swwwitch-Source-URL=https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/demo/insert-new-rectangle-5times.jsx
 Description-BEGIN
+[ja]
 現在の表示領域の中心付近に、黒く塗ってランダムな不透明度を与えた正方形を5つ作成し、重ならないように配置してから「Convert to Shape」「Make Pixel Perfect」コマンドを適用します。
-
+[en]
 Creates five black squares with random opacity near the center of the current view, places them so that
 they do not overlap, and applies the "Convert to Shape" and "Make Pixel Perfect" commands.
 Description-END
 SCRIPTMETA-END
 */
 
-/*
-
-### 概要
-
-現在の表示領域の中心付近に、黒く塗ってランダムな不透明度を与えた正方形を5つ作成し、重ならないように配置してから「Convert to Shape」「Make Pixel Perfect」コマンドを適用します。
-
-詳細は README を参照してください。
-https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/InsertNewRectangle5Times.md
-
-note記事も参照してください。
-https://note.com/dtp_tranist/n/n509eb6aa0a19
-
-### Overview
-
-Creates five black squares with random opacity near the center of the current view, places them so that
-they do not overlap, and applies the "Convert to Shape" and "Make Pixel Perfect" commands.
-
-See the README for details.
-https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/InsertNewRectangle5Times.md
-
-*/
-
 // =========================================
 // 基本情報 / Basic info
 // =========================================
-var SCRIPT_NAME     = "InsertNewRectangle5Times";     /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.3.1";                       /* バージョン / version */
-var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
-var SCRIPT_RELEASED = "2025-04-01";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last updated */
+// スクリプト情報（再利用パーツ） / Script info (reusable)
+/* 基本情報は先頭の SCRIPTMETA が元。実行時に読んで SCRIPT_* に入れる（値は SCRIPTMETA を書き換え、helpers/sync-scriptmeta.py で同期）
+   The basic info lives in the SCRIPTMETA block at the top; it is read into SCRIPT_* at run time */
 
-var SCRIPT_DESCRIPTION_JA = "表示領域の中心付近に正方形を5つ作成"; /* README の見出し / README title (Japanese) */
+/**
+ * このスクリプトの先頭にある SCRIPTMETA の項目（Description の手前まで）を読む
+ * @returns {Object} 項目名 → 値（同じ項目は最初の値）。ファイルが読めなければ空のオブジェクト
+ */
+function readScriptMeta() {
+    var metaFields = {};
+    var scriptFile = new File($.fileName);
+    scriptFile.encoding = "UTF-8";
+    if (!scriptFile.exists || !scriptFile.open("r")) return metaFields;
+    /* 境界の文字列は分けて書く（コードの中に境界があると SCRIPTMETA を読むアプリが誤読するため）
+       Marker strings are split so apps that scan for SCRIPTMETA do not find them in the code */
+    var blockBegin = "SCRIPTMETA" + "-BEGIN";
+    var blockEnd = "SCRIPTMETA" + "-END";
+    var descriptionBegin = "Description" + "-BEGIN";
+    var isInBlock = false;
+    for (var lineCount = 0; lineCount < 200 && !scriptFile.eof; lineCount++) {
+        var metaLine = scriptFile.readln().replace(/\r$/, "");
+        if (metaLine === blockBegin) {
+            isInBlock = true;
+        } else if (isInBlock) {
+            if (metaLine === blockEnd || metaLine === descriptionBegin) break;
+            var separatorIndex = metaLine.indexOf("=");
+            var fieldKey = metaLine.substring(0, separatorIndex);
+            if (separatorIndex > 0 && !metaFields.hasOwnProperty(fieldKey)) metaFields[fieldKey] = metaLine.substring(separatorIndex + 1);
+        }
+    }
+    scriptFile.close();
+    return metaFields;
+}
 
-var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/InsertNewRectangle5Times.md"; /* README（日本語） */
-var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/InsertNewRectangle5Times.md"; /* README (English) */
-var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n509eb6aa0a19"; /* 紹介記事 / article URL */
-var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/demo/insert-new-rectangle-5times.jsx"; /* 最新版のソース / latest source */
+var SCRIPT_META = readScriptMeta();
+
+/**
+ * SCRIPTMETA の項目の値を返す
+ * @param {string} fieldKey - 項目名（"Version"、"X-com.swwwitch-Updated" など）
+ * @returns {string} 値。項目が無ければ空文字
+ */
+function getScriptMetaValue(fieldKey) {
+    return SCRIPT_META.hasOwnProperty(fieldKey) ? SCRIPT_META[fieldKey] : "";
+}
+
+/* SCRIPTMETA が読めないとき（ファイルを経由しない実行）は、スクリプト名だけファイル名から補う / fall back to the file name */
+var SCRIPT_NAME           = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(new File($.fileName).name).replace(/\.[^.]+$/, ""); /* スクリプト名 / script name */
+var SCRIPT_VERSION        = getScriptMetaValue("Version") ? "v" + getScriptMetaValue("Version") : ""; /* バージョン / version */
+var SCRIPT_AUTHOR         = getScriptMetaValue("Author");                       /* 作者 / author */
+var SCRIPT_RELEASED       = getScriptMetaValue("Release-Date");                 /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED        = getScriptMetaValue("X-com.swwwitch-Updated");       /* 更新日 / last updated */
+var SCRIPT_DESCRIPTION_JA = getScriptMetaValue("Name");                         /* README の見出し / README title (Japanese) */
+var SCRIPT_README_JA      = getScriptMetaValue("X-com.swwwitch-README-JA");     /* README（日本語） */
+var SCRIPT_README_EN      = getScriptMetaValue("X-com.swwwitch-README-EN");     /* README (English) */
+var SCRIPT_ARTICLE_URL    = getScriptMetaValue("X-com.swwwitch-Article-URL");   /* 紹介記事 / article URL */
+var SCRIPT_SOURCE_URL     = getScriptMetaValue("X-com.swwwitch-Source-URL");    /* 最新版のソース / latest source */
+// スクリプト情報（再利用パーツ）ここまで / End of the reusable script info
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php

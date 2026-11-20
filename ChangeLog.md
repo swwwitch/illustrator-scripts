@@ -1,5 +1,14 @@
 # Change Log
 
+## 20261121
+
+### 調整
+
+- 基本情報の元を先頭の SCRIPTMETA に一本化（415本）。SCRIPTMETA 2.1 の多言語形式（Name[en]・Description の [ja]／[en]・Tags・独自項目 X-com.swwwitch-*）に書き換え、`var SCRIPT_* = "…"` の基本情報ブロックとヘッダーの ### 概要／### Overview を削除。スクリプトは実行時に共通部品 ScriptMeta（スクリプト情報）で SCRIPTMETA を読み、これまでと同じ SCRIPT_NAME・SCRIPT_VERSION などを用意する（設定の保存名・ダイアログの位置は変わらない）。helpers/sync-scriptmeta.py は SCRIPTMETA を元に Name・Tags・Source-URL・部品をそろえるツールに変更
+- ［このスクリプトについて］の［Finder に表示］で、Path Finder が起動していれば Path Finder で選択表示（/Applications/OpenInFileViewer.app。無ければこれまでどおり RevealInFinder.app）（共通部品 VersionFooter v1.3.0、各スクリプトのバージョンは据え置き）
+- AiScriptLauncher：右の列の説明を SCRIPTMETA の Name から読む
+- 仮の記事 URL（note.com/dtp_tranist/n/xxxxxxxx）を5本から削除。FitArtboardWithMargin の記事 URL の綴りを note.com/dtp_tranist/ に修正
+
 ## 20261120
 
 ### 新しいスクリプトを追加

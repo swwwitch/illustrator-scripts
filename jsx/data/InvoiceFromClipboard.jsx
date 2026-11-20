@@ -5,59 +5,91 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 /*
 SCRIPTMETA-BEGIN
 Script-ID=com.swwwitch.illustrator.InvoiceFromClipboard
+Meta-Default-language=ja
 Name=クリップボードの回答から領収書・請求書のPDFを書き出す
+Name[en]=Export a receipt or invoice PDF from a copied form reply
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.1.2
 Release-Date=2026-08-16
+Tags=data,データ
+X-com.swwwitch-Script-Name=InvoiceFromClipboard
+X-com.swwwitch-Updated=2026-10-16
+X-com.swwwitch-README-JA=https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/InvoiceFromClipboard.md
+X-com.swwwitch-README-EN=https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/InvoiceFromClipboard.md
+X-com.swwwitch-Article-URL=https://note.com/dtp_tranist/n/n1901883d86cd
+X-com.swwwitch-Source-URL=https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/data/InvoiceFromClipboard.jsx
 Description-BEGIN
+[ja]
 クリップボードにある「見出しと値」のテキストを読み取り、テンプレート内の `<タグ>` を置き換えて、領収書・請求書・納品書のPDFを書き出す作例スクリプトです。
 書き出したあとは、保存先フォルダーと、宛先・件名・本文を入れたメールの下書きを開きます。
-
+[en]
 A worked example that reads heading-and-value text from the clipboard, replaces `<tag>` placeholders in an Illustrator template, and exports a receipt, invoice or delivery-note PDF.
 Once the export is done it opens the output folder and a pre-filled mail draft.
 Description-END
 SCRIPTMETA-END
 */
 
-/*
-
-### 概要
-
-クリップボードにある「見出しと値」のテキストを読み取り、テンプレート内の `<タグ>` を置き換えて、領収書・請求書・納品書のPDFを書き出す作例スクリプトです。
-書き出したあとは、保存先フォルダーと、宛先・件名・本文を入れたメールの下書きを開きます。
-
-詳細は README を参照してください。
-https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/InvoiceFromClipboard.md
-
-note記事も参照してください。
-https://note.com/dtp_tranist/n/n1901883d86cd
-
-### Overview
-
-A worked example that reads heading-and-value text from the clipboard, replaces `<tag>` placeholders in an Illustrator template, and exports a receipt, invoice or delivery-note PDF.
-Once the export is done it opens the output folder and a pre-filled mail draft.
-
-See the README for details.
-https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/InvoiceFromClipboard.md
-
-*/
-
 // =========================================
 // 基本情報 / Basic info
 // =========================================
-var SCRIPT_NAME     = "InvoiceFromClipboard";         /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.2";                       /* バージョン / version */
-var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
-var SCRIPT_RELEASED = "2026-08-16";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-16";                   /* 更新日 / last updated */
+// スクリプト情報（再利用パーツ） / Script info (reusable)
+/* 基本情報は先頭の SCRIPTMETA が元。実行時に読んで SCRIPT_* に入れる（値は SCRIPTMETA を書き換え、helpers/sync-scriptmeta.py で同期）
+   The basic info lives in the SCRIPTMETA block at the top; it is read into SCRIPT_* at run time */
 
-var SCRIPT_DESCRIPTION_JA = "クリップボードの回答から領収書・請求書のPDFを書き出す"; /* README の見出し / README title (Japanese) */
+/**
+ * このスクリプトの先頭にある SCRIPTMETA の項目（Description の手前まで）を読む
+ * @returns {Object} 項目名 → 値（同じ項目は最初の値）。ファイルが読めなければ空のオブジェクト
+ */
+function readScriptMeta() {
+    var metaFields = {};
+    var scriptFile = new File($.fileName);
+    scriptFile.encoding = "UTF-8";
+    if (!scriptFile.exists || !scriptFile.open("r")) return metaFields;
+    /* 境界の文字列は分けて書く（コードの中に境界があると SCRIPTMETA を読むアプリが誤読するため）
+       Marker strings are split so apps that scan for SCRIPTMETA do not find them in the code */
+    var blockBegin = "SCRIPTMETA" + "-BEGIN";
+    var blockEnd = "SCRIPTMETA" + "-END";
+    var descriptionBegin = "Description" + "-BEGIN";
+    var isInBlock = false;
+    for (var lineCount = 0; lineCount < 200 && !scriptFile.eof; lineCount++) {
+        var metaLine = scriptFile.readln().replace(/\r$/, "");
+        if (metaLine === blockBegin) {
+            isInBlock = true;
+        } else if (isInBlock) {
+            if (metaLine === blockEnd || metaLine === descriptionBegin) break;
+            var separatorIndex = metaLine.indexOf("=");
+            var fieldKey = metaLine.substring(0, separatorIndex);
+            if (separatorIndex > 0 && !metaFields.hasOwnProperty(fieldKey)) metaFields[fieldKey] = metaLine.substring(separatorIndex + 1);
+        }
+    }
+    scriptFile.close();
+    return metaFields;
+}
 
-var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/InvoiceFromClipboard.md"; /* README（日本語） */
-var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/InvoiceFromClipboard.md"; /* README (English) */
-var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1901883d86cd"; /* 紹介記事 / article URL */
-var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/data/InvoiceFromClipboard.jsx"; /* 最新版のソース / latest source */
+var SCRIPT_META = readScriptMeta();
+
+/**
+ * SCRIPTMETA の項目の値を返す
+ * @param {string} fieldKey - 項目名（"Version"、"X-com.swwwitch-Updated" など）
+ * @returns {string} 値。項目が無ければ空文字
+ */
+function getScriptMetaValue(fieldKey) {
+    return SCRIPT_META.hasOwnProperty(fieldKey) ? SCRIPT_META[fieldKey] : "";
+}
+
+/* SCRIPTMETA が読めないとき（ファイルを経由しない実行）は、スクリプト名だけファイル名から補う / fall back to the file name */
+var SCRIPT_NAME           = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(new File($.fileName).name).replace(/\.[^.]+$/, ""); /* スクリプト名 / script name */
+var SCRIPT_VERSION        = getScriptMetaValue("Version") ? "v" + getScriptMetaValue("Version") : ""; /* バージョン / version */
+var SCRIPT_AUTHOR         = getScriptMetaValue("Author");                       /* 作者 / author */
+var SCRIPT_RELEASED       = getScriptMetaValue("Release-Date");                 /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED        = getScriptMetaValue("X-com.swwwitch-Updated");       /* 更新日 / last updated */
+var SCRIPT_DESCRIPTION_JA = getScriptMetaValue("Name");                         /* README の見出し / README title (Japanese) */
+var SCRIPT_README_JA      = getScriptMetaValue("X-com.swwwitch-README-JA");     /* README（日本語） */
+var SCRIPT_README_EN      = getScriptMetaValue("X-com.swwwitch-README-EN");     /* README (English) */
+var SCRIPT_ARTICLE_URL    = getScriptMetaValue("X-com.swwwitch-Article-URL");   /* 紹介記事 / article URL */
+var SCRIPT_SOURCE_URL     = getScriptMetaValue("X-com.swwwitch-Source-URL");    /* 最新版のソース / latest source */
+// スクリプト情報（再利用パーツ）ここまで / End of the reusable script info
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php

@@ -1,23 +1,26 @@
 #!/usr/bin/env python3
 """
-SCRIPTMETA（https://github.com/Yamonov/SCRIPTMETA）の同期ツール。
+SCRIPTMETA（SCRIPTMETAKit 2.1、https://github.com/Yamonov/SCRIPTMETAKit/blob/main/docs/MetadataAuthoring.md）の同期ツール。
 
-各 .jsx の基本情報ブロック（SCRIPT_NAME / SCRIPT_VERSION / SCRIPT_AUTHOR / SCRIPT_RELEASED）と
-ヘッダーの「### 概要」「### Overview」から SCRIPTMETA ブロック（Local Subset）を作り直す。
-更新確認は使わないので Meta-URL は書かない。
-あわせて基本情報ブロックの SCRIPT_SOURCE_URL（GitHub 上の最新版へのリンク）をファイルの置き場所から書き直す。
-SCRIPT_README_JA が指す README の見出し（# 行）を基本情報ブロックの SCRIPT_DESCRIPTION_JA と SCRIPTMETA の Name に入れる。
-README が無ければ手で書いた SCRIPT_DESCRIPTION_JA をそのまま残して Name に使い、それも無ければ Name は SCRIPT_NAME にする。
+スクリプトの基本情報は先頭の SCRIPTMETA ブロックが元で、スクリプトは実行時に「スクリプト情報」の部品
+（jsx/_templates/ScriptMeta.jsx）で読んで SCRIPT_NAME などに入れる。
+Version・Author・Release-Date・Description・X-com.swwwitch-Script-Name・Updated・README-JA/EN・Article-URL などは
+SCRIPTMETA を直接書き換える。このツールは残りを決まった形にそろえる：
+- Script-ID が無ければ ID_PREFIX＋Script-Name（ID_OVERRIDES）で作る。あれば変えない
+- Meta-Default-language=ja、Target-App
+- Name は X-com.swwwitch-README-JA が指す README の見出し、Name[en] は README-EN の見出し（README が無ければ今の値を残す）
+- Tags は置き場所のフォルダー（jsx/<フォルダー>/…）から英語・日本語の語を入れる（FOLDER_TAGS）
+- X-com.swwwitch-Source-URL は GitHub 上の最新版ソースの URL。URL の値は非 ASCII と空白をパーセントエンコードする
+- 項目の並びをそろえ、スクリプト情報の部品をテンプレートと同じ中身に書き直す
 
-SCRIPT_VERSION を上げたり概要や README の見出しを書き換えたり、スクリプトを追加・移動・改名したりしたら、コミット前に実行する。
+SCRIPTMETA を書き換えたり、README の見出しを変えたり、スクリプトを追加・移動・改名したりしたら、コミット前に実行する。
 
     python3 helpers/sync-scriptmeta.py          # 書き換える
     python3 helpers/sync-scriptmeta.py --check  # 差分があれば一覧を出して終了コード1
 
-Syncs the SCRIPTMETA block (Local Subset, no Meta-URL) in every .jsx from its basic info block
-and header overview, and rewrites SCRIPT_SOURCE_URL from the file's location. The Japanese README title
-goes into SCRIPT_DESCRIPTION_JA and Name; without a README, a hand-written SCRIPT_DESCRIPTION_JA is kept and used
-as Name (SCRIPT_NAME when there is neither). Run it before committing.
+The SCRIPTMETA block is the source of each script's basic info; scripts read it at run time with the
+Script info part. This tool fills in Script-ID, Name / Name[en] (README titles), Tags (folder), Source-URL,
+normalizes the field order and refreshes the Script info part from jsx/_templates/ScriptMeta.jsx.
 """
 import glob
 import os
@@ -30,13 +33,31 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ID_PREFIX = "com.swwwitch.illustrator."
 TARGET_APP = "Illustrator"
 SOURCE_URL_BASE = "https://github.com/swwwitch/illustrator-scripts/blob/master/"
-SOURCE_URL_COMMENT = "/* 最新版のソース / latest source */"
-DESCRIPTION_COMMENT = "/* README の見出し / README title (Japanese) */"
-HAND_DESCRIPTION_COMMENT = "/* 内容（README なし） / what it does (no README) */"
 EXCLUDE_DIRS = ("/_templates/",)
+DEFAULT_LANGUAGE = "ja"
+X_PREFIX = "X-com.swwwitch-"  # 独自項目の作成者 ID / author ID of the custom fields
+PART_TEMPLATE = os.path.join(ROOT, "jsx", "_templates", "ScriptMeta.jsx")
+PART_START = "// スクリプト情報（再利用パーツ） / Script info (reusable)"
+PART_END = "// スクリプト情報（再利用パーツ）ここまで / End of the reusable script info"
 
-# Script-ID に使えない文字（A-Z a-z 0-9 . _ - 以外）を含む SCRIPT_NAME と、改名したスクリプトの旧名の ID。
-# 一度公開した ID は変えない / IDs for names Script-ID does not allow, and the old IDs of renamed scripts. Never change once published
+# 独自項目の並び（ここに無い X- 項目は後ろに元の順で残す）/ order of the custom fields
+X_ORDER = (
+    "Script-Name",    # スクリプト名（SCRIPT_NAME。設定の保存名にも使うので変えない）
+    "Modified-By",    # 改変した人（他の人のスクリプトを元にしたとき。Author は元の作者）
+    "Updated",        # 更新日
+    "README-JA",      # README（日本語）
+    "README-EN",      # README（英語）
+    "Article-URL",    # 紹介記事
+    "Reference-URL",  # 参照記事
+    "Pro-URL",        # 上位版
+    "Source-URL",     # 最新版のソース（ツールが書く）
+)
+# 標準項目の並び（Name[en] は Name の直後、Tags と X- 項目は後ろ）/ order of the standard fields
+STANDARD_ORDER = ("Script-ID", "Meta-Default-language", "Name", "Name[en]", "Author", "Target-App", "Version", "Release-Date")
+
+# Script-ID に使えない文字（A-Z a-z 0-9 . _ - 以外）を含むスクリプト名と、改名したスクリプトの旧名の ID。
+# Script-ID が無い（新しい）スクリプトにだけ使う。一度公開した ID は変えない
+# IDs for names Script-ID does not allow, and the old IDs of renamed scripts. Used only when Script-ID is missing
 ID_OVERRIDES = {
     "TextHighlighter": "DrawMarkerBehindText",  # 2026-11-01 改名。公開済みの Script-ID を保つ
     "ガイドをテンプレートに": "GuidesToTemplate",
@@ -51,18 +72,61 @@ ID_OVERRIDES = {
     "AiDistributeColors": "AiApplySwatchesToSelection",
 }
 
-BLOCK_RE = re.compile(r"/\*\nSCRIPTMETA-BEGIN\n.*?\nSCRIPTMETA-END\n\*/\n\n", re.S)
+# jsx/ 直下のフォルダー → Tags（英語・日本語）/ top folder under jsx/ -> Tags
+FOLDER_TAGS = {
+    "alignment": ("alignment", "整列"),
+    "artboard": ("artboard", "アートボード"),
+    "blend": ("blend", "ブレンド"),
+    "color": ("color", "カラー"),
+    "data": ("data", "データ"),
+    "demo": ("demo", "デモ"),
+    "document": ("document", "ドキュメント"),
+    "export": ("export", "書き出し"),
+    "files": ("file", "ファイル"),
+    "font": ("font", "フォント"),
+    "fonts": ("font", "フォント"),
+    "frame": ("frame", "フレーム"),
+    "fx": ("effect", "効果"),
+    "group": ("group", "グループ"),
+    "guide": ("guide", "ガイド"),
+    "increment": ("numbering", "連番"),
+    "layers": ("layer", "レイヤー"),
+    "link": ("link", "リンク"),
+    "mask": ("mask", "マスク"),
+    "misc": ("misc", "その他"),
+    "outline": ("outline", "アウトライン"),
+    "page": ("page", "ページ"),
+    "path": ("path", "パス"),
+    "preference": ("preferences", "環境設定"),
+    "runner": ("launcher", "ランチャー"),
+    "select": ("selection", "選択"),
+    "shape": ("shape", "シェイプ"),
+    "sort": ("sort", "並べ替え"),
+    "stroke-table": ("stroke", "線", "table", "表"),
+    "style": ("style", "スタイル"),
+    "symbol": ("symbol", "シンボル"),
+    "table": ("table", "表"),
+    "text": ("text", "テキスト"),
+    "transform": ("transform", "変形"),
+}
+
+BLOCK_RE = re.compile(r"/\*\nSCRIPTMETA-BEGIN\n(?P<fields>.*?)(?:\nDescription-BEGIN\n(?P<desc>.*?)\nDescription-END)?\nSCRIPTMETA-END\n\*/\n", re.S)
+PART_RE = re.compile(re.escape(PART_START) + r"\n.*?" + re.escape(PART_END) + r"\n", re.S)
 SCRIPT_ID_RE = re.compile(r"^[A-Za-z0-9._-]+$")
+RESERVED_RE = re.compile(r"(SCRIPTMETA(-DIST)?|Description)-(BEGIN|END)", re.I)
 
 
-def read_var(text, key):
-    m = re.search(r'^var\s+' + key + r'\s*=\s*"([^"]*)"', text, re.M)
-    return m.group(1) if m else None
+def read_part():
+    with open(PART_TEMPLATE, encoding="utf-8") as fp:
+        match = PART_RE.search(fp.read())
+    if not match:
+        sys.exit("ERROR " + PART_TEMPLATE + " にスクリプト情報の部品がありません")
+    return match.group(0)
 
 
-def read_readme_title(text):
-    """SCRIPT_README_JA が指す README の見出し（# 行）を返す。README が無ければ None"""
-    m = re.search(r"/blob/[^/]+/(.+)$", read_var(text, "SCRIPT_README_JA") or "")
+def readme_title(url, is_japanese):
+    """README の URL（.../blob/<branch>/<path>）が指すファイルの見出し（# 行）を返す。ファイルが無ければ None"""
+    m = re.search(r"/blob/[^/]+/(.+)$", url or "")
     if not m:
         return None
     path = os.path.join(ROOT, urllib.parse.unquote(m.group(1)))
@@ -73,119 +137,117 @@ def read_readme_title(text):
     if not heading:
         return None
     title = unicodedata.normalize("NFC", heading.group(1).strip())
-    if '"' in title or "\\" in title or "*/" in title:
-        raise ValueError("README の見出しに \" \\ */ があります: " + title)
+    if "*/" in title or RESERVED_RE.search(title) or (is_japanese and ('"' in title or "\\" in title)):
+        raise ValueError("README の見出しに使えない文字があります: " + title)
     return title
 
 
-def read_section(text, heading, stop_prefixes):
-    """「### 見出し」から README 案内の手前までの段落を返す"""
-    start = text.find(heading)
-    if start < 0:
-        return ""
-    lines = text[start + len(heading):].split("\n")
-    out = []
-    for line in lines:
-        s = line.strip()
-        if s.startswith("###") or s.startswith("*/") or any(s.startswith(p) for p in stop_prefixes):
-            break
-        out.append(line.rstrip())
-    return "\n".join(out).strip("\n")
+def source_url(rel):
+    """GitHub 上の最新版ソースの URL / URL of the latest source on GitHub"""
+    return SOURCE_URL_BASE + unicodedata.normalize("NFC", rel.replace(os.sep, "/"))
 
 
-def build_block(path, text, title):
-    name = read_var(text, "SCRIPT_NAME")
-    version = read_var(text, "SCRIPT_VERSION")
-    if not name or not version:
-        raise ValueError("SCRIPT_NAME / SCRIPT_VERSION がありません")
-    script_id = ID_PREFIX + ID_OVERRIDES.get(name, name)
+def encode_url(url):
+    """X 値用に非 ASCII と空白をパーセントエンコードする（エンコード済みの % はそのまま）"""
+    return urllib.parse.quote(unicodedata.normalize("NFC", url), safe=":/?#[]@!$&'()*+,;=%~")
+
+
+def folder_tags(rel):
+    """jsx/<フォルダー>/… のフォルダーから Tags を返す。表に無いフォルダーはエラー"""
+    parts = rel.replace(os.sep, "/").split("/")
+    if len(parts) < 3:
+        return ()
+    if parts[1] not in FOLDER_TAGS:
+        raise ValueError("FOLDER_TAGS にフォルダーがありません: " + parts[1])
+    return FOLDER_TAGS[parts[1]]
+
+
+def parse_fields(block_text):
+    """SCRIPTMETA の項目（Description より前）を [(キー, 値)] で返す"""
+    fields = []
+    for line in block_text.split("\n"):
+        if not line.strip():
+            continue
+        key, sep, value = line.partition("=")
+        if not sep:
+            raise ValueError("「キー=値」でない行があります: " + line)
+        fields.append((key.strip(), value.strip()))
+    return fields
+
+
+def build_block(rel, fields, desc):
+    values = {}
+    for key, value in fields:
+        if key == "Tags":
+            continue
+        if key in values:
+            raise ValueError("同じ項目が2つあります: " + key)
+        values[key] = value
+
+    script_name = values.get(X_PREFIX + "Script-Name")
+    if not script_name:
+        raise ValueError(X_PREFIX + "Script-Name がありません")
+    version = values.get("Version", "")
+    if not re.match(r"^\d+(\.\d+)*$", version):
+        raise ValueError("Version の形式が不正です（v は付けない）: " + version)
+    script_id = values.get("Script-ID") or ID_PREFIX + ID_OVERRIDES.get(script_name, script_name)
     if not SCRIPT_ID_RE.match(script_id):
         raise ValueError("Script-ID に使えない文字があります（ID_OVERRIDES に追加）: " + script_id)
-    version = version.lstrip("v")
-    if not re.match(r"^\d+(\.\d+)*$", version):
-        raise ValueError("Version の形式が不正です: " + version)
 
-    ja = read_section(text, "### 概要", ("詳細は", "note記事"))
-    en = read_section(text, "### Overview", ("See the README",))
-    desc = "\n\n".join(p for p in (ja, en) if p)
-    for line in desc.split("\n"):
-        if line.strip() in ("Description-END", "SCRIPTMETA-END") or "*/" in line:
-            raise ValueError("説明文に使えない行があります: " + line)
-
-    lines = ["/*", "SCRIPTMETA-BEGIN", "Script-ID=" + script_id, "Name=" + (title or name)]
-    author = read_var(text, "SCRIPT_AUTHOR")
-    if author:
-        lines.append("Author=" + author)
-    lines += ["Target-App=" + TARGET_APP, "Version=" + version]
-    released = read_var(text, "SCRIPT_RELEASED")
-    if released:
-        lines.append("Release-Date=" + released)
-    if desc:
-        lines += ["Description-BEGIN", desc, "Description-END"]
-    lines += ["SCRIPTMETA-END", "*/", "", ""]
-    return script_id, "\n".join(lines)
-
-
-def insert_block(text, block):
-    if BLOCK_RE.search(text):
-        return BLOCK_RE.sub(lambda m: block, text, count=1)
-    # ヘッダーコメント（### 概要）の直前に置く。無ければ #target などの指令行の後
-    head = text.find("### 概要")
-    pos = text.rfind("/*", 0, head) if head >= 0 else -1
-    if pos < 0:
-        pos = 0
-        for m in re.finditer(r"^(#.*|app\.preferences\..*)\n", text, re.M):
-            if text[pos:m.start()].strip():
-                break
-            pos = m.end()
-        block = ("\n" if pos else "") + block
-    return text[:pos] + block + text[pos:]
-
-
-def sync_basic_info(text, rel, title, comment):
-    """基本情報ブロックの URL の組（README・記事など）の末尾に SCRIPT_SOURCE_URL を置き、組の = をそろえ直す。
-    1組目と URL の組のあいだに SCRIPT_DESCRIPTION_JA だけの組を置く（title が無ければ置かない）"""
-    lines = text.split("\n")
-    try:
-        start = lines.index("// 基本情報 / Basic info") + 2
-    except ValueError:
-        raise ValueError("基本情報ブロックがありません")
-    # 前回置いた SCRIPT_DESCRIPTION_JA の組はいったん外して作り直す
-    for i in range(start, len(lines) - 1):
-        if lines[i] == "" and lines[i + 1].startswith("var SCRIPT_DESCRIPTION_JA "):
-            del lines[i:i + 2]
-            break
-    end = start
-    while end < len(lines) and lines[end].startswith("var SCRIPT_"):
-        end += 1
-    if end == start:
-        raise ValueError("基本情報ブロックに変数がありません")
-
-    # 空行をはさんだ2組目があればそこへ足し、無ければ2組目を作る
-    if end + 1 < len(lines) and lines[end] == "" and lines[end + 1].startswith("var SCRIPT_"):
-        group_start = group_end = end + 1
-        while group_end < len(lines) and lines[group_end].startswith("var SCRIPT_"):
-            group_end += 1
-        group = [l for l in lines[group_start:group_end] if not l.startswith("var SCRIPT_SOURCE_URL ")]
-    else:
-        group_start = group_end = end
-        group = []
-
-    url = SOURCE_URL_BASE + unicodedata.normalize("NFC", rel.replace(os.sep, "/"))
-    group.append('var SCRIPT_SOURCE_URL = "%s"; %s' % (url, SOURCE_URL_COMMENT))
-    pairs = [re.match(r"var (\w+)\s*=(.*)$", l).groups() for l in group]
-    width = max(len(name) for name, _ in pairs)
-    group = ["var %s =%s" % (name.ljust(width), rest) for name, rest in pairs]
-    if group_start == end:
-        group = [""] + group
-    lines = lines[:group_start] + group + lines[group_end:]
+    for key in list(values):
+        if key.startswith(X_PREFIX) and values[key].startswith("http"):
+            values[key] = encode_url(values[key])
+    values["Script-ID"] = script_id
+    values["Meta-Default-language"] = DEFAULT_LANGUAGE
+    values["Target-App"] = TARGET_APP
+    values[X_PREFIX + "Source-URL"] = encode_url(source_url(rel))
+    title = readme_title(values.get(X_PREFIX + "README-JA"), True)
     if title:
-        lines[end:end] = ["", 'var SCRIPT_DESCRIPTION_JA = "%s"; %s' % (title, comment)]
-    return "\n".join(lines)
+        values["Name"] = title
+    title_en = readme_title(values.get(X_PREFIX + "README-EN"), False)
+    if title_en:
+        values["Name[en]"] = title_en
+    if not values.get("Name"):
+        raise ValueError("Name がありません（README が無いときは手で書く）")
+    if '"' in values["Name"] or "\\" in values["Name"]:
+        raise ValueError("Name に \" \\ は使えません: " + values["Name"])
+
+    lines = ["/*", "SCRIPTMETA-BEGIN"]
+    for key in STANDARD_ORDER:
+        if values.get(key):
+            lines.append(key + "=" + values.pop(key))
+        values.pop(key, None)
+    tags = folder_tags(rel)
+    if tags:
+        lines.append("Tags=" + ",".join(tags))
+    custom_keys = [X_PREFIX + name for name in X_ORDER] + [k for k in values if k not in [X_PREFIX + n for n in X_ORDER]]
+    for key in custom_keys:
+        if key not in values:
+            continue
+        value = values.pop(key)
+        if not key.startswith("X-"):
+            # 知らない標準項目もそのまま残す / keep unknown standard fields
+            lines.append(key + "=" + value)
+            continue
+        if "*/" in value or re.search(r"[\r\n]", value) or RESERVED_RE.search(value):
+            raise ValueError("独自項目に使えない値です: " + key + "=" + value)
+        if re.search(r"(^|\s)(Script-ID|Version|Description|Target-App|Min-Target-Version|Meta-URL|Latest-URL|Latest-Version|"
+                     r"Latest-Page-URL|Name|Author|Release-Date|Edit-Password-SHA256)\s*[=:]", value, re.I):
+            raise ValueError("独自項目の値が旧1.xで項目と誤読されます: " + key + "=" + value)
+        lines.append(key + "=" + value)
+
+    if desc is not None:
+        for line in desc.split("\n"):
+            if "*/" in line or RESERVED_RE.search(line):
+                raise ValueError("説明文に使えない行があります: " + line)
+        lines += ["Description-BEGIN", desc, "Description-END"]
+    lines += ["SCRIPTMETA-END", "*/", ""]
+    return script_id, "\n".join(lines)
 
 
 def main():
     check = "--check" in sys.argv
+    part = read_part()
     files = sorted(
         f for f in glob.glob(os.path.join(ROOT, "jsx", "**", "*.jsx"), recursive=True)
         if not any(d in f.replace(os.sep, "/") for d in EXCLUDE_DIRS)
@@ -196,20 +258,17 @@ def main():
         with open(path, encoding="utf-8", newline="") as fp:
             text = fp.read()
         try:
-            title, comment = read_readme_title(text), DESCRIPTION_COMMENT
-            if not title:
-                # README が無いスクリプトは手で書いた SCRIPT_DESCRIPTION_JA を使う / fall back to a hand-written value
-                title, comment = read_var(text, "SCRIPT_DESCRIPTION_JA"), HAND_DESCRIPTION_COMMENT
-            script_id, block = build_block(path, text, title)
-        except ValueError as e:
-            errors.append(rel + ": " + str(e))
-            continue
-        if script_id in seen:
-            errors.append(rel + ": Script-ID が " + seen[script_id] + " と重複しています")
-            continue
-        seen[script_id] = rel
-        try:
-            new_text = sync_basic_info(insert_block(text, block), rel, title, comment)
+            match = BLOCK_RE.search(text)
+            if not match:
+                raise ValueError("SCRIPTMETA がありません（既存のスクリプトからコピーして書く）")
+            script_id, block = build_block(rel, parse_fields(match.group("fields")), match.group("desc"))
+            if script_id in seen:
+                raise ValueError("Script-ID が " + seen[script_id] + " と重複しています")
+            seen[script_id] = rel
+            new_text = text[:match.start()] + block + text[match.end():]
+            if len(PART_RE.findall(new_text)) != 1:
+                raise ValueError("スクリプト情報の部品がありません（" + os.path.relpath(PART_TEMPLATE, ROOT) + " から貼る）")
+            new_text = PART_RE.sub(lambda m: part, new_text, count=1)
         except ValueError as e:
             errors.append(rel + ": " + str(e))
             continue
@@ -218,7 +277,6 @@ def main():
             if not check:
                 with open(path, "w", encoding="utf-8", newline="") as fp:
                     fp.write(new_text)
-
 
     for e in errors:
         print("ERROR " + e)

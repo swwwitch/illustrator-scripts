@@ -93,7 +93,7 @@ https://gorolib.blog.jp/archives/71820861.html
 
 ### 紹介記事
 
-https://note.com/dtp_transit/n/n15d3c6c5a1e5
+https://note.com/dtp_tranist/n/n15d3c6c5a1e5
 
 ### 更新履歴
 

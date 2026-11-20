@@ -5,59 +5,91 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 /*
 SCRIPTMETA-BEGIN
 Script-ID=com.swwwitch.illustrator.PDFAIImporter
+Meta-Default-language=ja
 Name=PDF/AIをページ範囲で読み込んで配置
+Name[en]=Import a page range from a PDF/AI file
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
 Version=1.4.2
 Release-Date=2026-04-13
+Tags=file,ファイル
+X-com.swwwitch-Script-Name=PDFAIImporter
+X-com.swwwitch-Updated=2026-11-20
+X-com.swwwitch-README-JA=https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/PDFAIImporter.md
+X-com.swwwitch-README-EN=https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PDFAIImporter.md
+X-com.swwwitch-Article-URL=https://note.com/dtp_tranist/n/n42595650216f
+X-com.swwwitch-Source-URL=https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/files/PDFAIImporter.jsx
 Description-BEGIN
+[ja]
 PDF/AI ファイルを指定したページ範囲で読み込み、現在のドキュメントまたは新規ドキュメント上に配置します。
 各ページを個別のアートボードとして並べるか、アートボードを追加せずオブジェクトとして配置するかを選べます。横長の見開きページは左右に分割できます。
-
+[en]
 Imports a PDF/AI file over a given page range and places the pages in the current or a new document.
 The pages can be laid out as one artboard each, or placed as objects without adding artboards. Landscape spreads can be split left and right.
 Description-END
 SCRIPTMETA-END
 */
 
-/*
-
-### 概要
-
-PDF/AI ファイルを指定したページ範囲で読み込み、現在のドキュメントまたは新規ドキュメント上に配置します。
-各ページを個別のアートボードとして並べるか、アートボードを追加せずオブジェクトとして配置するかを選べます。横長の見開きページは左右に分割できます。
-
-詳細は README を参照してください。
-https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/PDFAIImporter.md
-
-note記事も参照してください。
-https://note.com/dtp_tranist/n/n42595650216f
-
-### Overview
-
-Imports a PDF/AI file over a given page range and places the pages in the current or a new document.
-The pages can be laid out as one artboard each, or placed as objects without adding artboards. Landscape spreads can be split left and right.
-
-See the README for details.
-https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PDFAIImporter.md
-
-*/
-
 // =========================================
 // 基本情報 / Basic info
 // =========================================
-var SCRIPT_NAME     = "PDFAIImporter";                /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.4.2";                        /* バージョン / version */
-var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
-var SCRIPT_RELEASED = "2026-04-13";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-11-20";                   /* 更新日 / last updated */
+// スクリプト情報（再利用パーツ） / Script info (reusable)
+/* 基本情報は先頭の SCRIPTMETA が元。実行時に読んで SCRIPT_* に入れる（値は SCRIPTMETA を書き換え、helpers/sync-scriptmeta.py で同期）
+   The basic info lives in the SCRIPTMETA block at the top; it is read into SCRIPT_* at run time */
 
-var SCRIPT_DESCRIPTION_JA = "PDF/AIをページ範囲で読み込んで配置"; /* README の見出し / README title (Japanese) */
+/**
+ * このスクリプトの先頭にある SCRIPTMETA の項目（Description の手前まで）を読む
+ * @returns {Object} 項目名 → 値（同じ項目は最初の値）。ファイルが読めなければ空のオブジェクト
+ */
+function readScriptMeta() {
+    var metaFields = {};
+    var scriptFile = new File($.fileName);
+    scriptFile.encoding = "UTF-8";
+    if (!scriptFile.exists || !scriptFile.open("r")) return metaFields;
+    /* 境界の文字列は分けて書く（コードの中に境界があると SCRIPTMETA を読むアプリが誤読するため）
+       Marker strings are split so apps that scan for SCRIPTMETA do not find them in the code */
+    var blockBegin = "SCRIPTMETA" + "-BEGIN";
+    var blockEnd = "SCRIPTMETA" + "-END";
+    var descriptionBegin = "Description" + "-BEGIN";
+    var isInBlock = false;
+    for (var lineCount = 0; lineCount < 200 && !scriptFile.eof; lineCount++) {
+        var metaLine = scriptFile.readln().replace(/\r$/, "");
+        if (metaLine === blockBegin) {
+            isInBlock = true;
+        } else if (isInBlock) {
+            if (metaLine === blockEnd || metaLine === descriptionBegin) break;
+            var separatorIndex = metaLine.indexOf("=");
+            var fieldKey = metaLine.substring(0, separatorIndex);
+            if (separatorIndex > 0 && !metaFields.hasOwnProperty(fieldKey)) metaFields[fieldKey] = metaLine.substring(separatorIndex + 1);
+        }
+    }
+    scriptFile.close();
+    return metaFields;
+}
 
-var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/PDFAIImporter.md"; /* README（日本語） */
-var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PDFAIImporter.md"; /* README (English) */
-var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42595650216f"; /* 紹介記事 / article URL */
-var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/files/PDFAIImporter.jsx"; /* 最新版のソース / latest source */
+var SCRIPT_META = readScriptMeta();
+
+/**
+ * SCRIPTMETA の項目の値を返す
+ * @param {string} fieldKey - 項目名（"Version"、"X-com.swwwitch-Updated" など）
+ * @returns {string} 値。項目が無ければ空文字
+ */
+function getScriptMetaValue(fieldKey) {
+    return SCRIPT_META.hasOwnProperty(fieldKey) ? SCRIPT_META[fieldKey] : "";
+}
+
+/* SCRIPTMETA が読めないとき（ファイルを経由しない実行）は、スクリプト名だけファイル名から補う / fall back to the file name */
+var SCRIPT_NAME           = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(new File($.fileName).name).replace(/\.[^.]+$/, ""); /* スクリプト名 / script name */
+var SCRIPT_VERSION        = getScriptMetaValue("Version") ? "v" + getScriptMetaValue("Version") : ""; /* バージョン / version */
+var SCRIPT_AUTHOR         = getScriptMetaValue("Author");                       /* 作者 / author */
+var SCRIPT_RELEASED       = getScriptMetaValue("Release-Date");                 /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED        = getScriptMetaValue("X-com.swwwitch-Updated");       /* 更新日 / last updated */
+var SCRIPT_DESCRIPTION_JA = getScriptMetaValue("Name");                         /* README の見出し / README title (Japanese) */
+var SCRIPT_README_JA      = getScriptMetaValue("X-com.swwwitch-README-JA");     /* README（日本語） */
+var SCRIPT_README_EN      = getScriptMetaValue("X-com.swwwitch-README-EN");     /* README (English) */
+var SCRIPT_ARTICLE_URL    = getScriptMetaValue("X-com.swwwitch-Article-URL");   /* 紹介記事 / article URL */
+var SCRIPT_SOURCE_URL     = getScriptMetaValue("X-com.swwwitch-Source-URL");    /* 最新版のソース / latest source */
+// スクリプト情報（再利用パーツ）ここまで / End of the reusable script info
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
@@ -1497,7 +1529,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     // -----------------------------------------
     // このスクリプトについて / About this script
     // -----------------------------------------
-    /* 左下のスクリプト名・バージョンをクリックすると開く。基本情報ブロックの SCRIPT_* を読み、
+    /* 左下のスクリプト名・バージョンをクリックすると開く。SCRIPTMETA から読んだ SCRIPT_*（スクリプト情報の部品）を読み、
        この部品だけで動くよう、文言（VERSION_INFO_LABELS）とレイアウトの値も部品の中に持つ
        Opened by clicking the name and version at the bottom left. Reads the SCRIPT_* basic info,
        and keeps its own labels and layout values so the part works on its own */
@@ -1509,6 +1541,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     var VERSION_INFO_SCRIPT_FILE = new File($.fileName);
     var VERSION_INFO_REVEAL_APP_PATH = "/Applications/RevealInFinder.app";   /* Finder で選択表示する補助アプリ / helper app that reveals a file in the Finder */
     var VERSION_INFO_REVEAL_PATH_FILE = "/tmp/illustrator_reveal_path.txt";  /* 補助アプリが読むパス（アプリの旧名のまま。変えると読めない）/ path the helper reads (keeps the app's old name) */
+    var VERSION_INFO_FILE_VIEWER_APP_PATH = "/Applications/OpenInFileViewer.app";   /* Path Finder が起動中なら Path Finder、そうでなければ Finder で選択表示する補助アプリ / helper app that reveals a file in Path Finder when it is running, otherwise in the Finder */
+    var VERSION_INFO_FILE_VIEWER_PATH_FILE = "/tmp/open_in_file_viewer_path.txt"; /* OpenInFileViewer.app が読むパス / path the helper reads */
 
     var VERSION_INFO_WINDOW_MARGINS = 16;               /* ウィンドウの余白 / window margin */
     var VERSION_INFO_WINDOW_SPACING = 12;               /* ウィンドウ内の間隔 / window spacing */
@@ -1563,7 +1597,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     }
 
     /**
-     * 基本情報ブロックの値を返す（変数が無い・文字列でなければ空文字）。typeof で読むので、未定義でも例外にならない
+     * SCRIPT_* の値を返す（変数が無い・文字列でなければ空文字）。typeof で読むので、未定義でも例外にならない
      * @param {string} variableKey - "name" / "version" / "feature" / "readme" / "source" / "article"
      * @returns {string} 値
      */
@@ -1939,27 +1973,39 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     }
 
     /**
-     * ファイルを Finder で表示する。RevealInFinder.app があればファイルを選択した状態で表示し、無ければ入っているフォルダーを開く
+     * ファイルを選択した状態で表示する。OpenInFileViewer.app があれば Path Finder が起動中なら Path Finder、そうでなければ Finder で表示し、
+     * 無ければ RevealInFinder.app で Finder に表示する。どちらも無いときは入っているフォルダーを開く
      * @param {File} scriptFile - 表示するファイル
      * @returns {void}
      */
     function revealVersionInfoScriptFile(scriptFile) {
-        /* .app は実体がフォルダーなので File.exists が false になる環境がある。Folder でも確かめる / An .app is a folder, so check with Folder too */
-        var hasRevealApp = (File.fs === "Macintosh")
-            && (new Folder(VERSION_INFO_REVEAL_APP_PATH).exists || new File(VERSION_INFO_REVEAL_APP_PATH).exists);
-        /* アプリは一時ファイルからパスを読むので、書き出してから起動する / The app reads the path from a temp file */
-        if (hasRevealApp && writeVersionInfoRevealPath(scriptFile.fsName) && new File(VERSION_INFO_REVEAL_APP_PATH).execute()) return;
+        if (launchVersionInfoHelperApp(VERSION_INFO_FILE_VIEWER_APP_PATH, VERSION_INFO_FILE_VIEWER_PATH_FILE, scriptFile.fsName)) return;
+        if (launchVersionInfoHelperApp(VERSION_INFO_REVEAL_APP_PATH, VERSION_INFO_REVEAL_PATH_FILE, scriptFile.fsName)) return;
         /* アプリが無い・起動できないときは、何も起きないままにせずフォルダーを開く / Otherwise open the enclosing folder */
         scriptFile.parent.execute();
     }
 
     /**
-     * RevealInFinder.app に渡すパスを一時ファイルへ書き出す（UTF-8、改行なし）
+     * 補助アプリが読む一時ファイルにパスを書き出してから、アプリを起動する
+     * @param {string} appPath - 補助アプリ（.app）のパス
+     * @param {string} pathFilePath - アプリが読む一時ファイルのパス
+     * @param {string} targetPath - 表示するファイルの絶対パス
+     * @returns {boolean} 起動できたら true。Mac 以外・アプリが無い・起動できないときは false
+     */
+    function launchVersionInfoHelperApp(appPath, pathFilePath, targetPath) {
+        /* .app は実体がフォルダーなので File.exists が false になる環境がある。Folder でも確かめる / An .app is a folder, so check with Folder too */
+        if (File.fs !== "Macintosh" || !(new Folder(appPath).exists || new File(appPath).exists)) return false;
+        return writeVersionInfoRevealPath(pathFilePath, targetPath) && new File(appPath).execute();
+    }
+
+    /**
+     * 補助アプリに渡すパスを一時ファイルへ書き出す（UTF-8、改行なし）
+     * @param {string} pathFilePath - 一時ファイルのパス
      * @param {string} targetPath - 絶対パス
      * @returns {boolean} 書き出せたら true
      */
-    function writeVersionInfoRevealPath(targetPath) {
-        var pathFile = new File(VERSION_INFO_REVEAL_PATH_FILE);
+    function writeVersionInfoRevealPath(pathFilePath, targetPath) {
+        var pathFile = new File(pathFilePath);
         pathFile.encoding = "UTF-8";
         pathFile.lineFeed = "Unix";
         if (!pathFile.open("w")) return false;
