@@ -16,7 +16,7 @@ Works without an existing gradient stroke, and each path gets its own gradient, 
 ### Features
 
 - Sets dashes (1 pt dash, blank gap), round caps and Align Dashes to Corners and Path Ends on the strokes of the selected paths (including those in groups and compound paths)
-- Reverses the path direction and rotates the paths by 90° (puts the start of a circle at the top)
+- Reverses the path direction and sets the angle of live ellipses to 90° (the angle in Ellipse Properties of the Transform panel)
 - Turns the stroke into a two-color segmented gradient: base from the start, accent over the last accent % (20% puts the boundary at 80%)
 - Set in the dialog box
   - Base and accent: click a chip to change the color with Illustrator's standard color picker
@@ -27,7 +27,7 @@ Works without an existing gradient stroke, and each path gets its own gradient, 
 - Defaults
   - For a gradient stroke, the start color becomes the base and the end color the accent; if it is already split in two, the accent % comes from the current boundary
   - Otherwise, the stroke color (light gray when there is no stroke) becomes the base, red the accent, and the accent % is 20%
-- Cancel restores the stroke settings, direction, rotation and gradients
+- Cancel restores the stroke settings, direction, ellipse angle and gradients
 
 ### Usage
 
@@ -40,9 +40,11 @@ Works without an existing gradient stroke, and each path gets its own gradient, 
 - Scripts cannot set the stroke gradient type. A gradient newly added to a stroke without one uses Apply Gradient Within Stroke (the default), so switch to Apply Gradient Along Stroke in the Gradient panel for a ring chart. Strokes that already had a gradient keep their type.
 - The dashes are set with a stroke action, so arrowheads are removed and the stroke is aligned to center. Align Dashes to Corners and Path Ends stays on even after Cancel.
 - Each run adds one gradient swatch per path.
-- Running it twice on the same path reverses and rotates the path again.
-- Change the rotation (GRAPH_ROTATION), the default accent % (DEFAULT_ACCENT_PERCENT), the default colors (DEFAULT_BASE_COLOR, DEFAULT_ACCENT_COLOR) and the dash values (STROKE_DASH_PATTERN) at the top of the script.
+- The ellipse angle applies only to live ellipses. Cancel sets it to 0°, since the original angle cannot be read.
+- Running it twice on the same path reverses the path again.
+- Change the ellipse angles (ELLIPSE_ANGLE, ELLIPSE_ANGLE_ON_CANCEL), the default accent % (DEFAULT_ACCENT_PERCENT), the default colors (DEFAULT_BASE_COLOR, DEFAULT_ACCENT_COLOR) and the dash values (STROKE_DASH_PATTERN) at the top of the script.
 
 ### Update History
 
+- v1.0.1 (2026-11-20) Replaced the 90° rotation with setting the angle of live ellipses to 90° (dynamic action)
 - v1.0.0 (2026-11-20) First release

@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.StrokeGraph
 Name=線を2色の破線グラフにする
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.0.0
+Version=1.0.1
 Release-Date=2026-11-20
 Description-BEGIN
 選択したパスの線を、ベースとアクセントの2色で塗り分けた丸型の破線にして、円グラフや進捗バーのような線のグラフを作ります。
@@ -44,7 +44,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/StrokeGrap
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "StrokeGraph";                  /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-11-20";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-11-20";                   /* 更新日 / last updated */
@@ -64,8 +64,11 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
     // ユーザー設定 / User Settings
     // =========================================
 
-    /* パスに掛ける回転（度。プラスは反時計回り） / Rotation applied to the paths (degrees; positive is counterclockwise) */
-    var GRAPH_ROTATION = 90;
+    /* 楕円のライブシェイプに入れる角度（度。変形パネルの［楕円形のプロパティ］の角度） / Angle set on live ellipses (degrees) */
+    var ELLIPSE_ANGLE = 90;
+
+    /* ［キャンセル］で入れ直す楕円の角度（元の角度は読めないため、作成時の 0° に戻す） / Angle restored on Cancel (the original cannot be read) */
+    var ELLIPSE_ANGLE_ON_CANCEL = 0;
 
     /* アクセントの%の初期値（線がまだ2色に分かれていないとき） / Default accent % when the stroke is not split yet */
     var DEFAULT_ACCENT_PERCENT = 20;
@@ -2404,6 +2407,8 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
 
     var DASH_ACTION_SET_NAME = "SwwwitchTempDashSet";
     var DASH_ACTION_NAME     = "SwwwitchTempDash";
+    var ELLIPSE_ACTION_SET_NAME = "SwwwitchTempEllipseSet";
+    var ELLIPSE_ACTION_NAME     = "SwwwitchTempEllipseAngle";
     var ACTION_UNIT_POINT    = 592476268;  /* ポイント / point（parameter /unit） */
 
     /* 線の設定（ai_plugin_setStroke）のパラメーターキー。記録した .aia から採取 / Parameter keys of ai_plugin_setStroke, taken from a recorded .aia */
@@ -2517,7 +2522,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
     }
 
     /**
-     * 線のグラフにする。先にパスごとの専用のグラデーションへ付け替え、破線・丸型線端を入れ、方向を反転して回転する。
+     * 線のグラフにする。先にパスごとの専用のグラデーションへ付け替え、破線・丸型線端を入れ、方向を反転して楕円の角度を入れる。
      * ダイアログボックスの入力に合わせてストップと線幅を書き込み、［キャンセル］ではすべて元に戻す
      * @param {Document} doc - 対象ドキュメント
      * @param {PathItem[]} graphPaths - collectGraphPaths() の戻り値
@@ -2533,7 +2538,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
         var gradientSwaps = attachOwnGradients(doc, graphPaths);
         if (!applyDashSettings(graphPaths)) alert(getLabel("alert.dashAlignFailed"));
         reversePathDirections(graphPaths);
-        rotatePaths(graphPaths, GRAPH_ROTATION);
+        setEllipseAngle(graphPaths, ELLIPSE_ANGLE);
 
         /**
          * ベース・アクセントの2色のストップと線幅を書き込む
@@ -2569,7 +2574,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
             return;
         }
         /* 取り消し：掛けた順の逆に戻す / Cancel: undo in reverse order */
-        rotatePaths(graphPaths, -GRAPH_ROTATION);
+        setEllipseAngle(graphPaths, ELLIPSE_ANGLE_ON_CANCEL);
         reversePathDirections(graphPaths);
         restoreStrokeSnapshots(strokeSnapshots, true);
         detachOwnGradients(gradientSwaps);
@@ -2932,16 +2937,49 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/illustrator-scripts/blob/ma
     }
 
     /**
-     * パスを中心で回転する（ロック中などで回せなくても、残りは続ける）
+     * パスを選択して、楕円のライブシェイプの角度を入れる一時アクション（楕円形のシェイププロパティ）を実行し、選択を戻す。
+     * 楕円でないパスには効かない
      * @param {PathItem[]} paths - パス
-     * @param {number} angle - 角度（度。マイナスは時計回り）
+     * @param {number} angle - 角度（度）
      * @returns {void}
      */
-    function rotatePaths(paths, angle) {
-        for (var i = 0; i < paths.length; i++) {
-            try { paths[i].rotate(angle); } catch (e) { $.writeln("rotatePaths: " + e); }
+    function setEllipseAngle(paths, angle) {
+        var doc = app.activeDocument;
+        var savedSelection = doc.selection;
+        try {
+            doc.selection = paths;
+            runTemporaryAction(buildEllipseAngleActionSource(angle), ELLIPSE_ACTION_SET_NAME, ELLIPSE_ACTION_NAME);
+        } catch (e) {
+            $.writeln("setEllipseAngle: " + e);
         }
+        restoreSelection(doc, savedSelection);
         app.redraw();
+    }
+
+    /**
+     * 楕円のライブシェイプの角度を入れる一時アクション（ai_liveshape_ellipse）を作る
+     * @param {number} angle - 角度（度）
+     * @returns {string} アクション定義のテキスト
+     */
+    function buildEllipseAngleActionSource(angle) {
+        return ["/version 3"]
+            .concat(buildActionNameLines("", ELLIPSE_ACTION_SET_NAME))
+            .concat(["/isOpen 1", "/actionCount 1", "/action-1 {"])
+            .concat(buildActionNameLines("\t", ELLIPSE_ACTION_NAME))
+            .concat(["\t/keyIndex 0", "\t/colorIndex 0", "\t/isOpen 1", "\t/eventCount 1", "\t/event-1 {",
+                "\t\t/useRulersIn1stQuadrant 0", "\t\t/internalName (ai_liveshape_ellipse)"])
+            .concat(buildActionNameLines("\t\t", "楕円形のシェイププロパティ", "localizedName"))
+            .concat(["\t\t/isOpen 1", "\t\t/isOn 1", "\t\t/hasDialog 0", "\t\t/parameterCount 3",
+                /* shap / type：角度の項目 / which ellipse property to set (the angle) */
+                "\t\t/parameter-1 {", "\t\t\t/key 1936220528", "\t\t\t/showInPalette 4294967295", "\t\t\t/type (enumerated)",
+                "\t\t\t/name [ 0", "", "\t\t\t]", "\t\t\t/value 9", "\t\t}",
+                "\t\t/parameter-2 {", "\t\t\t/key 1954115685", "\t\t\t/showInPalette 4294967295", "\t\t\t/type (enumerated)",
+                "\t\t\t/name [ 0", "", "\t\t\t]", "\t\t\t/value 6", "\t\t}",
+                /* angl：角度 / angle */
+                "\t\t/parameter-3 {", "\t\t\t/key 1634625388", "\t\t\t/showInPalette 4294967295", "\t\t\t/type (unit real)",
+                "\t\t\t/value " + formatActionReal(angle), "\t\t\t/unit 591490663", "\t\t}",
+                "\t}", "}", ""])
+            .join(String.fromCharCode(13));
     }
 
     /**
