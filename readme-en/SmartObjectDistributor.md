@@ -22,7 +22,8 @@ The placement area can be the current artboard or the backmost object. Objects c
 - Rows, columns, gutter, and margin settings, plus Prioritize Gutter, which sizes the cells to the objects so the gutter becomes the gap between objects
 - Initial rows and columns derived from the selection count and the area's aspect ratio, so cells stay nearly square
 - Resizing to the cells (Width / Height / Area / Scale), keeping the aspect ratio, with a ratio in %. For Scale, Auto enters a ratio at which every object covers its cell
-- Clipping each object with its cell rectangle (Mask), with round corners, a frame (weight and color), and Object Anchor to choose where each object sits in its cell (nine positions)
+- Clipping each object with its cell rectangle (Mask), with round corners and a frame (weight and color)
+- Object Anchor to choose where each object sits in its cell (nine positions)
 - Keeping the originals and placing copies in the cells (Keep Original Objects)
 - Start From (any of nine positions: corners, edge centers, center), Spread Evenly to scatter objects over the grid when there are spare cells, and Brick to drop one cell from every even row and offset it by half a cell
 - Cell handling: Do Nothing, Keep as Rectangles, Convert to Guides, or Convert to Artboards
@@ -44,8 +45,9 @@ The placement area can be the current artboard or the backmost object. Objects c
    - Divisions & Margin: rows, columns, gutter, margin, Prioritize Gutter
    - Placement & Arrangement: where filling starts, Spread Evenly, Brick, and Shuffle
    - Resize: how to resize and the ratio
-   - Mask: whether to mask, round corners, frame, object anchor
+   - Mask: whether to mask, round corners, frame
    - Cell Handling: what happens to the rectangles, color, opacity
+   - Object Anchor: where each object sits in its cell
    - Keep Original Objects at the left of the button row: whether to keep the originals and place copies
 4. Click Shuffle to change the assignment order if needed.
 5. Adjust the values while checking the preview.
@@ -59,8 +61,9 @@ The placement area can be the current artboard or the backmost object. Objects c
 | Divisions & Margin | Rows, columns, gutter, margin, Prioritize Gutter |
 | Placement & Arrangement | Start From (nine positions), Spread Evenly, Brick, Shuffle |
 | Resize | None / Width / Height / Area / Scale, ratio (%), Auto |
-| Mask | Mask, Round Corners (radius, Auto), Frame (weight and color), Object Anchor (nine positions) |
+| Mask | Mask, Round Corners (radius, Auto), Frame (weight and color) |
 | Cell Handling | Do Nothing / Keep as Rectangles / Convert to Guides / Convert to Artboards, color (black / white / no fill), opacity, transparency grid |
+| Object Anchor | Nine positions (center by default) |
 | (left of the button row) | Keep Original Objects |
 
 <img alt="The Arrange in Grid dialog box" src="../png/ss-1308-1074-144-20261120-124543.png" width="60%" />
@@ -71,7 +74,7 @@ The placement area can be the current artboard or the backmost object. Objects c
 - Auto is available with Scale. It enters the ratio at which every object in a cell is at least as wide and as tall as the cell, leaving no gap on any side, rounded up to 0.1%. Use Mask to crop what extends past the cell.
 - With Mask on, each object placed in a cell is clipped with the cell rectangle (one clipping group per object). Objects parked beyond the cell count are not masked. Mask is on by default.
 - Round Corners applies the Round Corners effect to each clipping group. Its Auto button sets the radius to half the shorter side of a cell, so the short ends become semicircles. Frame adds a stroke to each mask rectangle (weight in the stroke unit; click the swatch to pick a color with the standard color picker; black by default). Both are available while Mask is on.
-- Object Anchor places each object so that its anchor point meets the same point of its cell (center by default). For example, top left aligns the top-left corners and the mask crops whatever extends past the right and bottom. It is available while Mask is on; with Mask off, objects are centered.
+- Object Anchor places each object so that its anchor point meets the same point of its cell (center by default). For example, top left aligns the top-left corners; with Mask on, whatever extends past the right and bottom is cropped.
 - When Start From is a corner, filling goes row by row starting at that corner. From the top or bottom center, it fills row by row from that edge, each row from the middle column outward. From the left or right center, it fills column by column from that edge, each column from the middle row outward. Center fills the cells nearest the middle first.
 - With Spread Evenly on and fewer objects than cells, the cells are picked starting from the start cell, each one as far as possible from those already picked, so the objects spread over the whole grid. Shuffle re-picks among cells at the same distance. Option-click a Start From position to turn off Spread Evenly and fill from there.
 - With Brick on, every even row (2nd, 4th, ...) has one cell fewer and is shifted right by half a cell, like a brick wall (for example, 4 columns × 3 rows gives 4, 3, 4 = 11 cells). It has no effect with a single column. Filling from the left or right center counts the half-shifted columns in order as well.
@@ -96,6 +99,7 @@ The placement area can be the current artboard or the backmost object. Objects c
 
 ## Changelog
 
+- v3.5.0 (2026-11-20) Moved Object Anchor out of Mask into its own panel in the right column; it now works without masking
 - v3.4.0 (2026-11-20) Added Object Anchor to Mask: choose which of nine points of each object meets the same point of its cell (default: center). Panel and section spacing now match the shared UILayout part instead of being tightened
 - v3.3.0 (2026-11-20) Added Brick to Placement & Arrangement (every even row has one cell fewer and is offset by half a cell)
 - v3.2.0 (2026-11-20) Added Prioritize Gutter to Divisions & Margin (cells sized to the objects; the margin becomes a minimum and takes the leftover space). Option-clicking Start From turns off Spread Evenly. Tooltip wording now matches the behavior (Shuffle, Frame, rows and columns)

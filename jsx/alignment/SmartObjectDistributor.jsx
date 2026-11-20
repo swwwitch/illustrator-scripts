@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.SmartObjectDistributor
 Name=グリッドの各セル中央にオブジェクトを配置
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=3.4.0
+Version=3.5.0
 Release-Date=2025-05-20
 Description-BEGIN
 選択したオブジェクトを、指定した行数・列数のグリッドの各セル中央へ配置します。
@@ -47,7 +47,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartObjec
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SmartObjectDistributor";       /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v3.4.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v3.5.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-05-20";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-11-20";                   /* 更新日 / last updated */
@@ -78,7 +78,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         defaultCornerRadius: 10,     /* 角丸の半径の初期値（定規単位） / default corner radius (ruler unit) */
         defaultUseFrame: false,      /* ［枠］の初期値 / Frame starts unchecked */
         defaultFrameWidth: 1,        /* 枠の線幅の初期値（線の単位） / default frame weight (stroke unit) */
-        defaultItemAnchor: "center", /* アイテムの基準位置の初期値（開始位置と同じ名前） / where each object sits in its cell when masked */
+        defaultItemAnchor: "center", /* アイテムの基準位置の初期値（開始位置と同じ名前） / where each object sits in its cell */
         defaultKeepOriginals: false, /* ［配置するオブジェクトを残す］の初期値 / Keep Original Objects starts unchecked */
         defaultSpreadEvenly: false,  /* ［均等にまばらに］の初期値 / Spread Evenly starts unchecked */
         defaultBrick: false,         /* ［レンガ］の初期値 / Brick starts unchecked */
@@ -2251,7 +2251,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             resize: { ja: "リサイズ", en: "Resize" },
             mask: { ja: "マスク", en: "Mask" },
             cellHandling: { ja: "セルの扱い", en: "Cell Handling" },
-            arrangement: { ja: "配置と整列", en: "Placement & Arrangement" }
+            arrangement: { ja: "配置と整列", en: "Placement & Arrangement" },
+            itemAnchor: { ja: "アイテムの基準位置", en: "Object Anchor" }
         },
         fieldLabel: {
             rowCount: { ja: "行数", en: "Rows" },
@@ -2261,8 +2262,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             cellColor: { ja: "カラー", en: "Color" },
             cellOpacity: { ja: "不透明度", en: "Opacity" },
             resizeRatio: { ja: "比率", en: "Ratio" },
-            fillStart: { ja: "開始位置", en: "Start From" },
-            itemAnchor: { ja: "アイテムの基準位置", en: "Object Anchor" }
+            fillStart: { ja: "開始位置", en: "Start From" }
         },
         checkbox: {
             maskToCell: { ja: "マスクする", en: "Mask" },
@@ -2376,8 +2376,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             },
             frameColor: { ja: "クリックで枠の色を選ぶ", en: "Click to choose the frame color" },
             itemAnchor: {
-                ja: "オブジェクトのどこをセルのどこに合わせるかです。中央以外では、その側をそろえてから反対側をマスクで切り抜きます。",
-                en: "Which point of each object meets the same point of its cell. Off center, that side is aligned and the opposite side is cropped by the mask."
+                ja: "オブジェクトのどこをセルのどこに合わせるかです。［マスクする］では、はみ出した反対側を切り抜きます。",
+                en: "Which point of each object meets the same point of its cell. With Mask, whatever extends past the opposite side is cropped."
             },
             spreadEvenly: {
                 ja: "オブジェクトがセルより少ないとき、詰めずにグリッド全体へ均等に散らします（開始位置から始めます）。",
@@ -3614,15 +3614,14 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     }
 
     /**
-     * マスクのパネルを作成します（［マスクする］と、その下の角丸・枠・アイテムの基準位置）。/ Build the mask panel.
+     * マスクのパネルを作成します（［マスクする］と、その下の角丸・枠）。/ Build the mask panel.
      *
      * @param {Group} parentColumn - 配置先のカラム。
      * @param {string} rulerUnitLabel - 角丸の半径の単位（定規の単位）。
      * @param {string} strokeUnitLabel - 枠の線幅の単位（線の単位）。
-     * @param {function(): void} onItemAnchorChange - アイテムの基準位置を選んだときに呼ぶ処理。
-     * @returns {Object} マスク・角丸・枠・アイテムの基準位置の項目をまとめたオブジェクト。
+     * @returns {Object} マスク・角丸・枠の項目をまとめたオブジェクト。
      */
-    function buildMaskPanel(parentColumn, rulerUnitLabel, strokeUnitLabel, onItemAnchorChange) {
+    function buildMaskPanel(parentColumn, rulerUnitLabel, strokeUnitLabel) {
         var maskPanel = parentColumn.add("panel", undefined, getLabel(LABELS.panel.mask));
         setupPanel(maskPanel, PANEL_SECTION_SPACING);
         maskPanel.alignChildren = ["left", "top"];
@@ -3680,20 +3679,27 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         maskControls.frameColorSwatch.preferredSize = COLOR_SWATCH_SIZE;
         maskControls.frameColorSwatch.helpTip = getLabel(LABELS.tooltip.frameColor);
 
-        /* セルの中でオブジェクトを寄せる位置（9か所）/ Where each object sits in its cell (nine positions) */
-        var itemAnchorRow = maskStyleGroup.add("group");
-        setupRow(itemAnchorRow, "left", 8);
-        itemAnchorRow.alignChildren = ["left", "top"];
-        maskControls.itemAnchorLabel = itemAnchorRow.add("statictext", undefined, labelText(LABELS.fieldLabel.itemAnchor));
-        maskControls.itemAnchorWidget = addAnchorWidget(itemAnchorRow, CONFIG.defaultItemAnchor, onItemAnchorChange, { size: FILL_START_WIDGET_SIZE });
-        maskControls.itemAnchorLabel.helpTip = getLabel(LABELS.tooltip.itemAnchor);
-        maskControls.itemAnchorWidget.helpTip = getLabel(LABELS.tooltip.itemAnchor);
-
         maskControls.cornerRadiusCheckbox.helpTip = getLabel(LABELS.tooltip.cornerRadius);
         maskControls.cornerRadiusInput.helpTip = getLabel(LABELS.tooltip.cornerRadius);
         maskControls.frameCheckbox.helpTip = getLabel(LABELS.tooltip.frameStroke);
         maskControls.frameWidthInput.helpTip = getLabel(LABELS.tooltip.frameStroke);
         return maskControls;
+    }
+
+    /**
+     * アイテムの基準位置のパネルを作成します（セルの中でオブジェクトを寄せる位置、9か所）。/ Build the object anchor panel.
+     *
+     * @param {Group} parentColumn - 配置先のカラム。
+     * @param {function(): void} onItemAnchorChange - 基準位置を選んだときに呼ぶ処理。
+     * @returns {{itemAnchorWidget: Button}} 基準点ウィジェット。
+     */
+    function buildItemAnchorPanel(parentColumn, onItemAnchorChange) {
+        var itemAnchorPanel = parentColumn.add("panel", undefined, getLabel(LABELS.panel.itemAnchor));
+        setupPanel(itemAnchorPanel);
+        itemAnchorPanel.alignChildren = ["left", "top"];
+        var itemAnchorWidget = addAnchorWidget(itemAnchorPanel, CONFIG.defaultItemAnchor, onItemAnchorChange, { size: FILL_START_WIDGET_SIZE });
+        itemAnchorWidget.helpTip = getLabel(LABELS.tooltip.itemAnchor);
+        return { itemAnchorWidget: itemAnchorWidget };
     }
 
     /**
@@ -3837,8 +3843,9 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             divisionUI: buildDivisionPanel(leftColumn, defaultDivision, rulerUnitLabel),
             arrangementUI: buildArrangementPanel(leftColumn, onFillStartChange),
             resizeUI: buildResizePanel(centerColumn),
-            maskUI: buildMaskPanel(centerColumn, rulerUnitLabel, strokeUnitLabel, onItemAnchorChange),
+            maskUI: buildMaskPanel(centerColumn, rulerUnitLabel, strokeUnitLabel),
             cellUI: buildCellHandlingPanel(rightColumn),
+            itemAnchorUI: buildItemAnchorPanel(rightColumn, onItemAnchorChange),
             footerUI: buildFooterRow(distributeDialog)
         };
     }
@@ -3971,6 +3978,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         var resizeUI = dialogUI.resizeUI;
         var maskUI = dialogUI.maskUI;
         var cellUI = dialogUI.cellUI;
+        var itemAnchorUI = dialogUI.itemAnchorUI;
         var footerUI = dialogUI.footerUI;
 
         /** @type {Array<PageItem>|null} シャッフルで決めた配置順。未使用なら null。 */
@@ -4161,8 +4169,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
 
             drawCellLayer(gridMetrics, cellMode, isPreview);
             var cellRects = listTargetCellRects(gridMetrics, cellItems.length);
-            /* アイテムの基準位置は［マスクする］のときだけ使い、マスクしないときは中央 / The object anchor applies only when masking */
-            placeItemsInCells(cellItems, cellRects, isMaskEnabled ? getAnchorWidgetIndex(maskUI.itemAnchorWidget) : 4);
+            placeItemsInCells(cellItems, cellRects, getAnchorWidgetIndex(itemAnchorUI.itemAnchorWidget));
 
             /* マスクはセルに入れたものだけ。プレビューのグループは複製と一緒に消す
                Mask only the objects in cells; preview groups are removed along with the copies */
@@ -4435,7 +4442,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         }
 
         /**
-         * 角丸・枠・アイテムの基準位置の項目を、［マスクする］と各チェックボックスに合わせてディムします。/ Dim the corner and frame controls.
+         * 角丸・枠の項目を、［マスクする］と各チェックボックスに合わせてディムします。/ Dim the corner and frame controls.
          *
          * @returns {void}
          */
@@ -4449,8 +4456,6 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             var usesFrame = isMaskEnabled && isFrameEnabled;
             setSteppedInputEnabled(maskUI.frameWidthInput, usesFrame);
             maskUI.frameUnitLabel.enabled = usesFrame;
-            maskUI.itemAnchorLabel.enabled = isMaskEnabled;
-            setAnchorWidgetEnabled(maskUI.itemAnchorWidget, isMaskEnabled);
             redrawFrameColorSwatch();
         }
 
