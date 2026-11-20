@@ -245,6 +245,7 @@ After release, we continue to fix bugs and make adjustments through daily use.
 - [Adjust brightness with a slider](readme-en/ColorToneSlider.md)
 - [Create a linear gradient starting from the current fi…](readme-en/GradientFromFill.md)
 - [List and edit gradient stops](readme-en/EditGradientStops.md)
+- [Turn strokes into two-color dashed graphs](readme-en/StrokeGraph.md)
 - [Register fill colors as a swatch group in layout order](readme-en/SwatchGroupFromSelection.md)
 
 
