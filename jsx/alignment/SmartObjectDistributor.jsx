@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.SmartObjectDistributor
 Name=グリッドの各セル中央にオブジェクトを配置
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=3.1.0
+Version=3.2.0
 Release-Date=2025-05-20
 Description-BEGIN
 選択したオブジェクトを、指定した行数・列数のグリッドの各セル中央へ配置します。
@@ -47,7 +47,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartObjec
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SmartObjectDistributor";       /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v3.1.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v3.2.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-05-20";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-11-20";                   /* 更新日 / last updated */
@@ -70,6 +70,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     var CONFIG = {
         defaultGutter: 10,           /* 間隔の初期値（定規単位） / default gutter */
         defaultMargin: 10,           /* マージンの初期値（定規単位） / default margin */
+        defaultGutterPriority: false, /* ［セル間隔を優先］の初期値 / Prioritize Gutter starts unchecked */
         defaultResizeRatio: 100,     /* リサイズの比率の初期値（%） / default resize ratio */
         maxResizeRatio: 1000,        /* リサイズの比率の上限（%） / max resize ratio */
         defaultMaskToCell: true,     /* ［マスクする］の初期値 / Mask starts checked */
@@ -2262,6 +2263,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         },
         checkbox: {
             maskToCell: { ja: "マスクする", en: "Mask" },
+            gutterPriority: { ja: "セル間隔を優先", en: "Prioritize Gutter" },
             cornerRadius: { ja: "角丸", en: "Round Corners" },
             frameStroke: { ja: "枠", en: "Frame" },
             spreadEvenly: { ja: "均等にまばらに", en: "Spread Evenly" },
@@ -2315,11 +2317,18 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
                 en: "Creates one artboard per cell and keeps no rectangles."
             },
             division: {
-                ja: "セル数より多いオブジェクトは、アートボードの外へ退避します。",
-                en: "Objects beyond the number of cells are parked outside the artboard."
+                ja: "セル数より多いオブジェクトは、アートボードの外へ退避します（［配置するオブジェクトを残す］では退避しません）。",
+                en: "Objects beyond the number of cells are parked outside the artboard (not with Keep Original Objects)."
             },
             gutter: { ja: "行数・列数のいずれかが2以上のときに有効です。", en: "Available when the rows or columns are 2 or more." },
-            margin: { ja: "配置先の四辺から内側に取る余白です。", en: "Inset taken from each edge of the placement area." },
+            margin: {
+                ja: "配置先の四辺から内側に取る余白です（［セル間隔を優先］では最低限の余白）。",
+                en: "Inset taken from each edge of the placement area (the minimum with Prioritize Gutter)."
+            },
+            gutterPriority: {
+                ja: "セルの大きさをオブジェクトのいちばん大きい幅・高さに合わせ、セル間隔をオブジェクトどうしのアキとして取ります。余った分はマージンに回し、グリッドを配置先の中央に置きます（マージンは指定値以上）。",
+                en: "Sizes the cells to the widest and tallest objects so the gutter becomes the gap between objects. The leftover space goes to the margin and the grid is centered in the area (the margin is at least the value set)."
+            },
             resizeNone: { ja: "大きさを変えずに配置します。", en: "Places the objects without resizing them." },
             resizeWidth: {
                 ja: "縦横比を保ったまま、幅をセルの幅×比率にそろえます。",
@@ -2350,21 +2359,21 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
                 en: "Leaves the original objects in place and places copies in the cells."
             },
             fillStart: {
-                ja: "セルを埋め始める位置です。四隅からは横方向に、上・下の中央からは各行を中央から外へ、左・右の中央からは縦方向に各列を中央から外へ埋めます。中央は中心に近いセルから埋めます。",
-                en: "Where filling starts. Corners fill row by row; top and bottom centers fill each row from the middle out; left and right centers fill column by column from the middle out; Center fills the cells nearest the middle first."
+                ja: "セルを埋め始める位置です。四隅からは横方向に、上・下の中央からは各行を中央から外へ、左・右の中央からは縦方向に各列を中央から外へ埋めます。中央は中心に近いセルから埋めます。option＋クリックで［均等にまばらに］をオフにします。",
+                en: "Where filling starts. Corners fill row by row; top and bottom centers fill each row from the middle out; left and right centers fill column by column from the middle out; Center fills the cells nearest the middle first. Option-click also turns off Spread Evenly."
             },
             cornerRadius: {
                 ja: "マスクの角を、指定した半径で丸めます（効果の［角を丸くする］）。",
                 en: "Rounds the corners of each mask by the radius (the Round Corners effect)."
             },
             frameStroke: {
-                ja: "マスクの長方形に線を付けます。色見本をクリックすると線の色を選べます。",
-                en: "Adds a stroke to each mask rectangle. Click the swatch to choose its color."
+                ja: "マスクの長方形に線を付けます。色見本をクリックすると枠の色を選べます。",
+                en: "Adds a stroke to each mask rectangle. Click the swatch to choose the frame color."
             },
             frameColor: { ja: "クリックで枠の色を選ぶ", en: "Click to choose the frame color" },
             spreadEvenly: {
                 ja: "オブジェクトがセルより少ないとき、詰めずにグリッド全体へ均等に散らします（開始位置から始めます）。",
-                en: "When there are fewer objects than cells, spreads them evenly over the grid instead of packing them, starting from the Start From position."
+                en: "When there are fewer objects than cells, spreads them evenly over the grid instead of packing them, starting from the start position."
             },
             autoCornerRadius: {
                 ja: "角丸の半径を、セルの短い辺の半分にします（短い辺の両端が半円になります）。",
@@ -2375,8 +2384,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
                 en: "Calculates one scale at which every object covers its cell with no gap on any side, and enters it as the ratio. Use Mask to crop what extends past the cell."
             },
             randomize: {
-                ja: "セルへの割り当て順をシャッフルします。［均等にまばらに］では、使うセルの選び方も選び直します（押すたびに変わります）。",
-                en: "Shuffles the order in which objects fill the cells, and with Spread Evenly also re-picks the cells used (changes on every click)."
+                ja: "セルへの割り当て順をシャッフルします。［均等にまばらに］では、距離が同じセルどうしの選び方も選び直します（押すたびに変わります）。",
+                en: "Shuffles the order in which objects fill the cells, and with Spread Evenly also re-picks among cells at the same distance (changes on every click)."
             },
             transparencyGrid: {
                 ja: "透明グリッドの表示を切り替えます。スクリプト終了時に元へ戻します。",
@@ -2756,6 +2765,42 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         var cellTop = gridMetrics.originTop - (gridMetrics.cellHeight + gridMetrics.gutter) * rowIndex;
         var cellLeft = gridMetrics.originLeft + (gridMetrics.cellWidth + gridMetrics.gutter) * columnIndex;
         return [cellLeft, cellTop, cellLeft + gridMetrics.cellWidth, cellTop - gridMetrics.cellHeight];
+    }
+
+    /**
+     * ［セル間隔を優先］のグリッドに作り直します。/ Rebuild the grid so the gutter is the gap between objects.
+     * セルの大きさをオブジェクトのいちばん大きい幅・高さに合わせ、セル間隔はそのまま、グリッド全体を配置先の中央に置きます。
+     * セルは元のグリッドより大きくしないので、マージンは指定値以上になります。
+     *
+     * @param {GridMetrics} gridMetrics - マージン・セル間隔どおりに作ったグリッド。
+     * @param {Array<PageItem>} pageItems - セルに入れるオブジェクト（リサイズ後）。
+     * @returns {GridMetrics} 作り直したグリッド（測れるオブジェクトが無ければ元のまま）。
+     */
+    function fitGridToItems(gridMetrics, pageItems) {
+        var maxWidth = 0;
+        var maxHeight = 0;
+        for (var i = 0; i < pageItems.length; i++) {
+            var bounds = pageItems[i].visibleBounds;
+            maxWidth = Math.max(maxWidth, bounds[2] - bounds[0]);
+            maxHeight = Math.max(maxHeight, bounds[1] - bounds[3]);
+        }
+        if (maxWidth <= 0 || maxHeight <= 0) return gridMetrics;
+
+        var cellWidth = Math.min(maxWidth, gridMetrics.cellWidth);
+        var cellHeight = Math.min(maxHeight, gridMetrics.cellHeight);
+        var blockWidth = cellWidth * gridMetrics.columnCount + gridMetrics.gutter * (gridMetrics.columnCount - 1);
+        var blockHeight = cellHeight * gridMetrics.rowCount + gridMetrics.gutter * (gridMetrics.rowCount - 1);
+        var targetRect = gridMetrics.targetRect;
+        return {
+            rowCount: gridMetrics.rowCount,
+            columnCount: gridMetrics.columnCount,
+            originLeft: (targetRect[0] + targetRect[2]) / 2 - blockWidth / 2,
+            originTop: (targetRect[1] + targetRect[3]) / 2 + blockHeight / 2,
+            cellWidth: cellWidth,
+            cellHeight: cellHeight,
+            gutter: gridMetrics.gutter,
+            targetRect: targetRect
+        };
     }
 
     /**
@@ -3437,7 +3482,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
      * @param {Group} parentColumn - 配置先のカラム。
      * @param {{rowCount: number, columnCount: number}} defaultDivision - 行数・列数の初期値。
      * @param {string} unitLabel - 定規単位のラベル。
-     * @returns {{rowCountInput: EditText, columnCountInput: EditText, gutterInput: EditText, marginInput: EditText}} 入力欄。
+     * @returns {{rowCountInput: EditText, columnCountInput: EditText, gutterInput: EditText, marginInput: EditText, gutterPriorityCheckbox: Checkbox}} 入力欄と［セル間隔を優先］。
      */
     function buildDivisionPanel(parentColumn, defaultDivision, unitLabel) {
         var divisionPanel = parentColumn.add("panel", undefined, getLabel(LABELS.panel.division));
@@ -3448,13 +3493,17 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
            All four labels share one width, right-aligned; widths per language */
         var fieldLabelWidth = (uiLang === "ja") ? 70 : 75;
 
-        return {
+        var divisionControls = {
             /* 範囲の正規化は enableNumericField() の onChange が受け持つ / range clamping is done in enableNumericField() */
             rowCountInput: addFieldRow(divisionPanel, LABELS.fieldLabel.rowCount, defaultDivision.rowCount, fieldLabelWidth, null, LABELS.tooltip.division, { integer: true }),
             columnCountInput: addFieldRow(divisionPanel, LABELS.fieldLabel.columnCount, defaultDivision.columnCount, fieldLabelWidth, null, LABELS.tooltip.division, { integer: true }),
             gutterInput: addFieldRow(divisionPanel, LABELS.fieldLabel.gutter, CONFIG.defaultGutter, fieldLabelWidth, unitLabel, LABELS.tooltip.gutter, {}),
             marginInput: addFieldRow(divisionPanel, LABELS.fieldLabel.margin, CONFIG.defaultMargin, fieldLabelWidth, unitLabel, LABELS.tooltip.margin, {})
         };
+        divisionControls.gutterPriorityCheckbox = divisionPanel.add("checkbox", undefined, getLabel(LABELS.checkbox.gutterPriority));
+        divisionControls.gutterPriorityCheckbox.helpTip = getLabel(LABELS.tooltip.gutterPriority);
+        divisionControls.gutterPriorityCheckbox.value = CONFIG.defaultGutterPriority;
+        return divisionControls;
     }
 
     /**
@@ -3841,7 +3890,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         var transparencyGridToggleCount = 0;
 
         var strokeUnit = getUnitInfo("strokeUnits");
-        var dialogUI = buildDistributeDialog(backmostItem !== null, defaultDivision, rulerUnit.label, strokeUnit.label, function () { updatePreview(); });
+        var dialogUI = buildDistributeDialog(backmostItem !== null, defaultDivision, rulerUnit.label, strokeUnit.label, handleFillStartChange);
         var distributeDialog = dialogUI.distributeDialog;
         var placementUI = dialogUI.placementUI;
         var divisionUI = dialogUI.divisionUI;
@@ -3869,6 +3918,10 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         var maskGroups = [];
         /** @type {boolean} ［マスクする］の状態。表示前に代入したチェックボックスの value は読み戻せないことがあるので、変数で持ちます。 */
         var isMaskEnabled = CONFIG.defaultMaskToCell;
+        /** @type {boolean} ［セル間隔を優先］の状態（理由は isMaskEnabled と同じ）。 */
+        var isGutterPriorityEnabled = CONFIG.defaultGutterPriority;
+        /** @type {GridMetrics|null} 直近の描画で使ったグリッド（［セル間隔を優先］で作り直したあとのもの）。 */
+        var lastGridMetrics = null;
         /** @type {boolean} ［均等にまばらに］の状態（理由は isMaskEnabled と同じ）。 */
         var isSpreadEnabled = CONFIG.defaultSpreadEvenly;
         /** @type {boolean} ［角丸］の状態（理由は isMaskEnabled と同じ）。 */
@@ -4005,14 +4058,14 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
          * ［配置するオブジェクトを残す］では、本番でも複製を動かし、元は隠さずその場に残します。
          *
          * @param {boolean} isPreview - プレビューとして描画する場合は true。
-         * @returns {boolean} ドキュメントを変更した場合は true。入力が無効で何もしなかった場合は false。
+         * @returns {GridMetrics|null} 使ったグリッド（［セル間隔を優先］では作り直したもの）。入力が無効で何もしなかった場合は null。
          */
         function renderDistribution(isPreview) {
             var cellMode = getCellMode();
             var gridMetrics = readGridMetrics();
 
             /* グリッドが成立しない入力では、ドキュメントに一切手を加えない / Leave the document untouched without a valid grid */
-            if (!gridMetrics) return false;
+            if (!gridMetrics) return null;
 
             var cellCount = gridMetrics.rowCount * gridMetrics.columnCount;
             var distributionItems = prepareDistributionItems(cellCount, isPreview);
@@ -4023,11 +4076,14 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
                 parkItemsOutside(doc, overflowItems, gridMetrics.targetRect);
             }
 
-            drawCellLayer(gridMetrics, cellMode, isPreview);
-
             /* セルに入るオブジェクトだけをリサイズしてから中央へ置く / Resize only the objects that go into cells, then center them */
             var cellItems = distributionItems.slice(0, cellCount);
             resizeItemsForCells(cellItems, gridMetrics, getResizeMode(), readClampedNumber(resizeUI.ratioInput, 1, CONFIG.maxResizeRatio));
+            /* ［セル間隔を優先］では、リサイズ後のオブジェクトの大きさでセルを作り直す / Prioritize Gutter rebuilds the cells from the resized objects */
+            if (isGutterPriorityEnabled) gridMetrics = fitGridToItems(gridMetrics, cellItems);
+            lastGridMetrics = gridMetrics;
+
+            drawCellLayer(gridMetrics, cellMode, isPreview);
             var cellRects = listTargetCellRects(gridMetrics, cellItems.length);
             placeItemsInCells(cellItems, cellRects);
 
@@ -4035,7 +4091,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
                Mask only the objects in cells; preview groups are removed along with the copies */
             maskGroups = [];
             if (isMaskEnabled) maskItemsToCells(cellItems, cellRects, isPreview ? previewCopies : maskGroups, readMaskStyle());
-            return true;
+            return gridMetrics;
         }
 
         /**
@@ -4288,6 +4344,20 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         }
 
         /**
+         * 開始位置を選んだとき：option＋クリックなら［均等にまばらに］をオフにしてから描き直します。/ Handle a Start From click.
+         * ウィジェットの onChange はクリックの中で呼ばれるので、そのときの修飾キーを読みます。
+         *
+         * @returns {void}
+         */
+        function handleFillStartChange() {
+            if (isSpreadEnabled && ScriptUI.environment.keyboardState.altKey) {
+                isSpreadEnabled = false;
+                arrangementUI.spreadEvenlyCheckbox.value = false;
+            }
+            updatePreview();
+        }
+
+        /**
          * 角丸・枠の項目を、［マスクする］と各チェックボックスに合わせてディムします。/ Dim the corner and frame controls.
          *
          * @returns {void}
@@ -4361,7 +4431,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
          * @returns {void}
          */
         function applyAutoCornerRadius() {
-            var gridMetrics = readGridMetrics();
+            /* ［セル間隔を優先］ではセルが作り直されるので、直近の描画のグリッドを使う / Prioritize Gutter rebuilds the cells, so use the last drawn grid */
+            var gridMetrics = (isGutterPriorityEnabled && lastGridMetrics) ? lastGridMetrics : readGridMetrics();
             if (!gridMetrics) {
                 alert(getLabel(LABELS.alert.invalidGrid));
                 return;
@@ -4415,9 +4486,10 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
                Discard the previous run's cell layer only now that we are really redrawing */
             removeLayerByName(doc, CONFIG.cellLayerName);
 
-            /* 1枚ずつの失敗は createArtboardsFromCells() の中で飛ばす / Single failures are skipped inside createArtboardsFromCells() */
-            if (cellMode === "artboard") createdCount = createArtboardsFromCells(doc, readGridMetrics(), baseArtboardIndex);
-            renderDistribution(false);
+            var renderedGridMetrics = renderDistribution(false);
+            /* アートボードは、実際に使ったグリッドのセルから作る（1枚ずつの失敗は createArtboardsFromCells() の中で飛ばす）
+               Artboards come from the grid actually used; single failures are skipped inside createArtboardsFromCells() */
+            if (cellMode === "artboard") createdCount = createArtboardsFromCells(doc, renderedGridMetrics, baseArtboardIndex);
 
             /* セル描画を残した場合はその長方形を、それ以外は配置したオブジェクト（元を残したときは複製）を選択状態にする
                Select the kept cells, or the placed objects (the copies when the originals are kept) */
@@ -4524,6 +4596,10 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
                 updatePreview();
             });
             resizeUI.autoScaleButton.onClick = applyAutoScale;
+            divisionUI.gutterPriorityCheckbox.onClick = function () {
+                isGutterPriorityEnabled = divisionUI.gutterPriorityCheckbox.value;
+                updatePreview();
+            };
             maskUI.autoCornerRadiusButton.onClick = applyAutoCornerRadius;
             arrangementUI.spreadEvenlyCheckbox.onClick = function () {
                 isSpreadEnabled = arrangementUI.spreadEvenlyCheckbox.value;

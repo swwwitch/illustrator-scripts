@@ -19,7 +19,7 @@ The placement area can be the current artboard or the backmost object. Objects c
 ## Main features
 
 - Placement area switching (current artboard / backmost object)
-- Rows, columns, gutter, and margin settings
+- Rows, columns, gutter, and margin settings, plus Prioritize Gutter, which sizes the cells to the objects so the gutter becomes the gap between objects
 - Initial rows and columns derived from the selection count and the area's aspect ratio, so cells stay nearly square
 - Resizing to the cells (Width / Height / Area / Scale), keeping the aspect ratio, with a ratio in %. For Scale, Auto enters a ratio at which every object covers its cell
 - Clipping each object with its cell rectangle (Mask), with round corners and a frame (weight and color)
@@ -41,7 +41,7 @@ The placement area can be the current artboard or the backmost object. Objects c
 2. Run `SmartObjectDistributor.jsx`.
 3. Configure the settings in the dialog box panels.
    - Placement Area: the region the grid is laid out in
-   - Divisions & Margin: rows, columns, gutter, margin
+   - Divisions & Margin: rows, columns, gutter, margin, Prioritize Gutter
    - Placement & Arrangement: where filling starts, Spread Evenly, and Shuffle
    - Resize: how to resize and the ratio
    - Mask: whether to mask, round corners, frame
@@ -56,7 +56,7 @@ The placement area can be the current artboard or the backmost object. Objects c
 | Panel | Settings |
 | --- | --- |
 | Placement Area | Current artboard / backmost object |
-| Divisions & Margin | Rows, columns, gutter, margin |
+| Divisions & Margin | Rows, columns, gutter, margin, Prioritize Gutter |
 | Placement & Arrangement | Start From (nine positions), Spread Evenly, Shuffle |
 | Resize | None / Width / Height / Area / Scale, ratio (%), Auto |
 | Mask | Mask, Round Corners (radius, Auto), Frame (weight and color) |
@@ -72,10 +72,11 @@ The placement area can be the current artboard or the backmost object. Objects c
 - With Mask on, each object placed in a cell is clipped with the cell rectangle (one clipping group per object). Objects parked beyond the cell count are not masked. Mask is on by default.
 - Round Corners applies the Round Corners effect to each clipping group. Its Auto button sets the radius to half the shorter side of a cell, so the short ends become semicircles. Frame adds a stroke to each mask rectangle (weight in the stroke unit; click the swatch to pick a color with the standard color picker; black by default). Both are available while Mask is on.
 - When Start From is a corner, filling goes row by row starting at that corner. From the top or bottom center, it fills row by row from that edge, each row from the middle column outward. From the left or right center, it fills column by column from that edge, each column from the middle row outward. Center fills the cells nearest the middle first.
-- With Spread Evenly on and fewer objects than cells, the cells are picked starting from the start cell, each one as far as possible from those already picked, so the objects spread over the whole grid. Shuffle re-picks among cells at the same distance.
+- With Spread Evenly on and fewer objects than cells, the cells are picked starting from the start cell, each one as far as possible from those already picked, so the objects spread over the whole grid. Shuffle re-picks among cells at the same distance. Option-click a Start From position to turn off Spread Evenly and fill from there.
 - With Keep Original Objects on, the originals stay where they are and only as many copies as there are cells are placed (nothing is copied or parked beyond the cell count). The placed copies are selected after OK. It is off by default.
 - Click the script name and version at the bottom left of the dialog to open About This Script, which shows the script name and version, opens the README, the source code, or the article (note), and shows the script file (Show in Finder). The button to the right of the script name copies it to the clipboard.
 - When Backmost Object is selected, that framing object is excluded from the objects to place.
+- With Prioritize Gutter on, the cells are sized to the widest and tallest objects (after resizing) and the gutter is the gap between objects. The leftover space goes to the margin and the grid is centered in the area, so the margin is at least the value set (cells never grow beyond the size the margin and gutter allow). With it off, the margin and gutter are taken exactly and the cells get the rest.
 - Objects beyond the number of cells are parked where they overlap neither other objects nor artboards.
 - Any existing "cell-background" layer is hidden while the dialog is open and removed when you click OK, which clears the result of the previous run. Cancel restores its original visibility.
 - Do Nothing leaves no cell rectangles (the preview shows the cells as guides).
@@ -93,6 +94,7 @@ The placement area can be the current artboard or the backmost object. Objects c
 
 ## Changelog
 
+- v3.2.0 (2026-11-20) Added Prioritize Gutter to Divisions & Margin (cells sized to the objects; the margin becomes a minimum and takes the leftover space). Option-clicking Start From turns off Spread Evenly. Tooltip wording now matches the behavior (Shuffle, Frame, rows and columns)
 - v3.1.0 (2026-11-20) Renamed Fill From to Start From; it can now be any of the nine positions (edge centers added). Spread Evenly no longer dims Start From and starts spreading from the start cell
 - v3.0.0 (2026-11-20) Removed the "_target" layer rectangle as a placement area. The dialog now has three columns (left: Placement Area, Divisions & Margin, Placement & Arrangement; center: Resize, Mask; right: Cell Handling), with the radio buttons and the Divisions & Margin fields stacked vertically. Split Resize & Mask into the Resize and Mask panels. Added the Placement & Arrangement panel with Fill From (top left / top right / bottom left / bottom right / center) and Spread Evenly, and moved Shuffle into it. Added Keep Original Objects (leaves the originals in place and places copies) at the left of the button row. Added Auto for Scale, and Round Corners (with Auto) and Frame for the mask, and Do Nothing for cell handling
 - v2.1.0 (2026-11-20) Renamed the panel to Resize & Mask and added Mask, which clips each object with its cell rectangle. Clicking the script name and version at the bottom left opens About This Script (copy the script name, open the README, source code, or article, and show the file in the Finder)
