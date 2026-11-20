@@ -20,8 +20,8 @@ The placement area can be the current artboard or the backmost object. Objects c
 
 - Placement area switching (current artboard / backmost object)
 - Rows, columns, gutter, and margin settings, plus Prioritize Gutter, which sizes the cells to the objects so the gutter becomes the gap between objects
-- Initial rows and columns derived from the selection count and the area's aspect ratio, so cells stay nearly square
-- Resizing to the cells (Width / Height / Area / Scale), keeping the aspect ratio, with a ratio in %. For Scale, Auto enters a ratio at which every object covers its cell
+- Initial rows and columns derived from the selection count and the area's aspect ratio, so cells stay nearly square (recalculated with the Auto icon (a magic wand) to the right of Rows and Columns, and when you switch the area or Brick)
+- Resizing to the cells (Fit Width / Fit Height / Equal Area / Scale), keeping the aspect ratio, with a ratio in %. For Scale, Auto enters a ratio at which every object covers its cell
 - Clipping each object with its cell rectangle (Mask), with round corners and a frame (weight and color)
 - Object Anchor to choose where each object sits in its cell (nine positions)
 - Keeping the originals and placing copies in the cells (Keep Original Objects)
@@ -42,7 +42,7 @@ The placement area can be the current artboard or the backmost object. Objects c
 2. Run `SmartObjectDistributor.jsx`.
 3. Configure the settings in the dialog box panels.
    - Placement Area: the region the grid is laid out in
-   - Divisions & Margin: rows, columns, gutter, margin, Prioritize Gutter
+   - Divisions & Margin: rows, columns (Auto icon), gutter, margin, Prioritize Gutter
    - Placement & Arrangement: where filling starts, Spread Evenly, Brick, and Shuffle
    - Resize: how to resize and the ratio
    - Mask: whether to mask, round corners, frame
@@ -58,9 +58,9 @@ The placement area can be the current artboard or the backmost object. Objects c
 | Panel | Settings |
 | --- | --- |
 | Placement Area | Current artboard / backmost object |
-| Divisions & Margin | Rows, columns, gutter, margin, Prioritize Gutter |
+| Divisions & Margin | Rows, columns, Auto icon, gutter, margin, Prioritize Gutter |
 | Placement & Arrangement | Start From (nine positions), Spread Evenly, Brick, Shuffle |
-| Resize | None / Width / Height / Area / Scale, ratio (%), Auto |
+| Resize | None / Fit Width / Fit Height / Equal Area / Scale, ratio (%), Auto |
 | Mask | Mask, Round Corners (radius, Auto), Frame (weight and color) |
 | Cell Handling | Do Nothing / Keep as Rectangles / Convert to Guides / Convert to Artboards, color (black / white / no fill), opacity, transparency grid |
 | Object Anchor | Nine positions (center by default) |
@@ -70,13 +70,13 @@ The placement area can be the current artboard or the backmost object. Objects c
 
 ## Notes
 
-- In Resize, Width and Height match each object to the cell width or height times the ratio; Area equalizes the areas, sized so every object fits in the cell times the ratio; Scale is relative to the original size. All keep the aspect ratio and scale stroke weights by the same factor. Objects parked beyond the cell count are not resized.
+- In Resize, Fit Width and Fit Height match each object to the cell width or height times the ratio; Equal Area equalizes the areas, sized so every object fits in the cell times the ratio; Scale is relative to the original size. All keep the aspect ratio and scale stroke weights by the same factor. Objects parked beyond the cell count are not resized.
 - Auto is available with Scale. It enters the ratio at which every object in a cell is at least as wide and as tall as the cell, leaving no gap on any side, rounded up to 0.1%. Use Mask to crop what extends past the cell.
 - With Mask on, each object placed in a cell is clipped with the cell rectangle (one clipping group per object). Objects parked beyond the cell count are not masked. Mask is on by default.
 - Round Corners applies the Round Corners effect to each clipping group. Its Auto button sets the radius to half the shorter side of a cell, so the short ends become semicircles. Frame adds a stroke to each mask rectangle (weight in the stroke unit; click the swatch to pick a color with the standard color picker; black by default). Both are available while Mask is on.
 - Object Anchor places each object so that its anchor point meets the same point of its cell (center by default). For example, top left aligns the top-left corners; with Mask on, whatever extends past the right and bottom is cropped.
 - When Start From is a corner, filling goes row by row starting at that corner. From the top or bottom center, it fills row by row from that edge, each row from the middle column outward. From the left or right center, it fills column by column from that edge, each column from the middle row outward. Center fills the cells nearest the middle first.
-- With Spread Evenly on and fewer objects than cells, the cells are picked starting from the start cell, each one as far as possible from those already picked, so the objects spread over the whole grid. Shuffle re-picks among cells at the same distance. Option-click a Start From position to turn off Spread Evenly and fill from there.
+- With Spread Evenly on and fewer objects than cells, the cells are picked starting from the start cell, each one as far as possible from those already picked, so the objects spread over the whole grid. Shuffle re-picks among cells at the same distance. Option-click a Start From position to turn off Spread Evenly and fill from there. Spread Evenly is dimmed when there are no spare cells (as many objects as cells, or more).
 - With Brick on, every even row (2nd, 4th, ...) has one cell fewer and is shifted right by half a cell, like a brick wall (for example, 4 columns × 3 rows gives 4, 3, 4 = 11 cells). It has no effect with a single column. Filling from the left or right center counts the half-shifted columns in order as well.
 - With Keep Original Objects on, the originals stay where they are and only as many copies as there are cells are placed (nothing is copied or parked beyond the cell count). The placed copies are selected after OK. It is off by default.
 - Click the script name and version at the bottom left of the dialog to open About This Script, which shows the script name and version, opens the README, the source code, or the article (note), and shows the script file (Show in Finder). The button to the right of the script name copies it to the clipboard.
@@ -99,6 +99,9 @@ The placement area can be the current artboard or the backmost object. Objects c
 
 ## Changelog
 
+- v3.7.0 (2026-11-20) The Auto button for Rows and Columns is now an icon (a magic wand). Spread Evenly is available only when there are spare cells and dimmed otherwise
+- v3.6.1 (2026-11-20) Renamed the Resize options to Fit Width, Fit Height, and Equal Area
+- v3.6.0 (2026-11-20) Added Auto to the right of Rows and Columns. Rows and columns are also recalculated when you switch the area or Brick (Backmost Object leaves the frame object out of the count; Brick counts one cell fewer in every even row)
 - v3.5.0 (2026-11-20) Moved Object Anchor out of Mask into its own panel in the right column; it now works without masking
 - v3.4.0 (2026-11-20) Added Object Anchor to Mask: choose which of nine points of each object meets the same point of its cell (default: center). Panel and section spacing now match the shared UILayout part instead of being tightened
 - v3.3.0 (2026-11-20) Added Brick to Placement & Arrangement (every even row has one cell fewer and is offset by half a cell)

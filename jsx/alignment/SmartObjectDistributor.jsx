@@ -8,7 +8,7 @@ Script-ID=com.swwwitch.illustrator.SmartObjectDistributor
 Name=グリッドの各セル中央にオブジェクトを配置
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=3.5.0
+Version=3.7.0
 Release-Date=2025-05-20
 Description-BEGIN
 選択したオブジェクトを、指定した行数・列数のグリッドの各セル中央へ配置します。
@@ -47,7 +47,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartObjec
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SmartObjectDistributor";       /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v3.5.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v3.7.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-05-20";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-11-20";                   /* 更新日 / last updated */
@@ -1506,6 +1506,185 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
 
     // UI の明暗（再利用パーツ）ここまで / End of the reusable UI theme
 
+    // アイコンのボタン（再利用パーツ） / Icon buttons (reusable)
+
+    var ICON_BUTTON_SIZE = [24, 22]; /* 既定の大きさ / default size */
+    var ICON_BUTTON_UI_DARK = isDarkUI();
+    var ICON_BUTTON_COLOR     = ICON_BUTTON_UI_DARK ? [1, 1, 1, 1]    : [0, 0, 0, 0.70]; /* 絵の色 / icon color */
+    var ICON_BUTTON_DIM_COLOR = ICON_BUTTON_UI_DARK ? [1, 1, 1, 0.20] : [0, 0, 0, 0.25]; /* 無効時の色 / color when disabled */
+
+    /**
+     * onDraw で絵を描くアイコンのボタンを追加する。押すと onClick を呼ぶ（無効の間は押せず、薄く描く）
+     * @param {Group} parent - 追加先
+     * @param {number[]} iconSize - [幅, 高さ]
+     * @param {Function} drawIcon - 絵を描く関数 (iconGraphics, iconWidth, iconHeight, iconColor)
+     * @returns {Group} アイコン
+     */
+    function addIconButton(parent, iconSize, drawIcon) {
+        var iconButton = parent.add("group");
+        iconButton.preferredSize = iconSize;
+        iconButton.minimumSize = iconSize;
+        iconButton.maximumSize = iconSize;
+        iconButton.onDraw = function () {
+            var iconColor = isIconButtonEnabledInTree(iconButton) ? ICON_BUTTON_COLOR : ICON_BUTTON_DIM_COLOR;
+            drawIcon(iconButton.graphics, iconSize[0], iconSize[1], iconColor);
+        };
+        iconButton.addEventListener("mousedown", function () {
+            if (!isIconButtonEnabledInTree(iconButton)) return;
+            if (typeof iconButton.onClick === "function") iconButton.onClick();
+        });
+        return iconButton;
+    }
+
+    /**
+     * アイコンのボタンの有効／無効を切り替えて描き直す（変わらないときは描き直さない）
+     * @param {Group} iconButton - addIconButton() で作ったアイコン
+     * @param {boolean} isEnabled - 有効にするなら true
+     * @returns {void}
+     */
+    function setIconButtonEnabled(iconButton, isEnabled) {
+        if (iconButton.enabled === isEnabled) return;
+        iconButton.enabled = isEnabled;
+        /* group には notify() が無いため、隠して再表示して描き直させる / groups have no notify(), so hide and show to repaint */
+        iconButton.hide();
+        iconButton.show();
+    }
+
+    /**
+     * コントロールと親がすべて有効かを判定する（親の無効化は子の enabled に出ないため、親もたどる）
+     * @param {Object} control - 判定するコントロール
+     * @returns {boolean} すべて有効なら true
+     */
+    function isIconButtonEnabledInTree(control) {
+        for (var node = control; node; node = node.parent) {
+            if (!node.enabled) return false;
+        }
+        return true;
+    }
+
+    /**
+     * 絵の座標の長方形の並びを、縦横比を保って中央に置いて塗る（ScriptUI は多角形を塗れないため、斜めも長方形の並びで描く）
+     * @param {ScriptUIGraphics} iconGraphics - 描画先
+     * @param {number} iconWidth - アイコンの幅
+     * @param {number} iconHeight - アイコンの高さ
+     * @param {number[]} designSize - 絵の [幅, 高さ]
+     * @param {number[][]} designRects - 長方形 [左, 上, 右, 下] の並び
+     * @param {number[]} iconColor - [r, g, b, a]
+     * @returns {void}
+     */
+    function fillIconButtonRects(iconGraphics, iconWidth, iconHeight, designSize, designRects, iconColor) {
+        var iconScale = Math.min(iconWidth / designSize[0], iconHeight / designSize[1]);
+        var originX = (iconWidth - designSize[0] * iconScale) / 2;
+        var originY = (iconHeight - designSize[1] * iconScale) / 2;
+        iconGraphics.newPath();
+        for (var i = 0; i < designRects.length; i++) {
+            var designRect = designRects[i];
+            if (designRect[2] <= designRect[0] || designRect[3] <= designRect[1]) continue;
+            iconGraphics.rectPath(originX + designRect[0] * iconScale, originY + designRect[1] * iconScale,
+                (designRect[2] - designRect[0]) * iconScale, (designRect[3] - designRect[1]) * iconScale);
+        }
+        iconGraphics.fillPath(iconGraphics.newBrush(iconGraphics.BrushType.SOLID_COLOR, iconColor));
+    }
+
+    /**
+     * 保存アイコン（トレイに下向きの矢印）を描く。1223×993 の絵。
+     * 矢じりとトレイの V 字の切り欠きは細い長方形を並べ、トレイの四角い穴は塗らずに残す
+     * @param {ScriptUIGraphics} iconGraphics - 描画先
+     * @param {number} iconWidth - アイコンの幅
+     * @param {number} iconHeight - アイコンの高さ
+     * @param {number[]} iconColor - [r, g, b, a]
+     * @returns {void}
+     */
+    function drawSaveIcon(iconGraphics, iconWidth, iconHeight, iconColor) {
+        var designWidth = 1223;
+        var trayHole = [78, 688, 230, 840]; /* トレイの四角い穴 [左, 上, 右, 下] / the tray's square hole */
+        var sliceCount = 16;
+        var designRects = [[535, 0, 688, 383]]; /* 矢印の軸 / arrow shaft */
+        var k;
+
+        /** 穴と重なる部分を除いて長方形を足す / add a rectangle minus the tray hole */
+        function addTrayRect(left, top, right, bottom) {
+            if (right <= trayHole[0] || left >= trayHole[2] || bottom <= trayHole[1] || top >= trayHole[3]) {
+                designRects.push([left, top, right, bottom]);
+                return;
+            }
+            designRects.push([left, top, right, trayHole[1]], [left, trayHole[3], right, bottom],
+                [left, Math.max(top, trayHole[1]), trayHole[0], Math.min(bottom, trayHole[3])],
+                [trayHole[2], Math.max(top, trayHole[1]), right, Math.min(bottom, trayHole[3])]);
+        }
+
+        /* 下向きの矢じり（上の付け根から先端へ細っていく）/ the downward head */
+        for (k = 0; k < sliceCount; k++) {
+            var headHalf = 251 * (1 - (k + 0.5) / sliceCount);
+            var headTop = 383 + (703 - 383) * k / sliceCount;
+            designRects.push([612 - headHalf, headTop, 612 + headHalf, headTop + (703 - 383) / sliceCount]);
+        }
+        /* トレイ：上辺に V 字の切り欠き（幅 458 から下へ細り、856 で閉じる）/ tray with a V notch along the top */
+        for (k = 0; k < sliceCount; k++) {
+            var notchTop = 612 + (856 - 612) * k / sliceCount;
+            var notchBottom = notchTop + (856 - 612) / sliceCount;
+            var notchHalf = 229 * (1 - (k + 0.5) / sliceCount);
+            addTrayRect(0, notchTop, 612 - notchHalf, notchBottom);
+            addTrayRect(612 + notchHalf, notchTop, designWidth, notchBottom);
+        }
+        addTrayRect(0, 856, designWidth, 993);
+        fillIconButtonRects(iconGraphics, iconWidth, iconHeight, [designWidth, 993], designRects, iconColor);
+    }
+
+    /**
+     * 削除アイコン（ゴミ箱）を描く。756×825 の絵
+     * @param {ScriptUIGraphics} iconGraphics - 描画先
+     * @param {number} iconWidth - アイコンの幅
+     * @param {number} iconHeight - アイコンの高さ
+     * @param {number[]} iconColor - [r, g, b, a]
+     * @returns {void}
+     */
+    function drawTrashIcon(iconGraphics, iconWidth, iconHeight, iconColor) {
+        fillIconButtonRects(iconGraphics, iconWidth, iconHeight, [756, 825], [
+            [206, 0, 550, 70], [206, 70, 275, 137], [481, 70, 550, 137],     /* 取っ手 / handle */
+            [0, 137, 756, 207],                                               /* ふた / lid */
+            [69, 207, 138, 825], [618, 207, 688, 825], [138, 756, 618, 825], /* 本体 / body */
+            [206, 275, 275, 687], [343, 275, 413, 687], [481, 275, 550, 687] /* 縦の線 / ribs */
+        ], iconColor);
+    }
+
+    /**
+     * 自動計算アイコン（魔法の杖と3つのきらめき）を描く。24×22 の絵を、縦横比を保って中央に置く。
+     * 行数・列数や比率など、値を自動で求める［自動］ボタンの代わりに使う
+     * @param {ScriptUIGraphics} iconGraphics - 描画先
+     * @param {number} iconWidth - アイコンの幅
+     * @param {number} iconHeight - アイコンの高さ
+     * @param {number[]} iconColor - [r, g, b, a]
+     * @returns {void}
+     */
+    function drawAutoIcon(iconGraphics, iconWidth, iconHeight, iconColor) {
+        var iconScale = Math.min(iconWidth / 24, iconHeight / 22);
+        var originX = (iconWidth - 24 * iconScale) / 2;
+        var originY = (iconHeight - 22 * iconScale) / 2;
+
+        /** 絵の座標で線を1本引く / stroke one line in design coordinates */
+        function strokeLine(x1, y1, x2, y2, lineWidth) {
+            iconGraphics.newPath();
+            iconGraphics.moveTo(originX + x1 * iconScale, originY + y1 * iconScale);
+            iconGraphics.lineTo(originX + x2 * iconScale, originY + y2 * iconScale);
+            iconGraphics.strokePath(iconGraphics.newPen(iconGraphics.PenType.SOLID_COLOR, iconColor, lineWidth * iconScale));
+        }
+
+        /** 十字のきらめきを描く / draw a cross-shaped sparkle */
+        function drawSparkle(centerX, centerY, radius) {
+            strokeLine(centerX - radius, centerY, centerX + radius, centerY, 1.2);
+            strokeLine(centerX, centerY - radius, centerX, centerY + radius, 1.2);
+        }
+
+        strokeLine(4, 19, 14, 9, 2.2);     /* 杖 / wand */
+        strokeLine(14, 9, 16.5, 6.5, 3.2); /* 杖の先 / wand tip */
+        drawSparkle(18.5, 12.5, 2.5);
+        drawSparkle(9, 5, 2.5);
+        drawSparkle(20, 3.5, 1.8);
+    }
+
+    // アイコンのボタン（再利用パーツ）ここまで / End of the reusable icon buttons
+
     // ステップボタン（再利用パーツ） / Stepper buttons (reusable)
 
     // -----------------------------------------
@@ -2284,9 +2463,9 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             whiteCell: { ja: "白", en: "White" },
             transparentCell: { ja: "塗りなし", en: "No Fill" },
             resizeNone: { ja: "なし", en: "None" },
-            resizeWidth: { ja: "幅", en: "Width" },
-            resizeHeight: { ja: "高さ", en: "Height" },
-            resizeArea: { ja: "面積", en: "Area" },
+            resizeWidth: { ja: "幅に合わせる", en: "Fit Width" },
+            resizeHeight: { ja: "高さに合わせる", en: "Fit Height" },
+            resizeArea: { ja: "面積をそろえる", en: "Equal Area" },
             resizeScale: { ja: "スケール", en: "Scale" }
         },
         button: {
@@ -2351,8 +2530,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
                 en: "Scales each object by the ratio of its original size."
             },
             resizeRatio: {
-                ja: "幅・高さ・面積ではセルに対する比率、スケールでは元の大きさに対する比率です。",
-                en: "Relative to the cell for Width, Height, and Area; relative to the original size for Scale."
+                ja: "幅に合わせる・高さに合わせる・面積をそろえるではセルに対する比率、スケールでは元の大きさに対する比率です。",
+                en: "Relative to the cell for Fit Width, Fit Height, and Equal Area; relative to the original size for Scale."
             },
             maskToCell: {
                 ja: "セルに入れたオブジェクトを、セルの長方形でクリッピングマスクします。",
@@ -2380,8 +2559,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
                 en: "Which point of each object meets the same point of its cell. With Mask, whatever extends past the opposite side is cropped."
             },
             spreadEvenly: {
-                ja: "オブジェクトがセルより少ないとき、詰めずにグリッド全体へ均等に散らします（開始位置から始めます）。",
-                en: "When there are fewer objects than cells, spreads them evenly over the grid instead of packing them, starting from the start position."
+                ja: "オブジェクトがセルより少ないとき、詰めずにグリッド全体へ均等に散らします（開始位置から始めます）。セルが余らないときはディム表示になります。",
+                en: "When there are fewer objects than cells, spreads them evenly over the grid instead of packing them, starting from the start position. Dimmed when there are no spare cells."
             },
             brick: {
                 ja: "偶数行のセルを1つ減らし、半セルずらしてレンガ積みにします（列数が2以上のとき）。",
@@ -2390,6 +2569,10 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             autoCornerRadius: {
                 ja: "角丸の半径を、セルの短い辺の半分にします（短い辺の両端が半円になります）。",
                 en: "Sets the corner radius to half the shorter side of a cell (the short ends become semicircles)."
+            },
+            autoDivision: {
+                ja: "行数・列数を自動計算します。配置するオブジェクトの数と配置先の縦横比から、セルが正方形に近くなる行数・列数を入れます（［レンガ］も考慮）。配置先や［レンガ］を切り替えたときも計算し直します。",
+                en: "Calculates rows and columns automatically: enters the ones that make the cells closest to square for the number of objects and the shape of the area (Brick included). Also recalculated when you switch the area or Brick."
             },
             autoScale: {
                 ja: "すべてのオブジェクトがセルを覆い、上下左右にアキが出ない共通のスケールを計算して比率に入れます。はみ出した分は［マスクする］で切り抜けます。",
@@ -2553,12 +2736,14 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
     /**
      * セルが正方形に近くなる行数・列数を求めます。/ Find rows and columns that make cells nearly square.
      * 余白セルが行／列1本分以上になる構成は除外し、その範囲でセル比1に最も近いものを選びます。
+     * ［レンガ］では偶数行が1つ少ない分を数え、足りるまで行を増やします。
      *
      * @param {number} itemCount - 配置するオブジェクトの数。
      * @param {number[]} targetRect - 配置先の矩形 [左, 上, 右, 下]。
+     * @param {boolean} isBrick - ［レンガ］なら true。
      * @returns {{rowCount: number, columnCount: number}} 行数と列数。
      */
-    function computeDefaultDivision(itemCount, targetRect) {
+    function computeDefaultDivision(itemCount, targetRect, isBrick) {
         var fallbackDivision = { rowCount: CONFIG.fallbackDivision, columnCount: CONFIG.fallbackDivision };
         if (!itemCount || itemCount <= 0) return fallbackDivision;
         if (itemCount === 1) return { rowCount: 1, columnCount: 1 };
@@ -2567,16 +2752,36 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         var areaHeight = targetRect[1] - targetRect[3];
         if (areaWidth <= 0 || areaHeight <= 0) return fallbackDivision;
 
-        /* セル総数の上限を超える分はどのみち溢れるので、上限の範囲で割り付ける
-           Anything beyond the cell cap overflows anyway, so lay out within the cap */
-        var cellBudget = Math.min(itemCount, CONFIG.maxCellCount);
+        /* セル総数の上限を超える分はどのみち溢れるので、上限の範囲で割り付ける。
+           ［レンガ］で上限内に収まる構成が無いときは、入れる数を減らして探し直す（溢れた分は退避される）
+           Anything beyond the cell cap overflows anyway; with Brick, shrink the count until a layout fits */
+        for (var cellBudget = Math.min(itemCount, CONFIG.maxCellCount); cellBudget >= 1; cellBudget--) {
+            var division = findSquarestDivision(cellBudget, areaWidth, areaHeight, isBrick);
+            if (division) return division;
+        }
+        return fallbackDivision;
+    }
 
-        var bestDivision = fallbackDivision;
+    /**
+     * 指定したセル数が入る行数・列数のうち、セルがいちばん正方形に近いものを返します。/ Find the squarest division for a cell count.
+     *
+     * @param {number} cellBudget - 入れるセルの数。
+     * @param {number} areaWidth - 配置先の幅。
+     * @param {number} areaHeight - 配置先の高さ。
+     * @param {boolean} isBrick - ［レンガ］なら true。
+     * @returns {{rowCount: number, columnCount: number}|null} 行数と列数。条件に合う構成が無ければ null。
+     */
+    function findSquarestDivision(cellBudget, areaWidth, areaHeight, isBrick) {
+        var bestDivision = null;
         var bestAspectRatio = Infinity;
         for (var columnCount = 1; columnCount <= cellBudget; columnCount++) {
+            var isBrickGrid = isBrick && columnCount >= 2; /* computeGridMetrics() と同じく1列ではレンガにしない / no brick with one column */
             var rowCount = Math.ceil(cellBudget / columnCount);
-            var emptyCellCount = rowCount * columnCount - cellBudget;
-            if (emptyCellCount > 0 && emptyCellCount >= Math.min(rowCount, columnCount)) continue;
+            while (countDivisionCells(rowCount, columnCount, isBrickGrid) < cellBudget) rowCount++;
+            /* 余るセルが、いちばん短い行（列）1本分に届く構成は除く / Skip layouts that leave a whole shortest line empty */
+            var emptyCellCount = countDivisionCells(rowCount, columnCount, isBrickGrid) - cellBudget;
+            var shortestLine = Math.min(rowCount, isBrickGrid ? columnCount - 1 : columnCount);
+            if (emptyCellCount > 0 && emptyCellCount >= shortestLine) continue;
 
             /* computeGridMetrics() が拒む組み合わせは初期値にしない / Never default to a grid the metrics reject */
             if (rowCount > CONFIG.maxDivision || columnCount > CONFIG.maxDivision) continue;
@@ -2798,8 +3003,19 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
      * @returns {number} セル数。
      */
     function countCells(gridMetrics) {
-        if (!gridMetrics.brick) return gridMetrics.rowCount * gridMetrics.columnCount;
-        return gridMetrics.rowCount * gridMetrics.columnCount - Math.floor(gridMetrics.rowCount / 2);
+        return countDivisionCells(gridMetrics.rowCount, gridMetrics.columnCount, gridMetrics.brick);
+    }
+
+    /**
+     * 行数・列数からセル数を返します（［レンガ］では偶数行が1つ少ない）。/ Count cells for rows and columns.
+     *
+     * @param {number} rowCount - 行数。
+     * @param {number} columnCount - 列数（奇数行の数）。
+     * @param {boolean} isBrick - ［レンガ］なら true（列数2以上のときだけ渡す）。
+     * @returns {number} セル数。
+     */
+    function countDivisionCells(rowCount, columnCount, isBrick) {
+        return rowCount * columnCount - (isBrick ? Math.floor(rowCount / 2) : 0);
     }
 
     /**
@@ -3539,7 +3755,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
      * @param {Group} parentColumn - 配置先のカラム。
      * @param {{rowCount: number, columnCount: number}} defaultDivision - 行数・列数の初期値。
      * @param {string} unitLabel - 定規単位のラベル。
-     * @returns {{rowCountInput: EditText, columnCountInput: EditText, gutterInput: EditText, marginInput: EditText, gutterPriorityCheckbox: Checkbox}} 入力欄と［セル間隔を優先］。
+     * @returns {{rowCountInput: EditText, columnCountInput: EditText, autoDivisionButton: Group, gutterInput: EditText, marginInput: EditText, gutterPriorityCheckbox: Checkbox}} 入力欄、行数・列数の自動計算のアイコン、［セル間隔を優先］。
      */
     function buildDivisionPanel(parentColumn, defaultDivision, unitLabel) {
         var divisionPanel = parentColumn.add("panel", undefined, getLabel(LABELS.panel.division));
@@ -3550,13 +3766,25 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
            All four labels share one width, right-aligned; widths per language */
         var fieldLabelWidth = (uiLang === "ja") ? 70 : 75;
 
+        /* 行数・列数の2行の右に、2行の天地中央で自動計算のアイコンを置く / The Auto icon sits to the right of the rows and columns, centered on both */
+        var countGroup = divisionPanel.add("group");
+        setupRow(countGroup, "left", 8);
+        countGroup.alignChildren = ["left", "center"];
+        var countFieldColumn = countGroup.add("group");
+        countFieldColumn.orientation = "column";
+        countFieldColumn.alignChildren = ["left", "top"];
+        countFieldColumn.spacing = PANEL_SPACING;
+
         var divisionControls = {
             /* 範囲の正規化は enableNumericField() の onChange が受け持つ / range clamping is done in enableNumericField() */
-            rowCountInput: addFieldRow(divisionPanel, LABELS.fieldLabel.rowCount, defaultDivision.rowCount, fieldLabelWidth, null, LABELS.tooltip.division, { integer: true }),
-            columnCountInput: addFieldRow(divisionPanel, LABELS.fieldLabel.columnCount, defaultDivision.columnCount, fieldLabelWidth, null, LABELS.tooltip.division, { integer: true }),
+            rowCountInput: addFieldRow(countFieldColumn, LABELS.fieldLabel.rowCount, defaultDivision.rowCount, fieldLabelWidth, null, LABELS.tooltip.division, { integer: true }),
+            columnCountInput: addFieldRow(countFieldColumn, LABELS.fieldLabel.columnCount, defaultDivision.columnCount, fieldLabelWidth, null, LABELS.tooltip.division, { integer: true }),
+            autoDivisionButton: addIconButton(countGroup, ICON_BUTTON_SIZE, drawAutoIcon),
             gutterInput: addFieldRow(divisionPanel, LABELS.fieldLabel.gutter, CONFIG.defaultGutter, fieldLabelWidth, unitLabel, LABELS.tooltip.gutter, {}),
             marginInput: addFieldRow(divisionPanel, LABELS.fieldLabel.margin, CONFIG.defaultMargin, fieldLabelWidth, unitLabel, LABELS.tooltip.margin, {})
         };
+        divisionControls.autoDivisionButton.alignment = ["left", "center"];
+        divisionControls.autoDivisionButton.helpTip = getLabel(LABELS.tooltip.autoDivision);
         divisionControls.gutterPriorityCheckbox = divisionPanel.add("checkbox", undefined, getLabel(LABELS.checkbox.gutterPriority));
         divisionControls.gutterPriorityCheckbox.helpTip = getLabel(LABELS.tooltip.gutterPriority);
         divisionControls.gutterPriorityCheckbox.value = CONFIG.defaultGutterPriority;
@@ -3966,7 +4194,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         var placeableItems = copyItemsExcept(doc.selection, null);
 
         var rulerUnit = getUnitInfo();
-        var defaultDivision = computeDefaultDivision(placeableItems.length, baseArtboardRect);
+        var defaultDivision = computeDefaultDivision(placeableItems.length, baseArtboardRect, CONFIG.defaultBrick);
         var transparencyGridToggleCount = 0;
 
         var strokeUnit = getUnitInfo("strokeUnits");
@@ -4005,6 +4233,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         var lastGridMetrics = null;
         /** @type {boolean} ［均等にまばらに］の状態（理由は isMaskEnabled と同じ）。 */
         var isSpreadEnabled = CONFIG.defaultSpreadEvenly;
+        /** @type {boolean} 直近に行数・列数を計算したときの配置先が［最背面のオブジェクト］か（同じラジオを押し直したときに入力を上書きしない）。 */
+        var wasBackmostTarget = false;
         /** @type {boolean} ［レンガ］の状態（理由は isMaskEnabled と同じ）。 */
         var isBrickEnabled = CONFIG.defaultBrick;
         /** @type {boolean} ［角丸］の状態（理由は isMaskEnabled と同じ）。 */
@@ -4280,6 +4510,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
          * @returns {void}
          */
         function updatePreview() {
+            syncSpreadEvenlyEnabled();
             try {
                 clearPreview();
                 renderDistribution(true);
@@ -4428,6 +4659,17 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
         }
 
         /**
+         * ［均等にまばらに］を、セルが余る（オブジェクトがセルより少ない）ときだけ有効にします。/ Enable Spread Evenly only with spare cells.
+         * 描き直しのたびに呼ぶので、行数・列数・配置先・［レンガ］のどれを変えても追従します。
+         *
+         * @returns {void}
+         */
+        function syncSpreadEvenlyEnabled() {
+            var gridMetrics = readGridMetrics();
+            arrangementUI.spreadEvenlyCheckbox.enabled = !!gridMetrics && getDistributionItems().length < countCells(gridMetrics);
+        }
+
+        /**
          * 開始位置を選んだとき：option＋クリックなら［均等にまばらに］をオフにしてから描き直します。/ Handle a Start From click.
          * ウィジェットの onChange はクリックの中で呼ばれるので、そのときの修飾キーを読みます。
          *
@@ -4486,6 +4728,21 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             swatchGraphics.newPath();
             swatchGraphics.rectPath(0.5, 0.5, swatchWidth - 1, swatchHeight - 1);
             swatchGraphics.strokePath(swatchGraphics.newPen(swatchGraphics.PenType.SOLID_COLOR, [0.5, 0.5, 0.5, swatchAlpha], 1));
+        }
+
+        /**
+         * 行数・列数の自動計算のアイコン：今の配置先・オブジェクトの数・［レンガ］から行数・列数を計算し直して描き直します。/ Recalculate rows and columns.
+         * 配置先・［レンガ］を切り替えたときにも呼びます。
+         *
+         * @returns {void}
+         */
+        function applyAutoDivision() {
+            wasBackmostTarget = placementUI.backmostRadio.value;
+            var division = computeDefaultDivision(getDistributionItems().length, getTargetRect(), isBrickEnabled);
+            divisionUI.rowCountInput.text = String(division.rowCount);
+            divisionUI.columnCountInput.text = String(division.columnCount);
+            syncGutterEnabled();
+            updatePreview();
         }
 
         /**
@@ -4621,8 +4878,13 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
          * @returns {void}
          */
         function bindDialogEvents() {
-            placementUI.artboardRadio.onClick = updatePreview;
-            placementUI.backmostRadio.onClick = updatePreview;
+            /* 配置先を切り替えたら行数・列数を計算し直す。同じラジオの押し直しでは入力を残す
+               Recalculate rows and columns when the area changes; a re-click keeps what was typed */
+            placementUI.artboardRadio.onClick = placementUI.backmostRadio.onClick = function () {
+                if (placementUI.backmostRadio.value === wasBackmostTarget) return;
+                applyAutoDivision();
+            };
+            divisionUI.autoDivisionButton.onClick = applyAutoDivision;
 
             cellUI.noCellRadio.onClick = cellUI.keepCellRadio.onClick = cellUI.toGuideRadio.onClick = cellUI.toArtboardRadio.onClick = function () {
                 syncCellModeUI();
@@ -4691,7 +4953,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/illustrator-scripts/blob/m
             };
             arrangementUI.brickCheckbox.onClick = function () {
                 isBrickEnabled = arrangementUI.brickCheckbox.value;
-                updatePreview();
+                applyAutoDivision();
             };
             footerUI.keepOriginalsCheckbox.onClick = function () {
                 isKeepOriginalsEnabled = footerUI.keepOriginalsCheckbox.value;
