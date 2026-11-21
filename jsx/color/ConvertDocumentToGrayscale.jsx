@@ -9,7 +9,7 @@ Name=ドキュメント全体を CMYK のモノクロにする（テキストは
 Name[en]=Turn the whole document into CMYK monochrome (text in K100)
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.1.0
+Version=1.2.0
 Release-Date=2026-11-21
 Tags=color,カラー
 X-com.swwwitch-Script-Name=ConvertDocumentToGrayscale
@@ -31,6 +31,7 @@ SCRIPTMETA-END
 - ［カラーを編集］→［CMYK に変換］を実行してから、RGB のドキュメントを CMYK カラーモードに変えます。
 - テキストの塗りと線の単色は K100 にします。白（グレー 0%）は白のまま残します（KEEP_WHITE_TEXT）。グラデーション・パターンの文字はグレースケールのままです。
 - ロック・非表示のレイヤーとオブジェクトも一時的に解除して処理し、終わったら元に戻します。
+- 使っていないシンボルは変換せずに削除します（アートワークにも、使っているシンボルの中にもインスタンスが無いもの）。
 - シンボルは中身をグレースケールにした新しいシンボルを作り、インスタンスを差し替えて元のシンボルと入れ替えます（入れ子のシンボルも変換）。基準点、ダイナミックシンボルの種類、9スライスなどのシンボルオプションは引き継がれません。
 - リンク画像、パターン・ブラシの中身、グラフィックスタイルは変換されません。
 - ［なし］［レジストレーション］など削除できないスウォッチは残ります。
@@ -39,6 +40,7 @@ SCRIPTMETA-END
 - Runs Edit Colors > Convert to CMYK, then switches an RGB document to CMYK color mode.
 - Solid fill and stroke colors of text become K100. White (0% gray) stays white (KEEP_WHITE_TEXT). Text with a gradient or pattern stays grayscale.
 - Locked or hidden layers and objects are unlocked and shown while processing, then restored.
+- Unused symbols (with no instance in the artwork or inside a used symbol) are deleted without being converted.
 - Each symbol is replaced by a new symbol whose contents are converted to grayscale, and its instances are swapped to it (nested symbols too). Symbol options such as the registration point, the dynamic type and 9-slice scaling are not carried over.
 - Linked images, the contents of patterns and brushes, and graphic styles are not converted.
 - Swatches that cannot be deleted, such as [None] and [Registration], remain.
@@ -318,10 +320,14 @@ var SCRIPT_SOURCE_URL     = getScriptMetaValue("X-com.swwwitch-Source-URL");    
             }
         }
 
+        /* アートワークにインスタンスがあるシンボルだけを変換する（入れ子のシンボルは変換の中でたどる）
+           Convert only symbols with instances in the artwork; nested symbols are reached during the conversion */
         var converted = {};
         var completedNames = [];
         for (var k = 0; k < symbolNames.length; k++) {
-            convertSymbolToGrayscale(doc, symbolNames[k], converted, completedNames);
+            if (instancesByName.hasOwnProperty(symbolNames[k])) {
+                convertSymbolToGrayscale(doc, symbolNames[k], converted, completedNames);
+            }
         }
 
         /* 外側のシンボルから先に消す（入れ子の元のシンボルは外側の定義が消えるまで使用中）
@@ -350,10 +356,42 @@ var SCRIPT_SOURCE_URL     = getScriptMetaValue("X-com.swwwitch-Source-URL");    
             }
         }
 
+        removeUnusedSymbols(doc, symbolNames, converted);
+
         try {
             doc.activeLayer = originalLayer;
         } catch (e) {
             /* 戻せなくても続ける / Continue even if it cannot be restored */
+        }
+    }
+
+    /**
+     * 変換でたどらなかったシンボル（アートワークにも、使っているシンボルの中にもインスタンスが無いもの）を削除する
+     * @param {Document} doc - 対象ドキュメント
+     * @param {string[]} symbolNames - 変換前のシンボル名
+     * @param {Object} converted - convertSymbolToGrayscale の控え（たどったシンボルの名前を持つ）
+     * @returns {void}
+     */
+    function removeUnusedSymbols(doc, symbolNames, converted) {
+        var pendingNames = [];
+        for (var i = 0; i < symbolNames.length; i++) {
+            if (!converted.hasOwnProperty(symbolNames[i])) pendingNames.push(symbolNames[i]);
+        }
+        /* 未使用のシンボルの中にある未使用のシンボルは、外側が消えるまで消せないことがあるので、消えなくなるまで繰り返す
+           An unused symbol inside another unused one may not go until the outer one is gone; repeat until nothing changes */
+        var removedAny = true;
+        while (pendingNames.length && removedAny) {
+            removedAny = false;
+            var remainingNames = [];
+            for (var j = 0; j < pendingNames.length; j++) {
+                try {
+                    doc.symbols.getByName(pendingNames[j]).remove();
+                    removedAny = true;
+                } catch (e) {
+                    remainingNames.push(pendingNames[j]);
+                }
+            }
+            pendingNames = remainingNames;
         }
     }
 

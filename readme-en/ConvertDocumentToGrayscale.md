@@ -19,7 +19,7 @@ The script runs these steps in order.
 
 1. Converts object colors to CMYK with Edit > Edit Colors > Convert to CMYK
 2. Switches an RGB document to File > Document Color Mode > CMYK Color
-3. Converts the contents of symbols to grayscale (nested symbols too)
+3. Converts the contents of symbols to grayscale (nested symbols too). Unused symbols are deleted without being converted
 4. Turns every object monochrome with Edit > Edit Colors > Convert to Grayscale
 5. Sets the fill and stroke of text to K100 (text inside symbols too)
 6. Deletes all swatches and removes swatch groups left empty
@@ -44,3 +44,4 @@ Locked or hidden layers and objects are unlocked and shown while processing, the
 
 - v1.0.0 (20261121): Initial release
 - v1.1.0 (20261121): Added Convert to CMYK and the switch to CMYK document color mode, grayscale conversion of symbol contents, and K100 text
+- v1.2.0 (20261121): Unused symbols are deleted without being converted (shorter conversion time)
