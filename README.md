@@ -248,6 +248,7 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 - [グラデーションストップを一覧表示して編集](readme-ja/EditGradientStops.md)
 - [線を2色の破線グラフにする](readme-ja/StrokeGraph.md)
 - [配置順で塗り色を抽出してスウォッチグループに登録](readme-ja/SwatchGroupFromSelection.md)
+- [ドキュメント全体をグレースケールに変換してスウォッチを削除](readme-ja/ConvertDocumentToGrayscale.md)
 
 
 ## アートボード

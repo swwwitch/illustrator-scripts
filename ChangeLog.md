@@ -2,6 +2,10 @@
 
 ## 20261121
 
+### 新しいスクリプトを追加
+
+- [ドキュメント全体をグレースケールに変換してスウォッチを削除](readme-ja/ConvertDocumentToGrayscale.md) v1.0.0：ドキュメント内のすべてのオブジェクトを［グレースケールに変換］でモノクロにし（ロック・非表示も一時的に解除して変換後に戻す）、スウォッチと空のスウォッチグループを削除する
+
 ### 調整
 
 - 基本情報の元を先頭の SCRIPTMETA に一本化（415本）。SCRIPTMETA 2.1 の多言語形式（Name[en]・Description の [ja]／[en]・Tags・独自項目 X-com.swwwitch-*）に書き換え、`var SCRIPT_* = "…"` の基本情報ブロックとヘッダーの ### 概要／### Overview を削除。スクリプトは実行時に共通部品 ScriptMeta（スクリプト情報）で SCRIPTMETA を読み、これまでと同じ SCRIPT_NAME・SCRIPT_VERSION などを用意する（設定の保存名・ダイアログの位置は変わらない）。helpers/sync-scriptmeta.py は SCRIPTMETA を元に Name・Tags・Source-URL・部品をそろえるツールに変更
