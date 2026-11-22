@@ -7,12 +7,18 @@
 - [ドキュメント全体を CMYK のモノクロにする（テキストは K100）](readme-ja/ConvertDocumentToGrayscale.md) v1.0.0：ドキュメント内のすべてのオブジェクトを［グレースケールに変換］でモノクロにし（ロック・非表示も一時的に解除して変換後に戻す）、スウォッチと空のスウォッチグループを削除する
 - [ドキュメント全体を CMYK のモノクロにする（テキストは K100）](readme-ja/ConvertDocumentToGrayscale.md) v1.1.0：［カラーを編集］→［CMYK に変換］を実行してからドキュメントを CMYK カラーモードにし、テキストの塗りと線を K100 に（白は残す）。シンボルの中身もグレースケールに変換（中身を変換した新しいシンボルにインスタンスを差し替え、元のシンボルと入れ替える。入れ子のシンボルも対象。シンボルオプションは引き継がない）
 - [ドキュメント全体を CMYK のモノクロにする（テキストは K100）](readme-ja/ConvertDocumentToGrayscale.md) v1.2.0：使っていないシンボル（アートワークにも、使っているシンボルの中にもインスタンスが無いもの）は変換せずに削除し、変換の時間を短縮
+- ApplyStrokeGradientStyle v1.0.0（jsx/style/single-function/）：スクリプトに Base64 で埋め込んだ AI ファイルを一時フォルダーに復元してグラフィックスタイルを取り込み、選んだスタイルを選択中のオブジェクトに適用する（2回目からはスタイルがそろっていれば AI ファイルを開かない）
+
+### 機能追加
+
+- [線を2色の破線グラフにする](readme-ja/StrokeGraph.md) v1.1.0：グラデーションの無い線に、スクリプトに埋め込んだグラフィックスタイル「stroke-gradient」で［パスに沿ってグラデーションを適用］の線を付ける（ドキュメントにスタイルが無いときだけ取り込む）。パスの色をアクセント・K10 をベース・線幅 10pt を初期値にし、塗りをなしにする。BBAccumRotation がすでに 90° の楕円は角度を変えない。ダイアログボックスに［方向反転］を追加し、上の説明の行を外した。境界の2つのカラー分岐点を同じ位置に置いて中間色が出ないようにした
 
 ### 調整
 
 - 基本情報の元を先頭の SCRIPTMETA に一本化（415本）。SCRIPTMETA 2.1 の多言語形式（Name[en]・Description の [ja]／[en]・Tags・独自項目 X-com.swwwitch-*）に書き換え、`var SCRIPT_* = "…"` の基本情報ブロックとヘッダーの ### 概要／### Overview を削除。スクリプトは実行時に共通部品 ScriptMeta（スクリプト情報）で SCRIPTMETA を読み、これまでと同じ SCRIPT_NAME・SCRIPT_VERSION などを用意する（設定の保存名・ダイアログの位置は変わらない）。helpers/sync-scriptmeta.py は SCRIPTMETA を元に Name・Tags・Source-URL・部品をそろえるツールに変更
 - ［このスクリプトについて］の［Finder に表示］で、Path Finder が起動していれば Path Finder で選択表示（/Applications/OpenInFileViewer.app。無ければこれまでどおり RevealInFinder.app）（共通部品 VersionFooter v1.3.0、各スクリプトのバージョンは据え置き）
 - AiScriptLauncher：右の列の説明を SCRIPTMETA の Name から読む
+- helpers/embed-file-base64.py を追加：ファイルを Base64 にして .jsx の EMBEDDED-FILE ブロックに埋め込む（差し替える）
 - 仮の記事 URL（note.com/dtp_tranist/n/xxxxxxxx）を5本から削除。FitArtboardWithMargin の記事 URL の綴りを note.com/dtp_tranist/ に修正
 
 ## 20261120
