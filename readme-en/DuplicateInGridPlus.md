@@ -95,6 +95,7 @@ The two options are mutually exclusive — turning one on turns the other off. W
 
 ## Changelog
 
+- v2.1.11 (2026-11-22) Removed the version from the window title; the script name and version now show at the bottom left (click for About This Script)
 - v2.1.10 (2026-10-16) Right-only button rows are now centered when the dialog's inner width is up to 240 px (was 200 px) (shared part update)
 - v2.1.9 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v2.1.8 (2026-10-03): The gap fields now show the unit inside; removed the unit from the panel title

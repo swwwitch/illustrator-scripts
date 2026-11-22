@@ -45,4 +45,5 @@
 
 ### Update History
 
+- v1.5.7 (2026-11-22) Removed the version from the window title; the script name and version now show at the bottom left (click for About This Script)
 - v1.5.6 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)

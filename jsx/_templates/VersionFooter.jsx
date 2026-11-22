@@ -20,10 +20,10 @@ Clicking the name and version at the bottom left opens About This Script (copy t
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "VersionFooter";                /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.3.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.4.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-11-05";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-11-21";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-11-22";                   /* 更新日 / last updated */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
@@ -49,8 +49,9 @@ var SCRIPT_UPDATED  = "2026-11-21";                   /* 更新日 / last update
     //    左に「スクリプト名 バージョン」、右に VERSION_FOOTER_BRAND（DTP Transit）。名前に字形の無い文字（日本語など）があるときや、
     //    幅が足りないときは左はバージョンだけ（名前でダイアログを広げない）。大きさは VERSION_FOOTER_PIXEL_SIZE、色は VERSION_FOOTER_COLOR で変える
     // 7. 左下のスクリプト名・バージョンをクリックすると「このスクリプトについて」のダイアログを開く（bindVersionInfoClick）。
-    //    スクリプト情報の部品が SCRIPTMETA から用意する SCRIPT_NAME / SCRIPT_VERSION / SCRIPT_DESCRIPTION_JA（機能。日本語の画面だけ）/ SCRIPT_README_JA・EN /
-    //    SCRIPT_SOURCE_URL / SCRIPT_ARTICLE_URL を typeof で読む（無い URL のボタンはディム表示）。文言は VERSION_INFO_LABELS、
+    //    スクリプト情報の部品の getScriptMetaValue() で SCRIPTMETA の Version / Name（機能。日本語の画面だけ）/ X-com.swwwitch-README-JA・EN /
+    //    X-com.swwwitch-Source-URL / X-com.swwwitch-Article-URL を直接読み、名前は SCRIPT_NAME を読む（無い URL のボタンはディム表示）。
+    //    getScriptMetaValue() が無いスクリプト（SCRIPTMETA を使わない InDesign 版など）は、従来の SCRIPT_* を typeof で読む。文言は VERSION_INFO_LABELS、
     //    レイアウトの値も部品の中に持つので、Localization・UILayout・ButtonRow の部品が無くても動く。
     //    コピーは Illustrator が一時テキストフレーム（常駐パレットからは BridgeTalk）、InDesign が doScript（AppleScript / VBScript）。
     //    ［Finder に表示］は /Applications/OpenInFileViewer.app があれば選択表示（Path Finder が起動中なら Path Finder、そうでなければ Finder）、
@@ -160,7 +161,7 @@ var SCRIPT_UPDATED  = "2026-11-21";                   /* 更新日 / last update
     };
 
     /**
-     * ウィンドウの下端の左にスクリプト名とバージョン（SCRIPT_NAME・SCRIPT_VERSION）、右に VERSION_FOOTER_BRAND を小さく薄く入れる。部品をすべて足したあと、show() の直前に呼ぶ。
+     * ウィンドウの下端の左にスクリプト名とバージョン（SCRIPT_NAME・SCRIPTMETA の Version）、右に VERSION_FOOTER_BRAND を小さく薄く入れる。部品をすべて足したあと、show() の直前に呼ぶ。
      * 直前の行（ボタン行など）の下余白を 0 にし、ウィンドウの下余白を VERSION_FOOTER_BOTTOM_MARGIN にする。
      * InDesign の ScriptUI は文字サイズの指定を無視するので、onDraw でドットを並べて描く（UITheme の isDarkUI() を使う）
      * @param {Window} targetWindow - ダイアログまたはパレット（縦並び）
@@ -188,7 +189,7 @@ var SCRIPT_UPDATED  = "2026-11-21";                   /* 更新日 / last update
            左の欄は余りの幅まで伸ばし、ダイアログの幅はバージョンの分しか求めない（名前でダイアログを広げない）
            / Left: "script name version", or just the version when the name has characters without glyphs (e.g. Japanese)
              or does not fit. The left area takes the extra width and only asks for the version's width, so the name never widens the dialog */
-        var versionText = String(SCRIPT_VERSION);
+        var versionText = getVersionInfoValue("version");
         var leftCandidates = [versionText];
         if (typeof SCRIPT_NAME === "string" && hasVersionFooterGlyphs(SCRIPT_NAME)) leftCandidates.unshift(SCRIPT_NAME + " " + versionText);
         var versionCanvas = addVersionFooterCanvas(footerGroup, leftCandidates);
@@ -289,9 +290,9 @@ var SCRIPT_UPDATED  = "2026-11-21";                   /* 更新日 / last update
     // -----------------------------------------
     // このスクリプトについて / About this script
     // -----------------------------------------
-    /* 左下のスクリプト名・バージョンをクリックすると開く。SCRIPTMETA から読んだ SCRIPT_*（スクリプト情報の部品）を読み、
+    /* 左下のスクリプト名・バージョンをクリックすると開く。SCRIPTMETA の項目を getScriptMetaValue() で直接読み（スクリプト情報の部品）、
        この部品だけで動くよう、文言（VERSION_INFO_LABELS）とレイアウトの値も部品の中に持つ
-       Opened by clicking the name and version at the bottom left. Reads the SCRIPT_* basic info,
+       Opened by clicking the name and version at the bottom left. Reads the SCRIPTMETA fields directly with getScriptMetaValue(),
        and keeps its own labels and layout values so the part works on its own */
 
     var VERSION_INFO_LANG = (String($.locale || "").indexOf("ja") === 0) ? "ja" : "en"; /* 文言の言語 / label language */
@@ -357,21 +358,32 @@ var SCRIPT_UPDATED  = "2026-11-21";                   /* 更新日 / last update
     }
 
     /**
-     * SCRIPT_* の値を返す（変数が無い・文字列でなければ空文字）。typeof で読むので、未定義でも例外にならない
+     * 「このスクリプトについて」とフッターに出す値を返す。SCRIPTMETA の項目を getScriptMetaValue() で直接読み、名前は SCRIPT_NAME。
+     * getScriptMetaValue() が無いスクリプトは従来の SCRIPT_* を typeof で読む（未定義でも例外にならない）
      * @param {string} variableKey - "name" / "version" / "feature" / "readme" / "source" / "article"
-     * @returns {string} 値
+     * @returns {string} 値（バージョンは「v1.2.0」の形）。無ければ空文字
      */
     function getVersionInfoValue(variableKey) {
-        var infoValue;
-        if (variableKey === "name") infoValue = (typeof SCRIPT_NAME !== "undefined") ? SCRIPT_NAME : "";
-        else if (variableKey === "version") infoValue = (typeof SCRIPT_VERSION !== "undefined") ? SCRIPT_VERSION : "";
-        else if (variableKey === "feature") infoValue = (typeof SCRIPT_DESCRIPTION_JA !== "undefined") ? SCRIPT_DESCRIPTION_JA : "";
-        else if (variableKey === "readme") {
-            if (VERSION_INFO_LANG === "ja") infoValue = (typeof SCRIPT_README_JA !== "undefined") ? SCRIPT_README_JA : "";
-            else infoValue = (typeof SCRIPT_README_EN !== "undefined") ? SCRIPT_README_EN : "";
+        var infoValue = "";
+        if (variableKey === "name") {
+            infoValue = (typeof SCRIPT_NAME !== "undefined") ? SCRIPT_NAME : "";
+        } else if (typeof getScriptMetaValue === "function") {
+            var isJapanese = (VERSION_INFO_LANG === "ja");
+            if (variableKey === "version") infoValue = getScriptMetaValue("Version") ? "v" + getScriptMetaValue("Version") : "";
+            else if (variableKey === "feature") infoValue = getScriptMetaValue("Name");
+            else if (variableKey === "readme") infoValue = getScriptMetaValue(isJapanese ? "X-com.swwwitch-README-JA" : "X-com.swwwitch-README-EN");
+            else if (variableKey === "source") infoValue = getScriptMetaValue("X-com.swwwitch-Source-URL");
+            else if (variableKey === "article") infoValue = getScriptMetaValue("X-com.swwwitch-Article-URL");
+        } else {
+            if (variableKey === "version") infoValue = (typeof SCRIPT_VERSION !== "undefined") ? SCRIPT_VERSION : "";
+            else if (variableKey === "feature") infoValue = (typeof SCRIPT_DESCRIPTION_JA !== "undefined") ? SCRIPT_DESCRIPTION_JA : "";
+            else if (variableKey === "readme") {
+                if (VERSION_INFO_LANG === "ja") infoValue = (typeof SCRIPT_README_JA !== "undefined") ? SCRIPT_README_JA : "";
+                else infoValue = (typeof SCRIPT_README_EN !== "undefined") ? SCRIPT_README_EN : "";
+            }
+            else if (variableKey === "source") infoValue = (typeof SCRIPT_SOURCE_URL !== "undefined") ? SCRIPT_SOURCE_URL : "";
+            else if (variableKey === "article") infoValue = (typeof SCRIPT_ARTICLE_URL !== "undefined") ? SCRIPT_ARTICLE_URL : "";
         }
-        else if (variableKey === "source") infoValue = (typeof SCRIPT_SOURCE_URL !== "undefined") ? SCRIPT_SOURCE_URL : "";
-        else if (variableKey === "article") infoValue = (typeof SCRIPT_ARTICLE_URL !== "undefined") ? SCRIPT_ARTICLE_URL : "";
         return (infoValue === undefined || infoValue === null) ? "" : String(infoValue);
     }
 

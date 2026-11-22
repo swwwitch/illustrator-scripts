@@ -99,10 +99,12 @@ The 基本情報 / Basic info block holds the Script info part (`jsx/_templates/
 // http://opensource.org/licenses/mit-license.php
 ```
 
-It reads the SCRIPTMETA of `$.fileName` when the script loads and sets `SCRIPT_NAME`, `SCRIPT_VERSION` (`"v" + Version`),
-`SCRIPT_AUTHOR`, `SCRIPT_RELEASED`, `SCRIPT_UPDATED`, `SCRIPT_DESCRIPTION_JA` (`Name`), `SCRIPT_README_JA` / `SCRIPT_README_EN`,
-`SCRIPT_ARTICLE_URL` and `SCRIPT_SOURCE_URL` (empty string when a field is missing). Use those variables as before; do not
-assign them by hand and do not edit the part (the sync tool rewrites it). In code, write the SCRIPTMETA marker strings split
+It reads the SCRIPTMETA of `$.fileName` when the script loads. Read the fields directly with `getScriptMetaValue("Version")`,
+`getScriptMetaValue("Name")`, `getScriptMetaValue("X-com.swwwitch-Source-URL")` and so on (empty string when a field is missing);
+show a version as `"v" + getScriptMetaValue("Version")`. The only variable the part sets is `SCRIPT_NAME` (the `Script-Name` field,
+or the file name when SCRIPTMETA cannot be read), because it is the key of saved settings and dialog positions. There are no
+`SCRIPT_VERSION` / `SCRIPT_README_JA` / … variables any more; do not add them back. Do not edit the part (the sync tool rewrites it).
+In code, write the SCRIPTMETA marker strings split
 (`"SCRIPTMETA" + "-BEGIN"`) so apps that scan for SCRIPTMETA do not pick them up.
 
 ## Version
@@ -279,13 +281,13 @@ function findUnitByLabel(label) {
   right-side buttons (Cancel / OK) is centered when the dialog's inner width (margins excluded) is 240 px or less
   (`BUTTON_ROW_CENTER_MAX_WIDTH`) and stays right-aligned in wider dialogs. The width is measured on the `show`
   event, so it works even when sizes are set after the call. A row with left-side buttons keeps the split layout
-- Do not put `SCRIPT_VERSION` in a window title. Show it with the VersionFooter part (`jsx/_templates/VersionFooter.jsx`):
+- Do not put the version in a window title. Show it with the VersionFooter part (`jsx/_templates/VersionFooter.jsx`):
   call `addVersionFooter(window)` after every control is added, right before `show()` (before `prepareDialogWindow()`).
   It draws the script name and version (left) and "DTP Transit" (right) small and gray at the bottom left (dot glyphs in `onDraw`; needs the UITheme part for `isDarkUI()`) and takes over the button row's bottom margin.
   Progress, confirm and other small sub-windows get no footer
   Clicking the name and version opens the part's About This Script dialog (script name with a copy button, the Japanese README title,
   version, README / source code / article links, Show in Finder — in Path Finder when it is running, through
-  `/Applications/OpenInFileViewer.app`). It reads the `SCRIPT_*` basic info with `typeof` and carries its own
+  `/Applications/OpenInFileViewer.app`). It reads SCRIPTMETA with `getScriptMetaValue()` (falling back to old `SCRIPT_*` variables with `typeof` in scripts without the Script info part) and carries its own
   labels (`VERSION_INFO_LABELS`), so paste the whole part unchanged; do not add its labels to `LABELS`
 - A 3×3 anchor / alignment picker is a custom widget drawn in a `button`'s `onDraw`, never nine radio buttons.
   Reference implementation: `addAnchorWidget()` / `drawAnchorWidget()` / `drawAnchorCell()` in

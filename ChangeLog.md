@@ -1,5 +1,17 @@
 # Change Log
 
+## 20261122
+
+### 新しいスクリプトを追加
+
+- [線を2色の破線グラフにする（AI ファイル読み込み版）](readme-ja/StrokeGraphFromFile.md) v1.0.0：StrokeGraph と同じ機能で、［パスに沿ってグラデーションを適用］のグラフィックスタイルを、スクリプトに埋め込まずにスクリプトと同じフォルダーの strokegradient.ai から読み込む
+
+### 調整
+
+- 基本情報の変数をやめ、SCRIPTMETA を getScriptMetaValue() で直接読む形に変更（419本）。共通部品 ScriptMeta v1.1.0 が用意する変数は設定の保存名に使う SCRIPT_NAME だけになり、SCRIPT_VERSION・SCRIPT_README_JA などの9つを削除。共通部品 VersionFooter v1.4.0（249本）は SCRIPTMETA の項目を直接読む（getScriptMetaValue() の無いスクリプトでは従来の SCRIPT_* を読む）。ログやプリセットの見出しで SCRIPT_VERSION を使っていた箇所は "v" + getScriptMetaValue("Version") に置き換え
+- ウインドウのタイトルにバージョンを入れていた21本（AiAlignToArtboardPalette・SmartVerticalAlign・ArtboardNavigatorPalette・InvoiceFromClipboard・ExpandGradient・MakeRectangleFromGuides・NewGuideMaker・SetTemplateLayer・ImageLinkManager・ResizeClipMask・TrimWithBreakLine・AiCommandPrefLookup・DuplicateInGridPlus・SmartCalendarMaker・PreferenceManager-unit・ViewToggles・LaurelWreathMaker・TableMaker・tabularize・AdjustTextScaleBaseline・SplitTextToArtboards）：タイトルからバージョンを外し、共通部品 VersionFooter（と UITheme）を入れて左下にスクリプト名とバージョンを表示（各パッチ+1）
+- [線を2色の破線グラフにする](readme-ja/StrokeGraph.md) v1.1.1：「アクセントの%」を「アクセントの割合」に改名（項目名の幅を広げた）。［方向反転］のチェックボックスの左端を線幅の入力欄にそろえ、線幅との間にアキを入れた。カラーの値の欄を 180px から 150px に狭め、ダイアログボックスの右の空きを詰めた
+
 ## 20261121
 
 ### 新しいスクリプトを追加

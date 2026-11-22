@@ -44,6 +44,7 @@ Menu commands such as View > Show ... simply flip the current state, so you have
 
 ### Update History
 
+- v1.1.3 (2026-11-22) Removed the version from the window title; the script name and version now show at the bottom left (click for About This Script)
 - v1.1.2 (2026-11-20) Shared part update (icon buttons: added the Auto icon; no change in behavior)
 - v1.1.1 (2026-10-16) Right-only button rows are now centered when the dialog's inner width is up to 240 px (was 200 px) (shared part update)
 - v1.1.0 (2026-10-09) Added the Tools panel to switch Pick Color From (Color Swatches / Artwork) of the Shape Builder tool

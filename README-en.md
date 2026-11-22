@@ -246,6 +246,7 @@ After release, we continue to fix bugs and make adjustments through daily use.
 - [Create a linear gradient starting from the current fi…](readme-en/GradientFromFill.md)
 - [List and edit gradient stops](readme-en/EditGradientStops.md)
 - [Turn strokes into two-color dashed graphs](readme-en/StrokeGraph.md)
+- [Turn strokes into two-color dashed graphs (loads an AI file)](readme-en/StrokeGraphFromFile.md)
 - [Register fill colors as a swatch group in layout order](readme-en/SwatchGroupFromSelection.md)
 - [Turn the whole document into CMYK monochrome (text in K100)](readme-en/ConvertDocumentToGrayscale.md)
 

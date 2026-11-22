@@ -46,4 +46,4 @@
 - v1.3.6 (2026-10-01): Added space below the button row to match Illustrator's own dialogs
 - v1.3.7 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.4.0 (2026-10-06) Length fields now hold their unit ("10 mm"); values typed in another unit (such as "1in") and arithmetic are converted to the field's unit
-
+- v1.4.1 (2026-11-22) Removed the version from the window title; the script name and version now show at the bottom left (click for About This Script)

@@ -3,7 +3,7 @@
 SCRIPTMETA（SCRIPTMETAKit 2.1、https://github.com/Yamonov/SCRIPTMETAKit/blob/main/docs/MetadataAuthoring.md）の同期ツール。
 
 スクリプトの基本情報は先頭の SCRIPTMETA ブロックが元で、スクリプトは実行時に「スクリプト情報」の部品
-（jsx/_templates/ScriptMeta.jsx）で読んで SCRIPT_NAME などに入れる。
+（jsx/_templates/ScriptMeta.jsx）で読み、getScriptMetaValue() で項目を直接返す（変数は SCRIPT_NAME だけ）。
 Version・Author・Release-Date・Description・X-com.swwwitch-Script-Name・Updated・README-JA/EN・Article-URL などは
 SCRIPTMETA を直接書き換える。このツールは残りを決まった形にそろえる：
 - Script-ID が無ければ ID_PREFIX＋Script-Name（ID_OVERRIDES）で作る。あれば変えない

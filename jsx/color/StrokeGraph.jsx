@@ -10,13 +10,14 @@ Name=線を2色の破線グラフにする
 Name[en]=Turn strokes into two-color dashed graphs
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.1.0
+Version=1.1.1
 Release-Date=2026-11-20
 Tags=color,カラー
 X-com.swwwitch-Script-Name=StrokeGraph
-X-com.swwwitch-Updated=2026-11-21
+X-com.swwwitch-Updated=2026-11-22
 X-com.swwwitch-README-JA=https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/StrokeGraph.md
 X-com.swwwitch-README-EN=https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/StrokeGraph.md
+X-com.swwwitch-Article-URL=https://note.com/dtp_tranist/n/ne78abaa5610e
 X-com.swwwitch-Source-URL=https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/color/StrokeGraph.jsx
 Description-BEGIN
 [ja]
@@ -33,8 +34,8 @@ SCRIPTMETA-END
 // 基本情報 / Basic info
 // =========================================
 // スクリプト情報（再利用パーツ） / Script info (reusable)
-/* 基本情報は先頭の SCRIPTMETA が元。実行時に読んで SCRIPT_* に入れる（値は SCRIPTMETA を書き換え、helpers/sync-scriptmeta.py で同期）
-   The basic info lives in the SCRIPTMETA block at the top; it is read into SCRIPT_* at run time */
+/* 基本情報は先頭の SCRIPTMETA が元。実行時に読み、getScriptMetaValue("Version") のように直接読む（値は SCRIPTMETA を書き換え、helpers/sync-scriptmeta.py で同期）
+   The basic info lives in the SCRIPTMETA block at the top; read its fields directly with getScriptMetaValue() */
 
 /**
  * このスクリプトの先頭にある SCRIPTMETA の項目（Description の手前まで）を読む
@@ -78,16 +79,7 @@ function getScriptMetaValue(fieldKey) {
 }
 
 /* SCRIPTMETA が読めないとき（ファイルを経由しない実行）は、スクリプト名だけファイル名から補う / fall back to the file name */
-var SCRIPT_NAME           = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(new File($.fileName).name).replace(/\.[^.]+$/, ""); /* スクリプト名 / script name */
-var SCRIPT_VERSION        = getScriptMetaValue("Version") ? "v" + getScriptMetaValue("Version") : ""; /* バージョン / version */
-var SCRIPT_AUTHOR         = getScriptMetaValue("Author");                       /* 作者 / author */
-var SCRIPT_RELEASED       = getScriptMetaValue("Release-Date");                 /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED        = getScriptMetaValue("X-com.swwwitch-Updated");       /* 更新日 / last updated */
-var SCRIPT_DESCRIPTION_JA = getScriptMetaValue("Name");                         /* README の見出し / README title (Japanese) */
-var SCRIPT_README_JA      = getScriptMetaValue("X-com.swwwitch-README-JA");     /* README（日本語） */
-var SCRIPT_README_EN      = getScriptMetaValue("X-com.swwwitch-README-EN");     /* README (English) */
-var SCRIPT_ARTICLE_URL    = getScriptMetaValue("X-com.swwwitch-Article-URL");   /* 紹介記事 / article URL */
-var SCRIPT_SOURCE_URL     = getScriptMetaValue("X-com.swwwitch-Source-URL");    /* 最新版のソース / latest source */
+var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(new File($.fileName).name).replace(/\.[^.]+$/, ""); /* スクリプト名（設定の保存名） / script name, the key for saved settings */
 // スクリプト情報（再利用パーツ）ここまで / End of the reusable script info
 
 // Released under the MIT license
@@ -108,13 +100,13 @@ var SCRIPT_SOURCE_URL     = getScriptMetaValue("X-com.swwwitch-Source-URL");    
     /* 楕円の角度がこの差（度）以内なら、すでに ELLIPSE_ANGLE になっているとみなす / Angle difference treated as already at ELLIPSE_ANGLE */
     var ELLIPSE_ANGLE_TOLERANCE = 0.01;
 
-    /* アクセントの%の初期値（線がまだ2色に分かれていないとき） / Default accent % when the stroke is not split yet */
+    /* アクセントの割合の初期値（線がまだ2色に分かれていないとき） / Default accent ratio when the stroke is not split yet */
     var DEFAULT_ACCENT_PERCENT = 20;
 
     /* 線幅の初期値（pt。線がまだグラデーションでないとき） / Default weight in pt when the stroke has no gradient yet */
     var DEFAULT_STROKE_WIDTH = 10;
 
-    /* アクセントの%の欄の増減量・範囲・単位 / Step, range and unit of the accent % field */
+    /* アクセントの割合の欄の増減量・範囲・単位 / Step, range and unit of the accent ratio field */
     var ACCENT_FIELD_OPTIONS = { step: 1, min: 0, max: 100, unit: "%" };
 
     /* 線幅の欄の増減量・範囲（線の単位） / Step and range of the weight field (stroke units) */
@@ -123,7 +115,7 @@ var SCRIPT_SOURCE_URL     = getScriptMetaValue("X-com.swwwitch-Source-URL");    
     /* 入れる破線（pt）。[線分] だけなら間隔は空白（線分と同じ間隔） / Dash pattern (pt); a single value leaves the gap blank */
     var STROKE_DASH_PATTERN = [1];
 
-    /* 色の切り替わりの幅がこれ以内（%）なら2色に分かれているとみなし、今の境界からアクセントの%を出す / Max transition width (%) treated as already split */
+    /* 色の切り替わりの幅がこれ以内（%）なら2色に分かれているとみなし、今の境界からアクセントの割合を出す / Max transition width (%) treated as already split */
     var SEPARATE_EDGE_MAX_GAP = 1;
 
     /* 線にグラデーションが無いパスで使うベース・アクセントの初期値（ドキュメントのカラーモードで使い分け）
@@ -147,13 +139,14 @@ var SCRIPT_SOURCE_URL     = getScriptMetaValue("X-com.swwwitch-Source-URL");    
     // レイアウト / Layout
     // =========================================
 
-    var FIELD_LABEL_WIDTH = 100;     /* 項目名の幅（「アクセントの% :」が収まる幅） / label width */
+    var FIELD_LABEL_WIDTH = 115;     /* 項目名の幅（「アクセントの割合 :」が収まる幅） / label width */
     var FIELD_CHARACTERS  = 6;       /* 入力欄の文字数 / characters of the fields */
     var COLOR_CHIP_SIZE   = 16;      /* カラーの見本の大きさ / color chip size */
     var COLOR_PANEL_SPACING = 10;    /* ［カラー］パネルの行の間隔 / row spacing of the Color panel */
     var COLOR_CHIP_TEXT_GAP = 8;     /* カラーの見本と値の間隔 / gap between the color chip and its value */
+    var REVERSE_ROW_TOP_GAP = 4;     /* 線幅と［方向反転］の間に足すアキ / extra space between the weight and Reverse Direction */
     var COLOR_LABEL_CHIP_GAP = 8;    /* カラーの項目名（「ベース :」など）と見本の間隔 / gap between the color label and the chip */
-    var COLOR_TEXT_WIDTH  = 180;     /* カラーの値の欄の幅 / width of the color value text */
+    var COLOR_TEXT_WIDTH  = 150;     /* カラーの値の欄の幅（「C100 M100 Y100 K100」が収まる幅） / width of the color value text */
 
     // UIレイアウト（再利用パーツ） / UI layout (reusable)
 
@@ -996,7 +989,7 @@ var SCRIPT_SOURCE_URL     = getScriptMetaValue("X-com.swwwitch-Source-URL");    
     };
 
     /**
-     * ウィンドウの下端の左にスクリプト名とバージョン（SCRIPT_NAME・SCRIPT_VERSION）、右に VERSION_FOOTER_BRAND を小さく薄く入れる。部品をすべて足したあと、show() の直前に呼ぶ。
+     * ウィンドウの下端の左にスクリプト名とバージョン（SCRIPT_NAME・SCRIPTMETA の Version）、右に VERSION_FOOTER_BRAND を小さく薄く入れる。部品をすべて足したあと、show() の直前に呼ぶ。
      * 直前の行（ボタン行など）の下余白を 0 にし、ウィンドウの下余白を VERSION_FOOTER_BOTTOM_MARGIN にする。
      * InDesign の ScriptUI は文字サイズの指定を無視するので、onDraw でドットを並べて描く（UITheme の isDarkUI() を使う）
      * @param {Window} targetWindow - ダイアログまたはパレット（縦並び）
@@ -1024,7 +1017,7 @@ var SCRIPT_SOURCE_URL     = getScriptMetaValue("X-com.swwwitch-Source-URL");    
            左の欄は余りの幅まで伸ばし、ダイアログの幅はバージョンの分しか求めない（名前でダイアログを広げない）
            / Left: "script name version", or just the version when the name has characters without glyphs (e.g. Japanese)
              or does not fit. The left area takes the extra width and only asks for the version's width, so the name never widens the dialog */
-        var versionText = String(SCRIPT_VERSION);
+        var versionText = getVersionInfoValue("version");
         var leftCandidates = [versionText];
         if (typeof SCRIPT_NAME === "string" && hasVersionFooterGlyphs(SCRIPT_NAME)) leftCandidates.unshift(SCRIPT_NAME + " " + versionText);
         var versionCanvas = addVersionFooterCanvas(footerGroup, leftCandidates);
@@ -1125,9 +1118,9 @@ var SCRIPT_SOURCE_URL     = getScriptMetaValue("X-com.swwwitch-Source-URL");    
     // -----------------------------------------
     // このスクリプトについて / About this script
     // -----------------------------------------
-    /* 左下のスクリプト名・バージョンをクリックすると開く。SCRIPTMETA から読んだ SCRIPT_*（スクリプト情報の部品）を読み、
+    /* 左下のスクリプト名・バージョンをクリックすると開く。SCRIPTMETA の項目を getScriptMetaValue() で直接読み（スクリプト情報の部品）、
        この部品だけで動くよう、文言（VERSION_INFO_LABELS）とレイアウトの値も部品の中に持つ
-       Opened by clicking the name and version at the bottom left. Reads the SCRIPT_* basic info,
+       Opened by clicking the name and version at the bottom left. Reads the SCRIPTMETA fields directly with getScriptMetaValue(),
        and keeps its own labels and layout values so the part works on its own */
 
     var VERSION_INFO_LANG = (String($.locale || "").indexOf("ja") === 0) ? "ja" : "en"; /* 文言の言語 / label language */
@@ -1193,21 +1186,32 @@ var SCRIPT_SOURCE_URL     = getScriptMetaValue("X-com.swwwitch-Source-URL");    
     }
 
     /**
-     * SCRIPT_* の値を返す（変数が無い・文字列でなければ空文字）。typeof で読むので、未定義でも例外にならない
+     * 「このスクリプトについて」とフッターに出す値を返す。SCRIPTMETA の項目を getScriptMetaValue() で直接読み、名前は SCRIPT_NAME。
+     * getScriptMetaValue() が無いスクリプトは従来の SCRIPT_* を typeof で読む（未定義でも例外にならない）
      * @param {string} variableKey - "name" / "version" / "feature" / "readme" / "source" / "article"
-     * @returns {string} 値
+     * @returns {string} 値（バージョンは「v1.2.0」の形）。無ければ空文字
      */
     function getVersionInfoValue(variableKey) {
-        var infoValue;
-        if (variableKey === "name") infoValue = (typeof SCRIPT_NAME !== "undefined") ? SCRIPT_NAME : "";
-        else if (variableKey === "version") infoValue = (typeof SCRIPT_VERSION !== "undefined") ? SCRIPT_VERSION : "";
-        else if (variableKey === "feature") infoValue = (typeof SCRIPT_DESCRIPTION_JA !== "undefined") ? SCRIPT_DESCRIPTION_JA : "";
-        else if (variableKey === "readme") {
-            if (VERSION_INFO_LANG === "ja") infoValue = (typeof SCRIPT_README_JA !== "undefined") ? SCRIPT_README_JA : "";
-            else infoValue = (typeof SCRIPT_README_EN !== "undefined") ? SCRIPT_README_EN : "";
+        var infoValue = "";
+        if (variableKey === "name") {
+            infoValue = (typeof SCRIPT_NAME !== "undefined") ? SCRIPT_NAME : "";
+        } else if (typeof getScriptMetaValue === "function") {
+            var isJapanese = (VERSION_INFO_LANG === "ja");
+            if (variableKey === "version") infoValue = getScriptMetaValue("Version") ? "v" + getScriptMetaValue("Version") : "";
+            else if (variableKey === "feature") infoValue = getScriptMetaValue("Name");
+            else if (variableKey === "readme") infoValue = getScriptMetaValue(isJapanese ? "X-com.swwwitch-README-JA" : "X-com.swwwitch-README-EN");
+            else if (variableKey === "source") infoValue = getScriptMetaValue("X-com.swwwitch-Source-URL");
+            else if (variableKey === "article") infoValue = getScriptMetaValue("X-com.swwwitch-Article-URL");
+        } else {
+            if (variableKey === "version") infoValue = (typeof SCRIPT_VERSION !== "undefined") ? SCRIPT_VERSION : "";
+            else if (variableKey === "feature") infoValue = (typeof SCRIPT_DESCRIPTION_JA !== "undefined") ? SCRIPT_DESCRIPTION_JA : "";
+            else if (variableKey === "readme") {
+                if (VERSION_INFO_LANG === "ja") infoValue = (typeof SCRIPT_README_JA !== "undefined") ? SCRIPT_README_JA : "";
+                else infoValue = (typeof SCRIPT_README_EN !== "undefined") ? SCRIPT_README_EN : "";
+            }
+            else if (variableKey === "source") infoValue = (typeof SCRIPT_SOURCE_URL !== "undefined") ? SCRIPT_SOURCE_URL : "";
+            else if (variableKey === "article") infoValue = (typeof SCRIPT_ARTICLE_URL !== "undefined") ? SCRIPT_ARTICLE_URL : "";
         }
-        else if (variableKey === "source") infoValue = (typeof SCRIPT_SOURCE_URL !== "undefined") ? SCRIPT_SOURCE_URL : "";
-        else if (variableKey === "article") infoValue = (typeof SCRIPT_ARTICLE_URL !== "undefined") ? SCRIPT_ARTICLE_URL : "";
         return (infoValue === undefined || infoValue === null) ? "" : String(infoValue);
     }
 
@@ -1865,7 +1869,7 @@ var SCRIPT_SOURCE_URL     = getScriptMetaValue("X-com.swwwitch-Source-URL");    
         fieldLabel: {
             baseColor: { ja: "ベース", en: "Base" },
             accentColor: { ja: "アクセント", en: "Accent" },
-            accentPercent: { ja: "アクセントの%", en: "Accent %" },
+            accentPercent: { ja: "アクセントの割合", en: "Accent Ratio" },
             strokeWidth: { ja: "線幅", en: "Weight" }
         },
         colorText: {
@@ -1905,8 +1909,8 @@ var SCRIPT_SOURCE_URL     = getScriptMetaValue("X-com.swwwitch-Source-URL");    
             noSelection: { ja: "オブジェクトを選択してください。", en: "Please select an object." },
             noPath: { ja: "パスを選択してください。", en: "Please select a path." },
             invalidValues: {
-                ja: "アクセントの%は 0% より大きく 100% より小さい値を、線幅は 0 より大きい値を入力してください。",
-                en: "Enter an accent % greater than 0% and less than 100%, and a weight greater than 0."
+                ja: "アクセントの割合は 0% より大きく 100% より小さい値を、線幅は 0 より大きい値を入力してください。",
+                en: "Enter an accent ratio greater than 0% and less than 100%, and a weight greater than 0."
             },
             dashAlignFailed: {
                 ja: "［コーナーやパス先端に破線の先端を整列］を設定できませんでした。破線と丸型線端だけ設定しました。",
@@ -2641,7 +2645,7 @@ var SCRIPT_SOURCE_URL     = getScriptMetaValue("X-com.swwwitch-Source-URL");    
 
         /**
          * ベース・アクセントの2色のストップと線幅を書き込む
-         * @param {{accentPercent: number, strokeWidth: number}} graphValues - アクセントの%と線幅（pt）
+         * @param {{accentPercent: number, strokeWidth: number}} graphValues - アクセントの割合と線幅（pt）
          * @returns {void}
          */
         function applyGraphValues(graphValues) {
@@ -2712,7 +2716,7 @@ var SCRIPT_SOURCE_URL     = getScriptMetaValue("X-com.swwwitch-Source-URL");    
      * パスごとの専用のグラデーションに2色のストップを、パスに線幅を書き込む
      * @param {Object[]} gradientSwaps - attachOwnGradients() の戻り値
      * @param {Color[]} bandColors - [ベース, アクセント]
-     * @param {{accentPercent: number, strokeWidth: number}} graphValues - アクセントの%と線幅（pt）
+     * @param {{accentPercent: number, strokeWidth: number}} graphValues - アクセントの割合と線幅（pt）
      * @returns {void}
      */
     function writeGraphValues(gradientSwaps, bandColors, graphValues) {
@@ -2767,9 +2771,9 @@ var SCRIPT_SOURCE_URL     = getScriptMetaValue("X-com.swwwitch-Source-URL");    
     }
 
     /**
-     * アクセントの%の初期値を返す。すでに2色に分かれていれば、今の境界から出す
+     * アクセントの割合の初期値を返す。すでに2色に分かれていれば、今の境界から出す
      * @param {Object[]} bands - extractColorBands() の戻り値
-     * @returns {number} アクセントの%
+     * @returns {number} アクセントの割合
      */
     function getInitialAccent(bands) {
         if (bands.length !== 2 || bands[1].start - bands[0].end > SEPARATE_EDGE_MAX_GAP) return DEFAULT_ACCENT_PERCENT;
@@ -3658,15 +3662,15 @@ var SCRIPT_SOURCE_URL     = getScriptMetaValue("X-com.swwwitch-Source-URL");    
     // =========================================
 
     /**
-     * ［線のグラフ］のダイアログを表示する（ベース・アクセントのカラー、アクセントの%、線幅）。入力に合わせて onPreview で反映する
+     * ［線のグラフ］のダイアログを表示する（ベース・アクセントのカラー、アクセントの割合、線幅）。入力に合わせて onPreview で反映する
      * @param {Object} dialogSetup - 表示の設定
      * @param {{label: string, color: Color}[]} dialogSetup.colorChoices - カラーの行（見本のクリックで選び直すと .color を書き換える）
-     * @param {number} dialogSetup.initialAccent - アクセントの%の初期値
+     * @param {number} dialogSetup.initialAccent - アクセントの割合の初期値
      * @param {number} dialogSetup.initialStrokeWidth - 線幅の初期値（pt）
      * @param {boolean} dialogSetup.initialReverse - ［方向反転］の初期値
      * @param {function(Object): void} dialogSetup.onPreview - 使える値が入力されるたびに {accentPercent, strokeWidth} で呼ぶ
      * @param {function(boolean): void} dialogSetup.onReverseChange - ［方向反転］を切り替えるたびにチェックの状態で呼ぶ
-     * @returns {{accentPercent: number, strokeWidth: number}|null} アクセントの%と線幅（pt）。キャンセルなら null
+     * @returns {{accentPercent: number, strokeWidth: number}|null} アクセントの割合と線幅（pt）。キャンセルなら null
      */
     function showStrokeGraphDialog(dialogSetup) {
         var graphDialog = new Window("dialog", getLabel("dialog.title"));
@@ -3683,7 +3687,7 @@ var SCRIPT_SOURCE_URL     = getScriptMetaValue("X-com.swwwitch-Source-URL");    
 
         /**
          * 入力欄の値を読む（使えない値なら null）
-         * @returns {{accentPercent: number, strokeWidth: number}|null} アクセントの%と線幅（pt）
+         * @returns {{accentPercent: number, strokeWidth: number}|null} アクセントの割合と線幅（pt）
          */
         function readGraphValues() {
             var accentPercent = parseFloat(accentInput.text);
@@ -3719,11 +3723,11 @@ var SCRIPT_SOURCE_URL     = getScriptMetaValue("X-com.swwwitch-Source-URL");    
     }
 
     /**
-     * ［カラー］パネル（ベース・アクセントの行とアクセントの%）を足す
+     * ［カラー］パネル（ベース・アクセントの行とアクセントの割合）を足す
      * @param {Window} graphDialog - ダイアログボックス
      * @param {Object} dialogSetup - showStrokeGraphDialog() の表示の設定
      * @param {Function} onInput - 値やカラーが変わったときに呼ぶ関数
-     * @returns {EditText} アクセントの%の入力欄
+     * @returns {EditText} アクセントの割合の入力欄
      */
     function addColorPanel(graphDialog, dialogSetup, onInput) {
         var colorPanel = graphDialog.add("panel", undefined, getLabel("panel.color"));
@@ -3771,8 +3775,12 @@ var SCRIPT_SOURCE_URL     = getScriptMetaValue("X-com.swwwitch-Source-URL");    
         });
         appendOnChange(strokeWidthInput, onInput);
 
-        /* 方向反転（切り替えるとその場で反転する） / Reverse direction, applied right away */
-        var reverseCheckbox = strokePanel.add("checkbox", undefined, getLabel("checkbox.reverse"));
+        /* 方向反転（切り替えるとその場で反転する）。左端を線幅の入力欄にそろえる（項目名・間隔・∧∨の幅だけ空ける）
+           Reverse direction, applied right away; its left edge lines up with the weight field */
+        var reverseRow = strokePanel.add("group");
+        setupRow(reverseRow, "left", 0);
+        reverseRow.margins = [FIELD_LABEL_WIDTH + STEPPER_FIELD_SPACING + STEPPER_SIDE_MARGIN + STEPPER_BUTTON_WIDTH, REVERSE_ROW_TOP_GAP, 0, 0];
+        var reverseCheckbox = reverseRow.add("checkbox", undefined, getLabel("checkbox.reverse"));
         reverseCheckbox.value = dialogSetup.initialReverse;
         reverseCheckbox.helpTip = getLabel("tooltip.reverse");
         reverseCheckbox.onClick = function () {

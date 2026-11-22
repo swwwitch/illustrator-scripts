@@ -86,6 +86,7 @@ The up/down buttons to the left of each number field work the same way as the ar
 
 ### Update history
 
+- v1.3.1 (2026-11-22) Removed the version from the window title; the script name and version now show at the bottom left (click for About This Script)
 - v1.3.0 (2026-10-11) Added a Reset button on the left of the button row to restore every setting to its default
 - v1.2.8 (2026-10-01) Added space below the button row to match Illustrator's own dialogs
 - v1.2.7 (2026-10-01) Unified the window and panel margins and spacing with the shared layout part

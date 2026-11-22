@@ -13,32 +13,34 @@
 Turns the strokes of the selected paths into round dashes split into a base color and an accent color, making stroke graphs such as ring charts and progress bars.
 The path's own color becomes the accent, and strokes without a gradient get Apply Gradient Along Stroke from an embedded graphic style.
 
+<img alt="The Stroke Graph dialog box" src="../png/ss-954-900-144-20261122-154725-s.png" width="50%" />
+
 ### Features
 
 - Turns the selected paths (including those in groups and compound paths) into stroke graphs
   - Removes the fill
   - Paths without a gradient stroke get the "stroke-gradient" graphic style embedded in the script, which makes the stroke Apply Gradient Along Stroke (the opacity and blending mode stay as they are). The embedded file is opened only when the document does not have the style yet (no external file needed)
-  - Turns the stroke into a two-color segmented gradient: base from the start, accent over the last accent % (20% puts the boundary at 80%)
+  - Turns the stroke into a two-color segmented gradient: base from the start, accent over the last part set by Accent Ratio (20% puts the boundary at 80%)
   - Sets dashes (1 pt dash, blank gap), round caps and Align Dashes to Corners and Path Ends
   - Reverses the path direction (when Reverse Direction is on)
   - Sets the angle of live ellipses to 90° (the angle in Ellipse Properties of the Transform panel; ellipses already at 90° are left as they are)
 - Each path gets its own gradient (Stroke Graph, Stroke Graph 1, ...), so unselected objects sharing the same gradient stay unchanged
 - Set in the dialog box
   - Base and accent: click a chip to change the color with Illustrator's standard color picker
-  - Accent %: the ∧∨ buttons, the arrow keys or typing (arithmetic allowed)
+  - Accent Ratio: the ∧∨ buttons, the arrow keys or typing (arithmetic allowed)
   - Weight: shown in the stroke unit preference
   - Reverse Direction: whether to reverse the path direction (on by default; toggling it reverses right away, swapping where the base and accent go)
 - Changes show right away (preview is always on)
 - Defaults
-  - Without a gradient stroke, the path color (the stroke color, or the fill color when there is no stroke; red when there is neither) becomes the accent, K10 the base, the accent % is 20% and the weight is 10 pt
-  - With a gradient stroke (such as a path already made into a graph), the start color becomes the base, the end color the accent and the current weight the weight; if it is already split in two, the accent % comes from the current boundary
+  - Without a gradient stroke, the path color (the stroke color, or the fill color when there is no stroke; red when there is neither) becomes the accent, K10 the base, the accent ratio is 20% and the weight is 10 pt
+  - With a gradient stroke (such as a path already made into a graph), the start color becomes the base, the end color the accent and the current weight the weight; if it is already split in two, the accent ratio comes from the current boundary
 - Cancel restores the fills, stroke settings, gradients, direction and ellipse angles
 
 ### Usage
 
 1. Select paths such as circles or ellipses.
 2. Run the script.
-3. Set the colors, accent %, weight and Reverse Direction, then click OK.
+3. Set the colors, accent ratio, weight and Reverse Direction, then click OK.
 
 ### Notes
 
@@ -48,10 +50,15 @@ The path's own color becomes the accent, and strokes without a gradient get Appl
 - Each run adds one gradient swatch per path.
 - The ellipse angle applies only to live ellipses. Cancel sets the ellipses whose angle was changed to 0° (those already at 90° stay as they are).
 - Running it twice on the same path reverses the path again. Turn off Reverse Direction to keep the current direction.
-- Change the ellipse angles (ELLIPSE_ANGLE, ELLIPSE_ANGLE_ON_CANCEL), the default accent % (DEFAULT_ACCENT_PERCENT), the default colors (DEFAULT_BASE_COLOR, DEFAULT_ACCENT_COLOR), the default weight (DEFAULT_STROKE_WIDTH) and the dash values (STROKE_DASH_PATTERN) at the top of the script.
+- Change the ellipse angles (ELLIPSE_ANGLE, ELLIPSE_ANGLE_ON_CANCEL), the default accent ratio (DEFAULT_ACCENT_PERCENT), the default colors (DEFAULT_BASE_COLOR, DEFAULT_ACCENT_COLOR), the default weight (DEFAULT_STROKE_WIDTH) and the dash values (STROKE_DASH_PATTERN) at the top of the script.
+
+### Article
+
+https://note.com/dtp_tranist/n/ne78abaa5610e
 
 ### Update History
 
+- v1.1.1 (2026-11-22) Renamed Accent % to Accent Ratio. Lined up Reverse Direction with the weight field and added space above it. Narrowed the color value text to remove the empty space on the right of the dialog box
 - v1.1.0 (2026-11-21) Strokes without a gradient now get Apply Gradient Along Stroke from an embedded graphic style. The path color is now the default accent and K10 the default base, and the default weight is 10 pt. Fills are removed. Ellipses already at 90° keep their angle. Added Reverse Direction to the dialog box and removed the description line at the top. The two stops at the boundary are now at the same location, so no in-between color shows
 - v1.0.1 (2026-11-20) Replaced the 90° rotation with setting the angle of live ellipses to 90° (dynamic action)
 - v1.0.0 (2026-11-20) First release

@@ -45,3 +45,4 @@
 - v1.3.10 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.3.11 (2026-10-16) Right-only button rows are now centered when the dialog's inner width is up to 240 px (was 200 px) (shared part update)
 - v1.3.12 (2026-10-29) The margin is now converted from the ruler unit to points (typing 5 with a mm ruler used to add 5 pt). With the ruler unit set to Ha (H), the field now shows "H" instead of "Q"
+- v1.3.13 (2026-11-22) Removed the version from the window title; the script name and version now show at the bottom left (click for About This Script)

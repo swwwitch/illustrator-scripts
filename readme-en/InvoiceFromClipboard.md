@@ -262,6 +262,7 @@ Change these in the User settings block at the top of the script.
 
 ## Changelog
 
+- v1.1.3 (2026-11-22) Removed the version from the window title; the script name and version now show at the bottom left (click for About This Script)
 - v1.1.2 (2026-10-16) Right-only button rows are now centered when the dialog's inner width is up to 240 px (was 200 px) (shared part update)
 - v1.1.1 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.1.0 (2026-10-01): After export, the PDF is now shown selected when the helper app OpenInFileViewer.app is installed (in Path Finder while it is running)

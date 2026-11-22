@@ -22,6 +22,8 @@
 
 ### Update history
 
+- v1.4.9 (2026-11-22) Removed the version from the window title; the script name and version now show at the bottom left (click for About This Script)
+- v1.4.8 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.4.7 (2026-10-03) Units now appear inside the number fields; removed the unit from the panel titles and beside the fields
 - v1.4.6 (2026-10-01) Added space below the button row to match Illustrator's own dialogs
 - v1.4.5 (2026-10-01) Unified the window and panel margins and spacing with the shared layout part
@@ -32,4 +34,3 @@
 - v1.4.2 (20260928) : In English, removed the extra space after field-label colons
 - v1.4.1 (20260928) : The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.4.0 (20260927) : Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
-- v1.4.8 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)

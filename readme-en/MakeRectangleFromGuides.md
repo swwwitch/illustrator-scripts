@@ -79,6 +79,7 @@ https://note.com/dtp_tranist/n/n4907511336ad
 
 ### Update History
 
+- v1.2.8 (2026-11-22) Removed the version from the window title; the script name and version now show at the bottom left (click for About This Script)
 - v1.2.7 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.2.6 (2026-10-01): Added space below the button row to match Illustrator's own dialogs
 - v1.2.5 (2026-10-01): Unified the window and panel margins and spacing with the shared layout part
