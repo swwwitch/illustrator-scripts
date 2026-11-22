@@ -14,7 +14,7 @@
 
 This script places the selected objects at the center of each cell of a grid with the given number of rows and columns.
 
-The placement area can be the current artboard or the backmost object. Objects can be resized to the cells and clipped with masks that have round corners and a frame. Filling can start from a corner or the center, or the objects can be spread evenly over the grid. The cell rectangles can be kept, converted to guides, turned into artboards, or left out. Every setting is adjusted with a live preview.
+The placement area can be the current artboard or the backmost of the selected objects. Objects can be resized to the cells and clipped with masks that have round corners and a frame. Filling can start from a corner or the center, or the objects can be spread evenly over the grid. The cell rectangles can be kept, converted to guides, turned into artboards, or left out. Every setting is adjusted with a live preview.
 
 Run it with nothing or a single object selected, and it imports images first, then arranges them ([Import images, then arrange](#import-images-then-arrange-one-object-or-none-selected)). Mask settings can be saved as presets.
 
@@ -87,7 +87,7 @@ Run it with nothing or a single object selected, and it imports images first, th
 - With Keep Originals on, the originals stay where they are and only as many copies as there are cells are placed (nothing is copied or parked beyond the cell count). The placed copies are selected after OK. It is off by default.
 - With Fit to Window on, the view is centered and zoomed so the placement area (current artboard or backmost object) fills the given share of the window (65% by default, 10-100%). It refits when the dialog box opens, when you switch the area, and when you change the share. It is on by default. Cancel restores the original view; OK keeps the fitted view.
 - Click the script name and version at the bottom left of the dialog to open About This Script, which shows the script name and version, opens the README, the source code, or the article (note), and shows the script file (Show in Finder). The button to the right of the script name copies it to the clipboard.
-- When Backmost Object is selected, that framing object is excluded from the objects to place.
+- Backmost Object uses the backmost of the selected objects (such as a background rectangle) as the frame, and that object is excluded from the objects to place. Unselected objects are never used.
 - With Prioritize Gutter on, the cells are sized to the widest and tallest objects (after resizing) and the gutter is the gap between objects. The leftover space goes to the margin and the grid is centered in the area, so the margin is at least the value set (cells never grow beyond the size the margin and gutter allow). With it off, the margin and gutter are taken exactly and the cells get the rest.
 - Objects beyond the number of cells are parked where they overlap neither other objects nor artboards.
 - Any existing "cell-background" layer is hidden while the dialog is open and removed when you click OK, which clears the result of the previous run. Cancel restores its original visibility.
@@ -120,6 +120,7 @@ Run the script with nothing or a single object selected, and it first imports im
 
 ## Changelog
 
+- v3.9.1 (2026-11-22) Backmost Object now uses the backmost of the selected objects instead of the backmost object in the whole document (fixes a frame being taken from outside the selection or from inside a group, which put every selected object into the cells). The Object Anchor widget is now centered in its panel
 - v3.9.0 (2026-11-22) Took in the image import of PlaceImagesInGrid.jsx: with nothing or a single object selected, the script places chosen images, then opens the arrange dialog box. Added mask presets (with four built-in ones) to Mask. Turning on a mask now sets Cell Handling to Don't Keep. Renamed Keep Original Objects to Keep Originals and moved it into Placement & Arrangement and added Fit to Window at the left of the button row. Mask is now None / Cell / Image; Image masks each object at its own size
 - v3.8.0 (2026-11-20) The Auto buttons for Scale and Round Corners are now icons, placed at the right of their field rows
 - v3.7.0 (2026-11-20) The Auto button for Rows and Columns is now an icon (a magic wand). Spread Evenly is available only when there are spare cells and dimmed otherwise

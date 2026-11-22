@@ -10,7 +10,7 @@ Name=グリッドの各セル中央にオブジェクトを配置
 Name[en]=Place objects at the center of each grid cell
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=3.9.0
+Version=3.9.1
 Release-Date=2025-05-20
 Tags=alignment,整列
 X-com.swwwitch-Script-Name=SmartObjectDistributor
@@ -2793,8 +2793,8 @@ var SCRIPT_SOURCE_URL     = getScriptMetaValue("X-com.swwwitch-Source-URL");    
                 en: "Uses the artboard that was active when the dialog box opened as the area."
             },
             targetBackmost: {
-                ja: "表示されていてロックされていないオブジェクトのうち、最も背面にあるものを配置先にします。そのオブジェクト自体は配置しません。",
-                en: "Uses the backmost visible, unlocked object as the area. That object itself is not placed."
+                ja: "選択したオブジェクトのうち、いちばん背面にあるものを配置先（枠）にします。そのオブジェクト自体は配置しません。",
+                en: "Uses the backmost of the selected objects as the area (frame). That object itself is not placed."
             },
             noCell: {
                 ja: "セルの長方形を残しません（プレビューではセルの範囲をガイドで示します）。",
@@ -3023,31 +3023,17 @@ var SCRIPT_SOURCE_URL     = getScriptMetaValue("X-com.swwwitch-Source-URL");    
     // 対象の検出 / Target detection
     // =========================================
 
-    /* スクリプトが作る・使うレイヤー名の集合。最背面の検出ではこれらを飛ばす
-       Layer names this script manages; skipped when looking for the backmost object */
-    var SYSTEM_LAYER_NAMES = {};
-    SYSTEM_LAYER_NAMES[CONFIG.cellLayerName] = true;
-    SYSTEM_LAYER_NAMES[CONFIG.previewCellLayerName] = true;
-    SYSTEM_LAYER_NAMES[CONFIG.legacyPreviewLayerName] = true;
-
     /**
-     * システムレイヤーを除く最背面のオブジェクトを返します。/ Return the backmost object, ignoring system layers.
-     * 選択中のアイテムも候補に含めます（枠として使う場合の利便性を優先）。
+     * 選択の中でいちばん背面のオブジェクトを返します（枠として配置先に使う）。/ Return the backmost object in the selection.
+     * doc.selection は前面から背面の順に並ぶので、最後の要素が最背面です。
+     * 枠を除いて整列するオブジェクトが残るよう、2つ以上選択しているときだけ返します。
      *
-     * @param {Document} doc - 対象ドキュメント。
-     * @returns {PageItem|null} 最背面のオブジェクト。無ければ null。
+     * @param {Array<PageItem>} selectionItems - 選択中のオブジェクト（前面→背面の順）。
+     * @returns {PageItem|null} 最背面のオブジェクト。1つ以下なら null。
      */
-    function findBackmostPageItem(doc) {
-        for (var i = doc.layers.length - 1; i >= 0; i--) {
-            var candidateLayer = doc.layers[i];
-            if (!candidateLayer.visible || candidateLayer.locked || SYSTEM_LAYER_NAMES[candidateLayer.name]) continue;
-            for (var j = candidateLayer.pageItems.length - 1; j >= 0; j--) {
-                var pageItem = candidateLayer.pageItems[j];
-                if (pageItem.hidden || pageItem.locked) continue;
-                return pageItem;
-            }
-        }
-        return null;
+    function findBackmostSelectedItem(selectionItems) {
+        if (!selectionItems || selectionItems.length < 2) return null;
+        return selectionItems[selectionItems.length - 1];
     }
 
     /**
@@ -4278,6 +4264,7 @@ var SCRIPT_SOURCE_URL     = getScriptMetaValue("X-com.swwwitch-Source-URL");    
         setupPanel(itemAnchorPanel);
         itemAnchorPanel.alignChildren = ["left", "top"];
         var itemAnchorWidget = addAnchorWidget(itemAnchorPanel, CONFIG.defaultItemAnchor, onItemAnchorChange, { size: FILL_START_WIDGET_SIZE });
+        itemAnchorWidget.alignment = ["center", "top"]; /* パネルの左右中央に置く / Center the widget in the panel */
         itemAnchorWidget.helpTip = getLabel(LABELS.tooltip.itemAnchor);
         return { itemAnchorWidget: itemAnchorWidget };
     }
@@ -5476,12 +5463,11 @@ var SCRIPT_SOURCE_URL     = getScriptMetaValue("X-com.swwwitch-Source-URL");    
         var baseArtboardIndex = doc.artboards.getActiveArtboardIndex();
         var baseArtboardRect = doc.artboards[baseArtboardIndex].artboardRect;
 
-        /* 対象候補の検出（この時点では変更を加えない）/ Detect target candidates without changing anything */
-        /* 画像を読み込んだときは最背面のオブジェクトを使わない / Imported images never use the backmost object */
-        var backmostItem = launchContext.artboardOnly ? null : findBackmostPageItem(doc);
-
         /* 選択内容はダイアログ起動時に固定する（順序も保持）/ Freeze the selection (and its order) at launch */
         var placeableItems = copyItemsExcept(launchContext.items || doc.selection, null);
+
+        /* 枠の候補は選択の中の最背面。画像を読み込んだときは使わない / The frame candidate is the backmost selected object; never for imported images */
+        var backmostItem = launchContext.artboardOnly ? null : findBackmostSelectedItem(placeableItems);
 
         var rulerUnit = getUnitInfo();
         var defaultDivision = computeDefaultDivision(placeableItems.length, baseArtboardRect, CONFIG.defaultBrick);
