@@ -42,6 +42,16 @@ The path's own color becomes the accent, and strokes without a gradient get Appl
 2. Run the script.
 3. Set the colors, accent ratio, weight and Reverse Direction, then click OK.
 
+### About the embedded (encoded) AI file
+
+StrokeGraph carries the AI file that holds the "stroke-gradient" graphic style (strokegradient.ai, about 110 KB) at the end of the script, converted (encoded) into text as Base64. That is why the script works on its own (the script is about 350 KB).
+
+- On first use, the embedded data is turned back into the AI file, written to a temporary folder (Folder.temp/StrokeGraph/content ID/strokegradient.ai) and opened
+- Later runs reuse that file without decoding again. When the document already has the "stroke-gradient" style, the AI file is not opened at all
+- The ID changes with the AI file's content, so an older file is never picked up by mistake
+- To replace the AI file, embed it again with helpers/embed-file-base64.py (`python3 helpers/embed-file-base64.py jsx/color/StrokeGraph.jsx new-file.ai`)
+- For a version that loads the AI file from the script's folder instead of embedding it, see [StrokeGraphFromFile](StrokeGraphFromFile.md)
+
 ### Notes
 
 - Scripts cannot set the stroke gradient type, so Apply Gradient Along Stroke comes from a graphic style. A document the style was imported into keeps the "stroke-gradient" style and its gradient swatch. Strokes that already had a gradient keep their type.
