@@ -16,17 +16,21 @@ This script places the selected objects at the center of each cell of a grid wit
 
 The placement area can be the current artboard or the backmost object. Objects can be resized to the cells and clipped with masks that have round corners and a frame. Filling can start from a corner or the center, or the objects can be spread evenly over the grid. The cell rectangles can be kept, converted to guides, turned into artboards, or left out. Every setting is adjusted with a live preview.
 
+Run it with nothing or a single object selected, and it imports images first, then arranges them ([Import images, then arrange](#import-images-then-arrange-one-object-or-none-selected)). Mask settings can be saved as presets.
+
 ## Main features
 
+- Mask presets: save, load and delete the mask settings (mode, round corners, frame), with four built-in presets (Default / Black 0.3 pt, square / White 1 pt, radius 2 pt / White 1 pt, radius 50 pt)
+- With nothing or a single object selected, imports images (files or a folder) as links, then arranges them
 - Placement area switching (current artboard / backmost object)
 - Rows, columns, gutter, and margin settings, plus Prioritize Gutter, which sizes the cells to the objects so the gutter becomes the gap between objects
 - Initial rows and columns derived from the selection count and the area's aspect ratio, so cells stay nearly square (recalculated with the Auto icon (a magic wand) to the right of Rows and Columns, and when you switch the area or Brick)
 - Resizing to the cells (Fit Width / Fit Height / Equal Area / Scale), keeping the aspect ratio, with a ratio in %. For Scale, the Auto icon next to the ratio enters a ratio at which every object covers its cell
-- Clipping each object with its cell rectangle (Mask), with round corners and a frame (weight and color)
+- Clipping masks (None / Cell: the cell rectangle / Image: a rectangle of the object's own size), with round corners and a frame (weight and color)
 - Object Anchor to choose where each object sits in its cell (nine positions)
-- Keeping the originals and placing copies in the cells (Keep Original Objects)
+- Keeping the originals and placing copies in the cells (Keep Originals)
 - Start From (any of nine positions: corners, edge centers, center), Spread Evenly to scatter objects over the grid when there are spare cells, and Brick to drop one cell from every even row and offset it by half a cell
-- Cell handling: Do Nothing, Keep as Rectangles, Convert to Guides, or Convert to Artboards
+- Cell handling: Don't Keep, Keep as Rectangles, Convert to Guides, or Convert to Artboards
 - Cell fill (black, white, or no fill) and opacity
 - Shuffle button to randomize the order in which objects fill the cells
 - Objects beyond the number of cells are parked clear of other objects and artboards
@@ -38,17 +42,17 @@ The placement area can be the current artboard or the backmost object. Objects c
 
 ## Usage
 
-1. Select the objects to arrange in a grid.
+1. Select two or more objects to arrange in a grid.
 2. Run `SmartObjectDistributor.jsx`.
 3. Configure the settings in the dialog box panels.
    - Placement Area: the region the grid is laid out in
    - Divisions & Margin: rows, columns (Auto icon), gutter, margin, Prioritize Gutter
-   - Placement & Arrangement: where filling starts, Spread Evenly, Brick, and Shuffle
+   - Placement & Arrangement: where filling starts, Spread Evenly, Brick, Keep Originals, and Shuffle
    - Resize: how to resize and the ratio
-   - Mask: whether to mask, round corners, frame
+   - Mask: preset (load, save icon, trash icon), None / Cell / Image, round corners, frame
    - Cell Handling: what happens to the rectangles, color, opacity
    - Object Anchor: where each object sits in its cell
-   - Keep Original Objects at the left of the button row: whether to keep the originals and place copies
+   - Fit to Window at the left of the button row: whether to fit the view so the area fills the given share (%) of the window (does not affect the result)
 4. Click Shuffle to change the assignment order if needed.
 5. Adjust the values while checking the preview.
 6. Click OK to apply.
@@ -59,33 +63,36 @@ The placement area can be the current artboard or the backmost object. Objects c
 | --- | --- |
 | Placement Area | Current artboard / backmost object |
 | Divisions & Margin | Rows, columns, Auto icon, gutter, margin, Prioritize Gutter |
-| Placement & Arrangement | Start From (nine positions), Spread Evenly, Brick, Shuffle |
+| Placement & Arrangement | Start From (nine positions), Spread Evenly, Brick, Keep Originals, Shuffle |
 | Resize | None / Fit Width / Fit Height / Equal Area / Scale, ratio (%), Auto icon |
-| Mask | Mask, Round Corners (radius, Auto icon), Frame (weight and color) |
-| Cell Handling | Do Nothing / Keep as Rectangles / Convert to Guides / Convert to Artboards, color (black / white / no fill), opacity, transparency grid |
+| Mask | Preset, None / Cell / Image, Round Corners (radius, Auto icon), Frame (weight and color) |
+| Cell Handling | Don't Keep / Keep as Rectangles / Convert to Guides / Convert to Artboards, color (black / white / no fill), opacity, transparency grid |
 | Object Anchor | Nine positions (center by default) |
-| (left of the button row) | Keep Original Objects |
+| (left of the button row) | Fit to Window (share %) |
 
 <img alt="The Arrange in Grid dialog box" src="../png/ss-1308-1074-144-20261120-124543.png" width="60%" />
 
 ## Notes
 
+- A Mask preset stores the mask mode (None / Cell / Image), Round Corners (on/off and radius) and Frame (on/off, weight and color). Presets are saved to `Folder.userData/illustrator-scripts/SmartObjectDistributorMaskPresets.json` and survive a restart (presets from PlaceImagesInGrid.jsx have different settings and are not carried over).
+- The built-in Default preset restores the mask settings the dialog box opened with. The other built-in presets change only the frame and corner radius, and switch the mask from None to Cell. Built-in presets cannot be deleted, and their names cannot be used for your own presets.
 - In Resize, Fit Width and Fit Height match each object to the cell width or height times the ratio; Equal Area equalizes the areas, sized so every object fits in the cell times the ratio; Scale is relative to the original size. All keep the aspect ratio and scale stroke weights by the same factor. Objects parked beyond the cell count are not resized.
-- The Auto icon next to the ratio is available with Scale. It enters the ratio at which every object in a cell is at least as wide and as tall as the cell, leaving no gap on any side, rounded up to 0.1%. Use Mask to crop what extends past the cell.
-- With Mask on, each object placed in a cell is clipped with the cell rectangle (one clipping group per object). Objects parked beyond the cell count are not masked. Mask is on by default.
-- Round Corners applies the Round Corners effect to each clipping group. The Auto icon next to its radius sets the radius to half the shorter side of a cell, so the short ends become semicircles. Frame adds a stroke to each mask rectangle (weight in the stroke unit; click the swatch to pick a color with the standard color picker; black by default). Both are available while Mask is on.
-- Object Anchor places each object so that its anchor point meets the same point of its cell (center by default). For example, top left aligns the top-left corners; with Mask on, whatever extends past the right and bottom is cropped.
+- The Auto icon next to the ratio is available with Scale. It enters the ratio at which every object in a cell is at least as wide and as tall as the cell, leaving no gap on any side, rounded up to 0.1%. Use the Cell mask to crop what extends past the cell.
+- With the Cell mask, each object placed in a cell is clipped with the cell rectangle (one clipping group per object). With Image, each object is clipped with a rectangle of its own visible size (stroke included), so nothing is cropped; use it to add round corners or a frame. Objects parked beyond the cell count are not masked. Cell is the default.
+- Round Corners applies the Round Corners effect to each clipping group. The Auto icon next to its radius sets the radius to half the shorter side of a cell, so the short ends become semicircles; with Image, to half the shorter side of the smallest mask. Frame adds a stroke to each mask rectangle (weight in the stroke unit; click the swatch to pick a color with the standard color picker; black by default). Both are available unless the mask is None.
+- Object Anchor places each object so that its anchor point meets the same point of its cell (center by default). For example, top left aligns the top-left corners; with the Cell mask, whatever extends past the right and bottom is cropped.
 - When Start From is a corner, filling goes row by row starting at that corner. From the top or bottom center, it fills row by row from that edge, each row from the middle column outward. From the left or right center, it fills column by column from that edge, each column from the middle row outward. Center fills the cells nearest the middle first.
 - With Spread Evenly on and fewer objects than cells, the cells are picked starting from the start cell, each one as far as possible from those already picked, so the objects spread over the whole grid. Shuffle re-picks among cells at the same distance. Option-click a Start From position to turn off Spread Evenly and fill from there. Spread Evenly is dimmed when there are no spare cells (as many objects as cells, or more).
 - With Brick on, every even row (2nd, 4th, ...) has one cell fewer and is shifted right by half a cell, like a brick wall (for example, 4 columns × 3 rows gives 4, 3, 4 = 11 cells). It has no effect with a single column. Filling from the left or right center counts the half-shifted columns in order as well.
-- With Keep Original Objects on, the originals stay where they are and only as many copies as there are cells are placed (nothing is copied or parked beyond the cell count). The placed copies are selected after OK. It is off by default.
+- With Keep Originals on, the originals stay where they are and only as many copies as there are cells are placed (nothing is copied or parked beyond the cell count). The placed copies are selected after OK. It is off by default.
+- With Fit to Window on, the view is centered and zoomed so the placement area (current artboard or backmost object) fills the given share of the window (65% by default, 10-100%). It refits when the dialog box opens, when you switch the area, and when you change the share. It is on by default. Cancel restores the original view; OK keeps the fitted view.
 - Click the script name and version at the bottom left of the dialog to open About This Script, which shows the script name and version, opens the README, the source code, or the article (note), and shows the script file (Show in Finder). The button to the right of the script name copies it to the clipboard.
 - When Backmost Object is selected, that framing object is excluded from the objects to place.
 - With Prioritize Gutter on, the cells are sized to the widest and tallest objects (after resizing) and the gutter is the gap between objects. The leftover space goes to the margin and the grid is centered in the area, so the margin is at least the value set (cells never grow beyond the size the margin and gutter allow). With it off, the margin and gutter are taken exactly and the cells get the rest.
 - Objects beyond the number of cells are parked where they overlap neither other objects nor artboards.
 - Any existing "cell-background" layer is hidden while the dialog is open and removed when you click OK, which clears the result of the previous run. Cancel restores its original visibility.
-- Do Nothing leaves no cell rectangles (the preview shows the cells as guides).
-- With Do Nothing, Convert to Guides or Convert to Artboards, the cell color is fixed to No Fill.
+- Don't Keep leaves no cell rectangles (the preview shows the cells as guides). Switching the mask from None to Cell or Image sets Cell Handling to Don't Keep (switching between Cell and Image does not). Since the mask starts as Cell, Cell Handling starts as Don't Keep.
+- With Don't Keep, Convert to Guides or Convert to Artboards, the cell color is fixed to No Fill.
 - Up to 100 rows and 100 columns, and up to 1000 cells. Out-of-range values are clamped when the field commits.
 - Nothing is drawn when the margin or gutter leaves no room for cells, and clicking OK keeps the dialog open and explains why.
 - The preview shows duplicates of the objects, and the originals are hidden only while the dialog is open. The preview is never removed with Undo, so work done before the script runs is never undone.
@@ -93,12 +100,27 @@ The placement area can be the current artboard or the backmost object. Objects c
 - With Keep as Rectangles, the cell rectangles are selected after clicking OK.
 - Values follow Illustrator's ruler unit setting.
 
+## Import images, then arrange (one object or none selected)
+
+Run the script with nothing or a single object selected, and it first imports images, then opens the same arrange dialog box (the import part of the former PlaceImagesInGrid.jsx).
+
+1. With nothing or a single object selected, run `SmartObjectDistributor.jsx`.
+2. Click Choose Files... to pick images (one or more), or Choose Folder... to pick a folder. The one you chose last time is the default button (Return).
+3. The images are placed as links and the arrange dialog box opens. From here it works as with two or more objects selected.
+
+- The placement area is fixed to Current Artboard, and Backmost Object is dimmed. A single selected object is not used (it is not moved, and Cancel selects it again).
+- Resize opens set to Equal Area (100%), so images of different sizes fit their cells (change it with `imageResizeMode` in CONFIG).
+- When you choose a folder, the image files directly inside it are placed in name order. Subfolders, hidden files and files with other extensions are skipped.
+- Cancel removes the placed images.
+- Images cannot be placed when the active layer is locked or hidden.
+
 ## Article
 
 [Arrange objects in a grid with an Illustrator script (Japanese)](https://note.com/dtp_tranist/n/na3c45cea09b7)
 
 ## Changelog
 
+- v3.9.0 (2026-11-22) Took in the image import of PlaceImagesInGrid.jsx: with nothing or a single object selected, the script places chosen images, then opens the arrange dialog box. Added mask presets (with four built-in ones) to Mask. Turning on a mask now sets Cell Handling to Don't Keep. Renamed Keep Original Objects to Keep Originals and moved it into Placement & Arrangement and added Fit to Window at the left of the button row. Mask is now None / Cell / Image; Image masks each object at its own size
 - v3.8.0 (2026-11-20) The Auto buttons for Scale and Round Corners are now icons, placed at the right of their field rows
 - v3.7.0 (2026-11-20) The Auto button for Rows and Columns is now an icon (a magic wand). Spread Evenly is available only when there are spare cells and dimmed otherwise
 - v3.6.1 (2026-11-20) Renamed the Resize options to Fit Width, Fit Height, and Equal Area

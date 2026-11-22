@@ -10,11 +10,11 @@ Name=グリッドの各セル中央にオブジェクトを配置
 Name[en]=Place objects at the center of each grid cell
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=3.8.0
+Version=3.9.0
 Release-Date=2025-05-20
 Tags=alignment,整列
 X-com.swwwitch-Script-Name=SmartObjectDistributor
-X-com.swwwitch-Updated=2026-11-20
+X-com.swwwitch-Updated=2026-11-22
 X-com.swwwitch-README-JA=https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartObjectDistributor.md
 X-com.swwwitch-README-EN=https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartObjectDistributor.md
 X-com.swwwitch-Article-URL=https://note.com/dtp_tranist/n/na3c45cea09b7
@@ -104,14 +104,17 @@ var SCRIPT_SOURCE_URL     = getScriptMetaValue("X-com.swwwitch-Source-URL");    
         defaultMargin: 10,           /* マージンの初期値（定規単位） / default margin */
         defaultGutterPriority: false, /* ［セル間隔を優先］の初期値 / Prioritize Gutter starts unchecked */
         defaultResizeRatio: 100,     /* リサイズの比率の初期値（%） / default resize ratio */
+        imageResizeMode: "area",     /* 画像を読み込んだときのリサイズの初期値（"none" / "width" / "height" / "area" / "scale"） / resize mode after importing images */
         maxResizeRatio: 1000,        /* リサイズの比率の上限（%） / max resize ratio */
-        defaultMaskToCell: true,     /* ［マスクする］の初期値 / Mask starts checked */
+        defaultMaskMode: "cell",     /* マスクの初期値（"none"：なし / "cell"：セル / "item"：画像） / default mask mode */
         defaultUseCornerRadius: false, /* ［角丸］の初期値 / Round Corners starts unchecked */
         defaultCornerRadius: 10,     /* 角丸の半径の初期値（定規単位） / default corner radius (ruler unit) */
         defaultUseFrame: false,      /* ［枠］の初期値 / Frame starts unchecked */
         defaultFrameWidth: 1,        /* 枠の線幅の初期値（線の単位） / default frame weight (stroke unit) */
         defaultItemAnchor: "center", /* アイテムの基準位置の初期値（開始位置と同じ名前） / where each object sits in its cell */
-        defaultKeepOriginals: false, /* ［配置するオブジェクトを残す］の初期値 / Keep Original Objects starts unchecked */
+        defaultKeepOriginals: false, /* ［元のオブジェクトを残す］の初期値 / Keep Originals starts unchecked */
+        defaultFitView: true,        /* ［画面にフィット］の初期値 / Fit to Window starts checked */
+        defaultFitViewPercent: 65,   /* ［画面にフィット］の割合の初期値（%） / default share of the window */
         defaultSpreadEvenly: false,  /* ［均等にまばらに］の初期値 / Spread Evenly starts unchecked */
         defaultBrick: false,         /* ［レンガ］の初期値 / Brick starts unchecked */
         defaultFillStart: "topLeft", /* 開始位置の初期値（"topLeft" / "top" / "topRight" / "left" / "center" / "right" / "bottomLeft" / "bottom" / "bottomRight"） / where filling starts */
@@ -220,6 +223,10 @@ var SCRIPT_SOURCE_URL     = getScriptMetaValue("X-com.swwwitch-Source-URL");    
     var FILL_START_WIDGET_SIZE = 50; /* 開始位置のウィジェットの一辺 / size of the Start From widget */
     var COLOR_SWATCH_SIZE = [40, 20]; /* 枠の色見本の大きさ / size of the frame color swatch */
     var CHECKBOX_BOX_WIDTH = 24;  /* チェックボックスの□と文字の間の分の幅 / width of a checkbox's box and its gap */
+    var PRESET_ICON_SIZE = [20, 18];     /* プリセットの保存・削除アイコンの大きさ / preset save and delete icon size */
+    var SAVE_ICON_OPACITY = 0.75;        /* 保存アイコンの濃さ（ほかのアイコンに対する比率） / save icon opacity relative to the others */
+    var PRESET_DROPDOWN_MIN_WIDTH = 60;  /* プリセットのドロップダウンの最小幅（あとはパネルの幅まで伸びる） / preset dropdown minimum width; it stretches to the panel */
+    var PRESET_NAME_CHARS = 20;          /* プリセット名の入力欄の文字数 / preset name field width */
 
     /**
      * コントロールの文字の幅を測る
@@ -1731,6 +1738,241 @@ var SCRIPT_SOURCE_URL     = getScriptMetaValue("X-com.swwwitch-Source-URL");    
 
     // アイコンのボタン（再利用パーツ）ここまで / End of the reusable icon buttons
 
+    // 画面にフィット（再利用パーツ、_templates/FitViewToItems.jsx） / Fit view to items (reusable)
+
+    var FitViewToItems = (function () {
+
+        // =========================================
+        // ユーザー設定 / User Settings
+        // =========================================
+
+        /* ウィンドウに対して対象が占める割合の既定値（%）と範囲。呼び出し側で上書きできる
+           Default share of the window the items fill, in percent, and its range; callers can override the default */
+        var DEFAULT_FIT_PERCENT = 65;
+        var FIT_PERCENT_RANGE = [10, 100];
+
+        /* Illustratorが受け付ける表示倍率の範囲（3.125%〜6400%） / Zoom range Illustrator accepts */
+        var VIEW_ZOOM_RANGE = [0.03125, 64];
+
+        // =========================================
+        // ローカライズ / Localization
+        // =========================================
+        var LABELS = {
+            checkbox: {
+                fitView: { ja: "画面にフィット", en: "Fit to Window" }
+            },
+            tooltip: {
+                fitView: {
+                    ja: "作成するオブジェクトが収まるよう表示倍率を合わせます。",
+                    en: "Refits the view to the objects being created."
+                },
+                fitViewPercent: {
+                    ja: "ウィンドウに対するオブジェクトの大きさ（100%でいっぱい）",
+                    en: "Size of the objects relative to the window; 100% fills it"
+                }
+            }
+        };
+
+        /**
+         * UI言語を返す
+         * @returns {string} "ja" または "en"
+         */
+        function getCurrentLang() {
+            return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+        }
+
+        /**
+         * LABELS の組から指定言語の文言を返す
+         * @param {object} labelSet - { ja: string, en: string } の組
+         * @param {string} uiLang - "ja" または "en"
+         * @returns {string} 文言（無ければ英語）
+         */
+        function getLabel(labelSet, uiLang) {
+            return (labelSet[uiLang] != null) ? labelSet[uiLang] : labelSet.en;
+        }
+
+        // =========================================
+        // メイン処理 / Main
+        // =========================================
+
+        /**
+         * 数値を範囲に収める。数値として読めないときは既定値を返す
+         * @param {string|number} value - 入力値
+         * @param {number[]} range - [下限, 上限]
+         * @param {number} fallbackValue - 読めないときの既定値
+         * @returns {number} 範囲内の数値
+         */
+        function clampNumber(value, range, fallbackValue) {
+            var numberValue = Number(value);
+            if (isNaN(numberValue) || (typeof value === "string" && !/\S/.test(value))) numberValue = fallbackValue;
+            return Math.min(range[1], Math.max(range[0], numberValue));
+        }
+
+        /**
+         * 「□画面にフィット［65］%」の行を追加する（ラベルとツールチップは内蔵）
+         * @param {Group|Panel|Window} parentContainer - 追加先のコンテナ
+         * @param {object} [rowOptions] - value: チェックの初期値（既定 false）／percent: 割合の初期値／lang: 表示言語／
+         *     stepper: true で入力欄の左に∧∨を付け、↑↓キーでも増減（StepperButtons 部品の addStepper / bindSteppedArrowKeys /
+         *     redrawSteppersIn を使う。増減したら percentInput.onChange を呼ぶ）
+         * @returns {{row: Group, checkbox: Checkbox, percentInput: EditText, getFillRatio: function, updateEnabled: function}} 作成したコントロール一式
+         */
+        function addControls(parentContainer, rowOptions) {
+            if (!rowOptions) rowOptions = {};
+            var uiLang = rowOptions.lang || getCurrentLang();
+
+            var fitViewRow = parentContainer.add("group");
+            fitViewRow.orientation = "row";
+            fitViewRow.alignChildren = ["left", "center"];
+            fitViewRow.spacing = 6;
+
+            var fitViewCheck = fitViewRow.add("checkbox", undefined, getLabel(LABELS.checkbox.fitView, uiLang));
+            fitViewCheck.helpTip = getLabel(LABELS.tooltip.fitView, uiLang);
+            /* 明示的に true を渡したときだけONで始める / only an explicit true starts it checked */
+            fitViewCheck.value = (rowOptions.value === true);
+
+            var fitPercent = (rowOptions.percent > 0) ? rowOptions.percent : DEFAULT_FIT_PERCENT;
+            var percentInput;
+            var percentParent = fitViewRow;
+            var stepperGroup = null;
+            if (rowOptions.stepper === true) {
+                /* ∧∨と入力欄は隙間0で突き合わせる / Butt the stepper against the field */
+                percentParent = fitViewRow.add("group");
+                percentParent.orientation = "row";
+                percentParent.alignChildren = ["left", "center"];
+                percentParent.spacing = 0;
+                percentParent.margins = 0;
+                stepperGroup = addStepper(percentParent, function () { return percentInput; }, {
+                    integer: true,
+                    min: FIT_PERCENT_RANGE[0],
+                    max: FIT_PERCENT_RANGE[1],
+                    /* text の代入ではイベントが来ないので、増減後に onChange を呼ぶ / assigning text fires no event */
+                    onStep: function () { if (percentInput.onChange) percentInput.onChange(); }
+                });
+            }
+            percentInput = percentParent.add("edittext", undefined, String(fitPercent));
+            percentInput.characters = 3;
+            percentInput.helpTip = getLabel(LABELS.tooltip.fitViewPercent, uiLang);
+            if (stepperGroup) bindSteppedArrowKeys(percentInput, stepperGroup); /* ↑↓キーも∧∨と同じ処理で増減 / arrow keys share the stepper's logic */
+            var percentUnitLabel = fitViewRow.add("statictext", undefined, "%");
+
+            var controls = {
+                row: fitViewRow,
+                checkbox: fitViewCheck,
+                percentInput: percentInput,
+
+                /**
+                 * 入力欄の割合を 0〜1 の比率で返す
+                 * @returns {number} ウィンドウに対して占める割合（1でいっぱい）
+                 */
+                getFillRatio: function () {
+                    return clampNumber(percentInput.text, FIT_PERCENT_RANGE, fitPercent) / 100;
+                },
+
+                /**
+                 * 割合の入力欄をチェックの状態に合わせて有効・無効にする
+                 * @returns {void}
+                 */
+                updateEnabled: function () {
+                    percentInput.enabled = fitViewCheck.value;
+                    percentUnitLabel.enabled = fitViewCheck.value;
+                    if (!stepperGroup) return;
+                    stepperGroup.enabled = fitViewCheck.value;
+                    /* ∧∨は自作描画なので、表示中なら描き直してディム表示を切り替える / redraw the custom-drawn stepper once shown */
+                    if (fitViewRow.window.visible) redrawSteppersIn(stepperGroup);
+                }
+            };
+            controls.updateEnabled();
+            return controls;
+        }
+
+        /**
+         * 複数アイテムを囲む外接範囲を求める（効果を含まない geometricBounds）
+         * @param {PageItem[]} targetItems - 対象アイテム
+         * @returns {number[]|null} [left, top, right, bottom]（求められない場合は null）
+         */
+        function getItemsBounds(targetItems) {
+            var unionBounds = null;
+            for (var i = 0; i < targetItems.length; i++) {
+                var itemBounds = targetItems[i].geometricBounds;
+                if (unionBounds === null) {
+                    unionBounds = [itemBounds[0], itemBounds[1], itemBounds[2], itemBounds[3]];
+                    continue;
+                }
+                if (itemBounds[0] < unionBounds[0]) unionBounds[0] = itemBounds[0];
+                if (itemBounds[1] > unionBounds[1]) unionBounds[1] = itemBounds[1];
+                if (itemBounds[2] > unionBounds[2]) unionBounds[2] = itemBounds[2];
+                if (itemBounds[3] < unionBounds[3]) unionBounds[3] = itemBounds[3];
+            }
+            return unionBounds;
+        }
+
+        /**
+         * 対象が指定の割合でウィンドウに収まるよう、中心を合わせて表示倍率を変える
+         * 拡大・縮小のどちらも行う（KeepInView と違い、常に同じ大きさに見せる）
+         * @param {PageItem[]} targetItems - 対象アイテム
+         * @param {object} [fitOptions] - doc: 対象ドキュメント（省略時は最前面）／fillRatio: 占める割合（1でいっぱい）
+         * @returns {boolean} 表示を動かしたら true
+         */
+        function fit(targetItems, fitOptions) {
+            if (!targetItems || targetItems.length === 0) return false;
+            if (!fitOptions) fitOptions = {};
+
+            var targetDoc = fitOptions.doc || app.activeDocument;
+            var bounds = getItemsBounds(targetItems);
+            if (bounds === null) return false;
+
+            var itemWidth = bounds[2] - bounds[0];
+            var itemHeight = bounds[1] - bounds[3];
+            var activeView = targetDoc.activeView;
+            activeView.centerPoint = [(bounds[0] + bounds[2]) / 2, (bounds[1] + bounds[3]) / 2];
+            if (itemWidth <= 0 || itemHeight <= 0) return true;
+
+            /* 中心をそろえたあとの表示範囲を基準に倍率を求める / Scale from the view bounds after the center has moved */
+            var fillRatio = (fitOptions.fillRatio > 0) ? fitOptions.fillRatio : DEFAULT_FIT_PERCENT / 100;
+            var viewBounds = activeView.bounds;
+            var scale = Math.min(
+                (viewBounds[2] - viewBounds[0]) / itemWidth,
+                (viewBounds[1] - viewBounds[3]) / itemHeight
+            ) * fillRatio;
+            activeView.zoom = clampNumber(activeView.zoom * scale, VIEW_ZOOM_RANGE, 1);
+            return true;
+        }
+
+        /**
+         * 現在の表示位置と倍率を控える（キャンセル時に restoreView で戻す）
+         * @param {Document} [targetDoc] - 対象ドキュメント（省略時は最前面）
+         * @returns {{centerPoint: number[], zoom: number}} 控えた表示状態
+         */
+        function captureView(targetDoc) {
+            var activeView = (targetDoc || app.activeDocument).activeView;
+            return { centerPoint: activeView.centerPoint, zoom: activeView.zoom };
+        }
+
+        /**
+         * captureView で控えた表示位置と倍率に戻す
+         * @param {{centerPoint: number[], zoom: number}} viewState - 控えた表示状態
+         * @param {Document} [targetDoc] - 対象ドキュメント（省略時は最前面）
+         * @returns {void}
+         */
+        function restoreView(viewState, targetDoc) {
+            if (!viewState) return;
+            var activeView = (targetDoc || app.activeDocument).activeView;
+            activeView.centerPoint = viewState.centerPoint;
+            activeView.zoom = viewState.zoom;
+        }
+
+        return {
+            addControls: addControls,
+            fit: fit,
+            captureView: captureView,
+            restoreView: restoreView,
+            getItemsBounds: getItemsBounds
+        };
+
+    })();
+
+    // 画面にフィット（再利用パーツ）ここまで / End of the reusable fit view
+
     // ステップボタン（再利用パーツ） / Stepper buttons (reusable)
 
     // -----------------------------------------
@@ -2468,7 +2710,18 @@ var SCRIPT_SOURCE_URL     = getScriptMetaValue("X-com.swwwitch-Source-URL");    
 
     var LABELS = {
         dialog: {
-            title: { ja: "グリッドに整列配置", en: "Arrange in Grid" }
+            title: { ja: "グリッドに整列配置", en: "Arrange in Grid" },
+            presetSave: { ja: "マスクのプリセットを保存", en: "Save Mask Preset" },
+            chooseImages: { ja: "配置する画像を選択", en: "Choose images to place" },
+            chooseSource: { ja: "画像の選択", en: "Choose Images" },
+            chooseFolder: { ja: "画像のあるフォルダーを選択", en: "Choose a folder of images" }
+        },
+        dropdown: {
+            presetPlaceholder: { ja: "---", en: "---" },
+            presetDefault: { ja: "デフォルト", en: "Default" },
+            presetBlackThin: { ja: "黒 0.3pt・角丸なし", en: "Black 0.3 pt, square" },
+            presetWhiteRound2: { ja: "白 1pt・角丸 2pt", en: "White 1 pt, radius 2 pt" },
+            presetWhiteRound50: { ja: "白 1pt・角丸 50pt", en: "White 1 pt, radius 50 pt" }
         },
         panel: {
             placement: { ja: "配置先", en: "Placement Area" },
@@ -2480,6 +2733,7 @@ var SCRIPT_SOURCE_URL     = getScriptMetaValue("X-com.swwwitch-Source-URL");    
             itemAnchor: { ja: "アイテムの基準位置", en: "Object Anchor" }
         },
         fieldLabel: {
+            presetName: { ja: "プリセット名", en: "Preset name" },
             rowCount: { ja: "行数", en: "Rows" },
             columnCount: { ja: "列数", en: "Columns" },
             gutter: { ja: "セル間隔", en: "Gutter" },
@@ -2490,18 +2744,17 @@ var SCRIPT_SOURCE_URL     = getScriptMetaValue("X-com.swwwitch-Source-URL");    
             fillStart: { ja: "開始位置", en: "Start From" }
         },
         checkbox: {
-            maskToCell: { ja: "マスクする", en: "Mask" },
             gutterPriority: { ja: "セル間隔を優先", en: "Prioritize Gutter" },
             cornerRadius: { ja: "角丸", en: "Round Corners" },
             frameStroke: { ja: "枠", en: "Frame" },
             spreadEvenly: { ja: "均等にまばらに", en: "Spread Evenly" },
             brick: { ja: "レンガ", en: "Brick" },
-            keepOriginals: { ja: "配置するオブジェクトを残す", en: "Keep Original Objects" }
+            keepOriginals: { ja: "元のオブジェクトを残す", en: "Keep Originals" }
         },
         radio: {
             targetArtboard: { ja: "現在のアートボード", en: "Current Artboard" },
             targetBackmost: { ja: "最背面のオブジェクト", en: "Backmost Object" },
-            noCell: { ja: "何もしない", en: "Do Nothing" },
+            noCell: { ja: "残さない", en: "Don't Keep" },
             keepCell: { ja: "長方形で残す", en: "Keep as Rectangles" },
             toGuide: { ja: "ガイド化", en: "Convert to Guides" },
             toArtboard: { ja: "アートボード化", en: "Convert to Artboards" },
@@ -2512,16 +2765,29 @@ var SCRIPT_SOURCE_URL     = getScriptMetaValue("X-com.swwwitch-Source-URL");    
             resizeWidth: { ja: "幅に合わせる", en: "Fit Width" },
             resizeHeight: { ja: "高さに合わせる", en: "Fit Height" },
             resizeArea: { ja: "面積をそろえる", en: "Equal Area" },
-            resizeScale: { ja: "スケール", en: "Scale" }
+            resizeScale: { ja: "スケール", en: "Scale" },
+            maskNone: { ja: "なし", en: "None" },
+            maskCell: { ja: "セル", en: "Cell" },
+            maskItem: { ja: "画像", en: "Image" }
         },
         button: {
             transparencyGrid: { ja: "透明グリッド表示", en: "Transparency Grid" },
             randomize: { ja: "シャッフル", en: "Shuffle" },
             cancel: { ja: "キャンセル", en: "Cancel" },
-            ok: { ja: "OK", en: "OK" }
+            ok: { ja: "OK", en: "OK" },
+            chooseFiles: { ja: "ファイルを選択...", en: "Choose Files..." },
+            chooseFolder: { ja: "フォルダーを選択...", en: "Choose Folder..." }
         },
         tooltip: {
+            preset: { ja: "保存したマスクの設定（種類・角丸・枠）を読み込みます。", en: "Loads a saved mask setup (mode, round corners, frame)." },
+            presetSave: { ja: "今のマスクの設定に名前を付けて保存する", en: "Save the current mask settings under a name" },
+            presetDelete: { ja: "選んでいるプリセットを削除する", en: "Delete the selected preset" },
+            presetName: { ja: "保存する設定の名前。同じ名前は上書きする", en: "Name to save the settings under. The same name is overwritten" },
             targetUnavailable: { ja: "該当するオブジェクトがありません。", en: "No matching object was found." },
+            targetUnavailableForImages: {
+                ja: "画像を読み込んで整列するときは、現在のアートボードに並べます。",
+                en: "Imported images are arranged on the current artboard."
+            },
             targetArtboard: {
                 ja: "ダイアログボックスを開いたときに作業中だったアートボードを配置先にします。",
                 en: "Uses the artboard that was active when the dialog box opened as the area."
@@ -2544,8 +2810,8 @@ var SCRIPT_SOURCE_URL     = getScriptMetaValue("X-com.swwwitch-Source-URL");    
                 en: "Creates one artboard per cell and keeps no rectangles."
             },
             division: {
-                ja: "セル数より多いオブジェクトは、アートボードの外へ退避します（［配置するオブジェクトを残す］では退避しません）。",
-                en: "Objects beyond the number of cells are parked outside the artboard (not with Keep Original Objects)."
+                ja: "セル数より多いオブジェクトは、アートボードの外へ退避します（［元のオブジェクトを残す］では退避しません）。",
+                en: "Objects beyond the number of cells are parked outside the artboard (not with Keep Originals)."
             },
             gutter: { ja: "行数・列数のいずれかが2以上のときに有効です。", en: "Available when the rows or columns are 2 or more." },
             margin: {
@@ -2577,9 +2843,14 @@ var SCRIPT_SOURCE_URL     = getScriptMetaValue("X-com.swwwitch-Source-URL");    
                 ja: "幅に合わせる・高さに合わせる・面積をそろえるではセルに対する比率、スケールでは元の大きさに対する比率です。",
                 en: "Relative to the cell for Fit Width, Fit Height, and Equal Area; relative to the original size for Scale."
             },
-            maskToCell: {
-                ja: "セルに入れたオブジェクトを、セルの長方形でクリッピングマスクします。",
-                en: "Clips each object placed in a cell with the cell rectangle."
+            maskNone: { ja: "マスクしません。", en: "No mask." },
+            maskCell: {
+                ja: "セルに入れたオブジェクトを、セルの長方形でクリッピングマスクします（はみ出した分は切り抜かれます）。",
+                en: "Clips each object placed in a cell with the cell rectangle (whatever extends past the cell is cropped)."
+            },
+            maskItem: {
+                ja: "オブジェクトと同じ大きさの長方形でクリッピングマスクします。切り抜かれる部分はなく、角丸や枠を付けたいときに使います。",
+                en: "Clips each object with a rectangle of its own size. Nothing is cropped; use it to add round corners or a frame."
             },
             keepOriginals: {
                 ja: "元のオブジェクトはその場に残し、複製をセルに配置します。",
@@ -2599,8 +2870,8 @@ var SCRIPT_SOURCE_URL     = getScriptMetaValue("X-com.swwwitch-Source-URL");    
             },
             frameColor: { ja: "クリックで枠の色を選ぶ", en: "Click to choose the frame color" },
             itemAnchor: {
-                ja: "オブジェクトのどこをセルのどこに合わせるかです。［マスクする］では、はみ出した反対側を切り抜きます。",
-                en: "Which point of each object meets the same point of its cell. With Mask, whatever extends past the opposite side is cropped."
+                ja: "オブジェクトのどこをセルのどこに合わせるかです。マスクの［セル］では、はみ出した反対側を切り抜きます。",
+                en: "Which point of each object meets the same point of its cell. With the Cell mask, whatever extends past the opposite side is cropped."
             },
             spreadEvenly: {
                 ja: "オブジェクトがセルより少ないとき、詰めずにグリッド全体へ均等に散らします（開始位置から始めます）。セルが余らないときはディム表示になります。",
@@ -2611,16 +2882,16 @@ var SCRIPT_SOURCE_URL     = getScriptMetaValue("X-com.swwwitch-Source-URL");    
                 en: "Removes one cell from every even row and shifts it by half a cell, like a brick wall (with 2 or more columns)."
             },
             autoCornerRadius: {
-                ja: "自動計算：角丸の半径を、セルの短い辺の半分にします（短い辺の両端が半円になります）。",
-                en: "Auto: sets the corner radius to half the shorter side of a cell (the short ends become semicircles)."
+                ja: "自動計算：角丸の半径を、セルの短い辺の半分にします（短い辺の両端が半円になります）。マスクの［画像］では、いちばん小さいマスクの短い辺の半分にします。",
+                en: "Auto: sets the corner radius to half the shorter side of a cell (the short ends become semicircles). With the Image mask, half the shorter side of the smallest mask."
             },
             autoDivision: {
                 ja: "行数・列数を自動計算します。配置するオブジェクトの数と配置先の縦横比から、セルが正方形に近くなる行数・列数を入れます（［レンガ］も考慮）。配置先や［レンガ］を切り替えたときも計算し直します。",
                 en: "Calculates rows and columns automatically: enters the ones that make the cells closest to square for the number of objects and the shape of the area (Brick included). Also recalculated when you switch the area or Brick."
             },
             autoScale: {
-                ja: "自動計算（スケールのとき）：すべてのオブジェクトがセルを覆い、上下左右にアキが出ない共通のスケールを計算して比率に入れます。はみ出した分は［マスクする］で切り抜けます。",
-                en: "Auto (with Scale): calculates one scale at which every object covers its cell with no gap on any side, and enters it as the ratio. Use Mask to crop what extends past the cell."
+                ja: "自動計算（スケールのとき）：すべてのオブジェクトがセルを覆い、上下左右にアキが出ない共通のスケールを計算して比率に入れます。はみ出した分はマスクの［セル］で切り抜けます。",
+                en: "Auto (with Scale): calculates one scale at which every object covers its cell with no gap on any side, and enters it as the ratio. Use the Cell mask to crop what extends past the cell."
             },
             randomize: {
                 ja: "セルへの割り当て順をシャッフルします。［均等にまばらに］では、距離が同じセルどうしの選び方も選び直します（押すたびに変わります）。",
@@ -2650,7 +2921,25 @@ var SCRIPT_SOURCE_URL     = getScriptMetaValue("X-com.swwwitch-Source-URL");    
                 en: "These settings cannot form a grid. Check the rows, columns, gutter, and margin."
             },
             artboardError: { ja: "アートボードを作成できませんでした。", en: "Could not create the artboards." },
-            artboardCreated: { ja: "%1 個のアートボードを作成しました。", en: "%1 artboards created." }
+            artboardCreated: { ja: "%1 個のアートボードを作成しました。", en: "%1 artboards created." },
+            presetSaveFailed: { ja: "プリセットを保存できませんでした。", en: "Could not save the preset." },
+            presetNameBuiltin: { ja: "「{name}」は組み込みのプリセットの名前なので使えません。", en: "\"{name}\" is the name of a built-in preset and cannot be used." },
+            noImagesInFolder: { ja: "「{name}」に配置できる画像がありません。", en: "\"{name}\" contains no images to place." },
+            layerUnavailable: {
+                ja: "作業中のレイヤー「{name}」がロックまたは非表示のため配置できません。",
+                en: "Cannot place images because the active layer \"{name}\" is locked or hidden."
+            },
+            placeFailed: {
+                ja: "次の画像を配置できませんでした。\n{list}",
+                en: "The following images could not be placed.\n{list}"
+            }
+        },
+        confirm: {
+            presetOverwrite: { ja: "「{name}」を上書きしますか？", en: "Overwrite \"{name}\"?" },
+            presetDelete: { ja: "「{name}」を削除しますか？", en: "Delete \"{name}\"?" }
+        },
+        message: {
+            chooseSource: { ja: "配置する画像を、ファイルかフォルダーで選びます。", en: "Choose the images to place as files or as a folder." }
         }
     };
 
@@ -3361,20 +3650,42 @@ var SCRIPT_SOURCE_URL     = getScriptMetaValue("X-com.swwwitch-Source-URL");    
         }
     }
 
+    /* マスクの種類 / Mask modes */
+    var MASK_MODE_NONE = "none"; /* マスクしない / no mask */
+    var MASK_MODE_CELL = "cell"; /* セルの長方形 / the cell rectangle */
+    var MASK_MODE_ITEM = "item"; /* オブジェクトと同じ大きさの長方形 / a rectangle of the object's own size */
+
     /**
-     * セルに入れたオブジェクトを、セルの長方形でクリッピングマスクします。/ Clip each placed object with its cell.
-     * オブジェクトのあった場所にグループを作り、オブジェクトとセルの長方形（最前面）を入れて clipped にします。
+     * マスクに使う矩形を返します。/ Return the rectangles used as masks.
+     * ［セル］ではセルの矩形、［画像］では配置後のオブジェクトの visibleBounds（切り抜かれる部分はない）。
+     *
+     * @param {Array<PageItem>} pageItems - セルに入れたオブジェクト（配置順。配置とリサイズのあと）。
+     * @param {Array<number[]>} cellRects - セルの矩形（埋める順。placeItemsInCells() に渡したもの）。
+     * @param {string} maskMode - MASK_MODE_CELL / MASK_MODE_ITEM。
+     * @returns {Array<number[]>} マスクの矩形 [左, 上, 右, 下] の配列。
+     */
+    function listMaskRects(pageItems, cellRects, maskMode) {
+        var maskCount = Math.min(pageItems.length, cellRects.length);
+        var maskRects = [];
+        for (var i = 0; i < maskCount; i++) {
+            maskRects.push((maskMode === MASK_MODE_ITEM) ? pageItems[i].visibleBounds : cellRects[i]);
+        }
+        return maskRects;
+    }
+
+    /**
+     * セルに入れたオブジェクトを、矩形でクリッピングマスクします。/ Clip each placed object with its rectangle.
+     * オブジェクトのあった場所にグループを作り、オブジェクトとマスクの長方形（最前面）を入れて clipped にします。
      *
      * @param {Array<PageItem>} pageItems - セルに入れたオブジェクト（配置順）。
-     * @param {Array<number[]>} cellRects - セルの矩形（埋める順。placeItemsInCells() に渡したもの）。
+     * @param {Array<number[]>} maskRects - マスクの矩形（listMaskRects() の戻り値。pageItems と同じ順）。
      * @param {Array<GroupItem>} clipGroups - 作ったクリップグループを1つずつ足す配列（途中で例外になっても、作った分は残る）。
      * @param {MaskStyle} maskStyle - 角丸と枠の指定。
      * @returns {void}
      */
-    function maskItemsToCells(pageItems, cellRects, clipGroups, maskStyle) {
-        var maskCount = Math.min(pageItems.length, cellRects.length);
-        for (var i = 0; i < maskCount; i++) {
-            clipGroups.push(clipItemToRect(pageItems[i], cellRects[i], maskStyle));
+    function maskItemsToRects(pageItems, maskRects, clipGroups, maskStyle) {
+        for (var i = 0; i < maskRects.length; i++) {
+            clipGroups.push(clipItemToRect(pageItems[i], maskRects[i], maskStyle));
         }
     }
 
@@ -3656,7 +3967,7 @@ var SCRIPT_SOURCE_URL     = getScriptMetaValue("X-com.swwwitch-Source-URL");    
      * マスクしたオブジェクトを、そのクリップグループに置き換えた配列を返します。/ Swap masked items for their clip groups.
      *
      * @param {Array<PageItem>} pageItems - 元のオブジェクト。
-     * @param {Array<GroupItem>} clipGroups - maskItemsToCells() で作ったクリップグループ。
+     * @param {Array<GroupItem>} clipGroups - maskItemsToRects() で作ったクリップグループ。
      * @returns {Array<PageItem>} 選択に使う配列。
      */
     function replaceMaskedItems(pageItems, clipGroups) {
@@ -3881,7 +4192,7 @@ var SCRIPT_SOURCE_URL     = getScriptMetaValue("X-com.swwwitch-Source-URL");    
     }
 
     /**
-     * マスクのパネルを作成します（［マスクする］と、その下の角丸・枠）。/ Build the mask panel.
+     * マスクのパネルを作成します（先頭にマスクのプリセット、［なし］／［セル］／［画像］と、その下の角丸・枠）。/ Build the mask panel.
      *
      * @param {Group} parentColumn - 配置先のカラム。
      * @param {string} rulerUnitLabel - 角丸の半径の単位（定規の単位）。
@@ -3894,11 +4205,19 @@ var SCRIPT_SOURCE_URL     = getScriptMetaValue("X-com.swwwitch-Source-URL");    
         maskPanel.alignChildren = ["left", "top"];
 
         var maskControls = {};
-        maskControls.maskCheckbox = maskPanel.add("checkbox", undefined, getLabel(LABELS.checkbox.maskToCell));
-        maskControls.maskCheckbox.helpTip = getLabel(LABELS.tooltip.maskToCell);
-        maskControls.maskCheckbox.value = CONFIG.defaultMaskToCell;
+        maskControls.presetUI = buildPresetRow(maskPanel);
+        /* ラジオは同じ親の中だけ排他になるので、3つを1行のグループにまとめる / Radios are exclusive only within one parent */
+        var maskModeRow = maskPanel.add("group");
+        setupRow(maskModeRow, "left");
+        maskControls.maskNoneRadio = maskModeRow.add("radiobutton", undefined, getLabel(LABELS.radio.maskNone));
+        maskControls.maskCellRadio = maskModeRow.add("radiobutton", undefined, getLabel(LABELS.radio.maskCell));
+        maskControls.maskItemRadio = maskModeRow.add("radiobutton", undefined, getLabel(LABELS.radio.maskItem));
+        maskControls.maskNoneRadio.helpTip = getLabel(LABELS.tooltip.maskNone);
+        maskControls.maskCellRadio.helpTip = getLabel(LABELS.tooltip.maskCell);
+        maskControls.maskItemRadio.helpTip = getLabel(LABELS.tooltip.maskItem);
+        selectMaskModeRadio(maskControls, CONFIG.defaultMaskMode);
 
-        /* 角丸と枠は［マスクする］の下に、字下げせずに置く / Round Corners and Frame sit under Mask without an indent */
+        /* 角丸と枠はマスクの種類の下に、字下げせずに置く / Round Corners and Frame sit under the mask modes without an indent */
         var maskStyleGroup = maskPanel.add("group");
         maskStyleGroup.orientation = "column";
         maskStyleGroup.alignChildren = ["left", "top"];
@@ -3996,7 +4315,8 @@ var SCRIPT_SOURCE_URL     = getScriptMetaValue("X-com.swwwitch-Source-URL");    
             transparentCellRadio: cellColorGroup.add("radiobutton", undefined, getLabel(LABELS.radio.transparentCell)),
             opacityInput: addSteppedInput(cellOpacityRow, String(CONFIG.blackCellOpacity), {})
         };
-        cellControls.keepCellRadio.value = true;
+        /* マスクを掛けて始めるときは、セルの長方形を残さない / Start with no cell rectangles when a mask is on */
+        selectCellModeRadio(cellControls, (CONFIG.defaultMaskMode === MASK_MODE_NONE) ? "keep" : "none");
         cellControls.blackCellRadio.value = true;
         cellControls.opacityInput.characters = 4;
 
@@ -4021,7 +4341,7 @@ var SCRIPT_SOURCE_URL     = getScriptMetaValue("X-com.swwwitch-Source-URL");    
      *
      * @param {Group} parentColumn - 配置先のカラム。
      * @param {function(): void} onFillStartChange - 開始位置を選んだときに呼ぶ処理。
-     * @returns {{fillStartLabel: StaticText, fillStartWidget: Button, spreadEvenlyCheckbox: Checkbox, brickCheckbox: Checkbox, btnShuffle: Button}} 開始位置の項目名・ウィジェット、［均等にまばらに］、［レンガ］、［シャッフル］。
+     * @returns {{fillStartLabel: StaticText, fillStartWidget: Button, spreadEvenlyCheckbox: Checkbox, brickCheckbox: Checkbox, keepOriginalsCheckbox: Checkbox, btnShuffle: Button}} 開始位置の項目名・ウィジェット、［均等にまばらに］、［レンガ］、［元のオブジェクトを残す］、［シャッフル］。
      */
     function buildArrangementPanel(parentColumn, onFillStartChange) {
         var arrangementPanel = parentColumn.add("panel", undefined, getLabel(LABELS.panel.arrangement));
@@ -4045,6 +4365,10 @@ var SCRIPT_SOURCE_URL     = getScriptMetaValue("X-com.swwwitch-Source-URL");    
         brickCheckbox.helpTip = getLabel(LABELS.tooltip.brick);
         brickCheckbox.value = CONFIG.defaultBrick;
 
+        var keepOriginalsCheckbox = arrangementPanel.add("checkbox", undefined, getLabel(LABELS.checkbox.keepOriginals));
+        keepOriginalsCheckbox.helpTip = getLabel(LABELS.tooltip.keepOriginals);
+        keepOriginalsCheckbox.value = CONFIG.defaultKeepOriginals;
+
         var btnShuffle = arrangementPanel.add("button", undefined, getLabel(LABELS.button.randomize));
         btnShuffle.alignment = "left"; /* パネル幅いっぱいに広げない / Keep the button from stretching */
         btnShuffle.helpTip = getLabel(LABELS.tooltip.randomize);
@@ -4053,26 +4377,107 @@ var SCRIPT_SOURCE_URL     = getScriptMetaValue("X-com.swwwitch-Source-URL");    
             fillStartWidget: fillStartWidget,
             spreadEvenlyCheckbox: spreadEvenlyCheckbox,
             brickCheckbox: brickCheckbox,
+            keepOriginalsCheckbox: keepOriginalsCheckbox,
             btnShuffle: btnShuffle
         };
     }
 
     /**
-     * 下部のボタン列を作成します（左に［配置するオブジェクトを残す］、右に［キャンセル］［OK］）。/ Build the footer button row.
+     * 下部のボタン列を作成します（左に［画面にフィット］、右に［キャンセル］［OK］）。/ Build the footer button row.
      *
      * @param {Window} parentWindow - 配置先のウィンドウ。
-     * @returns {{keepOriginalsCheckbox: Checkbox, btnCancel: Button, btnOK: Button}} チェックボックスと各ボタン。
+     * @returns {{fitViewControls: Object, btnCancel: Button, btnOK: Button}} ［画面にフィット］の一式（FitViewToItems.addControls() の戻り値）と各ボタン。
      */
     function buildFooterRow(parentWindow) {
         var buttonRow = addButtonRow(parentWindow);
-        var keepOriginalsCheckbox = buttonRow.leftGroup.add("checkbox", undefined, getLabel(LABELS.checkbox.keepOriginals));
-        keepOriginalsCheckbox.helpTip = getLabel(LABELS.tooltip.keepOriginals);
-        keepOriginalsCheckbox.value = CONFIG.defaultKeepOriginals;
+        var fitViewControls = FitViewToItems.addControls(buttonRow.leftGroup, {
+            value: CONFIG.defaultFitView,
+            percent: CONFIG.defaultFitViewPercent,
+            stepper: true
+        });
 
         var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel(LABELS.button.cancel), { name: "cancel" });
         var btnOK = buttonRow.rightGroup.add("button", undefined, getLabel(LABELS.button.ok), { name: "ok" });
 
-        return { keepOriginalsCheckbox: keepOriginalsCheckbox, btnCancel: btnCancel, btnOK: btnOK };
+        return { fitViewControls: fitViewControls, btnCancel: btnCancel, btnOK: btnOK };
+    }
+
+    /**
+     * リサイズの基準のラジオを選びます（同じ親のほかのラジオは外す）。/ Select a resize-mode radio.
+     *
+     * @param {Object} resizeUI - buildResizePanel() の戻り値。
+     * @param {string} resizeMode - "none" / "width" / "height" / "area" / "scale"。知らない値は "none"。
+     * @returns {void}
+     */
+    function selectResizeRadio(resizeUI, resizeMode) {
+        resizeUI.widthRadio.value = (resizeMode === "width");
+        resizeUI.heightRadio.value = (resizeMode === "height");
+        resizeUI.areaRadio.value = (resizeMode === "area");
+        resizeUI.scaleRadio.value = (resizeMode === "scale");
+        resizeUI.noneRadio.value = !(resizeUI.widthRadio.value || resizeUI.heightRadio.value || resizeUI.areaRadio.value || resizeUI.scaleRadio.value);
+    }
+
+    /**
+     * マスクの種類のラジオを選びます（同じ行のほかのラジオは外す）。/ Select a mask-mode radio.
+     *
+     * @param {Object} maskUI - buildMaskPanel() の戻り値。
+     * @param {string} maskMode - MASK_MODE_NONE / MASK_MODE_CELL / MASK_MODE_ITEM。
+     * @returns {void}
+     */
+    function selectMaskModeRadio(maskUI, maskMode) {
+        maskUI.maskNoneRadio.value = (maskMode === MASK_MODE_NONE);
+        maskUI.maskCellRadio.value = (maskMode === MASK_MODE_CELL);
+        maskUI.maskItemRadio.value = (maskMode === MASK_MODE_ITEM);
+    }
+
+    /**
+     * セルの扱いのラジオを選びます（同じ列のほかのラジオは外す）。/ Select a cell-handling radio.
+     *
+     * @param {Object} cellUI - buildCellHandlingPanel() の戻り値。
+     * @param {string} cellMode - "none" / "keep" / "guide" / "artboard"。
+     * @returns {void}
+     */
+    function selectCellModeRadio(cellUI, cellMode) {
+        cellUI.noCellRadio.value = (cellMode === "none");
+        cellUI.keepCellRadio.value = (cellMode === "keep");
+        cellUI.toGuideRadio.value = (cellMode === "guide");
+        cellUI.toArtboardRadio.value = (cellMode === "artboard");
+    }
+
+    /**
+     * 基準点ウィジェットのセルを選んで描き直します（onChange は呼びません）。/ Set an anchor widget's cell and redraw it.
+     *
+     * @param {Button} anchorWidget - addAnchorWidget() で作ったウィジェット。
+     * @param {number|string} anchorValue - 0〜8 か "topLeft" などの名前。
+     * @returns {void}
+     */
+    function setAnchorWidgetValue(anchorWidget, anchorValue) {
+        anchorWidget.anchorWidgetIndex = resolveAnchorWidgetIndex(anchorValue, anchorWidget.anchorAllowNone);
+        redrawAnchorWidget(anchorWidget);
+    }
+
+    /**
+     * マスクのプリセットの行を作成します（［マスク］パネルの先頭。ドロップダウン・保存と削除のアイコン）。/ Build the mask preset row.
+     *
+     * @param {Panel} parentPanel - 追加先の［マスク］パネル。
+     * @returns {{presetDropdown: DropDownList, presetSaveIcon: Group, presetDeleteIcon: Group}} プリセットのコントロール。
+     */
+    function buildPresetRow(parentPanel) {
+        var presetRow = parentPanel.add("group");
+        setupRow(presetRow, ["fill", "center"], 4);
+        /* パネルの幅に合わせて伸ばす（幅を指定してダイアログボックスを広げない） / Stretch to the panel instead of widening the dialog */
+        var presetDropdown = presetRow.add("dropdownlist", undefined, []);
+        presetDropdown.helpTip = getLabel(LABELS.tooltip.preset);
+        presetDropdown.alignment = ["fill", "center"];
+        presetDropdown.preferredSize.width = PRESET_DROPDOWN_MIN_WIDTH;
+        /* 保存アイコンは塗りの面が大きく濃く見えるので、色を薄めて描く / The save icon is mostly solid and looks heavy, so draw it lighter */
+        var presetSaveIcon = addIconButton(presetRow, PRESET_ICON_SIZE, function (iconGraphics, iconWidth, iconHeight, iconColor) {
+            drawSaveIcon(iconGraphics, iconWidth, iconHeight, [iconColor[0], iconColor[1], iconColor[2], iconColor[3] * SAVE_ICON_OPACITY]);
+        });
+        presetSaveIcon.helpTip = getLabel(LABELS.tooltip.presetSave);
+        var presetDeleteIcon = addIconButton(presetRow, PRESET_ICON_SIZE, drawTrashIcon);
+        presetDeleteIcon.helpTip = getLabel(LABELS.tooltip.presetDelete);
+        return { presetDropdown: presetDropdown, presetSaveIcon: presetSaveIcon, presetDeleteIcon: presetDeleteIcon };
     }
 
     /**
@@ -4198,16 +4603,867 @@ var SCRIPT_SOURCE_URL     = getScriptMetaValue("X-com.swwwitch-Source-URL");    
     }
 
     // =========================================
+    // 設定の保存 / Settings store
+    // =========================================
+
+    // 設定の保存（再利用パーツ） / Settings store (reusable)
+
+    var SETTINGS_STORE_FOLDER_NAME = "illustrator-scripts"; /* Folder.userData の下に作るフォルダー / folder created under Folder.userData */
+    var SETTINGS_STORE_MAX_DEPTH = 32;                                /* 入れ子の上限（循環参照よけ）/ nesting limit (guards against cycles) */
+
+    /**
+     * 設定の保存先を作る。寿命は "session"（Illustrator の終了まで）か "persistent"（ファイルに保存）
+     * @param {string} storeName - 保存名（ふつうは SCRIPT_NAME を元にした名前）。ファイル名と $.global のキーに使う
+     * @param {string} lifetime - "session" または "persistent"
+     * @param {Object} [storeOptions] - { legacy: function () → 旧形式の保存値のオブジェクト|null }
+     * @returns {{load: Function, save: Function, clear: Function}} 読み込み・保存・消去の関数
+     */
+    function createSettingsStore(storeName, lifetime, storeOptions) {
+        var isPersistent = (lifetime === "persistent");
+        var legacyReader = (storeOptions && typeof storeOptions.legacy === "function") ? storeOptions.legacy : null;
+        var safeStoreName = String(storeName).replace(/[\\\/:*?"<>|]/g, "_");
+        var sessionKey = "__" + safeStoreName + "_Settings";
+        var settingsFile = isPersistent
+            ? new File(Folder.userData + "/" + SETTINGS_STORE_FOLDER_NAME + "/" + safeStoreName + ".json")
+            : null;
+
+        /**
+         * 保存してある文字列を返す
+         * @returns {string|null} 保存文字列。1度も保存していなければ null
+         */
+        function readStoredText() {
+            if (!isPersistent) {
+                return (typeof $.global[sessionKey] === "string") ? $.global[sessionKey] : null;
+            }
+            return settingsStoreReadTextFile(settingsFile);
+        }
+
+        /**
+         * 文字列を保存する
+         * @param {string} storedText - 保存する文字列
+         * @returns {boolean} 保存できたら true
+         */
+        function writeStoredText(storedText) {
+            if (!isPersistent) {
+                $.global[sessionKey] = storedText;
+                return true;
+            }
+            return settingsStoreWriteTextFile(settingsFile, storedText);
+        }
+
+        /**
+         * 保存値を読み込み、既定値と突き合わせて返す（型の合わない値・知らない項目は捨てる）
+         * @param {Object} defaultSettings - 既定値
+         * @returns {Object} 設定（毎回新しいオブジェクト）
+         */
+        function load(defaultSettings) {
+            var savedSettings = null;
+            try {
+                var storedText = readStoredText();
+                if (storedText !== null) {
+                    savedSettings = settingsStoreParse(storedText);
+                } else if (legacyReader) {
+                    savedSettings = legacyReader();
+                }
+            } catch (e) {
+                $.writeln("SettingsStore.load(" + storeName + "): " + e);
+                savedSettings = null;
+            }
+            return settingsStoreMerge(defaultSettings, savedSettings);
+        }
+
+        /**
+         * 設定を保存する
+         * @param {Object} settingValues - 保存する値
+         * @returns {boolean} 保存できたら true
+         */
+        function save(settingValues) {
+            try {
+                return writeStoredText(settingsStoreSerialize(settingValues, "", 0));
+            } catch (e) {
+                $.writeln("SettingsStore.save(" + storeName + "): " + e);
+                return false;
+            }
+        }
+
+        /**
+         * 保存を消す。旧形式を読み継ぐストアでは空の保存を書き、旧設定が戻らないようにする
+         * @returns {boolean} 消せたら true
+         */
+        function clear() {
+            if (legacyReader) return writeStoredText("{}");
+            if (!isPersistent) {
+                try { delete $.global[sessionKey]; } catch (e) { $.global[sessionKey] = undefined; }
+                return true;
+            }
+            try {
+                return settingsFile.exists ? settingsFile.remove() : true;
+            } catch (e) {
+                $.writeln("SettingsStore.clear(" + storeName + "): " + e);
+                return false;
+            }
+        }
+
+        return { load: load, save: save, clear: clear };
+    }
+
+    /**
+     * 旧形式の設定ファイルを読む（key=value の行 / toSource / JSON を自動判別。eval は使わない）
+     * @param {File|string} legacyFileOrPath - 旧ファイルかそのパス
+     * @returns {Object|null} 読み込んだ値（key=value は値がすべて文字列）。無い・読めないときは null
+     */
+    function readSettingsLegacyFile(legacyFileOrPath) {
+        try {
+            var legacyFile = (legacyFileOrPath instanceof File) ? legacyFileOrPath : new File(legacyFileOrPath);
+            var legacyText = settingsStoreReadTextFile(legacyFile);
+            return (legacyText === null) ? null : settingsStoreParseLegacyText(legacyText);
+        } catch (e) {
+            $.writeln("readSettingsLegacyFile: " + e);
+            return null;
+        }
+    }
+
+    /**
+     * app.preferences に文字列で保存していた旧設定を読む（形式は readSettingsLegacyFile と同じく自動判別）
+     * @param {string} preferenceKey - 環境設定のキー
+     * @returns {Object|null} 読み込んだ値。無い・読めないときは null
+     */
+    function readSettingsLegacyPreference(preferenceKey) {
+        try {
+            var legacyText = app.preferences.getStringPreference(preferenceKey);
+            if (!legacyText) return null;
+            return settingsStoreParseLegacyText(String(legacyText));
+        } catch (e) {
+            $.writeln("readSettingsLegacyPreference: " + e);
+            return null;
+        }
+    }
+
+    /**
+     * テキストファイルを UTF-8 で読む
+     * @param {File} textFile - 読むファイル
+     * @returns {string|null} 中身。ファイルが無ければ null
+     */
+    function settingsStoreReadTextFile(textFile) {
+        if (!textFile.exists) return null;
+        textFile.encoding = "UTF-8";
+        if (!textFile.open("r")) throw new Error("cannot open " + textFile.fsName);
+        try {
+            return textFile.read().replace(/^\uFEFF/, "");
+        } finally {
+            textFile.close();
+        }
+    }
+
+    /**
+     * テキストファイルを UTF-8 で書く（フォルダーが無ければ作る）
+     * @param {File} textFile - 書くファイル
+     * @param {string} fileText - 中身
+     * @returns {boolean} 書けたら true
+     */
+    function settingsStoreWriteTextFile(textFile, fileText) {
+        try {
+            var parentFolder = textFile.parent;
+            if (!parentFolder.exists && !parentFolder.create()) throw new Error("cannot create " + parentFolder.fsName);
+            textFile.encoding = "UTF-8";
+            textFile.lineFeed = "Unix";
+            if (!textFile.open("w")) throw new Error("cannot open " + textFile.fsName);
+            try {
+                textFile.write(fileText);
+            } finally {
+                textFile.close();
+            }
+            return true;
+        } catch (e) {
+            $.writeln("SettingsStore write: " + e);
+            return false;
+        }
+    }
+
+    /**
+     * 値が配列か
+     * @param {*} checkedValue - 調べる値
+     * @returns {boolean} 配列なら true
+     */
+    function settingsStoreIsArray(checkedValue) {
+        return Object.prototype.toString.call(checkedValue) === "[object Array]";
+    }
+
+    /**
+     * 値が素のオブジェクト（{ } で作ったもの）か
+     * @param {*} checkedValue - 調べる値
+     * @returns {boolean} 素のオブジェクトなら true
+     */
+    function settingsStoreIsPlainObject(checkedValue) {
+        return checkedValue !== null && typeof checkedValue === "object"
+            && Object.prototype.toString.call(checkedValue) === "[object Object]"
+            && checkedValue.constructor === Object;
+    }
+
+    /**
+     * 文字列を JSON の文字列リテラルにする（ASCII 以外は \uXXXX にして、文字コードの取り違えに強くする）
+     * @param {string} sourceText - 文字列
+     * @returns {string} 引用符つきの文字列
+     */
+    function settingsStoreQuote(sourceText) {
+        var quotedText = "\"";
+        for (var i = 0; i < sourceText.length; i++) {
+            var charCode = sourceText.charCodeAt(i);
+            var oneChar = sourceText.charAt(i);
+            if (oneChar === "\"" || oneChar === "\\") quotedText += "\\" + oneChar;
+            else if (oneChar === "\n") quotedText += "\\n";
+            else if (oneChar === "\r") quotedText += "\\r";
+            else if (oneChar === "\t") quotedText += "\\t";
+            else if (charCode < 0x20 || charCode > 0x7E) quotedText += "\\u" + ("0000" + charCode.toString(16)).slice(-4);
+            else quotedText += oneChar;
+        }
+        return quotedText + "\"";
+    }
+
+    /**
+     * 値を JSON の文字列にする（オブジェクトは1項目1行、中身が値だけの配列は1行）。
+     * undefined・関数・DOM オブジェクトは項目ごと省き、配列の中では null にする。有限でない数値は null
+     * @param {*} sourceValue - 値
+     * @param {string} indentText - 今の字下げ
+     * @param {number} depth - 入れ子の深さ
+     * @returns {string|undefined} JSON の文字列。書けない値は undefined
+     */
+    function settingsStoreSerialize(sourceValue, indentText, depth) {
+        if (depth > SETTINGS_STORE_MAX_DEPTH) throw new Error("settings are nested too deeply");
+        if (sourceValue === null) return "null";
+        var valueType = typeof sourceValue;
+        if (valueType === "boolean") return sourceValue ? "true" : "false";
+        if (valueType === "number") return isFinite(sourceValue) ? String(sourceValue) : "null";
+        if (valueType === "string") return settingsStoreQuote(sourceValue);
+        var innerIndent = indentText + "  ";
+        var itemTexts = [];
+        var i;
+        if (settingsStoreIsArray(sourceValue)) {
+            var hasNested = false;
+            for (i = 0; i < sourceValue.length; i++) {
+                var itemText = settingsStoreSerialize(sourceValue[i], innerIndent, depth + 1);
+                itemTexts.push(itemText === undefined ? "null" : itemText);
+                if (sourceValue[i] !== null && typeof sourceValue[i] === "object") hasNested = true;
+            }
+            if (!itemTexts.length) return "[]";
+            if (!hasNested) return "[" + itemTexts.join(", ") + "]";
+            return "[\n" + innerIndent + itemTexts.join(",\n" + innerIndent) + "\n" + indentText + "]";
+        }
+        if (settingsStoreIsPlainObject(sourceValue)) {
+            for (var key in sourceValue) {
+                if (!sourceValue.hasOwnProperty(key)) continue;
+                var memberText = settingsStoreSerialize(sourceValue[key], innerIndent, depth + 1);
+                if (memberText !== undefined) itemTexts.push(settingsStoreQuote(key) + ": " + memberText);
+            }
+            if (!itemTexts.length) return "{}";
+            return "{\n" + innerIndent + itemTexts.join(",\n" + innerIndent) + "\n" + indentText + "}";
+        }
+        return undefined; /* 関数・DOM オブジェクトなど / functions, DOM objects, etc. */
+    }
+
+    /**
+     * JSON（と toSource の出力）を読む。eval は使わない。
+     * キーの引用符なし・'…' の文字列・全体の ( ) ・末尾のカンマ・(void 0) も受け付ける
+     * @param {string} sourceText - 読む文字列
+     * @returns {*} 読み込んだ値
+     */
+    function settingsStoreParse(sourceText) {
+        var readPos = 0;
+        var textLength = sourceText.length;
+
+        /**
+         * 読み取り位置で失敗を知らせる
+         * @param {string} reasonText - 理由
+         * @returns {void}
+         */
+        function fail(reasonText) {
+            throw new Error("settings parse error at " + readPos + ": " + reasonText);
+        }
+
+        /**
+         * 空白を読み飛ばす
+         * @returns {void}
+         */
+        function skipSpaces() {
+            while (readPos < textLength && /\s/.test(sourceText.charAt(readPos))) readPos++;
+        }
+
+        /**
+         * 識別子（英数字・_・$）を読む
+         * @returns {string} 識別子。無ければ空文字
+         */
+        function readWord() {
+            var startPos = readPos;
+            while (readPos < textLength && /[\w$]/.test(sourceText.charAt(readPos))) readPos++;
+            return sourceText.substring(startPos, readPos);
+        }
+
+        /**
+         * 引用符で囲んだ文字列を読む（" と ' のどちらでも）
+         * @returns {string} 文字列
+         */
+        function readString() {
+            var quoteChar = sourceText.charAt(readPos++);
+            var resultText = "";
+            while (readPos < textLength) {
+                var oneChar = sourceText.charAt(readPos++);
+                if (oneChar === quoteChar) return resultText;
+                if (oneChar !== "\\") { resultText += oneChar; continue; }
+                var escapeChar = sourceText.charAt(readPos++);
+                if (escapeChar === "n") resultText += "\n";
+                else if (escapeChar === "r") resultText += "\r";
+                else if (escapeChar === "t") resultText += "\t";
+                else if (escapeChar === "b") resultText += "\b";
+                else if (escapeChar === "f") resultText += "\f";
+                else if (escapeChar === "v") resultText += "\v";
+                else if (escapeChar === "0") resultText += "\0";
+                else if (escapeChar === "u" || escapeChar === "x") {
+                    var hexLength = (escapeChar === "u") ? 4 : 2;
+                    var hexText = sourceText.substr(readPos, hexLength);
+                    if (!new RegExp("^[0-9A-Fa-f]{" + hexLength + "}$").test(hexText)) fail("bad escape");
+                    resultText += String.fromCharCode(parseInt(hexText, 16));
+                    readPos += hexLength;
+                } else resultText += escapeChar;
+            }
+            fail("unterminated string");
+        }
+
+        /**
+         * 値を1つ読む
+         * @param {number} depth - 入れ子の深さ
+         * @returns {*} 値
+         */
+        function readValue(depth) {
+            if (depth > SETTINGS_STORE_MAX_DEPTH) fail("nested too deeply");
+            skipSpaces();
+            var oneChar = sourceText.charAt(readPos);
+            if (oneChar === "{") return readObject(depth);
+            if (oneChar === "[") return readArray(depth);
+            if (oneChar === "\"" || oneChar === "'") return readString();
+            if (oneChar === "(") {
+                readPos++;
+                var innerValue = readValue(depth + 1);
+                skipSpaces();
+                if (sourceText.charAt(readPos) !== ")") fail("expected )");
+                readPos++;
+                return innerValue;
+            }
+            var numberMatch = /^-?(\d+\.?\d*|\.\d+)([eE][+\-]?\d+)?/.exec(sourceText.substring(readPos, readPos + 64));
+            if (numberMatch) {
+                readPos += numberMatch[0].length;
+                return Number(numberMatch[0]);
+            }
+            var wordText = readWord();
+            if (wordText === "true") return true;
+            if (wordText === "false") return false;
+            if (wordText === "null") return null;
+            if (wordText === "NaN") return NaN;
+            if (wordText === "Infinity") return Infinity;
+            if (wordText === "void") { readValue(depth + 1); return undefined; } /* toSource の (void 0) */
+            fail("unexpected " + (wordText || oneChar || "end of text"));
+        }
+
+        /**
+         * 配列を読む
+         * @param {number} depth - 入れ子の深さ
+         * @returns {Array} 配列
+         */
+        function readArray(depth) {
+            var resultArray = [];
+            readPos++;
+            skipSpaces();
+            while (sourceText.charAt(readPos) !== "]") {
+                resultArray.push(readValue(depth + 1));
+                skipSpaces();
+                if (sourceText.charAt(readPos) === ",") { readPos++; skipSpaces(); continue; }
+                if (sourceText.charAt(readPos) !== "]") fail("expected , or ]");
+            }
+            readPos++;
+            return resultArray;
+        }
+
+        /**
+         * オブジェクトを読む（__proto__ のキーは捨てる）
+         * @param {number} depth - 入れ子の深さ
+         * @returns {Object} オブジェクト
+         */
+        function readObject(depth) {
+            var resultObject = {};
+            readPos++;
+            skipSpaces();
+            while (sourceText.charAt(readPos) !== "}") {
+                var keyChar = sourceText.charAt(readPos);
+                var memberKey = (keyChar === "\"" || keyChar === "'") ? readString() : readWord();
+                if (memberKey === "") fail("expected a key");
+                skipSpaces();
+                if (sourceText.charAt(readPos) !== ":") fail("expected :");
+                readPos++;
+                var memberValue = readValue(depth + 1);
+                if (memberKey !== "__proto__") resultObject[memberKey] = memberValue;
+                skipSpaces();
+                if (sourceText.charAt(readPos) === ",") { readPos++; skipSpaces(); continue; }
+                if (sourceText.charAt(readPos) !== "}") fail("expected , or }");
+            }
+            readPos++;
+            return resultObject;
+        }
+
+        var parsedValue = readValue(0);
+        skipSpaces();
+        if (readPos < textLength) fail("unexpected text after the value");
+        return parsedValue;
+    }
+
+    /**
+     * 旧形式の文字列を読む。{ [ ( で始まれば JSON / toSource、それ以外は key=value の行とみなす
+     * @param {string} legacyText - 旧形式の文字列
+     * @returns {Object|null} 読み込んだ値
+     */
+    function settingsStoreParseLegacyText(legacyText) {
+        var trimmedText = legacyText.replace(/^\uFEFF/, "").replace(/^\s+|\s+$/g, "");
+        if (trimmedText === "") return null;
+        if (/^[\{\[\(]/.test(trimmedText)) return settingsStoreParse(trimmedText);
+        var keyValues = {};
+        var textLines = trimmedText.split(/\r\n|\r|\n/);
+        for (var i = 0; i < textLines.length; i++) {
+            var separatorIndex = textLines[i].indexOf("=");
+            if (separatorIndex < 1) continue;
+            var lineKey = textLines[i].substring(0, separatorIndex).replace(/^\s+|\s+$/g, "");
+            if (lineKey !== "" && lineKey !== "__proto__") keyValues[lineKey] = textLines[i].substring(separatorIndex + 1);
+        }
+        return keyValues;
+    }
+
+    /**
+     * 値を深くコピーする（素のデータだけ。関数・DOM オブジェクトは null）
+     * @param {*} sourceValue - コピー元
+     * @returns {*} コピー
+     */
+    function settingsStoreClone(sourceValue) {
+        if (sourceValue === null || typeof sourceValue !== "object") {
+            return (typeof sourceValue === "function" || sourceValue === undefined) ? null : sourceValue;
+        }
+        var i;
+        if (settingsStoreIsArray(sourceValue)) {
+            var arrayCopy = [];
+            for (i = 0; i < sourceValue.length; i++) arrayCopy.push(settingsStoreClone(sourceValue[i]));
+            return arrayCopy;
+        }
+        if (!settingsStoreIsPlainObject(sourceValue)) return null;
+        var objectCopy = {};
+        for (var key in sourceValue) {
+            if (sourceValue.hasOwnProperty(key)) objectCopy[key] = settingsStoreClone(sourceValue[key]);
+        }
+        return objectCopy;
+    }
+
+    /**
+     * 保存値を既定値と突き合わせる。型は既定値に合わせ、合わなければ既定値を使う。
+     * 既定値が {} か null なら中身を問わず受け取り、配列は配列なら受け取る。既定値に無い項目は捨てる
+     * @param {*} defaultValue - 既定値
+     * @param {*} savedValue - 保存値
+     * @returns {*} 突き合わせた値（新しいオブジェクト）
+     */
+    function settingsStoreMerge(defaultValue, savedValue) {
+        if (defaultValue === null || defaultValue === undefined) {
+            return (savedValue === undefined) ? null : settingsStoreClone(savedValue);
+        }
+        var defaultType = typeof defaultValue;
+        var savedType = typeof savedValue;
+        if (defaultType === "boolean") {
+            if (savedType === "boolean") return savedValue;
+            if (savedValue === 1 || savedValue === "1" || savedValue === "true") return true;
+            if (savedValue === 0 || savedValue === "0" || savedValue === "false") return false;
+            return defaultValue;
+        }
+        if (defaultType === "number") {
+            if (savedType === "number" && isFinite(savedValue)) return savedValue;
+            if (savedType === "string" && /\S/.test(savedValue)) {
+                var parsedNumber = Number(savedValue);
+                if (isFinite(parsedNumber)) return parsedNumber;
+            }
+            return defaultValue;
+        }
+        if (defaultType === "string") {
+            if (savedType === "string") return savedValue;
+            if (savedType === "number" && isFinite(savedValue)) return String(savedValue);
+            if (savedType === "boolean") return String(savedValue);
+            return defaultValue;
+        }
+        if (settingsStoreIsArray(defaultValue)) {
+            return settingsStoreClone(settingsStoreIsArray(savedValue) ? savedValue : defaultValue);
+        }
+        if (defaultType === "object") {
+            var savedIsObject = settingsStoreIsPlainObject(savedValue);
+            var hasDefaultKeys = false;
+            var mergedObject = {};
+            for (var key in defaultValue) {
+                if (!defaultValue.hasOwnProperty(key)) continue;
+                hasDefaultKeys = true;
+                mergedObject[key] = settingsStoreMerge(defaultValue[key], savedIsObject ? savedValue[key] : undefined);
+            }
+            /* 既定値が {} なら自由な入れ物として中身ごと受け取る / an empty default {} is a free-form map */
+            if (!hasDefaultKeys && savedIsObject) return settingsStoreClone(savedValue);
+            return mergedObject;
+        }
+        return defaultValue;
+    }
+
+    // 設定の保存（再利用パーツ）ここまで / End of the reusable settings store
+
+    // =========================================
+    // 画像の読み込み / Image import
+    // =========================================
+
+    /* 対象の拡張子 / Target extensions */
+    var IMAGE_EXTENSIONS = ["jpg", "jpeg", "png", "tif", "tiff", "psd", "gif", "bmp", "pdf", "eps", "ai", "svg", "heic", "webp"];
+
+    /* 画像の選び方 / How the images are chosen */
+    var IMAGE_SOURCE_FILES = "files";
+    var IMAGE_SOURCE_FOLDER = "folder";
+
+    /* 前回選んだ方式（次回の既定のボタンにする）。再起動しても残る / The last choice, used as the default button next time; kept across restarts */
+    var imageSourceStore = createSettingsStore(SCRIPT_NAME + "ImageSource", "persistent");
+
+    /**
+     * ファイル名の拡張子が対象の画像かどうかを返す。
+     * @param {string} fileName - ファイル名
+     * @returns {boolean} 対象の拡張子なら true
+     */
+    function isImageName(fileName) {
+        var extMatch = /\.([^.]+)$/.exec(fileName);
+        if (!extMatch) return false;
+        var ext = extMatch[1].toLowerCase();
+        for (var i = 0; i < IMAGE_EXTENSIONS.length; i++) {
+            if (IMAGE_EXTENSIONS[i] === ext) return true;
+        }
+        return false;
+    }
+
+    /**
+     * 画像をファイルで選ぶかフォルダーで選ぶかを尋ねる（File.openDialog ではフォルダーを選べないため）。前回選んだ方式を既定のボタンにする。
+     * @returns {string|null} IMAGE_SOURCE_FILES / IMAGE_SOURCE_FOLDER。キャンセルなら null
+     */
+    function showImageSourceDialog() {
+        var isFolderDefault = (imageSourceStore.load({ imageSource: IMAGE_SOURCE_FILES }).imageSource === IMAGE_SOURCE_FOLDER);
+        var sourceDialog = new Window("dialog", getLabel(LABELS.dialog.chooseSource));
+        setupWindow(sourceDialog);
+        sourceDialog.add("statictext", undefined, getLabel(LABELS.message.chooseSource));
+
+        /* ボタン行（右：キャンセル・フォルダー・ファイル）。前回選んだほうを既定（return）にする / Button row; the last choice is the default (Return) */
+        var buttonRow = addButtonRow(sourceDialog);
+        var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel(LABELS.button.cancel), { name: "cancel" });
+        var btnFolder = buttonRow.rightGroup.add("button", undefined, getLabel(LABELS.button.chooseFolder), isFolderDefault ? { name: "ok" } : {});
+        var btnFiles = buttonRow.rightGroup.add("button", undefined, getLabel(LABELS.button.chooseFiles), isFolderDefault ? {} : { name: "ok" });
+        btnCancel.onClick = function () { sourceDialog.close(2); };
+        btnFolder.onClick = function () { sourceDialog.close(3); };
+        btnFiles.onClick = function () { sourceDialog.close(1); };
+        alignRightOnlyButtonRow(buttonRow);
+        prepareDialogWindow(sourceDialog, SCRIPT_NAME + "_imageSource");
+
+        var sourceDialogResult = sourceDialog.show();
+        var imageSource = null;
+        if (sourceDialogResult === 1) imageSource = IMAGE_SOURCE_FILES;
+        if (sourceDialogResult === 3) imageSource = IMAGE_SOURCE_FOLDER;
+        if (imageSource) imageSourceStore.save({ imageSource: imageSource });
+        return imageSource;
+    }
+
+    /**
+     * ファイル選択ダイアログボックスを開いて画像を選ばせる（複数選択可）。
+     * @returns {File[]} 選んだファイル。キャンセル時は空の配列
+     */
+    function chooseImageFiles() {
+        var fileFilter;
+        if ($.os.indexOf("Windows") !== -1) {
+            /* Windows はフィルター文字列 / Windows uses a filter string */
+            fileFilter = "Images:*." + IMAGE_EXTENSIONS.join(";*.");
+        } else {
+            /* Mac は関数（フォルダーは辿れるように true） / Mac uses a filter function */
+            fileFilter = function (f) {
+                return (f instanceof Folder) || isImageName(f.name);
+            };
+        }
+        var chosen = File.openDialog(getLabel(LABELS.dialog.chooseImages), fileFilter, true);
+        if (!chosen) return [];
+        return (chosen instanceof Array) ? chosen : [chosen];
+    }
+
+    /**
+     * フォルダーを選ばせ、その中（直下）の画像ファイルを名前順で返す。画像が無ければ知らせる。
+     * @returns {File[]} 画像ファイル。キャンセル時・画像が無いときは空の配列
+     */
+    function chooseImageFolderFiles() {
+        var chosenFolder = Folder.selectDialog(getLabel(LABELS.dialog.chooseFolder));
+        if (!chosenFolder) return [];
+        var imageFiles = listImagesInFolder(chosenFolder);
+        if (imageFiles.length === 0) alert(getLabel(LABELS.alert.noImagesInFolder, { name: decodeURI(chosenFolder.name) }));
+        return imageFiles;
+    }
+
+    /**
+     * フォルダーの直下にある画像ファイルを名前順で返す。サブフォルダーと不可視ファイル（.DS_Store など）は除く。
+     * @param {Folder} imageFolder - 対象のフォルダー
+     * @returns {File[]} 画像ファイル
+     */
+    function listImagesInFolder(imageFolder) {
+        var folderFiles = imageFolder.getFiles(function (f) {
+            var fileName = decodeURI(f.name);
+            return (f instanceof File) && !f.hidden && fileName.charAt(0) !== "." && isImageName(fileName);
+        });
+        /* 比較関数つきの sort() は遅く並びも狂うので、「名前\n番号」の文字列を既定の sort() で並べる
+           A comparator sort is slow and unreliable, so sort "name\nindex" strings with the default sort() */
+        var sortKeys = [];
+        for (var i = 0; i < folderFiles.length; i++) sortKeys.push(decodeURI(folderFiles[i].name).toLowerCase() + "\n" + i);
+        sortKeys.sort();
+        var imageFiles = [];
+        for (var j = 0; j < sortKeys.length; j++) imageFiles.push(folderFiles[parseInt(sortKeys[j].split("\n")[1], 10)]);
+        return imageFiles;
+    }
+
+    /**
+     * 画像を配置する。失敗したファイルは failedNames に名前を積む。
+     * @param {Document} doc - 配置先のドキュメント
+     * @param {File[]} imageFiles - 配置する画像
+     * @param {string[]} failedNames - 配置できなかったファイル名を積む配列
+     * @returns {PlacedItem[]} 配置したアイテム
+     */
+    function placeImages(doc, imageFiles, failedNames) {
+        var placedItems = [];
+        for (var i = 0; i < imageFiles.length; i++) {
+            var placedItem = doc.placedItems.add();
+            try {
+                placedItem.file = imageFiles[i];
+                placedItems.push(placedItem);
+            } catch (e) {
+                placedItem.remove();
+                failedNames.push(decodeURI(imageFiles[i].name));
+            }
+        }
+        return placedItems;
+    }
+
+    /**
+     * 画像を選んで配置し、整列のダイアログボックスへ渡します。/ Place chosen images, then open the distribution dialog.
+     * 配置先は作業中のアートボードに固定します（［最背面のオブジェクト］はディム）。選択していた1つのオブジェクトは使いません。
+     * キャンセルすると配置した画像を取り除き、元の選択に戻します。
+     *
+     * @returns {void}
+     */
+    function placeImagesThenDistribute() {
+        var doc = app.activeDocument;
+        var activeLayer = doc.activeLayer;
+        if (activeLayer.locked || !activeLayer.visible) {
+            alert(getLabel(LABELS.alert.layerUnavailable, { name: activeLayer.name }));
+            return;
+        }
+
+        /* キャンセルで戻す選択（文字の編集中は戻さない） / Selection restored on Cancel (not while editing text) */
+        var originalSelection = (doc.selection instanceof Array) ? copyItemsExcept(doc.selection, null) : null;
+
+        var imageSource = showImageSourceDialog();
+        if (!imageSource) return;
+        var imageFiles = (imageSource === IMAGE_SOURCE_FOLDER) ? chooseImageFolderFiles() : chooseImageFiles();
+        if (imageFiles.length === 0) return;
+
+        var failedNames = [];
+        var placedItems = placeImages(doc, imageFiles, failedNames);
+        if (failedNames.length > 0) {
+            alert(getLabel(LABELS.alert.placeFailed, { list: failedNames.join("\n") }));
+        }
+        if (placedItems.length === 0) return;
+
+        showDistributeDialog({
+            items: placedItems,
+            artboardOnly: true,
+            resizeMode: CONFIG.imageResizeMode,
+            removeItemsOnCancel: true,
+            selectionOnCancel: originalSelection
+        });
+    }
+
+    // =========================================
+    // プリセット / Presets
+    // =========================================
+
+    /* マスクのプリセット：名前をキーにしたマスクの設定の集まり（{} の既定値は中身を問わず受け取る）。再起動しても残る
+       Mask presets: mask settings keyed by name (the {} default accepts any content), kept across restarts */
+    var presetSettingsStore = createSettingsStore(SCRIPT_NAME + "MaskPresets", "persistent");
+
+    /* 組み込みのプリセット（data に無い項目は今の値のまま。削除できない）。「デフォルト」は起動したときのマスクの設定に戻す（data は null）。
+       ほかは枠・角丸だけを変える。長さは pt、色の "black" / "white" はドキュメントのカラーモードで作る
+       Built-in presets (keys missing from data keep their current values; cannot be deleted). "Default" restores the mask settings
+       at launch (data is null); the others change only the frame and corner radius. Lengths in pt; "black" / "white" follow the document color mode */
+    var BUILTIN_PRESETS = [
+        { labelKey: "presetDefault", data: null },
+        { labelKey: "presetBlackThin", data: { useFrame: true, frameWidthPt: 0.3, frameColor: { model: "black" }, useCornerRadius: false } },
+        { labelKey: "presetWhiteRound2", data: { useFrame: true, frameWidthPt: 1, frameColor: { model: "white" }, useCornerRadius: true, cornerRadiusPt: 2 } },
+        { labelKey: "presetWhiteRound50", data: { useFrame: true, frameWidthPt: 1, frameColor: { model: "white" }, useCornerRadius: true, cornerRadiusPt: 50 } }
+    ];
+
+    /**
+     * 保存したプリセットを返す。
+     * @returns {Object} プリセット名をキーにした設定の集まり（書き換えても保存されない）
+     */
+    function loadPresetMap() {
+        return presetSettingsStore.load({});
+    }
+
+    /**
+     * 保存したプリセットの名前を、名前順で返す。
+     * @returns {string[]} プリセット名
+     */
+    function getPresetNames() {
+        var presetMap = loadPresetMap();
+        var presetNames = [];
+        for (var presetName in presetMap) {
+            if (presetMap.hasOwnProperty(presetName)) presetNames.push(presetName);
+        }
+        presetNames.sort();
+        return presetNames;
+    }
+
+    /**
+     * プリセット名を尋ねる。
+     * @param {string} initialName - 入力欄に入れておく名前
+     * @returns {string|null} プリセット名。キャンセルか空なら null
+     */
+    function showPresetNameDialog(initialName) {
+        var nameDialog = new Window("dialog", getLabel(LABELS.dialog.presetSave));
+        setupWindow(nameDialog);
+        var nameRow = nameDialog.add("group");
+        setupRow(nameRow, "left");
+        nameRow.add("statictext", undefined, labelText(LABELS.fieldLabel.presetName));
+        var nameInput = nameRow.add("edittext", undefined, initialName);
+        nameInput.helpTip = getLabel(LABELS.tooltip.presetName);
+        nameInput.characters = PRESET_NAME_CHARS;
+        nameInput.active = true;
+
+        /* ボタン行（右：キャンセル・OK） / Button row (right: Cancel and OK) */
+        var buttonRow = addButtonRow(nameDialog);
+        buttonRow.rightGroup.add("button", undefined, getLabel(LABELS.button.cancel), { name: "cancel" });
+        buttonRow.rightGroup.add("button", undefined, getLabel(LABELS.button.ok), { name: "ok" });
+        alignRightOnlyButtonRow(buttonRow);
+        prepareDialogWindow(nameDialog, SCRIPT_NAME + "_presetName");
+        if (nameDialog.show() !== 1) return null;
+
+        var presetName = nameInput.text.replace(/^\s+|\s+$/g, "");
+        if (!presetName || presetName === getLabel(LABELS.dropdown.presetPlaceholder)) return null;
+        return presetName;
+    }
+
+    /**
+     * 設定を名前を付けて保存する（同じ名前は確認してから上書き）。
+     * @param {string} initialName - 名前の入力欄に入れておく名前
+     * @param {Object} presetData - 保存する設定
+     * @returns {string|null} 保存したプリセット名。保存しなかったら null
+     */
+    function savePreset(initialName, presetData) {
+        var presetName = showPresetNameDialog(initialName);
+        if (!presetName) return null;
+        for (var i = 0; i < BUILTIN_PRESETS.length; i++) {
+            if (getLabel(LABELS.dropdown[BUILTIN_PRESETS[i].labelKey]) === presetName) {
+                alert(getLabel(LABELS.alert.presetNameBuiltin, { name: presetName }));
+                return null;
+            }
+        }
+        var presetMap = loadPresetMap();
+        if (presetMap.hasOwnProperty(presetName) && !confirm(getLabel(LABELS.confirm.presetOverwrite, { name: presetName }), true)) return null;
+        presetMap[presetName] = presetData;
+        if (!presetSettingsStore.save(presetMap)) {
+            alert(getLabel(LABELS.alert.presetSaveFailed));
+            return null;
+        }
+        return presetName;
+    }
+
+    /**
+     * プリセットを確認してから削除する。
+     * @param {string} presetName - 削除するプリセット名
+     * @returns {boolean} 削除したら true
+     */
+    function deletePreset(presetName) {
+        if (!confirm(getLabel(LABELS.confirm.presetDelete, { name: presetName }), true)) return false;
+        var presetMap = loadPresetMap();
+        delete presetMap[presetName];
+        if (!presetSettingsStore.save(presetMap)) {
+            alert(getLabel(LABELS.alert.presetSaveFailed));
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * 色をプリセットに保存できる形にします（RGB・CMYK・グレー。それ以外は null）。/ Serialize a color for a preset.
+     *
+     * @param {Color} sourceColor - 色。
+     * @returns {Object|null} { model: "rgb"|"cmyk"|"gray", values: number[] }。
+     */
+    function colorToSettings(sourceColor) {
+        if (sourceColor.typename === "RGBColor") return { model: "rgb", values: [sourceColor.red, sourceColor.green, sourceColor.blue] };
+        if (sourceColor.typename === "CMYKColor") return { model: "cmyk", values: [sourceColor.cyan, sourceColor.magenta, sourceColor.yellow, sourceColor.black] };
+        if (sourceColor.typename === "GrayColor") return { model: "gray", values: [sourceColor.gray] };
+        return null;
+    }
+
+    /**
+     * プリセットの色を Color に戻します。読めないときはドキュメントのカラーモードの黒。/ Restore a color from a preset.
+     *
+     * @param {Document} doc - 対象のドキュメント。
+     * @param {Object|null} savedColor - colorToSettings() の戻り値、または { model: "black" | "white" }。
+     * @returns {Color} 色。
+     */
+    function colorFromSettings(doc, savedColor) {
+        if (savedColor && savedColor.model === "white") return createGrayColor(doc, 0, 255);
+        if (!savedColor || !(savedColor.values instanceof Array)) return createGrayColor(doc, 100, 0);
+        var values = savedColor.values;
+        if (savedColor.model === "rgb" && values.length === 3) {
+            var rgbColor = new RGBColor();
+            rgbColor.red = values[0];
+            rgbColor.green = values[1];
+            rgbColor.blue = values[2];
+            return rgbColor;
+        }
+        if (savedColor.model === "cmyk" && values.length === 4) {
+            var cmykColor = new CMYKColor();
+            cmykColor.cyan = values[0];
+            cmykColor.magenta = values[1];
+            cmykColor.yellow = values[2];
+            cmykColor.black = values[3];
+            return cmykColor;
+        }
+        if (savedColor.model === "gray" && values.length === 1) {
+            var grayColor = new GrayColor();
+            grayColor.gray = values[0];
+            return grayColor;
+        }
+        return createGrayColor(doc, 100, 0);
+    }
+
+    // =========================================
     // メイン処理 / Main
     // =========================================
 
     /**
+     * 画像を読み込んだあとに渡す、整列の起動条件。/ Launch options passed after importing images.
+     *
+     * @typedef {Object} DistributeLaunchOptions
+     * @property {Array<PageItem>} [items] - 整列するオブジェクト。省くと選択中のオブジェクト。
+     * @property {boolean} [artboardOnly] - 配置先を現在のアートボードに固定し、［最背面のオブジェクト］をディムにする。
+     * @property {string} [resizeMode] - リサイズの初期値（"none" / "width" / "height" / "area" / "scale"）。
+     * @property {boolean} [removeItemsOnCancel] - キャンセルしたら items を削除する（読み込んだ画像）。
+     * @property {Array<PageItem>} [selectionOnCancel] - キャンセルしたあとに選択するオブジェクト（removeItemsOnCancel のとき）。
+     */
+
+    /**
      * ダイアログを表示して配置処理を実行します。/ Show the dialog and run the distribution.
      *
+     * @param {DistributeLaunchOptions} [launchOptions] - 画像を読み込んだあとの起動条件。省くと選択中のオブジェクトを整列。
      * @returns {void}
      */
-    function showDistributeDialog() {
+    function showDistributeDialog(launchOptions) {
         var doc = app.activeDocument;
+        var launchContext = launchOptions || {};
 
         /* 前回実行時のセル描画レイヤーは、OK を押すまで消さずに隠しておく。
            ここで削除するとキャンセルしても戻せない
@@ -4221,10 +5477,11 @@ var SCRIPT_SOURCE_URL     = getScriptMetaValue("X-com.swwwitch-Source-URL");    
         var baseArtboardRect = doc.artboards[baseArtboardIndex].artboardRect;
 
         /* 対象候補の検出（この時点では変更を加えない）/ Detect target candidates without changing anything */
-        var backmostItem = findBackmostPageItem(doc);
+        /* 画像を読み込んだときは最背面のオブジェクトを使わない / Imported images never use the backmost object */
+        var backmostItem = launchContext.artboardOnly ? null : findBackmostPageItem(doc);
 
         /* 選択内容はダイアログ起動時に固定する（順序も保持）/ Freeze the selection (and its order) at launch */
-        var placeableItems = copyItemsExcept(doc.selection, null);
+        var placeableItems = copyItemsExcept(launchContext.items || doc.selection, null);
 
         var rulerUnit = getUnitInfo();
         var defaultDivision = computeDefaultDivision(placeableItems.length, baseArtboardRect, CONFIG.defaultBrick);
@@ -4241,6 +5498,11 @@ var SCRIPT_SOURCE_URL     = getScriptMetaValue("X-com.swwwitch-Source-URL");    
         var cellUI = dialogUI.cellUI;
         var itemAnchorUI = dialogUI.itemAnchorUI;
         var footerUI = dialogUI.footerUI;
+        var presetUI = maskUI.presetUI;
+
+        /* 起動条件の初期値（画像を読み込んだときはディムの理由とリサイズ） / Initial state from the launch options */
+        if (launchContext.artboardOnly) placementUI.backmostRadio.helpTip = getLabel(LABELS.tooltip.targetUnavailableForImages);
+        if (launchContext.resizeMode) selectResizeRadio(resizeUI, launchContext.resizeMode);
 
         /** @type {Array<PageItem>|null} シャッフルで決めた配置順。未使用なら null。 */
         var randomizedOrder = null;
@@ -4258,27 +5520,29 @@ var SCRIPT_SOURCE_URL     = getScriptMetaValue("X-com.swwwitch-Source-URL");    
         var lastPreviewTime = 0;
         /** @type {Array<GroupItem>} 直近の描画で作ったクリップグループ。 */
         var maskGroups = [];
-        /** @type {boolean} ［マスクする］の状態。表示前に代入したチェックボックスの value は読み戻せないことがあるので、変数で持ちます。 */
-        var isMaskEnabled = CONFIG.defaultMaskToCell;
-        /** @type {boolean} ［セル間隔を優先］の状態（理由は isMaskEnabled と同じ）。 */
+        /** @type {string} マスクの種類（MASK_MODE_*）。表示前に代入したラジオ・チェックボックスの value は読み戻せないことがあるので、変数で持ちます。 */
+        var maskMode = CONFIG.defaultMaskMode;
+        /** @type {Array<number[]>} 直近の描画で使ったマスクの矩形（角丸の自動計算に使う）。 */
+        var lastMaskRects = [];
+        /** @type {boolean} ［セル間隔を優先］の状態（理由は maskMode と同じ）。 */
         var isGutterPriorityEnabled = CONFIG.defaultGutterPriority;
         /** @type {GridMetrics|null} 直近の描画で使ったグリッド（［セル間隔を優先］で作り直したあとのもの）。 */
         var lastGridMetrics = null;
-        /** @type {boolean} ［均等にまばらに］の状態（理由は isMaskEnabled と同じ）。 */
+        /** @type {boolean} ［均等にまばらに］の状態（理由は maskMode と同じ）。 */
         var isSpreadEnabled = CONFIG.defaultSpreadEvenly;
         /** @type {boolean} 直近に行数・列数を計算したときの配置先が［最背面のオブジェクト］か（同じラジオを押し直したときに入力を上書きしない）。 */
         var wasBackmostTarget = false;
-        /** @type {boolean} ［レンガ］の状態（理由は isMaskEnabled と同じ）。 */
+        /** @type {boolean} ［レンガ］の状態（理由は maskMode と同じ）。 */
         var isBrickEnabled = CONFIG.defaultBrick;
-        /** @type {boolean} ［角丸］の状態（理由は isMaskEnabled と同じ）。 */
+        /** @type {boolean} ［角丸］の状態（理由は maskMode と同じ）。 */
         var isCornerRadiusEnabled = CONFIG.defaultUseCornerRadius;
-        /** @type {boolean} ［枠］の状態（理由は isMaskEnabled と同じ）。 */
+        /** @type {boolean} ［枠］の状態（理由は maskMode と同じ）。 */
         var isFrameEnabled = CONFIG.defaultUseFrame;
         /** @type {CMYKColor|RGBColor} 枠の色（標準のカラーピッカーで選ぶ）。 */
         var frameColor = createGrayColor(doc, 100, 0);
-        /** @type {boolean} ［配置するオブジェクトを残す］の状態（理由は isMaskEnabled と同じ）。 */
+        /** @type {boolean} ［元のオブジェクトを残す］の状態（理由は maskMode と同じ）。 */
         var isKeepOriginalsEnabled = CONFIG.defaultKeepOriginals;
-        /** @type {Array<PageItem>} ［配置するオブジェクトを残す］で、本番の配置に作った複製。 */
+        /** @type {Array<PageItem>} ［元のオブジェクトを残す］で、本番の配置に作った複製。 */
         var keptCopies = [];
 
         bindDialogEvents();
@@ -4287,6 +5551,17 @@ var SCRIPT_SOURCE_URL     = getScriptMetaValue("X-com.swwwitch-Source-URL");    
         /* 初期状態を反映してプレビューを表示 / Apply the initial state and show the preview */
         syncAllControls();
         updatePreview();
+        var fitViewControls = footerUI.fitViewControls;
+
+        /* 画面にフィット：開いたときの表示を控えてから合わせる（ダイアログの位置はこのあとの表示で決める）
+           Fit to Window: capture the view first, then fit (the dialog position is decided on the fitted view) */
+        var initialViewState = FitViewToItems.captureView(doc);
+        fitViewToTarget();
+
+        /* 組み込みの［デフォルト］で戻す、起動したときのマスクの設定 / Mask settings at launch, restored by the built-in Default preset */
+        var launchMaskSettings = collectMaskSettings();
+        bindPresetEvents();
+        fillPresetDropdown(null);
 
         /* バージョン表示は layout の前に足す。後から足すとウィンドウの大きさが決まったあとで、行の場所が無く表示されない
            Add the footer before layout; added afterwards it gets no room in the already-sized window */
@@ -4402,7 +5677,7 @@ var SCRIPT_SOURCE_URL     = getScriptMetaValue("X-com.swwwitch-Source-URL");    
         /**
          * セル描画と配置を実行します（プレビュー／本番共通）。/ Draw cells and place objects.
          * プレビューでは元のオブジェクトを複製して元を隠し、複製だけを動かします（元の位置・大きさには触れません）。
-         * ［配置するオブジェクトを残す］では、本番でも複製を動かし、元は隠さずその場に残します。
+         * ［元のオブジェクトを残す］では、本番でも複製を動かし、元は隠さずその場に残します。
          *
          * @param {boolean} isPreview - プレビューとして描画する場合は true。
          * @returns {GridMetrics|null} 使ったグリッド（［セル間隔を優先］では作り直したもの）。入力が無効で何もしなかった場合は null。
@@ -4437,7 +5712,11 @@ var SCRIPT_SOURCE_URL     = getScriptMetaValue("X-com.swwwitch-Source-URL");    
             /* マスクはセルに入れたものだけ。プレビューのグループは複製と一緒に消す
                Mask only the objects in cells; preview groups are removed along with the copies */
             maskGroups = [];
-            if (isMaskEnabled) maskItemsToCells(cellItems, cellRects, isPreview ? previewCopies : maskGroups, readMaskStyle());
+            lastMaskRects = [];
+            if (maskMode !== MASK_MODE_NONE) {
+                lastMaskRects = listMaskRects(cellItems, cellRects, maskMode);
+                maskItemsToRects(cellItems, lastMaskRects, isPreview ? previewCopies : maskGroups, readMaskStyle());
+            }
             return gridMetrics;
         }
 
@@ -4460,7 +5739,7 @@ var SCRIPT_SOURCE_URL     = getScriptMetaValue("X-com.swwwitch-Source-URL");    
 
         /**
          * セルの扱いに合わせてセルを描きます。/ Draw the cells for the current cell handling.
-         * ［アートボード化］［何もしない］は本番では描かず、プレビューでだけセルの範囲をガイドで示します。
+         * ［アートボード化］［残さない］は本番では描かず、プレビューでだけセルの範囲をガイドで示します。
          *
          * @param {GridMetrics} gridMetrics - グリッドの寸法。
          * @param {string} cellMode - getCellMode() の値。
@@ -4717,11 +5996,41 @@ var SCRIPT_SOURCE_URL     = getScriptMetaValue("X-com.swwwitch-Source-URL");    
         }
 
         /**
+         * マスクの種類を切り替えて、角丸・枠の有効・無効とプレビューを更新します。/ Switch the mask mode.
+         *
+         * @param {string} nextMaskMode - MASK_MODE_NONE / MASK_MODE_CELL / MASK_MODE_ITEM。
+         * @returns {void}
+         */
+        function selectMaskMode(nextMaskMode) {
+            var previousMaskMode = maskMode;
+            maskMode = nextMaskMode;
+            syncMaskStyleEnabled();
+            clearCellsWhenMaskTurnsOn(previousMaskMode);
+            updatePreview();
+        }
+
+        /**
+         * マスクを［なし］から［セル］／［画像］にしたとき、セルの扱いを［残さない］にします（マスクで見えるのでセルの長方形は要らない）。
+         * When the mask goes from None to Cell or Image, switch Cell Handling to Don't Keep; the mask makes the cell rectangles unnecessary.
+         * ［セル］と［画像］の切り替えでは変えないので、あとから選び直したセルの扱いはそのまま残ります。
+         *
+         * @param {string} previousMaskMode - 切り替える前のマスクの種類（MASK_MODE_*）。
+         * @returns {void}
+         */
+        function clearCellsWhenMaskTurnsOn(previousMaskMode) {
+            if (previousMaskMode !== MASK_MODE_NONE || maskMode === MASK_MODE_NONE) return;
+            if (cellUI.noCellRadio.value) return;
+            selectCellModeRadio(cellUI, "none");
+            syncCellModeUI();
+        }
+
+        /**
          * 角丸・枠の項目を、［マスクする］と各チェックボックスに合わせてディムします。/ Dim the corner and frame controls.
          *
          * @returns {void}
          */
         function syncMaskStyleEnabled() {
+            var isMaskEnabled = (maskMode !== MASK_MODE_NONE);
             maskUI.cornerRadiusCheckbox.enabled = isMaskEnabled;
             maskUI.frameCheckbox.enabled = isMaskEnabled;
             var usesCornerRadius = isMaskEnabled && isCornerRadiusEnabled;
@@ -4754,7 +6063,7 @@ var SCRIPT_SOURCE_URL     = getScriptMetaValue("X-com.swwwitch-Source-URL");    
             var swatchGraphics = swatch.graphics;
             var swatchWidth = swatch.size[0];
             var swatchHeight = swatch.size[1];
-            var swatchAlpha = (isMaskEnabled && isFrameEnabled) ? 1 : 0.25;
+            var swatchAlpha = (maskMode !== MASK_MODE_NONE && isFrameEnabled) ? 1 : 0.25;
             swatchGraphics.newPath();
             swatchGraphics.rectPath(0, 0, swatchWidth, swatchHeight);
             swatchGraphics.fillPath(swatchGraphics.newBrush(swatchGraphics.BrushType.SOLID_COLOR, colorToScreenRgb(frameColor).concat(swatchAlpha)));
@@ -4799,7 +6108,7 @@ var SCRIPT_SOURCE_URL     = getScriptMetaValue("X-com.swwwitch-Source-URL");    
         }
 
         /**
-         * 角丸の自動計算：半径をセルの短い辺の半分にします。/ Set the corner radius to half the shorter cell side.
+         * 角丸の自動計算：半径をセルの短い辺の半分にします（［画像］ではいちばん小さいマスクの短い辺の半分）。/ Set the corner radius to half the shorter cell (or smallest mask) side.
          * 定規の単位に換算し、大きくならないよう 0.01 単位で切り捨てます。
          *
          * @returns {void}
@@ -4812,6 +6121,14 @@ var SCRIPT_SOURCE_URL     = getScriptMetaValue("X-com.swwwitch-Source-URL");    
                 return;
             }
             var radiusPt = Math.min(gridMetrics.cellWidth, gridMetrics.cellHeight) / 2;
+            /* ［画像］では、直近の描画のマスクのうちいちばん短い辺の半分 / With Image, half the shortest side among the last masks */
+            if (maskMode === MASK_MODE_ITEM && lastMaskRects.length > 0) {
+                radiusPt = Infinity;
+                for (var i = 0; i < lastMaskRects.length; i++) {
+                    var maskRect = lastMaskRects[i];
+                    radiusPt = Math.min(radiusPt, (maskRect[2] - maskRect[0]) / 2, (maskRect[1] - maskRect[3]) / 2);
+                }
+            }
             maskUI.cornerRadiusInput.text = String(Math.floor(ptToUnit(radiusPt, rulerUnit) * 100) / 100);
             /* 範囲の正規化とプレビューは onChange に任せる（代入では呼ばれない）/ Let onChange clamp and redraw; assignment does not fire it */
             maskUI.cornerRadiusInput.onChange();
@@ -4890,11 +6207,18 @@ var SCRIPT_SOURCE_URL     = getScriptMetaValue("X-com.swwwitch-Source-URL");    
          */
         function discardDialogChanges() {
             clearPreview();
+            /* ［画面にフィット］で変えた表示を戻す / Undo Fit to Window */
+            FitViewToItems.restoreView(initialViewState, doc);
             /* 起動時に隠した前回のセル描画レイヤーを元へ戻す / Restore the cell layer hidden at launch */
             setLayerVisible(previousCellLayer, wasPreviousCellLayerVisible);
+            /* 読み込んだ画像は取り除く / Remove the imported images */
+            if (launchContext.removeItemsOnCancel) {
+                /* このスクリプトが配置したばかりで、ロックも非表示もない / Placed by this script just now; never locked or hidden */
+                for (var i = placeableItems.length - 1; i >= 0; i--) placeableItems[i].remove();
+            }
             /* プレビュー中に隠したことで外れた選択を戻す / Hiding the originals for the preview cleared the selection */
             try {
-                doc.selection = placeableItems;
+                doc.selection = launchContext.removeItemsOnCancel ? (launchContext.selectionOnCancel || null) : placeableItems;
             } catch (e) {
                 /* 選択を戻せなくても閉じる処理は続ける / Keep closing even if the selection cannot be restored */
             }
@@ -4902,23 +6226,270 @@ var SCRIPT_SOURCE_URL     = getScriptMetaValue("X-com.swwwitch-Source-URL");    
         }
 
         // -----------------------------------------
+        // プリセット / Presets
+        // -----------------------------------------
+
+        /**
+         * 長さ（pt）を単位に換算して入力欄に入れる文字列にします。/ Format a length in points for a field.
+         *
+         * @param {number} lengthPt - 長さ（pt）。
+         * @param {{label: string, pointsPerUnit: number}} unit - 単位（getUnitInfo() の戻り値）。
+         * @returns {string} 小数第3位までの数値の文字列。
+         */
+        function formatLengthText(lengthPt, unit) {
+            return String(Math.round(ptToUnit(lengthPt, unit) * 1000) / 1000);
+        }
+
+        /**
+         * 今のマスクの設定をまとめます（プリセットの保存に使う。長さは pt）。/ Collect the current mask settings for a preset.
+         *
+         * @returns {Object} マスクの種類・角丸・枠の設定。
+         */
+        function collectMaskSettings() {
+            return {
+                maskMode: maskMode,
+                useCornerRadius: isCornerRadiusEnabled,
+                cornerRadiusPt: readLengthPt(maskUI.cornerRadiusInput, rulerUnit),
+                useFrame: isFrameEnabled,
+                frameWidthPt: readLengthPt(maskUI.frameWidthInput, strokeUnit),
+                frameColor: colorToSettings(frameColor)
+            };
+        }
+
+        /**
+         * マスクの設定を各項目とプレビューに反映します（プリセットの読み込み用）。無い項目・型の合わない項目は今の値のままにします。
+         * Apply mask settings to the controls and the preview; missing or mistyped keys keep their current values.
+         *
+         * @param {Object} presetData - collectMaskSettings() と同じ形の設定（一部だけでもよい）。
+         * @param {string} previousMaskMode - 読み込む前のマスクの種類（［なし］からマスクを付けたらセルの扱いを［残さない］にする）。
+         * @returns {void}
+         */
+        function applyMaskSettings(presetData, previousMaskMode) {
+            var hasValue = function (key, typeName) {
+                return presetData.hasOwnProperty(key) && typeof presetData[key] === typeName;
+            };
+            if (hasValue("maskMode", "string") && (presetData.maskMode === MASK_MODE_NONE || presetData.maskMode === MASK_MODE_CELL || presetData.maskMode === MASK_MODE_ITEM)) {
+                maskMode = presetData.maskMode;
+            }
+            selectMaskModeRadio(maskUI, maskMode);
+            if (hasValue("useCornerRadius", "boolean")) {
+                isCornerRadiusEnabled = presetData.useCornerRadius;
+                maskUI.cornerRadiusCheckbox.value = isCornerRadiusEnabled;
+            }
+            if (hasValue("cornerRadiusPt", "number")) maskUI.cornerRadiusInput.text = formatLengthText(presetData.cornerRadiusPt, rulerUnit);
+            if (hasValue("useFrame", "boolean")) {
+                isFrameEnabled = presetData.useFrame;
+                maskUI.frameCheckbox.value = isFrameEnabled;
+            }
+            if (hasValue("frameWidthPt", "number")) maskUI.frameWidthInput.text = formatLengthText(presetData.frameWidthPt, strokeUnit);
+            if (presetData.hasOwnProperty("frameColor")) frameColor = colorFromSettings(doc, presetData.frameColor);
+            syncMaskStyleEnabled();
+            clearCellsWhenMaskTurnsOn(previousMaskMode);
+            updatePreview();
+        }
+
+        /**
+         * 選んでいる保存したプリセットの名前を返します。/ Return the selected saved preset name.
+         *
+         * @returns {string|null} プリセット名。「---」・組み込みのプリセットなら null。
+         */
+        function getSelectedPresetName() {
+            var presetSelection = presetUI.presetDropdown.selection;
+            return (presetSelection && presetSelection.index > BUILTIN_PRESETS.length) ? presetSelection.text : null;
+        }
+
+        /**
+         * 選んでいる組み込みのプリセットを返します。/ Return the selected built-in preset.
+         *
+         * @returns {Object|null} BUILTIN_PRESETS の要素。選んでいなければ null。
+         */
+        function getSelectedBuiltinPreset() {
+            var presetSelection = presetUI.presetDropdown.selection;
+            if (!presetSelection || presetSelection.index < 1 || presetSelection.index > BUILTIN_PRESETS.length) return null;
+            return BUILTIN_PRESETS[presetSelection.index - 1];
+        }
+
+        /* ドロップダウンの作り直しでも onChange が来るので、作り直し中は読み込まない / Refilling also fires onChange, so ignore it meanwhile */
+        var isFillingPresets = false;
+
+        /**
+         * プリセットのドロップダウンを作り直し、指定の名前を選びます。/ Refill the preset dropdown.
+         *
+         * @param {string|null} selectedName - 選んでおくプリセット名（null なら「---」）。
+         * @returns {void}
+         */
+        function fillPresetDropdown(selectedName) {
+            isFillingPresets = true;
+            var presetDropdown = presetUI.presetDropdown;
+            var presetNames = getPresetNames();
+            var selectedIndex = 0;
+            presetDropdown.removeAll();
+            presetDropdown.add("item", getLabel(LABELS.dropdown.presetPlaceholder));
+            for (var j = 0; j < BUILTIN_PRESETS.length; j++) {
+                presetDropdown.add("item", getLabel(LABELS.dropdown[BUILTIN_PRESETS[j].labelKey]));
+            }
+            if (presetNames.length > 0) presetDropdown.add("separator");
+            for (var i = 0; i < presetNames.length; i++) {
+                presetDropdown.add("item", presetNames[i]);
+                if (presetNames[i] === selectedName) selectedIndex = presetDropdown.items.length - 1;
+            }
+            presetDropdown.selection = selectedIndex;
+            setIconButtonEnabled(presetUI.presetDeleteIcon, selectedIndex > BUILTIN_PRESETS.length);
+            isFillingPresets = false;
+        }
+
+        /**
+         * ［画面にフィット］がオンなら、配置先（アートボードか最背面のオブジェクト）が指定の割合で収まるよう表示を合わせます。
+         * Fit the view to the placement area when Fit to Window is on.
+         *
+         * @returns {void}
+         */
+        function fitViewToTarget() {
+            if (!fitViewControls.checkbox.value) return;
+            /* 部品は geometricBounds だけを読むので、配置先の矩形をそのまま渡す / The part reads only geometricBounds */
+            FitViewToItems.fit([{ geometricBounds: getTargetRect() }], { doc: doc, fillRatio: fitViewControls.getFillRatio() });
+            app.redraw();
+        }
+
+        /**
+         * プリセットの読み込み・保存・削除を結び付けます。/ Wire up loading, saving and deleting presets.
+         *
+         * @returns {void}
+         */
+        function bindPresetEvents() {
+            presetUI.presetDropdown.onChange = function () {
+                if (isFillingPresets) return;
+                var previousMaskMode = maskMode;
+                var presetName = getSelectedPresetName();
+                setIconButtonEnabled(presetUI.presetDeleteIcon, presetName !== null);
+                var builtinPreset = getSelectedBuiltinPreset();
+                if (builtinPreset) {
+                    if (!builtinPreset.data) {
+                        applyMaskSettings(launchMaskSettings, previousMaskMode);
+                        return;
+                    }
+                    /* 角丸・枠はマスクに付くので、マスクが［なし］なら［セル］にする / Corners and frames need a mask, so switch None to Cell */
+                    if (!builtinPreset.data.hasOwnProperty("maskMode") && maskMode === MASK_MODE_NONE) maskMode = MASK_MODE_CELL;
+                    applyMaskSettings(builtinPreset.data, previousMaskMode);
+                    return;
+                }
+                if (!presetName) return;
+                var presetData = loadPresetMap()[presetName];
+                if (presetData) applyMaskSettings(presetData, previousMaskMode);
+            };
+            presetUI.presetSaveIcon.onClick = function () {
+                var savedName = savePreset(getSelectedPresetName() || "", collectMaskSettings());
+                if (savedName) fillPresetDropdown(savedName);
+            };
+            presetUI.presetDeleteIcon.onClick = function () {
+                var presetName = getSelectedPresetName();
+                if (presetName && deletePreset(presetName)) fillPresetDropdown(null);
+            };
+        }
+
+        // -----------------------------------------
         // イベント / Event wiring
         // -----------------------------------------
 
         /**
-         * ダイアログのイベントを結び付けます。/ Wire up the dialog events.
+         * ダイアログのイベントを、パネルのまとまりごとに結び付けます。/ Wire up the dialog events, panel group by panel group.
          *
          * @returns {void}
          */
         function bindDialogEvents() {
+            bindLayoutEvents();
+            bindResizeAndMaskEvents();
+            bindCellHandlingEvents();
+            bindFooterEvents();
+        }
+
+        /**
+         * 左カラム（配置先・分割とマージン・配置と整列）のイベントを結び付けます。/ Wire up the left column.
+         *
+         * @returns {void}
+         */
+        function bindLayoutEvents() {
             /* 配置先を切り替えたら行数・列数を計算し直す。同じラジオの押し直しでは入力を残す
                Recalculate rows and columns when the area changes; a re-click keeps what was typed */
             placementUI.artboardRadio.onClick = placementUI.backmostRadio.onClick = function () {
                 if (placementUI.backmostRadio.value === wasBackmostTarget) return;
                 applyAutoDivision();
+                fitViewToTarget();
             };
-            divisionUI.autoDivisionButton.onClick = applyAutoDivision;
 
+            divisionUI.autoDivisionButton.onClick = applyAutoDivision;
+            divisionUI.rowCountInput.onChanging = divisionUI.columnCountInput.onChanging = function () {
+                syncGutterEnabled();
+                updatePreviewWhileTyping();
+            };
+            divisionUI.gutterInput.onChanging = updatePreviewWhileTyping;
+            divisionUI.marginInput.onChanging = updatePreviewWhileTyping;
+            divisionUI.gutterPriorityCheckbox.onClick = function () {
+                isGutterPriorityEnabled = divisionUI.gutterPriorityCheckbox.value;
+                updatePreview();
+            };
+
+            arrangementUI.spreadEvenlyCheckbox.onClick = function () {
+                isSpreadEnabled = arrangementUI.spreadEvenlyCheckbox.value;
+                updatePreview();
+            };
+            arrangementUI.brickCheckbox.onClick = function () {
+                isBrickEnabled = arrangementUI.brickCheckbox.value;
+                applyAutoDivision();
+            };
+            arrangementUI.keepOriginalsCheckbox.onClick = function () {
+                isKeepOriginalsEnabled = arrangementUI.keepOriginalsCheckbox.value;
+                updatePreview();
+            };
+            arrangementUI.btnShuffle.onClick = shuffleDistributionOrder;
+        }
+
+        /**
+         * 中央カラム（リサイズ・マスク）のイベントを結び付けます。/ Wire up the center column.
+         *
+         * @returns {void}
+         */
+        function bindResizeAndMaskEvents() {
+            resizeUI.noneRadio.onClick = resizeUI.widthRadio.onClick = resizeUI.heightRadio.onClick =
+                resizeUI.areaRadio.onClick = resizeUI.scaleRadio.onClick = function () {
+                    syncResizeRatioEnabled();
+                    updatePreview();
+                };
+            resizeUI.ratioInput.onChanging = updatePreviewWhileTyping;
+            resizeUI.autoScaleButton.onClick = applyAutoScale;
+
+            maskUI.maskNoneRadio.onClick = function () { selectMaskMode(MASK_MODE_NONE); };
+            maskUI.maskCellRadio.onClick = function () { selectMaskMode(MASK_MODE_CELL); };
+            maskUI.maskItemRadio.onClick = function () { selectMaskMode(MASK_MODE_ITEM); };
+            maskUI.cornerRadiusCheckbox.onClick = function () {
+                isCornerRadiusEnabled = maskUI.cornerRadiusCheckbox.value;
+                syncMaskStyleEnabled();
+                updatePreview();
+            };
+            maskUI.frameCheckbox.onClick = function () {
+                isFrameEnabled = maskUI.frameCheckbox.value;
+                syncMaskStyleEnabled();
+                updatePreview();
+            };
+            maskUI.cornerRadiusInput.onChanging = updatePreviewWhileTyping;
+            maskUI.frameWidthInput.onChanging = updatePreviewWhileTyping;
+            maskUI.autoCornerRadiusButton.onClick = applyAutoCornerRadius;
+            maskUI.frameColorSwatch.onDraw = drawFrameColorSwatch;
+            /* クリックで標準のカラーピッカーを開く。キャンセルは渡した色が返る / The standard color picker; Cancel returns the color passed in */
+            maskUI.frameColorSwatch.addEventListener("click", function () {
+                if (maskMode === MASK_MODE_NONE || !isFrameEnabled) return;
+                frameColor = app.showColorPicker(frameColor);
+                redrawFrameColorSwatch();
+                updatePreview();
+            });
+        }
+
+        /**
+         * 右カラム（セルの扱い）のイベントを結び付けます。/ Wire up the Cell Handling panel.
+         *
+         * @returns {void}
+         */
+        function bindCellHandlingEvents() {
             cellUI.noCellRadio.onClick = cellUI.keepCellRadio.onClick = cellUI.toGuideRadio.onClick = cellUI.toArtboardRadio.onClick = function () {
                 syncCellModeUI();
                 updatePreview();
@@ -4938,73 +6509,28 @@ var SCRIPT_SOURCE_URL     = getScriptMetaValue("X-com.swwwitch-Source-URL");    
                 syncOpacityEnabled(hasColorChanged);
                 updatePreview();
             };
-
-            divisionUI.rowCountInput.onChanging = divisionUI.columnCountInput.onChanging = function () {
-                syncGutterEnabled();
-                updatePreviewWhileTyping();
-            };
-            resizeUI.noneRadio.onClick = resizeUI.widthRadio.onClick = resizeUI.heightRadio.onClick =
-                resizeUI.areaRadio.onClick = resizeUI.scaleRadio.onClick = function () {
-                    syncResizeRatioEnabled();
-                    updatePreview();
-                };
-            resizeUI.ratioInput.onChanging = updatePreviewWhileTyping;
-            maskUI.maskCheckbox.onClick = function () {
-                isMaskEnabled = maskUI.maskCheckbox.value;
-                syncMaskStyleEnabled();
-                updatePreview();
-            };
-            maskUI.cornerRadiusCheckbox.onClick = function () {
-                isCornerRadiusEnabled = maskUI.cornerRadiusCheckbox.value;
-                syncMaskStyleEnabled();
-                updatePreview();
-            };
-            maskUI.frameCheckbox.onClick = function () {
-                isFrameEnabled = maskUI.frameCheckbox.value;
-                syncMaskStyleEnabled();
-                updatePreview();
-            };
-            maskUI.cornerRadiusInput.onChanging = updatePreviewWhileTyping;
-            maskUI.frameWidthInput.onChanging = updatePreviewWhileTyping;
-            maskUI.frameColorSwatch.onDraw = drawFrameColorSwatch;
-            /* クリックで標準のカラーピッカーを開く。キャンセルは渡した色が返る / The standard color picker; Cancel returns the color passed in */
-            maskUI.frameColorSwatch.addEventListener("click", function () {
-                if (!isMaskEnabled || !isFrameEnabled) return;
-                frameColor = app.showColorPicker(frameColor);
-                redrawFrameColorSwatch();
-                updatePreview();
-            });
-            resizeUI.autoScaleButton.onClick = applyAutoScale;
-            divisionUI.gutterPriorityCheckbox.onClick = function () {
-                isGutterPriorityEnabled = divisionUI.gutterPriorityCheckbox.value;
-                updatePreview();
-            };
-            maskUI.autoCornerRadiusButton.onClick = applyAutoCornerRadius;
-            arrangementUI.spreadEvenlyCheckbox.onClick = function () {
-                isSpreadEnabled = arrangementUI.spreadEvenlyCheckbox.value;
-                updatePreview();
-            };
-            arrangementUI.brickCheckbox.onClick = function () {
-                isBrickEnabled = arrangementUI.brickCheckbox.value;
-                applyAutoDivision();
-            };
-            footerUI.keepOriginalsCheckbox.onClick = function () {
-                isKeepOriginalsEnabled = footerUI.keepOriginalsCheckbox.value;
-                updatePreview();
-            };
-
-            divisionUI.gutterInput.onChanging = updatePreviewWhileTyping;
-            divisionUI.marginInput.onChanging = updatePreviewWhileTyping;
             cellUI.opacityInput.onChanging = updatePreviewWhileTyping;
 
             cellUI.transparencyGridButton.onClick = function () {
                 app.executeMenuCommand('TransparencyGrid Menu Item');
                 transparencyGridToggleCount++;
             };
+        }
 
-            arrangementUI.btnShuffle.onClick = shuffleDistributionOrder;
+        /**
+         * ボタン行（画面にフィット・キャンセル・OK）と、閉じたときの後始末を結び付けます。/ Wire up the button row and the close handler.
+         *
+         * @returns {void}
+         */
+        function bindFooterEvents() {
+            footerUI.fitViewControls.checkbox.onClick = function () {
+                footerUI.fitViewControls.updateEnabled();
+                fitViewToTarget();
+            };
+            /* 割合の∧∨・↑↓キーは部品が受け持ち、増減したあと onChange を呼ぶ / The part's stepper calls onChange after stepping */
+            footerUI.fitViewControls.percentInput.onChange = fitViewToTarget;
+
             footerUI.btnOK.onClick = commitDistribution;
-
             footerUI.btnCancel.onClick = function () {
                 discardDialogChanges();
                 isCleanedUp = true;
@@ -5028,8 +6554,27 @@ var SCRIPT_SOURCE_URL     = getScriptMetaValue("X-com.swwwitch-Source-URL");    
         }
     }
 
+    // =========================================
+    // 起動の振り分け / Launch routing
+    // =========================================
+
+    /**
+     * 選択中のオブジェクトの数を返す（文字の編集中は1つとして数える）
+     * Returns how many objects are selected (text editing counts as one)
+     * @param {Document} doc - 対象のドキュメント / target document
+     * @returns {number} 選択数 / number of selected objects
+     */
+    function countSelectedObjects(doc) {
+        var selectedItems = doc.selection;
+        if (selectedItems instanceof Array) return selectedItems.length;
+        return selectedItems ? 1 : 0;
+    }
+
+    /* 2つ以上選択していれば整列、1つ以下なら画像を読み込んでから整列 / Distribute 2+ objects; otherwise import images first */
     if (app.documents.length === 0) {
         alert(getLabel(LABELS.alert.noDocument));
+    } else if (countSelectedObjects(app.activeDocument) < 2) {
+        placeImagesThenDistribute();
     } else {
         showDistributeDialog();
     }
