@@ -9,21 +9,21 @@ Name=選択したグループ内のサブグループを解除して、グルー
 Name[en]=Ungroup nested subgroups recursively
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.3.1
+Version=1.3.2
 Release-Date=2025-07-07
 Tags=group,グループ
 X-com.swwwitch-Script-Name=SimplifyGroups
-X-com.swwwitch-Updated=2026-09-22
+X-com.swwwitch-Updated=2026-11-23
 X-com.swwwitch-README-JA=https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SimplifyGroups.md
 X-com.swwwitch-README-EN=https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SimplifyGroups.md
 X-com.swwwitch-Article-URL=https://note.com/dtp_tranist/n/n45797beb72bb
 X-com.swwwitch-Source-URL=https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/group/SimplifyGroups.jsx
 Description-BEGIN
 [ja]
-選択したグループの中にあるサブグループを再帰的に解除し、最外層のグループだけを残します。
+選択したグループの中にあるサブグループを再帰的に解除し、最外層のグループとクリップグループだけを残します。
 グループ以外のオブジェクトも選んでいるときは、それらをグループに取り込みます（グループが複数あるときは、全体を新しいグループにまとめてから処理します）。
 [en]
-Recursively ungroups the subgroups inside the selection, leaving only the outermost group.
+Recursively ungroups the subgroups inside the selection, leaving only the outermost group and clipping groups.
 Other selected objects are moved into the group; with several groups, everything is first combined into a new group.
 Description-END
 SCRIPTMETA-END
@@ -140,7 +140,8 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
     }
 
     /**
-     * グループ内のサブグループを再帰的に解除する（parentGroup 自身と、ロック・非表示のサブグループは残す）
+     * グループ内のサブグループを再帰的に解除する
+     * parentGroup 自身と、ロック・非表示のサブグループは残す。クリップグループは中だけ解除して残す
      * @param {Document} doc - 対象ドキュメント
      * @param {GroupItem} parentGroup - 解除せずに残すグループ
      * @returns {void}
@@ -153,6 +154,8 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
             /* ロック・非表示のグループは選択できないので残す / Locked or hidden groups cannot be selected, so leave them */
             if (childItem.locked || childItem.hidden) continue;
             ungroupSubGroups(doc, childItem);
+            /* クリップグループは解除するとマスクが外れるので残す / Ungrouping a clipping group releases its mask, so keep it */
+            if (childItem.clipped) continue;
             doc.selection = [childItem];
             app.executeMenuCommand("ungroup");
         }
@@ -212,7 +215,8 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
             return;
         }
 
-        /* 複数のグループと非グループ：まとめてグループ化 / Several groups plus other objects: group them all first */
+        /* 複数のグループと非グループ：まとめてグループ化。選んだグループはサブグループとして解除される（クリップグループは残る）
+           Several groups plus other objects: group them all first; the selected groups become subgroups and are ungrouped (clipping groups stay) */
         app.executeMenuCommand("group");
         var groupedItems = doc.selection;
         if (groupedItems.length === 1 && groupedItems[0].typename === "GroupItem") {

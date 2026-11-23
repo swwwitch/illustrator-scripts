@@ -11,7 +11,7 @@
 ### Overview
 
 - Recursively ungroups subgroups inside the selected group.
-- The outermost group remains intact.
+- The outermost group and any clipping groups inside it remain intact (subgroups inside clipping groups are still ungrouped).
 - Other selected objects are moved into the group. With several groups, everything is grouped together first.
 
 ### Main Features
@@ -29,8 +29,11 @@
 ### Notes
 
 - Locked or hidden subgroups are left as they are.
+- Opacity, blending mode, effects and graphic styles applied to an ungrouped subgroup are lost.
+- With several groups selected, the selected groups are also ungrouped inside the new combined group (clipping groups are kept).
 
 ### Change Log
 
 - v1.0.0 (20250707): Initial release
 - v1.3.1 (20260922): Reworked the processing; objects can now be moved into clipping groups masked by text; locked or hidden subgroups are now left intact
+- v1.3.2 (20261123): Clipping groups inside the selection are now kept, so their masks are not released
