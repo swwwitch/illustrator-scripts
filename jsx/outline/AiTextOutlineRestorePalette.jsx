@@ -10,11 +10,11 @@ Name=テキストのアウトライン化と復元
 Name[en]=Outline text and restore it later
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=2.0.13
+Version=2.1.0
 Release-Date=2024-07-23
 Tags=outline,アウトライン
 X-com.swwwitch-Script-Name=AiTextOutlineRestorePalette
-X-com.swwwitch-Updated=2026-11-20
+X-com.swwwitch-Updated=2026-11-24
 X-com.swwwitch-README-JA=https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiTextOutlineRestorePalette.md
 X-com.swwwitch-README-EN=https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiTextOutlineRestorePalette.md
 X-com.swwwitch-Article-URL=https://note.com/dtp_tranist/n/nc476be8ad43c
@@ -261,6 +261,9 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
     /* 和文専用（jpOnly）の項目は英語環境では workerDisplayLabels が一覧から外すので、ここには持たない */
     var LIST_ITEM_LABELS_EN = {
         '文字列':                     'Text',
+        '種類':                       'Type',
+        '幅':                         'Width',
+        '高さ':                       'Height',
         'フォント':                   'Font',
         'フォントサイズ':             'Font size',
         '行送り':                     'Leading',
@@ -277,6 +280,9 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
     /* 列挙値（右列）の英訳。ここに無い値（数値・フォント名・カラー・true/false）は素通し / Enumerated values (right column) */
     /* 組み方向・禁則・文字組みは jpOnly なので英語環境の一覧には出ない。残るのはカーニング方式と行揃えだけ */
     var LIST_VALUE_LABELS_EN = {
+        'ポイント文字':           'Point type',
+        'エリア内文字':           'Area type',
+        'パス上文字':             'Type on a path',
         'メトリクス':             'Metrics',
         'オプティカル':           'Optical',
         '和文等幅':               'Metrics (Roman Only)',
@@ -1265,25 +1271,29 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
            Note field table (in saved order): drives build, parse and list display --- */
     /* type は body=複数行の本文／num=数値／bool=true,false／text=そのまま。jpOnly は英語環境で書き出さない属性 */
     /* order は listbox の一覧表示順。配列の並び（＝note の保存順）とは別物で、表示順だけをここで一元管理する */
+    /* areaOnly はエリア内文字の枠の大きさ（pt）。ポイント文字では書き出さない。種類・幅・高さは後から足したので配列の末尾に置く */
     /* 本文は "文字列：\n" 〜 "\n\nフォント：" で切り出すので、文字列とフォントの並びは変更しないこと */
     function workerNoteFields() {
         return [
             { label: "文字列",                     key: "text",                type: "body", order:  0 },
-            { label: "フォント",                   key: "font",                type: "text", order:  2 },
-            { label: "フォントサイズ",             key: "fontSize",            type: "num",  order:  3 },
-            { label: "行送り",                     key: "leading",             type: "num",  order:  4 },
-            { label: "カーニング",                 key: "kerningText",         type: "text", order:  8 },
-            { label: "プロポーショナルメトリクス", key: "proportionalMetrics", type: "bool", order:  9 },
-            { label: "トラッキング",               key: "tracking",            type: "num",  order: 10 },
-            { label: "文字ツメ",                   key: "tsume",               type: "num",  order: 11, jpOnly: true },
-            { label: "組み方向",                   key: "orientation",         type: "text", order:  1, jpOnly: true },
-            { label: "文字カラー",                 key: "colorText",           type: "text", order: 15 },
-            { label: "行揃え",                     key: "justificationText",   type: "text", order: 12 },
-            { label: "禁則",                       key: "kinsokuText",         type: "text", order: 13, jpOnly: true },
-            { label: "文字組み",                   key: "mojikumiText",        type: "text", order: 14, jpOnly: true },
-            { label: "自動行送り",                 key: "autoLeading",         type: "bool", order:  5 },
-            { label: "水平比率",                   key: "horizontalScale",     type: "num",  order:  6 },
-            { label: "垂直比率",                   key: "verticalScale",       type: "num",  order:  7 }
+            { label: "フォント",                   key: "font",                type: "text", order:  5 },
+            { label: "フォントサイズ",             key: "fontSize",            type: "num",  order:  6 },
+            { label: "行送り",                     key: "leading",             type: "num",  order:  7 },
+            { label: "カーニング",                 key: "kerningText",         type: "text", order: 11 },
+            { label: "プロポーショナルメトリクス", key: "proportionalMetrics", type: "bool", order: 12 },
+            { label: "トラッキング",               key: "tracking",            type: "num",  order: 13 },
+            { label: "文字ツメ",                   key: "tsume",               type: "num",  order: 14, jpOnly: true },
+            { label: "組み方向",                   key: "orientation",         type: "text", order:  4, jpOnly: true },
+            { label: "文字カラー",                 key: "colorText",           type: "text", order: 18 },
+            { label: "行揃え",                     key: "justificationText",   type: "text", order: 15 },
+            { label: "禁則",                       key: "kinsokuText",         type: "text", order: 16, jpOnly: true },
+            { label: "文字組み",                   key: "mojikumiText",        type: "text", order: 17, jpOnly: true },
+            { label: "自動行送り",                 key: "autoLeading",         type: "bool", order:  8 },
+            { label: "水平比率",                   key: "horizontalScale",     type: "num",  order:  9 },
+            { label: "垂直比率",                   key: "verticalScale",       type: "num",  order: 10 },
+            { label: "種類",                       key: "kindText",            type: "text", order:  1 },
+            { label: "幅",                         key: "width",               type: "num",  order:  2, areaOnly: true },
+            { label: "高さ",                       key: "height",              type: "num",  order:  3, areaOnly: true }
         ];
     }
 
@@ -1296,6 +1306,7 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
         var i;
         for (i = 0; i < fields.length; i++) {
             if (fields[i].jpOnly && !jp) { continue; }
+            if (fields[i].areaOnly && info[fields[i].key] == null) { continue; }
             memo += fields[i].label + "：\n" + info[fields[i].key] + "\n\n";
         }
         return memo + "座標：\nL = " + info.left + ", T = " + info.top + ", R = " + info.right + ", B = " + info.bottom;
@@ -1331,6 +1342,13 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
         return AutoKernType.NOAUTOKERN;
     }
 
+    /* --- テキストの種類を保存用テキストへ / Serialize the text kind to text --- */
+    function workerKindToText(textKind) {
+        if (textKind == TextType.AREATEXT) { return "エリア内文字"; }
+        if (textKind == TextType.PATHTEXT) { return "パス上文字"; }
+        return "ポイント文字";
+    }
+
     /* --- 1つのテキストフレームをアウトライン化し、生成されたグループに note を書く
            Outline one text frame and write the note onto the resulting group --- */
     /* 戻り値は生成された GroupItem。作れなかったときは null（呼び出し側で失敗として数える） */
@@ -1358,6 +1376,13 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
             right: workerRound(bounds[2]),
             bottom: workerRound(bounds[3])
         };
+        /* 種類。エリア内文字は枠（textPath）の幅・高さも控え、復元で同じ大きさの枠を作る。
+           パス上文字は種類だけ記録し、復元はポイント文字で行う */
+        info.kindText = workerKindToText(textFrame.kind);
+        if (textFrame.kind == TextType.AREATEXT) {
+            info.width = workerRound(textFrame.textPath.width);
+            info.height = workerRound(textFrame.textPath.height);
+        }
         /* 和文専用属性は英語環境では note に書き出さないので、値の取得ごとスキップする
            （workerKinsokuToText／workerMojikumiToText は doc.mojikumiSet を舐めるため無駄が大きい） */
         if (jp) {
@@ -2081,8 +2106,10 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
         workerSetAttr(attrs, "verticalScale", attributes.verticalScale);
         /* 文字ツメ・組み方向は和文専用。英語環境（jp=false）はスキップ（旧 note に含まれていても適用しない） */
         if (jp) { workerSetAttr(attrs, "Tsume", attributes.tsume); }
+        /* 同じ向きなら代入しない（代入するとフレームが作り直されることがある。エリア内文字は作るときに向きを渡している） */
         if (jp && attributes.orientation != null) {
-            workerSetAttr(textFrame, "orientation", (attributes.orientation === "縦組み") ? TextOrientation.VERTICAL : TextOrientation.HORIZONTAL);
+            var savedOrientation = (attributes.orientation === "縦組み") ? TextOrientation.VERTICAL : TextOrientation.HORIZONTAL;
+            if (textFrame.orientation != savedOrientation) { workerSetAttr(textFrame, "orientation", savedOrientation); }
         }
         if (attributes.kerningText != null) {
             /* カーニング方式を復元。proportionalMetrics も note の保存値をそのまま渡す */
@@ -2109,17 +2136,33 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
     }
 
     /* --- 復元：テキストフレーム再生成 / Restore: recreate the text frame --- */
+    /* 種類が「エリア内文字」で幅・高さがあれば、同じ大きさの長方形からエリア内文字を作る。
+       それ以外（ポイント文字・パス上文字・種類のない旧 note）はポイント文字で作る */
     function workerCreateRestoredTextFrame(sourceItem, attributes, restoredLayer, restoreReport, handleJp) {
         var jp = (handleJp !== false);
         var targetLayer = restoredLayer || sourceItem.layer;
-        var textFrame = targetLayer.textFrames.add();
-        textFrame.contents = attributes.text;
-        /* この位置は直後の workerAlignTextFrameByBounds で上書きされる。位置合わせが例外で抜けたときの
-           フォールバックであり、旧 note の "座標：X =, Y =" もここでしか使われない */
-        textFrame.position = [
-            (attributes.x !== null) ? attributes.x : sourceItem.left,
-            (attributes.y !== null) ? attributes.y : sourceItem.top
-        ];
+        var textFrame;
+        if (attributes.kindText === "エリア内文字" && attributes.width > 0 && attributes.height > 0) {
+            var areaLeft = attributes.savedBounds ? attributes.savedBounds[0] : sourceItem.left;
+            var areaTop = attributes.savedBounds ? attributes.savedBounds[1] : sourceItem.top;
+            var areaPath = targetLayer.pathItems.rectangle(areaTop, areaLeft, attributes.width, attributes.height);
+            /* 新規パスの既定の塗り・線が枠に残らないように消してから変換する / Clear the default fill/stroke before converting */
+            areaPath.filled = false;
+            areaPath.stroked = false;
+            /* 組み方向は作るときに渡す。あとから orientation を変えるとフレームが作り直され、控えた参照が無効になるため */
+            var areaOrientation = (jp && attributes.orientation === "縦組み") ? TextOrientation.VERTICAL : TextOrientation.HORIZONTAL;
+            textFrame = targetLayer.textFrames.areaText(areaPath, areaOrientation);
+            textFrame.contents = attributes.text;
+        } else {
+            textFrame = targetLayer.textFrames.add();
+            textFrame.contents = attributes.text;
+            /* この位置は直後の workerAlignTextFrameByBounds で上書きされる。位置合わせが例外で抜けたときの
+               フォールバックであり、旧 note の "座標：X =, Y =" もここでしか使われない */
+            textFrame.position = [
+                (attributes.x !== null) ? attributes.x : sourceItem.left,
+                (attributes.y !== null) ? attributes.y : sourceItem.top
+            ];
+        }
         workerApplyCharacterAttributes(textFrame, attributes, restoreReport, jp);
         workerApplyParagraphAttributes(textFrame, attributes, jp);
         return textFrame;
@@ -2220,6 +2263,7 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
         workerKerningPairs,
         workerKerningToText,
         workerResolveKernType,
+        workerKindToText,
         workerProcessTextFrame,
         workerGetSelection,
         workerFilterByType,

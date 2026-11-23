@@ -39,6 +39,8 @@ The palette can also be closed with the `Esc` key.
 | Item | Notes |
 | --- | --- |
 | Text | Multi-line supported |
+| Type | Point type / area type (type on a path is restored as point type) |
+| Width / height | Size of the area type frame (pt); restored with a frame of the same size |
 | Orientation | Vertical / horizontal |
 | Font | Saved as the PostScript name |
 | Font size | |
@@ -68,6 +70,8 @@ This is the part that is easy to misread, so here is a summary.
 **Missing fonts fall back to the default font.** The status line then shows "Some fonts used defaults". The other attributes are still restored; the process does not stop.
 
 **Japanese-only attributes are not handled in English locales.** Orientation, kinsoku, mojikumi and tsume are neither saved, displayed nor restored.
+
+**Area type frames are restored as rectangles.** Even for a circle or polygon frame, only the width and height are saved. The frame's fill and stroke, columns and inset spacing are not restored.
 
 **Older notes skip only the items they do not record.** Outlines created by earlier versions can still be restored, as far as their notes go.
 
@@ -112,6 +116,7 @@ The template-layer attribute cannot be set through the API, so a temporary actio
 
 ## Update history
 
+- v2.1.0 (2026-11-24) Area type is supported: the type and the frame's width and height are saved in the note and restored as area type of the same size
 - v2.0.13 (2026-11-20) Clicking the script name and version at the bottom left opens About This Script (copy the script name, open the README and other links, show in Finder; shared part updated)
 - v2.0.11 (2026-10-16) Custom mojikumi sets defined in the document are now saved and restored
 - v2.0.10 (2026-10-10) Fixed the palette operating on another Illustrator version when several versions are running
