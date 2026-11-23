@@ -10,22 +10,22 @@ Name=数字・英字・漢数字をソートして連番を振り直す
 Name[en]=Sort numbers, letters or Japanese numerals and renumber them in sequence
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=2.1.8
+Version=2.2.0
 Release-Date=2025-12-25
 Tags=numbering,連番
 X-com.swwwitch-Script-Name=SmartRenumber
-X-com.swwwitch-Updated=2026-11-20
+X-com.swwwitch-Updated=2026-11-23
 X-com.swwwitch-README-JA=https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartRenumber.md
 X-com.swwwitch-README-EN=https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartRenumber.md
 X-com.swwwitch-Article-URL=https://note.com/dtp_tranist/n/nf3b6601cd165
 X-com.swwwitch-Source-URL=https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/increment/SmartRenumber.jsx
 Description-BEGIN
 [ja]
-選択した数字・英字・漢数字のテキストを、位置・重ね順・現在の値などの並び順でソートして連番を振り直します。
-書式と開始値はプレビューを見ながら指定できます。
+選択した数字・英字・漢数字・時刻のテキストを、位置・重ね順・現在の値などの並び順でソートして連番を振り直します。
+書式・開始値・増分はプレビューを見ながら指定できます。
 [en]
-Sorts the selected text — digits, letters, or Japanese numerals — by position, stacking, or current value and renumbers it as a sequence.
-The format and start value can be set while watching the preview.
+Sorts the selected text — digits, letters, Japanese numerals, or clock times — by position, stacking, or current value and renumbers it as a sequence.
+The format, start value, and increment can be set while watching the preview.
 Description-END
 SCRIPTMETA-END
 */
@@ -97,6 +97,13 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
 
     /* ［重ね順調整］をONで開くか / Whether Adjust Stacking starts checked */
     var REORDER_STACK_BY_DEFAULT = true;
+
+    /* ［増分］の初期値。1つ進むごとに足す値 / Initial increment added for each next number */
+    var DEFAULT_SEQUENCE_STEP = 1;
+
+    /* 時刻が24:00を過ぎたら0:00に戻すか。false なら 24:10、25:00 と数え続ける（0:00より前は0:00で止める）
+       Whether clock times wrap past 24:00; false keeps counting 24:10, 25:00 (and stops at 0:00 going down) */
+    var TIME_WRAPS_AT_MIDNIGHT = true;
 
     // =========================================
     // レイアウト / Layout
@@ -1748,10 +1755,18 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
 
     /* ［基準となる値］の書式ラジオの並び。LABELS.radio のキーと揃える
        Format radio sequence; the keys match LABELS.radio */
-    var FORMAT_MODES = ["digit", "upperCase", "lowerCase", "kanji", "roman", "daiji"];
+    var FORMAT_MODES = ["digit", "upperCase", "lowerCase", "kanji", "roman", "daiji", "time"];
 
     /* 書式ラジオを選んだときに［開始値］に入れる値 / Value dropped into the start value when a format radio is chosen */
-    var FORMAT_FIRST_VALUES = { digit: "1", upperCase: "A", lowerCase: "a", kanji: "一", roman: "I", daiji: "壱" };
+    var FORMAT_FIRST_VALUES = { digit: "1", upperCase: "A", lowerCase: "a", kanji: "一", roman: "I", daiji: "壱", time: "0:00" };
+
+    /* 時刻（9:05、15:10、09:00）。時は1〜2桁、分は2桁 / Clock time: one- or two-digit hours, two-digit minutes */
+    var TIME_PATTERN = /^(\d{1,2}):([0-5]\d)$/;
+
+    /* ［増分］の時間表記（1:30、-0:15）。時の桁数は問わない / Increment written as a duration such as 1:30 or -0:15 */
+    var TIME_STEP_PATTERN = /^([-+]?)(\d+):([0-5]\d)$/;
+
+    var MINUTES_PER_DAY = 24 * 60; /* 1日の分数 / minutes in a day */
 
     /* 英字だけのテキスト（A、Z、AA など） / Text made of letters only */
     var LETTERS_ONLY_PATTERN = /^[A-Za-z]+$/;
@@ -1988,22 +2003,36 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
     function getSortValue(textContents) {
         var trimmedText = trimText(textContents);
         if (trimmedText === "") return null;
+        var timeMatch = TIME_PATTERN.exec(trimmedText);
+        if (timeMatch) return Number(timeMatch[1]) * 60 + Number(timeMatch[2]);
         if (LETTERS_ONLY_PATTERN.test(trimmedText)) return lettersToIndex(trimmedText);
         if (KANJI_ONLY_PATTERN.test(trimmedText)) return kanjiToNumber(trimmedText);
         return parsePlainNumber(trimmedText);
     }
 
     /**
-     * ［開始値］を解釈します。数字（0や負の値も可）、英字、漢数字、ローマ数字、大字を受け付けます。
+     * ［開始値］を解釈します。数字（0や負の値も可）、英字、漢数字、ローマ数字、大字、時刻を受け付けます。
      *
      * @param {string} startValueText - ［開始値］の入力。
      * @param {string} formatModeKey - 選ばれている書式ラジオのキー（紛らわしい表記の判断に使う）。
-     * @returns {Object} format（"number" / "letter" / "kanji" / "daiji" / "roman"）と値を持つオブジェクト。
-     *                   数字のときは入力した整数部の桁数を digits に入れます。解釈できないときは null。
+     * @returns {Object} format（"number" / "letter" / "kanji" / "daiji" / "roman" / "time"）と値を持つオブジェクト。
+     *                   数字のときは入力した整数部の桁数、時刻のときは時の桁数を digits に入れます
+     *                   （時刻の number は0:00からの分数）。解釈できないときは null。
      */
     function parseStartValue(startValueText, formatModeKey) {
         var trimmedText = trimText(startValueText);
         if (trimmedText === "") return null;
+
+        /* 時は数字と同じく、0で始めて入力したとき（09:00）だけ2桁を保つ
+           Like numbers, the hour keeps two digits only when typed with a leading zero (09:00) */
+        var timeMatch = TIME_PATTERN.exec(trimmedText);
+        if (timeMatch) {
+            return {
+                format: "time",
+                number: Number(timeMatch[1]) * 60 + Number(timeMatch[2]),
+                digits: /^0\d/.test(timeMatch[1]) ? 2 : 1
+            };
+        }
 
         /* I や X は英字とも読めるため、ローマ数字かどうかはラジオの選択で決める
            Letters like I and X are ambiguous, so the radio decides whether it is Roman */
@@ -2032,9 +2061,11 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
         var startNumber = parsePlainNumber(trimmedText);
         if (startNumber === null) return null;
 
-        /* 入力した整数部の桁数を控える。"01" なら 2 で、以降も2桁で書き出す
-           Remember how many integer digits were typed: "01" means two, and stays two */
-        var integerDigits = /^[-+]?(\d+)/.exec(trimmedText);
+        /* 0で始めて入力した整数部の桁数を控える。"01" なら 2 で、以降も2桁で書き出す。
+           "10" のような0で始まらない値は桁を固定しない（増分がマイナスでも 10, 9, 8 になる）
+           Remember the width typed with leading zeros: "01" means two, and stays two.
+           A value like "10" fixes no width, so a negative increment gives 10, 9, 8 */
+        var integerDigits = /^[-+]?(0\d+)/.exec(trimmedText);
         return {
             format: "number",
             number: startNumber,
@@ -2054,48 +2085,134 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
         if (startValue.format === "daiji") return "daiji";
         if (startValue.format === "kanji") return "kanji";
         if (startValue.format === "letter") return startValue.isUpperCase ? "upperCase" : "lowerCase";
+        if (startValue.format === "time") return "time";
         return "digit";
     }
 
     /**
-     * ［開始値］から数えて sequenceOffset 番目の値を文字列で返します。
+     * ［増分］を解釈します。数字の書式では小数・0・マイナスも受け、それ以外の書式では整数だけを受けます。
+     * 時刻の書式では分で数え、1:30（90分）のような時間の表記も受けます。
+     *
+     * @param {string} stepText - ［増分］の入力。
+     * @param {Object} startValue - parseStartValue() の戻り値（書式の判断に使う）。
+     * @returns {number} 増分（時刻は分）。解釈できないときは null。
+     */
+    function parseSequenceStep(stepText, startValue) {
+        var trimmedStep = trimText(stepText);
+        if (startValue && startValue.format === "time") {
+            var stepTimeMatch = TIME_STEP_PATTERN.exec(trimmedStep);
+            if (stepTimeMatch) {
+                var stepMinutes = Number(stepTimeMatch[2]) * 60 + Number(stepTimeMatch[3]);
+                return (stepTimeMatch[1] === "-") ? -stepMinutes : stepMinutes;
+            }
+        }
+
+        var sequenceStep = parsePlainNumber(trimmedStep);
+        if (sequenceStep === null) return null;
+        /* 英字・漢数字・ローマ数字・大字は1つずつの位置で数えるため、端数は受けない
+           Letters and numerals count in whole positions, so fractions are rejected */
+        if (startValue && startValue.format !== "number" && sequenceStep !== Math.floor(sequenceStep)) return null;
+        return sequenceStep;
+    }
+
+    /**
+     * ［開始値］に valueOffset を足した値を文字列で返します。
      *
      * @param {Object} startValue - parseStartValue() の戻り値。
-     * @param {number} sequenceOffset - ［開始値］からの位置（0が最初）。
+     * @param {number} valueOffset - ［開始値］に足す量（何番目か × ［増分］）。
      * @param {number} zeroPadDigits - ゼロ埋めの桁数。0で埋めません。
      * @returns {string} 書き込む文字列。
      */
-    function formatSequenceValue(startValue, sequenceOffset, zeroPadDigits) {
+    function formatSequenceValue(startValue, valueOffset, zeroPadDigits) {
         if (startValue.format === "letter") {
-            var letters = indexToLetters(startValue.index + sequenceOffset);
+            var letters = indexToLetters(startValue.index + valueOffset);
             return startValue.isUpperCase ? letters : letters.toLowerCase();
         }
 
         if (startValue.format === "kanji" || startValue.format === "daiji") {
-            return numberToKanji(startValue.number + sequenceOffset, startValue.format);
+            return numberToKanji(startValue.number + valueOffset, startValue.format);
         }
 
         if (startValue.format === "roman") {
-            return numberToRoman(startValue.number + sequenceOffset);
+            return numberToRoman(startValue.number + valueOffset);
         }
 
-        var assignedNumber = startValue.number + sequenceOffset;
+        if (startValue.format === "time") {
+            return formatClockTime(startValue.number + valueOffset, zeroPadDigits);
+        }
+
+        var assignedNumber = startValue.number + valueOffset;
+        /* 小数の増分で出る誤差（1 + 0.1 × 3 = 1.3000000000000003）を落とす
+           Drop the float error that fractional increments leave behind */
+        if (assignedNumber !== Math.floor(assignedNumber)) assignedNumber = parseFloat(assignedNumber.toPrecision(12));
         return (zeroPadDigits > 1) ? padWithZeros(assignedNumber, zeroPadDigits) : String(assignedNumber);
     }
 
     /**
-     * 書き出す整数部の桁数を返します。入力した桁数（"01" なら2桁）は常に保ち、
-     * ［ゼロ埋め］がONのときは最後の番号の桁数まで広げます。
+     * 0:00からの分数を時刻の文字列にします（910 → 15:10）。
+     *
+     * TIME_WRAPS_AT_MIDNIGHT が true なら24時間で0:00に戻し、false なら 24:10 と数え続けます。
+     *
+     * @param {number} totalMinutes - 0:00からの分数。
+     * @param {number} hourDigits - 時のゼロ埋めの桁数。1以下で埋めません。
+     * @returns {string} 時刻の文字列。
+     */
+    function formatClockTime(totalMinutes, hourDigits) {
+        var clockMinutes = normalizeClockMinutes(totalMinutes);
+        var hours = Math.floor(clockMinutes / 60);
+        var minutes = clockMinutes % 60;
+        var hourText = (hourDigits > 1) ? padWithZeros(hours, hourDigits) : String(hours);
+        return hourText + ":" + ((minutes < 10) ? "0" : "") + minutes;
+    }
+
+    /**
+     * 時刻の分数を、書き出せる範囲に収めます。
+     *
+     * @param {number} totalMinutes - 0:00からの分数（範囲外やマイナスも可）。
+     * @returns {number} 24時間で折り返した分数（折り返さない設定では0以上）。
+     */
+    function normalizeClockMinutes(totalMinutes) {
+        var wholeMinutes = Math.floor(totalMinutes);
+        if (TIME_WRAPS_AT_MIDNIGHT) return ((wholeMinutes % MINUTES_PER_DAY) + MINUTES_PER_DAY) % MINUTES_PER_DAY;
+        return Math.max(0, wholeMinutes);
+    }
+
+    /**
+     * 桁をそろえられる書式か（数字と時刻の時）を返します。
+     *
+     * @param {Object} startValue - parseStartValue() の戻り値。
+     * @returns {boolean} 桁をそろえられるなら true。
+     */
+    function isPaddableFormat(startValue) {
+        return !!startValue && (startValue.format === "number" || startValue.format === "time");
+    }
+
+    /**
+     * 桁をそろえる部分の値を返します。数字はその値、時刻は時です。
+     *
+     * @param {Object} startValue - parseStartValue() の戻り値（数字か時刻）。
+     * @param {number} valueOffset - ［開始値］に足す量。
+     * @returns {number} 桁を数える値。
+     */
+    function getPaddedPartValue(startValue, valueOffset) {
+        if (startValue.format === "time") return Math.floor(normalizeClockMinutes(startValue.number + valueOffset) / 60);
+        return startValue.number + valueOffset;
+    }
+
+    /**
+     * 書き出す整数部（時刻は時）の桁数を返します。0で始めて入力した桁数（"01" なら2桁）は常に保ち、
+     * ［ゼロ埋め］がONのときはいちばん桁数の多い番号まで広げます。
      *
      * @param {Object} startValue - parseStartValue() の戻り値。
      * @param {number} targetCount - 振り直す個数。
+     * @param {number} sequenceStep - ［増分］。
      * @param {boolean} isZeroPadded - ［ゼロ埋め］がONか。
      * @returns {number} ゼロ埋めする桁数。埋めないときは0。
      */
-    function getSequenceDigits(startValue, targetCount, isZeroPadded) {
-        if (startValue.format !== "number") return 0;
+    function getSequenceDigits(startValue, targetCount, sequenceStep, isZeroPadded) {
+        if (!isPaddableFormat(startValue)) return 0;
         if (!isZeroPadded) return startValue.digits;
-        return Math.max(startValue.digits, getZeroPadDigits(startValue.number, targetCount));
+        return Math.max(startValue.digits, getZeroPadDigits(startValue, targetCount, sequenceStep));
     }
 
     /**
@@ -2103,24 +2220,36 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
      *
      * @param {Object} startValue - parseStartValue() の戻り値。
      * @param {number} targetCount - 振り直す個数。
+     * @param {number} sequenceStep - ［増分］。読めないときは null。
      * @returns {boolean} 桁数が変わるなら true。
      */
-    function willZeroPadApply(startValue, targetCount) {
-        if (!startValue || startValue.format !== "number") return false;
-        return getZeroPadDigits(startValue.number, targetCount) > startValue.digits;
+    function willZeroPadApply(startValue, targetCount, sequenceStep) {
+        if (!isPaddableFormat(startValue) || sequenceStep === null) return false;
+        var zeroPadDigits = getZeroPadDigits(startValue, targetCount, sequenceStep);
+        if (zeroPadDigits <= startValue.digits) return false;
+        /* どれか1つでも桁が足りなければ効く（10, 11, 12 のように全部同じ桁なら効かない）
+           It applies when any number is narrower; 10, 11, 12 are all the same width */
+        for (var i = 0; i < targetCount; i++) {
+            if (countIntegerDigits(getPaddedPartValue(startValue, i * sequenceStep)) < zeroPadDigits) return true;
+        }
+        return false;
     }
 
     /**
-     * ゼロ埋めの桁数を返します。最初と最後の番号のうち、桁数の多いほうに合わせます。
+     * ゼロ埋めの桁数を返します。振り直すすべての番号のうち、いちばん多い桁数に合わせます
+     * （時刻は24時間で折り返すので、両端だけでは決まりません）。
      *
-     * @param {number} startNumber - 開始番号。
+     * @param {Object} startValue - parseStartValue() の戻り値（数字か時刻）。
      * @param {number} targetCount - 振り直す個数。
-     * @returns {number} 整数部の桁数。
+     * @param {number} sequenceStep - ［増分］。
+     * @returns {number} 整数部（時刻は時）の桁数。
      */
-    function getZeroPadDigits(startNumber, targetCount) {
-        var firstDigits = countIntegerDigits(startNumber);
-        var lastDigits = countIntegerDigits(startNumber + targetCount - 1);
-        return Math.max(firstDigits, lastDigits);
+    function getZeroPadDigits(startValue, targetCount, sequenceStep) {
+        var widestDigits = 1;
+        for (var i = 0; i < targetCount; i++) {
+            widestDigits = Math.max(widestDigits, countIntegerDigits(getPaddedPartValue(startValue, i * sequenceStep)));
+        }
+        return widestDigits;
     }
 
     /**
@@ -2249,6 +2378,7 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
         },
         fieldLabel: {
             startValue: { ja: "開始値", en: "Start Value" },
+            sequenceStep: { ja: "増分", en: "Increment" },
             prefix: { ja: "接頭辞", en: "Prefix" },
             suffix: { ja: "接尾辞", en: "Suffix" }
         },
@@ -2259,6 +2389,7 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
             kanji: { ja: "一二三", en: "一二三" },
             roman: { ja: "I II III", en: "I II III" },
             daiji: { ja: "壱弐参", en: "壱弐参" },
+            time: { ja: "0:00", en: "0:00" },
             currentValue: { ja: "現在の値順", en: "Current Value Order" },
             horizontal: { ja: "水平方向（左から右）", en: "Horizontal (Left to Right)" },
             vertical: { ja: "垂直方向（上から下）", en: "Vertical (Top to Bottom)" },
@@ -2279,22 +2410,26 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
             noDocument: { ja: "ドキュメントが開かれていません。", en: "No document open." },
             noSelection: { ja: "テキストオブジェクトを選択してください。", en: "Please select text objects." },
             noTargetText: {
-                ja: "数字・英字・漢数字だけのテキストオブジェクトが見つかりませんでした。",
-                en: "No text objects containing only a number, letters, or Japanese numerals were found."
+                ja: "数字・英字・漢数字・時刻だけのテキストオブジェクトが見つかりませんでした。",
+                en: "No text objects containing only a number, letters, Japanese numerals, or a clock time were found."
             }
         },
         tooltip: {
             formatMode: {
-                ja: "書き出す書式を選びます。選ぶと［開始値］に 1／A／a／一／I／壱 が入ります。",
-                en: "Picks the format; choosing one drops 1, A, a, 一, I, or 壱 into the start value."
+                ja: "書き出す書式を選びます。選ぶと［開始値］に 1／A／a／一／I／壱／0:00 が入ります。",
+                en: "Picks the format; choosing one drops 1, A, a, 一, I, 壱, or 0:00 into the start value."
             },
             startValue: {
-                ja: "振り直しの最初の値です。数字（1、0、-3）、英字（A、a）、漢数字（一）、ローマ数字（I）、大字（壱）を指定できます。",
-                en: "First value: a number (1, 0, -3), a letter (A, a), a Japanese numeral (一), a Roman numeral (I), or a formal numeral (壱)."
+                ja: "振り直しの最初の値です。数字（1、0、-3）、英字（A、a）、漢数字（一）、ローマ数字（I）、大字（壱）、時刻（15:10）を指定できます。",
+                en: "First value: a number (1, 0, -3), a letter (A, a), a Japanese numeral (一), a Roman numeral (I), a formal numeral (壱), or a clock time (15:10)."
             },
             startValueStep: {
-                ja: "∧∨または↑↓キーで増減します。数字は次の整数へ（shift＋で10の倍数へ、option＋で0.1ずつ）、英字・漢数字・ローマ数字・大字は1つずつ進みます。",
-                en: "The arrows or the Up/Down keys step the value: numbers go to the next whole number (Shift snaps to 10s, Option steps by 0.1); letters and numerals step one at a time."
+                ja: "∧∨または↑↓キーで増減します。数字は次の整数へ（shift＋で10の倍数へ、option＋で0.1ずつ）、英字・漢数字・ローマ数字・大字は1つずつ、時刻は1分ずつ（shift＋で10分の倍数へ）進みます。",
+                en: "The arrows or the Up/Down keys step the value: numbers go to the next whole number (Shift snaps to 10s, Option steps by 0.1); letters and numerals step one at a time; clock times step one minute (Shift snaps to 10 minutes)."
+            },
+            sequenceStep: {
+                ja: "1つ進むごとに足す値です（2 なら 1, 3, 5…）。マイナスで逆向きに数えます。数字以外の書式では整数を指定します。時刻は分で数え、1:30 のようにも書けます。",
+                en: "Amount added for each next number (2 gives 1, 3, 5...). A negative value counts down. Use a whole number for formats other than digits. Clock times count in minutes and also accept 1:30."
             },
             currentValue: {
                 ja: "いま入っている値の小さい順に振り直します（英字はアルファベット順）。",
@@ -2376,7 +2511,7 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
     }
 
     /**
-     * 選択の中から、数字・英字・漢数字だけが入ったテキストオブジェクトを集めます。
+     * 選択の中から、数字・英字・漢数字・時刻だけが入ったテキストオブジェクトを集めます。
      *
      * 並べ替えに使う座標と重ね順は、プレビューで中身が変わる前に控えます。
      *
@@ -2391,8 +2526,8 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
             var selectedItem = selectedItems[i];
             if (selectedItem.typename !== "TextFrame") continue;
 
-            /* 中身が数字・英字・漢数字だけのものに限る（"3行目" などは対象外）
-               Only text that is nothing but digits, letters, or Japanese numerals */
+            /* 中身が数字・英字・漢数字・時刻だけのものに限る（"3行目" などは対象外）
+               Only text that is nothing but digits, letters, Japanese numerals, or a clock time */
             var sortValue = getSortValue(selectedItem.contents);
             if (sortValue === null) continue;
 
@@ -2466,7 +2601,7 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
      * 連番振り直しのダイアログを組み立てます（イベントの配線は bindRenumberDialogEvents() で行います）。
      *
      * @param {string} initialStartValue - ［開始値］の初期値。
-     * @returns {{renumberDialog: Window, startValueInput: EditText, formatRadios: Object,
+     * @returns {{renumberDialog: Window, startValueInput: EditText, sequenceStepInput: EditText, formatRadios: Object,
      *            optionCheckboxes: {reverse: Checkbox, zeroPad: Checkbox},
      *            sortOrderRadios: Object, reorderStackCheckbox: Checkbox,
      *            affixInputs: {prefix: EditText, suffix: EditText}, btnCancel: Button, btnOK: Button}} 作成したコントロール。
@@ -2504,6 +2639,7 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
         return {
             renumberDialog: renumberDialog,
             startValueInput: baseValueControls.startValueInput,
+            sequenceStepInput: baseValueControls.sequenceStepInput,
             formatRadios: baseValueControls.formatRadios,
             optionCheckboxes: optionCheckboxes,
             sortOrderRadios: sortOrderControls.sortOrderRadios,
@@ -2603,23 +2739,68 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
     }
 
     /**
-     * ［基準となる値］パネル（書式のラジオと開始値）を作ります。
+     * ［基準となる値］パネル（書式のラジオ、開始値、増分）を作ります。
      *
      * @param {Group} parentGroup - 追加先のグループ。
      * @param {string} initialStartValue - 初期値。
-     * @returns {{startValueInput: EditText, formatRadios: Object}} 開始値の入力欄と書式のラジオ。
+     * @returns {{startValueInput: EditText, sequenceStepInput: EditText, formatRadios: Object}} 開始値・増分の入力欄と書式のラジオ。
      */
     function addBaseValuePanel(parentGroup, initialStartValue) {
         var baseValuePanel = addDialogPanel(parentGroup, LABELS.panel.baseValue, 6);
         var formatRadios = addRadioButtons(baseValuePanel, FORMAT_MODES, LABELS.tooltip.formatMode);
 
-        /* 項目名を上、∧∨と入力欄を下に置く。ラジオとのアキは上マージンで取る
-           The label sits above the stepper and field, with a top margin separating it from the radios */
-        var startValueGroup = addSeparatedSection(baseValuePanel);
-        startValueGroup.spacing = LABEL_FIELD_SPACING;
-        startValueGroup.add("statictext", undefined, labelText(LABELS.fieldLabel.startValue));
+        return {
+            startValueInput: addStartValueField(addLabeledFieldSection(baseValuePanel, LABELS.fieldLabel.startValue), initialStartValue),
+            sequenceStepInput: addSequenceStepField(addLabeledFieldSection(baseValuePanel, LABELS.fieldLabel.sequenceStep)),
+            formatRadios: formatRadios
+        };
+    }
 
-        return { startValueInput: addStartValueField(startValueGroup, initialStartValue), formatRadios: formatRadios };
+    /**
+     * 項目名を上に置いた段を追加します。前の段とのアキは上マージンで取ります。
+     *
+     * @param {Panel} parentPanel - 追加先のパネル。
+     * @param {Object} fieldLabelSet - 項目名の文言オブジェクト。
+     * @returns {Group} 入力欄を追加する段。
+     */
+    function addLabeledFieldSection(parentPanel, fieldLabelSet) {
+        var fieldSection = addSeparatedSection(parentPanel);
+        fieldSection.spacing = LABEL_FIELD_SPACING;
+        fieldSection.add("statictext", undefined, labelText(fieldLabelSet));
+        return fieldSection;
+    }
+
+    /**
+     * ∧∨と入力欄を隙間0で突き合わせる行を追加します。
+     *
+     * @param {Group} parentGroup - 追加先のグループ。
+     * @returns {Group} 追加した行。
+     */
+    function addStepperFieldRow(parentGroup) {
+        var stepperFieldGroup = parentGroup.add("group");
+        stepperFieldGroup.orientation = "row";
+        stepperFieldGroup.alignChildren = ["left", "center"];
+        stepperFieldGroup.spacing = 0;
+        stepperFieldGroup.margins = 0;
+        return stepperFieldGroup;
+    }
+
+    /**
+     * ［増分］の入力欄を、左に∧∨を突き合わせて追加します（部品の既定の増減をそのまま使います）。
+     *
+     * @param {Group} parentGroup - 追加先のグループ。
+     * @returns {EditText} 入力欄（∧∨は .stepperGroup で参照できる）。
+     */
+    function addSequenceStepField(parentGroup) {
+        var stepperFieldGroup = addStepperFieldRow(parentGroup);
+        var sequenceStepInput;
+        var stepperGroup = addStepper(stepperFieldGroup, function () { return sequenceStepInput; }, {});
+        sequenceStepInput = stepperFieldGroup.add("edittext", undefined, String(DEFAULT_SEQUENCE_STEP));
+        sequenceStepInput.characters = START_VALUE_FIELD_CHARS;
+        sequenceStepInput.helpTip = getLabel(LABELS.tooltip.sequenceStep);
+        sequenceStepInput.stepperGroup = stepperGroup;
+        bindSteppedArrowKeys(sequenceStepInput, stepperGroup);
+        return sequenceStepInput;
     }
 
     /**
@@ -2632,12 +2813,7 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
      * @returns {EditText} 入力欄（∧∨は .stepperGroup で参照できる）。
      */
     function addStartValueField(parentGroup, initialStartValue) {
-        /* ∧∨と入力欄は隙間0で突き合わせる / butt the stepper against the field */
-        var stepperFieldGroup = parentGroup.add("group");
-        stepperFieldGroup.orientation = "row";
-        stepperFieldGroup.alignChildren = ["left", "center"];
-        stepperFieldGroup.spacing = 0;
-        stepperFieldGroup.margins = 0;
+        var stepperFieldGroup = addStepperFieldRow(parentGroup);
 
         var startValueInput;
         var stepperGroup = addStepper(stepperFieldGroup, function () { return startValueInput; }, {});
@@ -2729,6 +2905,7 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
     function bindRenumberDialogEvents(dialogControls, renumberTargets) {
         var renumberDialog = dialogControls.renumberDialog;
         var startValueInput = dialogControls.startValueInput;
+        var sequenceStepInput = dialogControls.sequenceStepInput;
         var formatRadios = dialogControls.formatRadios;
         var optionCheckboxes = dialogControls.optionCheckboxes;
         var sortOrderRadios = dialogControls.sortOrderRadios;
@@ -2746,6 +2923,7 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
         function getRenumberSettings() {
             return {
                 startValueText: startValueInput.text,
+                sequenceStepText: sequenceStepInput.text,
                 formatModeKey: getSelectedRadioKey(formatRadios, FORMAT_MODES),
                 prefix: affixInputs.prefix.text,
                 suffix: affixInputs.suffix.text,
@@ -2773,10 +2951,11 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
             }
 
             /* ゼロ埋めが効かない書式・桁数のときはディム / Dim zero padding when it would change nothing */
-            optionCheckboxes.zeroPad.enabled = willZeroPadApply(startValue, renumberTargets.length);
+            var sequenceStep = parseSequenceStep(renumberSettings.sequenceStepText, startValue);
+            optionCheckboxes.zeroPad.enabled = willZeroPadApply(startValue, renumberTargets.length, sequenceStep);
 
-            /* ［開始値］を読めないあいだは元の中身に戻しておく
-               While the start value cannot be read, put the original contents back */
+            /* ［開始値］か［増分］を読めないあいだは元の中身に戻しておく
+               While the start value or increment cannot be read, put the original contents back */
             if (!applyRenumber(renumberTargets, renumberSettings)) {
                 restoreOriginalContents(renumberTargets);
             }
@@ -2831,6 +3010,10 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
         bindStartValueStepper(startValueInput, formatRadios, updatePreview);
 
         startValueInput.onChanging = updatePreview;
+        sequenceStepInput.onChanging = updatePreview;
+        /* ∧∨・↑↓での増減は .text への代入なので onChanging が来ない。部品の onStep で更新する
+           Stepping assigns .text without onChanging, so refresh through the part's onStep */
+        sequenceStepInput.stepperGroup.stepOptions.onStep = updatePreview;
         affixInputs.prefix.onChanging = updatePreview;
         affixInputs.suffix.onChanging = updatePreview;
         optionCheckboxes.reverse.onClick = updatePreview;
@@ -2869,7 +3052,13 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
                 if (startValue.digits > 1) {
                     startValueInput.text = padWithZeros(parseFloat(startValueInput.text), startValue.digits);
                 }
+            } else if (startValue.format === "time") {
+                /* 1分ずつ。shift＋で10分の倍数へ。時の桁数は保つ / One minute at a time; Shift snaps to 10 minutes */
+                var timeOffset = ScriptUI.environment.keyboardState.shiftKey ?
+                    snapStepperToNextMultiple(startValue.number, STEPPER_SHIFT_MULTIPLE, direction) - startValue.number : direction;
+                startValueInput.text = formatSequenceValue(startValue, timeOffset, startValue.digits);
             } else {
+                /* ［増分］に関わらず1つずつ進める / Step one position regardless of the increment */
                 startValueInput.text = formatSequenceValue(startValue, direction, 0);
             }
 
@@ -2888,17 +3077,19 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
      *
      * @param {Object[]} renumberTargets - 振り直し対象。
      * @param {Object} renumberSettings - getRenumberSettings() が返す設定。
-     * @returns {Object[]} 番号を振った順に並べた配列。［開始値］が不正なときは null。
+     * @returns {Object[]} 番号を振った順に並べた配列。［開始値］か［増分］が不正なときは null。
      */
     function applyRenumber(renumberTargets, renumberSettings) {
         var startValue = parseStartValue(renumberSettings.startValueText, renumberSettings.formatModeKey);
         if (!startValue) return null;
+        var sequenceStep = parseSequenceStep(renumberSettings.sequenceStepText, startValue);
+        if (sequenceStep === null) return null;
 
         var orderedTargets = sortTargets(renumberTargets, renumberSettings.sortMode, renumberSettings.isReversed);
-        var zeroPadDigits = getSequenceDigits(startValue, orderedTargets.length, renumberSettings.isZeroPadded);
+        var zeroPadDigits = getSequenceDigits(startValue, orderedTargets.length, sequenceStep, renumberSettings.isZeroPadded);
 
         for (var i = 0; i < orderedTargets.length; i++) {
-            var sequenceText = formatSequenceValue(startValue, i, zeroPadDigits);
+            var sequenceText = formatSequenceValue(startValue, i * sequenceStep, zeroPadDigits);
             orderedTargets[i].frame.contents = renumberSettings.prefix + sequenceText + renumberSettings.suffix;
         }
 

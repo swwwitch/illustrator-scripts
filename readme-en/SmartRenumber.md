@@ -10,25 +10,27 @@
 
 ### Overview
 
-Sorts the selected text — digits, letters, or Japanese numerals — in a chosen order and renumbers it as a sequence. Every change in the dialog shows up in the preview right away.
+Sorts the selected text — digits, letters, Japanese numerals, or clock times — in a chosen order and renumbers it as a sequence. Every change in the dialog shows up in the preview right away.
 
 ### Main features
 
-- Radios under Base Value pick the format (`123` / `ABC` / `abc` / `一二三` / `I II III` / `壱弐参`), dropping `1`, `A`, `a`, `一`, `I`, or `壱` into the start value
+- Radios under Base Value pick the format (`123` / `ABC` / `abc` / `一二三` / `I II III` / `壱弐参` / `0:00`), dropping `1`, `A`, `a`, `一`, `I`, `壱`, or `0:00` into the start value
 - Typing straight into the start value switches the format too (`C` gives C, D, E…)
 - Letters carry over from `Z` to `AA`, `AB`, and so on
 - Japanese numerals are composed as `十`, `二十一`, `百三`, `一万`, and so on
 - Roman numerals run `I, II, III, IV`…, written in capitals however they are typed
 - Formal Japanese numerals run `壱, 弐, 参, 四 … 九, 拾, 拾壱`…, using the four legally distinct characters 壱弐参拾
+- Clock times count in minutes: `15:10`, `15:20`, and so on (`0:00` follows `23:50`; an hour typed with a leading zero such as `09:00` keeps two digits)
 - The start value can be `0` or negative (`-3`)
+- Increment sets the amount added for each next number (`2` gives 1, 3, 5...; `-1` gives 10, 9, 8...). Numbers accept fractions such as `0.5`; letters, Japanese, Roman and formal numerals take whole numbers; clock times count in minutes and also accept `1:30`
 - Six sort orders: current value, horizontal, vertical, Z-pattern, N-pattern, and stacking order
 - Reverse turns the order around before renumbering
-- The width typed into the start value is always kept (`01` → 01, 02, 03)
+- A width typed with leading zeros into the start value is always kept (`01` → 01, 02, 03)
 - Zero Padding widens the sequence to the widest number, and is dimmed when the width would not change
 - Adjust Stacking (on OK) rearranges the stacking to follow the new numbers; it sits under the sort orders and starts checked
 - Prefix and Suffix add text before and after the number
 - The start value defaults to the smallest value in the selection, in its own format
-- The stepper arrows next to the start value and the Up/Down keys step the value (numbers go to the next whole number, Shift snaps to a multiple of ten, Option steps by 0.1, and the typed width is kept; letters, Japanese, Roman and formal numerals step one at a time)
+- The stepper arrows next to the start value and the Up/Down keys step the value (numbers go to the next whole number, Shift snaps to a multiple of ten, Option steps by 0.1, and the typed width is kept; letters, Japanese, Roman and formal numerals step one at a time; clock times step one minute, Shift snaps to 10 minutes)
 - Tooltips on every option
 - Dialog with a live preview (Cancel restores the original text)
 - Japanese / English UI
@@ -37,15 +39,16 @@ Sorts the selected text — digits, letters, or Japanese numerals — in a chose
 
 1. Select the text objects.
 2. Run `SmartRenumber.jsx`.
-3. Set the start value under Base Value and pick the sort order, checking the preview as you go.
+3. Set the start value and increment under Base Value and pick the sort order, checking the preview as you go.
 4. Click OK to apply.
 
 ### Settings
 
 | Option | Description |
 | --- | --- |
-| Format (123 / ABC / abc / 一二三 / I II III / 壱弐参) | The format to write; choosing one drops its lowest value into the start value |
-| Start Value | The first value of the new sequence: a number (`1` / `0` / `-3`), a letter (`A` / `a`), a Japanese numeral (`一` / `壱`), or a Roman numeral (`I`) |
+| Format (123 / ABC / abc / 一二三 / I II III / 壱弐参 / 0:00) | The format to write; choosing one drops its lowest value into the start value |
+| Start Value | The first value of the new sequence: a number (`1` / `0` / `-3`), a letter (`A` / `a`), a Japanese numeral (`一` / `壱`), a Roman numeral (`I`), or a clock time (`15:10`) |
+| Increment | The amount added for each next number (`1` by default). A negative value counts down. Formats other than digits take whole numbers. Clock times count in minutes (`10` for every 10 minutes, `1:30` for every hour and a half) |
 | Sort Order | The order the numbers are assigned in (see below) |
 | Reverse | Turns the order around before renumbering |
 | Zero Padding | Widens the sequence to the widest number (digits only); the typed width is kept either way |
@@ -57,7 +60,7 @@ Sorts the selected text — digits, letters, or Japanese numerals — in a chose
 
 | Sort order | Description |
 | --- | --- |
-| Current Value Order | Ascending order of the current values; letters go alphabetically and Japanese numerals by their value |
+| Current Value Order | Ascending order of the current values; letters go alphabetically Japanese numerals by their value, and clock times earliest first |
 | Horizontal (Left to Right) | From the leftmost object to the right |
 | Vertical (Top to Bottom) | From the topmost object down |
 | Z-Pattern (Left to Right, Top to Bottom) | Left to right within a row, then down to the next row |
@@ -66,7 +69,7 @@ Sorts the selected text — digits, letters, or Japanese numerals — in a chose
 
 ### Notes
 
-- Only text objects made up entirely of digits, entirely of letters, or entirely of Japanese numerals are picked up. Mixed contents such as `No.1`, `Item 3`, or `A1` are ignored, so a run that added a prefix or suffix cannot be re-run on its own result; strip it back to a bare number first.
+- Only text objects made up entirely of digits, entirely of letters, entirely of Japanese numerals, or a clock time alone (`15:10`) are picked up. Mixed contents such as `No.1`, `Item 3`, or `A1` are ignored, so a run that added a prefix or suffix cannot be re-run on its own result; strip it back to a bare number first.
 - Full-width digits (`１`) are not supported.
 - Letters such as `I` and `X` read as either letters or Roman numerals, so the `I II III` radio decides which one applies.
 - The formal numerals share `四`-`九`, `百`, `千` and `万` with the plain ones, so the `一二三` / `壱弐参` radio decides which style continues.
@@ -84,6 +87,7 @@ Sorts the selected text — digits, letters, or Japanese numerals — in a chose
 
 ### Changelog
 
+- v2.2.0 (2026-11-23) Added Increment to Base Value (the amount added for each next number; negative counts down, numbers accept fractions). Added clock times (`15:10` → `15:20`...) and a `0:00` format radio. The start value now keeps its width only when typed with leading zeros such as `01` (starting from `-10` no longer gives `-09`)
 - v2.1.8 (2026-11-20) Clicking the script name and version at the bottom left opens About This Script (copy the script name, open the README and other links, show in Finder; shared part updated)
 - v2.1.7 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)
 - v2.1.6 (2026-10-16) Right-only button rows are now centered when the dialog's inner width is up to 240 px (was 200 px) (shared part update)
