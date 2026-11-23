@@ -10,7 +10,7 @@ Name=テキストのアウトライン化と復元
 Name[en]=Outline text and restore it later
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=2.2.0
+Version=2.3.0
 Release-Date=2024-07-23
 Tags=outline,アウトライン
 X-com.swwwitch-Script-Name=AiTextOutlineRestorePalette
@@ -241,7 +241,7 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
             doneOutline: { ja: 'アウトライン化しました', en: 'Outlined' },
             doneRestore: { ja: 'テキストを復元しました', en: 'Text restored' },
             memoLoaded: { ja: 'メモを読み込みました', en: 'Note loaded' },
-            fontWarn: { ja: '一部フォントは既定値を使用', en: 'Some fonts used defaults' },
+            missingFonts: { ja: '見つからないフォント', en: 'Missing fonts' },
             partial: { ja: '一部は処理できませんでした', en: 'Some items could not be processed' },
             nodoc: { ja: 'ドキュメントがありません', en: 'No document is open' },
             nosel: { ja: 'オブジェクトが選択されていません', en: 'No objects are selected' },
@@ -265,6 +265,8 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
         '幅':                         'Width',
         '高さ':                       'Height',
         '連結':                       'Thread',
+        '書式の範囲':                 'Format runs',
+        '段落ごとの行揃え':           'Per-paragraph alignment',
         'フォント':                   'Font',
         'フォントサイズ':             'Font size',
         '行送り':                     'Leading',
@@ -1273,7 +1275,9 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
     /* type は body=複数行の本文／num=数値／bool=true,false／text=そのまま。jpOnly は英語環境で書き出さない属性 */
     /* order は listbox の一覧表示順。配列の並び（＝note の保存順）とは別物で、表示順だけをここで一元管理する */
     /* optional は値のあるときだけ書き出す項目（幅・高さ＝エリア内文字の枠の大きさ pt、連結＝連結したエリア内文字の何番目か）。
-       noDisplay は一覧に出さない項目（連結ID）。種類以降は後から足したので配列の末尾に置く */
+       noDisplay は一覧に出さない項目（連結ID）。種類以降は後から足したので配列の末尾に置く。
+       パスのガイド＝パス上文字のパスを写したガイドの名前、パスの開始位置・終了位置＝startTValue / endTValue（丸めない）。
+       書式の範囲＝先頭の文字と書式が異なる範囲（"開始+文字数 属性=値;…" を "|" でつなぐ）、段落ごとの行揃え＝先頭の段落と異なる段落（"番号=行揃え" を "|" でつなぐ） */
     /* 本文は "文字列：\n" 〜 "\n\nフォント：" で切り出すので、文字列とフォントの並びは変更しないこと */
     function workerNoteFields() {
         return [
@@ -1297,7 +1301,12 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
             { label: "幅",                         key: "width",               type: "num",  order:  2, optional: true },
             { label: "高さ",                       key: "height",              type: "num",  order:  3, optional: true },
             { label: "連結",                       key: "linkText",            type: "text", order: 19, optional: true },
-            { label: "連結ID",                     key: "linkId",              type: "text", optional: true, noDisplay: true }
+            { label: "連結ID",                     key: "linkId",              type: "text", optional: true, noDisplay: true },
+            { label: "書式の範囲",                 key: "formatRuns",          type: "text", order: 20, optional: true },
+            { label: "段落ごとの行揃え",           key: "paragraphAlign",      type: "text", order: 21, optional: true },
+            { label: "パスのガイド",               key: "pathGuideId",         type: "text", optional: true, noDisplay: true },
+            { label: "パスの開始位置",             key: "pathStart",           type: "num",  optional: true, noDisplay: true },
+            { label: "パスの終了位置",             key: "pathEnd",             type: "num",  optional: true, noDisplay: true }
         ];
     }
 
@@ -1356,7 +1365,8 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
     /* --- 1つのテキストフレームの note を組み立てる / Build the note for one text frame --- */
     /* linkInfo（{ id, index, count }）があるときは連結したエリア内文字の1つ。文字列と属性はストーリー全体から取り、
        枠の位置・大きさだけこのフレームのものを書く。アウトライン化で連結がほどける前に全フレーム分を作っておくこと */
-    function workerBuildFrameMemo(textFrame, handleJp, linkInfo) {
+    /* pathGuideName は、パス上文字のパスを写したガイドの名前（workerCreatePathGuide で作ったもの） */
+    function workerBuildFrameMemo(textFrame, handleJp, linkInfo, pathGuideName) {
         var jp = (handleJp !== false);
         var textRange = linkInfo ? textFrame.story.textRange : textFrame.textRange;
         var charAttrs = textRange.characterAttributes;
@@ -1383,6 +1393,13 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
         /* 種類。エリア内文字は枠（textPath）の幅・高さも控え、復元で同じ大きさの枠を作る。
            パス上文字は種類だけ記録し、復元はポイント文字で行う */
         info.kindText = workerKindToText(textFrame.kind);
+        if (pathGuideName) {
+            info.pathGuideId = pathGuideName;
+            try {
+                info.pathStart = textFrame.startTValue;
+                info.pathEnd = textFrame.endTValue;
+            } catch (ePathT) {}
+        }
         if (textFrame.kind == TextType.AREATEXT) {
             info.width = workerRound(textFrame.textPath.width);
             info.height = workerRound(textFrame.textPath.height);
@@ -1399,7 +1416,138 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
             info.kinsokuText = workerKinsokuToText(paraAttrs);
             info.mojikumiText = workerMojikumiToText(paraAttrs);
         }
+        /* 先頭の文字と書式が異なる範囲・段落。連結したフレームは同じストーリーなので、1回読んだ結果を使い回す */
+        var formatCache = linkInfo ? linkInfo.formatCache : null;
+        var formatSummary = (formatCache && formatCache.value) ? formatCache.value : workerReadFormatSummary(textRange, info.justificationText, jp);
+        if (formatCache) { formatCache.value = formatSummary; }
+        if (formatSummary.runsText) { info.formatRuns = formatSummary.runsText; }
+        if (formatSummary.paragraphText) { info.paragraphAlign = formatSummary.paragraphText; }
         return workerBuildMemoText(info, handleJp);
+    }
+
+    /* --- 書式の範囲で使う属性の名前（note に書く短い名前）/ Attribute codes used in format runs --- */
+    function workerFormatRunKeys() {
+        return ["font", "size", "auto", "leading", "track", "h", "v", "color", "shift", "tsume"];
+    }
+
+    /* --- 1文字の書式を読む（比べやすいよう文字列にそろえる）/ Read one character's format as strings --- */
+    /* 自動行送りの文字は行送りの値を持たない（サイズで変わるので比べると差が出てしまう） */
+    function workerReadCharFormat(characterAttrs, jp) {
+        var autoLeading = characterAttrs.autoLeading ? "true" : "false";
+        return {
+            font: String(characterAttrs.textFont.name),
+            size: String(workerRound(characterAttrs.size)),
+            auto: autoLeading,
+            leading: (autoLeading === "true") ? "" : String(workerRound(characterAttrs.leading)),
+            track: String(characterAttrs.tracking),
+            h: String(workerRound(characterAttrs.horizontalScale)),
+            v: String(workerRound(characterAttrs.verticalScale)),
+            color: workerColorToText(characterAttrs.fillColor),
+            shift: String(workerRound(characterAttrs.baselineShift)),
+            tsume: jp ? String(characterAttrs.Tsume) : ""
+        };
+    }
+
+    /* --- note の値に入れられない文字（% ; | = 改行）を % で逃がす / Escape characters that would break the note value --- */
+    function workerEscapeRunValue(value) {
+        return String(value).replace(/%/g, "%25").replace(/;/g, "%3B").replace(/\|/g, "%7C").replace(/=/g, "%3D").replace(/\r/g, "%0D").replace(/\n/g, "%0A");
+    }
+
+    /* --- 先頭の文字・段落と書式が異なる範囲を読む / Read the ranges whose format differs from the first character --- */
+    /* 戻り値は { runsText, paragraphText }（どちらも無ければ空文字）。復元では先頭の文字の書式を全体に入れたあと、これを上書きする。
+       ベースラインシフトは全体には入れないので、基準を 0 として比べる。characters の番号は contents の位置と1対1（実測） */
+    function workerReadFormatSummary(textRange, baseJustificationText, jp) {
+        var keys = workerFormatRunKeys();
+        var characters = textRange.characters;
+        var charCount = characters.length;
+        var runTexts = [];
+        if (charCount > 0) {
+            var baseFormat = workerReadCharFormat(characters[0].characterAttributes, jp);
+            baseFormat.shift = "0";
+            var runStart = 0;
+            var runFormat = null;
+            var runKey = null;
+            var charIndex, keyIndex;
+            for (charIndex = 0; charIndex <= charCount; charIndex++) {
+                var charFormat = (charIndex < charCount) ? workerReadCharFormat(characters[charIndex].characterAttributes, jp) : null;
+                var charKey = null;
+                if (charFormat) {
+                    var keyParts = [];
+                    for (keyIndex = 0; keyIndex < keys.length; keyIndex++) { keyParts.push(charFormat[keys[keyIndex]]); }
+                    charKey = keyParts.join(String.fromCharCode(1));
+                }
+                if (charKey === runKey) { continue; }
+                if (runFormat) {
+                    var diffPairs = [];
+                    for (keyIndex = 0; keyIndex < keys.length; keyIndex++) {
+                        var formatKey = keys[keyIndex];
+                        if (runFormat[formatKey] !== baseFormat[formatKey]) { diffPairs.push(formatKey + "=" + workerEscapeRunValue(runFormat[formatKey])); }
+                    }
+                    if (diffPairs.length > 0) { runTexts.push(runStart + "+" + (charIndex - runStart) + " " + diffPairs.join(";")); }
+                }
+                runStart = charIndex;
+                runFormat = charFormat;
+                runKey = charKey;
+            }
+        }
+        var paragraphTexts = [];
+        try {
+            var paragraphs = textRange.paragraphs;
+            var paragraphIndex;
+            for (paragraphIndex = 0; paragraphIndex < paragraphs.length; paragraphIndex++) {
+                var justificationText = workerJustificationToText(paragraphs[paragraphIndex].paragraphAttributes.justification);
+                if (justificationText !== baseJustificationText) { paragraphTexts.push(paragraphIndex + "=" + justificationText); }
+            }
+        } catch (eParagraph) {}
+        return { runsText: runTexts.join("|"), paragraphText: paragraphTexts.join("|") };
+    }
+
+    /* --- アウトライン化できなかったときにガイドを消す / Remove the guide of a failed outline --- */
+    function workerRemovePathGuide(pathGuide) {
+        if (!pathGuide) { return; }
+        try { pathGuide.remove(); } catch (e) {}
+    }
+
+    /* --- パス上文字のパスをガイドとして写す / Copy the path of type on a path as a guide --- */
+    /* createOutline() でパスは文字ごと消えるので、アウトライン化の前に同じ形のパスを作ってガイドにし、名前で探せるようにする。
+       テキストと同じ入れ物（グループの中ならそのグループ）の、テキストのすぐ後ろに置く。作れなければ null */
+    function workerCreatePathGuide(textFrame, guideName) {
+        var guidePath = null;
+        try {
+            var sourcePath = textFrame.textPath;
+            var sourcePoints = sourcePath.pathPoints;
+            var anchors = [];
+            var pointIndex;
+            for (pointIndex = 0; pointIndex < sourcePoints.length; pointIndex++) { anchors.push(sourcePoints[pointIndex].anchor); }
+            guidePath = textFrame.layer.pathItems.add();
+            guidePath.setEntirePath(anchors);
+            for (pointIndex = 0; pointIndex < sourcePoints.length; pointIndex++) {
+                var guidePoint = guidePath.pathPoints[pointIndex];
+                guidePoint.leftDirection = sourcePoints[pointIndex].leftDirection;
+                guidePoint.rightDirection = sourcePoints[pointIndex].rightDirection;
+                guidePoint.pointType = sourcePoints[pointIndex].pointType;
+            }
+            guidePath.closed = sourcePath.closed;
+            guidePath.filled = false;
+            guidePath.stroked = false;
+            try { guidePath.move(textFrame, ElementPlacement.PLACEAFTER); } catch (eMove) {}
+            guidePath.name = guideName;
+            guidePath.guides = true;
+            return guidePath;
+        } catch (e) {
+            if (guidePath) { try { guidePath.remove(); } catch (eRemove) {} }
+            return null;
+        }
+    }
+
+    /* --- 連結したエリア内文字か（連結の全フレームがエリア内文字）/ Whether every frame of a chain is area type --- */
+    /* パス上文字・ポイント文字の連結は連結として扱わず、フレームごとに単独で処理する */
+    function workerIsAreaTextChain(chain) {
+        var i;
+        for (i = 0; i < chain.length; i++) {
+            if (chain[i].kind != TextType.AREATEXT) { return false; }
+        }
+        return chain.length > 1;
     }
 
     /* --- 連結したフレームを連結順に返す（連結していなければ自分だけ）/ Frames of a thread, in thread order --- */
@@ -1526,25 +1674,39 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
         var seenFrames = [];
         var linkStamp = new Date().getTime();
         var linkCounter = 0;
+        var pathGuideCounter = 0;
         var frameIndex, chainIndex;
         for (frameIndex = 0; frameIndex < selectedTextFrames.length; frameIndex++) {
             var selectedFrame = selectedTextFrames[frameIndex];
             if (workerContainsItem(seenFrames, selectedFrame)) { continue; }
+            var pathGuide = null;
             try {
                 var chain = workerLinkedFrames(selectedFrame);
-                for (chainIndex = 0; chainIndex < chain.length; chainIndex++) { seenFrames.push(chain[chainIndex]); }
-                if (chain.length < 2) {
-                    outlineTasks.push({ textFrame: selectedFrame, memoText: workerBuildFrameMemo(selectedFrame, handleJp, null) });
+                if (!workerIsAreaTextChain(chain)) {
+                    /* 単独のフレーム。パス上文字はパスをガイドとして残し、そのガイドの名前を note に書く */
+                    seenFrames.push(selectedFrame);
+                    var pathGuideName = null;
+                    if (selectedFrame.kind == TextType.PATHTEXT) {
+                        pathGuideCounter++;
+                        pathGuideName = "パス上文字のガイド " + linkStamp + "-" + pathGuideCounter;
+                        pathGuide = workerCreatePathGuide(selectedFrame, pathGuideName);
+                        if (!pathGuide) { pathGuideName = null; }
+                    }
+                    outlineTasks.push({ textFrame: selectedFrame, memoText: workerBuildFrameMemo(selectedFrame, handleJp, null, pathGuideName), pathGuide: pathGuide });
                     continue;
                 }
+                for (chainIndex = 0; chainIndex < chain.length; chainIndex++) { seenFrames.push(chain[chainIndex]); }
                 linkCounter++;
                 var linkId = "T" + linkStamp + "-" + linkCounter;
                 var chainTasks = [];
+                var chainFormatCache = { value: null };
                 for (chainIndex = 0; chainIndex < chain.length; chainIndex++) {
-                    chainTasks.push({ textFrame: chain[chainIndex], memoText: workerBuildFrameMemo(chain[chainIndex], handleJp, { id: linkId, index: chainIndex + 1, count: chain.length }) });
+                    chainTasks.push({ textFrame: chain[chainIndex], memoText: workerBuildFrameMemo(chain[chainIndex], handleJp, { id: linkId, index: chainIndex + 1, count: chain.length, formatCache: chainFormatCache }) });
                 }
                 for (chainIndex = chainTasks.length - 1; chainIndex >= 0; chainIndex--) { outlineTasks.push(chainTasks[chainIndex]); }
             } catch (eMemo) {
+                /* note を作れなかったフレームのガイドは残さない / Drop the guide when the note could not be built */
+                if (pathGuide) { try { pathGuide.remove(); } catch (eGuide) {} }
                 if (errorText == null) { errorText = String(eMemo); }
             }
         }
@@ -1558,8 +1720,12 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
                 if (outlineGroup) {
                     outlineGroup.note = outlineTasks[taskIndex].memoText;
                     outlineGroups.push(outlineGroup);
-                } else if (errorText == null) { errorText = "createOutline failed"; }
+                } else {
+                    workerRemovePathGuide(outlineTasks[taskIndex].pathGuide);
+                    if (errorText == null) { errorText = "createOutline failed"; }
+                }
             } catch (eItem) {
+                workerRemovePathGuide(outlineTasks[taskIndex].pathGuide);
                 if (errorText == null) { errorText = String(eItem); }
             }
         }
@@ -1651,6 +1817,8 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
 
     /* --- 一覧表示用に値を整える（文字ツメ＝%表記、禁則・文字組み＝日本語ラベル）/ Tidy a value for display --- */
     function workerFormatDisplayValue(label, value) {
+        /* 書式の範囲・段落ごとの行揃えは中身が長いので、件数だけ出す */
+        if (label === "書式の範囲" || label === "段落ごとの行揃え") { return String(String(value).split("|").length); }
         if (label === "文字ツメ") {
             /* Tsume は 0.0〜1.0 で保存されているので %表記に直す */
             var tsumeNumber = parseFloat(value);
@@ -2223,12 +2391,8 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
     function workerApplyCharacterAttributes(textFrame, attributes, restoreReport, jp) {
         var wholeRange = workerWholeTextRange(textFrame);
         var attrs = wholeRange.characterAttributes;
-        /* フォントだけ個別に：見つからなければ既定フォントのまま。他属性の適用は続行する */
-        try {
-            attrs.textFont = app.textFonts.getByName(attributes.font);
-        } catch (eFont) {
-            if (restoreReport) { restoreReport.fontFallback = true; }
-        }
+        /* フォントだけ個別に。見つからなければ既定フォントのまま、他属性の適用は続行する */
+        if (attributes.font != null) { workerApplyFontByName(attrs, attributes.font, restoreReport); }
         workerSetAttr(attrs, "size", attributes.fontSize);
         /* 自動行送り ON のときは行送りを明示せず自動計算に任せる（旧 note は autoLeading 未記録なので false 扱い） */
         if (attributes.autoLeading === true) {
@@ -2261,6 +2425,103 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
         }
     }
 
+    /* --- 復元：書式を入れる（先頭の文字の書式を全体に → 書式の範囲 → 段落ごとの行揃え）/ Restore: apply all formatting --- */
+    function workerApplyTextFormatting(textFrame, attributes, restoreReport, jp) {
+        workerApplyCharacterAttributes(textFrame, attributes, restoreReport, jp);
+        workerApplyParagraphAttributes(textFrame, attributes, jp);
+        var wholeRange = workerWholeTextRange(textFrame);
+        workerApplyFormatRuns(wholeRange, attributes.formatRuns, restoreReport, jp);
+        workerApplyParagraphAlignments(wholeRange, attributes.paragraphAlign);
+    }
+
+    /* --- 名前でフォントを当てる。見つからない・仮エントリなら名前を控える / Apply a font by name, recording missing ones --- */
+    /* 環境に無いフォントも app.textFonts に仮エントリとして並び getByName が通るので、それも「見つからない」として名前を控える
+       （仮エントリは当てておく。フォント名が残るので［フォントの検索と置換］で差し替えられる） */
+    function workerApplyFontByName(characterAttrs, fontName, restoreReport) {
+        var restoredFont = null;
+        try { restoredFont = app.textFonts.getByName(fontName); } catch (eFont) { restoredFont = null; }
+        if (restoredFont) { workerSetAttr(characterAttrs, "textFont", restoredFont); }
+        if (!restoredFont || workerIsPlaceholderFont(restoredFont)) { workerNoteMissingFont(restoreReport, fontName); }
+    }
+
+    /* --- 復元：書式の範囲を入れる / Restore: apply the format runs --- */
+    /* 範囲は characters[開始] の length を伸ばして作る（characterOffset への代入は壊れる。実測）。前から順に入れるので、
+       改行の直前の文字に入れたサイズが改行へ伝わっても、改行の範囲があとで正しい値に戻る */
+    function workerApplyFormatRuns(wholeRange, runsText, restoreReport, jp) {
+        if (!runsText) { return; }
+        var characters = wholeRange.characters;
+        var charCount = characters.length;
+        var runTexts = String(runsText).split("|");
+        var runIndex, pairIndex;
+        for (runIndex = 0; runIndex < runTexts.length; runIndex++) {
+            var runMatch = runTexts[runIndex].match(/^(\d+)\+(\d+) (.*)$/);
+            if (!runMatch) { continue; }
+            var runStart = parseInt(runMatch[1], 10);
+            var runLength = parseInt(runMatch[2], 10);
+            if (runStart >= charCount || runLength < 1) { continue; }
+            var values = {};
+            var pairs = runMatch[3].split(";");
+            for (pairIndex = 0; pairIndex < pairs.length; pairIndex++) {
+                var equalIndex = pairs[pairIndex].indexOf("=");
+                if (equalIndex > 0) { values[pairs[pairIndex].substring(0, equalIndex)] = decodeURIComponent(pairs[pairIndex].substring(equalIndex + 1)); }
+            }
+            try {
+                var runRange = characters[runStart];
+                runRange.length = Math.min(runLength, charCount - runStart);
+                var runAttrs = runRange.characterAttributes;
+                if (values.font) { workerApplyFontByName(runAttrs, values.font, restoreReport); }
+                if (values.size) { workerSetAttr(runAttrs, "size", parseFloat(values.size)); }
+                if (values.auto === "true") { workerSetAttr(runAttrs, "autoLeading", true); }
+                if (values.auto === "false") { workerSetAttr(runAttrs, "autoLeading", false); }
+                if (values.leading) {
+                    workerSetAttr(runAttrs, "autoLeading", false);
+                    workerSetAttr(runAttrs, "leading", parseFloat(values.leading));
+                }
+                if (values.track) { workerSetAttr(runAttrs, "tracking", parseFloat(values.track)); }
+                if (values.h) { workerSetAttr(runAttrs, "horizontalScale", parseFloat(values.h)); }
+                if (values.v) { workerSetAttr(runAttrs, "verticalScale", parseFloat(values.v)); }
+                if (values.color != null) { workerSetAttr(runAttrs, "fillColor", workerColorFromText(values.color)); }
+                if (values.shift) { workerSetAttr(runAttrs, "baselineShift", parseFloat(values.shift)); }
+                if (jp && values.tsume) { workerSetAttr(runAttrs, "Tsume", parseFloat(values.tsume)); }
+            } catch (eRun) {
+                /* 1つの範囲で失敗しても残りは続ける / keep going */
+            }
+        }
+    }
+
+    /* --- 復元：段落ごとの行揃えを入れる / Restore: apply per-paragraph alignment --- */
+    function workerApplyParagraphAlignments(wholeRange, alignText) {
+        if (!alignText) { return; }
+        var paragraphs = wholeRange.paragraphs;
+        var alignTexts = String(alignText).split("|");
+        var alignIndex;
+        for (alignIndex = 0; alignIndex < alignTexts.length; alignIndex++) {
+            var equalIndex = alignTexts[alignIndex].indexOf("=");
+            if (equalIndex < 1) { continue; }
+            var paragraphIndex = parseInt(alignTexts[alignIndex].substring(0, equalIndex), 10);
+            if (isNaN(paragraphIndex) || paragraphIndex >= paragraphs.length) { continue; }
+            try {
+                paragraphs[paragraphIndex].paragraphAttributes.justification = workerResolveJustification(alignTexts[alignIndex].substring(equalIndex + 1));
+            } catch (eAlign) {}
+        }
+    }
+
+    /* --- 環境に無いフォントの仮エントリか（style が空で、family に PostScript 名がそのまま入る。実測）/ Placeholder entry for a missing font --- */
+    function workerIsPlaceholderFont(textFont) {
+        try { return textFont.style === "" && textFont.family === textFont.name; } catch (e) { return false; }
+    }
+
+    /* --- 見つからなかったフォント名を重複なしで控える / Record a missing font name once --- */
+    function workerNoteMissingFont(restoreReport, fontName) {
+        if (!restoreReport) { return; }
+        if (!restoreReport.missingFonts) { restoreReport.missingFonts = []; }
+        var i;
+        for (i = 0; i < restoreReport.missingFonts.length; i++) {
+            if (restoreReport.missingFonts[i] === fontName) { return; }
+        }
+        restoreReport.missingFonts.push(fontName);
+    }
+
     /* --- 復元：段落属性を適用 / Restore: apply paragraph attributes --- */
     function workerApplyParagraphAttributes(textFrame, attributes, jp) {
         var wholeRange = workerWholeTextRange(textFrame);
@@ -2283,9 +2544,44 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
         return textFrame.textRange;
     }
 
+    /* --- 復元：名前でパス上文字のガイドを探す（無ければ null）/ Find the guide of type on a path by name --- */
+    function workerFindPathGuide(guideName) {
+        try {
+            var guidePath = app.activeDocument.pathItems.getByName(guideName);
+            /* ロック中のガイドは書き換えられないので使わない（ポイント文字で復元する）/ Skip locked guides */
+            if (!guidePath.guides || guidePath.locked || guidePath.layer.locked) { return null; }
+            return guidePath;
+        } catch (e) {
+            return null;
+        }
+    }
+
+    /* --- 復元：ガイドをパスに戻してパス上文字を作る / Turn the guide back into a path and put type on it --- */
+    /* 作れなかったときはガイドに戻して例外を投げ直す（次の復元でもう一度使えるように）。
+       復元先のレイヤーに作れなければ、ガイドのあるレイヤーに作る */
+    function workerCreatePathTextOnGuide(pathGuide, attributes, targetLayer, frameOrientation) {
+        pathGuide.guides = false;
+        pathGuide.name = "";
+        var hasTValues = (typeof attributes.pathStart === "number" && !isNaN(attributes.pathStart) && typeof attributes.pathEnd === "number" && !isNaN(attributes.pathEnd));
+        try {
+            return hasTValues ? targetLayer.textFrames.pathText(pathGuide, attributes.pathStart, attributes.pathEnd, frameOrientation) : targetLayer.textFrames.pathText(pathGuide, undefined, undefined, frameOrientation);
+        } catch (eTarget) {
+            try {
+                return hasTValues ? pathGuide.layer.textFrames.pathText(pathGuide, attributes.pathStart, attributes.pathEnd, frameOrientation) : pathGuide.layer.textFrames.pathText(pathGuide, undefined, undefined, frameOrientation);
+            } catch (eGuideLayer) {
+                try {
+                    pathGuide.name = attributes.pathGuideId;
+                    pathGuide.guides = true;
+                } catch (eBack) {}
+                throw eGuideLayer;
+            }
+        }
+    }
+
     /* --- 復元：テキストフレーム再生成 / Restore: recreate the text frame --- */
-    /* 種類が「エリア内文字」で幅・高さがあれば、同じ大きさの長方形からエリア内文字を作る。
-       それ以外（ポイント文字・パス上文字・種類のない旧 note）はポイント文字で作る。
+    /* 種類が「パス上文字」でガイドが残っていれば、ガイドをパスに戻してパス上文字を作る（位置合わせはしない）。
+       「エリア内文字」で幅・高さがあれば、同じ大きさの長方形からエリア内文字を作る。
+       それ以外（ポイント文字・ガイドの無いパス上文字・種類のない旧 note）はポイント文字で作る。
        組み方向はどちらも作るときに渡す。あとから orientation を変えるとフレームが作り直され、控えた参照が無効になるため */
     /* frameOnly が true のときは枠だけ作る（連結したエリア内文字は、連結してから先頭に文字と属性を入れるため） */
     function workerCreateRestoredTextFrame(sourceItem, attributes, restoredLayer, restoreReport, handleJp, frameOnly) {
@@ -2293,7 +2589,15 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
         var targetLayer = restoredLayer || sourceItem.layer;
         var frameOrientation = (jp && attributes.orientation === "縦組み") ? TextOrientation.VERTICAL : TextOrientation.HORIZONTAL;
         var textFrame;
-        if (attributes.kindText === "エリア内文字" && attributes.width > 0 && attributes.height > 0) {
+        var pathGuide = (attributes.kindText === "パス上文字" && attributes.pathGuideId) ? workerFindPathGuide(attributes.pathGuideId) : null;
+        if (pathGuide) {
+            textFrame = workerCreatePathTextOnGuide(pathGuide, attributes, targetLayer, frameOrientation);
+            textFrame.contents = attributes.text;
+            /* 文字を入れたあとに開始・終了位置を入れ直す（入れる前の値は文字数で変わることがあるため）/ Reapply the start/end after the text is in */
+            if (typeof attributes.pathStart === "number" && !isNaN(attributes.pathStart)) { workerSetAttr(textFrame, "startTValue", attributes.pathStart); }
+            if (typeof attributes.pathEnd === "number" && !isNaN(attributes.pathEnd)) { workerSetAttr(textFrame, "endTValue", attributes.pathEnd); }
+            attributes.restoredOnPath = true;
+        } else if (attributes.kindText === "エリア内文字" && attributes.width > 0 && attributes.height > 0) {
             var areaLeft = attributes.savedBounds ? attributes.savedBounds[0] : sourceItem.left;
             var areaTop = attributes.savedBounds ? attributes.savedBounds[1] : sourceItem.top;
             var areaPath = targetLayer.pathItems.rectangle(areaTop, areaLeft, attributes.width, attributes.height);
@@ -2319,8 +2623,7 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
                 (attributes.y !== null) ? attributes.y : sourceItem.top
             ];
         }
-        workerApplyCharacterAttributes(textFrame, attributes, restoreReport, jp);
-        workerApplyParagraphAttributes(textFrame, attributes, jp);
+        workerApplyTextFormatting(textFrame, attributes, restoreReport, jp);
         return textFrame;
     }
 
@@ -2351,8 +2654,7 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
         }
         var firstAttributes = parsedItems[0].attributes;
         textFrames[0].contents = firstAttributes.text;
-        workerApplyCharacterAttributes(textFrames[0], firstAttributes, restoreReport, jp);
-        workerApplyParagraphAttributes(textFrames[0], firstAttributes, jp);
+        workerApplyTextFormatting(textFrames[0], firstAttributes, restoreReport, jp);
         workerNoteRestoreLayer(restoreReport, textFrames[0]);
         return pendingRestores;
     }
@@ -2363,8 +2665,10 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
     }
 
     /* --- 位置合わせと片付けを待つ1件 / One pending restore (savedBounds が無い旧 note は元アウトラインの位置に合わせる) --- */
+    /* パス上文字をガイドの上に戻したものは、パスの位置がそのまま正しいので位置合わせしない（alignTarget は null） */
     function workerPendingRestore(parsedItem, textFrame) {
-        return { sourceItem: parsedItem.sourceItem, textFrame: textFrame, alignTarget: parsedItem.attributes.savedBounds || parsedItem.sourceItem };
+        var alignTarget = parsedItem.attributes.restoredOnPath ? null : (parsedItem.attributes.savedBounds || parsedItem.sourceItem);
+        return { sourceItem: parsedItem.sourceItem, textFrame: textFrame, alignTarget: alignTarget };
     }
 
     /* --- メモを読んで、連結していないものと連結ID ごとのまとまりに分ける / Parse notes and group threads by link ID --- */
@@ -2465,7 +2769,7 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
         var outlinedTextLayer = stashOutline ? workerCreateOutlineStashLayer(doc) : null;
         /* 既定は復元テキストを別レイヤー（restored_text）へ。false のときは元アウトラインと同じレイヤーへ置く（null で sourceItem.layer にフォールバック） */
         var restoredTextLayer = (separateLayer !== false) ? workerCreateRestoredTextLayer(doc) : null;
-        var restoreReport = { restored: 0, fontFallback: false, targetLayer: null };
+        var restoreReport = { restored: 0, missingFonts: [], targetLayer: null };
         /* 1件ずつ try で囲み、途中で失敗しても残りの復元を続ける。
            先に全件のテキストを作り、再描画を1回だけ挟んでから位置合わせと元アウトラインの片付けを行う（件数分の redraw を避ける） */
         var runError = null;
@@ -2507,7 +2811,9 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
         workerSetAttr(doc, "activeLayer", restoredTextLayer || restoreReport.targetLayer);
         /* 最後にもう一度だけ再描画する。途中の redraw は位置合わせ用で、その後の元アウトラインの削除・退避が画面に反映されないまま残るため */
         app.redraw();
-        return "OK:" + restoreReport.restored + (restoreReport.fontFallback ? ":FONT" : "") + (runError ? ":PARTIAL" : "");
+        /* 見つからなかったフォント名は末尾の "|FONTS=" のあとに、改行区切りを URI エンコードして付ける */
+        var missingFontsText = (restoreReport.missingFonts.length > 0) ? ("|FONTS=" + encodeURIComponent(restoreReport.missingFonts.join("\n"))) : "";
+        return "OK:" + restoreReport.restored + (runError ? ":PARTIAL" : "") + missingFontsText;
     }
 
     // ワーカー関数はすべてここに登録（追加漏れ防止）
@@ -2526,6 +2832,13 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
         workerResolveKernType,
         workerKindToText,
         workerBuildFrameMemo,
+        workerFormatRunKeys,
+        workerReadCharFormat,
+        workerEscapeRunValue,
+        workerReadFormatSummary,
+        workerRemovePathGuide,
+        workerCreatePathGuide,
+        workerIsAreaTextChain,
         workerLinkedFrames,
         workerGetSelection,
         workerFilterByType,
@@ -2569,8 +2882,16 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
         workerApplyMojikumi,
         workerApplyKerning,
         workerApplyCharacterAttributes,
+        workerIsPlaceholderFont,
+        workerNoteMissingFont,
+        workerApplyTextFormatting,
+        workerApplyFontByName,
+        workerApplyFormatRuns,
+        workerApplyParagraphAlignments,
         workerApplyParagraphAttributes,
         workerWholeTextRange,
+        workerFindPathGuide,
+        workerCreatePathTextOnGuide,
         workerCreateRestoredTextFrame,
         workerPrepareRestore,
         workerPrepareLinkedRestore,
@@ -2690,10 +3011,12 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
      * ステータス表示を書き換え、レイアウトを取り直す
      * @param {Window} win - 対象のパレット
      * @param {string} message - 表示する文言
+     * @param {string} [tipText] - ステータスのヘルプチップ（省略時は空にする）
      * @returns {void}
      */
-    function setStatus(win, message) {
+    function setStatus(win, message, tipText) {
         win.statusText.text = message;
+        win.statusText.helpTip = tipText || "";
         win.layout.layout(true);
     }
 
@@ -2736,12 +3059,20 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
     function applyResultToStatus(win, result, doneKey) {
         if (result == null) { setStatus(win, errorStatusText(null)); return; }
         if (result.indexOf("OK") === 0) {
+            /* 見つからなかったフォント名（"|FONTS=" のあと）を先に切り離す / Split off the missing font names first */
+            var missingFonts = [];
+            var fontsMarkerIndex = result.indexOf("|FONTS=");
+            if (fontsMarkerIndex >= 0) {
+                missingFonts = decodeURIComponent(result.substring(fontsMarkerIndex + 7)).split("\n");
+                result = result.substring(0, fontsMarkerIndex);
+            }
             var parts = result.split(":");
             var count = (parts.length > 1) ? parts[1] : "";
             var message = getLabel(doneKey) + (count ? " (" + count + ")" : "");
-            if (result.indexOf("FONT") >= 0) { message += " / " + getLabel('status.fontWarn'); }
             if (result.indexOf("PARTIAL") >= 0) { message += " / " + getLabel('status.partial'); }
-            setStatus(win, message);
+            /* 名前が長いと欄に収まらないので、ヘルプチップにも1行ずつ並べる / Also list the names one per line in the help tip */
+            if (missingFonts.length > 0) { message += " / " + labelValueText('status.missingFonts', missingFonts.join(", ")); }
+            setStatus(win, message, (missingFonts.length > 0) ? labelText('status.missingFonts') + "\n" + missingFonts.join("\n") : "");
             return;
         }
         var codeText = statusTextForCode(result);
@@ -3032,7 +3363,8 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
 
         // ステータス表示 / Status
         win.statusText = win.add("statictext", undefined, getLabel('status.ready'));
-        win.statusText.alignment = "left";
+        /* 見つからないフォント名などの長い文言が切れにくいよう、ウィンドウの幅いっぱいに広げる / Span the window width */
+        win.statusText.alignment = "fill";
 
         // Esc で閉じる
         win.addEventListener("keydown", function (ev) {

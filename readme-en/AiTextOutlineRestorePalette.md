@@ -39,9 +39,12 @@ The palette can also be closed with the `Esc` key.
 | Item | Notes |
 | --- | --- |
 | Text | Multi-line supported |
-| Type | Point type / area type (type on a path is restored as point type) |
+| Type | Point type / area type / type on a path |
 | Width / height | Size of the area type frame (pt); restored with a frame of the same size |
 | Thread | Position in a thread of linked area type; frames of the same thread are relinked on restore |
+| Format runs | Ranges whose format differs from the first character (font, size, leading, tracking, scale, fill color, baseline shift, tsume); the list shows the count |
+| Per-paragraph alignment | Paragraphs whose alignment differs from the first paragraph; the list shows the count |
+| Path of type on a path | The path is kept as a guide and the type is put back on it on restore; not shown in the list |
 | Orientation | Vertical / horizontal |
 | Font | Saved as the PostScript name |
 | Font size | |
@@ -62,13 +65,15 @@ The palette can also be closed with the `Esc` key.
 
 This is the part that is easy to misread, so here is a summary.
 
-**Only the first character's values are saved.** If color or size varies inside one text frame, the whole frame is restored with the first character's values. Per-character differences do not come back.
+**Only the main attributes come back per character.** Font, size, leading, tracking, scale, fill color, baseline shift and tsume, plus per-paragraph alignment, are restored even when they vary by character or paragraph. Kerning method, kinsoku and mojikumi are restored from the first character or paragraph for the whole text. Paragraph and character styles are not restored.
+
+**Type on a path keeps its path as a guide.** Before outlining, a guide with the same shape is created (named "パス上文字のガイド …"); on restore the guide is turned back into a path and the type is put back on it. If the guide was deleted or locked, the text is restored as point type.
 
 **Gradient and pattern fills are not supported.** They are saved as empty and the restored text keeps the default color (this is deliberate, so the text never becomes invisible).
 
 **A kinsoku setting of "none" is skipped on restore.** Illustrator does not allow assigning "none" to kinsoku from a script. Paragraphs that had no kinsoku keep the default kinsoku after restore. Mojikumi, on the other hand, can be restored as "none".
 
-**Missing fonts fall back to the default font.** The status line then shows "Some fonts used defaults". The other attributes are still restored; the process does not stop.
+**Missing fonts are named in the status line.** If the names do not fit, hover over the status line to see the full list. Fonts that Illustrator still knows by name (missing fonts) are kept under that name; others fall back to the default font. Either way, the other attributes are still restored; the process does not stop.
 
 **Japanese-only attributes are not handled in English locales.** Orientation, kinsoku, mojikumi and tsume are neither saved, displayed nor restored.
 
@@ -88,6 +93,10 @@ This is the part that is easy to misread, so here is a summary.
 The stashed outlines are set to 30% opacity and locked. The layer itself is sent to the back, given the template-layer attribute, and locked, so it does not get in the way of the restored text. They are placed directly on the `outlined_text` layer, not wrapped in a group of their own.
 
 The `outlined_text` layer is not created again and again: an existing one is unlocked and reused, so all outlines are collected on a single layer.
+
+### Before handing off files
+
+The notes on outlined objects still contain the original text and font names. If you restore with **Keep outline data** on, the `outlined_text` layer (a template layer, so it does not print) also stays in the file. Some recipients may care about this; if so, clear the notes in the Attributes panel or delete the `outlined_text` layer before handing off the file.
 
 Once the restore finishes, the active layer is set back to the restore target (`restored_text`, or the layer the text actually landed on when Restore text to a separate layer is off).
 
@@ -119,6 +128,7 @@ The template-layer attribute cannot be set through the API, so a temporary actio
 
 ## Update history
 
+- v2.3.0 (2026-11-24) Formats that vary by character or paragraph (font, size, leading, tracking, scale, fill color, baseline shift, tsume, alignment) are saved and restored. Type on a path keeps its path as a guide and is put back on it on restore. Missing fonts are named in the status line (including fonts kept as missing fonts)
 - v2.2.0 (2026-11-24) Linked area type is supported. Text and noted outlines inside groups can now be processed by selecting the group (groups left empty are removed). The restore redraws only once, so it runs faster. Vertical text is now created vertical from the start (changing the orientation partway through the restore could leave the fill color, alignment and other attributes unapplied). Spot color tints are saved and restored. No invisible rectangle is left behind when area type cannot be created
 - v2.1.0 (2026-11-24) Area type is supported: the type and the frame's width and height are saved in the note and restored as area type of the same size
 - v2.0.13 (2026-11-20) Clicking the script name and version at the bottom left opens About This Script (copy the script name, open the README and other links, show in Finder; shared part updated)
