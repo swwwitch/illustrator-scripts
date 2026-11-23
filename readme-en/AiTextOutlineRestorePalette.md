@@ -41,6 +41,7 @@ The palette can also be closed with the `Esc` key.
 | Text | Multi-line supported |
 | Type | Point type / area type (type on a path is restored as point type) |
 | Width / height | Size of the area type frame (pt); restored with a frame of the same size |
+| Thread | Position in a thread of linked area type; frames of the same thread are relinked on restore |
 | Orientation | Vertical / horizontal |
 | Font | Saved as the PostScript name |
 | Font size | |
@@ -54,7 +55,7 @@ The palette can also be closed with the `Esc` key.
 | Alignment | Left / center / right / justify (including how the last line is handled) |
 | Kinsoku | Saved as the set name |
 | Mojikumi | Saved as the set name |
-| Fill color | CMYK / RGB / Gray / Spot |
+| Fill color | CMYK / RGB / Gray / Spot (with tint) |
 | Coordinates | Based on geometricBounds; not shown in the list |
 
 ## What cannot be restored
@@ -72,6 +73,8 @@ This is the part that is easy to misread, so here is a summary.
 **Japanese-only attributes are not handled in English locales.** Orientation, kinsoku, mojikumi and tsume are neither saved, displayed nor restored.
 
 **Area type frames are restored as rectangles.** Even for a circle or polygon frame, only the width and height are saved. The frame's fill and stroke, columns and inset spacing are not restored.
+
+**Selecting one frame of linked area type outlines the whole thread.** Each frame's note stores the text of the whole story; on restore the frames are relinked and the text flows through them. If only some frames are selected for restore, only those are linked.
 
 **Older notes skip only the items they do not record.** Outlines created by earlier versions can still be restored, as far as their notes go.
 
@@ -97,8 +100,8 @@ The selected object's note is also loaded automatically when the palette opens. 
 
 ## Targets
 
-- Outlining: TextFrame
-- Restoring: PathItem, GroupItem (those carrying a note)
+- Outlining: TextFrame (including text inside selected groups, except text used as a mask inside a group)
+- Restoring: PathItem and GroupItem carrying a note (including those inside selected groups)
 
 ## Notes
 
@@ -116,6 +119,7 @@ The template-layer attribute cannot be set through the API, so a temporary actio
 
 ## Update history
 
+- v2.2.0 (2026-11-24) Linked area type is supported. Text and noted outlines inside groups can now be processed by selecting the group (groups left empty are removed). The restore redraws only once, so it runs faster. Vertical text is now created vertical from the start (changing the orientation partway through the restore could leave the fill color, alignment and other attributes unapplied). Spot color tints are saved and restored. No invisible rectangle is left behind when area type cannot be created
 - v2.1.0 (2026-11-24) Area type is supported: the type and the frame's width and height are saved in the note and restored as area type of the same size
 - v2.0.13 (2026-11-20) Clicking the script name and version at the bottom left opens About This Script (copy the script name, open the README and other links, show in Finder; shared part updated)
 - v2.0.11 (2026-10-16) Custom mojikumi sets defined in the document are now saved and restored

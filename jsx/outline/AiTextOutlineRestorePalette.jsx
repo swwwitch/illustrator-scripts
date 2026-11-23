@@ -10,7 +10,7 @@ Name=テキストのアウトライン化と復元
 Name[en]=Outline text and restore it later
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=2.1.0
+Version=2.2.0
 Release-Date=2024-07-23
 Tags=outline,アウトライン
 X-com.swwwitch-Script-Name=AiTextOutlineRestorePalette
@@ -264,6 +264,7 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
         '種類':                       'Type',
         '幅':                         'Width',
         '高さ':                       'Height',
+        '連結':                       'Thread',
         'フォント':                   'Font',
         'フォントサイズ':             'Font size',
         '行送り':                     'Leading',
@@ -1271,7 +1272,8 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
            Note field table (in saved order): drives build, parse and list display --- */
     /* type は body=複数行の本文／num=数値／bool=true,false／text=そのまま。jpOnly は英語環境で書き出さない属性 */
     /* order は listbox の一覧表示順。配列の並び（＝note の保存順）とは別物で、表示順だけをここで一元管理する */
-    /* areaOnly はエリア内文字の枠の大きさ（pt）。ポイント文字では書き出さない。種類・幅・高さは後から足したので配列の末尾に置く */
+    /* optional は値のあるときだけ書き出す項目（幅・高さ＝エリア内文字の枠の大きさ pt、連結＝連結したエリア内文字の何番目か）。
+       noDisplay は一覧に出さない項目（連結ID）。種類以降は後から足したので配列の末尾に置く */
     /* 本文は "文字列：\n" 〜 "\n\nフォント：" で切り出すので、文字列とフォントの並びは変更しないこと */
     function workerNoteFields() {
         return [
@@ -1292,8 +1294,10 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
             { label: "水平比率",                   key: "horizontalScale",     type: "num",  order:  9 },
             { label: "垂直比率",                   key: "verticalScale",       type: "num",  order: 10 },
             { label: "種類",                       key: "kindText",            type: "text", order:  1 },
-            { label: "幅",                         key: "width",               type: "num",  order:  2, areaOnly: true },
-            { label: "高さ",                       key: "height",              type: "num",  order:  3, areaOnly: true }
+            { label: "幅",                         key: "width",               type: "num",  order:  2, optional: true },
+            { label: "高さ",                       key: "height",              type: "num",  order:  3, optional: true },
+            { label: "連結",                       key: "linkText",            type: "text", order: 19, optional: true },
+            { label: "連結ID",                     key: "linkId",              type: "text", optional: true, noDisplay: true }
         ];
     }
 
@@ -1306,7 +1310,7 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
         var i;
         for (i = 0; i < fields.length; i++) {
             if (fields[i].jpOnly && !jp) { continue; }
-            if (fields[i].areaOnly && info[fields[i].key] == null) { continue; }
+            if (fields[i].optional && info[fields[i].key] == null) { continue; }
             memo += fields[i].label + "：\n" + info[fields[i].key] + "\n\n";
         }
         return memo + "座標：\nL = " + info.left + ", T = " + info.top + ", R = " + info.right + ", B = " + info.bottom;
@@ -1349,12 +1353,12 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
         return "ポイント文字";
     }
 
-    /* --- 1つのテキストフレームをアウトライン化し、生成されたグループに note を書く
-           Outline one text frame and write the note onto the resulting group --- */
-    /* 戻り値は生成された GroupItem。作れなかったときは null（呼び出し側で失敗として数える） */
-    function workerProcessTextFrame(textFrame, handleJp) {
+    /* --- 1つのテキストフレームの note を組み立てる / Build the note for one text frame --- */
+    /* linkInfo（{ id, index, count }）があるときは連結したエリア内文字の1つ。文字列と属性はストーリー全体から取り、
+       枠の位置・大きさだけこのフレームのものを書く。アウトライン化で連結がほどける前に全フレーム分を作っておくこと */
+    function workerBuildFrameMemo(textFrame, handleJp, linkInfo) {
         var jp = (handleJp !== false);
-        var textRange = textFrame.textRange;
+        var textRange = linkInfo ? textFrame.story.textRange : textFrame.textRange;
         var charAttrs = textRange.characterAttributes;
         var paraAttrs = textRange.paragraphAttributes;
         var bounds = textFrame.geometricBounds;
@@ -1383,6 +1387,10 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
             info.width = workerRound(textFrame.textPath.width);
             info.height = workerRound(textFrame.textPath.height);
         }
+        if (linkInfo) {
+            info.linkText = linkInfo.index + "/" + linkInfo.count;
+            info.linkId = linkInfo.id;
+        }
         /* 和文専用属性は英語環境では note に書き出さないので、値の取得ごとスキップする
            （workerKinsokuToText／workerMojikumiToText は doc.mojikumiSet を舐めるため無駄が大きい） */
         if (jp) {
@@ -1391,13 +1399,34 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
             info.kinsokuText = workerKinsokuToText(paraAttrs);
             info.mojikumiText = workerMojikumiToText(paraAttrs);
         }
-        var memoText = workerBuildMemoText(info, handleJp);
-        /* createOutline() の戻り値（生成された GroupItem）へ直接書く。選択に頼るとメモが付かないまま
-           テキストだけ失われることがあるため */
-        var outlineGroup = textFrame.createOutline();
-        if (!outlineGroup) { return null; }
-        outlineGroup.note = memoText;
-        return outlineGroup;
+        return workerBuildMemoText(info, handleJp);
+    }
+
+    /* --- 連結したフレームを連結順に返す（連結していなければ自分だけ）/ Frames of a thread, in thread order --- */
+    /* 先頭の previousFrame は null。末尾の nextFrame は null ではなく自分自身を返す（実測）ので、
+       同じ参照・既出・ストーリーのフレーム数で打ち切る */
+    function workerLinkedFrames(textFrame) {
+        var frameCount = 1;
+        try { frameCount = textFrame.story.textFrames.length; } catch (eStory) { return [textFrame]; }
+        if (frameCount < 2) { return [textFrame]; }
+        var firstFrame = textFrame;
+        var guard;
+        for (guard = 0; guard < frameCount; guard++) {
+            var previous = null;
+            try { previous = firstFrame.previousFrame; } catch (ePrev) { previous = null; }
+            if (!previous || previous === firstFrame) { break; }
+            firstFrame = previous;
+        }
+        var chain = [firstFrame];
+        var current = firstFrame;
+        while (chain.length < frameCount) {
+            var following = null;
+            try { following = current.nextFrame; } catch (eNext) { following = null; }
+            if (!following || following === current || workerContainsItem(chain, following)) { break; }
+            chain.push(following);
+            current = following;
+        }
+        return chain;
     }
 
     /* --- 選択を取得（ドキュメントなし／選択なしはコード文字列を返す）/ Get the selection or an error code --- */
@@ -1420,23 +1449,116 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
         return picked;
     }
 
+    /* --- ロック・非表示か（読めないものも対象外にする）/ Locked or hidden --- */
+    function workerIsLockedOrHidden(item) {
+        try { return item.locked || item.hidden; } catch (e) { return true; }
+    }
+
+    /* --- テキストフレームか / Whether an item is a text frame --- */
+    function workerIsTextFrame(item) {
+        return item.typename === "TextFrame";
+    }
+
+    /* --- クリップグループのマスクになっているテキストか（クリップグループの最前面）/ Whether a text frame is the mask of a clipping group --- */
+    function workerIsTextMask(textFrame) {
+        try {
+            var parentItem = textFrame.parent;
+            return parentItem.typename === "GroupItem" && parentItem.clipped && parentItem.pageItems[0] === textFrame;
+        } catch (e) {
+            return false;
+        }
+    }
+
+    /* --- このスクリプトのメモ（本文「文字列：」を含む）を持つか。旧形式のメモも同じ見出しを持つ / Whether an item carries an outline note --- */
+    function workerHasOutlineNote(item) {
+        var noteText = "";
+        try { noteText = item.note; } catch (e) { return false; }
+        return !!noteText && noteText.indexOf("文字列：") >= 0;
+    }
+
+    /* --- 配列に同じ参照が入っているか / Whether a list already holds the item --- */
+    function workerContainsItem(list, item) {
+        var i;
+        for (i = 0; i < list.length; i++) {
+            if (list[i] === item) { return true; }
+        }
+        return false;
+    }
+
+    /* --- 選択からグループの中まで辿って集める。matchFn に当たったものはその中を辿らない。ロック・非表示は飛ばす
+           Collect matching items, descending into groups; matched items are not descended into --- */
+    function workerCollectNested(items, matchFn, collected) {
+        var i;
+        for (i = 0; i < items.length; i++) {
+            var item = items[i];
+            if (workerIsLockedOrHidden(item)) { continue; }
+            if (matchFn(item)) {
+                if (!workerContainsItem(collected, item)) { collected.push(item); }
+                continue;
+            }
+            if (item.typename === "GroupItem") { workerCollectNested(item.pageItems, matchFn, collected); }
+        }
+        return collected;
+    }
+
     /* --- アウトライン化：エントリ / Outline: entry --- */
     /* 1件失敗しても残りは処理し、生成したアウトラインを選択し直して直後のメモ表示につなげる */
     function workerRunOutline(handleJp) {
         var currentSelection = workerGetSelection();
         if (typeof currentSelection === "string") { return currentSelection; }
-        var selectedTextFrames = workerFilterByType(currentSelection, ["TextFrame"]);
+        /* グループの中のテキストも対象にする。ただしグループの中で見つけたテキストのマスク（クリップグループの最前面）は
+           アウトライン化するとマスクが外れるので除く / Include text inside groups, except text masks found inside them */
+        var collectedTextFrames = workerCollectNested(currentSelection, workerIsTextFrame, []);
+        var selectedTextFrames = [];
+        var collectIndex;
+        for (collectIndex = 0; collectIndex < collectedTextFrames.length; collectIndex++) {
+            var collectedFrame = collectedTextFrames[collectIndex];
+            if (!workerContainsItem(currentSelection, collectedFrame) && workerIsTextMask(collectedFrame)) { continue; }
+            selectedTextFrames.push(collectedFrame);
+        }
         if (selectedTextFrames.length < 1) { return "NOSEL"; }
         /* geometricBounds を確定させるための再描画は1回だけ（件数分繰り返さない） */
         app.redraw();
-        var outlineGroups = [];
         var errorText = null;
-        var loopIndex;
-        for (loopIndex = 0; loopIndex < selectedTextFrames.length; loopIndex++) {
+        /* 先に全件の note を作る。連結したエリア内文字は1つ選べば連結全体を対象にし、同じ連結ID と「何番目/全体」を書く。
+           アウトライン化は連結の後ろのフレームから行う（後ろから外せば前のフレームの文字は動かない。実測） */
+        var outlineTasks = [];
+        var seenFrames = [];
+        var linkStamp = new Date().getTime();
+        var linkCounter = 0;
+        var frameIndex, chainIndex;
+        for (frameIndex = 0; frameIndex < selectedTextFrames.length; frameIndex++) {
+            var selectedFrame = selectedTextFrames[frameIndex];
+            if (workerContainsItem(seenFrames, selectedFrame)) { continue; }
             try {
-                var outlineGroup = workerProcessTextFrame(selectedTextFrames[loopIndex], handleJp);
-                if (outlineGroup) { outlineGroups.push(outlineGroup); }
-                else if (errorText == null) { errorText = "createOutline failed"; }
+                var chain = workerLinkedFrames(selectedFrame);
+                for (chainIndex = 0; chainIndex < chain.length; chainIndex++) { seenFrames.push(chain[chainIndex]); }
+                if (chain.length < 2) {
+                    outlineTasks.push({ textFrame: selectedFrame, memoText: workerBuildFrameMemo(selectedFrame, handleJp, null) });
+                    continue;
+                }
+                linkCounter++;
+                var linkId = "T" + linkStamp + "-" + linkCounter;
+                var chainTasks = [];
+                for (chainIndex = 0; chainIndex < chain.length; chainIndex++) {
+                    chainTasks.push({ textFrame: chain[chainIndex], memoText: workerBuildFrameMemo(chain[chainIndex], handleJp, { id: linkId, index: chainIndex + 1, count: chain.length }) });
+                }
+                for (chainIndex = chainTasks.length - 1; chainIndex >= 0; chainIndex--) { outlineTasks.push(chainTasks[chainIndex]); }
+            } catch (eMemo) {
+                if (errorText == null) { errorText = String(eMemo); }
+            }
+        }
+        /* createOutline() の戻り値（生成された GroupItem）へ直接 note を書く。選択に頼るとメモが付かないまま
+           テキストだけ失われることがあるため */
+        var outlineGroups = [];
+        var taskIndex;
+        for (taskIndex = 0; taskIndex < outlineTasks.length; taskIndex++) {
+            try {
+                var outlineGroup = outlineTasks[taskIndex].textFrame.createOutline();
+                if (outlineGroup) {
+                    outlineGroup.note = outlineTasks[taskIndex].memoText;
+                    outlineGroups.push(outlineGroup);
+                } else if (errorText == null) { errorText = "createOutline failed"; }
             } catch (eItem) {
                 if (errorText == null) { errorText = String(eItem); }
             }
@@ -1516,6 +1638,7 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
         var fieldIndex;
         for (fieldIndex = 0; fieldIndex < fields.length; fieldIndex++) {
             if (fields[fieldIndex].jpOnly && !jp) { continue; }
+            if (fields[fieldIndex].noDisplay) { continue; }
             ordered[fields[fieldIndex].order] = fields[fieldIndex].label;
         }
         var labels = [];
@@ -1568,12 +1691,16 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
     function workerInspectSelection(handleJp) {
         var currentSelection = workerGetSelection();
         if (typeof currentSelection === "string") { return currentSelection; }
-        var candidates = workerFilterByType(currentSelection, ["GroupItem", "PathItem", "TextFrame"]);
-        /* 複数選択時は「先頭のメモ付きオブジェクト」を採用（メモを持つ最初の対象） */
-        var noteHolder = null;
-        var scanIndex;
-        for (scanIndex = 0; scanIndex < candidates.length; scanIndex++) {
-            if (candidates[scanIndex].note && candidates[scanIndex].note.length > 0) { noteHolder = candidates[scanIndex]; break; }
+        /* グループの中まで辿り、最初に見つかったこのスクリプトのメモを表示する / First outline note, searching inside groups */
+        var outlineNoteHolders = workerCollectNested(currentSelection, workerHasOutlineNote, []);
+        var noteHolder = (outlineNoteHolders.length > 0) ? outlineNoteHolders[0] : null;
+        /* 見つからなければ、選択の一番上の階層で何かしらメモを持つ最初のもの（従来どおり） */
+        if (!noteHolder) {
+            var candidates = workerFilterByType(currentSelection, ["GroupItem", "PathItem", "TextFrame"]);
+            var scanIndex;
+            for (scanIndex = 0; scanIndex < candidates.length; scanIndex++) {
+                if (candidates[scanIndex].note && candidates[scanIndex].note.length > 0) { noteHolder = candidates[scanIndex]; break; }
+            }
         }
         if (!noteHolder) { return "NONOTE"; }
         var formattedNote = workerFormatNoteForDisplay(noteHolder.note, handleJp);
@@ -1623,9 +1750,9 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
     }
 
     /* --- 復元：位置合わせ（geometricBounds ベース） / Restore: align by geometricBounds --- */
+    /* geometricBounds を確定させる app.redraw() は呼び出し側で全件まとめて1回だけ行う */
     function workerAlignTextFrameByBounds(target, textFrame) {
         try {
-            app.redraw();
             var targetBounds;
             if (target && target.length === 4 && typeof target[0] === 'number') { targetBounds = target; }
             else if (target && target.geometricBounds) { targetBounds = target.geometricBounds; }
@@ -1840,7 +1967,8 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
         if (typeName == "CMYKColor") { return "CMYK " + workerRound(color.cyan) + " " + workerRound(color.magenta) + " " + workerRound(color.yellow) + " " + workerRound(color.black); }
         if (typeName == "RGBColor") { return "RGB " + Math.round(color.red) + " " + Math.round(color.green) + " " + Math.round(color.blue); }
         if (typeName == "GrayColor") { return "GRAY " + workerRound(color.gray); }
-        if (typeName == "SpotColor") { return "SPOT " + color.spot.name; }
+        /* 特色は「SPOT <スウォッチ名> <濃淡>%」。濃淡の無い旧形式は 100% として読む */
+        if (typeName == "SpotColor") { return "SPOT " + color.spot.name + " " + workerRound(color.tint) + "%"; }
         /* グラデーション／パターン等は保存不可 → 空にして復元時は既定色のまま（不可視化を防ぐ） */
         return "";
     }
@@ -1872,11 +2000,19 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
             return gray;
         }
         if (kind === "SPOT") {
-            /* スウォッチ名で既存スポットを再利用（名前に空白があるので prefix 以降を丸ごと名前に） */
+            /* スウォッチ名で既存スポットを再利用（名前に空白があるので prefix 以降を丸ごと名前に）。
+               末尾の「 <数値>%」は濃淡。無ければ旧形式なので 100% */
             var spotName = colorText.substring(5);
+            var spotTint = 100;
+            var tintMatch = spotName.match(/^(.+) (\d+(?:\.\d+)?)%$/);
+            if (tintMatch) {
+                spotName = tintMatch[1];
+                spotTint = parseFloat(tintMatch[2]);
+            }
             try {
                 var spotColor = new SpotColor();
                 spotColor.spot = app.activeDocument.spots.getByName(spotName);
+                spotColor.tint = spotTint;
                 return spotColor;
             } catch (e) {
                 return null;
@@ -2085,7 +2221,8 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
     /* --- 復元：文字属性を適用 / Restore: apply character attributes --- */
     /* 各属性は workerSetAttr 経由で個別に適用（1つ失敗しても他の復元を止めない）。null は未記録の旧 note なので触らない */
     function workerApplyCharacterAttributes(textFrame, attributes, restoreReport, jp) {
-        var attrs = textFrame.textRange.characterAttributes;
+        var wholeRange = workerWholeTextRange(textFrame);
+        var attrs = wholeRange.characterAttributes;
         /* フォントだけ個別に：見つからなければ既定フォントのまま。他属性の適用は続行する */
         try {
             attrs.textFont = app.textFonts.getByName(attributes.font);
@@ -2106,14 +2243,15 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
         workerSetAttr(attrs, "verticalScale", attributes.verticalScale);
         /* 文字ツメ・組み方向は和文専用。英語環境（jp=false）はスキップ（旧 note に含まれていても適用しない） */
         if (jp) { workerSetAttr(attrs, "Tsume", attributes.tsume); }
-        /* 同じ向きなら代入しない（代入するとフレームが作り直されることがある。エリア内文字は作るときに向きを渡している） */
+        /* 同じ向きなら代入しない（代入するとフレームが作り直され、textFrame の参照が無効になる。
+           workerCreateRestoredTextFrame で作るときに向きを渡しているので、通常は代入しない） */
         if (jp && attributes.orientation != null) {
             var savedOrientation = (attributes.orientation === "縦組み") ? TextOrientation.VERTICAL : TextOrientation.HORIZONTAL;
             if (textFrame.orientation != savedOrientation) { workerSetAttr(textFrame, "orientation", savedOrientation); }
         }
         if (attributes.kerningText != null) {
             /* カーニング方式を復元。proportionalMetrics も note の保存値をそのまま渡す */
-            workerApplyKerning(textFrame.textRange, workerResolveKernType(attributes.kerningText), attributes.proportionalMetrics);
+            workerApplyKerning(wholeRange, workerResolveKernType(attributes.kerningText), attributes.proportionalMetrics);
         } else {
             /* 旧 note（カーニング未記録）は保存済みの proportionalMetrics を復元 */
             workerSetAttr(attrs, "proportionalMetrics", attributes.proportionalMetrics);
@@ -2125,22 +2263,35 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
 
     /* --- 復元：段落属性を適用 / Restore: apply paragraph attributes --- */
     function workerApplyParagraphAttributes(textFrame, attributes, jp) {
+        var wholeRange = workerWholeTextRange(textFrame);
         /* 行揃え。新規フレームの既定は LEFT なので左揃えは実質そのまま */
         if (attributes.justificationText != null) {
-            workerSetAttr(textFrame.textRange.paragraphAttributes, "justification", workerResolveJustification(attributes.justificationText));
+            workerSetAttr(wholeRange.paragraphAttributes, "justification", workerResolveJustification(attributes.justificationText));
         }
         /* 禁則・文字組みアキ量設定は和文専用。英語環境はスキップ（未記録・不正値は各 apply 側で無視される） */
         if (!jp) { return; }
-        workerApplyKinsoku(textFrame.textRange, attributes.kinsokuText);
-        workerApplyMojikumi(textFrame.textRange, attributes.mojikumiText);
+        workerApplyKinsoku(wholeRange, attributes.kinsokuText);
+        workerApplyMojikumi(wholeRange, attributes.mojikumiText);
+    }
+
+    /* --- 属性を入れる範囲：連結したフレームならストーリー全体、それ以外はフレームの文字 / Range to format --- */
+    /* フレームの textRange はそのフレームに入っている分だけなので、連結したときはストーリーから取る（実測） */
+    function workerWholeTextRange(textFrame) {
+        try {
+            if (textFrame.story.textFrames.length > 1) { return textFrame.story.textRange; }
+        } catch (e) {}
+        return textFrame.textRange;
     }
 
     /* --- 復元：テキストフレーム再生成 / Restore: recreate the text frame --- */
     /* 種類が「エリア内文字」で幅・高さがあれば、同じ大きさの長方形からエリア内文字を作る。
-       それ以外（ポイント文字・パス上文字・種類のない旧 note）はポイント文字で作る */
-    function workerCreateRestoredTextFrame(sourceItem, attributes, restoredLayer, restoreReport, handleJp) {
+       それ以外（ポイント文字・パス上文字・種類のない旧 note）はポイント文字で作る。
+       組み方向はどちらも作るときに渡す。あとから orientation を変えるとフレームが作り直され、控えた参照が無効になるため */
+    /* frameOnly が true のときは枠だけ作る（連結したエリア内文字は、連結してから先頭に文字と属性を入れるため） */
+    function workerCreateRestoredTextFrame(sourceItem, attributes, restoredLayer, restoreReport, handleJp, frameOnly) {
         var jp = (handleJp !== false);
         var targetLayer = restoredLayer || sourceItem.layer;
+        var frameOrientation = (jp && attributes.orientation === "縦組み") ? TextOrientation.VERTICAL : TextOrientation.HORIZONTAL;
         var textFrame;
         if (attributes.kindText === "エリア内文字" && attributes.width > 0 && attributes.height > 0) {
             var areaLeft = attributes.savedBounds ? attributes.savedBounds[0] : sourceItem.left;
@@ -2149,12 +2300,17 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
             /* 新規パスの既定の塗り・線が枠に残らないように消してから変換する / Clear the default fill/stroke before converting */
             areaPath.filled = false;
             areaPath.stroked = false;
-            /* 組み方向は作るときに渡す。あとから orientation を変えるとフレームが作り直され、控えた参照が無効になるため */
-            var areaOrientation = (jp && attributes.orientation === "縦組み") ? TextOrientation.VERTICAL : TextOrientation.HORIZONTAL;
-            textFrame = targetLayer.textFrames.areaText(areaPath, areaOrientation);
+            try {
+                textFrame = targetLayer.textFrames.areaText(areaPath, frameOrientation);
+            } catch (eArea) {
+                /* 変換できなかった長方形（塗り・線なしで見えない）を残さない / Do not leave the invisible rectangle behind */
+                try { areaPath.remove(); } catch (eRemove) {}
+                throw eArea;
+            }
+            if (frameOnly) { return textFrame; }
             textFrame.contents = attributes.text;
         } else {
-            textFrame = targetLayer.textFrames.add();
+            textFrame = targetLayer.textFrames.pointText([0, 0], frameOrientation);
             textFrame.contents = attributes.text;
             /* この位置は直後の workerAlignTextFrameByBounds で上書きされる。位置合わせが例外で抜けたときの
                フォールバックであり、旧 note の "座標：X =, Y =" もここでしか使われない */
@@ -2168,17 +2324,101 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
         return textFrame;
     }
 
-    /* --- 復元：1オブジェクトを復元（Path / Group 共通） / Restore one item (path or group) --- */
-    function workerRestoreItem(sourceItem, outlinedTextLayer, restoredTextLayer, restoreReport, stashOutline, handleJp) {
-        var noteText = sourceItem.note;
-        if (!noteText) { return false; }
-        var attributes = workerExtractTextAttributes(noteText);
-        if (!attributes || attributes.text == null) { return false; }
-        var textFrame = workerCreateRestoredTextFrame(sourceItem, attributes, restoredTextLayer, restoreReport, handleJp);
-        /* 復元後にアクティブへ戻すレイヤー。別レイヤー OFF のときは復元先が sourceItem.layer になるので実測して控える */
+    /* --- 復元：メモを読んでテキストフレームを作る（位置合わせ・元アウトラインの片付けは workerFinishRestore）
+           Restore, step 1: create the text frame from a parsed note --- */
+    /* 戻り値は { sourceItem, textFrame, alignTarget } */
+    function workerPrepareRestore(parsedItem, restoredTextLayer, restoreReport, handleJp) {
+        var textFrame = workerCreateRestoredTextFrame(parsedItem.sourceItem, parsedItem.attributes, restoredTextLayer, restoreReport, handleJp);
+        workerNoteRestoreLayer(restoreReport, textFrame);
+        return workerPendingRestore(parsedItem, textFrame);
+    }
+
+    /* --- 復元：連結したエリア内文字を作り直す / Restore a thread of area type --- */
+    /* parsedItems は同じ連結ID のもの（連結の順に並べ済み）。枠を全部作って順に連結し、先頭に文字列を入れて
+       ストーリー全体に属性を入れる。選ばれていないフレームがあれば、あるものだけで連結する。戻り値は pending の配列 */
+    function workerPrepareLinkedRestore(parsedItems, restoredTextLayer, restoreReport, handleJp) {
+        var jp = (handleJp !== false);
+        var textFrames = [];
+        var pendingRestores = [];
+        var itemIndex;
+        for (itemIndex = 0; itemIndex < parsedItems.length; itemIndex++) {
+            var linkedFrame = workerCreateRestoredTextFrame(parsedItems[itemIndex].sourceItem, parsedItems[itemIndex].attributes, restoredTextLayer, restoreReport, handleJp, true);
+            textFrames.push(linkedFrame);
+            pendingRestores.push(workerPendingRestore(parsedItems[itemIndex], linkedFrame));
+        }
+        for (itemIndex = 0; itemIndex + 1 < textFrames.length; itemIndex++) {
+            textFrames[itemIndex].nextFrame = textFrames[itemIndex + 1];
+        }
+        var firstAttributes = parsedItems[0].attributes;
+        textFrames[0].contents = firstAttributes.text;
+        workerApplyCharacterAttributes(textFrames[0], firstAttributes, restoreReport, jp);
+        workerApplyParagraphAttributes(textFrames[0], firstAttributes, jp);
+        workerNoteRestoreLayer(restoreReport, textFrames[0]);
+        return pendingRestores;
+    }
+
+    /* --- 復元後にアクティブへ戻すレイヤーを控える。別レイヤー OFF のときは復元先が sourceItem.layer になるので実測する --- */
+    function workerNoteRestoreLayer(restoreReport, textFrame) {
         if (restoreReport && !restoreReport.targetLayer) { try { restoreReport.targetLayer = textFrame.layer; } catch (eLayer) {} }
-        /* 位置合わせは元アウトラインを削除する前に行う（savedBounds が無い旧 note は sourceItem を参照するため） */
-        workerAlignTextFrameByBounds(attributes.savedBounds || sourceItem, textFrame);
+    }
+
+    /* --- 位置合わせと片付けを待つ1件 / One pending restore (savedBounds が無い旧 note は元アウトラインの位置に合わせる) --- */
+    function workerPendingRestore(parsedItem, textFrame) {
+        return { sourceItem: parsedItem.sourceItem, textFrame: textFrame, alignTarget: parsedItem.attributes.savedBounds || parsedItem.sourceItem };
+    }
+
+    /* --- メモを読んで、連結していないものと連結ID ごとのまとまりに分ける / Parse notes and group threads by link ID --- */
+    /* 戻り値は { singles: [parsed], threads: [[parsed, …]] }。parsed は { sourceItem, attributes, linkIndex }。
+       連結の中は「何番目」の昇順に並べる（比較関数つき sort は使わず挿入で並べる） */
+    function workerParseRestorables(restorableItems) {
+        var singles = [];
+        var threads = [];
+        var threadIds = [];
+        var itemIndex;
+        for (itemIndex = 0; itemIndex < restorableItems.length; itemIndex++) {
+            var attributes = workerExtractTextAttributes(restorableItems[itemIndex].note);
+            if (!attributes || attributes.text == null) { continue; }
+            var parsed = { sourceItem: restorableItems[itemIndex], attributes: attributes, linkIndex: parseInt(String(attributes.linkText), 10) };
+            if (attributes.linkId == null || attributes.kindText !== "エリア内文字" || isNaN(parsed.linkIndex)) {
+                singles.push(parsed);
+                continue;
+            }
+            var threadPos = -1;
+            var idIndex;
+            for (idIndex = 0; idIndex < threadIds.length; idIndex++) {
+                if (threadIds[idIndex] === attributes.linkId) { threadPos = idIndex; break; }
+            }
+            if (threadPos < 0) {
+                threadIds.push(attributes.linkId);
+                threads.push([]);
+                threadPos = threads.length - 1;
+            }
+            var thread = threads[threadPos];
+            var insertAt = thread.length;
+            while (insertAt > 0 && thread[insertAt - 1].linkIndex > parsed.linkIndex) { insertAt--; }
+            thread.splice(insertAt, 0, parsed);
+        }
+        return { singles: singles, threads: threads };
+    }
+
+    /* --- 中身が空になったグループを上へ順に消す / Remove groups left empty, walking upward --- */
+    function workerRemoveEmptyGroups(groupItem) {
+        var currentGroup = groupItem;
+        while (currentGroup && currentGroup.typename === "GroupItem" && currentGroup.pageItems.length < 1) {
+            var parentItem = currentGroup.parent;
+            currentGroup.remove();
+            currentGroup = parentItem;
+        }
+    }
+
+    /* --- 復元：位置を合わせ、元のアウトラインを退避または削除する / Restore, step 2: align, then stash or delete the outline --- */
+    /* 位置合わせは元アウトラインを動かす前に行う（alignTarget が sourceItem のことがあるため） */
+    function workerFinishRestore(pendingRestore, outlinedTextLayer, stashOutline) {
+        var sourceItem = pendingRestore.sourceItem;
+        workerAlignTextFrameByBounds(pendingRestore.alignTarget, pendingRestore.textFrame);
+        /* グループの中から取り出したあと空になったグループを残さない / Do not leave emptied groups behind */
+        var sourceParent = null;
+        try { sourceParent = sourceItem.parent; } catch (eParent) {}
         if (stashOutline === false) {
             /* 「アウトラインデータを残す」OFF：元アウトラインは退避せず削除 */
             try { sourceItem.remove(); } catch (eDel) {}
@@ -2192,8 +2432,7 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
                 sourceItem.locked = true;
             } catch (eDim) {}
         }
-        if (restoreReport) { restoreReport.restored++; }
-        return true;
+        try { workerRemoveEmptyGroups(sourceParent); } catch (eEmpty) {}
     }
 
     /* --- 復元：1件も復元できなかったときに作成したレイヤーを片付ける / Drop the layers created for a failed restore --- */
@@ -2215,8 +2454,11 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
     function workerRestoreText(keepOutline, separateLayer, handleJp) {
         var currentSelection = workerGetSelection();
         if (typeof currentSelection === "string") { return currentSelection; }
-        var restorableItems = workerFilterByType(currentSelection, ["GroupItem", "PathItem"]);
-        if (restorableItems.length < 1) { return "NOTGT"; }
+        /* グループの中まで辿り、このスクリプトのメモを持つものを集める / Collect outline-note holders, including inside groups */
+        var restorableItems = workerCollectNested(currentSelection, workerHasOutlineNote, []);
+        if (restorableItems.length < 1) {
+            return (workerFilterByType(currentSelection, ["GroupItem", "PathItem", "CompoundPathItem"]).length < 1) ? "NOTGT" : "NONOTE";
+        }
         var doc = app.activeDocument;
         /* 既定はアウトラインを残す。false のときだけ退避レイヤーを作らず元アウトラインを削除 */
         var stashOutline = (keepOutline !== false);
@@ -2224,14 +2466,34 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
         /* 既定は復元テキストを別レイヤー（restored_text）へ。false のときは元アウトラインと同じレイヤーへ置く（null で sourceItem.layer にフォールバック） */
         var restoredTextLayer = (separateLayer !== false) ? workerCreateRestoredTextLayer(doc) : null;
         var restoreReport = { restored: 0, fontFallback: false, targetLayer: null };
-        /* 1件ずつ try で囲み、途中で失敗しても残りの復元を続ける */
+        /* 1件ずつ try で囲み、途中で失敗しても残りの復元を続ける。
+           先に全件のテキストを作り、再描画を1回だけ挟んでから位置合わせと元アウトラインの片付けを行う（件数分の redraw を避ける） */
         var runError = null;
+        var pendingRestores = [];
+        var parsedRestorables = workerParseRestorables(restorableItems);
         var restoreIndex;
-        for (restoreIndex = 0; restoreIndex < restorableItems.length; restoreIndex++) {
+        for (restoreIndex = 0; restoreIndex < parsedRestorables.singles.length; restoreIndex++) {
             try {
-                workerRestoreItem(restorableItems[restoreIndex], outlinedTextLayer, restoredTextLayer, restoreReport, stashOutline, handleJp);
-            } catch (eRun) {
-                if (runError == null) { runError = String(eRun); }
+                pendingRestores.push(workerPrepareRestore(parsedRestorables.singles[restoreIndex], restoredTextLayer, restoreReport, handleJp));
+            } catch (ePrepare) {
+                if (runError == null) { runError = String(ePrepare); }
+            }
+        }
+        /* 連結したエリア内文字は連結ID ごとにまとめて作り直す / Rebuild each thread together */
+        for (restoreIndex = 0; restoreIndex < parsedRestorables.threads.length; restoreIndex++) {
+            try {
+                pendingRestores = pendingRestores.concat(workerPrepareLinkedRestore(parsedRestorables.threads[restoreIndex], restoredTextLayer, restoreReport, handleJp));
+            } catch (eThread) {
+                if (runError == null) { runError = String(eThread); }
+            }
+        }
+        if (pendingRestores.length > 0) { app.redraw(); }
+        for (restoreIndex = 0; restoreIndex < pendingRestores.length; restoreIndex++) {
+            try {
+                workerFinishRestore(pendingRestores[restoreIndex], outlinedTextLayer, stashOutline);
+                restoreReport.restored++;
+            } catch (eFinish) {
+                if (runError == null) { runError = String(eFinish); }
             }
         }
         if (restoreReport.restored < 1) {
@@ -2243,8 +2505,7 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
         /* workerFinalizeTemplateLayer は outlined_text をアクティブにしたうえでロックするので、必ず復元先へ戻す。
            別レイヤー OFF のときは restoredTextLayer が null なので、実際に復元したレイヤーを使う */
         workerSetAttr(doc, "activeLayer", restoredTextLayer || restoreReport.targetLayer);
-        /* 最後にもう一度だけ再描画する。ループ内の redraw は位置合わせ用で「フレーム生成の直後」にしか入らないため、
-           その後の元アウトラインの削除・退避（とくに最終件）が画面に反映されないまま残る */
+        /* 最後にもう一度だけ再描画する。途中の redraw は位置合わせ用で、その後の元アウトラインの削除・退避が画面に反映されないまま残るため */
         app.redraw();
         return "OK:" + restoreReport.restored + (restoreReport.fontFallback ? ":FONT" : "") + (runError ? ":PARTIAL" : "");
     }
@@ -2264,9 +2525,16 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
         workerKerningToText,
         workerResolveKernType,
         workerKindToText,
-        workerProcessTextFrame,
+        workerBuildFrameMemo,
+        workerLinkedFrames,
         workerGetSelection,
         workerFilterByType,
+        workerIsLockedOrHidden,
+        workerIsTextFrame,
+        workerIsTextMask,
+        workerHasOutlineNote,
+        workerContainsItem,
+        workerCollectNested,
         workerRunOutline,
         workerKinsokuToDisplay,
         workerMojikumiToDisplay,
@@ -2302,8 +2570,15 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
         workerApplyKerning,
         workerApplyCharacterAttributes,
         workerApplyParagraphAttributes,
+        workerWholeTextRange,
         workerCreateRestoredTextFrame,
-        workerRestoreItem,
+        workerPrepareRestore,
+        workerPrepareLinkedRestore,
+        workerNoteRestoreLayer,
+        workerPendingRestore,
+        workerParseRestorables,
+        workerRemoveEmptyGroups,
+        workerFinishRestore,
         workerDiscardUnusedLayers,
         workerRestoreText
     ].concat(TEMPORARY_ACTION_WORKER_FUNCS);
@@ -2312,6 +2587,10 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
     var INSPECT_FUNCS = [
         workerGetSelection,
         workerFilterByType,
+        workerIsLockedOrHidden,
+        workerHasOutlineNote,
+        workerContainsItem,
+        workerCollectNested,
         workerNoteFields,
         workerExtractNoteBody,
         workerDisplayLabels,
