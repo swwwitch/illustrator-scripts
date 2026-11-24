@@ -10,9 +10,9 @@
 
 ## Overview
 
-Duplicates the selected object with a given count and spacing. Besides a grid (rows × columns), it can lay the copies out as a single row, a single column, or scatter them randomly — four repeat methods in all.
+Duplicates the selected object with a given count and spacing. Besides a grid (rows × columns) and two grids that shift every other row by half a step — Brick and Honeycomb — it can lay the copies out as a single row, a single column, or scatter them randomly: six repeat methods in all.
 
-The dialog is laid out in two columns: Count and Repeat Method on the left, Gap, Direction, and Fill on the right. Every change refreshes a live preview, so the result can be checked before committing. The preview is drawn on a dedicated "_preview" layer and cleaned up on both OK and Cancel.
+The dialog is laid out in two columns: Repeat Method and Count on the left, Gap, Direction, and Fill on the right. Every change refreshes a live preview, so the result can be checked before committing. The preview is drawn on a dedicated "_preview" layer and cleaned up on both OK and Cancel.
 
 Spacing is entered in the current ruler unit (the unit set in Preferences) and converted to points internally. The fields show the active unit inside, as in "10 mm".
 
@@ -22,16 +22,18 @@ Spacing is entered in the current ruler unit (the unit set in Preferences) and c
 
 - **Repeat method** (pick one)
   - Grid: rows × columns (counts are normally linked)
+  - Grid (Brick): shifts the 2nd, 4th, ... rows sideways by half a step (half of width + gap), like a brick wall
+  - Grid (Honeycomb): shifts every other row by half a step like Brick, and tightens the row pitch to 75% of the height plus the vertical gap so pointy-top hexagons interlock
   - Row: a single row of the horizontal count (vertical is always 1; vertical direction and vertical gap are disabled)
   - Column: a single column of the vertical count (horizontal is always 1; horizontal direction and horizontal gap are disabled)
-  - Random: scattered around the center of the original object
+  - Random: scattered around the center of the original object. The slider below sets the randomness (0–100%)
 - **Count**: horizontal and vertical entered separately. With Link on (the link icon to the right of the fields), vertical follows horizontal. A slider (1–20) drives the same value, and preview updates are throttled while dragging to reduce flicker
-- **Gap**: horizontal and vertical in the current ruler unit. With Link on, vertical follows horizontal
+- **Gap**: horizontal and vertical in the current ruler unit. With Link on, vertical follows horizontal. A slider (0 up to the larger of the original's width and height, at least the equivalent of 72 pt; Shift-drag snaps to 10s) drives it too; in the grids it works only while Link is on, and it moves the vertical gap in Column and the horizontal gap otherwise
 - **Direction**: right / left and up / down (disabled depending on the repeat method)
 - **Fill**
   - Fill to Artboard Edge: counts the rows and columns that fit from the selected object to the artboard edge
   - Fill Full Artboard: counts the largest grid that fits the artboard and, on OK, moves the whole set (original plus copies) to the artboard center
-- **Zoom**: change Illustrator's zoom level without closing the dialog. With Light mode on, the zoom is applied only when the slider is released, not while dragging
+- **Fit to Window**: when on, zooms so the duplicates fill the given share (%) of the window
 - Numeric fields step with the stepper buttons on their left or the up/down arrow keys (to the next whole number rather than by 1, e.g. 1.5 → 2; shift to the next multiple of 10; option/alt by 0.1; counts take whole numbers of 1 or more)
 - Uses the clipping mask's bounds when the object is clipped, otherwise the visible bounds
 - Multiple selected objects are grouped automatically before processing
@@ -50,11 +52,15 @@ Spacing is entered in the current ruler unit (the unit set in Preferences) and c
 | Method | Count | Gap | Direction |
 | --- | --- | --- | --- |
 | Grid | Horizontal × vertical (linkable) | Horizontal & vertical (linkable) | Right / left, up / down |
+| Grid (Brick) | Horizontal × vertical (linkable) | Horizontal & vertical (linkable) | Right / left, up / down |
+| Grid (Honeycomb) | Horizontal × vertical (linkable) | Horizontal & vertical (linkable) | Right / left, up / down |
 | Row | Horizontal only (vertical is 1) | Horizontal only | Right / left |
 | Column | Vertical only (horizontal is 1) | Vertical only | Up / down |
 | Random | Horizontal only (vertical is 1) | Horizontal & vertical (always linked) | Disabled |
 
-In Random mode the gap value becomes the scatter range. Setting a gap to 0 turns randomness off for that axis, so the copies can be scattered on one axis only. The generated layout is cached, so pressing OK keeps exactly what the preview showed.
+In Grid (Brick) and Grid (Honeycomb) the shifted rows follow the horizontal direction. The Fill counts allow for the extra half step of width and, for Honeycomb, the tighter row pitch.
+
+In Random mode the gap value becomes the scatter range. Lowering the randomness narrows that range (0% stacks the copies on the original) while keeping the same pattern. Setting a gap to 0 turns randomness off for that axis, so the copies can be scattered on one axis only. The generated layout is cached, so pressing OK keeps exactly what the preview showed.
 
 ## Fill
 
@@ -86,8 +92,8 @@ The two options are mutually exclusive — turning one on turns the other off. W
 - The gap is entered in the current ruler unit. After switching units, reopen the dialog to see the new unit.
 - The count slider runs from 1 to 20. Typing into the fields accepts larger values.
 - While a Fill option is on the counts are calculated automatically, so the slider is disabled — otherwise a computed count above 20 would be clamped away by the slider.
-- A zoom level changed with the Zoom slider is restored on Cancel or when the dialog is closed. Confirming with OK keeps the new zoom level.
-- A large number of copies takes time to process. Turn Light mode on if the preview feels sluggish.
+- A view changed by Fit to Window is restored on Cancel or when the dialog is closed. Confirming with OK keeps the new view.
+- A large number of copies takes time to process.
 
 ## Article
 
@@ -95,6 +101,7 @@ The two options are mutually exclusive — turning one on turns the other off. W
 
 ## Changelog
 
+- v2.2.0 (2026-11-24) Replaced Zoom and Light mode with Fit to Window. Moved Repeat Method above Repeat Count. Added a randomness slider under Random. Added Grid (Brick) and Grid (Honeycomb) repeat methods. Added a slider to Gap
 - v2.1.11 (2026-11-22) Removed the version from the window title; the script name and version now show at the bottom left (click for About This Script)
 - v2.1.10 (2026-10-16) Right-only button rows are now centered when the dialog's inner width is up to 240 px (was 200 px) (shared part update)
 - v2.1.9 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)

@@ -10,21 +10,21 @@ Name=グリッド・行・列・ランダムで複製配置
 Name[en]=Duplicate in a grid, row, column or at random
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=2.1.11
+Version=2.2.0
 Release-Date=2025-10-23
 Tags=misc,その他
 X-com.swwwitch-Script-Name=DuplicateInGridPlus
-X-com.swwwitch-Updated=2026-11-22
+X-com.swwwitch-Updated=2026-11-24
 X-com.swwwitch-README-JA=https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/DuplicateInGridPlus.md
 X-com.swwwitch-README-EN=https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/DuplicateInGridPlus.md
 X-com.swwwitch-Article-URL=https://note.com/dtp_tranist/n/n228720785a71
 X-com.swwwitch-Source-URL=https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/misc/DuplicateInGridPlus.jsx
 Description-BEGIN
 [ja]
-選択したオブジェクトを、グリッド／行／列／ランダムのいずれかの方式で複製・配置します。
+選択したオブジェクトを、グリッド（通常・レンガ・ハニカム）／行／列／ランダムのいずれかの方式で複製・配置します。
 繰り返し数・間隔・方向・アートボードへの敷き詰めを2カラムのダイアログで指定でき、結果はライブプレビューで確認できます。
 [en]
-Duplicates and lays out the selected objects as a grid, a row, a column, or at random.
+Duplicates and lays out the selected objects as a grid (plain, brick or honeycomb), a row, a column, or at random.
 Repeat count, spacing, direction and filling the artboard are set in a two-column dialog, with a live preview of the result.
 Description-END
 SCRIPTMETA-END
@@ -99,12 +99,16 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
     var REPEAT_COUNT_MIN = 1;
     var REPEAT_COUNT_MAX = 20;
 
+    /* ハニカムの行の送り（高さに対する比率）。頂点が上下の六角形が噛み合う値
+       Row pitch for Honeycomb, as a share of the height; pointy-top hexagons interlock at this value */
+    var HONEYCOMB_ROW_RATIO = 0.75;
+
+    /* ランダム度合いの既定値（%）。100%で繰り返し数ぶんの広さに散らばる
+       Default randomness (%); at 100% the copies scatter over the full repeat span */
+    var RANDOM_AMOUNT_DEFAULT = 100;
+
     /* プレビュー更新の最小間隔（ミリ秒）/ Minimum interval between preview updates (ms) */
     var PREVIEW_THROTTLE_MS = 120;
-
-    /* 画面ズームの範囲 / Zoom range */
-    var VIEW_ZOOM_MIN = 0.1;
-    var VIEW_ZOOM_MAX = 16;
 
     // =========================================
     // レイアウト / Layout
@@ -190,9 +194,10 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
 
     var FIELD_ROW_SPACING = 20;                 /* 入力欄と連動アイコンの間隔 / gap between fields and the link icon */
     var FIELD_CHARS       = 4;                  /* 数値入力欄の文字数 / width of numeric fields */
+    var GAP_SLIDER_MIN_MAX_PT = 72;             /* 間隔スライダーの上限の最小値（pt。上限は元の幅・高さの大きいほう）/ lower bound for the gap slider's maximum (pt); the maximum is the larger source side */
+    var RANDOM_SLIDER_WIDTH = 90;               /* ランダム度合いのスライダーの幅 / randomness slider width */
+    var RANDOM_ROW_MARGINS = [18, 0, 0, 0];     /* ランダム度合いの行の余白（ラジオの文字にそろえる）/ randomness row margins, aligned with the radio text */
     var GAP_FIELD_CHARS   = 5;                  /* 間隔の欄の文字数（欄の中に単位を出すぶん広め）/ width of the gap fields, which show the unit inside */
-    var ZOOM_SLIDER_WIDTH = 240;                /* ズームスライダーの幅 / zoom slider width */
-    var ZOOM_GROUP_MARGINS = [0, 0, 0, 10];     /* ズームの行の余白 / zoom row margins */
 
     // UI の明暗（再利用パーツ） / UI theme (reusable)
 
@@ -1467,11 +1472,12 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
             gapHorizontal: { ja: "左右", en: "Horizontal" },
             gapVertical: { ja: "上下", en: "Vertical" },
             directionHorizontal: { ja: "横方向", en: "Horizontal" },
-            directionVertical: { ja: "縦方向", en: "Vertical" },
-            zoom: { ja: "画面ズーム", en: "Zoom" }
+            directionVertical: { ja: "縦方向", en: "Vertical" }
         },
         radio: {
             methodGrid: { ja: "グリッド", en: "Grid" },
+            methodBrick: { ja: "グリッド（レンガ）", en: "Grid (Brick)" },
+            methodHoneycomb: { ja: "グリッド（ハニカム）", en: "Grid (Honeycomb)" },
             methodRow: { ja: "行", en: "Row" },
             methodColumn: { ja: "列", en: "Column" },
             methodRandom: { ja: "ランダム配置", en: "Random" },
@@ -1482,15 +1488,18 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
         },
         checkbox: {
             fillToEdge: { ja: "アートボードの端まで", en: "Fill to Artboard Edge" },
-            fillFull: { ja: "アートボードいっぱいに", en: "Fill Full Artboard" },
-            lightMode: { ja: "軽量モード", en: "Light mode" }
+            fillFull: { ja: "アートボードいっぱいに", en: "Fill Full Artboard" }
         },
         tooltip: {
             countHorizontal: { ja: "横方向に並べる数です（元のオブジェクトを含む）。", en: "How many to place horizontally, including the original." },
             countVertical: { ja: "縦方向に並べる数です（元のオブジェクトを含む）。", en: "How many to place vertically, including the original." },
             countLink: { ja: "横と縦の数を同じにします。", en: "Keeps the horizontal and vertical counts the same." },
             countSlider: { ja: "繰り返し数をまとめて変更します。", en: "Changes the counts together." },
+            gapSlider: { ja: "間隔を変更します（0から元のオブジェクトの幅・高さの大きいほうまで。shift＋ドラッグで10単位）。［連動］がオンなら上下もそろいます。", en: "Changes the gap (from 0 up to the larger of the original's width and height; Shift-drag snaps to 10s). With Link on, the vertical gap follows." },
+            randomAmount: { ja: "ランダムに散らばる度合いです（0%で元の位置に重なり、100%で繰り返し数ぶんの広さに散らばります）。", en: "How far the copies scatter (0% stacks them on the original, 100% spreads them over the full repeat span)." },
             methodGrid: { ja: "横と縦の両方に並べます。", en: "Places copies both horizontally and vertically." },
+            methodBrick: { ja: "1行おきに横へ半分ずらして、レンガ積みのように並べます。", en: "Shifts every other row by half a step, like a brick wall." },
+            methodHoneycomb: { ja: "1行おきに横へ半分ずらし、行の間を詰めて六角形が噛み合うように並べます。", en: "Shifts every other row by half a step and tightens the rows so hexagons interlock." },
             methodRow: { ja: "横一列に並べます。", en: "Places copies in a single row." },
             methodColumn: { ja: "縦一列に並べます。", en: "Places copies in a single column." },
             methodRandom: { ja: "グリッドの枠内でランダムにずらして配置します。", en: "Scatters the copies randomly within the grid area." },
@@ -1503,8 +1512,7 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
             directionDown: { ja: "元のオブジェクトの下へ複製します。", en: "Duplicates below the original." },
             fillToEdge: { ja: "アートボードの端に届くまで数を自動で増やします。", en: "Increases the count automatically until the copies reach the artboard edge." },
             fillFull: { ja: "アートボード全面を埋めるように、元の位置に関係なく敷き詰めます。", en: "Tiles the whole artboard, ignoring the original position." },
-            lightMode: { ja: "プレビューを簡易表示にして、重いオブジェクトでも操作を軽くします。", en: "Simplifies the preview so heavy objects stay responsive." },
-            zoom: { ja: "作業中の画面表示倍率を変えます。結果には影響しません。", en: "Changes the view zoom while you work. It does not affect the result." },
+            fitView: { ja: "複製の結果が収まるよう表示倍率を合わせます。キャンセルすると元の表示に戻ります。", en: "Zooms so the duplicates fit in the window; Cancel restores the original view." },
             stepUp: {
                 ja: "値を増やす（shift＋クリックで10の倍数へ、option＋クリックで0.1ずつ）",
                 en: "Increase (Shift-click to snap to 10s, Option-click by 0.1)"
@@ -2334,6 +2342,241 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
 
     // バージョン表示（再利用パーツ）ここまで / End of the reusable version footer
 
+    // 画面にフィット（再利用パーツ、_templates/FitViewToItems.jsx） / Fit view to items (reusable)
+
+    var FitViewToItems = (function () {
+
+        // =========================================
+        // ユーザー設定 / User Settings
+        // =========================================
+
+        /* ウィンドウに対して対象が占める割合の既定値（%）と範囲。呼び出し側で上書きできる
+           Default share of the window the items fill, in percent, and its range; callers can override the default */
+        var DEFAULT_FIT_PERCENT = 65;
+        var FIT_PERCENT_RANGE = [10, 100];
+
+        /* Illustratorが受け付ける表示倍率の範囲（3.125%〜6400%） / Zoom range Illustrator accepts */
+        var VIEW_ZOOM_RANGE = [0.03125, 64];
+
+        // =========================================
+        // ローカライズ / Localization
+        // =========================================
+        var LABELS = {
+            checkbox: {
+                fitView: { ja: "画面にフィット", en: "Fit to Window" }
+            },
+            tooltip: {
+                fitView: {
+                    ja: "作成するオブジェクトが収まるよう表示倍率を合わせます。",
+                    en: "Refits the view to the objects being created."
+                },
+                fitViewPercent: {
+                    ja: "ウィンドウに対するオブジェクトの大きさ（100%でいっぱい）",
+                    en: "Size of the objects relative to the window; 100% fills it"
+                }
+            }
+        };
+
+        /**
+         * UI言語を返す
+         * @returns {string} "ja" または "en"
+         */
+        function getCurrentLang() {
+            return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+        }
+
+        /**
+         * LABELS の組から指定言語の文言を返す
+         * @param {object} labelSet - { ja: string, en: string } の組
+         * @param {string} uiLang - "ja" または "en"
+         * @returns {string} 文言（無ければ英語）
+         */
+        function getLabel(labelSet, uiLang) {
+            return (labelSet[uiLang] != null) ? labelSet[uiLang] : labelSet.en;
+        }
+
+        // =========================================
+        // メイン処理 / Main
+        // =========================================
+
+        /**
+         * 数値を範囲に収める。数値として読めないときは既定値を返す
+         * @param {string|number} value - 入力値
+         * @param {number[]} range - [下限, 上限]
+         * @param {number} fallbackValue - 読めないときの既定値
+         * @returns {number} 範囲内の数値
+         */
+        function clampNumber(value, range, fallbackValue) {
+            var numberValue = Number(value);
+            if (isNaN(numberValue) || (typeof value === "string" && !/\S/.test(value))) numberValue = fallbackValue;
+            return Math.min(range[1], Math.max(range[0], numberValue));
+        }
+
+        /**
+         * 「□画面にフィット［65］%」の行を追加する（ラベルとツールチップは内蔵）
+         * @param {Group|Panel|Window} parentContainer - 追加先のコンテナ
+         * @param {object} [rowOptions] - value: チェックの初期値（既定 false）／percent: 割合の初期値／lang: 表示言語／
+         *     stepper: true で入力欄の左に∧∨を付け、↑↓キーでも増減（StepperButtons 部品の addStepper / bindSteppedArrowKeys /
+         *     redrawSteppersIn を使う。増減したら percentInput.onChange を呼ぶ）
+         * @returns {{row: Group, checkbox: Checkbox, percentInput: EditText, getFillRatio: function, updateEnabled: function}} 作成したコントロール一式
+         */
+        function addControls(parentContainer, rowOptions) {
+            if (!rowOptions) rowOptions = {};
+            var uiLang = rowOptions.lang || getCurrentLang();
+
+            var fitViewRow = parentContainer.add("group");
+            fitViewRow.orientation = "row";
+            fitViewRow.alignChildren = ["left", "center"];
+            fitViewRow.spacing = 6;
+
+            var fitViewCheck = fitViewRow.add("checkbox", undefined, getLabel(LABELS.checkbox.fitView, uiLang));
+            fitViewCheck.helpTip = getLabel(LABELS.tooltip.fitView, uiLang);
+            /* 明示的に true を渡したときだけONで始める / only an explicit true starts it checked */
+            fitViewCheck.value = (rowOptions.value === true);
+
+            var fitPercent = (rowOptions.percent > 0) ? rowOptions.percent : DEFAULT_FIT_PERCENT;
+            var percentInput;
+            var percentParent = fitViewRow;
+            var stepperGroup = null;
+            if (rowOptions.stepper === true) {
+                /* ∧∨と入力欄は隙間0で突き合わせる / Butt the stepper against the field */
+                percentParent = fitViewRow.add("group");
+                percentParent.orientation = "row";
+                percentParent.alignChildren = ["left", "center"];
+                percentParent.spacing = 0;
+                percentParent.margins = 0;
+                stepperGroup = addStepper(percentParent, function () { return percentInput; }, {
+                    integer: true,
+                    min: FIT_PERCENT_RANGE[0],
+                    max: FIT_PERCENT_RANGE[1],
+                    /* text の代入ではイベントが来ないので、増減後に onChange を呼ぶ / assigning text fires no event */
+                    onStep: function () { if (percentInput.onChange) percentInput.onChange(); }
+                });
+            }
+            percentInput = percentParent.add("edittext", undefined, String(fitPercent));
+            percentInput.characters = 3;
+            percentInput.helpTip = getLabel(LABELS.tooltip.fitViewPercent, uiLang);
+            if (stepperGroup) bindSteppedArrowKeys(percentInput, stepperGroup); /* ↑↓キーも∧∨と同じ処理で増減 / arrow keys share the stepper's logic */
+            var percentUnitLabel = fitViewRow.add("statictext", undefined, "%");
+
+            var controls = {
+                row: fitViewRow,
+                checkbox: fitViewCheck,
+                percentInput: percentInput,
+
+                /**
+                 * 入力欄の割合を 0〜1 の比率で返す
+                 * @returns {number} ウィンドウに対して占める割合（1でいっぱい）
+                 */
+                getFillRatio: function () {
+                    return clampNumber(percentInput.text, FIT_PERCENT_RANGE, fitPercent) / 100;
+                },
+
+                /**
+                 * 割合の入力欄をチェックの状態に合わせて有効・無効にする
+                 * @returns {void}
+                 */
+                updateEnabled: function () {
+                    percentInput.enabled = fitViewCheck.value;
+                    percentUnitLabel.enabled = fitViewCheck.value;
+                    if (!stepperGroup) return;
+                    stepperGroup.enabled = fitViewCheck.value;
+                    /* ∧∨は自作描画なので、表示中なら描き直してディム表示を切り替える / redraw the custom-drawn stepper once shown */
+                    if (fitViewRow.window.visible) redrawSteppersIn(stepperGroup);
+                }
+            };
+            controls.updateEnabled();
+            return controls;
+        }
+
+        /**
+         * 複数アイテムを囲む外接範囲を求める（効果を含まない geometricBounds）
+         * @param {PageItem[]} targetItems - 対象アイテム
+         * @returns {number[]|null} [left, top, right, bottom]（求められない場合は null）
+         */
+        function getItemsBounds(targetItems) {
+            var unionBounds = null;
+            for (var i = 0; i < targetItems.length; i++) {
+                var itemBounds = targetItems[i].geometricBounds;
+                if (unionBounds === null) {
+                    unionBounds = [itemBounds[0], itemBounds[1], itemBounds[2], itemBounds[3]];
+                    continue;
+                }
+                if (itemBounds[0] < unionBounds[0]) unionBounds[0] = itemBounds[0];
+                if (itemBounds[1] > unionBounds[1]) unionBounds[1] = itemBounds[1];
+                if (itemBounds[2] > unionBounds[2]) unionBounds[2] = itemBounds[2];
+                if (itemBounds[3] < unionBounds[3]) unionBounds[3] = itemBounds[3];
+            }
+            return unionBounds;
+        }
+
+        /**
+         * 対象が指定の割合でウィンドウに収まるよう、中心を合わせて表示倍率を変える
+         * 拡大・縮小のどちらも行う（KeepInView と違い、常に同じ大きさに見せる）
+         * @param {PageItem[]} targetItems - 対象アイテム
+         * @param {object} [fitOptions] - doc: 対象ドキュメント（省略時は最前面）／fillRatio: 占める割合（1でいっぱい）
+         * @returns {boolean} 表示を動かしたら true
+         */
+        function fit(targetItems, fitOptions) {
+            if (!targetItems || targetItems.length === 0) return false;
+            if (!fitOptions) fitOptions = {};
+
+            var targetDoc = fitOptions.doc || app.activeDocument;
+            var bounds = getItemsBounds(targetItems);
+            if (bounds === null) return false;
+
+            var itemWidth = bounds[2] - bounds[0];
+            var itemHeight = bounds[1] - bounds[3];
+            var activeView = targetDoc.activeView;
+            activeView.centerPoint = [(bounds[0] + bounds[2]) / 2, (bounds[1] + bounds[3]) / 2];
+            if (itemWidth <= 0 || itemHeight <= 0) return true;
+
+            /* 中心をそろえたあとの表示範囲を基準に倍率を求める / Scale from the view bounds after the center has moved */
+            var fillRatio = (fitOptions.fillRatio > 0) ? fitOptions.fillRatio : DEFAULT_FIT_PERCENT / 100;
+            var viewBounds = activeView.bounds;
+            var scale = Math.min(
+                (viewBounds[2] - viewBounds[0]) / itemWidth,
+                (viewBounds[1] - viewBounds[3]) / itemHeight
+            ) * fillRatio;
+            activeView.zoom = clampNumber(activeView.zoom * scale, VIEW_ZOOM_RANGE, 1);
+            return true;
+        }
+
+        /**
+         * 現在の表示位置と倍率を控える（キャンセル時に restoreView で戻す）
+         * @param {Document} [targetDoc] - 対象ドキュメント（省略時は最前面）
+         * @returns {{centerPoint: number[], zoom: number}} 控えた表示状態
+         */
+        function captureView(targetDoc) {
+            var activeView = (targetDoc || app.activeDocument).activeView;
+            return { centerPoint: activeView.centerPoint, zoom: activeView.zoom };
+        }
+
+        /**
+         * captureView で控えた表示位置と倍率に戻す
+         * @param {{centerPoint: number[], zoom: number}} viewState - 控えた表示状態
+         * @param {Document} [targetDoc] - 対象ドキュメント（省略時は最前面）
+         * @returns {void}
+         */
+        function restoreView(viewState, targetDoc) {
+            if (!viewState) return;
+            var activeView = (targetDoc || app.activeDocument).activeView;
+            activeView.centerPoint = viewState.centerPoint;
+            activeView.zoom = viewState.zoom;
+        }
+
+        return {
+            addControls: addControls,
+            fit: fit,
+            captureView: captureView,
+            restoreView: restoreView,
+            getItemsBounds: getItemsBounds
+        };
+
+    })();
+
+    // 画面にフィット（再利用パーツ）ここまで / End of the reusable fit view
+
     // =========================================
     // UIレイアウト補助 / UI layout helpers
     // =========================================
@@ -2562,6 +2805,16 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
      */
     function unitToPt(value, unit) {
         return value * unit.pointsPerUnit;
+    }
+
+    /**
+     * ポイントの値を指定単位の値に換算する
+     * @param {number} pointValue - ポイントの値
+     * @param {object} unit - getUnitInfo() の戻り値
+     * @returns {number} 指定単位での値
+     */
+    function ptToUnit(pointValue, unit) {
+        return pointValue / unit.pointsPerUnit;
     }
 
     // 選択の収集と境界（再利用パーツ） / Selection items and bounds (reusable)
@@ -3008,6 +3261,27 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
     }
 
     /**
+     * グリッドの行の送り（行の上端から次の行の上端まで）を返す
+     * @param {number} sourceHeight - 元オブジェクトの高さ（pt）
+     * @param {number} gapY - 上下の間隔（pt）
+     * @param {string} gridStyle - "plain" / "brick" / "honeycomb"
+     * @returns {number} 行の送り（pt）
+     */
+    function getGridRowPitch(sourceHeight, gapY, gridStyle) {
+        var rowHeight = (gridStyle === "honeycomb") ? sourceHeight * HONEYCOMB_ROW_RATIO : sourceHeight;
+        return rowHeight + gapY;
+    }
+
+    /**
+     * 1行おきに横へずらすかを返す（レンガ・ハニカム）
+     * @param {string} gridStyle - "plain" / "brick" / "honeycomb"
+     * @returns {boolean} ずらすなら true
+     */
+    function isStaggeredGrid(gridStyle) {
+        return gridStyle === "brick" || gridStyle === "honeycomb";
+    }
+
+    /**
      * グリッド配置のオフセット一覧を作る（元オブジェクトのぶんは含まない）
      * @param {number} rowCount - 縦の数
      * @param {number} columnCount - 横の数
@@ -3017,16 +3291,22 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
      * @param {number} gapY - 上下の間隔（pt）
      * @param {string} horizontalDirection - "right" または "left"
      * @param {string} verticalDirection - "up" または "down"
+     * @param {string} [gridStyle] - "plain"（既定）/ "brick" / "honeycomb"。レンガ・ハニカムは1行おきに横へ半分ずらす
      * @returns {Array<Array<number>>} [dx, dy] の配列（pt）
      */
-    function computeGridOffsets(rowCount, columnCount, sourceWidth, sourceHeight, gapX, gapY, horizontalDirection, verticalDirection) {
+    function computeGridOffsets(rowCount, columnCount, sourceWidth, sourceHeight, gapX, gapY, horizontalDirection, verticalDirection, gridStyle) {
         var gridOffsets = [];
+        var stepWidth = sourceWidth + gapX;
+        var rowPitch = getGridRowPitch(sourceHeight, gapY, gridStyle);
+        var isStaggered = isStaggeredGrid(gridStyle);
         for (var rowIndex = 0; rowIndex < rowCount; rowIndex++) {
+            /* 2行目・4行目…を半歩ずらす / Shift the 2nd, 4th, ... rows by half a step */
+            var rowShift = (isStaggered && rowIndex % 2 === 1) ? stepWidth / 2 : 0;
             for (var columnIndex = 0; columnIndex < columnCount; columnIndex++) {
                 if (rowIndex === 0 && columnIndex === 0) continue;
-                var dx = (sourceWidth + gapX) * columnIndex;
+                var dx = stepWidth * columnIndex + rowShift;
                 if (horizontalDirection === "left") dx = -dx;
-                var dy = (sourceHeight + gapY) * rowIndex;
+                var dy = rowPitch * rowIndex;
                 if (verticalDirection !== "up") dy = -dy;
                 gridOffsets.push([dx, dy]);
             }
@@ -3115,117 +3395,15 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
      * @param {Document} doc - 対象ドキュメント
      * @param {Array<PageItem>} sourceItems - 複製元
      * @param {Array<Array<number>>} placementOffsets - [dx, dy] の配列（pt）
-     * @returns {void}
+     * @returns {Array<PageItem>} プレビューとして作った複製
      */
     function renderPreview(doc, sourceItems, placementOffsets) {
         var previewLayer = getPreviewLayer(doc);
         /* 空の状態を挟むとちらつくので、消去時は再描画しない / Skip the intermediate repaint so the canvas never flashes empty */
         clearPreview(doc, true);
-        duplicateWithOffsets(sourceItems, placementOffsets, previewLayer);
+        var previewItems = duplicateWithOffsets(sourceItems, placementOffsets, previewLayer);
         app.redraw();
-    }
-
-    // =========================================
-    // 画面ズーム / View zoom
-    // 軽量モードではスライダーを離したときだけ適用 / Light mode applies the zoom only on release
-    // =========================================
-
-    /**
-     * 現在のビュー状態（ズーム倍率と中心）を控える
-     * @param {Document} doc - 対象ドキュメント
-     * @returns {object} {view, zoom, center} の状態オブジェクト
-     */
-    function captureViewState(doc) {
-        var viewState = { view: null, zoom: null, center: null };
-        /* ビューが取れないことがある / The view may be unavailable */
-        try {
-            viewState.view = doc.activeView;
-            viewState.zoom = viewState.view.zoom;
-            viewState.center = viewState.view.centerPoint;
-        } catch (e) { }
-        return viewState;
-    }
-
-    /**
-     * 控えておいたビュー状態を復元する
-     * @param {Document} doc - 対象ドキュメント
-     * @param {object} viewState - captureViewState() の戻り値
-     * @returns {void}
-     */
-    function restoreViewState(doc, viewState) {
-        if (!viewState) return;
-        /* ビューが閉じられていることがある / The view may be gone */
-        try {
-            var targetView = viewState.view || doc.activeView;
-            if (targetView && viewState.zoom != null) targetView.zoom = viewState.zoom;
-            if (targetView && viewState.center != null) targetView.centerPoint = viewState.center;
-        } catch (e) { }
-    }
-
-    /**
-     * 画面ズーム用のスライダーと軽量モードのチェックボックスを追加する
-     * @param {Group|Window} parentContainer - 追加先
-     * @param {Document} doc - 対象ドキュメント
-     * @param {object} initialViewState - captureViewState() の戻り値
-     * @returns {{restoreInitial: Function}} 開いたときのビュー状態に戻す関数
-     */
-    function addZoomControls(parentContainer, doc, initialViewState) {
-        var zoomGroup = parentContainer.add("group");
-        zoomGroup.orientation = "row";
-        zoomGroup.alignChildren = ["center", "center"];
-        zoomGroup.alignment = "center";
-        zoomGroup.margins = ZOOM_GROUP_MARGINS;
-
-        zoomGroup.add("statictext", undefined, labelText("fieldLabel.zoom"));
-
-        var initialZoom = 1;
-        /* ビューが取れないことがある / The view may be unavailable */
-        try {
-            initialZoom = Number((initialViewState.zoom != null) ? initialViewState.zoom : doc.activeView.zoom);
-        } catch (e) { }
-        if (!initialZoom || isNaN(initialZoom)) initialZoom = 1;
-
-        var zoomSlider = zoomGroup.add("slider", undefined, initialZoom, VIEW_ZOOM_MIN, VIEW_ZOOM_MAX);
-        zoomSlider.helpTip = getLabel("tooltip.zoom");
-        zoomSlider.preferredSize.width = ZOOM_SLIDER_WIDTH;
-
-        var lightModeCheck = zoomGroup.add("checkbox", undefined, getLabel("checkbox.lightMode"));
-        lightModeCheck.helpTip = getLabel("tooltip.lightMode");
-        lightModeCheck.value = false;
-
-        /**
-         * 指定倍率をビューへ適用する
-         * @param {number} zoomLevel - ズーム倍率
-         * @returns {void}
-         */
-        function applyZoom(zoomLevel) {
-            /* ビューが閉じられている・範囲外の倍率のときは何もしない / Ignore a missing view or an out-of-range zoom */
-            try {
-                var targetView = initialViewState.view ? initialViewState.view : doc.activeView;
-                if (!targetView) return;
-                targetView.zoom = zoomLevel;
-                app.redraw();
-            } catch (e) { }
-        }
-
-        /* ドラッグ中の追従（軽量モードでは無効）/ Live drag (disabled in light mode) */
-        zoomSlider.onChanging = function () {
-            if (lightModeCheck.value) return;
-            applyZoom(Number(zoomSlider.value));
-        };
-
-        /* 離したときは必ず1回適用 / Always apply once on release */
-        zoomSlider.onChange = function () {
-            applyZoom(Number(zoomSlider.value));
-        };
-
-        lightModeCheck.onClick = function () {
-            applyZoom(Number(zoomSlider.value));
-        };
-
-        return {
-            restoreInitial: function () { restoreViewState(doc, initialViewState); }
-        };
+        return previewItems;
     }
 
     // =========================================
@@ -3242,20 +3420,40 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
      * @param {string} repeatMethod - "grid" / "row" / "column" / "random"
      * @param {boolean} isRightward - 右方向に並べるなら true（false なら左）
      * @param {boolean} isUpward - 上方向に並べるなら true（false なら下）
+     * @param {string} [gridStyle] - "plain"（既定）/ "brick" / "honeycomb"
      * @returns {{columns: number, rows: number}} 横と縦の数
      */
-    function computeCountsToArtboardEdge(artboardRect, sourceBounds, sourceWidth, sourceHeight, gapPoints, repeatMethod, isRightward, isUpward) {
+    function computeCountsToArtboardEdge(artboardRect, sourceBounds, sourceWidth, sourceHeight, gapPoints, repeatMethod, isRightward, isUpward, gridStyle) {
         var sourceLeft = sourceBounds[0], sourceTop = sourceBounds[1];
-        var stepWidth = sourceWidth + gapPoints.x, stepHeight = sourceHeight + gapPoints.y;
+        var availableWidth = isRightward ? (artboardRect[2] - sourceLeft) : (sourceLeft - artboardRect[0]);
+        var availableHeight = isUpward ? (artboardRect[1] - sourceTop) : (sourceTop - artboardRect[3]);
+        return fitGridCounts(availableWidth, availableHeight, sourceWidth, sourceHeight, gapPoints, repeatMethod, gridStyle);
+    }
+
+    /**
+     * 指定の幅・高さに収まる横と縦の数を求める（レンガ・ハニカムはずらしたぶんと詰めた行の送りを見込む）
+     * @param {number} availableWidth - 使える幅（pt）
+     * @param {number} availableHeight - 使える高さ（pt）
+     * @param {number} sourceWidth - 複製元の幅（pt）
+     * @param {number} sourceHeight - 複製元の高さ（pt）
+     * @param {{x: number, y: number}} gapPoints - 左右・上下の間隔（pt）
+     * @param {string} repeatMethod - "grid" / "row" / "column" / "random"
+     * @param {string} [gridStyle] - "plain"（既定）/ "brick" / "honeycomb"
+     * @returns {{columns: number, rows: number}} 横と縦の数
+     */
+    function fitGridCounts(availableWidth, availableHeight, sourceWidth, sourceHeight, gapPoints, repeatMethod, gridStyle) {
+        var stepWidth = sourceWidth + gapPoints.x;
+        var rowPitch = getGridRowPitch(sourceHeight, gapPoints.y, gridStyle);
         var columnCount = 1, rowCount = 1;
 
-        if (repeatMethod !== "column" && stepWidth > 0) {
-            var availableWidth = isRightward ? (artboardRect[2] - sourceLeft) : (sourceLeft - artboardRect[0]);
-            columnCount = Math.max(1, Math.floor((availableWidth + gapPoints.x) / stepWidth));
+        /* 1つ目の高さを除いた残りに、行の送りがいくつ入るか / How many row pitches fit after the first row */
+        if (repeatMethod !== "row" && rowPitch > 0) {
+            rowCount = Math.max(1, Math.floor((availableHeight - sourceHeight) / rowPitch) + 1);
         }
-        if (repeatMethod !== "row" && stepHeight > 0) {
-            var availableHeight = isUpward ? (artboardRect[1] - sourceTop) : (sourceTop - artboardRect[3]);
-            rowCount = Math.max(1, Math.floor((availableHeight + gapPoints.y) / stepHeight));
+        if (repeatMethod !== "column" && stepWidth > 0) {
+            /* ずらした行が2行以上あるときは、半歩ぶん幅を空けておく / Leave half a step for the shifted rows */
+            var staggerWidth = (repeatMethod === "grid" && isStaggeredGrid(gridStyle) && rowCount > 1) ? stepWidth / 2 : 0;
+            columnCount = Math.max(1, Math.floor((availableWidth - sourceWidth - staggerWidth) / stepWidth) + 1);
         }
         return { columns: columnCount, rows: rowCount };
     }
@@ -3267,19 +3465,13 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
      * @param {number} sourceHeight - 複製元の高さ（pt）
      * @param {{x: number, y: number}} gapPoints - 左右・上下の間隔（pt）
      * @param {string} repeatMethod - "grid" / "row" / "column" / "random"
+     * @param {string} [gridStyle] - "plain"（既定）/ "brick" / "honeycomb"
      * @returns {{columns: number, rows: number}} 横と縦の数
      */
-    function computeCountsToFullArtboard(artboardRect, sourceWidth, sourceHeight, gapPoints, repeatMethod) {
+    function computeCountsToFullArtboard(artboardRect, sourceWidth, sourceHeight, gapPoints, repeatMethod, gridStyle) {
         var artboardWidth = Math.abs(artboardRect[2] - artboardRect[0]);
         var artboardHeight = Math.abs(artboardRect[1] - artboardRect[3]);
-        var stepWidth = sourceWidth + gapPoints.x, stepHeight = sourceHeight + gapPoints.y;
-
-        return {
-            columns: (repeatMethod === "column" || stepWidth <= 0)
-                ? 1 : Math.max(1, Math.floor((artboardWidth + gapPoints.x) / stepWidth)),
-            rows: (repeatMethod === "row" || stepHeight <= 0)
-                ? 1 : Math.max(1, Math.floor((artboardHeight + gapPoints.y) / stepHeight))
-        };
+        return fitGridCounts(artboardWidth, artboardHeight, sourceWidth, sourceHeight, gapPoints, repeatMethod, gridStyle);
     }
 
     /**
@@ -3306,22 +3498,20 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
     }
 
     /**
-     * ランダム配置のオフセット一覧を作る
+     * ランダム配置の単位オフセット（-1〜1）の一覧を作る。散らばり範囲は呼び出し側で掛ける
      * @param {number} duplicateCount - 複製する数
-     * @param {number} rangeX - 左右の散らばり範囲（pt）
-     * @param {number} rangeY - 上下の散らばり範囲（pt）
      * @param {number} randomSeed - 乱数の種
-     * @returns {Array<Array<number>>} [dx, dy] の配列（pt）
+     * @returns {Array<Array<number>>} [ux, uy] の配列（-1〜1）
      */
-    function createRandomOffsets(duplicateCount, rangeX, rangeY, randomSeed) {
+    function createUnitRandomOffsets(duplicateCount, randomSeed) {
         var seedHolder = { v: randomSeed >>> 0 };
-        var randomOffsets = [];
+        var unitOffsets = [];
         for (var i = 0; i < duplicateCount; i++) {
-            var dx = (rangeX > 0) ? (-rangeX + 2 * rangeX * nextRandomValue(seedHolder)) : 0;
-            var dy = (rangeY > 0) ? (-rangeY + 2 * rangeY * nextRandomValue(seedHolder)) : 0;
-            randomOffsets.push([dx, dy]);
+            var ux = -1 + 2 * nextRandomValue(seedHolder);
+            var uy = -1 + 2 * nextRandomValue(seedHolder);
+            unitOffsets.push([ux, uy]);
         }
-        return randomOffsets;
+        return unitOffsets;
     }
 
     // ダイアログの位置と不透明度（再利用パーツ） / Dialog position and opacity (reusable)
@@ -3473,8 +3663,8 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
     function buildDuplicateDialog(doc, rulerUnitLabel) {
         var duplicateDialog = createDialogWindow(getLabel("dialog.title"));
 
-        /* 2カラムレイアウト：左（繰り返し数／方式）、右（間隔／方向／敷き詰め）
-           Two-column layout: counts & method on the left, gap / direction / fill on the right */
+        /* 2カラムレイアウト：左（繰り返し方式／数）、右（間隔／方向／敷き詰め）
+           Two-column layout: method & counts on the left, gap / direction / fill on the right */
         var columnsGroup = duplicateDialog.add("group");
         columnsGroup.orientation = "row";
         columnsGroup.alignChildren = ["fill", "top"];
@@ -3482,6 +3672,29 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
 
         var leftColumnGroup = addLayoutColumn(columnsGroup);
         var rightColumnGroup = addLayoutColumn(columnsGroup);
+
+        /* 繰り返し方式 / Repeat method */
+        var repeatMethodPanel = addPanel(leftColumnGroup, getLabel("panel.repeatMethod"));
+        repeatMethodPanel.alignChildren = ["left", "top"];
+        var methodGridRadio = addLabeledControl(repeatMethodPanel, "radiobutton", "methodGrid");
+        var methodBrickRadio = addLabeledControl(repeatMethodPanel, "radiobutton", "methodBrick");
+        var methodHoneycombRadio = addLabeledControl(repeatMethodPanel, "radiobutton", "methodHoneycomb");
+        var methodRowRadio = addLabeledControl(repeatMethodPanel, "radiobutton", "methodRow");
+        var methodColumnRadio = addLabeledControl(repeatMethodPanel, "radiobutton", "methodColumn");
+        var methodRandomRadio = addLabeledControl(repeatMethodPanel, "radiobutton", "methodRandom");
+        methodGridRadio.value = true;
+
+        /* ランダム度合い（ランダム配置の下）/ Randomness, under Random */
+        var randomAmountRow = repeatMethodPanel.add("group");
+        randomAmountRow.orientation = "row";
+        randomAmountRow.alignChildren = ["left", "center"];
+        randomAmountRow.margins = RANDOM_ROW_MARGINS;
+        var randomAmountSlider = randomAmountRow.add("slider", undefined, RANDOM_AMOUNT_DEFAULT, 0, 100);
+        randomAmountSlider.preferredSize.width = RANDOM_SLIDER_WIDTH;
+        randomAmountSlider.helpTip = getLabel("tooltip.randomAmount");
+        var randomAmountLabel = randomAmountRow.add("statictext", undefined, RANDOM_AMOUNT_DEFAULT + "%");
+        randomAmountLabel.characters = 4;
+        randomAmountLabel.helpTip = getLabel("tooltip.randomAmount");
 
         /* 繰り返し数 / Repeat count */
         var repeatCountPanel = addPanel(leftColumnGroup, getLabel("panel.repeatCount"));
@@ -3494,19 +3707,18 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
         countSlider.helpTip = getLabel("tooltip.countSlider");
         countSlider.alignment = ["fill", "center"];
 
-        /* 繰り返し方式 / Repeat method */
-        var repeatMethodPanel = addPanel(leftColumnGroup, getLabel("panel.repeatMethod"));
-        repeatMethodPanel.alignChildren = ["left", "top"];
-        var methodGridRadio = addLabeledControl(repeatMethodPanel, "radiobutton", "methodGrid");
-        var methodRowRadio = addLabeledControl(repeatMethodPanel, "radiobutton", "methodRow");
-        var methodColumnRadio = addLabeledControl(repeatMethodPanel, "radiobutton", "methodColumn");
-        var methodRandomRadio = addLabeledControl(repeatMethodPanel, "radiobutton", "methodRandom");
-        methodGridRadio.value = true;
-
         /* 間隔（現在の定規単位で入力し、内部ではptへ変換。単位は欄の中に出す）
            Gap (entered in the current ruler unit, converted to points internally; the unit shows inside the fields) */
         var gapPanel = addPanel(rightColumnGroup, getLabel("panel.gap"));
         var gapFields = addLinkedFieldPair(gapPanel, "gapHorizontal", "gapVertical", "gapLink", "10", false, " " + rulerUnitLabel);
+
+        var gapSliderGroup = gapPanel.add("group");
+        gapSliderGroup.orientation = "row";
+        gapSliderGroup.alignChildren = ["fill", "center"];
+        /* 範囲は showDuplicateDialog() で元の大きさから決める / The range is set from the source size later */
+        var gapSlider = gapSliderGroup.add("slider", undefined, 10, 0, 100);
+        gapSlider.helpTip = getLabel("tooltip.gapSlider");
+        gapSlider.alignment = ["fill", "center"];
 
         /* 方向 / Direction */
         var directionPanel = addPanel(rightColumnGroup, getLabel("panel.direction"));
@@ -3524,10 +3736,9 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
         var fillFullCheck = addLabeledControl(fillPanel, "checkbox", "fillFull");
         fillFullCheck.value = false;
 
-        /* 画面ズーム / Zoom */
-        var zoomControls = addZoomControls(duplicateDialog, doc, captureViewState(doc));
-
         var buttonRow = addButtonRow(duplicateDialog);
+        var fitViewControls = FitViewToItems.addControls(buttonRow.leftGroup);
+        fitViewControls.checkbox.helpTip = getLabel("tooltip.fitView");
         var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
         var btnOK = buttonRow.rightGroup.add("button", undefined, getLabel("button.ok"));
         alignRightOnlyButtonRow(buttonRow);
@@ -3539,19 +3750,24 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
             countLinkToggle: countFields.linkToggle,
             countSlider: countSlider,
             methodGridRadio: methodGridRadio,
+            methodBrickRadio: methodBrickRadio,
+            methodHoneycombRadio: methodHoneycombRadio,
             methodRowRadio: methodRowRadio,
             methodColumnRadio: methodColumnRadio,
             methodRandomRadio: methodRandomRadio,
+            randomAmountSlider: randomAmountSlider,
+            randomAmountLabel: randomAmountLabel,
             gapHorizontalInput: gapFields.horizontalInput,
             gapVerticalInput: gapFields.verticalInput,
             gapLinkToggle: gapFields.linkToggle,
+            gapSlider: gapSlider,
             directionRightRadio: horizontalDirectionRadios[0],
             directionLeftRadio: horizontalDirectionRadios[1],
             directionUpRadio: verticalDirectionRadios[0],
             directionDownRadio: verticalDirectionRadios[1],
             fillToEdgeCheck: fillToEdgeCheck,
             fillFullCheck: fillFullCheck,
-            zoomControls: zoomControls,
+            fitViewControls: fitViewControls,
             btnCancel: btnCancel,
             btnOK: btnOK
         };
@@ -3575,18 +3791,31 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
         var countLinkToggle = dialogControls.countLinkToggle;
         var countSlider = dialogControls.countSlider;
         var methodGridRadio = dialogControls.methodGridRadio;
+        var methodBrickRadio = dialogControls.methodBrickRadio;
+        var methodHoneycombRadio = dialogControls.methodHoneycombRadio;
         var methodRowRadio = dialogControls.methodRowRadio;
         var methodColumnRadio = dialogControls.methodColumnRadio;
         var methodRandomRadio = dialogControls.methodRandomRadio;
+        var randomAmountSlider = dialogControls.randomAmountSlider;
+        var randomAmountLabel = dialogControls.randomAmountLabel;
         var gapHorizontalInput = dialogControls.gapHorizontalInput;
         var gapVerticalInput = dialogControls.gapVerticalInput;
         var gapLinkToggle = dialogControls.gapLinkToggle;
+        var gapSlider = dialogControls.gapSlider;
+        var gapUnitSuffix = " " + rulerUnit.label;
+
+        /* 間隔スライダーの上限は元の幅・高さの大きいほう（最低72pt）、小さい単位の範囲なら0.1刻み
+           The gap slider runs up to the larger source side (at least 72 pt), in 0.1 steps for small ranges */
+        gapSlider.maxvalue = Math.ceil(ptToUnit(Math.max(sourceWidth, sourceHeight, GAP_SLIDER_MIN_MAX_PT), rulerUnit));
+        var gapSliderStep = (gapSlider.maxvalue <= 20) ? 0.1 : 1;
         var directionRightRadio = dialogControls.directionRightRadio;
         var directionLeftRadio = dialogControls.directionLeftRadio;
         var directionUpRadio = dialogControls.directionUpRadio;
         var directionDownRadio = dialogControls.directionDownRadio;
         var fillToEdgeCheck = dialogControls.fillToEdgeCheck;
         var fillFullCheck = dialogControls.fillFullCheck;
+        var fitViewControls = dialogControls.fitViewControls;
+        var initialViewState = FitViewToItems.captureView(doc); /* キャンセルで戻す表示 / view restored on Cancel */
 
         // -----------------------------------------
         // 入力値の読み取り / Reading the input values
@@ -3594,13 +3823,23 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
 
         /**
          * 選択中の繰り返し方式を返す
-         * @returns {string} "grid" / "row" / "column" / "random"
+         * @returns {string} "grid"（レンガ・ハニカムを含む）/ "row" / "column" / "random"
          */
         function getRepeatMethod() {
             if (methodRowRadio.value) return "row";
             if (methodColumnRadio.value) return "column";
             if (methodRandomRadio.value) return "random";
             return "grid";
+        }
+
+        /**
+         * グリッドの並べ方を返す（レンガ・ハニカムも繰り返し方式としては "grid" に含める）
+         * @returns {string} "plain" / "brick" / "honeycomb"
+         */
+        function getGridStyle() {
+            if (methodBrickRadio.value) return "brick";
+            if (methodHoneycombRadio.value) return "honeycomb";
+            return "plain";
         }
 
         /**
@@ -3635,11 +3874,20 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
         // ランダム配置 / Random placement
         // -----------------------------------------
 
-        /* OK後もプレビューと同じ配置にするためのキャッシュ / Cache so OK keeps the previewed layout */
-        var randomOffsetCache = { key: null, offsets: [] };
+        /* OK後もプレビューと同じ配置にするためのキャッシュ（度合いを変えても並びは保つ）
+           Cache so OK keeps the previewed layout; changing the randomness keeps the same pattern */
+        var randomOffsetCache = { key: null, unitOffsets: [] };
 
         /**
-         * ランダム配置のオフセットを取得する（同じ条件ならキャッシュを返す）
+         * ランダム度合いを 0〜1 で返す
+         * @returns {number} 散らばりの倍率（1で繰り返し数ぶんの広さ）
+         */
+        function getRandomAmount() {
+            return Math.round(randomAmountSlider.value) / 100;
+        }
+
+        /**
+         * ランダム配置のオフセットを取得する（同じ条件なら同じ並びを使う）
          * @param {number} repeatCount - 繰り返し数
          * @param {number} gapX - 左右の間隔（pt）
          * @param {number} gapY - 上下の間隔（pt）
@@ -3649,19 +3897,25 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
             var GAP_EPSILON = 1e-9;
             var duplicateCount = Math.max(0, repeatCount - 1);
 
-            /* 間隔が0の軸はランダムを完全にOFF / A gap of 0 disables randomness on that axis */
-            var rangeX = (Math.abs(gapX) <= GAP_EPSILON) ? 0 : Math.max(0, (sourceWidth + gapX) * (repeatCount - 1) / 2);
-            var rangeY = (Math.abs(gapY) <= GAP_EPSILON) ? 0 : Math.max(0, (sourceHeight + gapY) * (repeatCount - 1) / 2);
+            /* 間隔が0の軸はランダムを完全にOFF。範囲はランダム度合いで縮める
+               A gap of 0 disables randomness on that axis; the randomness scales the range */
+            var randomAmount = getRandomAmount();
+            var rangeX = (Math.abs(gapX) <= GAP_EPSILON) ? 0 : Math.max(0, (sourceWidth + gapX) * (repeatCount - 1) / 2) * randomAmount;
+            var rangeY = (Math.abs(gapY) <= GAP_EPSILON) ? 0 : Math.max(0, (sourceHeight + gapY) * (repeatCount - 1) / 2) * randomAmount;
 
             var cacheKey = [repeatCount, gapX.toFixed(4), gapY.toFixed(4), sourceWidth.toFixed(4), sourceHeight.toFixed(4)].join("|");
-            if (randomOffsetCache.key === cacheKey && randomOffsetCache.offsets.length === duplicateCount) {
-                return randomOffsetCache.offsets;
+            if (randomOffsetCache.key !== cacheKey || randomOffsetCache.unitOffsets.length !== duplicateCount) {
+                var randomSeed = (new Date().getTime() & 0xFFFFFFFF) ^ (repeatCount << 16);
+                randomOffsetCache.key = cacheKey;
+                randomOffsetCache.unitOffsets = createUnitRandomOffsets(duplicateCount, randomSeed);
             }
 
-            var randomSeed = (new Date().getTime() & 0xFFFFFFFF) ^ (repeatCount << 16);
-            randomOffsetCache.key = cacheKey;
-            randomOffsetCache.offsets = createRandomOffsets(duplicateCount, rangeX, rangeY, randomSeed);
-            return randomOffsetCache.offsets;
+            var randomOffsets = [];
+            for (var i = 0; i < duplicateCount; i++) {
+                var unitOffset = randomOffsetCache.unitOffsets[i];
+                randomOffsets.push([unitOffset[0] * rangeX, unitOffset[1] * rangeY]);
+            }
+            return randomOffsets;
         }
 
         /**
@@ -3682,7 +3936,8 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
                 repeatCounts.rows, repeatCounts.columns,
                 sourceWidth, sourceHeight,
                 gapPoints.x, gapPoints.y,
-                horizontalDirection, verticalDirection
+                horizontalDirection, verticalDirection,
+                getGridStyle()
             );
         }
 
@@ -3691,6 +3946,7 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
         // -----------------------------------------
 
         var lastPreviewTime = 0;
+        var previewItems = [];
 
         /**
          * 現在の設定でプレビューを描き直す
@@ -3699,8 +3955,28 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
         function applyPreview() {
             var placementOffsets = buildPlacementOffsets();
             if (!placementOffsets) return;
-            renderPreview(doc, sourceItems, placementOffsets);
+            previewItems = renderPreview(doc, sourceItems, placementOffsets);
+            fitViewToPreview();
         }
+
+        /**
+         * ［画面にフィット］がオンなら、プレビューの複製が収まるよう表示を合わせる
+         * @returns {void}
+         */
+        function fitViewToPreview() {
+            if (!fitViewControls.checkbox.value || previewItems.length === 0) return;
+            FitViewToItems.fit(previewItems, { doc: doc, fillRatio: fitViewControls.getFillRatio() });
+            app.redraw();
+        }
+
+        fitViewControls.checkbox.onClick = function () {
+            fitViewControls.updateEnabled();
+            fitViewToPreview();
+        };
+
+        fitViewControls.percentInput.onChange = function () {
+            fitViewToPreview();
+        };
 
         /**
          * プレビュー更新を間引く（スライダードラッグ中のチラつき軽減）
@@ -3894,8 +4170,13 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
                 syncGapFields();
             }
 
+            /* ランダム度合いはランダム配置のときだけ / Randomness only applies to Random */
+            randomAmountSlider.enabled = (repeatMethod === "random");
+            randomAmountLabel.enabled = randomAmountSlider.enabled;
+
             applyDirectionStateForMethod();
             updateCountSliderFromFields();
+            updateGapSliderFromFields();
         }
 
         // -----------------------------------------
@@ -3923,7 +4204,7 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
             setCountFields(computeCountsToArtboardEdge(
                 getActiveArtboardRect(doc), getUnionBounds(sourceItems),
                 sourceWidth, sourceHeight, gapPoints,
-                getRepeatMethod(), directionRightRadio.value, directionUpRadio.value
+                getRepeatMethod(), directionRightRadio.value, directionUpRadio.value, getGridStyle()
             ));
         }
 
@@ -3935,7 +4216,7 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
             var gapPoints = readGapPoints();
             if (!gapPoints) return;
             setCountFields(computeCountsToFullArtboard(
-                getActiveArtboardRect(doc), sourceWidth, sourceHeight, gapPoints, getRepeatMethod()
+                getActiveArtboardRect(doc), sourceWidth, sourceHeight, gapPoints, getRepeatMethod(), getGridStyle()
             ));
         }
 
@@ -3972,11 +4253,32 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
         }
 
         /**
+         * 間隔スライダーが動かす欄を返す（列では上下、それ以外は左右）
+         * @returns {EditText} 対象の欄
+         */
+        function getGapSliderField() {
+            return (getRepeatMethod() === "column") ? gapVerticalInput : gapHorizontalInput;
+        }
+
+        /**
+         * 入力欄の値を間隔スライダーへ反映し、スライダーの有効／無効を決める
+         * @returns {void}
+         */
+        function updateGapSliderFromFields() {
+            var gapValue = parseFloat(getGapSliderField().text);
+            if (!isNaN(gapValue)) gapSlider.value = Math.max(gapSlider.minvalue, Math.min(gapSlider.maxvalue, gapValue));
+            /* グリッドは［連動］ONのときだけ（左右と上下を1本で動かすため）
+               In Grid, only while Link is on, since one slider drives both gaps */
+            gapSlider.enabled = (getRepeatMethod() !== "grid") || gapLinkToggle.value;
+        }
+
+        /**
          * 左右の間隔が変わったときの処理
          * @returns {void}
          */
         function onGapHorizontalChanged() {
             if (gapLinkToggle.value) gapVerticalInput.text = gapHorizontalInput.text;
+            updateGapSliderFromFields();
             recalcFillCounts();
             applyPreview();
         }
@@ -3986,8 +4288,31 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
          * @returns {void}
          */
         function onGapVerticalChanged() {
+            updateGapSliderFromFields();
             recalcFillCounts();
             applyPreview();
+        }
+
+        /**
+         * 間隔スライダーが動いたときの処理
+         * @param {boolean} isReleased - 離したとき（間引かずにプレビューする）なら true
+         * @returns {void}
+         */
+        function onGapSliderMoved(isReleased) {
+            if (!gapSlider.enabled) return;
+            /* shift を押しながらなら10単位 / Snap to tens while Shift is held */
+            var isShiftDown = false;
+            try { isShiftDown = ScriptUI.environment.keyboardState.shiftKey; } catch (e) { }
+            var snapStep = isShiftDown ? 10 : gapSliderStep;
+            var gapValue = Math.round(gapSlider.value / snapStep) * snapStep;
+            gapValue = Math.min(gapSlider.maxvalue, gapValue);
+            gapValue = Math.round(gapValue * 10) / 10; /* 0.1刻みの誤差を落とす / drop float noise from 0.1 steps */
+            gapSlider.value = gapValue;
+            var targetField = getGapSliderField();
+            targetField.text = gapValue + gapUnitSuffix;
+            if (targetField === gapHorizontalInput && gapLinkToggle.value) gapVerticalInput.text = gapHorizontalInput.text;
+            recalcFillCounts();
+            applyPreviewThrottled(isReleased);
         }
 
         /**
@@ -4036,9 +4361,17 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
         };
         gapLinkToggle.handleToggle = function () {
             syncGapFields();
+            updateGapSliderFromFields();
             /* 上下の間隔が左右にそろうと敷き詰めの行列数も変わる / Linking the gaps changes the fill counts too */
             recalcFillCounts();
             applyPreview();
+        };
+
+        gapSlider.onChanging = function () {
+            onGapSliderMoved(false);
+        };
+        gapSlider.onChange = function () {
+            onGapSliderMoved(true);
         };
 
         countSlider.onChanging = function () {
@@ -4048,7 +4381,27 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
             onCountSliderMoved(true);
         };
 
+        /**
+         * ランダム度合いのスライダーを動かしたときの処理
+         * @param {boolean} force - true なら間引かずにプレビューを更新する（離したとき）
+         * @returns {void}
+         */
+        function onRandomAmountMoved(force) {
+            randomAmountSlider.value = Math.round(randomAmountSlider.value);
+            randomAmountLabel.text = randomAmountSlider.value + "%";
+            applyPreviewThrottled(force);
+        }
+
+        randomAmountSlider.onChanging = function () {
+            onRandomAmountMoved(false);
+        };
+        randomAmountSlider.onChange = function () {
+            onRandomAmountMoved(true);
+        };
+
         methodGridRadio.onClick = onRepeatMethodChanged;
+        methodBrickRadio.onClick = onRepeatMethodChanged;
+        methodHoneycombRadio.onClick = onRepeatMethodChanged;
         methodRowRadio.onClick = function () {
             /* 列→行では縦の数を横の数として引き継ぐ / Carry the vertical count over when switching Column -> Row */
             countHorizontalInput.text = String(clampRepeatCount(countVerticalInput.text));
@@ -4126,7 +4479,7 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
         };
 
         dialogControls.btnCancel.onClick = function () {
-            dialogControls.zoomControls.restoreInitial();
+            FitViewToItems.restoreView(initialViewState, doc);
             clearPreview(doc);
             duplicateDialog.close();
         };
@@ -4134,7 +4487,7 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
         duplicateDialog.onClose = function () {
             /* OK以外で閉じたときはキャンセル扱い / Closing without OK is treated as Cancel */
             if (dialogResult) return;
-            dialogControls.zoomControls.restoreInitial();
+            FitViewToItems.restoreView(initialViewState, doc);
             clearPreview(doc);
         };
 

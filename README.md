@@ -133,7 +133,7 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 - [選択したオブジェクトを、アートボードを対象に整列する常駐パレットです](readme-ja/AiAlignToArtboardPalette.md)
 - [選択内容に応じて、行送りと配置を次の順で判定して調整します](readme-ja/DistributeDownFromTop.md)
 - [選択内容に応じて、行送りと配置を次の順で判定して調整します](readme-ja/DistributeUpFromTop.md)
-- [選択したオブジェクトを、グリッド／行／列／ランダムのいずれかの方式で複製・配置します](readme-ja/DuplicateInGridPlus.md)
+- [選択したオブジェクトを、グリッド（通常・レンガ・ハニカム）／行／列／ランダムのいずれかの方式で複製・配置します](readme-ja/DuplicateInGridPlus.md)
 - [選択したオブジェクトのグループを入れ子ごとすべて解除し、あらためて1つのグループにまとめます](readme-ja/FlattenGroup.md)
 - [複数選択したテキストフレームの背面に K15% の長方形を作成し、「_bg-rectangle」レイヤーに配…](readme-ja/GridTextLayout.md)
 - [既存のグループに入れる・グループから出す・1つずつグループにするを、ダイアログで選んで実行](readme-ja/GroupMembership.md)
