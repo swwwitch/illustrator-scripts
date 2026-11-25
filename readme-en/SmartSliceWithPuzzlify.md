@@ -21,7 +21,7 @@ Slices the selected image or artwork into grid cells or jigsaw pieces and masks 
 - Placed images and symbols are duplicated for each piece and masked with a clipping group
 - Embedded images and vector artwork (paths, groups, compound paths) are converted to a symbol before slicing. Multiple selected objects are grouped into one symbol, keeping their stacking order
 - Fine-tune the result with offset, overlap, scatter, stroke and rounded corners
-- The dialog shows a thumbnail of the pieces. A column or row count of 0 is drawn with the count derived from the aspect ratio, and puzzle tabs are marked with dots (with Random, the directions are decided at run time and differ from the figure)
+- Preview draws the mask paths used for slicing as 3 pt K100 lines at 50% opacity (scatter, stroke and round corners are not drawn)
 - Japanese and English UI
 
 ### How to Use
@@ -43,6 +43,7 @@ Slices the selected image or artwork into grid cells or jigsaw pieces and masks 
 | Scatter | Puzzle | Moves each piece by a random, center-biased amount. The value is the maximum distance |
 | Add stroke | Both | Adds a stroke to each piece |
 | Round corners | Grid | Applies the Round Corners effect to each piece. The value is the radius |
+| Preview | Both | Draws the mask paths used for slicing on a temporary top layer as 3 pt K100 lines at 50% opacity (scatter, stroke and round corners are not drawn). Removed when the dialog closes |
 
 - Distances are entered in the ruler units (fields show the unit, as in "10 mm"; values typed in other units or as expressions are converted)
 - In number fields, the stepper buttons on the left and the Up/Down keys move the value to the next whole number (1.5 → 2), with Shift to the next multiple of 10, and with Option by 0.1 (pieces, columns and rows take whole numbers only)
@@ -84,4 +85,5 @@ https://community.adobe.com/t5/illustrator-discussions/cut-multiple-jigsaw-shape
 - v1.7.2 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)
 - v1.8.0 (2026-11-15) Added a thumbnail of the pieces to the dialog. It redraws as you change the method, piece count, columns, rows or shape
 - v1.8.1 (2026-11-20) Clicking the script name and version at the bottom left opens About This Script (copy the script name, open the README and other links, show in Finder; shared part updated)
+- v1.9.0 (2026-11-25) Replaced the thumbnail in the dialog with a Preview checkbox that draws only the mask paths over the artwork as 3 pt K100 lines at 50% opacity. Slicing keeps the tab shapes shown in the preview
 

@@ -10,11 +10,11 @@ Name=画像やオブジェクトをグリッド／パズルのピースに分割
 Name[en]=Slice an image or artwork into grid or puzzle pieces and mask them
 Author=Masahiro Takano (@swwwitch)
 Target-App=Illustrator
-Version=1.8.1
+Version=1.9.0
 Release-Date=2025-06-07
 Tags=mask,マスク
 X-com.swwwitch-Script-Name=SmartSliceWithPuzzlify
-X-com.swwwitch-Updated=2026-11-20
+X-com.swwwitch-Updated=2026-11-25
 X-com.swwwitch-README-JA=https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartSliceWithPuzzlify.md
 X-com.swwwitch-README-EN=https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartSliceWithPuzzlify.md
 X-com.swwwitch-Article-URL=https://note.com/dtp_tranist/n/n89f63325c0bc
@@ -191,8 +191,11 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
     var PROGRESS_ROW_MARGINS    = [10, 0, 10, 0];   /* プログレスバーの行の余白 / margins of the progress row */
     var PROGRESS_BAR_SIZE       = [200, 7];         /* プログレスバーの寸法 / progress bar size */
     var LENGTH_FIELD_CHARACTERS = 6;                /* 長さの欄の文字数（単位込み） / characters of a length field, unit included */
-    var THUMBNAIL_SIZE          = [200, 140];       /* ピースの縮小図（幅は最小幅。ダイアログの幅いっぱいに伸ばす）/ piece thumbnail (minimum width; fills the dialog width) */
-    var THUMBNAIL_PADDING       = 10;               /* 縮小図の内側の余白 / inner padding of the thumbnail */
+
+    /* プレビュー / Preview */
+    var PREVIEW_LAYER_NAME   = "__SmartSlicePreview__"; /* プレビューを描く一時レイヤー / temporary layer for the preview */
+    var PREVIEW_STROKE_WIDTH = 3;                       /* マスクパスの線幅（pt） / stroke width of the mask paths (pt) */
+    var PREVIEW_OPACITY      = 50;                      /* マスクパスの不透明度（%） / opacity of the mask paths (%) */
 
     // =========================================
     // 単位 / Units
@@ -957,7 +960,8 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
             overlap:      { ja: "オーバーラップ", en: "Overlap" },
             scatter:      { ja: "バラけさせる", en: "Scatter" },
             stroke:       { ja: "ケイ線を追加", en: "Add stroke" },
-            roundCorners: { ja: "角丸", en: "Round corners" }
+            roundCorners: { ja: "角丸", en: "Round corners" },
+            preview:      { ja: "プレビュー", en: "Preview" }
         },
         tooltip: {
             modeGrid:         { ja: "画像を格子状に切り分けます。", en: "Cuts the image into a plain grid." },
@@ -977,9 +981,9 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
             stroke:           { ja: "各ピースに線を追加します。", en: "Adds a stroke to each piece." },
             roundCorners:     { ja: "各ピースに効果［角を丸くする］を適用します。", en: "Applies the Round Corners effect to each piece." },
             roundRadius:      { ja: "角丸の半径です。", en: "Corner radius." },
-            thumbnail: {
-                ja: "分割後のピースの縮小図です。列数・行数が 0 のときは、縦横比から決まる数で描きます。［ランダム］の突起の向きは実行時に決まるため、図とは異なります。",
-                en: "Thumbnail of the pieces after slicing. A column or row count of 0 is drawn with the count derived from the aspect ratio. With Random, the tab directions are decided at run time and differ from the figure."
+            preview: {
+                ja: "分割に使うマスクパスを、K100・3pt・不透明度50%の線で描いて確かめます。バラけ・ケイ線・角丸は描きません。",
+                en: "Draws the mask paths used for slicing as 3 pt K100 lines at 50% opacity. Scatter, stroke and round corners are not drawn."
             },
             stepUp: {
                 ja: "値を増やす（shift＋クリックで10の倍数へ、option＋クリックで0.1ずつ）",
@@ -2037,260 +2041,6 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
     // バージョン表示（再利用パーツ）ここまで / End of the reusable version footer
 
     // =========================================
-    // 縮小図 / Slice thumbnail
-    // =========================================
-
-    var THUMBNAIL_UI_DARK = isDarkUI();
-    var THUMBNAIL_COLORS = {
-        background: THUMBNAIL_UI_DARK ? [0.16, 0.16, 0.16, 1] : [0.90, 0.90, 0.90, 1], /* 地 / background */
-        piece:      [1, 1, 1, 1],                                                     /* ピース / piece */
-        line:       THUMBNAIL_UI_DARK ? [0.55, 0.55, 0.55, 1] : [0.50, 0.50, 0.50, 1], /* 切れ目と外形 / cut lines and outline */
-        tab:        THUMBNAIL_UI_DARK ? [0.40, 0.65, 1.00, 1] : [0.10, 0.40, 0.85, 1]  /* パズルの突起 / puzzle tabs */
-    };
-
-    // 縮小図（再利用パーツ） / Thumbnail canvas (reusable)
-
-    var thumbnailFontCache = {}; /* 文字サイズごとの書体 / fonts per size */
-
-    /**
-     * 縮小図を自作描画する描画域（group）を追加する
-     * @param {Window|Panel|Group} parent - 追加先
-     * @param {number[]} canvasSize - [幅, 高さ]（px）。fillWidth のときの幅は最小幅
-     * @param {Function} drawFn - 描くたびに drawFn(canvasGraphics, canvasWidth, canvasHeight) で呼ぶ関数
-     * @param {boolean} [fillWidth] - true なら親の幅いっぱいに伸ばす（ダイアログの幅は広げない）
-     * @returns {Group} 描画域
-     */
-    function addThumbnailCanvas(parent, canvasSize, drawFn, fillWidth) {
-        var thumbnailCanvas = parent.add("group");
-        thumbnailCanvas.preferredSize = [canvasSize[0], canvasSize[1]];
-        thumbnailCanvas.minimumSize = [canvasSize[0], canvasSize[1]];
-        thumbnailCanvas.maximumSize = [fillWidth ? 10000 : canvasSize[0], canvasSize[1]];
-        if (fillWidth) thumbnailCanvas.alignment = ["fill", "top"];
-        thumbnailCanvas.onDraw = function () {
-            var drawnSize = thumbnailCanvas.size;
-            drawFn(thumbnailCanvas.graphics, drawnSize.width, drawnSize.height);
-        };
-        return thumbnailCanvas;
-    }
-
-    /**
-     * 縮小図を描き直す（group には notify() が無いので、隠して再表示する）
-     * @param {Group} thumbnailCanvas - addThumbnailCanvas() の戻り値
-     * @returns {void}
-     */
-    function redrawThumbnailCanvas(thumbnailCanvas) {
-        thumbnailCanvas.hide();
-        thumbnailCanvas.show();
-    }
-
-    /**
-     * 縮小図に矩形を塗る（rectPath の前に newPath を呼ばないとパスが重なって線画になる）
-     * @param {ScriptUIGraphics} canvasGraphics - 描画先
-     * @param {number} left - 左（px）
-     * @param {number} top - 上（px）
-     * @param {number} width - 幅（px）
-     * @param {number} height - 高さ（px）
-     * @param {number[]} color - RGBA
-     * @returns {void}
-     */
-    function fillThumbnailRect(canvasGraphics, left, top, width, height, color) {
-        canvasGraphics.newPath();
-        canvasGraphics.rectPath(left, top, width, height);
-        canvasGraphics.fillPath(canvasGraphics.newBrush(canvasGraphics.BrushType.SOLID_COLOR, color));
-    }
-
-    /**
-     * 縮小図に矩形の枠を描く（1px の線が内側に収まるよう 0.5px 内に寄せる）
-     * @param {ScriptUIGraphics} canvasGraphics - 描画先
-     * @param {number} left - 左（px）
-     * @param {number} top - 上（px）
-     * @param {number} width - 幅（px）
-     * @param {number} height - 高さ（px）
-     * @param {number[]} color - RGBA
-     * @returns {void}
-     */
-    function strokeThumbnailRect(canvasGraphics, left, top, width, height, color) {
-        canvasGraphics.newPath();
-        canvasGraphics.rectPath(left + 0.5, top + 0.5, Math.max(width - 1, 0), Math.max(height - 1, 0));
-        canvasGraphics.strokePath(canvasGraphics.newPen(canvasGraphics.PenType.SOLID_COLOR, color, 1));
-    }
-
-    /**
-     * 縮小図の文字の書体を返す（作れない環境ではコントロールの書体を使う）
-     * @param {ScriptUIGraphics} canvasGraphics - 描画先
-     * @param {number} fontSize - 文字サイズ（px。InDesign では無視される）
-     * @returns {ScriptUIFont} 書体
-     */
-    function getThumbnailFont(canvasGraphics, fontSize) {
-        if (thumbnailFontCache[fontSize]) return thumbnailFontCache[fontSize];
-        try {
-            thumbnailFontCache[fontSize] = ScriptUI.newFont(canvasGraphics.font.name, "REGULAR", fontSize);
-        } catch (e) {
-            thumbnailFontCache[fontSize] = canvasGraphics.font;
-        }
-        return thumbnailFontCache[fontSize];
-    }
-
-    /**
-     * 文字列の幅と高さを測る（measureString は配列か {width, height} で返る）
-     * @param {ScriptUIGraphics} canvasGraphics - 描画先
-     * @param {string} text - 文字列
-     * @param {ScriptUIFont} font - 書体
-     * @returns {number[]} [幅, 高さ]（px）
-     */
-    function measureThumbnailText(canvasGraphics, text, font) {
-        var measured = canvasGraphics.measureString(text, font);
-        if (measured.width !== undefined) return [measured.width, measured.height];
-        return [measured[0], measured[1]];
-    }
-
-    // 縮小図（再利用パーツ）ここまで / End of the reusable thumbnail canvas
-
-    /**
-     * 選択中のオブジェクト全体の寸法を返す（複数選択も外接矩形で測る。測れなければ null）
-     * @param {Document} doc - 対象ドキュメント
-     * @returns {{width: number, height: number}|null} 幅と高さ
-     */
-    function getSelectionUnionSize(doc) {
-        var unionBounds = null;
-        for (var i = 0; i < doc.selection.length; i++) {
-            var itemBounds;
-            try {
-                itemBounds = doc.selection[i].geometricBounds;
-            } catch (e) {
-                continue; /* 文字の選択などは測れない / text ranges have no bounds */
-            }
-            if (!unionBounds) {
-                unionBounds = [itemBounds[0], itemBounds[1], itemBounds[2], itemBounds[3]];
-            } else {
-                unionBounds = [Math.min(unionBounds[0], itemBounds[0]), Math.max(unionBounds[1], itemBounds[1]),
-                    Math.max(unionBounds[2], itemBounds[2]), Math.min(unionBounds[3], itemBounds[3])];
-            }
-        }
-        if (!unionBounds) return null;
-        var unionWidth = unionBounds[2] - unionBounds[0];
-        var unionHeight = unionBounds[1] - unionBounds[3];
-        return (unionWidth > 0 && unionHeight > 0) ? { width: unionWidth, height: unionHeight } : null;
-    }
-
-    /**
-     * 突起が隣のピースへ出る向きを返す（トラディショナルは buildSliceGrid() と同じ並び、ランダムは図のための決まった並び）
-     * buildSliceGrid() は Math.random() を使うので、実行時の乱数の流れを変えないよう、ここでは呼ばない
-     * @param {number} x - 突起を持つ辺の情報を持つピースの列番号
-     * @param {number} y - 同じく行番号
-     * @param {boolean} isVerticalEdge - 左右のピースの境目なら true（上下の境目なら false）
-     * @param {boolean} isRandomShape - ［ランダム］なら true
-     * @returns {boolean} 右（左右の境目）／下（上下の境目）へ出るなら true
-     */
-    function isThumbnailTabOut(x, y, isVerticalEdge, isRandomShape) {
-        if (isRandomShape) return ((x * 31 + y * 17 + (isVerticalEdge ? 7 : 0)) % 5) < 2;
-        var parity = (x & 1) ^ (y & 1);
-        return isVerticalEdge ? !parity : !!parity;
-    }
-
-    /**
-     * 分割後のピースを縮小して描く。外形を実際の縦横比で描き、切れ目を引き、パズルは突起の向きを丸で示す
-     * @param {ScriptUIGraphics} canvasGraphics - 描画先
-     * @param {number} canvasWidth - 描画域の幅（px）
-     * @param {number} canvasHeight - 描画域の高さ（px）
-     * @param {{width: number, height: number, columnCount: number, rowCount: number, isPuzzle: boolean, isRandomShape: boolean}|null} sliceLayout - 描く内容（描けないときは null）
-     * @returns {void}
-     */
-    function drawSliceThumbnail(canvasGraphics, canvasWidth, canvasHeight, sliceLayout) {
-        fillThumbnailRect(canvasGraphics, 0, 0, canvasWidth, canvasHeight, THUMBNAIL_COLORS.background);
-        if (!sliceLayout) return;
-
-        var drawableWidth = canvasWidth - THUMBNAIL_PADDING * 2;
-        var drawableHeight = canvasHeight - THUMBNAIL_PADDING * 2;
-        if (drawableWidth <= 0 || drawableHeight <= 0) return;
-        var pixelsPerPoint = Math.min(drawableWidth / sliceLayout.width, drawableHeight / sliceLayout.height);
-        var outlineWidth = Math.max(2, Math.round(sliceLayout.width * pixelsPerPoint));
-        var outlineHeight = Math.max(2, Math.round(sliceLayout.height * pixelsPerPoint));
-        var outlineLeft = Math.round((canvasWidth - outlineWidth) / 2);
-        var outlineTop = Math.round((canvasHeight - outlineHeight) / 2);
-        fillThumbnailRect(canvasGraphics, outlineLeft, outlineTop, outlineWidth, outlineHeight, THUMBNAIL_COLORS.piece);
-
-        /* 切れ目は1px幅の矩形で引く / cut lines are 1px rectangles */
-        var pieceWidth = outlineWidth / sliceLayout.columnCount;
-        var pieceHeight = outlineHeight / sliceLayout.rowCount;
-        for (var columnIndex = 1; columnIndex < sliceLayout.columnCount; columnIndex++) {
-            fillThumbnailRect(canvasGraphics, Math.round(outlineLeft + columnIndex * pieceWidth), outlineTop, 1, outlineHeight, THUMBNAIL_COLORS.line);
-        }
-        for (var rowIndex = 1; rowIndex < sliceLayout.rowCount; rowIndex++) {
-            fillThumbnailRect(canvasGraphics, outlineLeft, Math.round(outlineTop + rowIndex * pieceHeight), outlineWidth, 1, THUMBNAIL_COLORS.line);
-        }
-        strokeThumbnailRect(canvasGraphics, outlineLeft, outlineTop, outlineWidth, outlineHeight, THUMBNAIL_COLORS.line);
-
-        /* パズルは境目ごとに、突起の出る側へ寄せた丸を描く（ピースが小さすぎるときは省く）
-           For puzzles, draw a dot on each shared edge, shifted to the side the tab goes (skipped when pieces are tiny) */
-        if (!sliceLayout.isPuzzle) return;
-        var tabDiameter = Math.round(Math.min(pieceWidth, pieceHeight) / 4);
-        if (tabDiameter < 3) return;
-        var tabShift = tabDiameter * 0.5; /* 丸の縁が境目に接する位置 / the dot touches the edge */
-        var tabBrush = canvasGraphics.newBrush(canvasGraphics.BrushType.SOLID_COLOR, THUMBNAIL_COLORS.tab);
-        for (var y = 0; y < sliceLayout.rowCount; y++) {
-            for (var x = 0; x < sliceLayout.columnCount; x++) {
-                var centerX = outlineLeft + (x + 0.5) * pieceWidth;
-                var centerY = outlineTop + (y + 0.5) * pieceHeight;
-                var tabCenters = [];
-                /* 右隣との境目（右のピースの情報で向きが決まる）/ edge with the right neighbour (decided by the right piece) */
-                if (x < sliceLayout.columnCount - 1) {
-                    var edgeX = outlineLeft + (x + 1) * pieceWidth;
-                    tabCenters.push([edgeX + (isThumbnailTabOut(x + 1, y, true, sliceLayout.isRandomShape) ? tabShift : -tabShift), centerY]);
-                }
-                /* 下隣との境目（下のピースの情報で向きが決まる）/ edge with the lower neighbour (decided by the lower piece) */
-                if (y < sliceLayout.rowCount - 1) {
-                    var edgeY = outlineTop + (y + 1) * pieceHeight;
-                    tabCenters.push([centerX, edgeY + (isThumbnailTabOut(x, y + 1, false, sliceLayout.isRandomShape) ? tabShift : -tabShift)]);
-                }
-                for (var i = 0; i < tabCenters.length; i++) {
-                    canvasGraphics.newPath();
-                    canvasGraphics.ellipsePath(Math.round(tabCenters[i][0] - tabDiameter / 2), Math.round(tabCenters[i][1] - tabDiameter / 2), tabDiameter, tabDiameter);
-                    canvasGraphics.fillPath(tabBrush);
-                }
-            }
-        }
-    }
-
-    /**
-     * 縮小図を追加し、ダイアログの値から描き直す関数を sliceControls.updateThumbnail に用意する
-     * @param {Window} sliceDialog - ダイアログ
-     * @param {Object} sliceControls - ダイアログのコントロール（分割パネルを作ったあと）
-     * @param {{width: number, height: number}|null} previewSize - 選択全体の寸法（測れなければ null）
-     * @returns {void}
-     */
-    function buildThumbnail(sliceDialog, sliceControls, previewSize) {
-        var sliceLayout = null;
-        var thumbnailCanvas = addThumbnailCanvas(sliceDialog, THUMBNAIL_SIZE, function (canvasGraphics, canvasWidth, canvasHeight) {
-            drawSliceThumbnail(canvasGraphics, canvasWidth, canvasHeight, sliceLayout);
-        }, true);
-        thumbnailCanvas.helpTip = getLabel("tooltip.thumbnail");
-
-        /**
-         * 列数・行数・分割方法・形状の今の値で縮小図を作り直して描き直す
-         * @returns {void}
-         */
-        sliceControls.updateThumbnail = function () {
-            /* 実行時と同じ読み方・同じ補い方で列数・行数を決める / resolve the counts as the run does */
-            var columnCount = Math.round(Number(sliceControls.columnsInput.text));
-            var rowCount = Math.round(Number(sliceControls.rowsInput.text));
-            sliceLayout = null;
-            if (previewSize && isValidGridCount(columnCount, rowCount)) {
-                var gridCounts = resolveGridCounts(columnCount, rowCount, [0, previewSize.height, previewSize.width, 0]);
-                sliceLayout = {
-                    width: previewSize.width,
-                    height: previewSize.height,
-                    columnCount: gridCounts.columnCount,
-                    rowCount: gridCounts.rowCount,
-                    isPuzzle: sliceControls.modePuzzleRadio.value,
-                    isRandomShape: sliceControls.shapeRandomRadio.value
-                };
-            }
-            redrawThumbnailCanvas(thumbnailCanvas);
-        };
-    }
-
-    // =========================================
     // ダイアログ / Dialog
     // =========================================
 
@@ -2335,7 +2085,14 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
         var rowCheckbox = lengthRow.add("checkbox", undefined, getLabel("checkbox." + checkboxKey));
         rowCheckbox.helpTip = getLabel("tooltip." + checkboxKey);
         /* 単位は入力欄に入れる（別の単位で入れても定規の単位へ換算される） / the unit lives in the field */
-        var rowInput = addStepperInput(lengthRow, defaultValue, LENGTH_FIELD_CHARACTERS, { min: minValue, unit: " " + getUnitInfo().label });
+        var rowInput = addStepperInput(lengthRow, defaultValue, LENGTH_FIELD_CHARACTERS, {
+            min: minValue,
+            unit: " " + getUnitInfo().label,
+            /* text の代入では onChanging が発火しないので、増減後に呼んで連動を保つ / assigning text does not fire onChanging */
+            onStep: function (numberInput) {
+                if (typeof numberInput.onChanging === "function") numberInput.onChanging();
+            }
+        });
         rowInput.helpTip = getLabel("tooltip." + inputTooltipKey);
         return { checkbox: rowCheckbox, input: rowInput, defaultValue: defaultValue };
     }
@@ -2424,7 +2181,7 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
     }
 
     /**
-     * プログレスバー（処理中のみ表示）とボタンエリアを作る
+     * プログレスバー（処理中のみ表示）とボタンエリア（左に［プレビュー］）を作る
      * @param {Window} sliceDialog - ダイアログ
      * @param {Object} sliceControls - コントロールの格納先
      * @returns {void}
@@ -2447,6 +2204,9 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
         sliceControls.progressRow = progressRow;
 
         var buttonRow = addButtonRow(bottomStack);
+        sliceControls.previewCheckbox = buttonRow.leftGroup.add("checkbox", undefined, getLabel("checkbox.preview"));
+        sliceControls.previewCheckbox.helpTip = getLabel("tooltip.preview");
+        sliceControls.previewCheckbox.value = true;
         var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
         var btnOK = buttonRow.rightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
         alignRightOnlyButtonRow(buttonRow);
@@ -2517,51 +2277,58 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
      * ダイアログのイベントを結び付け、初期状態を整える
      * @param {Object} sliceControls - ダイアログのコントロール
      * @param {{width: number, height: number}|null} artworkSize - 選択対象の寸法
+     * @param {Function} refreshPreview - プレビューを描き直す関数
      * @returns {void}
      */
-    function bindDialogEvents(sliceControls, artworkSize) {
+    function bindDialogEvents(sliceControls, artworkSize, refreshPreview) {
         /* ピース数から行数・列数を決める / Derive rows and columns from the piece count */
-        function updateGridSizeFromPieces() {
+        function applyPieceCount() {
             var pieceCount = parseInt(sliceControls.totalPiecesInput.text, 10);
             if (isNaN(pieceCount) || pieceCount < 1 || !artworkSize) return;
             var gridSize = calcGridSizeFromPieceCount(artworkSize.width, artworkSize.height, pieceCount);
             /* 直前の正しい値としても控え、数値でない入力を戻すときに古い値へ戻らないようにする / also record as the last valid value */
             writeSteppedValue(sliceControls.rowsInput, gridSize.rows, sliceControls.rowsInput.stepperGroup.stepOptions);
             writeSteppedValue(sliceControls.columnsInput, gridSize.columns, sliceControls.columnsInput.stepperGroup.stepOptions);
-            sliceControls.updateThumbnail(); /* text の代入では列数・行数の onChanging が来ない / assigning text fires no onChanging */
+        }
+
+        function onPieceCountChange() {
+            applyPieceCount();
+            refreshPreview(); /* text の代入では列数・行数の onChanging が来ない / assigning text fires no onChanging */
         }
 
         function onSyncEnabled() {
             syncEnabledStates(sliceControls);
+            refreshPreview();
         }
 
         function onModeChange() {
             applyModeDefaults(sliceControls);
-            updateGridSizeFromPieces();
+            applyPieceCount();
             syncEnabledStates(sliceControls);
-            sliceControls.updateThumbnail();
+            refreshPreview();
         }
 
-        sliceControls.totalPiecesInput.onChanging = updateGridSizeFromPieces;
+        sliceControls.totalPiecesInput.onChanging = onPieceCountChange;
         /* 計算式は確定時に計算した値へ書き換わるが、text の代入では onChanging が来ないので、確定後にも計算し直す。
            部品の change リスナー（式の計算）より後に足すので、計算後の値を読む
            An expression is rewritten on commit without firing onChanging; this listener runs after the stepper's and reads the result */
-        sliceControls.totalPiecesInput.addEventListener("change", updateGridSizeFromPieces);
+        sliceControls.totalPiecesInput.addEventListener("change", onPieceCountChange);
         sliceControls.modeGridRadio.onClick = onModeChange;
         sliceControls.modePuzzleRadio.onClick = onModeChange;
         sliceControls.offsetRow.checkbox.onClick = onSyncEnabled;
         sliceControls.overlapRow.checkbox.onClick = onSyncEnabled;
         sliceControls.scatterRow.checkbox.onClick = onSyncEnabled;
         sliceControls.roundCornerRow.checkbox.onClick = onSyncEnabled;
-        /* 縮小図の描き直し。確定時は部品の onChange（計算式の計算・数値でない入力の差し戻し）のあとで描く
-           Redraw the thumbnail; on commit, after the part's onChange evaluates expressions or reverts non-numbers */
-        var countInputs = [sliceControls.columnsInput, sliceControls.rowsInput];
-        for (var i = 0; i < countInputs.length; i++) {
-            countInputs[i].onChanging = sliceControls.updateThumbnail;
-            countInputs[i].onChange = chainAfter(countInputs[i].onChange, sliceControls.updateThumbnail);
+        sliceControls.shapeTraditionalRadio.onClick = refreshPreview;
+        sliceControls.shapeRandomRadio.onClick = refreshPreview;
+        sliceControls.previewCheckbox.onClick = refreshPreview;
+        /* マスクの形に関わる欄。確定時は部品の onChange（計算式の計算・数値でない入力の差し戻し）のあとで描く
+           Fields that change the mask shape; on commit, redraw after the part's onChange evaluates expressions or reverts non-numbers */
+        var shapeInputs = [sliceControls.columnsInput, sliceControls.rowsInput, sliceControls.offsetRow.input, sliceControls.overlapRow.input];
+        for (var i = 0; i < shapeInputs.length; i++) {
+            shapeInputs[i].onChanging = refreshPreview;
+            shapeInputs[i].onChange = chainAfter(shapeInputs[i].onChange, refreshPreview);
         }
-        sliceControls.shapeTraditionalRadio.onClick = sliceControls.updateThumbnail;
-        sliceControls.shapeRandomRadio.onClick = sliceControls.updateThumbnail;
 
         onModeChange();
     }
@@ -2569,10 +2336,10 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
     /**
      * ダイアログを作る
      * @param {{width: number, height: number}|null} artworkSize - 選択対象の寸法（1つ選択のときだけ。ピース数からの列数・行数の計算に使う）
-     * @param {{width: number, height: number}|null} previewSize - 選択全体の寸法（縮小図に使う）
+     * @param {Object} previewState - createPreviewState() の戻り値
      * @returns {Object} ダイアログ（dialog）と各コントロール
      */
-    function buildDialog(artworkSize, previewSize) {
+    function buildDialog(artworkSize, previewState) {
         var sliceDialog = new Window("dialog", getLabel("dialog.title"));
         setupWindow(sliceDialog);
         var sliceControls = { dialog: sliceDialog };
@@ -2584,10 +2351,11 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
         panelStack.alignChildren = "fill";
         buildSlicePanel(panelStack, sliceControls);
         buildOptionsPanel(panelStack, sliceControls);
-        buildThumbnail(sliceDialog, sliceControls, previewSize);
 
         buildProgressAndButtons(sliceDialog, sliceControls);
-        bindDialogEvents(sliceControls, artworkSize);
+        bindDialogEvents(sliceControls, artworkSize, function () {
+            drawSlicePreview(previewState, sliceControls.previewCheckbox.value ? readSliceSettings(sliceControls) : null);
+        });
         return sliceControls;
     }
 
@@ -2757,6 +2525,35 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
     // マスク形状 / Mask shapes
     // =========================================
 
+    var edgeSeedCache = { key: "", seeds: null }; /* 突起の向きとずれの乱数（プレビューと実行で同じものを使う）/ tab randomness shared by the preview and the run */
+
+    /**
+     * パズルの各ピースの突起の向きとずれ（乱数）を返す。列数・行数・形状が同じなら前回と同じものを返す
+     * （プレビューで見た形のまま分割するため）
+     * @param {number} columnCount - 列数
+     * @param {number} rowCount - 行数
+     * @param {boolean} isRandomShape - 突起の向きをランダムにするなら true
+     * @returns {Array} [行][列] の {topOut, rightOut, verticalJitter, horizontalJitter}（ずれは -0.5〜0.5）
+     */
+    function getEdgeSeeds(columnCount, rowCount, isRandomShape) {
+        var seedKey = columnCount + "x" + rowCount + (isRandomShape ? "-random" : "-traditional");
+        if (edgeSeedCache.key === seedKey) return edgeSeedCache.seeds;
+        var edgeSeeds = new Array(rowCount);
+        for (var y = 0; y < rowCount; y++) {
+            edgeSeeds[y] = new Array(columnCount);
+            for (var x = 0; x < columnCount; x++) {
+                edgeSeeds[y][x] = {
+                    topOut: isRandomShape ? Math.random() < 0.5 : (x & 1) ^ (y & 1),
+                    rightOut: isRandomShape ? Math.random() < 0.5 : !((x & 1) ^ (y & 1)),
+                    verticalJitter: Math.random() - 0.5,
+                    horizontalJitter: Math.random() - 0.5
+                };
+            }
+        }
+        edgeSeedCache = { key: seedKey, seeds: edgeSeeds };
+        return edgeSeeds;
+    }
+
     /**
      * 分割の基準となる格子を作る（パズル時は各ピースの突起の向きとずれも決める）
      * @param {number[]} maskBounds - マスク元の geometricBounds
@@ -2780,17 +2577,17 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
         };
         if (!isPuzzle) return sliceGrid;
 
+        var edgeSeeds = getEdgeSeeds(columnCount, rowCount, isRandomShape);
         var edgeData = new Array(rowCount);
         for (var y = 0; y < rowCount; y++) {
             edgeData[y] = new Array(columnCount);
             for (var x = 0; x < columnCount; x++) {
-                var isTopOut = isRandomShape ? Math.random() < 0.5 : (x & 1) ^ (y & 1);
-                var isRightOut = isRandomShape ? Math.random() < 0.5 : !((x & 1) ^ (y & 1));
+                var edgeSeed = edgeSeeds[y][x];
                 edgeData[y][x] = {
-                    topOut: isTopOut,
-                    rightOut: isRightOut,
-                    verticalOffset: sliceGrid.pieceHeight * (Math.random() - 0.5) / 10,
-                    horizontalOffset: sliceGrid.pieceWidth * (Math.random() - 0.5) / 10
+                    topOut: edgeSeed.topOut,
+                    rightOut: edgeSeed.rightOut,
+                    verticalOffset: sliceGrid.pieceHeight * edgeSeed.verticalJitter / 10,
+                    horizontalOffset: sliceGrid.pieceWidth * edgeSeed.horizontalJitter / 10
                 };
             }
         }
@@ -2800,14 +2597,14 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
 
     /**
      * グリッド1マス分の矩形マスクを作る（オーバーラップ分広げ、元の範囲内に収める）
-     * @param {Document} doc - 対象ドキュメント
+     * @param {Document|Layer} pathContainer - パスの追加先（ドキュメントかレイヤー）
      * @param {Object} sliceGrid - buildSliceGrid() の戻り値
      * @param {number} columnIndex - 列番号
      * @param {number} rowIndex - 行番号
      * @param {number} overlapInPoints - オーバーラップ（pt）
      * @returns {PathItem} 矩形マスク
      */
-    function createGridMask(doc, sliceGrid, columnIndex, rowIndex, overlapInPoints) {
+    function createGridMask(pathContainer, sliceGrid, columnIndex, rowIndex, overlapInPoints) {
         var rectLeft = sliceGrid.originX + columnIndex * sliceGrid.pieceWidth - overlapInPoints / 2;
         var rectWidth = sliceGrid.pieceWidth + overlapInPoints;
         if (rectLeft < sliceGrid.originX) {
@@ -2828,7 +2625,7 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
             rectHeight = rectTop - sliceGrid.bottom;
         }
 
-        var gridMask = doc.pathItems.rectangle(rectTop, rectLeft, rectWidth, rectHeight);
+        var gridMask = pathContainer.pathItems.rectangle(rectTop, rectLeft, rectWidth, rectHeight);
         gridMask.closed = true;
         gridMask.filled = false;
         gridMask.stroked = false;
@@ -2871,19 +2668,19 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
 
     /**
      * パズルピース1つ分のマスクパスを作る（下辺→右辺→上辺→左辺の順に突起を描く）
-     * @param {Document} doc - 対象ドキュメント
+     * @param {Document|Layer} pathContainer - パスの追加先（ドキュメントかレイヤー）
      * @param {Object} sliceGrid - buildSliceGrid() の戻り値
      * @param {number} x - 列番号
      * @param {number} y - 行番号
      * @returns {PathItem} マスクパス
      */
-    function createPuzzleMaskPath(doc, sliceGrid, x, y) {
+    function createPuzzleMaskPath(pathContainer, sliceGrid, x, y) {
         var leftX = sliceGrid.originX + x * sliceGrid.pieceWidth;
         var rightX = sliceGrid.originX + (x + 1) * sliceGrid.pieceWidth;
         var topY = sliceGrid.originY - y * sliceGrid.pieceHeight;
         var bottomY = sliceGrid.originY - (y + 1) * sliceGrid.pieceHeight;
 
-        var maskPath = doc.pathItems.add();
+        var maskPath = pathContainer.pathItems.add();
         addCornerPoint(maskPath, leftX, bottomY);
         appendLowerTab(maskPath, sliceGrid, x, y);
         addCornerPoint(maskPath, rightX, bottomY);
@@ -3257,6 +3054,140 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
     }
 
     // =========================================
+    // プレビュー / Preview
+    // =========================================
+
+    /**
+     * プレビューの状態を用意する（選択はダイアログを開く前に控え、実行の前に戻す）
+     * @param {Document} doc - 対象ドキュメント
+     * @returns {Object} プレビューの状態
+     */
+    function createPreviewState(doc) {
+        var previewState = { doc: doc, layer: null, savedActiveLayer: null, selectedItems: [], maskBounds: null };
+        /* 文字を選択しているときは doc.selection が TextRange（配列ではない）/ with characters selected, the selection is a TextRange */
+        if (doc.selection.typename) return previewState;
+        for (var i = 0; i < doc.selection.length; i++) {
+            previewState.selectedItems.push(doc.selection[i]);
+        }
+        previewState.maskBounds = getItemsUnionBounds(previewState.selectedItems);
+        return previewState;
+    }
+
+    /**
+     * オブジェクトをまとめた外接矩形を返す（実行時に分割する範囲。測れないものは除く）
+     * @param {PageItem[]} pageItems - 対象
+     * @returns {number[]|null} geometricBounds の形 [左, 上, 右, 下]（測れなければ null）
+     */
+    function getItemsUnionBounds(pageItems) {
+        var unionBounds = null;
+        for (var i = 0; i < pageItems.length; i++) {
+            var itemBounds;
+            try {
+                itemBounds = pageItems[i].geometricBounds;
+            } catch (e) {
+                continue;
+            }
+            if (!unionBounds) {
+                unionBounds = [itemBounds[0], itemBounds[1], itemBounds[2], itemBounds[3]];
+            } else {
+                unionBounds = [Math.min(unionBounds[0], itemBounds[0]), Math.max(unionBounds[1], itemBounds[1]),
+                    Math.max(unionBounds[2], itemBounds[2]), Math.min(unionBounds[3], itemBounds[3])];
+            }
+        }
+        if (!unionBounds || unionBounds[2] <= unionBounds[0] || unionBounds[1] <= unionBounds[3]) return null;
+        return unionBounds;
+    }
+
+    /**
+     * プレビューの線の色（K100）を返す。RGB ドキュメントではグレースケールの黒
+     * @param {Document} doc - 対象ドキュメント
+     * @returns {Color} 線の色
+     */
+    function createPreviewColor(doc) {
+        if (doc.documentColorSpace === DocumentColorSpace.CMYK) {
+            var cmykBlack = new CMYKColor();
+            cmykBlack.cyan = 0;
+            cmykBlack.magenta = 0;
+            cmykBlack.yellow = 0;
+            cmykBlack.black = 100;
+            return cmykBlack;
+        }
+        var grayBlack = new GrayColor();
+        grayBlack.gray = 100;
+        return grayBlack;
+    }
+
+    /**
+     * プレビューを消す（一時レイヤーごと削除し、アクティブレイヤーを戻す）
+     * @param {Object} previewState - createPreviewState() の戻り値
+     * @returns {void}
+     */
+    function removeSlicePreview(previewState) {
+        if (!previewState.layer) return;
+        try {
+            previewState.layer.remove();
+        } catch (e) {}
+        previewState.layer = null;
+        try {
+            if (previewState.savedActiveLayer) previewState.doc.activeLayer = previewState.savedActiveLayer;
+        } catch (e) {}
+        previewState.savedActiveLayer = null;
+    }
+
+    /**
+     * 分割に使うマスクパスだけを、最上位の一時レイヤーに K100・不透明度50%の線で描く
+     * （バラけ・ケイ線・角丸は描かない。パズルのオフセットは効果のまま掛ける）
+     * @param {Object} previewState - createPreviewState() の戻り値
+     * @param {Object|null} sliceSettings - readSliceSettings() の戻り値（null ならプレビューを消すだけ）
+     * @returns {void}
+     */
+    function drawSlicePreview(previewState, sliceSettings) {
+        removeSlicePreview(previewState);
+        var maskBounds = previewState.maskBounds;
+        if (sliceSettings && maskBounds && isValidGridCount(sliceSettings.columnCount, sliceSettings.rowCount)) {
+            var doc = previewState.doc;
+            previewState.savedActiveLayer = doc.activeLayer;
+            var previewLayer = doc.layers.add();
+            previewLayer.name = PREVIEW_LAYER_NAME;
+            previewLayer.zOrder(ZOrderMethod.BRINGTOFRONT);
+            previewState.layer = previewLayer;
+
+            var gridCounts = resolveGridCounts(sliceSettings.columnCount, sliceSettings.rowCount, maskBounds);
+            var sliceGrid = buildSliceGrid(maskBounds, gridCounts.columnCount, gridCounts.rowCount,
+                !sliceSettings.isGridMode, sliceSettings.isRandomShape);
+            var previewColor = createPreviewColor(doc);
+            for (var y = 0; y < sliceGrid.rowCount; y++) {
+                for (var x = 0; x < sliceGrid.columnCount; x++) {
+                    var previewPath = sliceSettings.isGridMode
+                        ? createGridMask(previewLayer, sliceGrid, x, y, sliceSettings.overlapInPoints)
+                        : createPuzzleMaskPath(previewLayer, sliceGrid, x, y);
+                    previewPath.filled = false;
+                    previewPath.stroked = true;
+                    previewPath.strokeColor = previewColor;
+                    previewPath.strokeWidth = PREVIEW_STROKE_WIDTH;
+                    previewPath.opacity = PREVIEW_OPACITY;
+                    if (!sliceSettings.isGridMode && sliceSettings.shouldApplyOffset && sliceSettings.offsetInPoints !== 0) {
+                        try {
+                            previewPath.applyEffect('<LiveEffect name="Adobe Offset Path"><Dict data="R mlim 4 R ofst ' + sliceSettings.offsetInPoints + ' I jntp 2 "/></LiveEffect>');
+                        } catch (e) {}
+                    }
+                }
+            }
+        }
+        app.redraw();
+    }
+
+    /**
+     * 実行の前にプレビューを消し、ダイアログを開く前の選択に戻す（レイヤーの追加・削除で選択が変わっても影響しないように）
+     * @param {Object} previewState - createPreviewState() の戻り値
+     * @returns {void}
+     */
+    function clearPreviewForRun(previewState) {
+        removeSlicePreview(previewState);
+        if (previewState.selectedItems.length > 0) previewState.doc.selection = previewState.selectedItems;
+    }
+
+    // =========================================
     // メイン処理 / Main
     // =========================================
 
@@ -3320,7 +3251,8 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
         }
 
         var artworkSize = getSelectedArtworkSize(doc);
-        var sliceControls = buildDialog(artworkSize, artworkSize || getSelectionUnionSize(doc));
+        var previewState = createPreviewState(doc);
+        var sliceControls = buildDialog(artworkSize, previewState);
         var sliceDialog = sliceControls.dialog;
 
         sliceControls.btnOK.onClick = function () {
@@ -3328,6 +3260,7 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
             /* 分割できない列数・行数なら閉じずに待つ / Stay open when the counts cannot be sliced */
             if (!isValidGridCount(sliceSettings.columnCount, sliceSettings.rowCount)) return;
 
+            clearPreviewForRun(previewState);
             showProgressState(sliceControls);
             try {
                 executeSlice(doc, sliceSettings, function (current, total) {
@@ -3340,9 +3273,15 @@ var SCRIPT_NAME = getScriptMetaValue("X-com.swwwitch-Script-Name") || decodeURI(
             sliceDialog.close(1);
         };
 
+        /* キャンセル・閉じるボタンでもプレビューを消す（prepareDialogWindow より先に入れて、位置の記録とつなぐ）
+           Remove the preview on Cancel or close too (set before prepareDialogWindow so it chains) */
+        sliceDialog.onClose = function () {
+            removeSlicePreview(previewState);
+        };
         addVersionFooter(sliceDialog);
         prepareDialogWindow(sliceDialog, SCRIPT_NAME);
         sliceDialog.show();
+        removeSlicePreview(previewState);
     }
 
     main();
